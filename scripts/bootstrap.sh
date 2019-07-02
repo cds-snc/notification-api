@@ -32,8 +32,7 @@ make generate-version-file
 pip3 install -r requirements_for_test.txt
 
 # Create Postgres databases
-createdb notification_api
+# createdb notification_api
 
 # Upgrade databases
-source environment.sh
 flask db upgrade

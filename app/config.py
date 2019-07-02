@@ -5,7 +5,7 @@ import json
 from celery.schedules import crontab
 from kombu import Exchange, Queue
 
-if os.environ.get('VCAP_SERVICES'):
+if os.getenv('VCAP_SERVICES'):
     # on cloudfoundry, config is a json blob in VCAP_SERVICES - unpack it, and populate
     # standard environment variables from it
     from app.cloudfoundry_config import extract_cloudfoundry_config
@@ -98,7 +98,7 @@ class Config(object):
     PERFORMANCE_PLATFORM_URL = 'https://www.performance.service.gov.uk/data/govuk-notify/'
 
     # Zendesk
-    ZENDESK_API_KEY = os.environ.get('ZENDESK_API_KEY')
+    ZENDESK_API_KEY = os.getenv('ZENDESK_API_KEY')
 
     # Logging
     DEBUG = False
@@ -106,7 +106,7 @@ class Config(object):
 
     # Cronitor
     CRONITOR_ENABLED = False
-    CRONITOR_KEYS = json.loads(os.environ.get('CRONITOR_KEYS', '{}'))
+    CRONITOR_KEYS = json.loads(os.getenv('CRONITOR_KEYS', '{}'))
 
     # Antivirus
     ANTIVIRUS_ENABLED = True
@@ -115,14 +115,14 @@ class Config(object):
     # Default config values ###
     ###########################
 
-    NOTIFY_ENVIRONMENT = 'development'
+    NOTIFY_ENVIRONMENT = os.getenv("NOTIFY_ENVIRONMENT", "development")
     ADMIN_CLIENT_USER_NAME = 'notify-admin'
-    AWS_REGION = 'eu-west-1'
+    AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
     INVITATION_EXPIRATION_DAYS = 2
     NOTIFY_APP_NAME = 'api'
     SQLALCHEMY_RECORD_QUERIES = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_POOL_SIZE = int(os.environ.get('SQLALCHEMY_POOL_SIZE', 5))
+    SQLALCHEMY_POOL_SIZE = int(os.getenv('SQLALCHEMY_POOL_SIZE', 5))
     SQLALCHEMY_POOL_TIMEOUT = 30
     SQLALCHEMY_POOL_RECYCLE = 300
     SQLALCHEMY_STATEMENT_TIMEOUT = 1200
@@ -307,34 +307,34 @@ class Config(object):
     SIMULATED_SMS_NUMBERS = ('+447700900000', '+447700900111', '+447700900222')
 
     DVLA_BUCKETS = {
-        'job': '{}-dvla-file-per-job'.format(os.getenv('NOTIFY_ENVIRONMENT')),
-        'notification': '{}-dvla-letter-api-files'.format(os.getenv('NOTIFY_ENVIRONMENT'))
+        'job': '{}-dvla-file-per-job'.format(os.getenv('NOTIFY_ENVIRONMENT', 'development')),
+        'notification': '{}-dvla-letter-api-files'.format(os.getenv('NOTIFY_ENVIRONMENT', 'development'))
     }
 
     FREE_SMS_TIER_FRAGMENT_COUNT = 250000
 
-    SMS_INBOUND_WHITELIST = json.loads(os.environ.get('SMS_INBOUND_WHITELIST', '[]'))
-    FIRETEXT_INBOUND_SMS_AUTH = json.loads(os.environ.get('FIRETEXT_INBOUND_SMS_AUTH', '[]'))
-    MMG_INBOUND_SMS_AUTH = json.loads(os.environ.get('MMG_INBOUND_SMS_AUTH', '[]'))
-    MMG_INBOUND_SMS_USERNAME = json.loads(os.environ.get('MMG_INBOUND_SMS_USERNAME', '[]'))
+    SMS_INBOUND_WHITELIST = json.loads(os.getenv('SMS_INBOUND_WHITELIST', '[]'))
+    FIRETEXT_INBOUND_SMS_AUTH = json.loads(os.getenv('FIRETEXT_INBOUND_SMS_AUTH', '[]'))
+    MMG_INBOUND_SMS_AUTH = json.loads(os.getenv('MMG_INBOUND_SMS_AUTH', '[]'))
+    MMG_INBOUND_SMS_USERNAME = json.loads(os.getenv('MMG_INBOUND_SMS_USERNAME', '[]'))
 
-    ROUTE_SECRET_KEY_1 = os.environ.get('ROUTE_SECRET_KEY_1', '')
-    ROUTE_SECRET_KEY_2 = os.environ.get('ROUTE_SECRET_KEY_2', '')
+    ROUTE_SECRET_KEY_1 = os.getenv('ROUTE_SECRET_KEY_1', '')
+    ROUTE_SECRET_KEY_2 = os.getenv('ROUTE_SECRET_KEY_2', '')
 
     # Format is as follows:
     # {"dataset_1": "token_1", ...}
-    PERFORMANCE_PLATFORM_ENDPOINTS = json.loads(os.environ.get('PERFORMANCE_PLATFORM_ENDPOINTS', '{}'))
+    PERFORMANCE_PLATFORM_ENDPOINTS = json.loads(os.getenv('PERFORMANCE_PLATFORM_ENDPOINTS', '{}'))
 
-    TEMPLATE_PREVIEW_API_HOST = os.environ.get('TEMPLATE_PREVIEW_API_HOST', 'http://localhost:6013')
-    TEMPLATE_PREVIEW_API_KEY = os.environ.get('TEMPLATE_PREVIEW_API_KEY', 'my-secret-key')
+    TEMPLATE_PREVIEW_API_HOST = os.getenv('TEMPLATE_PREVIEW_API_HOST', 'http://localhost:6013')
+    TEMPLATE_PREVIEW_API_KEY = os.getenv('TEMPLATE_PREVIEW_API_KEY', 'my-secret-key')
 
-    DOCUMENT_DOWNLOAD_API_HOST = os.environ.get('DOCUMENT_DOWNLOAD_API_HOST', 'http://localhost:7000')
-    DOCUMENT_DOWNLOAD_API_KEY = os.environ.get('DOCUMENT_DOWNLOAD_API_KEY', 'auth-token')
+    DOCUMENT_DOWNLOAD_API_HOST = os.getenv('DOCUMENT_DOWNLOAD_API_HOST', 'http://localhost:7000')
+    DOCUMENT_DOWNLOAD_API_KEY = os.getenv('DOCUMENT_DOWNLOAD_API_KEY', 'auth-token')
 
-    MMG_URL = os.environ.get("MMG_URL", "https://api.mmg.co.uk/json/api.php")
-    FIRETEXT_URL = os.environ.get("FIRETEXT_URL", "https://www.firetext.co.uk/api/sendsms/json")
+    MMG_URL = os.getenv("MMG_URL", "https://api.mmg.co.uk/json/api.php")
+    FIRETEXT_URL = os.getenv("FIRETEXT_URL", "https://www.firetext.co.uk/api/sendsms/json")
 
-    AWS_REGION = 'eu-west-1'
+    AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 
 
 ######################
@@ -361,10 +361,10 @@ class Development(Config):
 
     NOTIFY_ENVIRONMENT = 'development'
     NOTIFY_LOG_PATH = 'application.log'
-    NOTIFICATION_QUEUE_PREFIX = 'development'
-    NOTIFY_EMAIL_DOMAIN = "notify.tools"
+    NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "ca-notifier")
+    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
 
-    SQLALCHEMY_DATABASE_URI = 'postgresql://localhost/notification_api'
+    SQLALCHEMY_DATABASE_URI = 'postgresql://postgres@localhost/notification_api'
     REDIS_URL = 'redis://localhost:6379/0'
 
     ANTIVIRUS_ENABLED = os.getenv('ANTIVIRUS_ENABLED') == '1'
@@ -379,7 +379,7 @@ class Development(Config):
 
 
 class Test(Development):
-    NOTIFY_EMAIL_DOMAIN = 'test.notify.com'
+    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
     FROM_NUMBER = 'testing'
     NOTIFY_ENVIRONMENT = 'test'
     TESTING = True
@@ -392,7 +392,7 @@ class Test(Development):
     INVALID_PDF_BUCKET_NAME = 'test-letters-invalid-pdf'
 
     # this is overriden in jenkins and on cloudfoundry
-    SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI', 'postgresql://localhost/test_notification_api')
+    SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI', 'postgresql://postgres@localhost/test_notification_api')
 
     BROKER_URL = 'you-forgot-to-mock-celery-in-your-tests://'
 
@@ -415,7 +415,7 @@ class Test(Development):
 
 
 class Preview(Config):
-    NOTIFY_EMAIL_DOMAIN = 'notify.works'
+    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
     NOTIFY_ENVIRONMENT = 'preview'
     CSV_UPLOAD_BUCKET_NAME = 'preview-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'preview-test-letters'
@@ -429,7 +429,7 @@ class Preview(Config):
 
 
 class Staging(Config):
-    NOTIFY_EMAIL_DOMAIN = 'staging-notify.works'
+    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
     NOTIFY_ENVIRONMENT = 'staging'
     CSV_UPLOAD_BUCKET_NAME = 'staging-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'staging-test-letters'
@@ -444,7 +444,7 @@ class Staging(Config):
 
 
 class Live(Config):
-    NOTIFY_EMAIL_DOMAIN = 'notifications.service.gov.uk'
+    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
     NOTIFY_ENVIRONMENT = 'live'
     CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'production-test-letters'
@@ -466,7 +466,7 @@ class CloudFoundryConfig(Config):
 
 # CloudFoundry sandbox
 class Sandbox(CloudFoundryConfig):
-    NOTIFY_EMAIL_DOMAIN = 'notify.works'
+    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
     NOTIFY_ENVIRONMENT = 'sandbox'
     CSV_UPLOAD_BUCKET_NAME = 'cf-sandbox-notifications-csv-upload'
     LETTERS_PDF_BUCKET_NAME = 'cf-sandbox-letters-pdf'

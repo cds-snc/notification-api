@@ -64,7 +64,7 @@ authenticated_service = LocalProxy(lambda: _request_ctx_stack.top.authenticated_
 def create_app(application):
     from app.config import configs
 
-    notify_environment = os.environ['NOTIFY_ENVIRONMENT']
+    notify_environment = os.getenv('NOTIFY_ENVIRONMENT','development')
 
     application.config.from_object(configs[notify_environment])
 

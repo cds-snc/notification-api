@@ -2,5 +2,4 @@
 
 set -e
 
-source environment.sh
-flask run -p 6011
+flask run -p 6011 --host=0.0.0.0
