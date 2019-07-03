@@ -352,9 +352,9 @@ class Development(Config):
     LETTERS_SCAN_BUCKET_NAME = 'development-letters-scan'
     INVALID_PDF_BUCKET_NAME = 'development-letters-invalid-pdf'
 
-    ADMIN_CLIENT_SECRET = 'dev-notify-secret-key'
-    SECRET_KEY = 'dev-notify-secret-key'
-    DANGEROUS_SALT = 'dev-notify-salt'
+    ADMIN_CLIENT_SECRET = os.getenv('ADMIN_CLIENT_SECRET','dev-notify-secret-key')
+    SECRET_KEY = os.getenv('SECRET_KEY','dev-notify-secret-key')
+    DANGEROUS_SALT = os.getenv('DANGEROUS_SALT','dev-notify-salt')
 
     MMG_INBOUND_SMS_AUTH = ['testkey']
     MMG_INBOUND_SMS_USERNAME = ['username']

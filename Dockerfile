@@ -22,8 +22,6 @@ RUN curl --silent https://bootstrap.pypa.io/get-pip.py | python3.6
 # Backwards compatility.
 RUN rm -fr /usr/bin/python3 && ln /usr/bin/python3.6 /usr/bin/python3
 
-RUN pip3 install pipenv
-
 # -- Install Application into container:
 RUN set -ex && mkdir /app
 
