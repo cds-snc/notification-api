@@ -26,13 +26,6 @@ steps:
     args:
     - set
     - image
-    - deployment.apps/api
-    - api=gcr.io/$PROJECT_ID/api:latest
-    - --namespace=ca-notifier
-  - name: 'gcr.io/cloud-builders/kubectl'
-    args:
-    - set
-    - image
     - deployment.apps/celery
     - celery=gcr.io/$PROJECT_ID/api:latest
     - --namespace=ca-notifier
