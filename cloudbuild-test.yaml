@@ -1,6 +1,6 @@
 steps:
 - name: gcr.io/cloud-builders/docker
-  args: ['run', '-d', '--name=postgres', '-e', 'POSTGRES_DB=notification_api', '--network=cloudbuild', 'postgres']
+  args: ['run', '-d', '--name=postgres', '-e', 'POSTGRES_DB=test_notification_api', '--network=cloudbuild', 'postgres']
 - name: jwilder/dockerize:0.6.1
   args: ['dockerize', '-timeout=60s', '-wait=tcp://postgres:5432']
 - name: "gcr.io/cloud-builders/gcloud"
@@ -17,4 +17,4 @@ steps:
   entrypoint: /bin/bash
   args: ["-c", "/workspace/scripts/bootstrap.sh && make test"]
   env:
-    - 'SQLALCHEMY_DATABASE_URI=postgresql://postgres@postgres/notification_api'
+    - 'SQLALCHEMY_DATABASE_URI=postgresql://postgres@postgres/test_notification_api'
