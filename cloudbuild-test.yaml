@@ -10,12 +10,12 @@ steps:
     - --keyring=deploy
     - --key=env
 - name: 'gcr.io/cloud-builders/docker'
-    args:
-      [
-        'build',
-        '-t',
-        'local_test',
-        '.',
-      ]
+  args:
+    [
+      'build',
+      '-t',
+      'local_test',
+      '.',
+    ]
 - name: "local_test"
   args: ["make test"]
