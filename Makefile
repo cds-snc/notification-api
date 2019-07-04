@@ -90,7 +90,7 @@ upload-paas-artifact:
 	aws s3 cp --region eu-west-1 --sse AES256 target/notifications-api.zip s3://${JENKINS_S3_BUCKET}/build/notifications-api/${DEPLOY_BUILD_NUMBER}.zip
 
 .PHONY: test
-test: venv generate-version-file ## Run tests
+test: generate-version-file ## Run tests
 	./scripts/run_tests.sh
 
 .PHONY: freeze-requirements
