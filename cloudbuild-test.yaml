@@ -14,6 +14,6 @@ steps:
     - --keyring=deploy
     - --key=env
 - name: "python:3.6-slim"
-  args: ["./scripts/bootstap.sh && make test"]
+  args: ["scripts/bootstap.sh && make test"]
   env:
     - 'SQLALCHEMY_DATABASE_URI=postgresql://postgres@postgres/test_notification_api'
