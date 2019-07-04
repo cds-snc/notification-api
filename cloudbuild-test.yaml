@@ -1,8 +1,4 @@
 steps:
-- name: gcr.io/cloud-builders/docker
-  args: ['run', '-d', '--name=postgres', '--network=cloudbuild', 'postgres']
-- name: jwilder/dockerize:0.6.1
-  args: ['dockerize', '-timeout=60s', '-wait=tcp://postgres:5432']
 - name: "gcr.io/cloud-builders/gcloud"
   args:
     - kms
@@ -13,8 +9,13 @@ steps:
     - --project=$PROJECT_ID
     - --keyring=deploy
     - --key=env
-- name: "python:3.6-slim"
-  entrypoint: /bin/sh
-  args: ["-c", "/workspace/scripts/bootstrap.sh && make test"]
-  env:
-    - 'SQLALCHEMY_DATABASE_URI=postgresql://postgres@postgres/test_notification_api'
+- name: 'gcr.io/cloud-builders/docker'
+    args:
+      [
+        'build',
+        '-t',
+        'local_test',
+        '.',
+      ]
+- name: "local_test"
+  args: ["make test"]
