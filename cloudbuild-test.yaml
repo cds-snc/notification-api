@@ -11,4 +11,4 @@ steps:
     - --key=env
 - name: 'gcr.io/ca-notifier/testing-env@sha256:f04a8f70777381e8f51942567d31a1e9e0fafa1a57be25de0bfa348462962210'
   entrypoint: /bin/bash
-  args: ["/workspace/scripts/bootstrap.sh"]
+  args: ["service postgresql start && /workspace/scripts/bootstrap.sh"]
