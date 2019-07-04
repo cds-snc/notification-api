@@ -15,7 +15,8 @@ steps:
     - --key=env
 - name: "gcr.io/ca-notifier/testing-env@sha256:a756657d22fa9c0a5625ee879c73bd6e5c09bf44a22fc8f37d26e67b53eba31a"
   entrypoint: /bin/bash
-  timeout: 1200s
   args: ["-c", "/workspace/scripts/bootstrap.sh && make test"]
   env:
     - 'SQLALCHEMY_DATABASE_URI=postgresql://postgres@postgres/test_notification_api'
+options:
+ machineType: 'N1_HIGHCPU_8'
