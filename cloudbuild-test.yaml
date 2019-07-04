@@ -9,6 +9,17 @@ steps:
     - --project=$PROJECT_ID
     - --keyring=deploy
     - --key=env
-- name: 'gcr.io/ca-notifier/testing-env@sha256:f04a8f70777381e8f51942567d31a1e9e0fafa1a57be25de0bfa348462962210'
-  entrypoint: /bin/bash
-  args: ["-c", "service postgresql start && /workspace/scripts/bootstrap.sh"]
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+    [
+      'build',
+      '-t',
+      'gcr.io/$PROJECT_ID/testing-env:$SHORT_SHA',
+      '-t',
+      'gcr.io/$PROJECT_ID/testing-env:latest',
+      '-f',
+      'Dockerfile.test',
+      '.',
+    ]
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'gcr.io/$PROJECT_ID/testing-env:$SHORT_SHA']
