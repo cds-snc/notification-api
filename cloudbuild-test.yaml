@@ -1,4 +1,8 @@
 steps:
+- name: gcr.io/cloud-builders/docker
+  args: ['run', '-d', '--name=postgres', '-e', 'POSTGRES_DB=notification_api', '--network=cloudbuild', 'postgres']
+- name: jwilder/dockerize:0.6.1
+  args: ['dockerize', '-timeout=60s', '-wait=tcp://postgres:5432']
 - name: "gcr.io/cloud-builders/gcloud"
   args:
     - kms
@@ -9,6 +13,8 @@ steps:
     - --project=$PROJECT_ID
     - --keyring=deploy
     - --key=env
-- name: 'gcr.io/ca-notifier/testing-env@sha256:a756657d22fa9c0a5625ee879c73bd6e5c09bf44a22fc8f37d26e67b53eba31a'
+- name: "gcr.io/ca-notifier/testing-env@sha256:a756657d22fa9c0a5625ee879c73bd6e5c09bf44a22fc8f37d26e67b53eba31a"
   entrypoint: /bin/bash
-  args: ["-c", "service postgresql start && /workspace/scripts/bootstrap.sh"]
+  args: ["-c", "/workspace/scripts/bootstrap.sh"]
+  env:
+    - 'SQLALCHEMY_DATABASE_URI=postgresql://postgres@postgres/notification_api'
