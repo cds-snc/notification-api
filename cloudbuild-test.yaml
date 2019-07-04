@@ -18,7 +18,7 @@ steps:
       '-t',
       'gcr.io/$PROJECT_ID/testing-env:latest',
       '-f',
-      'Dockerfile.test'
+      'Dockerfile.test',
       '.',
     ]
   - name: 'gcr.io/cloud-builders/docker'
