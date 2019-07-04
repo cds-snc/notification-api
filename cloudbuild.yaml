@@ -22,6 +22,23 @@ steps:
       ]
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/api:$SHORT_SHA']
+  - name: 'gcr.io/cloud-builders/kubectl'
+    args:
+    - set
+    - image
+    - deployment.apps/api
+    - api=gcr.io/$PROJECT_ID/api:latest
+    - --namespace=ca-notifier
+  - name: 'gcr.io/cloud-builders/kubectl'
+    args:
+    - set
+    - image
+    - deployment.apps/celery
+    - celery=gcr.io/$PROJECT_ID/api:latest
+    - --namespace=ca-notifier
+    env:
+    - 'CLOUDSDK_COMPUTE_ZONE=northamerica-northeast1-a'
+    - 'CLOUDSDK_CONTAINER_CLUSTER=notifier'
 images:
   - 'gcr.io/$PROJECT_ID/api:$SHORT_SHA'
   - 'gcr.io/$PROJECT_ID/api:latest'
