@@ -66,7 +66,7 @@ authenticated_service = LocalProxy(lambda: _request_ctx_stack.top.authenticated_
 def create_app(application):
     from app.config import configs
 
-    notify_environment = os.getenv('NOTIFY_ENVIRONMENT','development')
+    notify_environment = os.getenv('NOTIFY_ENVIRONMENT', 'development')
 
     application.config.from_object(configs[notify_environment])
 
@@ -90,7 +90,10 @@ def create_app(application):
     redis_store.init_app(application)
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
-    clients.init_app(sms_clients=[firetext_client, mmg_client, aws_sns_client, loadtest_client], email_clients=[aws_ses_client])
+    clients.init_app(
+        sms_clients=[firetext_client, mmg_client, aws_sns_client, loadtest_client],
+        email_clients=[aws_ses_client]
+    )
 
     register_blueprint(application)
     register_v2_blueprints(application)

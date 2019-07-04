@@ -4,6 +4,7 @@ import phonenumbers
 from time import monotonic
 from app.clients.sms import SmsClient
 
+
 class AwsSnsClient(SmsClient):
     '''
     AwsSns sms client
@@ -20,7 +21,10 @@ class AwsSnsClient(SmsClient):
         return self.name
 
     def send_sms(self, to, content, reference, multi=True, sender=None):
+        matched = False
+
         for match in phonenumbers.PhoneNumberMatcher(to, "US"):
+            matched = True
             to = phonenumbers.format_number(match.number, phonenumbers.PhoneNumberFormat.E164)
 
             try:
@@ -31,8 +35,10 @@ class AwsSnsClient(SmsClient):
                 )
             except botocore.exceptions.ClientError as e:
                 self.statsd_client.incr("clients.sns.error")
+                raise str(e)
             except Exception as e:
                 self.statsd_client.incr("clients.sns.error")
+                raise str(e)
             finally:
                 elapsed_time = monotonic() - start_time
                 self.current_app.logger.info("AWS SNS request finished in {}".format(elapsed_time))
@@ -40,3 +46,8 @@ class AwsSnsClient(SmsClient):
                 self.statsd_client.incr("clients.sns.success")
 
             return response['MessageId']
+
+        if not matched:
+            self.statsd_client.incr("clients.sns.error")
+            self.current_app.logger.error("No valid numbers found in {}".format(to))
+            raise ValueError("No valid numbers found for SMS delivery")

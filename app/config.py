@@ -352,9 +352,9 @@ class Development(Config):
     LETTERS_SCAN_BUCKET_NAME = 'development-letters-scan'
     INVALID_PDF_BUCKET_NAME = 'development-letters-invalid-pdf'
 
-    ADMIN_CLIENT_SECRET = os.getenv('ADMIN_CLIENT_SECRET','dev-notify-secret-key')
-    SECRET_KEY = os.getenv('SECRET_KEY','dev-notify-secret-key')
-    DANGEROUS_SALT = os.getenv('DANGEROUS_SALT','dev-notify-salt')
+    ADMIN_CLIENT_SECRET = os.getenv('ADMIN_CLIENT_SECRET', 'dev-notify-secret-key')
+    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-notify-secret-key')
+    DANGEROUS_SALT = os.getenv('DANGEROUS_SALT', 'dev-notify-salt ')
 
     MMG_INBOUND_SMS_AUTH = ['testkey']
     MMG_INBOUND_SMS_USERNAME = ['username']
@@ -364,7 +364,7 @@ class Development(Config):
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "ca-notifier")
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
 
-    SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI",'postgresql://postgres@localhost/notification_api')
+    SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", 'postgresql://postgres@localhost/notification_api')
     REDIS_URL = 'redis://localhost:6379/0'
 
     ANTIVIRUS_ENABLED = os.getenv('ANTIVIRUS_ENABLED') == '1'
@@ -392,7 +392,10 @@ class Test(Development):
     INVALID_PDF_BUCKET_NAME = 'test-letters-invalid-pdf'
 
     # this is overriden in jenkins and on cloudfoundry
-    SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI', 'postgresql://postgres@localhost/test_notification_api')
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        'SQLALCHEMY_DATABASE_URI',
+        'postgresql://postgres@localhost/test_notification_api'
+    )
 
     BROKER_URL = 'you-forgot-to-mock-celery-in-your-tests://'
 
