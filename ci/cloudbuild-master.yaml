@@ -19,7 +19,7 @@ steps:
         '-t',
         'gcr.io/$PROJECT_ID/api:latest',
         '-f',
-        'ci/Dockerfile'
+        'ci/Dockerfile',
         '.',
       ]
   - name: 'gcr.io/cloud-builders/docker'
