@@ -1,17 +1,25 @@
-FROM python:3.6-slim-stretch
+FROM python:3.6-alpine as base
+FROM base as builder
 
-ENV DEBIAN_FRONTEND noninteractive
-ENV LC_ALL C.UTF-8
-ENV LANG C.UTF-8
-# Python, don't write bytecode!
 ENV PYTHONDONTWRITEBYTECODE 1
 
-RUN apt-get update
-RUN apt-get install -y build-essential software-properties-common git
+RUN apk add --no-cache build-base git gcc musl-dev postgresql-dev g++ make libffi-dev && rm -rf /var/cache/apk/*
 
 # update pip
-RUN python -m pip install pip --upgrade
 RUN python -m pip install wheel
+
+RUN mkdir /install
+WORKDIR /install
+
+COPY requirements.txt requirements.txt
+
+RUN set -ex && pip3 install -r requirements.txt
+
+FROM base
+
+RUN apk add --no-cache make git && rm -rf /var/cache/apk/*
+
+COPY --from=builder /install /usr/local
 
 # -- Install Application into container:
 RUN set -ex && mkdir /app
@@ -19,8 +27,6 @@ RUN set -ex && mkdir /app
 WORKDIR /app
 
 COPY . /app
-
-RUN set -ex && pip3 install -r requirements.txt
 
 RUN make generate-version-file
 
