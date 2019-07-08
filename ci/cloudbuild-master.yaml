@@ -27,8 +27,8 @@ steps:
     - set
     - image
     - deployment.apps/api
-    - api=gcr.io/$PROJECT_ID/api:latest
-    - --namespace=ca-notifier
+    - api=gcr.io/$PROJECT_ID/api:$SHORT_SHA
+    - --namespace=notification-canada-ca
     env:
     - 'CLOUDSDK_COMPUTE_ZONE=northamerica-northeast1-a'
     - 'CLOUDSDK_CONTAINER_CLUSTER=notifier'
@@ -37,8 +37,8 @@ steps:
     - set
     - image
     - deployment.apps/celery
-    - celery=gcr.io/$PROJECT_ID/api:latest
-    - --namespace=ca-notifier
+    - celery=gcr.io/$PROJECT_ID/api:$SHORT_SHA
+    - --namespace=notification-canada-ca
     env:
     - 'CLOUDSDK_COMPUTE_ZONE=northamerica-northeast1-a'
     - 'CLOUDSDK_CONTAINER_CLUSTER=notifier'
