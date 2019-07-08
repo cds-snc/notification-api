@@ -33,7 +33,7 @@ steps:
     - --namespace=notification-canada-ca
     env:
     - 'CLOUDSDK_COMPUTE_ZONE=northamerica-northeast1-a'
-    - 'CLOUDSDK_CONTAINER_CLUSTER=notifier'
+    - 'CLOUDSDK_CONTAINER_CLUSTER=notification'
   - name: 'gcr.io/cloud-builders/kubectl'
     args:
     - set
@@ -43,7 +43,7 @@ steps:
     - --namespace=notification-canada-ca
     env:
     - 'CLOUDSDK_COMPUTE_ZONE=northamerica-northeast1-a'
-    - 'CLOUDSDK_CONTAINER_CLUSTER=notifier'
+    - 'CLOUDSDK_CONTAINER_CLUSTER=notification'
 images:
   - 'gcr.io/$PROJECT_ID/api:$SHORT_SHA'
   - 'gcr.io/$PROJECT_ID/api:latest'
