@@ -4,7 +4,7 @@ steps:
       [
         'build',
         '-t',
-        'gcr.io/$PROJECT_ID/testing-env:abcd',
+        'gcr.io/$PROJECT_ID/testing-env:$SHORT_SHA',
         '-t',
         'gcr.io/$PROJECT_ID/testing-env:latest',
         '-f',
@@ -12,7 +12,7 @@ steps:
         '.',
       ]
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/testing-env:abcd']
+    args: ['push', 'gcr.io/$PROJECT_ID/testing-env:$SHORT_SHA']
 images:
-  - 'gcr.io/$PROJECT_ID/testing-env:abcd'
+  - 'gcr.io/$PROJECT_ID/testing-env:$SHORT_SHA'
   - 'gcr.io/$PROJECT_ID/testing-env:latest'
