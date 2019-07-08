@@ -18,6 +18,8 @@ steps:
         'gcr.io/$PROJECT_ID/api:$SHORT_SHA',
         '-t',
         'gcr.io/$PROJECT_ID/api:latest',
+        '-f',
+        'ci/Dockerfile'
         '.',
       ]
   - name: 'gcr.io/cloud-builders/docker'
