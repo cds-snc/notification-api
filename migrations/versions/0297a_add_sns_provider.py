@@ -1,6 +1,6 @@
 """
 
-Revision ID: 02971_add_sns_provider
+Revision ID: 0297a_add_sns_provider
 Revises: 0297_template_redacted_fix
 Create Date: 2019-07-09 08:49:20.630174
 
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = '02971_add_sns_provider'
+revision = '0297a_add_sns_provider'
 down_revision = '0297_template_redacted_fix'
 
 
