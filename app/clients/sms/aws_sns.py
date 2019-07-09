@@ -31,7 +31,13 @@ class AwsSnsClient(SmsClient):
                 start_time = monotonic()
                 response = self._client.publish(
                     PhoneNumber=to,
-                    Message=content
+                    Message=content,
+                    MessageAttributes = {
+                        'AWS.SNS.SMS.SMSType': {
+                            'DataType': 'String',
+                            'StringValue': 'Transactional'
+                        }
+                    }
                 )
             except botocore.exceptions.ClientError as e:
                 self.statsd_client.incr("clients.sns.error")
