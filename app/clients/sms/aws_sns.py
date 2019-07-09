@@ -32,7 +32,7 @@ class AwsSnsClient(SmsClient):
                 response = self._client.publish(
                     PhoneNumber=to,
                     Message=content,
-                    MessageAttributes = {
+                    MessageAttributes={
                         'AWS.SNS.SMS.SMSType': {
                             'DataType': 'String',
                             'StringValue': 'Transactional'
