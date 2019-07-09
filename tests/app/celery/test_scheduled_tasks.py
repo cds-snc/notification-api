@@ -41,7 +41,7 @@ from tests.app.db import (
 from tests.app.conftest import sample_job as create_sample_job
 
 
-def _create_slow_delivery_notification(template, provider='mmg'):
+def _create_slow_delivery_notification(template, provider='sns'):
     now = datetime.utcnow()
     five_minutes_from_now = now + timedelta(minutes=5)
 

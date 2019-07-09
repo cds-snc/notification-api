@@ -9,7 +9,7 @@ from notifications_utils.recipients import validate_and_format_phone_number
 from requests import HTTPError
 
 import app
-from app import mmg_client, firetext_client
+from app import aws_sns_client, mmg_client
 from app.dao import (provider_details_dao, notifications_dao)
 from app.dao.provider_details_dao import dao_switch_sms_provider_to_provider_with_identifier
 from app.delivery import send_to_providers
@@ -42,7 +42,7 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
 
     assert send_to_providers.provider_to_use('sms', '1234').name == first.identifier
 
-    first.priority = 20
+    first.priority = 15
     second.priority = 10
 
     provider_details_dao.dao_update_provider_details(first)
@@ -52,7 +52,7 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
 
     first.priority = 10
     first.active = False
-    second.priority = 20
+    second.priority = 15
 
     provider_details_dao.dao_update_provider_details(first)
     provider_details_dao.dao_update_provider_details(second)
@@ -74,13 +74,13 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
                                           status='created',
                                           reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender())
 
-    mocker.patch('app.mmg_client.send_sms')
+    mocker.patch('app.aws_sns_client.send_sms')
 
     send_to_providers.send_sms_to_provider(
         db_notification
     )
 
-    mmg_client.send_sms.assert_called_once_with(
+    aws_sns_client.send_sms.assert_called_once_with(
         to=validate_and_format_phone_number("+447234123123"),
         content="Sample service: Hello Jo\nHere is <em>some HTML</em> & entities",
         reference=str(db_notification.id),
@@ -91,7 +91,7 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
 
     assert notification.status == 'sending'
     assert notification.sent_at <= datetime.utcnow()
-    assert notification.sent_by == 'mmg'
+    assert notification.sent_by == 'sns'
     assert notification.billable_units == 1
     assert notification.personalisation == {"name": "Jo"}
 
@@ -144,7 +144,7 @@ def test_should_not_send_email_message_when_service_is_inactive_notifcation_is_i
     assert str(sample_notification.id) in e.value.message
 
 
-@pytest.mark.parametrize("client_send", ["app.mmg_client.send_sms", "app.firetext_client.send_sms"])
+@pytest.mark.parametrize("client_send", ["app.aws_sns_client.send_sms", "app.mmg_client.send_sms"])
 def test_should_not_send_sms_message_when_service_is_inactive_notifcation_is_in_tech_failure(
         sample_service, sample_notification, mocker, client_send):
     sample_service.active = False
@@ -163,7 +163,7 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(
     db_notification = create_notification(template=sample_template, to_field='+447234123123', status='created',
                                           reply_to_text=sample_template.service.get_default_sms_sender())
 
-    mocker.patch('app.mmg_client.send_sms')
+    mocker.patch('app.aws_sns_client.send_sms')
 
     version_on_notification = sample_template.version
 
@@ -178,7 +178,7 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(
         db_notification
     )
 
-    mmg_client.send_sms.assert_called_once_with(
+    aws_sns_client.send_sms.assert_called_once_with(
         to=validate_and_format_phone_number("+447234123123"),
         content="Sample service: This is a template:\nwith a newline",
         reference=str(db_notification.id),
@@ -201,7 +201,7 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(
 def test_should_call_send_sms_response_task_if_research_mode(
         notify_db, sample_service, sample_notification, mocker, research_mode, key_type
 ):
-    mocker.patch('app.mmg_client.send_sms')
+    mocker.patch('app.aws_sns_client.send_sms')
     mocker.patch('app.delivery.send_to_providers.send_sms_response')
 
     if research_mode:
@@ -214,10 +214,10 @@ def test_should_call_send_sms_response_task_if_research_mode(
     send_to_providers.send_sms_to_provider(
         sample_notification
     )
-    assert not mmg_client.send_sms.called
+    assert not aws_sns_client.send_sms.called
 
     app.delivery.send_to_providers.send_sms_response.assert_called_once_with(
-        'mmg', str(sample_notification.id), sample_notification.to
+        'sns', str(sample_notification.id), sample_notification.to
     )
 
     persisted_notification = notifications_dao.get_notification_by_id(sample_notification.id)
@@ -225,7 +225,7 @@ def test_should_call_send_sms_response_task_if_research_mode(
     assert persisted_notification.template_id == sample_notification.template_id
     assert persisted_notification.status == 'sending'
     assert persisted_notification.sent_at <= datetime.utcnow()
-    assert persisted_notification.sent_by == 'mmg'
+    assert persisted_notification.sent_by == 'sns'
     assert not persisted_notification.personalisation
 
 
@@ -239,7 +239,7 @@ def test_should_have_sending_status_if_fake_callback_function_fails(sample_notif
             sample_notification
         )
     assert sample_notification.status == 'sending'
-    assert sample_notification.sent_by == 'mmg'
+    assert sample_notification.sent_by == 'sns'
 
 
 def test_should_not_send_to_provider_when_status_is_not_created(
@@ -247,14 +247,14 @@ def test_should_not_send_to_provider_when_status_is_not_created(
     mocker
 ):
     notification = create_notification(template=sample_template, status='sending')
-    mocker.patch('app.mmg_client.send_sms')
+    mocker.patch('app.aws_sns_client.send_sms')
     response_mock = mocker.patch('app.delivery.send_to_providers.send_sms_response')
 
     send_to_providers.send_sms_to_provider(
         notification
     )
 
-    app.mmg_client.send_sms.assert_not_called()
+    app.aws_sns_client.send_sms.assert_not_called()
     response_mock.assert_not_called()
 
 
@@ -271,11 +271,11 @@ def test_should_send_sms_with_downgraded_content(notify_db_session, mocker):
         personalisation={'misc': placeholder}
     )
 
-    mocker.patch('app.mmg_client.send_sms')
+    mocker.patch('app.aws_sns_client.send_sms')
 
     send_to_providers.send_sms_to_provider(db_notification)
 
-    mmg_client.send_sms.assert_called_once_with(
+    aws_sns_client.send_sms.assert_called_once_with(
         to=ANY,
         content=gsm_message,
         reference=ANY,
@@ -287,7 +287,7 @@ def test_send_sms_should_use_service_sms_sender(
         sample_service,
         sample_template,
         mocker):
-    mocker.patch('app.mmg_client.send_sms')
+    mocker.patch('app.aws_sns_client.send_sms')
 
     sms_sender = create_service_sms_sender(service=sample_service, sms_sender='123456', is_default=False)
     db_notification = create_notification(template=sample_template, reply_to_text=sms_sender.sms_sender)
@@ -296,7 +296,7 @@ def test_send_sms_should_use_service_sms_sender(
         db_notification,
     )
 
-    app.mmg_client.send_sms.assert_called_once_with(
+    app.aws_sns_client.send_sms.assert_called_once_with(
         to=ANY,
         content=ANY,
         reference=ANY,
@@ -534,7 +534,7 @@ def test_should_update_billable_units_and_status_according_to_research_mode_and_
     expected_status
 ):
     notification = create_notification(template=sample_template, billable_units=0, status='created', key_type=key_type)
-    mocker.patch('app.mmg_client.send_sms')
+    mocker.patch('app.aws_sns_client.send_sms')
     mocker.patch('app.delivery.send_to_providers.send_sms_response',
                  side_effect=__update_notification(notification, research_mode, expected_status))
 
@@ -552,7 +552,7 @@ def test_should_set_notification_billable_units_if_sending_to_provider_fails(
     sample_notification,
     mocker,
 ):
-    mocker.patch('app.mmg_client.send_sms', side_effect=Exception())
+    mocker.patch('app.aws_sns_client.send_sms', side_effect=Exception())
     mock_toggle_provider = mocker.patch('app.delivery.send_to_providers.dao_toggle_sms_provider')
 
     sample_notification.billable_units = 0
@@ -565,6 +565,7 @@ def test_should_set_notification_billable_units_if_sending_to_provider_fails(
     assert mock_toggle_provider.called
 
 
+@pytest.mark.skip(reason="Currently not supporting international providers")
 def test_should_send_sms_to_international_providers(
     restore_provider_details,
     sample_sms_template_with_html,
@@ -577,7 +578,7 @@ def test_should_send_sms_to_international_providers(
 
     db_notification_uk = create_notification(
         template=sample_sms_template_with_html,
-        to_field="+447234123999",
+        to_field="+16135555555",
         personalisation={"name": "Jo"},
         status='created',
         international=False,
@@ -586,22 +587,22 @@ def test_should_send_sms_to_international_providers(
 
     db_notification_international = create_notification(
         template=sample_sms_template_with_html,
-        to_field="+6011-17224412",
+        to_field="+1613555555",
         personalisation={"name": "Jo"},
         status='created',
-        international=True,
+        international=False,
         reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender()
     )
 
+    mocker.patch('app.aws_sns_client.send_sms')
     mocker.patch('app.mmg_client.send_sms')
-    mocker.patch('app.firetext_client.send_sms')
 
     send_to_providers.send_sms_to_provider(
         db_notification_uk
     )
 
-    firetext_client.send_sms.assert_called_once_with(
-        to="447234123999",
+    mmg_client.send_sms.assert_called_once_with(
+        to="16135555555",
         content=ANY,
         reference=str(db_notification_uk.id),
         sender=current_app.config['FROM_NUMBER']
@@ -611,7 +612,7 @@ def test_should_send_sms_to_international_providers(
         db_notification_international
     )
 
-    mmg_client.send_sms.assert_called_once_with(
+    aws_sns_client.send_sms.assert_called_once_with(
         to="601117224412",
         content=ANY,
         reference=str(db_notification_international.id),
@@ -644,14 +645,14 @@ def test_should_handle_sms_sender_and_prefix_message(
     expected_content,
     notify_db_session
 ):
-    mocker.patch('app.mmg_client.send_sms')
+    mocker.patch('app.aws_sns_client.send_sms')
     service = create_service_with_defined_sms_sender(sms_sender_value=sms_sender, prefix_sms=prefix_sms)
     template = create_template(service, content='bar')
     notification = create_notification(template, reply_to_text=sms_sender)
 
     send_to_providers.send_sms_to_provider(notification)
 
-    mmg_client.send_sms.assert_called_once_with(
+    aws_sns_client.send_sms.assert_called_once_with(
         content=expected_content,
         sender=expected_sender,
         to=ANY,
@@ -703,7 +704,7 @@ def test_send_email_to_provider_should_format_reply_to_email_address(
 
 def test_send_sms_to_provider_should_format_phone_number(sample_notification, mocker):
     sample_notification.to = '+44 (7123) 123-123'
-    send_mock = mocker.patch('app.mmg_client.send_sms')
+    send_mock = mocker.patch('app.aws_sns_client.send_sms')
 
     send_to_providers.send_sms_to_provider(sample_notification)
 

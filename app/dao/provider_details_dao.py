@@ -23,10 +23,10 @@ def get_provider_details_by_identifier(identifier):
 
 def get_alternative_sms_provider(identifier):
     alternate_provider = None
-    if identifier == 'firetext':
+    if identifier == 'mmg':
+        alternate_provider = 'sns'
+    elif identifier == 'sns':
         alternate_provider = 'mmg'
-    elif identifier == 'mmg':
-        alternate_provider = 'firetext'
 
     return ProviderDetails.query.filter_by(identifier=alternate_provider).one()
 
