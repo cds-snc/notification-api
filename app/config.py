@@ -361,7 +361,7 @@ class Development(Config):
 
     NOTIFY_ENVIRONMENT = 'development'
     NOTIFY_LOG_PATH = 'application.log'
-    NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "ca-notifier")
+    NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-canada-ca")
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
 
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", 'postgresql://postgres@localhost/notification_api')
