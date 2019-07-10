@@ -160,43 +160,6 @@ test-with-docker: prepare-docker-build-image create-docker-test-db ## Run tests 
 		${DOCKER_BUILDER_IMAGE_NAME} \
 		gosu hostuser make test
 
-.PHONY: create-docker-test-db
-create-docker-test-db: ## Start the test database in a Docker container
-	docker rm -f ${DOCKER_CONTAINER_PREFIX}-db 2> /dev/null || true
-	@docker run -d \
-		--name "${DOCKER_CONTAINER_PREFIX}-db" \
-		-e POSTGRES_PASSWORD="postgres" \
-		-e POSTGRES_DB=test_notification_api \
-		postgres:9.5
-	sleep 3
-
-# FIXME: CIRCLECI=1 is an ugly hack because the coveralls-python library sends the PR link only this way
-.PHONY: coverage-with-docker
-coverage-with-docker: prepare-docker-build-image ## Generates coverage report inside a Docker container
-	@docker run -i${DOCKER_TTY} --rm \
-		--name "${DOCKER_CONTAINER_PREFIX}-coverage" \
-		-v "`pwd`:/var/project" \
-		-e UID=$(shell id -u) \
-		-e GID=$(shell id -g) \
-		-e COVERALLS_REPO_TOKEN=${COVERALLS_REPO_TOKEN} \
-		-e CIRCLECI=1 \
-		-e CI_NAME=${CI_NAME} \
-		-e CI_BUILD_NUMBER=${BUILD_NUMBER} \
-		-e CI_BUILD_URL=${BUILD_URL} \
-		-e CI_BRANCH=${GIT_BRANCH} \
-		-e CI_PULL_REQUEST=${CI_PULL_REQUEST} \
-		-e http_proxy="${HTTP_PROXY}" \
-		-e HTTP_PROXY="${HTTP_PROXY}" \
-		-e https_proxy="${HTTPS_PROXY}" \
-		-e HTTPS_PROXY="${HTTPS_PROXY}" \
-		-e NO_PROXY="${NO_PROXY}" \
-		${DOCKER_BUILDER_IMAGE_NAME} \
-		gosu hostuser make coverage
-
-.PHONY: clean-docker-containers
-clean-docker-containers: ## Clean up any remaining docker containers
-	docker rm -f $(shell docker ps -q -f "name=${DOCKER_CONTAINER_PREFIX}") 2> /dev/null || true
-
 .PHONY: clean
 clean:
 	rm -rf node_modules cache target venv .coverage build tests/.cache
