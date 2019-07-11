@@ -44,6 +44,19 @@ steps:
     env:
     - 'CLOUDSDK_COMPUTE_ZONE=northamerica-northeast1-a'
     - 'CLOUDSDK_CONTAINER_CLUSTER=notification'
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+    - beta
+    - run
+    - deploy
+    - api
+    - --image
+    - gcr.io/$PROJECT_ID/api:$SHORT_SHA
+    - --region
+    - us-central1
+    - --allow-unauthenticated
+    - --platform
+    - managed
 images:
   - 'gcr.io/$PROJECT_ID/api:$SHORT_SHA'
   - 'gcr.io/$PROJECT_ID/api:latest'
