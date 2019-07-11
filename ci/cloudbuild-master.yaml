@@ -47,3 +47,5 @@ steps:
 images:
   - 'gcr.io/$PROJECT_ID/api:$SHORT_SHA'
   - 'gcr.io/$PROJECT_ID/api:latest'
+options:
+  machineType: 'N1_HIGHCPU_32'

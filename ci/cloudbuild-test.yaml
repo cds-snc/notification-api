@@ -19,4 +19,4 @@ steps:
   env:
     - 'SQLALCHEMY_DATABASE_URI=postgresql://postgres@postgres/test_notification_api'
 options:
- machineType: 'N1_HIGHCPU_8'
+  machineType: 'N1_HIGHCPU_32'
