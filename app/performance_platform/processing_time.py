@@ -2,14 +2,14 @@ from datetime import timedelta
 
 from flask import current_app
 
-from app.utils import get_london_midnight_in_utc
+from app.utils import get_toronto_midnight_in_utc
 from app.dao.notifications_dao import dao_get_total_notifications_sent_per_day_for_performance_platform
 from app import performance_platform_client
 
 
 def send_processing_time_to_performance_platform(bst_date):
-    start_time = get_london_midnight_in_utc(bst_date)
-    end_time = get_london_midnight_in_utc(bst_date + timedelta(days=1))
+    start_time = get_toronto_midnight_in_utc(bst_date)
+    end_time = get_toronto_midnight_in_utc(bst_date + timedelta(days=1))
 
     send_processing_time_for_start_and_end(start_time, end_time)
 

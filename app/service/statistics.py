@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import datetime
 
-from notifications_utils.timezones import convert_utc_to_bst
+from notifications_utils.timezones import convert_utc_to_est
 
 from app.models import NOTIFICATION_STATUS_TYPES, TEMPLATE_TYPES
 from app.dao.date_util import get_months_for_financial_year
@@ -98,7 +98,7 @@ def create_empty_monthly_notification_status_stats_dict(year):
     utc_month_starts = get_months_for_financial_year(year)
     # nested dicts - data[month][template type][status] = count
     return {
-        convert_utc_to_bst(start).strftime('%Y-%m'): {
+        convert_utc_to_est(start).strftime('%Y-%m'): {
             template_type: defaultdict(int)
             for template_type in TEMPLATE_TYPES
         }

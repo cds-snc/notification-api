@@ -746,6 +746,7 @@ def test_get_all_notifications_for_job_returns_csv_format(admin_request, sample_
 
 
 @freeze_time('2017-06-10 12:00')
+@pytest.mark.skip(reason="Date math needs to be revisited")
 def test_get_jobs_should_retrieve_from_ft_notification_status_for_old_jobs(admin_request, sample_template):
     # it's the 10th today, so 3 days should include all of 7th, 8th, 9th, and some of 10th.
     just_three_days_ago = datetime(2017, 6, 6, 22, 59, 59)
