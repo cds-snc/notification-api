@@ -5,7 +5,7 @@ from flask import url_for
 from sqlalchemy import func
 from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate, get_html_email_body
 
-local_timezone = pytz.timezone("Europe/London")
+local_timezone = pytz.timezone("America/Toronto")
 
 
 def pagination_links(pagination, endpoint, **kwargs):
@@ -46,7 +46,7 @@ def get_html_email_body_from_template(template_instance):
     )
 
 
-def get_london_midnight_in_utc(date):
+def get_toronto_midnight_in_utc(date):
     """
      This function converts date to midnight as BST (British Standard Time) to UTC,
      the tzinfo is lastly removed from the datetime because the database stores the timestamps without timezone.
@@ -60,7 +60,7 @@ def get_london_midnight_in_utc(date):
 
 def get_midnight_for_day_before(date):
     day_before = date - timedelta(1)
-    return get_london_midnight_in_utc(day_before)
+    return get_toronto_midnight_in_utc(day_before)
 
 
 def get_london_month_from_utc_column(column):
@@ -69,13 +69,13 @@ def get_london_month_from_utc_column(column):
      the month in BST (British Summer Time).
      The database stores all timestamps as UTC without the timezone.
       - First set the timezone on created_at to UTC
-      - then convert the timezone to BST (or Europe/London)
+      - then convert the timezone to BST (or America/Toronto)
       - lastly truncate the datetime to month with which we can group
         queries
     """
     return func.date_trunc(
         "month",
-        func.timezone("Europe/London", func.timezone("UTC", column))
+        func.timezone("America/Toronto", func.timezone("UTC", column))
     )
 
 
@@ -96,7 +96,7 @@ def midnight_n_days_ago(number_of_days):
     """
     Returns midnight a number of days ago. Takes care of daylight savings etc.
     """
-    return get_london_midnight_in_utc(datetime.utcnow() - timedelta(days=number_of_days))
+    return get_toronto_midnight_in_utc(datetime.utcnow() - timedelta(days=number_of_days))
 
 
 def escape_special_characters(string):

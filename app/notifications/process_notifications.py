@@ -9,7 +9,7 @@ from notifications_utils.recipients import (
     validate_and_format_phone_number,
     format_email_address
 )
-from notifications_utils.timezones import convert_bst_to_utc
+from notifications_utils.timezones import convert_est_to_utc
 
 from app import redis_store
 from app.celery import provider_tasks
@@ -162,7 +162,7 @@ def simulated_recipient(to_address, notification_type):
 
 
 def persist_scheduled_notification(notification_id, scheduled_for):
-    scheduled_datetime = convert_bst_to_utc(datetime.strptime(scheduled_for, "%Y-%m-%d %H:%M"))
+    scheduled_datetime = convert_est_to_utc(datetime.strptime(scheduled_for, "%Y-%m-%d %H:%M"))
     scheduled_notification = ScheduledNotification(notification_id=notification_id,
                                                    scheduled_for=scheduled_datetime)
     dao_created_scheduled_notification(scheduled_notification)
