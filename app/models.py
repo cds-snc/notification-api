@@ -26,7 +26,7 @@ from notifications_utils.template import (
     SMSMessageTemplate,
     LetterPrintTemplate,
 )
-from notifications_utils.timezones import convert_bst_to_utc, convert_utc_to_bst
+from notifications_utils.timezones import convert_est_to_utc, convert_utc_to_est
 
 from app.encryption import (
     hashpw,
@@ -1533,7 +1533,7 @@ class Notification(db.Model):
             return None
 
     def serialize_for_csv(self):
-        created_at_in_bst = convert_utc_to_bst(self.created_at)
+        created_at_in_bst = convert_utc_to_est(self.created_at)
         serialized = {
             "row_number": '' if self.job_row_number is None else self.job_row_number + 1,
             "recipient": self.to,
@@ -1577,7 +1577,7 @@ class Notification(db.Model):
             "sent_at": self.sent_at.strftime(DATETIME_FORMAT) if self.sent_at else None,
             "completed_at": self.completed_at(),
             "scheduled_for": (
-                convert_bst_to_utc(
+                convert_est_to_utc(
                     self.scheduled_notification.scheduled_for
                 ).strftime(DATETIME_FORMAT)
                 if self.scheduled_notification
