@@ -8,10 +8,6 @@ APP_VERSION_FILE = app/version.py
 GIT_BRANCH ?= $(shell git symbolic-ref --short HEAD 2> /dev/null || echo "detached")
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
-DOCKER_IMAGE_TAG := $(shell cat docker/VERSION)
-DOCKER_BUILDER_IMAGE_NAME = govuk/notify-api-builder:${DOCKER_IMAGE_TAG}
-DOCKER_TTY ?= $(if ${JENKINS_HOME},,t)
-
 BUILD_TAG ?= notifications-api-manual
 BUILD_NUMBER ?= 0
 DEPLOY_BUILD_NUMBER ?= ${BUILD_NUMBER}
