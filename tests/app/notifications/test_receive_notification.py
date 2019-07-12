@@ -361,7 +361,7 @@ def test_receive_notification_from_firetext_persists_message_with_normalized_pho
     persisted = InboundSms.query.first()
 
     assert result['status'] == 'ok'
-    assert persisted.user_number == '447999999999'
+    assert persisted.user_number == '( 44)7999999999'
 
 
 def test_returns_ok_to_firetext_if_mismatched_sms_sender(notify_db_session, client, mocker):

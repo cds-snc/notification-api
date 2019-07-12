@@ -101,11 +101,11 @@ def test_get_notifications_request_invalid_statuses_and_template_types():
             .format(invalid_template_type) in error_messages
 
 
-valid_json = {"phone_number": "07515111111",
+valid_json = {"phone_number": "6502532222",
               "template_id": str(uuid.uuid4())
               }
 valid_json_with_optionals = {
-    "phone_number": "07515111111",
+    "phone_number": "6502532222",
     "template_id": str(uuid.uuid4()),
     "reference": "reference from caller",
     "personalisation": {"key": "value"}
@@ -129,7 +129,7 @@ def test_post_sms_schema_is_valid(input):
 def test_post_sms_json_schema_bad_uuid(template_id):
     j = {
         "template_id": template_id,
-        "phone_number": "07515111111"
+        "phone_number": "6502532222"
     }
     with pytest.raises(ValidationError) as e:
         validate(j, post_sms_request_schema)
@@ -157,7 +157,7 @@ def test_post_sms_json_schema_bad_uuid_and_missing_phone_number():
 
 def test_post_sms_schema_with_personalisation_that_is_not_a_dict():
     j = {
-        "phone_number": "07515111111",
+        "phone_number": "6502532222",
         "template_id": str(uuid.uuid4()),
         "reference": "reference from caller",
         "personalisation": "not_a_dict"
@@ -173,9 +173,9 @@ def test_post_sms_schema_with_personalisation_that_is_not_a_dict():
 
 
 @pytest.mark.parametrize('invalid_phone_number, err_msg', [
-    ('08515111111', 'phone_number Not a UK mobile number'),
-    ('07515111*11', 'phone_number Must not contain letters or symbols'),
-    ('notaphoneumber', 'phone_number Must not contain letters or symbols'),
+    ('08515111111', 'phone_number Not a valid international number'),
+    ('07515111*11', 'phone_number Not a valid international number'),
+    ('notaphoneumber', 'phone_number Not a valid international number'),
     (7700900001, 'phone_number 7700900001 is not of type string'),
     (None, 'phone_number None is not of type string'),
     ([], 'phone_number [] is not of type string'),
@@ -199,7 +199,7 @@ def test_post_sms_request_schema_invalid_phone_number_and_missing_template():
         validate(j, post_sms_request_schema)
     errors = json.loads(str(e.value)).get('errors')
     assert len(errors) == 2
-    assert {"error": "ValidationError", "message": "phone_number Not a UK mobile number"} in errors
+    assert {"error": "ValidationError", "message": "phone_number Not a valid international number"} in errors
     assert {"error": "ValidationError", "message": "template_id is a required property"} in errors
 
 
@@ -268,7 +268,7 @@ def test_post_schema_valid_scheduled_for(schema):
     if schema == post_email_request_schema:
         j.update({"email_address": "joe@gmail.com"})
     else:
-        j.update({"phone_number": "07515111111"})
+        j.update({"phone_number": "6502532222"})
     assert validate(j, schema) == j
 
 
@@ -285,7 +285,7 @@ def test_post_email_schema_invalid_scheduled_for(invalid_datetime, schema):
     if schema == post_email_request_schema:
         j.update({"email_address": "joe@gmail.com"})
     else:
-        j.update({"phone_number": "07515111111"})
+        j.update({"phone_number": "6502532222"})
     with pytest.raises(ValidationError) as e:
         validate(j, schema)
     error = json.loads(str(e.value))
@@ -298,7 +298,7 @@ def test_post_email_schema_invalid_scheduled_for(invalid_datetime, schema):
 
 @freeze_time("2017-05-12 13:00:00")
 def test_scheduled_for_raises_validation_error_when_in_the_past():
-    j = {"phone_number": "07515111111",
+    j = {"phone_number": "6502532222",
          "template_id": str(uuid.uuid4()),
          "scheduled_for": "2017-05-12 10:00"}
     with pytest.raises(ValidationError) as e:
@@ -311,7 +311,7 @@ def test_scheduled_for_raises_validation_error_when_in_the_past():
 
 @freeze_time("2017-05-12 13:00:00")
 def test_scheduled_for_raises_validation_error_when_more_than_24_hours_in_the_future():
-    j = {"phone_number": "07515111111",
+    j = {"phone_number": "6502532222",
          "template_id": str(uuid.uuid4()),
          "scheduled_for": "2017-05-13 14:00"}
     with pytest.raises(ValidationError) as e:

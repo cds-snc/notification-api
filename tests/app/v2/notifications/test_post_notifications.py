@@ -35,7 +35,7 @@ from tests.app.db import (
 def test_post_sms_notification_returns_201(client, sample_template_with_placeholders, mocker, reference):
     mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
     data = {
-        'phone_number': '+447700900855',
+        'phone_number': '+16502532222',
         'template_id': str(sample_template_with_placeholders.id),
         'personalisation': {' Name': 'Jo'}
     }
@@ -75,7 +75,7 @@ def test_post_sms_notification_uses_inbound_number_as_sender(client, notify_db_s
     template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
     mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
     data = {
-        'phone_number': '+447700900855',
+        'phone_number': '+16502532222',
         'template_id': str(template.id),
         'personalisation': {' Name': 'Jo'}
     }
@@ -103,7 +103,7 @@ def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(client, no
     template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
     mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
     data = {
-        'phone_number': '+447700900855',
+        'phone_number': '+16502532222',
         'template_id': str(template.id),
         'personalisation': {' Name': 'Jo'}
     }
@@ -131,7 +131,7 @@ def test_post_sms_notification_returns_201_with_sms_sender_id(
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender='123456')
     mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
     data = {
-        'phone_number': '+447700900855',
+        'phone_number': '+16502532222',
         'template_id': str(sample_template_with_placeholders.id),
         'personalisation': {' Name': 'Jo'},
         'sms_sender_id': str(sms_sender.id)
@@ -158,7 +158,7 @@ def test_post_sms_notification_uses_sms_sender_id_reply_to(
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender='07123123123')
     mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
     data = {
-        'phone_number': '+447700900855',
+        'phone_number': '+16502532222',
         'template_id': str(sample_template_with_placeholders.id),
         'personalisation': {' Name': 'Jo'},
         'sms_sender_id': str(sms_sender.id)
@@ -185,7 +185,7 @@ def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after
     sms_sender = create_service_sms_sender(service=sample_template.service, sms_sender='123456', is_default=False)
     mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
     data = {
-        'phone_number': '+447700900855',
+        'phone_number': '+16502532222',
         'template_id': str(sample_template.id),
         'sms_sender_id': str(sms_sender.id)
     }
@@ -208,7 +208,7 @@ def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after
 
 
 @pytest.mark.parametrize("notification_type, key_send_to, send_to",
-                         [("sms", "phone_number", "+447700900855"),
+                         [("sms", "phone_number", "+16502532222"),
                           ("email", "email_address", "sample@email.com")])
 def test_post_notification_returns_400_and_missing_template(client, sample_service,
                                                             notification_type, key_send_to, send_to):
@@ -233,7 +233,7 @@ def test_post_notification_returns_400_and_missing_template(client, sample_servi
 
 
 @pytest.mark.parametrize("notification_type, key_send_to, send_to", [
-    ("sms", "phone_number", "+447700900855"),
+    ("sms", "phone_number", "+16502532222"),
     ("email", "email_address", "sample@email.com"),
     ("letter", "personalisation", {"address_line_1": "The queen", "postcode": "SW1 1AA"})
 ])
@@ -258,7 +258,7 @@ def test_post_notification_returns_401_and_well_formed_auth_error(client, sample
 
 
 @pytest.mark.parametrize("notification_type, key_send_to, send_to",
-                         [("sms", "phone_number", "+447700900855"),
+                         [("sms", "phone_number", "+16502532222"),
                           ("email", "email_address", "sample@email.com")])
 def test_notification_returns_400_and_for_schema_problems(client, sample_template, notification_type, key_send_to,
                                                           send_to):
@@ -486,7 +486,7 @@ def test_post_sms_notification_with_archived_reply_to_id_returns_400(client, sam
         archived=True)
     mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
     data = {
-        "phone_number": '+447700900855',
+        "phone_number": '+16502532222',
         "template_id": sample_template.id,
         'sms_sender_id': archived_sender.id
     }
@@ -687,7 +687,7 @@ def test_post_notification_with_wrong_type_of_sender(
         template = sample_template
         form_label = 'email_reply_to_id'
         data = {
-            'phone_number': '+447700900855',
+            'phone_number': '+16502532222',
             'template_id': str(template.id),
             form_label: fake_uuid
         }

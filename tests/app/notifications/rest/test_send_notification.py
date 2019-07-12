@@ -78,12 +78,12 @@ def test_should_reject_bad_phone_numbers(notify_api, sample_template, mocker):
             mocked.assert_not_called()
             assert json_resp['result'] == 'error'
             assert len(json_resp['message'].keys()) == 1
-            assert 'Invalid phone number: Must not contain letters or symbols' in json_resp['message']['to']
+            assert 'Invalid phone number: Not a valid international number' in json_resp['message']['to']
             assert response.status_code == 400
 
 
 @pytest.mark.parametrize('template_type, to',
-                         [(SMS_TYPE, '+447700900855'),
+                         [(SMS_TYPE, '+16502532222'),
                           (EMAIL_TYPE, 'ok@ok.com')])
 def test_send_notification_invalid_template_id(notify_api, sample_template, mocker, fake_uuid, template_type, to):
     with notify_api.test_request_context():
@@ -207,7 +207,7 @@ def test_should_not_send_notification_for_archived_template(notify_api, sample_t
             sample_template.archived = True
             dao_update_template(sample_template)
             json_data = json.dumps({
-                'to': '+447700900855',
+                'to': '+16502532222',
                 'template': sample_template.id
             })
             auth_header = create_authorization_header(service_id=sample_template.service_id)
@@ -222,7 +222,7 @@ def test_should_not_send_notification_for_archived_template(notify_api, sample_t
 
 
 @pytest.mark.parametrize('template_type, to',
-                         [(SMS_TYPE, '+447700900855'),
+                         [(SMS_TYPE, '+16502532222'),
                           (EMAIL_TYPE, 'not-someone-we-trust@email-address.com')])
 def test_should_not_send_notification_if_restricted_and_not_a_service_user(notify_api,
                                                                            sample_template,

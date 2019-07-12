@@ -32,14 +32,14 @@ def test_post_to_get_inbound_sms_with_no_params(admin_request, sample_service):
 
 
 @pytest.mark.parametrize('user_number', [
-    '(07700) 900-001',
-    '+4407700900001',
-    '447700900001',
+    '6502532222',
+    '+16502532222',
+    '16502532222',
 ])
 def test_post_to_get_inbound_sms_filters_user_number(admin_request, sample_service, user_number):
     # user_number in the db is international and normalised
-    one = create_inbound_sms(sample_service, user_number='447700900001')
-    create_inbound_sms(sample_service, user_number='447700900002')
+    one = create_inbound_sms(sample_service, user_number='+16502532222')
+    create_inbound_sms(sample_service, user_number='16502532223')
 
     data = {
         'phone_number': user_number
@@ -58,11 +58,11 @@ def test_post_to_get_inbound_sms_filters_user_number(admin_request, sample_servi
 
 def test_post_to_get_inbound_sms_filters_international_user_number(admin_request, sample_service):
     # user_number in the db is international and normalised
-    one = create_inbound_sms(sample_service, user_number='12025550104')
+    one = create_inbound_sms(sample_service, user_number='+16502532223')
     create_inbound_sms(sample_service)
 
     data = {
-        'phone_number': '+1 (202) 555-0104'
+        'phone_number': '+1 (650) 253-2223'
     }
 
     sms = admin_request.post(
@@ -158,7 +158,7 @@ def test_get_inbound_sms_summary_with_no_inbound(admin_request, sample_service):
 
 def test_get_inbound_sms_by_id_returns_200(admin_request, notify_db_session):
     service = create_service_with_inbound_number(inbound_number='12345')
-    inbound = create_inbound_sms(service=service, user_number='447700900001')
+    inbound = create_inbound_sms(service=service, user_number='16502532222')
 
     response = admin_request.get(
         'inbound_sms.get_inbound_by_id',
@@ -166,7 +166,7 @@ def test_get_inbound_sms_by_id_returns_200(admin_request, notify_db_session):
         inbound_sms_id=inbound.id,
     )
 
-    assert response['user_number'] == '447700900001'
+    assert response['user_number'] == '16502532222'
     assert response['service_id'] == str(service.id)
 
 
