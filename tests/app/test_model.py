@@ -142,11 +142,11 @@ def test_notification_for_csv_returns_formatted_status(
 
 
 @freeze_time("2017-03-26 23:01:53.321312")
-def test_notification_for_csv_returns_bst_correctly(sample_template):
+def test_notification_for_csv_returns_est_correctly(sample_template):
     notification = create_notification(sample_template)
 
     serialized = notification.serialize_for_csv()
-    assert serialized['created_at'] == '2017-03-27 00:01:53'
+    assert serialized['created_at'] == '2017-03-26 19:01:53'
 
 
 def test_notification_personalisation_getter_returns_empty_dict_from_None():

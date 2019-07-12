@@ -26,7 +26,7 @@ from notifications_utils.template import (
     SMSMessageTemplate,
     LetterPrintTemplate,
 )
-from notifications_utils.timezones import convert_bst_to_utc, convert_utc_to_bst
+from notifications_utils.timezones import convert_est_to_utc, convert_utc_to_est
 
 from app.encryption import (
     hashpw,
@@ -376,6 +376,12 @@ class Organisation(db.Model):
             if service.active and not service.restricted
         ]
 
+    @property
+    def domain_list(self):
+        return [
+            domain.domain for domain in self.domains
+        ]
+
     def serialize(self):
         return {
             "id": str(self.id),
@@ -391,11 +397,18 @@ class Organisation(db.Model):
             "agreement_signed_on_behalf_of_name": self.agreement_signed_on_behalf_of_name,
             "agreement_signed_on_behalf_of_email_address": self.agreement_signed_on_behalf_of_email_address,
             "agreement_signed_version": self.agreement_signed_version,
-            "domains": [
-                domain.domain for domain in self.domains
-            ],
+            "domains": self.domain_list,
             "request_to_go_live_notes": self.request_to_go_live_notes,
             "count_of_live_services": len(self.live_services),
+        }
+
+    def serialize_for_list(self):
+        return {
+            'name': self.name,
+            'id': str(self.id),
+            'active': self.active,
+            'count_of_live_services': len(self.live_services),
+            'domains': self.domain_list,
         }
 
 
@@ -1533,7 +1546,7 @@ class Notification(db.Model):
             return None
 
     def serialize_for_csv(self):
-        created_at_in_bst = convert_utc_to_bst(self.created_at)
+        created_at_in_bst = convert_utc_to_est(self.created_at)
         serialized = {
             "row_number": '' if self.job_row_number is None else self.job_row_number + 1,
             "recipient": self.to,
@@ -1577,7 +1590,7 @@ class Notification(db.Model):
             "sent_at": self.sent_at.strftime(DATETIME_FORMAT) if self.sent_at else None,
             "completed_at": self.completed_at(),
             "scheduled_for": (
-                convert_bst_to_utc(
+                convert_est_to_utc(
                     self.scheduled_notification.scheduled_for
                 ).strftime(DATETIME_FORMAT)
                 if self.scheduled_notification
