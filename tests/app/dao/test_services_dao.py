@@ -219,7 +219,7 @@ def test_should_add_user_to_service(notify_db_session):
         name='Test User',
         email_address='new_user@digital.cabinet-office.gov.uk',
         password='password',
-        mobile_number='+447700900986'
+        mobile_number='+16502532222'
     )
     save_model_user(new_user)
     dao_add_user_to_service(service, new_user)
@@ -284,7 +284,7 @@ def test_should_remove_user_from_service(notify_db_session):
         name='Test User',
         email_address='new_user@digital.cabinet-office.gov.uk',
         password='password',
-        mobile_number='+447700900986'
+        mobile_number='+16502532222'
     )
     save_model_user(new_user)
     dao_add_user_to_service(service, new_user)
@@ -370,7 +370,7 @@ def test_get_all_only_services_user_has_access_to(notify_db_session):
         name='Test User',
         email_address='new_user@digital.cabinet-office.gov.uk',
         password='password',
-        mobile_number='+447700900986'
+        mobile_number='+16502532222'
     )
     save_model_user(new_user)
     dao_add_user_to_service(service_3, new_user)
@@ -428,7 +428,7 @@ def test_dao_fetch_live_services_data(sample_user):
     assert results == [
         {'service_id': mock.ANY, 'service_name': 'Sample service', 'organisation_name': 'test_org_1',
             'organisation_type': 'crown', 'consent_to_research': None, 'contact_name': 'Test User',
-            'contact_email': 'notify@digital.cabinet-office.gov.uk', 'contact_mobile': '+447700900986',
+            'contact_email': 'notify@digital.cabinet-office.gov.uk', 'contact_mobile': '+16502532222',
             'live_date': datetime(2014, 4, 20, 10, 0), 'sms_volume_intent': None, 'email_volume_intent': None,
             'letter_volume_intent': None, 'sms_totals': 2, 'email_totals': 1, 'letter_totals': 1,
             'free_sms_fragment_limit': 100},
@@ -440,7 +440,7 @@ def test_dao_fetch_live_services_data(sample_user):
             'free_sms_fragment_limit': 200},
         {'service_id': mock.ANY, 'service_name': 'second', 'organisation_name': None, 'consent_to_research': None,
             'contact_name': 'Test User', 'contact_email': 'notify@digital.cabinet-office.gov.uk',
-            'contact_mobile': '+447700900986', 'live_date': datetime(2017, 4, 20, 10, 0), 'sms_volume_intent': None,
+            'contact_mobile': '+16502532222', 'live_date': datetime(2017, 4, 20, 10, 0), 'sms_volume_intent': None,
             'organisation_type': None, 'email_volume_intent': None, 'letter_volume_intent': None,
             'sms_totals': 0, 'email_totals': 0, 'letter_totals': 1,
             'free_sms_fragment_limit': 300}

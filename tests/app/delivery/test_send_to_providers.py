@@ -70,7 +70,7 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
     mocker
 ):
     db_notification = create_notification(template=sample_sms_template_with_html,
-                                          to_field="+447234123123", personalisation={"name": "Jo"},
+                                          to_field="+16502532222", personalisation={"name": "Jo"},
                                           status='created',
                                           reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender())
 
@@ -81,7 +81,7 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
     )
 
     aws_sns_client.send_sms.assert_called_once_with(
-        to=validate_and_format_phone_number("+447234123123"),
+        to=validate_and_format_phone_number("+16502532222"),
         content="Sample service: Hello Jo\nHere is <em>some HTML</em> & entities",
         reference=str(db_notification.id),
         sender=current_app.config['FROM_NUMBER']
@@ -160,7 +160,7 @@ def test_should_not_send_sms_message_when_service_is_inactive_notifcation_is_in_
 def test_send_sms_should_use_template_version_from_notification_not_latest(
         sample_template,
         mocker):
-    db_notification = create_notification(template=sample_template, to_field='+447234123123', status='created',
+    db_notification = create_notification(template=sample_template, to_field='+16502532222', status='created',
                                           reply_to_text=sample_template.service.get_default_sms_sender())
 
     mocker.patch('app.aws_sns_client.send_sms')
@@ -179,7 +179,7 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(
     )
 
     aws_sns_client.send_sms.assert_called_once_with(
-        to=validate_and_format_phone_number("+447234123123"),
+        to=validate_and_format_phone_number("+16502532222"),
         content="Sample service: This is a template:\nwith a newline",
         reference=str(db_notification.id),
         sender=current_app.config['FROM_NUMBER']
@@ -703,12 +703,12 @@ def test_send_email_to_provider_should_format_reply_to_email_address(
 
 
 def test_send_sms_to_provider_should_format_phone_number(sample_notification, mocker):
-    sample_notification.to = '+44 (7123) 123-123'
+    sample_notification.to = '+1 650 253 2222'
     send_mock = mocker.patch('app.aws_sns_client.send_sms')
 
     send_to_providers.send_sms_to_provider(sample_notification)
 
-    assert send_mock.call_args[1]['to'] == '447123123123'
+    assert send_mock.call_args[1]['to'] == '+16502532222'
 
 
 def test_send_email_to_provider_should_format_email_address(sample_email_notification, mocker):

@@ -568,7 +568,7 @@ def sample_notification(
     if to_field:
         to = to_field
     else:
-        to = '+447700900855'
+        to = '+16502532222'
 
     data = {
         'id': notification_id,

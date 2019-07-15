@@ -208,15 +208,15 @@ def test_service_can_send_to_recipient_passes_for_whitelisted_recipient_passes(n
     assert service_can_send_to_recipient("some_other_email@test.com",
                                          'team',
                                          sample_service) is None
-    sample_service_whitelist(notify_db, notify_db_session, mobile_number='07513332413')
-    assert service_can_send_to_recipient('07513332413',
+    sample_service_whitelist(notify_db, notify_db_session, mobile_number='6502532222')
+    assert service_can_send_to_recipient('6502532222',
                                          'team',
                                          sample_service) is None
 
 
 @pytest.mark.parametrize('recipient', [
     {"email_address": "some_other_email@test.com"},
-    {"mobile_number": "07513332413"},
+    {"mobile_number": "6502532223"},
 ])
 def test_service_can_send_to_recipient_fails_when_ignoring_whitelist(
     notify_db,
@@ -357,7 +357,7 @@ def test_rejects_api_calls_with_international_numbers_if_service_does_not_allow_
 ):
     service = create_service(notify_db, notify_db_session, permissions=[SMS_TYPE])
     with pytest.raises(BadRequestError) as e:
-        validate_and_format_recipient('20-12-1234-1234', key_type, service, SMS_TYPE)
+        validate_and_format_recipient('+20-12-1234-1234', key_type, service, SMS_TYPE)
     assert e.value.status_code == 400
     assert e.value.message == 'Cannot send to international mobile numbers'
     assert e.value.fields == []
@@ -367,8 +367,8 @@ def test_rejects_api_calls_with_international_numbers_if_service_does_not_allow_
 def test_allows_api_calls_with_international_numbers_if_service_does_allow_int_sms(
         key_type, notify_db, notify_db_session):
     service = create_service(notify_db, notify_db_session, permissions=[SMS_TYPE, INTERNATIONAL_SMS_TYPE])
-    result = validate_and_format_recipient('20-12-1234-1234', key_type, service, SMS_TYPE)
-    assert result == '201212341234'
+    result = validate_and_format_recipient('+20-12-1234-1234', key_type, service, SMS_TYPE)
+    assert result == '+201212341234'
 
 
 def test_rejects_api_calls_with_no_recipient():

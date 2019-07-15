@@ -62,7 +62,7 @@ from app.models import (
 
 
 def create_user(
-    mobile_number="+447700900986",
+    mobile_number="+16502532222",
     email="notify@digital.cabinet-office.gov.uk",
     state='active',
     id_=None,
@@ -237,7 +237,7 @@ def create_notification(
         created_at = datetime.utcnow()
 
     if to_field is None:
-        to_field = '+447700900855' if template.template_type == SMS_TYPE else 'test@example.com'
+        to_field = '+16502532222' if template.template_type == SMS_TYPE else 'test@example.com'
 
     if status != 'created':
         sent_at = sent_at or datetime.utcnow()
@@ -407,7 +407,7 @@ def create_service_permission(service_id, permission=EMAIL_TYPE):
 def create_inbound_sms(
         service,
         notify_number=None,
-        user_number='447700900111',
+        user_number='+16502532222',
         provider_date=None,
         provider_reference=None,
         content='Hello',
@@ -417,7 +417,7 @@ def create_inbound_sms(
     if not service.inbound_number:
         create_inbound_number(
             # create random inbound number
-            notify_number or '07{:09}'.format(random.randint(0, 1e9 - 1)),
+            notify_number or '1{:10}'.format(random.randint(0, 1e9 - 1)),
             provider=provider,
             service_id=service.id
         )

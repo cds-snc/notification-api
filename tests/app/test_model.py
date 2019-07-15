@@ -34,8 +34,8 @@ from tests.app.db import (
 
 
 @pytest.mark.parametrize('mobile_number', [
-    '07700 900678',
-    '+44 7700 900678'
+    '650 253 2222',
+    '+1 650 253 2222'
 ])
 def test_should_build_service_whitelist_from_mobile_number(mobile_number):
     service_whitelist = ServiceWhitelist.from_string('service_id', MOBILE_TYPE, mobile_number)
@@ -95,7 +95,7 @@ def test_status_conversion(initial_statuses, expected_statuses):
 
 @freeze_time("2016-01-01 11:09:00.000000")
 @pytest.mark.parametrize('template_type, recipient', [
-    ('sms', '+447700900855'),
+    ('sms', '+16502532222'),
     ('email', 'foo@bar.com'),
 ])
 def test_notification_for_csv_returns_correct_type(sample_service, template_type, recipient):

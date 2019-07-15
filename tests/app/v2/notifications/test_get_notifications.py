@@ -309,7 +309,7 @@ def test_get_all_notifications_except_job_notifications_returns_200(client, samp
         'uri': notification.template.get_link(),
         'version': 1
     }
-    assert json_response['notifications'][0]['phone_number'] == "+447700900855"
+    assert json_response['notifications'][0]['phone_number'] == "+16502532222"
     assert json_response['notifications'][0]['type'] == "sms"
     assert not json_response['notifications'][0]['scheduled_for']
 

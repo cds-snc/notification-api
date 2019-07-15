@@ -23,7 +23,7 @@ def test_post_sms_contract(client, mocker, sample_template):
     mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
 
     response_json = return_json_from_response(_post_notification(
-        client, sample_template, url='/notifications/sms', to='07700 900 855'
+        client, sample_template, url='/notifications/sms', to='6502532222'
     ))
     validate_v0(response_json, 'POST_notification_return_sms.json')
 

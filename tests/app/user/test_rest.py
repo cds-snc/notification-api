@@ -98,7 +98,7 @@ def test_post_user(client, notify_db, notify_db_session):
         "name": "Test User",
         "email_address": "user@digital.cabinet-office.gov.uk",
         "password": "password",
-        "mobile_number": "+447700900986",
+        "mobile_number": "+16502532222",
         "logged_in_at": None,
         "state": "active",
         "failed_login_count": 0,
@@ -125,7 +125,7 @@ def test_post_user_without_auth_type(admin_request, notify_db_session):
         "name": "Test User",
         "email_address": "user@digital.cabinet-office.gov.uk",
         "password": "password",
-        "mobile_number": "+447700900986",
+        "mobile_number": "+16502532222",
         "permissions": {},
     }
 
@@ -144,7 +144,7 @@ def test_post_user_missing_attribute_email(client, notify_db, notify_db_session)
     data = {
         "name": "Test User",
         "password": "password",
-        "mobile_number": "+447700900986",
+        "mobile_number": "+16502532222",
         "logged_in_at": None,
         "state": "active",
         "failed_login_count": 0,
@@ -170,7 +170,7 @@ def test_create_user_missing_attribute_password(client, notify_db, notify_db_ses
     data = {
         "name": "Test User",
         "email_address": "user@digital.cabinet-office.gov.uk",
-        "mobile_number": "+447700900986",
+        "mobile_number": "+16502532222",
         "logged_in_at": None,
         "state": "active",
         "failed_login_count": 0,
@@ -232,7 +232,7 @@ def test_cannot_create_user_with_empty_strings(admin_request, notify_db_session)
     )
     assert resp['message'] == {
         'email_address': ['Not a valid email address'],
-        'mobile_number': ['Invalid phone number: Not enough digits'],
+        'mobile_number': ['Invalid phone number: Not a valid international number'],
         'name': ['Invalid name']
     }
 
@@ -240,7 +240,7 @@ def test_cannot_create_user_with_empty_strings(admin_request, notify_db_session)
 @pytest.mark.parametrize('user_attribute, user_value', [
     ('name', 'New User'),
     ('email_address', 'newuser@mail.com'),
-    ('mobile_number', '+4407700900460')
+    ('mobile_number', '+16502532223')
 ])
 def test_post_user_attribute(client, sample_user, user_attribute, user_value):
     assert getattr(sample_user, user_attribute) != user_value
@@ -271,13 +271,13 @@ def test_post_user_attribute(client, sample_user, user_attribute, user_value):
         service=mock.ANY,
         template_id=UUID('c73f1d71-4049-46d5-a647-d013bdeca3f0'), template_version=1
     )),
-    ('mobile_number', '+4407700900460', dict(
+    ('mobile_number', '+16502532223', dict(
         api_key_id=None, key_type='normal', notification_type='sms',
         personalisation={
             'name': 'Test User', 'servicemanagername': 'Service Manago',
             'email address': 'notify@digital.cabinet-office.gov.uk'
         },
-        recipient='+4407700900460', reply_to_text='testing', service=mock.ANY,
+        recipient='+16502532223', reply_to_text='testing', service=mock.ANY,
         template_id=UUID('8a31520f-4751-4789-8ea1-fe54496725eb'), template_version=1
     ))
 ])
@@ -807,7 +807,7 @@ def test_cannot_update_user_with_mobile_number_as_empty_string(admin_request, sa
         _data={'mobile_number': ''},
         _expected_status=400
     )
-    assert resp['message']['mobile_number'] == ['Invalid phone number: Not enough digits']
+    assert resp['message']['mobile_number'] == ['Invalid phone number: Not a valid international number']
 
 
 def test_cannot_update_user_password_using_attributes_method(admin_request, sample_user):

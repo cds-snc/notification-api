@@ -121,6 +121,7 @@ def send_notification(notification_type):
     if notification_type == SMS_TYPE:
         _service_can_send_internationally(authenticated_service, notification_form['to'])
     # Do not persist or send notification to the queue if it is a simulated recipient
+
     simulated = simulated_recipient(notification_form['to'], notification_type)
     notification_model = persist_notification(template_id=template.id,
                                               template_version=template.version,

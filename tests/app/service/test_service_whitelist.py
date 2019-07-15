@@ -24,15 +24,15 @@ def test_get_whitelist_returns_data(client, sample_service_whitelist):
 def test_get_whitelist_separates_emails_and_phones(client, sample_service):
     dao_add_and_commit_whitelisted_contacts([
         ServiceWhitelist.from_string(sample_service.id, EMAIL_TYPE, 'service@example.com'),
-        ServiceWhitelist.from_string(sample_service.id, MOBILE_TYPE, '07123456789'),
-        ServiceWhitelist.from_string(sample_service.id, MOBILE_TYPE, '+1800-555-555'),
+        ServiceWhitelist.from_string(sample_service.id, MOBILE_TYPE, '6502532222'),
+        ServiceWhitelist.from_string(sample_service.id, MOBILE_TYPE, '+1800-234-1242'),
     ])
 
     response = client.get('service/{}/whitelist'.format(sample_service.id), headers=[create_authorization_header()])
     assert response.status_code == 200
     json_resp = json.loads(response.get_data(as_text=True))
     assert json_resp['email_addresses'] == ['service@example.com']
-    assert sorted(json_resp['phone_numbers']) == sorted(['+1800-555-555', '07123456789'])
+    assert sorted(json_resp['phone_numbers']) == sorted(['+1800-234-1242', '6502532222'])
 
 
 def test_get_whitelist_404s_with_unknown_service_id(client):
@@ -57,7 +57,7 @@ def test_get_whitelist_returns_no_data(client, sample_service):
 def test_update_whitelist_replaces_old_whitelist(client, sample_service_whitelist):
     data = {
         'email_addresses': ['foo@bar.com'],
-        'phone_numbers': ['07123456789']
+        'phone_numbers': ['6502532222']
     }
 
     response = client.put(
@@ -69,7 +69,7 @@ def test_update_whitelist_replaces_old_whitelist(client, sample_service_whitelis
     assert response.status_code == 204
     whitelist = ServiceWhitelist.query.order_by(ServiceWhitelist.recipient).all()
     assert len(whitelist) == 2
-    assert whitelist[0].recipient == '07123456789'
+    assert whitelist[0].recipient == '6502532222'
     assert whitelist[1].recipient == 'foo@bar.com'
 
 
@@ -77,7 +77,7 @@ def test_update_whitelist_doesnt_remove_old_whitelist_if_error(client, sample_se
 
     data = {
         'email_addresses': [''],
-        'phone_numbers': ['07123456789']
+        'phone_numbers': ['6502532222']
     }
 
     response = client.put(
