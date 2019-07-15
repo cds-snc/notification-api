@@ -294,13 +294,13 @@ def test_send_notification_to_queue_throws_exception_deletes_notification(sample
 
 
 @pytest.mark.parametrize("to_address, notification_type, expected", [
-    ("+16502532222", "sms", True),
-    ("+16502532223", "sms", True),
-    ("6502532222", "sms", True),
+    ("+16132532222", "sms", True),
+    ("+16132532223", "sms", True),
+    ("6132532222", "sms", True),
     ("simulate-delivered@notifications.service.gov.uk", "email", True),
     ("simulate-delivered-2@notifications.service.gov.uk", "email", True),
     ("simulate-delivered-3@notifications.service.gov.uk", "email", True),
-    ("6502532225", "sms", False),
+    ("6132532225", "sms", False),
     ("valid_email@test.com", "email", False)
 ])
 def test_simulated_recipient(notify_api, to_address, notification_type, expected):
@@ -312,7 +312,7 @@ def test_simulated_recipient(notify_api, to_address, notification_type, expected
         'simulate-delivered-2@notifications.service.gov.uk',
         'simulate-delivered-2@notifications.service.gov.uk'
     )
-    SIMULATED_SMS_NUMBERS = ('6502532222', '+16502532222', '+16502532223')
+    SIMULATED_SMS_NUMBERS = ('6132532222', '+16132532222', '+16132532223')
     """
     formatted_address = None
 

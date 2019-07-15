@@ -222,7 +222,7 @@ def test_should_not_send_notification_for_archived_template(notify_api, sample_t
 
 
 @pytest.mark.parametrize('template_type, to',
-                         [(SMS_TYPE, '+16502532222'),
+                         [(SMS_TYPE, '+16502532223'),
                           (EMAIL_TYPE, 'not-someone-we-trust@email-address.com')])
 def test_should_not_send_notification_if_restricted_and_not_a_service_user(notify_api,
                                                                            sample_template,
@@ -331,7 +331,7 @@ def test_should_allow_valid_sms_notification(notify_api, sample_template, mocker
             mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
 
             data = {
-                'to': '07700 900 855',
+                'to': '6502532222',
                 'template': str(sample_template.id)
             }
 
@@ -563,7 +563,7 @@ def test_should_not_send_sms_if_team_api_key_and_not_a_service_user(notify_api, 
         mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
 
         data = {
-            'to': '07123123123',
+            'to': '6502532229',
             'template': str(sample_template.id),
         }
 
@@ -614,7 +614,7 @@ def test_should_send_sms_to_anyone_with_test_key(
     mocker.patch('app.notifications.process_notifications.uuid.uuid4', return_value=fake_uuid)
 
     data = {
-        'to': '07811111111',
+        'to': '6502532222',
         'template': sample_template.id
     }
     sample_template.service.restricted = restricted
@@ -820,9 +820,9 @@ def test_should_not_persist_notification_or_send_email_if_simulated_email(
 
 
 @pytest.mark.parametrize('to_sms', [
-    '07700 900000',
-    '07700 900111',
-    '07700 900222'
+    '6132532222',
+    '6132532223',
+    '6132532224'
 ])
 def test_should_not_persist_notification_or_send_sms_if_simulated_number(
         client,
@@ -852,7 +852,7 @@ def test_should_not_persist_notification_or_send_sms_if_simulated_number(
     KEY_TYPE_NORMAL, KEY_TYPE_TEAM
 ])
 @pytest.mark.parametrize('notification_type, to, _create_sample_template', [
-    (SMS_TYPE, '07827992635', create_sample_template),
+    (SMS_TYPE, '6502532229', create_sample_template),
     (EMAIL_TYPE, 'non_whitelist_recipient@mail.com', create_sample_email_template)]
 )
 def test_should_not_send_notification_to_non_whitelist_recipient_in_trial_mode(
@@ -907,7 +907,7 @@ def test_should_not_send_notification_to_non_whitelist_recipient_in_trial_mode(
     KEY_TYPE_NORMAL, KEY_TYPE_TEAM
 ])
 @pytest.mark.parametrize('notification_type, to, _create_sample_template', [
-    (SMS_TYPE, '07123123123', create_sample_template),
+    (SMS_TYPE, '6502532227', create_sample_template),
     (EMAIL_TYPE, 'whitelist_recipient@mail.com', create_sample_email_template)]
 )
 def test_should_send_notification_to_whitelist_recipient(
@@ -960,7 +960,7 @@ def test_should_send_notification_to_whitelist_recipient(
 @pytest.mark.parametrize(
     'notification_type, template_type, to', [
         (EMAIL_TYPE, SMS_TYPE, 'notify@digital.cabinet-office.gov.uk'),
-        (SMS_TYPE, EMAIL_TYPE, '+447700900986')
+        (SMS_TYPE, EMAIL_TYPE, '+16502532222')
     ])
 def test_should_error_if_notification_type_does_not_match_template_type(
         client,
@@ -1040,7 +1040,7 @@ def test_create_template_raises_invalid_request_when_content_too_large(
 
 
 @pytest.mark.parametrize("notification_type, send_to",
-                         [("sms", "07700 900 855"),
+                         [("sms", "6502532222"),
                           ("email", "sample@email.com")])
 def test_send_notification_uses_priority_queue_when_template_is_marked_as_priority(client, notify_db,
                                                                                    notify_db_session, mocker,
@@ -1074,7 +1074,7 @@ def test_send_notification_uses_priority_queue_when_template_is_marked_as_priori
 
 @pytest.mark.parametrize(
     "notification_type, send_to",
-    [("sms", "07700 900 855"), ("email", "sample@email.com")]
+    [("sms", "6502532222"), ("email", "sample@email.com")]
 )
 def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
     client,
@@ -1122,7 +1122,7 @@ def test_should_allow_store_original_number_on_sms_notification(client, sample_t
     mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
 
     data = {
-        'to': '+(44) 7700-900 855',
+        'to': '+16502532222',
         'template': str(sample_template.id)
     }
 
@@ -1141,14 +1141,14 @@ def test_should_allow_store_original_number_on_sms_notification(client, sample_t
     assert notification_id
     notifications = Notification.query.all()
     assert len(notifications) == 1
-    assert '+(44) 7700-900 855' == notifications[0].to
+    assert '+16502532222' == notifications[0].to
 
 
 def test_should_not_allow_international_number_on_sms_notification(client, sample_template, mocker):
     mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
 
     data = {
-        'to': '20-12-1234-1234',
+        'to': '+20-12-1234-1234',
         'template': str(sample_template.id)
     }
 
@@ -1173,7 +1173,7 @@ def test_should_allow_international_number_on_sms_notification(client, notify_db
     template = create_sample_template(notify_db, notify_db_session, service=service)
 
     data = {
-        'to': '20-12-1234-1234',
+        'to': '+20-12-1234-1234',
         'template': str(template.id)
     }
 
@@ -1189,7 +1189,7 @@ def test_should_allow_international_number_on_sms_notification(client, notify_db
 
 @pytest.mark.parametrize(
     'template_factory, to, expected_error', [
-        (sample_template_without_sms_permission, '+447700900986', 'Cannot send text messages'),
+        (sample_template_without_sms_permission, '+16502532222', 'Cannot send text messages'),
         (sample_template_without_email_permission, 'notify@digital.cabinet-office.gov.uk', 'Cannot send emails')
     ])
 def test_should_not_allow_notification_if_service_permission_not_set(
@@ -1233,7 +1233,7 @@ def test_should_throw_exception_if_notification_type_is_invalid(client, sample_s
 
 
 @pytest.mark.parametrize("notification_type, recipient",
-                         [("sms", '07700 900 855'),
+                         [("sms", '6502532222'),
                           ("email", "test@gov.uk")
                           ]
                          )

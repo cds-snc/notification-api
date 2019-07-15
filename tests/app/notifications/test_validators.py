@@ -216,7 +216,7 @@ def test_service_can_send_to_recipient_passes_for_whitelisted_recipient_passes(n
 
 @pytest.mark.parametrize('recipient', [
     {"email_address": "some_other_email@test.com"},
-    {"mobile_number": "6502532222"},
+    {"mobile_number": "6502532223"},
 ])
 def test_service_can_send_to_recipient_fails_when_ignoring_whitelist(
     notify_db,

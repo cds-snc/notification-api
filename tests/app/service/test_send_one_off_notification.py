@@ -49,7 +49,7 @@ def test_send_one_off_notification_calls_celery_correctly(persist_mock, celery_m
 
     post_data = {
         'template_id': str(template.id),
-        'to': '07700 900 001',
+        'to': '6502532222',
         'created_by': str(service.created_by_id)
     }
 
@@ -80,7 +80,7 @@ def test_send_one_off_notification_calls_persist_correctly_for_sms(
 
     post_data = {
         'template_id': str(template.id),
-        'to': '07700 900 001',
+        'to': '6502532222',
         'personalisation': {'name': 'foo'},
         'created_by': str(service.created_by_id)
     }
@@ -196,7 +196,7 @@ def test_send_one_off_notification_honors_research_mode(notify_db_session, persi
 
     post_data = {
         'template_id': str(template.id),
-        'to': '07700 900 001',
+        'to': '6502532222',
         'created_by': str(service.created_by_id)
     }
 
@@ -212,7 +212,7 @@ def test_send_one_off_notification_honors_priority(notify_db_session, persist_mo
 
     post_data = {
         'template_id': str(template.id),
-        'to': '07700 900 001',
+        'to': '6502532222',
         'created_by': str(service.created_by_id)
     }
 
@@ -236,9 +236,9 @@ def test_send_one_off_notification_raises_if_invalid_recipient(notify_db_session
 
 
 @pytest.mark.parametrize('recipient', [
-    '07700 900 001',  # not in team or whitelist
-    '07700900123',  # in whitelist
-    '+447700-900-123',  # in whitelist in different format
+    '6502532228',  # not in team or whitelist
+    '+16502532229',  # in whitelist
+    '6502532229',  # in whitelist in different format
 ])
 def test_send_one_off_notification_raises_if_cant_send_to_recipient(
     notify_db_session,
@@ -247,7 +247,7 @@ def test_send_one_off_notification_raises_if_cant_send_to_recipient(
     service = create_service(restricted=True)
     template = create_template(service=service)
     dao_add_and_commit_whitelisted_contacts([
-        ServiceWhitelist.from_string(service.id, MOBILE_TYPE, '07700900123'),
+        ServiceWhitelist.from_string(service.id, MOBILE_TYPE, '+16502532229'),
     ])
 
     post_data = {
@@ -272,7 +272,7 @@ def test_send_one_off_notification_raises_if_over_limit(notify_db_session, mocke
 
     post_data = {
         'template_id': str(template.id),
-        'to': '07700 900 001',
+        'to': '6502532222',
         'created_by': str(service.created_by_id)
     }
 
@@ -286,7 +286,7 @@ def test_send_one_off_notification_raises_if_message_too_long(persist_mock, noti
 
     post_data = {
         'template_id': str(template.id),
-        'to': '07700 900 001',
+        'to': '6502532222',
         'personalisation': {'name': '🚫' * 700},
         'created_by': str(service.created_by_id)
     }
@@ -303,7 +303,7 @@ def test_send_one_off_notification_fails_if_created_by_other_service(sample_temp
 
     post_data = {
         'template_id': str(sample_template.id),
-        'to': '07700 900 001',
+        'to': '6502532222',
         'created_by': str(user_not_in_service.id)
     }
 
@@ -440,7 +440,7 @@ def test_send_one_off_notification_should_throw_exception_if_sms_sender_id_doesn
         sample_template
 ):
     data = {
-        'to': '07700 900 001',
+        'to': '6502532222',
         'template_id': str(sample_template.id),
         'sender_id': str(uuid.uuid4()),
         'created_by': str(sample_template.service.created_by_id)

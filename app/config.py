@@ -304,7 +304,7 @@ class Config(object):
         'simulate-delivered-3@notifications.service.gov.uk',
     )
 
-    SIMULATED_SMS_NUMBERS = ('+16502532222', '+16502532223', '+16502532224')
+    SIMULATED_SMS_NUMBERS = ('+16132532222', '+16132532223', '+16132532224')
 
     DVLA_BUCKETS = {
         'job': '{}-dvla-file-per-job'.format(os.getenv('NOTIFY_ENVIRONMENT', 'development')),

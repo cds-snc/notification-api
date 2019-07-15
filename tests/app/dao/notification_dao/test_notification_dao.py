@@ -1010,7 +1010,7 @@ def test_dao_get_notifications_by_to_field(sample_template):
 
     recipient_to_search_for = {
         'to_field': '+16502532222',
-        'normalised_to': '16502532222'
+        'normalised_to': '+16502532222'
     }
 
     notification1 = create_notification(
@@ -1157,13 +1157,13 @@ def test_dao_get_notifications_by_to_field_accepts_invalid_phone_numbers_and_ema
 
 def test_dao_get_notifications_by_to_field_search_ignores_spaces(sample_template):
     notification1 = create_notification(
-        template=sample_template, to_field='+16502532222', normalised_to='16502532222'
+        template=sample_template, to_field='+16502532222', normalised_to='+16502532222'
     )
     notification2 = create_notification(
-        template=sample_template, to_field='+1 650 253 2222', normalised_to='16502532222'
+        template=sample_template, to_field='+1 650 253 2222', normalised_to='+16502532222'
     )
     notification3 = create_notification(
-        template=sample_template, to_field=' +1650253 2 222', normalised_to='16502532222'
+        template=sample_template, to_field=' +1650253 2 222', normalised_to='+16502532222'
     )
     create_notification(
         template=sample_template, to_field='jaCK@gmail.com', normalised_to='jack@gmail.com'
@@ -1249,11 +1249,11 @@ def test_set_scheduled_notification_to_processed(sample_template):
 def test_dao_get_notifications_by_to_field_filters_status(sample_template):
     notification = create_notification(
         template=sample_template, to_field='+16502532222',
-        normalised_to='16502532222', status='delivered'
+        normalised_to='+16502532222', status='delivered'
     )
     create_notification(
         template=sample_template, to_field='+16502532222',
-        normalised_to='16502532222', status='temporary-failure'
+        normalised_to='+16502532222', status='temporary-failure'
     )
 
     notifications = dao_get_notifications_by_to_field(notification.service_id, "+16502532222",
@@ -1267,11 +1267,11 @@ def test_dao_get_notifications_by_to_field_filters_status(sample_template):
 def test_dao_get_notifications_by_to_field_filters_multiple_statuses(sample_template):
     notification1 = create_notification(
         template=sample_template, to_field='+16502532222',
-        normalised_to='16502532222', status='delivered'
+        normalised_to='+16502532222', status='delivered'
     )
     notification2 = create_notification(
         template=sample_template, to_field='+16502532222',
-        normalised_to='16502532222', status='sending'
+        normalised_to='+16502532222', status='sending'
     )
 
     notifications = dao_get_notifications_by_to_field(
@@ -1287,11 +1287,11 @@ def test_dao_get_notifications_by_to_field_filters_multiple_statuses(sample_temp
 def test_dao_get_notifications_by_to_field_returns_all_if_no_status_filter(sample_template):
     notification1 = create_notification(
         template=sample_template, to_field='+16502532222',
-        normalised_to='16502532222', status='delivered'
+        normalised_to='+16502532222', status='delivered'
     )
     notification2 = create_notification(
         template=sample_template, to_field='+16502532222',
-        normalised_to='16502532222', status='temporary-failure'
+        normalised_to='+16502532222', status='temporary-failure'
     )
 
     notifications = dao_get_notifications_by_to_field(
@@ -1310,7 +1310,7 @@ def test_dao_get_notifications_by_to_field_orders_by_created_at_desc(sample_temp
         create_notification,
         template=sample_template,
         to_field='+16502532222',
-        normalised_to='16502532222'
+        normalised_to='+16502532222'
     )
 
     notification_a_minute_ago = notification(created_at=datetime.utcnow() - timedelta(minutes=1))

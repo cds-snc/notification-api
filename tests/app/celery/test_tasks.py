@@ -513,7 +513,7 @@ def test_should_save_sms_if_restricted_service_and_valid_number(notify_db_sessio
     user = create_user(mobile_number="6502532222")
     service = create_service(user=user, restricted=True)
     template = create_template(service=service)
-    notification = _notification_json(template, "+16502532222")  # The user’s own number, but in a different format
+    notification = _notification_json(template, "+16502532222") 
 
     mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
 

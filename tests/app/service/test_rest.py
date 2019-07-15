@@ -160,7 +160,7 @@ def test_get_live_services_data(sample_user, admin_request):
         {
             'consent_to_research': None,
             'contact_email': 'notify@digital.cabinet-office.gov.uk',
-            'contact_mobile': '+447700900986',
+            'contact_mobile': '+16502532222',
             'contact_name': 'Test User',
             'email_totals': 1,
             'email_volume_intent': None,
@@ -178,7 +178,7 @@ def test_get_live_services_data(sample_user, admin_request):
         {
             'consent_to_research': None,
             'contact_email': 'notify@digital.cabinet-office.gov.uk',
-            'contact_mobile': '+447700900986',
+            'contact_mobile': '+16502532222',
             'contact_name': 'Test User',
             'email_totals': 0,
             'email_volume_intent': None,
@@ -2012,7 +2012,7 @@ def test_get_detailed_services_for_date_range(sample_template, start_date_delta,
 def test_search_for_notification_by_to_field(client, sample_template, sample_email_template):
 
     notification1 = create_notification(template=sample_template, to_field='+16502532222',
-                                        normalised_to='447700900855')
+                                        normalised_to='+16502532222')
     notification2 = create_notification(template=sample_email_template, to_field='jack@gmail.com',
                                         normalised_to='jack@gmail.com')
 
@@ -2046,9 +2046,9 @@ def test_search_for_notification_by_to_field_return_empty_list_if_there_is_no_ma
 
 def test_search_for_notification_by_to_field_return_multiple_matches(client, notify_db, notify_db_session):
     create_notification = partial(create_sample_notification, notify_db, notify_db_session)
-    notification1 = create_notification(to_field='+16502532222', normalised_to='447700900855')
-    notification2 = create_notification(to_field=' +44 77009 00855 ', normalised_to='447700900855')
-    notification3 = create_notification(to_field='+44770 0900 855', normalised_to='447700900855')
+    notification1 = create_notification(to_field='+16502532222', normalised_to='+16502532222')
+    notification2 = create_notification(to_field=' +165 0253 2222 ', normalised_to='+16502532222')
+    notification3 = create_notification(to_field='+1 650 253 2222', normalised_to='+16502532222')
     notification4 = create_notification(to_field='jack@gmail.com', normalised_to='jack@gmail.com')
 
     response = client.get(
@@ -2152,7 +2152,7 @@ def test_search_for_notification_by_to_field_filters_by_status(client, notify_db
         notify_db,
         notify_db_session,
         to_field='+16502532222',
-        normalised_to='447700900855'
+        normalised_to='+16502532222'
     )
     notification1 = create_notification(status='delivered')
     create_notification(status='sending')
@@ -2177,7 +2177,7 @@ def test_search_for_notification_by_to_field_filters_by_statuses(client, notify_
         notify_db,
         notify_db_session,
         to_field='+16502532222',
-        normalised_to='447700900855'
+        normalised_to='+16502532222'
     )
     notification1 = create_notification(status='delivered')
     notification2 = create_notification(status='sending')
@@ -2207,7 +2207,7 @@ def test_search_for_notification_by_to_field_returns_content(
         notify_db,
         notify_db_session,
         to_field='+16502532222',
-        normalised_to='447700900855',
+        normalised_to='+16502532222',
         template=sample_template_with_placeholders,
         personalisation={"name": "Foo"}
     )
@@ -2236,7 +2236,7 @@ def test_send_one_off_notification(sample_service, admin_request, mocker):
         service_id=sample_service.id,
         _data={
             'template_id': str(template.id),
-            'to': '07700900001',
+            'to': '+16502532222',
             'created_by': str(sample_service.created_by_id)
         },
         _expected_status=201
@@ -2328,7 +2328,7 @@ def test_search_for_notification_by_to_field_returns_personlisation(
         notify_db,
         notify_db_session,
         to_field='+16502532222',
-        normalised_to='447700900855',
+        normalised_to='+16502532222',
         template=sample_template_with_placeholders,
         personalisation={"name": "Foo"}
     )
@@ -2358,7 +2358,7 @@ def test_search_for_notification_by_to_field_returns_notifications_by_type(
         notify_db,
         notify_db_session,
         to_field='+16502532222',
-        normalised_to='447700900855',
+        normalised_to='+16502532222',
         template=sample_template
     )
     create_sample_notification(
@@ -2371,7 +2371,7 @@ def test_search_for_notification_by_to_field_returns_notifications_by_type(
 
     response = client.get(
         '/service/{}/notifications?to={}&template_type={}'.format(
-            sms_notification.service_id, '0770', 'sms'
+            sms_notification.service_id, '650', 'sms'
 
         ),
         headers=[create_authorization_header()]
