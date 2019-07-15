@@ -373,12 +373,12 @@ def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(sampl
     template = create_template(service=sample_service, template_type=SMS_TYPE)
     sms_sender = create_service_sms_sender(
         service=sample_service,
-        sms_sender='07123123123',
+        sms_sender='6502532222',
         is_default=False
     )
 
     data = {
-        'to': '07111111111',
+        'to': '6502532223',
         'template_id': str(template.id),
         'created_by': str(sample_service.created_by_id),
         'sender_id': str(sms_sender.id),
@@ -392,7 +392,7 @@ def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(sampl
         queue=None
     )
 
-    assert notification.reply_to_text == "447123123123"
+    assert notification.reply_to_text == "+16502532222"
 
 
 def test_send_one_off_sms_notification_should_use_default_service_reply_to_text(sample_service, celery_mock):
@@ -400,12 +400,12 @@ def test_send_one_off_sms_notification_should_use_default_service_reply_to_text(
     sample_service.service_sms_senders[0].is_default = False
     create_service_sms_sender(
         service=sample_service,
-        sms_sender='07123123456',
+        sms_sender='6502532222',
         is_default=True
     )
 
     data = {
-        'to': '07111111111',
+        'to': '6502532223',
         'template_id': str(template.id),
         'created_by': str(sample_service.created_by_id),
     }
@@ -418,7 +418,7 @@ def test_send_one_off_sms_notification_should_use_default_service_reply_to_text(
         queue=None
     )
 
-    assert notification.reply_to_text == "447123123456"
+    assert notification.reply_to_text == "+16502532222"
 
 
 def test_send_one_off_notification_should_throw_exception_if_reply_to_id_doesnot_exist(

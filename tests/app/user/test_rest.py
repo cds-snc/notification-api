@@ -240,7 +240,7 @@ def test_cannot_create_user_with_empty_strings(admin_request, notify_db_session)
 @pytest.mark.parametrize('user_attribute, user_value', [
     ('name', 'New User'),
     ('email_address', 'newuser@mail.com'),
-    ('mobile_number', '+16502532222')
+    ('mobile_number', '+16502532223')
 ])
 def test_post_user_attribute(client, sample_user, user_attribute, user_value):
     assert getattr(sample_user, user_attribute) != user_value
@@ -271,13 +271,13 @@ def test_post_user_attribute(client, sample_user, user_attribute, user_value):
         service=mock.ANY,
         template_id=UUID('c73f1d71-4049-46d5-a647-d013bdeca3f0'), template_version=1
     )),
-    ('mobile_number', '+16502532222', dict(
+    ('mobile_number', '+16502532223', dict(
         api_key_id=None, key_type='normal', notification_type='sms',
         personalisation={
             'name': 'Test User', 'servicemanagername': 'Service Manago',
             'email address': 'notify@digital.cabinet-office.gov.uk'
         },
-        recipient='+16502532222', reply_to_text='testing', service=mock.ANY,
+        recipient='+16502532223', reply_to_text='testing', service=mock.ANY,
         template_id=UUID('8a31520f-4751-4789-8ea1-fe54496725eb'), template_version=1
     ))
 ])
