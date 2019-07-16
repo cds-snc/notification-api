@@ -61,6 +61,8 @@ DELIVERY_STATUS_CALLBACK_TYPE = 'delivery_status'
 COMPLAINT_CALLBACK_TYPE = 'complaint'
 SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE]
 
+ORGANISATION_TYPES = ['central', 'local', 'nhs']
+
 
 def filter_null_value_fields(obj):
     return dict(
@@ -344,6 +346,7 @@ class Organisation(db.Model):
         db.ForeignKey('users.id'),
         nullable=True,
     )
+    agreement_signed_by = db.relationship('User')
     agreement_signed_on_behalf_of_name = db.Column(db.String(255), nullable=True)
     agreement_signed_on_behalf_of_email_address = db.Column(db.String(255), nullable=True)
     agreement_signed_version = db.Column(db.Float, nullable=True)

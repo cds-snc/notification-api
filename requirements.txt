@@ -33,7 +33,11 @@ awscli-cwlogs>=1.4,<1.5
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
 itsdangerous==0.24  # pyup: <1.0.0
 
+<<<<<<< HEAD
 git+https://github.com/cds-snc/notifier-utils.git@34.0.6#egg=notifications-utils==34.0.6
+=======
+git+https://github.com/alphagov/notifications-utils.git@33.2.2#egg=notifications-utils==33.2.2
+>>>>>>> 663ab6d96be835428e62cccdf75800b2c2713e7c
 
 git+https://github.com/alphagov/boto.git@2.43.0-patch3#egg=boto==2.43.0-patch3
 
