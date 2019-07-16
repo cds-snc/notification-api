@@ -2,10 +2,17 @@ from datetime import datetime, timedelta
 
 import iso8601
 from celery.exceptions import Retry
-from flask import current_app, json
+from flask import (
+    Blueprint,
+    request,
+    current_app,
+    json,
+    jsonify,
+)
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
-
+import enum
+import requests
 from app import notify_celery, statsd_client
 from app.config import QueueNames
 from app.clients.email.aws_ses import get_aws_responses
@@ -18,6 +25,89 @@ from app.notifications.notifications_ses_callback import (
     _check_and_queue_complaint_callback_task,
     _check_and_queue_callback_task,
 )
+
+from app.errors import (
+    register_errors,
+    InvalidRequest
+)
+from werkzeug.contrib.cache import SimpleCache
+import validatesns
+
+ses_callback_blueprint = Blueprint('notifications_ses_callback', __name__)
+
+register_errors(ses_callback_blueprint)
+
+
+class SNSMessageType(enum.Enum):
+    SubscriptionConfirmation = 'SubscriptionConfirmation'
+    Notification = 'Notification'
+    UnsubscribeConfirmation = 'UnsubscribeConfirmation'
+
+
+class InvalidMessageTypeException(Exception):
+    pass
+
+
+def verify_message_type(message_type: str):
+    try:
+        SNSMessageType(message_type)
+    except ValueError:
+        raise InvalidMessageTypeException(f'{message_type} is not a valid message type.')
+
+certificate_cache = SimpleCache()
+
+
+def get_certificate(url):
+    res = certificate_cache.get(url)
+    if res is not None:
+        return res
+    res = requests.get(url).content
+    certificate_cache.set(url, res, timeout=60 * 60)  # 60 minutes
+    return res
+
+# 400 counts as a permanent failure so SNS will not retry.
+# 500 counts as a failed delivery attempt so SNS will retry.
+# See https://docs.aws.amazon.com/sns/latest/dg/DeliveryPolicies.html#DeliveryPolicies
+@ses_callback_blueprint.route('/notifications/email/ses', methods=['POST'])
+def sns_callback_handler():
+    message_type = request.headers.get('x-amz-sns-message-type')
+    try:
+        verify_message_type(message_type)
+    except InvalidMessageTypeException as ex:
+        raise InvalidRequest("SES-SNS callback failed: invalid message type", 400)
+
+    try:
+        message = json.loads(request.data)
+    except json.decoder.JSONDecodeError as ex:
+        raise InvalidRequest("SES-SNS callback failed: invalid JSON given", 400)
+
+    try:
+        validatesns.validate(message, get_certificate=get_certificate)
+    except validatesns.ValidationError as ex:
+        raise InvalidRequest("SES-SNS callback failed: validation failed", 400)
+
+    if message.get('Type') == 'SubscriptionConfirmation':
+        url = message.get('SubscribeURL')
+        response = requests.get(url)
+        try:
+            response.raise_for_status()
+        except Exception as e:
+            current_app.logger.warning("Response: {}".format(response.text))
+            raise e
+
+        return jsonify(
+            result="success", message="SES-SNS auto-confirm callback succeeded"
+        ), 200
+
+    process_ses_results.apply_async(response=message)
+
+    print(message)
+
+    return jsonify(
+        result="success", message="SES-SNS callback succeeded"
+    ), 200
+
+    raise InvalidRequest("SES-SNS callback failed", 400)
 
 
 @notify_celery.task(bind=True, name="process-ses-result", max_retries=5, default_retry_delay=300)
