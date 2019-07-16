@@ -18,7 +18,7 @@ from app.config import QueueNames
 from app.clients.email.aws_ses import get_aws_responses
 from app.dao import notifications_dao
 from app.models import NOTIFICATION_SENDING, NOTIFICATION_PENDING
-
+from json import decoder
 from app.notifications.notifications_ses_callback import (
     determine_notification_bounce_type,
     handle_complaint,
@@ -54,6 +54,7 @@ def verify_message_type(message_type: str):
     except ValueError:
         raise InvalidMessageTypeException(f'{message_type} is not a valid message type.')
 
+
 certificate_cache = SimpleCache()
 
 
@@ -68,22 +69,25 @@ def get_certificate(url):
 # 400 counts as a permanent failure so SNS will not retry.
 # 500 counts as a failed delivery attempt so SNS will retry.
 # See https://docs.aws.amazon.com/sns/latest/dg/DeliveryPolicies.html#DeliveryPolicies
+# This should not be here, it used to be in notifications/notifications_ses_callback. It then
+# got refactored into a task, which is fine, but it created a circular dependency. Will need
+# to investigate why GDS extracted this into a lambda
 @ses_callback_blueprint.route('/notifications/email/ses', methods=['POST'])
 def sns_callback_handler():
     message_type = request.headers.get('x-amz-sns-message-type')
     try:
         verify_message_type(message_type)
-    except InvalidMessageTypeException as ex:
+    except InvalidMessageTypeException:
         raise InvalidRequest("SES-SNS callback failed: invalid message type", 400)
 
     try:
         message = json.loads(request.data)
-    except json.decoder.JSONDecodeError as ex:
+    except decoder.JSONDecodeError:
         raise InvalidRequest("SES-SNS callback failed: invalid JSON given", 400)
 
     try:
         validatesns.validate(message, get_certificate=get_certificate)
-    except validatesns.ValidationError as ex:
+    except validatesns.ValidationError:
         raise InvalidRequest("SES-SNS callback failed: validation failed", 400)
 
     if message.get('Type') == 'SubscriptionConfirmation':
@@ -99,13 +103,11 @@ def sns_callback_handler():
             result="success", message="SES-SNS auto-confirm callback succeeded"
         ), 200
 
-    process_ses_results.apply_async(response=message)
+    process_ses_results.apply_async([{"Message": message.get("Message")}], queue=QueueNames.NOTIFY)
 
     return jsonify(
         result="success", message="SES-SNS callback succeeded"
     ), 200
-
-    raise InvalidRequest("SES-SNS callback failed", 400)
 
 
 @notify_celery.task(bind=True, name="process-ses-result", max_retries=5, default_retry_delay=300)
