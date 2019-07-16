@@ -101,8 +101,6 @@ def sns_callback_handler():
 
     process_ses_results.apply_async(response=message)
 
-    print(message)
-
     return jsonify(
         result="success", message="SES-SNS callback succeeded"
     ), 200
