@@ -21,6 +21,78 @@ from tests.app.db import (
 from tests.app.conftest import sample_notification as create_sample_notification
 
 
+def test_notifications_ses_400_with_invalid_header(client):
+    data = json.dumps({"foo": "bar"})
+    response = client.post(
+        path='/notifications/email/ses',
+        data=data,
+        headers=[('Content-Type', 'application/json')]
+    )
+    assert response.status_code == 400
+
+
+def test_notifications_ses_400_with_invalid_message_type(client):
+    data = json.dumps({"foo": "bar"})
+    response = client.post(
+        path='/notifications/email/ses',
+        data=data,
+        headers=[('Content-Type', 'application/json'), ('x-amz-sns-message-type', 'foo')]
+    )
+    assert response.status_code == 400
+    assert "SES-SNS callback failed: invalid message type" in response.get_data(as_text=True)
+
+
+def test_notifications_ses_400_with_invalid_json(client):
+    data = "FOOO"
+    response = client.post(
+        path='/notifications/email/ses',
+        data=data,
+        headers=[('Content-Type', 'application/json'), ('x-amz-sns-message-type', 'Notification')]
+    )
+    assert response.status_code == 400
+    assert "SES-SNS callback failed: invalid JSON given" in response.get_data(as_text=True)
+
+
+def test_notifications_ses_400_with_certificate(client):
+    data = json.dumps({"foo": "bar"})
+    response = client.post(
+        path='/notifications/email/ses',
+        data=data,
+        headers=[('Content-Type', 'application/json'), ('x-amz-sns-message-type', 'Notification')]
+    )
+    assert response.status_code == 400
+    assert "SES-SNS callback failed: validation failed" in response.get_data(as_text=True)
+
+
+def test_notifications_ses_200_autoconfirms_subscription(client, mocker):
+    mocker.patch("validatesns.validate")
+    requests_mock = mocker.patch("requests.get")
+    data = json.dumps({"Type": "SubscriptionConfirmation", "SubscribeURL": "https://foo"})
+    response = client.post(
+        path='/notifications/email/ses',
+        data=data,
+        headers=[('Content-Type', 'application/json'), ('x-amz-sns-message-type', 'SubscriptionConfirmation')]
+    )
+
+    requests_mock.assert_called_once_with("https://foo")
+    assert response.status_code == 200
+
+
+def test_notifications_ses_200_call_process_task(client, mocker):
+    mocker.patch("validatesns.validate")
+    process_mock = mocker.patch("app.celery.process_ses_receipts_tasks.process_ses_results.apply_async")
+    data = {"Type": "Notification", "foo": "bar"}
+    json_data = json.dumps(data)
+    response = client.post(
+        path='/notifications/email/ses',
+        data=json_data,
+        headers=[('Content-Type', 'application/json'), ('x-amz-sns-message-type', 'Notification')]
+    )
+
+    process_mock.assert_called_once_with([{'Message': None}], queue='notify-internal-tasks')
+    assert response.status_code == 200
+
+
 def test_process_ses_results(sample_email_template):
     create_notification(sample_email_template, reference='ref1', sent_at=datetime.utcnow(), status='sending')
 
