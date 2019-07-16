@@ -135,7 +135,9 @@ def test_get_organisation_by_domain(
 def test_post_create_organisation(admin_request, notify_db_session):
     data = {
         'name': 'test organisation',
-        'active': True
+        'active': True,
+        'crown': False,
+        'organisation_type': 'local',
     }
 
     response = admin_request.post(
@@ -148,13 +150,18 @@ def test_post_create_organisation(admin_request, notify_db_session):
 
     assert data['name'] == response['name']
     assert data['active'] == response['active']
+    assert data['crown'] == response['crown']
+    assert data['organisation_type'] == response['organisation_type']
+
     assert len(organisation) == 1
 
 
 def test_post_create_organisation_existing_name_raises_400(admin_request, sample_organisation):
     data = {
         'name': sample_organisation.name,
-        'active': True
+        'active': True,
+        'crown': True,
+        'organisation_type': 'central',
     }
 
     response = admin_request.post(
@@ -169,11 +176,41 @@ def test_post_create_organisation_existing_name_raises_400(admin_request, sample
     assert response['message'] == 'Organisation name already exists'
 
 
-def test_post_create_organisation_with_missing_name_gives_validation_error(admin_request, notify_db_session):
-    data = {
-        'active': False
-    }
-
+@pytest.mark.parametrize('data, expected_error', (
+    ({
+        'active': False,
+        'crown': True,
+        'organisation_type': 'central',
+    }, 'name is a required property'),
+    ({
+        'active': False,
+        'name': 'Service name',
+        'organisation_type': 'central',
+    }, 'crown is a required property'),
+    ({
+        'active': False,
+        'name': 'Service name',
+        'crown': True,
+    }, 'organisation_type is a required property'),
+    ({
+        'active': False,
+        'name': 'Service name',
+        'crown': None,
+        'organisation_type': 'central',
+    }, 'crown None is not of type boolean'),
+    ({
+        'active': False,
+        'name': 'Service name',
+        'crown': False,
+        'organisation_type': 'foo',
+    }, 'organisation_type foo is not one of [central, local, nhs]'),
+))
+def test_post_create_organisation_with_missing_name_gives_validation_error(
+    admin_request,
+    notify_db_session,
+    data,
+    expected_error,
+):
     response = admin_request.post(
         'organisation.create_organisation',
         _data=data,
@@ -182,31 +219,24 @@ def test_post_create_organisation_with_missing_name_gives_validation_error(admin
 
     assert len(response['errors']) == 1
     assert response['errors'][0]['error'] == 'ValidationError'
-    assert response['errors'][0]['message'] == 'name is a required property'
+    assert response['errors'][0]['message'] == expected_error
 
 
-@pytest.mark.parametrize('agreement_signed', (
-    None, True, False
-))
 @pytest.mark.parametrize('crown', (
     None, True, False
 ))
 def test_post_update_organisation_updates_fields(
     admin_request,
     notify_db_session,
-    agreement_signed,
     crown,
 ):
     org = create_organisation()
     data = {
         'name': 'new organisation name',
         'active': False,
-        'agreement_signed': agreement_signed,
         'crown': crown,
-        'agreement_signed_on_behalf_of_name': 'Firstname Lastname',
-        'agreement_signed_on_behalf_of_email_address': 'test@example.com',
+        'organisation_type': 'central',
     }
-    assert org.agreement_signed is None
     assert org.crown is None
 
     admin_request.post(
@@ -222,11 +252,9 @@ def test_post_update_organisation_updates_fields(
     assert organisation[0].id == org.id
     assert organisation[0].name == data['name']
     assert organisation[0].active == data['active']
-    assert organisation[0].agreement_signed == agreement_signed
     assert organisation[0].crown == crown
     assert organisation[0].domains == []
-    assert organisation[0].agreement_signed_on_behalf_of_name == 'Firstname Lastname'
-    assert organisation[0].agreement_signed_on_behalf_of_email_address == 'test@example.com'
+    assert organisation[0].organisation_type == 'central'
 
 
 @pytest.mark.parametrize('domain_list', (
@@ -269,7 +297,7 @@ def test_update_other_organisation_attributes_doesnt_clear_domains(
     admin_request.post(
         'organisation.update_organisation',
         _data={
-            'agreement_signed': True,
+            'crown': True,
         },
         organisation_id=org.id,
         _expected_status=204
@@ -357,6 +385,79 @@ def test_post_update_organisation_returns_400_if_domain_is_duplicate(admin_reque
     )
 
     assert response['message'] == 'Domain already exists'
+
+
+def test_post_update_organisation_set_mou_doesnt_email_if_no_signed_by(
+    sample_organisation,
+    admin_request,
+    mocker
+):
+    queue_mock = mocker.patch('app.organisation.rest.send_notification_to_queue')
+
+    data = {'agreement_signed': True}
+
+    admin_request.post(
+        'organisation.update_organisation',
+        _data=data,
+        organisation_id=sample_organisation.id,
+        _expected_status=204
+    )
+
+    assert queue_mock.called is False
+
+
+@pytest.mark.parametrize('on_behalf_of_name, on_behalf_of_email_address, templates_and_recipients', [
+    (
+        None,
+        None,
+        {
+            'MOU_NOTIFY_TEAM_ALERT_TEMPLATE_ID': 'notify-support+test@digital.cabinet-office.gov.uk',
+            'MOU_SIGNER_RECEIPT_TEMPLATE_ID': 'notify@digital.cabinet-office.gov.uk',
+        }
+    ),
+    (
+        'Important Person',
+        'important@person.com',
+        {
+            'MOU_NOTIFY_TEAM_ALERT_TEMPLATE_ID': 'notify-support+test@digital.cabinet-office.gov.uk',
+            'MOU_SIGNED_ON_BEHALF_ON_BEHALF_RECEIPT_TEMPLATE_ID': 'important@person.com',
+            'MOU_SIGNED_ON_BEHALF_SIGNER_RECEIPT_TEMPLATE_ID': 'notify@digital.cabinet-office.gov.uk',
+        }
+    ),
+])
+def test_post_update_organisation_set_mou_emails_signed_by(
+    sample_organisation,
+    admin_request,
+    mou_signed_templates,
+    mocker,
+    sample_user,
+    on_behalf_of_name,
+    on_behalf_of_email_address,
+    templates_and_recipients
+):
+    queue_mock = mocker.patch('app.organisation.rest.send_notification_to_queue')
+    sample_organisation.agreement_signed_on_behalf_of_name = on_behalf_of_name
+    sample_organisation.agreement_signed_on_behalf_of_email_address = on_behalf_of_email_address
+
+    admin_request.post(
+        'organisation.update_organisation',
+        _data={'agreement_signed': True, 'agreement_signed_by_id': str(sample_user.id)},
+        organisation_id=sample_organisation.id,
+        _expected_status=204
+    )
+
+    notifications = [x[0][0] for x in queue_mock.call_args_list]
+    assert {n.template.name: n.to for n in notifications} == templates_and_recipients
+
+    for n in notifications:
+        # we pass in the same personalisation for all templates (though some templates don't use all fields)
+        assert n.personalisation == {
+            'mou_link': 'http://localhost:6012/agreement/non-crown.pdf',
+            'org_name': 'sample organisation',
+            'org_dashboard_link': 'http://localhost:6012/organisations/{}'.format(sample_organisation.id),
+            'signed_by_name': 'Test User',
+            'on_behalf_of_name': on_behalf_of_name
+        }
 
 
 def test_post_link_service_to_organisation(admin_request, sample_service, sample_organisation):
