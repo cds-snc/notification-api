@@ -1,0 +1,14 @@
+FROM debian:stretch-slim
+
+RUN apt-get update
+RUN apt-get install -y curl gnupg2
+
+RUN curl -sSO https://dl.google.com/cloudagents/install-monitoring-agent.sh
+RUN bash install-monitoring-agent.sh
+
+RUN (cd /opt/stackdriver/collectd/etc/collectd.d/ && curl -O https://raw.githubusercontent.com/Stackdriver/stackdriver-agent-service-configs/master/etc/collectd.d/statsd.conf)
+
+# Allows the StatsD agent to collect data from other pods
+RUN sed -i 's/127.0.0.1/0.0.0.0/g' /opt/stackdriver/collectd/etc/collectd.d/statsd.conf
+
+CMD ["service", "stackdriver-agent", "start", "&&", "tail", "-f", "/dev/null"]
