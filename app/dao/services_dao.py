@@ -49,7 +49,6 @@ from app.utils import email_address_is_nhs, get_toronto_midnight_in_utc, midnigh
 DEFAULT_SERVICE_PERMISSIONS = [
     SMS_TYPE,
     EMAIL_TYPE,
-    LETTER_TYPE,
     INTERNATIONAL_SMS_TYPE,
 ]
 
