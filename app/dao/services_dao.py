@@ -42,7 +42,6 @@ from app.models import (
     INTERNATIONAL_SMS_TYPE,
     KEY_TYPE_TEST,
     SMS_TYPE,
-    LETTER_TYPE,
 )
 from app.utils import email_address_is_nhs, get_toronto_midnight_in_utc, midnight_n_days_ago
 
