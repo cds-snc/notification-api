@@ -48,6 +48,10 @@ The purpose of this file is to track the major changes we have made to the appli
 - __Rational__: Users need to know this product it in Alpha.
 - __Commits__: https://github.com/cds-snc/notification-admin/commit/41c54dbc0fd81cc770bbed108d02d272057f2122
 ---
+- __Change__: Removed https://github.com/alphagov/govuk_frontend_toolkit JavaScript and CSS/SASS dependancy.
+- __Rational__: It did not make sense to maintain another fork if we could pull these in.
+- __Commits__: https://github.com/cds-snc/notification-admin/commit/aa70c20d5e35f6c0051c11e0757b4794161ff86c
+---
 - __Change__: Update templates to remove GOV.UK branding and added Canada branding. Also removed references to GOV.UK that were hard coded.
 - __Rational__: This product should not confuse users to think they are using a GOV.UK platform. 
 - __Commits__:https://github.com/cds-snc/notification-admin/commit/d4bd8ba25208a526ea64df8cb24bbc324dc8deff, https://github.com/cds-snc/notification-admin/commit/f2623ec79039833d48a0238efe87fc8886be51d0, https://github.com/cds-snc/notification-admin/commit/c5af3230ea727c66b440bb6493309191f0d82e34, https://github.com/cds-snc/notification-admin/commit/aa70c20d5e35f6c0051c11e0757b4794161ff86c,
