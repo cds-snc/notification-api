@@ -225,7 +225,7 @@ def test_get_service_list_has_default_permissions(admin_request, service_factory
         set(
             json['permissions']
         ) == set([
-            EMAIL_TYPE, SMS_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE,
+            EMAIL_TYPE, SMS_TYPE, INTERNATIONAL_SMS_TYPE,
         ])
         for json in json_resp['data']
     )
@@ -237,7 +237,7 @@ def test_get_service_by_id_has_default_service_permissions(admin_request, sample
     assert set(
         json_resp['data']['permissions']
     ) == set([
-        EMAIL_TYPE, SMS_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE,
+        EMAIL_TYPE, SMS_TYPE, INTERNATIONAL_SMS_TYPE,
     ])
 
 
