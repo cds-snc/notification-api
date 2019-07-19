@@ -21,6 +21,7 @@ from app.models import (
     TemplateHistory
 )
 from app.dao.templates_dao import dao_get_template_by_id, dao_redact_template
+from app.dao.service_permissions_dao import dao_add_service_permission
 
 from tests import create_authorization_header
 from tests.app.conftest import (
@@ -120,6 +121,7 @@ def test_create_a_new_template_for_a_service_adds_folder_relationship(
 def test_create_a_new_template_for_a_service_adds_postage_for_letters_only(
     client, sample_service, template_type, expected_postage
 ):
+    dao_add_service_permission(service_id=sample_service.id, permission=LETTER_TYPE)
     data = {
         'name': 'my template',
         'template_type': template_type,

@@ -463,16 +463,16 @@ def test_create_service_returns_service_with_default_permissions(notify_db_sessi
 
     service = dao_fetch_service_by_id(service.id)
     _assert_service_permissions(service.permissions, (
-        SMS_TYPE, EMAIL_TYPE, LETTER_TYPE, INTERNATIONAL_SMS_TYPE,
+        SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE,
     ))
 
 
 @pytest.mark.parametrize("permission_to_remove, permissions_remaining", [
     (SMS_TYPE, (
-        EMAIL_TYPE, LETTER_TYPE, INTERNATIONAL_SMS_TYPE,
+        EMAIL_TYPE, INTERNATIONAL_SMS_TYPE,
     )),
     (EMAIL_TYPE, (
-        SMS_TYPE, LETTER_TYPE, INTERNATIONAL_SMS_TYPE,
+        SMS_TYPE, INTERNATIONAL_SMS_TYPE,
     )),
 ])
 def test_remove_permission_from_service_by_id_returns_service_with_correct_permissions(
@@ -504,7 +504,7 @@ def test_create_service_by_id_adding_and_removing_letter_returns_service_without
 
     service = dao_fetch_service_by_id(service.id)
     _assert_service_permissions(service.permissions, (
-        SMS_TYPE, EMAIL_TYPE, LETTER_TYPE, INTERNATIONAL_SMS_TYPE,
+        SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE
     ))
 
     dao_remove_service_permission(service_id=service.id, permission=LETTER_TYPE)
@@ -595,7 +595,7 @@ def test_update_service_permission_creates_a_history_record_with_current_data(no
     assert service_from_db.version == 2
 
     _assert_service_permissions(service.permissions, (
-        SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE,
+        SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE
     ))
 
     permission = [p for p in service.permissions if p.permission == 'sms'][0]
@@ -608,7 +608,7 @@ def test_update_service_permission_creates_a_history_record_with_current_data(no
     service_from_db = Service.query.first()
     assert service_from_db.version == 3
     _assert_service_permissions(service.permissions, (
-        EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE,
+        EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE
     ))
 
     assert len(Service.get_history_model().query.filter_by(name='service_name').all()) == 3
@@ -644,7 +644,7 @@ def test_delete_service_and_associated_objects(notify_db_session):
     create_invited_user(service=service)
 
     assert ServicePermission.query.count() == len((
-        SMS_TYPE, EMAIL_TYPE, LETTER_TYPE, INTERNATIONAL_SMS_TYPE,
+        SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE,
     ))
 
     delete_service_and_all_associated_db_objects(service)
