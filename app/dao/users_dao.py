@@ -73,6 +73,7 @@ def use_user_code(id):
     db.session.add(verify_code)
     db.session.commit()
 
+
 def delete_model_user(user):
     db.session.delete(user)
     db.session.commit()
