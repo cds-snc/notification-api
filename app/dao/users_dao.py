@@ -73,7 +73,6 @@ def use_user_code(id):
     db.session.add(verify_code)
     db.session.commit()
 
-
 def delete_model_user(user):
     db.session.delete(user)
     db.session.commit()
@@ -89,6 +88,15 @@ def count_user_verify_codes(user):
         VerifyCode.user == user,
         VerifyCode.expiry_datetime > datetime.utcnow(),
         VerifyCode.code_used.is_(False)
+    )
+    return query.count()
+
+
+def verify_within_time(user, age=timedelta(seconds=30)):
+    query = VerifyCode.query.filter(
+        VerifyCode.user == user,
+        VerifyCode.code_used.is_(False),
+        VerifyCode.created_at > datetime.utcnow() - age
     )
     return query.count()
 
