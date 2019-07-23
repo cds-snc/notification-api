@@ -93,6 +93,15 @@ def count_user_verify_codes(user):
     return query.count()
 
 
+def verify_within_time(user, age=timedelta(seconds=30)):
+    query = VerifyCode.query.filter(
+        VerifyCode.user == user,
+        VerifyCode.code_used.is_(False),
+        VerifyCode.created_at > datetime.utcnow() - age
+    )
+    return query.count()
+
+
 def get_user_by_id(user_id=None):
     if user_id:
         return User.query.filter_by(id=user_id).one()
