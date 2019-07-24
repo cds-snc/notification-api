@@ -118,6 +118,7 @@ class Config(object):
     NOTIFY_ENVIRONMENT = os.getenv("NOTIFY_ENVIRONMENT", "development")
     ADMIN_CLIENT_USER_NAME = 'notify-admin'
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+    CSV_UPLOAD_BUCKET_NAME = 'development-notification-canada-ca-csv-upload'
     INVITATION_EXPIRATION_DAYS = 2
     NOTIFY_APP_NAME = 'api'
     SQLALCHEMY_RECORD_QUERIES = False
@@ -348,7 +349,7 @@ class Development(Config):
     DEBUG = True
     SQLALCHEMY_ECHO = False
 
-    CSV_UPLOAD_BUCKET_NAME = 'development-notifications-csv-upload'
+    # CSV_UPLOAD_BUCKET_NAME = 'development-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'development-test-letters'
     DVLA_RESPONSE_BUCKET_NAME = 'notify.tools-ftp'
     LETTERS_PDF_BUCKET_NAME = 'development-letters-pdf'
@@ -387,7 +388,7 @@ class Test(Development):
     NOTIFY_ENVIRONMENT = 'test'
     TESTING = True
 
-    CSV_UPLOAD_BUCKET_NAME = 'test-notifications-csv-upload'
+    # CSV_UPLOAD_BUCKET_NAME = 'test-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'test-test-letters'
     DVLA_RESPONSE_BUCKET_NAME = 'test.notify.com-ftp'
     LETTERS_PDF_BUCKET_NAME = 'test-letters-pdf'
@@ -423,7 +424,7 @@ class Test(Development):
 class Preview(Config):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
     NOTIFY_ENVIRONMENT = 'preview'
-    CSV_UPLOAD_BUCKET_NAME = 'preview-notifications-csv-upload'
+    # CSV_UPLOAD_BUCKET_NAME = 'preview-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'preview-test-letters'
     DVLA_RESPONSE_BUCKET_NAME = 'notify.works-ftp'
     LETTERS_PDF_BUCKET_NAME = 'preview-letters-pdf'
@@ -437,7 +438,7 @@ class Preview(Config):
 class Staging(Config):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
     NOTIFY_ENVIRONMENT = 'staging'
-    CSV_UPLOAD_BUCKET_NAME = 'staging-notifications-csv-upload'
+    # CSV_UPLOAD_BUCKET_NAME = 'staging-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'staging-test-letters'
     DVLA_RESPONSE_BUCKET_NAME = 'staging-notify.works-ftp'
     LETTERS_PDF_BUCKET_NAME = 'staging-letters-pdf'
@@ -452,7 +453,7 @@ class Staging(Config):
 class Live(Config):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
     NOTIFY_ENVIRONMENT = 'live'
-    CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
+    # CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'production-test-letters'
     DVLA_RESPONSE_BUCKET_NAME = 'notifications.service.gov.uk-ftp'
     LETTERS_PDF_BUCKET_NAME = 'production-letters-pdf'
@@ -474,7 +475,7 @@ class CloudFoundryConfig(Config):
 class Sandbox(CloudFoundryConfig):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
     NOTIFY_ENVIRONMENT = 'sandbox'
-    CSV_UPLOAD_BUCKET_NAME = 'cf-sandbox-notifications-csv-upload'
+    # CSV_UPLOAD_BUCKET_NAME = 'cf-sandbox-notifications-csv-upload'
     LETTERS_PDF_BUCKET_NAME = 'cf-sandbox-letters-pdf'
     TEST_LETTERS_BUCKET_NAME = 'cf-sandbox-test-letters'
     DVLA_RESPONSE_BUCKET_NAME = 'notify.works-ftp'
