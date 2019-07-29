@@ -214,7 +214,7 @@ def send_user_2fa_code(user_id, code_type):
     user_to_send_to = get_user_by_id(user_id=user_id)
     
     if(verify_within_time(user_to_send_to, age=timedelta(seconds=10)) >= 1):
-        raise InvalidRequest("Code already sent", status_code=400)
+        raise InvalidRequest("Code already sent, wait 10 seconds", status_code=400)
 
     if count_user_verify_codes(user_to_send_to) >= current_app.config.get('MAX_VERIFY_CODE_COUNT'):
         # Prevent more than `MAX_VERIFY_CODE_COUNT` active verify codes at a time
