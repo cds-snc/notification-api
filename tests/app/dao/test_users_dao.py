@@ -22,6 +22,7 @@ from app.dao.users_dao import (
     create_secret_code,
     user_can_be_archived,
     dao_archive_user,
+    verify_within_time
 )
 from app.errors import InvalidRequest
 from app.models import EMAIL_AUTH_TYPE, User, VerifyCode
@@ -119,6 +120,15 @@ def test_should_not_delete_verification_codes_less_than_one_day_old(sample_user)
     assert VerifyCode.query.count() == 2
     delete_codes_older_created_more_than_a_day_ago()
     assert VerifyCode.query.one()._code == "12345"
+
+
+def test_will_find_verify_codes_sent_within_seconds(notify_api, notify_db, notify_db_session, sample_user):
+    make_verify_code(sample_user)
+    make_verify_code(sample_user, timedelta(seconds=10))
+    make_verify_code(sample_user, timedelta(seconds=32))
+    make_verify_code(sample_user, timedelta(hours=1))
+    count = verify_within_time(sample_user)
+    assert count == 2
 
 
 def make_verify_code(user, age=timedelta(hours=0), expiry_age=timedelta(0), code="12335", code_used=False):

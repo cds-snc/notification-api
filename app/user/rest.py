@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import datetime
+from datetime import (datetime, timedelta)
 from urllib.parse import urlencode
 
 from flask import (jsonify, request, Blueprint, current_app, abort)
@@ -23,6 +23,7 @@ from app.dao.users_dao import (
     count_user_verify_codes,
     get_user_and_accounts,
     dao_archive_user,
+    verify_within_time
 )
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
@@ -185,6 +186,10 @@ def verify_user_code(user_id):
     user_to_verify = get_user_by_id(user_id=user_id)
 
     code = get_user_code(user_to_verify, data['code'], data['code_type'])
+
+    if(verify_within_time(user_to_verify) >= 2):
+        raise InvalidRequest("Code already sent", status_code=400)
+
     if user_to_verify.failed_login_count >= current_app.config.get('MAX_VERIFY_CODE_COUNT'):
         raise InvalidRequest("Code not found", status_code=404)
     if not code:
@@ -208,6 +213,9 @@ def verify_user_code(user_id):
 @user_blueprint.route('/<uuid:user_id>/<code_type>-code', methods=['POST'])
 def send_user_2fa_code(user_id, code_type):
     user_to_send_to = get_user_by_id(user_id=user_id)
+
+    if(verify_within_time(user_to_send_to, age=timedelta(seconds=10)) >= 1):
+        raise InvalidRequest("Code already sent, wait 10 seconds", status_code=400)
 
     if count_user_verify_codes(user_to_send_to) >= current_app.config.get('MAX_VERIFY_CODE_COUNT'):
         # Prevent more than `MAX_VERIFY_CODE_COUNT` active verify codes at a time
