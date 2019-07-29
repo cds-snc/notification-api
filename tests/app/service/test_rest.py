@@ -574,7 +574,7 @@ def test_update_service(client, notify_db, sample_service):
         'email_from': 'updated.service.name',
         'created_by': str(sample_service.created_by.id),
         'email_branding': str(brand.id),
-        'organisation_type': 'foo',
+        'organisation_type': 'school_or_college',
     }
 
     auth_header = create_authorization_header()
@@ -589,7 +589,25 @@ def test_update_service(client, notify_db, sample_service):
     assert result['data']['name'] == 'updated service name'
     assert result['data']['email_from'] == 'updated.service.name'
     assert result['data']['email_branding'] == str(brand.id)
-    assert result['data']['organisation_type'] == 'foo'
+    assert result['data']['organisation_type'] == 'school_or_college'
+
+
+def test_cant_update_service_org_type_to_random_value(client, sample_service):
+    data = {
+        'name': 'updated service name',
+        'email_from': 'updated.service.name',
+        'created_by': str(sample_service.created_by.id),
+        'organisation_type': 'foo',
+    }
+
+    auth_header = create_authorization_header()
+
+    resp = client.post(
+        '/service/{}'.format(sample_service.id),
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header]
+    )
+    assert resp.status_code == 500
 
 
 def test_update_service_letter_branding(client, notify_db, sample_service):
@@ -694,26 +712,6 @@ def test_update_service_flags(client, sample_service):
     assert resp.status_code == 200
     assert result['data']['research_mode'] is True
     assert set(result['data']['permissions']) == set([LETTER_TYPE, INTERNATIONAL_SMS_TYPE])
-
-
-@pytest.mark.parametrize("org_type, expected",
-                         [("central", True),
-                          ('local', False),
-                          ("nhs", False)])
-def test_update_service_sets_crown(client, sample_service, org_type, expected):
-    data = {
-        'organisation_type': org_type,
-    }
-    auth_header = create_authorization_header()
-
-    resp = client.post(
-        '/service/{}'.format(sample_service.id),
-        data=json.dumps(data),
-        headers=[('Content-Type', 'application/json'), auth_header]
-    )
-    result = resp.json
-    assert resp.status_code == 200
-    assert result['data']['crown'] is expected
 
 
 @pytest.mark.parametrize('field', (
@@ -2830,14 +2828,12 @@ def test_add_service_letter_contact_can_add_multiple_addresses(client, sample_se
     assert first_letter_contact_not_default[0].contact_block == 'London, E1 8QS'
 
 
-def test_add_service_letter_contact_block_raise_exception_if_no_default(client, sample_service):
+def test_add_service_letter_contact_block_fine_if_no_default(client, sample_service):
     data = json.dumps({"contact_block": "London, E1 8QS", "is_default": False})
     response = client.post('/service/{}/letter-contact'.format(sample_service.id),
                            data=data,
                            headers=[('Content-Type', 'application/json'), create_authorization_header()])
-    assert response.status_code == 400
-    json_resp = json.loads(response.get_data(as_text=True))
-    assert json_resp['message'] == 'You must have at least one letter contact as the default.'
+    assert response.status_code == 201
 
 
 def test_add_service_letter_contact_block_404s_when_invalid_service_id(client, notify_db, notify_db_session):
@@ -2865,16 +2861,13 @@ def test_update_service_letter_contact(client, sample_service):
     assert json_resp['data'] == results[0].serialize()
 
 
-def test_update_service_letter_contact_returns_400_when_no_default(client, sample_service):
+def test_update_service_letter_contact_returns_200_when_no_default(client, sample_service):
     original_reply_to = create_letter_contact(service=sample_service, contact_block="Aberdeen, AB23 1XH")
     data = json.dumps({"contact_block": "London, E1 8QS", "is_default": False})
     response = client.post('/service/{}/letter-contact/{}'.format(sample_service.id, original_reply_to.id),
                            data=data,
                            headers=[('Content-Type', 'application/json'), create_authorization_header()])
-
-    assert response.status_code == 400
-    json_resp = json.loads(response.get_data(as_text=True))
-    assert json_resp['message'] == 'You must have at least one letter contact as the default.'
+    assert response.status_code == 200
 
 
 def test_update_service_letter_contact_returns_404_when_invalid_service_id(client, notify_db, notify_db_session):
@@ -2902,7 +2895,7 @@ def test_delete_service_letter_contact_can_archive_letter_contact(admin_request,
     assert letter_contact.archived is True
 
 
-def test_delete_service_letter_contact_returns_400_if_archiving_template_default(admin_request, notify_db_session):
+def test_delete_service_letter_contact_returns_200_if_archiving_template_default(admin_request, notify_db_session):
     service = create_service()
     create_letter_contact(service=service, contact_block='Edinburgh, ED1 1AA')
     letter_contact = create_letter_contact(service=service, contact_block='Swansea, SN1 3CC', is_default=False)
@@ -2912,12 +2905,9 @@ def test_delete_service_letter_contact_returns_400_if_archiving_template_default
         'service.delete_service_letter_contact',
         service_id=service.id,
         letter_contact_id=letter_contact.id,
-        _expected_status=400
+        _expected_status=200
     )
-    assert response == {
-        'message': 'You cannot delete the default letter contact block for a template',
-        'result': 'error'}
-    assert letter_contact.archived is False
+    assert response['data']['archived'] is True
 
 
 def test_add_service_sms_sender_can_add_multiple_senders(client, notify_db_session):
@@ -3304,3 +3294,21 @@ def test_cancel_notification_for_service_updates_letter_if_still_time_to_cancel(
         notification_id=sample_letter_notification.id,
     )
     assert response['status'] == 'cancelled'
+
+
+def test_get_monthly_notification_data_by_service(mocker, admin_request):
+    dao_mock = mocker.patch(
+        'app.service.rest.fact_notification_status_dao.fetch_monthly_notification_statuses_per_service',
+        return_value=[])
+
+    start_date = '2019-01-01'
+    end_date = '2019-06-17'
+
+    response = admin_request.get(
+        'service.get_monthly_notification_data_by_service',
+        start_date=start_date,
+        end_date=end_date
+    )
+
+    dao_mock.assert_called_once_with(start_date, end_date)
+    assert response == []
