@@ -449,7 +449,7 @@ def test_get_html_email_renderer_prepends_logo_path(notify_api):
 
     renderer = send_to_providers.get_html_email_options(service)
 
-    assert renderer['brand_logo'] == 'http://static-logos.notify.tools/justice-league.png'
+    assert renderer['brand_logo'] == 'https://development-notification-canada-ca-asset-upload.s3.amazonaws.com/justice-league.png'
 
 
 def test_get_html_email_renderer_handles_email_branding_without_logo(notify_api):
@@ -476,15 +476,10 @@ def test_get_html_email_renderer_handles_email_branding_without_logo(notify_api)
     assert renderer['brand_colour'] == '#000000'
     assert renderer['brand_name'] == 'Justice League'
 
-
 @pytest.mark.parametrize('base_url, expected_url', [
     # don't change localhost to prevent errors when testing locally
-    ('http://localhost:6012', 'http://static-logos.notify.tools/filename.png'),
-    ('https://www.notifications.service.gov.uk', 'https://static-logos.notifications.service.gov.uk/filename.png'),
-    ('https://notify.works', 'https://static-logos.notify.works/filename.png'),
-    ('https://staging-notify.works', 'https://static-logos.staging-notify.works/filename.png'),
-    ('https://www.notify.works', 'https://static-logos.notify.works/filename.png'),
-    ('https://www.staging-notify.works', 'https://static-logos.staging-notify.works/filename.png'),
+    ('http://localhost:6012', 'https://development-notification-canada-ca-asset-upload.s3.amazonaws.com/filename.png'),
+    ('https://www.notifications.service.gov.uk', 'https://development-notification-canada-ca-asset-upload.s3.amazonaws.com/filename.png'),
 ])
 def test_get_logo_url_works_for_different_environments(base_url, expected_url):
     logo_file = 'filename.png'
@@ -492,7 +487,6 @@ def test_get_logo_url_works_for_different_environments(base_url, expected_url):
     logo_url = send_to_providers.get_logo_url(base_url, logo_file)
 
     assert logo_url == expected_url
-
 
 def test_should_not_update_notification_if_research_mode_on_exception(
         sample_service, sample_notification, mocker
