@@ -38,9 +38,11 @@ from app.models import (
     TemplateRedacted,
     User,
     VerifyCode,
+    CROWN_ORGANISATION_TYPES,
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
     KEY_TYPE_TEST,
+    NON_CROWN_ORGANISATION_TYPES,
     SMS_TYPE,
 )
 from app.utils import email_address_is_nhs, get_toronto_midnight_in_utc, midnight_n_days_ago
@@ -280,7 +282,12 @@ def dao_create_service(
     service.id = service_id or uuid.uuid4()  # must be set now so version history model can use same id
     service.active = True
     service.research_mode = False
-    service.crown = service.organisation_type == 'central'
+    if organisation:
+        service.crown = organisation.crown
+    elif service.organisation_type in CROWN_ORGANISATION_TYPES:
+        service.crown = True
+    elif service.organisation_type in NON_CROWN_ORGANISATION_TYPES:
+        service.crown = False
     service.count_as_live = not user.platform_admin
 
     for permission in service_permissions:
@@ -300,7 +307,7 @@ def dao_create_service(
         if organisation.letter_branding and not service.letter_branding:
             service.letter_branding = organisation.letter_branding
 
-    elif service.organisation_type == 'nhs' or email_address_is_nhs(user.email_address):
+    elif service.organisation_type in ['nhs_central', 'nhs_local'] or email_address_is_nhs(user.email_address):
 
         service.email_branding = dao_get_email_branding_by_name('NHS')
         service.letter_branding = dao_get_letter_branding_by_name('NHS')
