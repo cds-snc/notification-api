@@ -212,7 +212,7 @@ def verify_user_code(user_id):
 @user_blueprint.route('/<uuid:user_id>/<code_type>-code', methods=['POST'])
 def send_user_2fa_code(user_id, code_type):
     user_to_send_to = get_user_by_id(user_id=user_id)
-    
+
     if(verify_within_time(user_to_send_to, age=timedelta(seconds=10)) >= 1):
         raise InvalidRequest("Code already sent, wait 10 seconds", status_code=400)
 

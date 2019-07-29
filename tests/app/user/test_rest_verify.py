@@ -232,37 +232,38 @@ def test_send_user_code_for_sms_with_optional_to_field(client,
         queue="notify-internal-tasks"
     )
 
+
 @freeze_time("2016-01-01 11:09:00.061258")
 def test_send_user_code_for_sms_respects_a_retry_time_delta(client,
-                                                       sample_user,
-                                                       sms_code_template,
-                                                       mocker):
+                                                            sample_user,
+                                                            sms_code_template,
+                                                            mocker):
     """
     Tests POST endpoint /user/<user_id>/sms-code will fail if there already is a code with a time delta
     """
-    with freeze_time("2019-01-01 10:09:00") as frozen_datetime:
-        to_number = '+447119876757'
-        mocked = mocker.patch('app.user.rest.create_secret_code', return_value='11111')
-        mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
-        auth_header = create_authorization_header()
+    to_number = '+447119876757'
+    mocked = mocker.patch('app.user.rest.create_secret_code', return_value='11111')
+    mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+    auth_header = create_authorization_header()
 
-        resp = client.post(
-            url_for('user.send_user_2fa_code', code_type='sms', user_id=sample_user.id),
-            data=json.dumps({'to': to_number}),
-            headers=[('Content-Type', 'application/json'), auth_header])
+    resp = client.post(
+        url_for('user.send_user_2fa_code', code_type='sms', user_id=sample_user.id),
+        data=json.dumps({'to': to_number}),
+        headers=[('Content-Type', 'application/json'), auth_header])
 
-        assert resp.status_code == 204
-        assert mocked.call_count == 1
+    assert resp.status_code == 204
+    assert mocked.call_count == 1
 
-        # Inside delta
-        auth_header = create_authorization_header()
-        resp = client.post(
-            url_for('user.send_user_2fa_code', code_type='sms', user_id=sample_user.id),
-            data=json.dumps({'to': to_number}),
-            headers=[('Content-Type', 'application/json'), auth_header])
+    # Inside delta
+    auth_header = create_authorization_header()
+    resp = client.post(
+        url_for('user.send_user_2fa_code', code_type='sms', user_id=sample_user.id),
+        data=json.dumps({'to': to_number}),
+        headers=[('Content-Type', 'application/json'), auth_header])
 
-        assert resp.status_code == 400
-        assert mocked.call_count == 1
+    assert resp.status_code == 400
+    assert mocked.call_count == 1
+
 
 def test_send_sms_code_returns_404_for_bad_input_data(client):
     uuid_ = uuid.uuid4()
