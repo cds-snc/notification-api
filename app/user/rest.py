@@ -370,9 +370,9 @@ def send_already_registered_email(user_id):
 
     return jsonify({}), 204
 
+
 @user_blueprint.route('/<uuid:user_id>/support-email', methods=['POST'])
 def send_support_email(user_id):
-    print(request.get_json())
     to, errors = support_email_data_schema.load(request.get_json())
     template = dao_get_template_by_id(current_app.config['CONTACT_US_TEMPLATE_ID'])
     service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
