@@ -10,7 +10,7 @@ from flask import current_app
 
 
 revision = '0300b_support_email_templates'
-down_revision = '0300a_merge_heads.py'
+down_revision = '0300a_merge_heads'
 
 
 templates = [
