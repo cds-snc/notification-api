@@ -1,6 +1,6 @@
 """
 
-Revision ID: 300b_support_email_templates
+Revision ID: 0300b_support_email_templates
 Revises: 0300a_merge_heads
 Create Date: 2019-07-29 17:18:00.0
 
@@ -9,7 +9,7 @@ from alembic import op
 from flask import current_app
 
 
-revision = '0298_add_mou_signed_receipt'
+revision = '0300b_support_email_templates'
 down_revision = '0300a_merge_heads.py'
 
 
