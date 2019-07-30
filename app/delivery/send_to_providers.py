@@ -1,4 +1,3 @@
-from urllib import parse
 from datetime import datetime
 
 from flask import current_app
@@ -145,24 +144,9 @@ def provider_to_use(notification_type, notification_id, international=False):
 
 
 def get_logo_url(base_url, logo_file):
-    base_url = parse.urlparse(base_url)
-    netloc = base_url.netloc
-
-    if base_url.netloc.startswith('localhost'):
-        netloc = 'notify.tools'
-    elif base_url.netloc.startswith('www'):
-        # strip "www."
-        netloc = base_url.netloc[4:]
-
-    logo_url = parse.ParseResult(
-        scheme=base_url.scheme,
-        netloc='static-logos.' + netloc,
-        path=logo_file,
-        params=base_url.params,
-        query=base_url.query,
-        fragment=base_url.fragment
-    )
-    return parse.urlunparse(logo_url)
+    bucket = current_app.config['ASSET_UPLOAD_BUCKET_NAME']
+    domain = current_app.config['ASSET_DOMAIN']
+    return "https://{}.{}/{}".format(bucket, domain, logo_file)
 
 
 def get_html_email_options(service):

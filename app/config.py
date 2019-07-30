@@ -119,6 +119,8 @@ class Config(object):
     ADMIN_CLIENT_USER_NAME = 'notify-admin'
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
     CSV_UPLOAD_BUCKET_NAME = 'development-notification-canada-ca-csv-upload'
+    ASSET_UPLOAD_BUCKET_NAME = os.getenv('ASSET_UPLOAD_BUCKET_NAME', 'development-notification-canada-ca-asset-upload')
+    ASSET_DOMAIN = os.getenv('ASSET_DOMAIN', 's3.amazonaws.com')
     INVITATION_EXPIRATION_DAYS = 2
     NOTIFY_APP_NAME = 'api'
     SQLALCHEMY_RECORD_QUERIES = False
