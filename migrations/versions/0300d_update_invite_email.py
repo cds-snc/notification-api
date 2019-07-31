@@ -23,8 +23,8 @@ def upgrade():
                 content = 
                   REPLACE(
                     content,
-                    'create an account on Notification',
-                    'accept the invitation'
+                    'Click this link to create an account on Notification',
+                    'Use this link to accept the invitation'
                   )
             WHERE
                 id = '4f46df42-f795-4cc4-83bb-65ca312f49cc'
@@ -37,8 +37,8 @@ def upgrade():
                 content = 
                   REPLACE(
                     content,
-                    'create an account on Notification',
-                    'accept the invitation'
+                    'Click this link to create an account on Notification',
+                    'Use this link to accept the invitation'
                   )
             WHERE
                 id = '4f46df42-f795-4cc4-83bb-65ca312f49cc'
