@@ -76,3 +76,4 @@ celerybeat-schedule
 .cf
 
 /scripts/run_my_tests.sh
+.vscode
