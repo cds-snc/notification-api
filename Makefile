@@ -31,6 +31,13 @@ freeze-requirements:
 	$$(pwd)/venv-freeze/bin/pip freeze -r <(sed '/^--/d' requirements-app.txt) | sed -n '/The following requirements were added by pip freeze/,$$p' >> requirements.txt
 	rm -rf venv-freeze
 
+.PHONY: test-requirements
+test-requirements:
+	@diff requirements-app.txt requirements.txt | grep '<' \
+	    && { echo "requirements.txt doesn't match requirements-app.txt."; \
+	         echo "Run 'make freeze-requirements' to update."; exit 1; } \
+|| { echo "requirements.txt is up to date"; exit 0; }
+
 .PHONY: coverage
 coverage: venv ## Create coverage report
 	. venv/bin/activate && coveralls
