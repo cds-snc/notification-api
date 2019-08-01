@@ -343,6 +343,7 @@ class Config(object):
     FIRETEXT_URL = os.getenv("FIRETEXT_URL", "https://www.firetext.co.uk/api/sendsms/json")
 
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+    NOTIFY_LOG_PATH = ''
 
 
 ######################
@@ -368,7 +369,6 @@ class Development(Config):
     MMG_INBOUND_SMS_USERNAME = ['username']
 
     NOTIFY_ENVIRONMENT = 'development'
-    NOTIFY_LOG_PATH = 'application.log'
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-canada-ca")
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
 
@@ -425,38 +425,10 @@ class Test(Development):
     FIRETEXT_URL = 'https://example.com/firetext'
 
 
-class Preview(Config):
+
+class Production(Config):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
-    NOTIFY_ENVIRONMENT = 'preview'
-    # CSV_UPLOAD_BUCKET_NAME = 'preview-notifications-csv-upload'
-    TEST_LETTERS_BUCKET_NAME = 'preview-test-letters'
-    DVLA_RESPONSE_BUCKET_NAME = 'notify.works-ftp'
-    LETTERS_PDF_BUCKET_NAME = 'preview-letters-pdf'
-    LETTERS_SCAN_BUCKET_NAME = 'preview-letters-scan'
-    INVALID_PDF_BUCKET_NAME = 'preview-letters-invalid-pdf'
-    FROM_NUMBER = 'preview'
-    API_RATE_LIMIT_ENABLED = True
-    CHECK_PROXY_HEADER = False
-
-
-class Staging(Config):
-    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
-    NOTIFY_ENVIRONMENT = 'staging'
-    # CSV_UPLOAD_BUCKET_NAME = 'staging-notifications-csv-upload'
-    TEST_LETTERS_BUCKET_NAME = 'staging-test-letters'
-    DVLA_RESPONSE_BUCKET_NAME = 'staging-notify.works-ftp'
-    LETTERS_PDF_BUCKET_NAME = 'staging-letters-pdf'
-    LETTERS_SCAN_BUCKET_NAME = 'staging-letters-scan'
-    INVALID_PDF_BUCKET_NAME = 'staging-letters-invalid-pdf'
-    FROM_NUMBER = 'stage'
-    API_RATE_LIMIT_ENABLED = True
-    CHECK_PROXY_HEADER = True
-    REDIS_ENABLED = True
-
-
-class Live(Config):
-    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
-    NOTIFY_ENVIRONMENT = 'live'
+    NOTIFY_ENVIRONMENT = 'production'
     # CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'production-test-letters'
     DVLA_RESPONSE_BUCKET_NAME = 'notifications.service.gov.uk-ftp'
@@ -471,31 +443,8 @@ class Live(Config):
     CRONITOR_ENABLED = True
 
 
-class CloudFoundryConfig(Config):
-    pass
-
-
-# CloudFoundry sandbox
-class Sandbox(CloudFoundryConfig):
-    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
-    NOTIFY_ENVIRONMENT = 'sandbox'
-    # CSV_UPLOAD_BUCKET_NAME = 'cf-sandbox-notifications-csv-upload'
-    LETTERS_PDF_BUCKET_NAME = 'cf-sandbox-letters-pdf'
-    TEST_LETTERS_BUCKET_NAME = 'cf-sandbox-test-letters'
-    DVLA_RESPONSE_BUCKET_NAME = 'notify.works-ftp'
-    LETTERS_PDF_BUCKET_NAME = 'cf-sandbox-letters-pdf'
-    LETTERS_SCAN_BUCKET_NAME = 'cf-sandbox-letters-scan'
-    INVALID_PDF_BUCKET_NAME = 'cf-sandbox-letters-invalid-pdf'
-    FROM_NUMBER = 'sandbox'
-    REDIS_ENABLED = False
-
-
 configs = {
     'development': Development,
     'test': Test,
-    'live': Live,
-    'production': Live,
-    'staging': Staging,
-    'preview': Preview,
-    'sandbox': Sandbox
+    'production': Production,
 }
