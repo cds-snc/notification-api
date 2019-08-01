@@ -19,4 +19,4 @@ RUN make generate-version-file
 
 ENV PORT=6011
 
-CMD ["sh", "-c", "flask run -p $PORT --host=0.0.0.0"]
+CMD ["sh", "-c", "gunicorn -c gunicorn_config.py application"]
