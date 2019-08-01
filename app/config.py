@@ -425,7 +425,6 @@ class Test(Development):
     FIRETEXT_URL = 'https://example.com/firetext'
 
 
-
 class Production(Config):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
     NOTIFY_ENVIRONMENT = 'production'
@@ -439,7 +438,6 @@ class Production(Config):
     PERFORMANCE_PLATFORM_ENABLED = True
     API_RATE_LIMIT_ENABLED = True
     CHECK_PROXY_HEADER = True
-
     CRONITOR_ENABLED = True
 
 
