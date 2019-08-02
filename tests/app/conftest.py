@@ -940,6 +940,19 @@ def verify_reply_to_address_email_template(notify_db, notify_db_session):
         template_type='email'
     )
 
+@pytest.fixture(scope='function')
+def account_change_template(notify_db, notify_db_session):
+    service, user = notify_service(notify_db, notify_db_session)
+
+    return create_custom_template(
+        service=service,
+        user=user,
+        template_config_name='ACCOUNT_CHANGE_TEMPLATE_ID',
+        content='Your account was changed',
+        subject='Your account was changed',
+        template_type='email'
+    )
+
 
 @pytest.fixture(scope='function')
 def team_member_email_edit_template(notify_db, notify_db_session):
