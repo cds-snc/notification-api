@@ -984,6 +984,21 @@ def already_registered_template(notify_db,
 
 
 @pytest.fixture(scope='function')
+def contact_us_template(notify_db,
+                        notify_db_session):
+    service, user = notify_service(notify_db, notify_db_session)
+
+    content = """User ((user)) sent the following message:
+        ((message))"""
+    return create_custom_template(
+        service=service, user=user,
+        template_config_name='CONTACT_US_TEMPLATE_ID',
+        content=content,
+        template_type='email'
+    )
+
+
+@pytest.fixture(scope='function')
 def change_email_confirmation_template(notify_db,
                                        notify_db_session):
     service, user = notify_service(notify_db, notify_db_session)
