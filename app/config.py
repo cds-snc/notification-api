@@ -1,9 +1,12 @@
 from datetime import timedelta
 import os
 import json
+from dotenv import load_dotenv
 
 from celery.schedules import crontab
 from kombu import Exchange, Queue
+
+load_dotenv()
 
 if os.getenv('VCAP_SERVICES'):
     # on cloudfoundry, config is a json blob in VCAP_SERVICES - unpack it, and populate
@@ -434,11 +437,11 @@ class Production(Config):
     LETTERS_PDF_BUCKET_NAME = 'production-letters-pdf'
     LETTERS_SCAN_BUCKET_NAME = 'production-letters-scan'
     INVALID_PDF_BUCKET_NAME = 'production-letters-invalid-pdf'
-    FROM_NUMBER = 'GOVUK'
-    PERFORMANCE_PLATFORM_ENABLED = True
+    FROM_NUMBER = 'CANADA.CA'
+    PERFORMANCE_PLATFORM_ENABLED = False
     API_RATE_LIMIT_ENABLED = True
-    CHECK_PROXY_HEADER = True
-    CRONITOR_ENABLED = True
+    CHECK_PROXY_HEADER = False
+    CRONITOR_ENABLED = False
 
 
 configs = {
