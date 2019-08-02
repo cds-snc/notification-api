@@ -242,7 +242,7 @@ def test_cannot_create_user_with_empty_strings(admin_request, notify_db_session)
     ('email_address', 'newuser@mail.com'),
     ('mobile_number', '+16502532223')
 ])
-def test_post_user_attribute(client, sample_user, user_attribute, user_value):
+def test_post_user_attribute(client, mocker, sample_user, user_attribute, user_value, account_change_template):
     assert getattr(sample_user, user_attribute) != user_value
     update_dict = {
         user_attribute: user_value
@@ -250,11 +250,43 @@ def test_post_user_attribute(client, sample_user, user_attribute, user_value):
     auth_header = create_authorization_header()
     headers = [('Content-Type', 'application/json'), auth_header]
 
+    mocker.patch('app.user.rest.persist_notification')
+    mocker.patch('app.user.rest.send_notification_to_queue')
+
     resp = client.post(
         url_for('user.update_user_attribute', user_id=sample_user.id),
         data=json.dumps(update_dict),
         headers=headers)
 
+    assert resp.status_code == 200
+    json_resp = json.loads(resp.get_data(as_text=True))
+    assert json_resp['data'][user_attribute] == user_value
+
+
+@pytest.mark.parametrize('user_attribute, user_value', [
+    ('name', 'New User'),
+    ('email_address', 'newuser@mail.com'),
+    ('mobile_number', '+16502532223')
+])
+def test_post_user_attribute_send_notification_email(
+        client, mocker,
+        sample_user, user_attribute, user_value, account_change_template):
+    assert getattr(sample_user, user_attribute) != user_value
+    update_dict = {
+        user_attribute: user_value
+    }
+    auth_header = create_authorization_header()
+    headers = [('Content-Type', 'application/json'), auth_header]
+
+    mock_persist_notification = mocker.patch('app.user.rest.persist_notification')
+    mocker.patch('app.user.rest.send_notification_to_queue')
+
+    resp = client.post(
+        url_for('user.update_user_attribute', user_id=sample_user.id),
+        data=json.dumps(update_dict),
+        headers=headers)
+
+    mock_persist_notification.assert_called()
     assert resp.status_code == 200
     json_resp = json.loads(resp.get_data(as_text=True))
     assert json_resp['data'][user_attribute] == user_value
@@ -283,7 +315,7 @@ def test_post_user_attribute(client, sample_user, user_attribute, user_value):
 ])
 def test_post_user_attribute_with_updated_by(
     client, mocker, sample_user, user_attribute,
-    user_value, arguments, team_member_email_edit_template, team_member_mobile_edit_template
+    user_value, arguments, team_member_email_edit_template, team_member_mobile_edit_template, account_change_template
 ):
     updater = create_user(name="Service Manago", email="notify_manago@digital.cabinet-office.gov.uk")
     assert getattr(sample_user, user_attribute) != user_value
@@ -303,10 +335,9 @@ def test_post_user_attribute_with_updated_by(
     assert resp.status_code == 200, resp.get_data(as_text=True)
     json_resp = json.loads(resp.get_data(as_text=True))
     assert json_resp['data'][user_attribute] == user_value
+
     if arguments:
-        mock_persist_notification.assert_called_once_with(**arguments)
-    else:
-        mock_persist_notification.assert_not_called()
+        mock_persist_notification.assert_any_call(**arguments)
 
 
 def test_archive_user(mocker, client, sample_user):
@@ -745,7 +776,10 @@ def test_activate_user_fails_if_already_active(admin_request, sample_user):
     assert sample_user.state == 'active'
 
 
-def test_update_user_auth_type(admin_request, sample_user):
+def test_update_user_auth_type(admin_request, sample_user, account_change_template, mocker):
+    mocker.patch('app.user.rest.persist_notification')
+    mocker.patch('app.user.rest.send_notification_to_queue')
+
     assert sample_user.auth_type == 'sms_auth'
     resp = admin_request.post(
         'user.update_user_attribute',
@@ -757,7 +791,9 @@ def test_update_user_auth_type(admin_request, sample_user):
     assert resp['data']['auth_type'] == 'email_auth'
 
 
-def test_can_set_email_auth_and_remove_mobile_at_same_time(admin_request, sample_user):
+def test_can_set_email_auth_and_remove_mobile_at_same_time(admin_request, sample_user, account_change_template, mocker):
+    mocker.patch('app.user.rest.persist_notification')
+    mocker.patch('app.user.rest.send_notification_to_queue')
     sample_user.auth_type = SMS_AUTH_TYPE
 
     admin_request.post(
@@ -773,7 +809,9 @@ def test_can_set_email_auth_and_remove_mobile_at_same_time(admin_request, sample
     assert sample_user.auth_type == EMAIL_AUTH_TYPE
 
 
-def test_cannot_remove_mobile_if_sms_auth(admin_request, sample_user):
+def test_cannot_remove_mobile_if_sms_auth(admin_request, sample_user, account_change_template, mocker):
+    mocker.patch('app.user.rest.persist_notification')
+    mocker.patch('app.user.rest.send_notification_to_queue')
     sample_user.auth_type = SMS_AUTH_TYPE
 
     json_resp = admin_request.post(
@@ -786,7 +824,9 @@ def test_cannot_remove_mobile_if_sms_auth(admin_request, sample_user):
     assert json_resp['message'] == 'Mobile number must be set if auth_type is set to sms_auth'
 
 
-def test_can_remove_mobile_if_email_auth(admin_request, sample_user):
+def test_can_remove_mobile_if_email_auth(admin_request, sample_user, account_change_template, mocker):
+    mocker.patch('app.user.rest.persist_notification')
+    mocker.patch('app.user.rest.send_notification_to_queue')
     sample_user.auth_type = EMAIL_AUTH_TYPE
 
     admin_request.post(
@@ -798,7 +838,10 @@ def test_can_remove_mobile_if_email_auth(admin_request, sample_user):
     assert sample_user.mobile_number is None
 
 
-def test_cannot_update_user_with_mobile_number_as_empty_string(admin_request, sample_user):
+def test_cannot_update_user_with_mobile_number_as_empty_string(
+        admin_request, sample_user, account_change_template, mocker):
+    mocker.patch('app.user.rest.persist_notification')
+    mocker.patch('app.user.rest.send_notification_to_queue')
     sample_user.auth_type = EMAIL_AUTH_TYPE
 
     resp = admin_request.post(
@@ -810,7 +853,10 @@ def test_cannot_update_user_with_mobile_number_as_empty_string(admin_request, sa
     assert resp['message']['mobile_number'] == ['Invalid phone number: Not a valid international number']
 
 
-def test_cannot_update_user_password_using_attributes_method(admin_request, sample_user):
+def test_cannot_update_user_password_using_attributes_method(
+        admin_request, sample_user, account_change_template, mocker):
+    mocker.patch('app.user.rest.persist_notification')
+    mocker.patch('app.user.rest.send_notification_to_queue')
     resp = admin_request.post(
         'user.update_user_attribute',
         user_id=sample_user.id,
