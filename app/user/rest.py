@@ -97,7 +97,6 @@ def update_user_attribute(user_id):
     update_dct, errors = user_update_schema_load_json.load(req_json)
     if errors:
         raise InvalidRequest(errors, status_code=400)
-    
 
     # Alert user that account change took place
     service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
@@ -136,7 +135,6 @@ def update_user_attribute(user_id):
             reply_to = template.service.get_default_sms_sender()
         else:
             return jsonify(data=user_to_update.serialize()), 200
-        
 
         saved_notification = persist_notification(
             template_id=template.id,
@@ -155,7 +153,7 @@ def update_user_attribute(user_id):
         )
 
         send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
-        
+
     return jsonify(data=user_to_update.serialize()), 200
 
 

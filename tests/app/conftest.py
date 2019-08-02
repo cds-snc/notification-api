@@ -940,6 +940,7 @@ def verify_reply_to_address_email_template(notify_db, notify_db_session):
         template_type='email'
     )
 
+
 @pytest.fixture(scope='function')
 def account_change_template(notify_db, notify_db_session):
     service, user = notify_service(notify_db, notify_db_session)

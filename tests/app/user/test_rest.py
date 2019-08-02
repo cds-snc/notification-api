@@ -262,12 +262,15 @@ def test_post_user_attribute(client, mocker, sample_user, user_attribute, user_v
     json_resp = json.loads(resp.get_data(as_text=True))
     assert json_resp['data'][user_attribute] == user_value
 
+
 @pytest.mark.parametrize('user_attribute, user_value', [
     ('name', 'New User'),
     ('email_address', 'newuser@mail.com'),
     ('mobile_number', '+16502532223')
 ])
-def test_post_user_attribute_send_notification_email(client, mocker, sample_user, user_attribute, user_value, account_change_template):
+def test_post_user_attribute_send_notification_email(
+        client, mocker,
+        sample_user, user_attribute, user_value, account_change_template):
     assert getattr(sample_user, user_attribute) != user_value
     update_dict = {
         user_attribute: user_value
@@ -282,7 +285,6 @@ def test_post_user_attribute_send_notification_email(client, mocker, sample_user
         url_for('user.update_user_attribute', user_id=sample_user.id),
         data=json.dumps(update_dict),
         headers=headers)
-
 
     mock_persist_notification.assert_called()
     assert resp.status_code == 200
@@ -836,7 +838,8 @@ def test_can_remove_mobile_if_email_auth(admin_request, sample_user, account_cha
     assert sample_user.mobile_number is None
 
 
-def test_cannot_update_user_with_mobile_number_as_empty_string(admin_request, sample_user, account_change_template, mocker):
+def test_cannot_update_user_with_mobile_number_as_empty_string(
+        admin_request, sample_user, account_change_template, mocker):
     mocker.patch('app.user.rest.persist_notification')
     mocker.patch('app.user.rest.send_notification_to_queue')
     sample_user.auth_type = EMAIL_AUTH_TYPE
@@ -850,7 +853,8 @@ def test_cannot_update_user_with_mobile_number_as_empty_string(admin_request, sa
     assert resp['message']['mobile_number'] == ['Invalid phone number: Not a valid international number']
 
 
-def test_cannot_update_user_password_using_attributes_method(admin_request, sample_user, account_change_template, mocker):
+def test_cannot_update_user_password_using_attributes_method(
+        admin_request, sample_user, account_change_template, mocker):
     mocker.patch('app.user.rest.persist_notification')
     mocker.patch('app.user.rest.send_notification_to_queue')
     resp = admin_request.post(
