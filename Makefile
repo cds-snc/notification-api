@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-SHELL := /bin/bash
+SHELL := /bin/sh
 DATE = $(shell date +%Y-%m-%d:%H:%M:%S)
 
 APP_VERSION_FILE = app/version.py
