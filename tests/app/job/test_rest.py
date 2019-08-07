@@ -745,11 +745,11 @@ def test_get_all_notifications_for_job_returns_csv_format(admin_request, sample_
     }
 
 
-@freeze_time('2017-06-10 12:00')
-@pytest.mark.skip(reason="Date math needs to be revisited")
+@freeze_time('2017-06-10 4:00')
+# This test assumes the local timezone is EST
 def test_get_jobs_should_retrieve_from_ft_notification_status_for_old_jobs(admin_request, sample_template):
     # it's the 10th today, so 3 days should include all of 7th, 8th, 9th, and some of 10th.
-    just_three_days_ago = datetime(2017, 6, 6, 22, 59, 59)
+    just_three_days_ago = datetime(2017, 6, 7, 3, 59, 59)
     not_quite_three_days_ago = just_three_days_ago + timedelta(seconds=1)
 
     job_1 = create_job(sample_template, created_at=just_three_days_ago, processing_started=just_three_days_ago)
