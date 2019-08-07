@@ -28,7 +28,7 @@ from app.models import (
     SMS_TYPE,
     Template,
 )
-from app.utils import get_local_timezone_midnight_in_utc, midnight_n_days_ago, get_london_month_from_utc_column
+from app.utils import get_local_timezone_midnight_in_utc, midnight_n_days_ago, get_local_timezone_month_from_utc_column
 
 
 def fetch_notification_status_for_day(process_day, service_id=None):
@@ -121,8 +121,8 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
         func.sum(FactNotificationStatus.notification_count).label('count')
     ).filter(
         FactNotificationStatus.service_id == service_id,
-        FactNotificationStatus.bst_date >= start_date,
-        FactNotificationStatus.bst_date < end_date,
+        FactNotificationStatus.bst_date >= start_date.strftime("%Y-%m-%d"),
+        FactNotificationStatus.bst_date < end_date.strftime("%Y-%m-%d"),
         FactNotificationStatus.key_type != KEY_TYPE_TEST
     ).group_by(
         func.date_trunc('month', FactNotificationStatus.bst_date).label('month'),
@@ -368,8 +368,8 @@ def fetch_monthly_template_usage_for_service(start_date, end_date, service_id):
         Template, FactNotificationStatus.template_id == Template.id
     ).filter(
         FactNotificationStatus.service_id == service_id,
-        FactNotificationStatus.bst_date >= start_date,
-        FactNotificationStatus.bst_date <= end_date,
+        FactNotificationStatus.bst_date >= start_date.strftime("%Y-%m-%d"),
+        FactNotificationStatus.bst_date < end_date.strftime("%Y-%m-%d"),
         FactNotificationStatus.key_type != KEY_TYPE_TEST,
         FactNotificationStatus.notification_status != NOTIFICATION_CANCELLED,
     ).group_by(
@@ -387,7 +387,7 @@ def fetch_monthly_template_usage_for_service(start_date, end_date, service_id):
 
     if start_date <= datetime.utcnow() <= end_date:
         today = get_local_timezone_midnight_in_utc(datetime.utcnow())
-        month = get_london_month_from_utc_column(Notification.created_at)
+        month = get_local_timezone_month_from_utc_column(Notification.created_at)
 
         stats_for_today = db.session.query(
             Notification.template_id.label('template_id'),
