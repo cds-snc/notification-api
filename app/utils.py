@@ -1,3 +1,5 @@
+import os
+
 from datetime import datetime, timedelta
 
 import pytz
@@ -5,7 +7,7 @@ from flask import url_for
 from sqlalchemy import func
 from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate, get_html_email_body
 
-local_timezone = pytz.timezone("America/Toronto")
+local_timezone = pytz.timezone(os.getenv("TIMEZONE", "America/Toronto"))
 
 
 def pagination_links(pagination, endpoint, **kwargs):
@@ -46,7 +48,7 @@ def get_html_email_body_from_template(template_instance):
     )
 
 
-def get_toronto_midnight_in_utc(date):
+def get_local_timezone_midnight_in_utc(date):
     """
      This function converts date to midnight as BST (British Standard Time) to UTC,
      the tzinfo is lastly removed from the datetime because the database stores the timestamps without timezone.
@@ -60,7 +62,7 @@ def get_toronto_midnight_in_utc(date):
 
 def get_midnight_for_day_before(date):
     day_before = date - timedelta(1)
-    return get_toronto_midnight_in_utc(day_before)
+    return get_local_timezone_midnight_in_utc(day_before)
 
 
 def get_london_month_from_utc_column(column):
@@ -96,7 +98,7 @@ def midnight_n_days_ago(number_of_days):
     """
     Returns midnight a number of days ago. Takes care of daylight savings etc.
     """
-    return get_toronto_midnight_in_utc(datetime.utcnow() - timedelta(days=number_of_days))
+    return get_local_timezone_midnight_in_utc(datetime.utcnow() - timedelta(days=number_of_days))
 
 
 def escape_special_characters(string):

@@ -48,7 +48,7 @@ from app.models import (
     ServiceDataRetention,
     Service
 )
-from app.utils import get_toronto_midnight_in_utc
+from app.utils import get_local_timezone_midnight_in_utc
 from app.utils import midnight_n_days_ago, escape_special_characters
 
 
@@ -290,7 +290,7 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
     ).all()
     deleted = 0
     for f in flexible_data_retention:
-        days_of_retention = get_toronto_midnight_in_utc(
+        days_of_retention = get_local_timezone_midnight_in_utc(
             convert_utc_to_local_timezone(datetime.utcnow()).date()) - timedelta(days=f.days_of_retention)
 
         if notification_type == LETTER_TYPE:
@@ -307,7 +307,7 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
     current_app.logger.info(
         'Deleting {} notifications for services without flexible data retention'.format(notification_type))
 
-    seven_days_ago = get_toronto_midnight_in_utc(convert_utc_to_local_timezone(datetime.utcnow()).date()) - timedelta(days=7)
+    seven_days_ago = get_local_timezone_midnight_in_utc(convert_utc_to_local_timezone(datetime.utcnow()).date()) - timedelta(days=7)
     services_with_data_retention = [x.service_id for x in flexible_data_retention]
     service_ids_to_purge = db.session.query(Service.id).filter(Service.id.notin_(services_with_data_retention)).all()
 

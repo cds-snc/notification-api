@@ -252,7 +252,7 @@ def test_send_daily_performance_stats_calls_does_not_send_if_inactive(client, mo
 
 
 @freeze_time("2016-06-11 02:00:00")
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# @pytest.mark.skip(reason="Date math needs to be revisited")
 def test_send_total_sent_notifications_to_performance_platform_calls_with_correct_totals(
         notify_db_session,
         sample_template,
@@ -263,13 +263,13 @@ def test_send_total_sent_notifications_to_performance_platform_calls_with_correc
         'app.celery.nightly_tasks.total_sent_notifications.send_total_notifications_sent_for_day_stats')  # noqa
 
     today = date(2016, 6, 11)
-    create_ft_notification_status(bst_date=today, template=sample_template)
-    create_ft_notification_status(bst_date=today, template=sample_email_template)
+    create_ft_notification_status(utc_date=today, template=sample_template)
+    create_ft_notification_status(utc_date=today, template=sample_email_template)
 
     # Create some notifications for the day before
     yesterday = date(2016, 6, 10)
-    create_ft_notification_status(bst_date=yesterday, template=sample_template, count=2)
-    create_ft_notification_status(bst_date=yesterday, template=sample_email_template, count=3)
+    create_ft_notification_status(utc_date=yesterday, template=sample_template, count=2)
+    create_ft_notification_status(utc_date=yesterday, template=sample_email_template, count=3)
 
     with patch.object(
             PerformancePlatformClient,
@@ -280,9 +280,9 @@ def test_send_total_sent_notifications_to_performance_platform_calls_with_correc
         send_total_sent_notifications_to_performance_platform(yesterday)
 
         perf_mock.assert_has_calls([
-            call(datetime(2016, 6, 9, 23, 0), 'sms', 2),
-            call(datetime(2016, 6, 9, 23, 0), 'email', 3),
-            call(datetime(2016, 6, 9, 23, 0), 'letter', 0)
+            call("2016-06-10", 'sms', 2),
+            call("2016-06-10", 'email', 3),
+            call("2016-06-10", 'letter', 0)
         ])
 
 

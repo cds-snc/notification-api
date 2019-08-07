@@ -720,7 +720,7 @@ def create_ft_notification_status(
         template = create_template(service=service, template_type=notification_type)
 
     data = FactNotificationStatus(
-        utc_date=utc_date,
+        bst_date=utc_date,
         template_id=template.id,
         service_id=service.id,
         job_id=job.id if job else uuid.UUID(int=0),

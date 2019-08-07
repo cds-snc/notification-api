@@ -21,7 +21,7 @@ from app.models import (
     EMAIL_TYPE,
     NOTIFICATION_STATUS_TYPES_BILLABLE_FOR_LETTERS
 )
-from app.utils import get_toronto_midnight_in_utc
+from app.utils import get_local_timezone_midnight_in_utc
 
 
 def fetch_billing_totals_for_year(service_id, year):
@@ -250,7 +250,7 @@ def get_service_ids_that_need_billing_populated(start_date, end_date):
 def get_rate(
     non_letter_rates, letter_rates, notification_type, date, crown=None, letter_page_count=None, post_class='second'
 ):
-    start_of_day = get_toronto_midnight_in_utc(date)
+    start_of_day = get_local_timezone_midnight_in_utc(date)
 
     if notification_type == LETTER_TYPE:
         if letter_page_count == 0:

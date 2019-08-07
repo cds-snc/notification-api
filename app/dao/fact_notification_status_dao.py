@@ -28,7 +28,7 @@ from app.models import (
     SMS_TYPE,
     Template,
 )
-from app.utils import get_toronto_midnight_in_utc, midnight_n_days_ago, get_london_month_from_utc_column
+from app.utils import get_local_timezone_midnight_in_utc, midnight_n_days_ago, get_london_month_from_utc_column
 
 
 def fetch_notification_status_for_day(process_day, service_id=None):
@@ -139,8 +139,8 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
         Notification.status.label('notification_status'),
         func.count().label('count')
     ).filter(
-        Notification.created_at >= get_toronto_midnight_in_utc(bst_day),
-        Notification.created_at < get_toronto_midnight_in_utc(bst_day + timedelta(days=1)),
+        Notification.created_at >= get_local_timezone_midnight_in_utc(bst_day),
+        Notification.created_at < get_local_timezone_midnight_in_utc(bst_day + timedelta(days=1)),
         Notification.service_id == service_id,
         Notification.key_type != KEY_TYPE_TEST
     ).group_by(
@@ -169,7 +169,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
         *([Notification.template_id] if by_template else []),
         func.count().label('count')
     ).filter(
-        Notification.created_at >= get_toronto_midnight_in_utc(now),
+        Notification.created_at >= get_local_timezone_midnight_in_utc(now),
         Notification.service_id == service_id,
         Notification.key_type != KEY_TYPE_TEST
     ).group_by(
@@ -215,7 +215,7 @@ def fetch_notification_status_totals_for_all_services(start_date, end_date):
         FactNotificationStatus.notification_status,
         FactNotificationStatus.key_type,
     )
-    today = get_toronto_midnight_in_utc(datetime.utcnow())
+    today = get_local_timezone_midnight_in_utc(datetime.utcnow())
     if start_date <= datetime.utcnow().date() <= end_date:
         stats_for_today = db.session.query(
             Notification.notification_type.cast(db.Text).label('notification_type'),
@@ -292,7 +292,7 @@ def fetch_stats_for_all_services_by_date_range(start_date, end_date, include_fro
         stats = stats.filter(FactNotificationStatus.key_type != KEY_TYPE_TEST)
 
     if start_date <= datetime.utcnow().date() <= end_date:
-        today = get_toronto_midnight_in_utc(datetime.utcnow())
+        today = get_local_timezone_midnight_in_utc(datetime.utcnow())
         subquery = db.session.query(
             Notification.notification_type.cast(db.Text).label('notification_type'),
             Notification.status.label('status'),
@@ -386,7 +386,7 @@ def fetch_monthly_template_usage_for_service(start_date, end_date, service_id):
     )
 
     if start_date <= datetime.utcnow() <= end_date:
-        today = get_toronto_midnight_in_utc(datetime.utcnow())
+        today = get_local_timezone_midnight_in_utc(datetime.utcnow())
         month = get_london_month_from_utc_column(Notification.created_at)
 
         stats_for_today = db.session.query(
