@@ -39,8 +39,8 @@ def fetch_billing_totals_for_year(service_id, year):
         FactBilling.notification_type.label('notification_type')
     ).filter(
         FactBilling.service_id == service_id,
-        FactBilling.bst_date >= year_start_date,
-        FactBilling.bst_date <= year_end_date,
+        FactBilling.bst_date >= year_start_date.strftime("%Y-%m-%d"),
+        FactBilling.bst_date <= year_end_date.strftime("%Y-%m-%d"),
         FactBilling.notification_type.in_([EMAIL_TYPE, LETTER_TYPE])
     ).group_by(
         FactBilling.rate,
@@ -56,8 +56,8 @@ def fetch_billing_totals_for_year(service_id, year):
         FactBilling.notification_type
     ).filter(
         FactBilling.service_id == service_id,
-        FactBilling.bst_date >= year_start_date,
-        FactBilling.bst_date <= year_end_date,
+        FactBilling.bst_date >= year_start_date.strftime("%Y-%m-%d"),
+        FactBilling.bst_date <= year_end_date.strftime("%Y-%m-%d"),
         FactBilling.notification_type == SMS_TYPE
     ).group_by(
         FactBilling.rate,
@@ -93,8 +93,8 @@ def fetch_monthly_billing_for_year(service_id, year):
         FactBilling.postage
     ).filter(
         FactBilling.service_id == service_id,
-        FactBilling.bst_date >= year_start_date,
-        FactBilling.bst_date <= year_end_date,
+        FactBilling.bst_date >= year_start_date.strftime("%Y-%m-%d"),
+        FactBilling.bst_date <= year_end_date.strftime("%Y-%m-%d"),
         FactBilling.notification_type.in_([EMAIL_TYPE, LETTER_TYPE])
     ).group_by(
         'month',
@@ -112,8 +112,8 @@ def fetch_monthly_billing_for_year(service_id, year):
         FactBilling.postage
     ).filter(
         FactBilling.service_id == service_id,
-        FactBilling.bst_date >= year_start_date,
-        FactBilling.bst_date <= year_end_date,
+        FactBilling.bst_date >= year_start_date.strftime("%Y-%m-%d"),
+        FactBilling.bst_date <= year_end_date.strftime("%Y-%m-%d"),
         FactBilling.notification_type == SMS_TYPE
     ).group_by(
         'month',

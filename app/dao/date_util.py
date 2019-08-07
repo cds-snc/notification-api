@@ -1,3 +1,5 @@
+import os
+
 from datetime import datetime, timedelta
 
 from notifications_utils.timezones import convert_local_timezone_to_utc
@@ -37,7 +39,7 @@ def get_april_fools(year):
      :param year: the year to calculate the April 1, 00:00 BST for
      :return: the datetime of April 1 for the given year, for example 2016 = 2016-03-31 23:00:00
     """
-    return pytz.timezone('America/Toronto').localize(datetime(year, 4, 1, 0, 0, 0)).astimezone(pytz.UTC).replace(
+    return pytz.timezone(os.getenv('TIMEZONE', 'America/Toronto')).localize(datetime(year, 4, 1, 0, 0, 0)).astimezone(pytz.UTC).replace(
         tzinfo=None)
 
 
