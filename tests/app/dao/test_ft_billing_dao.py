@@ -43,23 +43,23 @@ def set_up_yearly_data():
             mon = str(month).zfill(2)
             for day in range(1, monthrange(year, month)[1] + 1):
                 d = str(day).zfill(2)
-                create_ft_billing(bst_date='{}-{}-{}'.format(year, mon, d),
+                create_ft_billing(utc_date='{}-{}-{}'.format(year, mon, d),
                                   service=service,
                                   template=sms_template,
                                   notification_type='sms',
                                   rate=0.162)
-                create_ft_billing(bst_date='{}-{}-{}'.format(year, mon, d),
+                create_ft_billing(utc_date='{}-{}-{}'.format(year, mon, d),
                                   service=service,
                                   template=email_template,
                                   notification_type='email',
                                   rate=0)
-                create_ft_billing(bst_date='{}-{}-{}'.format(year, mon, d),
+                create_ft_billing(utc_date='{}-{}-{}'.format(year, mon, d),
                                   service=service,
                                   template=letter_template,
                                   notification_type='letter',
                                   rate=0.33,
                                   postage='second')
-                create_ft_billing(bst_date='{}-{}-{}'.format(year, mon, d),
+                create_ft_billing(utc_date='{}-{}-{}'.format(year, mon, d),
                                   service=service,
                                   template=letter_template,
                                   notification_type='letter',
@@ -96,14 +96,14 @@ def test_fetch_billing_data_for_today_includes_data_with_the_right_key_type(noti
     assert results[0].notifications_sent == 2
 
 
-@freeze_time('2018-04-02 01:20:00')
-@pytest.mark.skip(reason="Date math needs to be revisited")
+@freeze_time('2018-04-02 06:20:00')
+# This test assumes the local timezone is EST
 def test_fetch_billing_data_for_today_includes_data_with_the_right_date(notify_db_session):
     process_day = datetime(2018, 4, 1, 13, 30, 0)
     service = create_service()
     template = create_template(service=service, template_type="email")
     create_notification(template=template, status='delivered', created_at=process_day)
-    create_notification(template=template, status='delivered', created_at=datetime(2018, 3, 31, 23, 23, 23))
+    create_notification(template=template, status='delivered', created_at=datetime(2018, 4, 1, 4, 23, 23))
 
     create_notification(template=template, status='delivered', created_at=datetime(2018, 3, 31, 20, 23, 23))
     create_notification(template=template, status='sending', created_at=process_day + timedelta(days=1))
@@ -351,14 +351,14 @@ def test_fetch_monthly_billing_for_year(notify_db_session):
     service = create_service()
     template = create_template(service=service, template_type="sms")
     for i in range(1, 31):
-        create_ft_billing(bst_date='2018-06-{}'.format(i),
+        create_ft_billing(utc_date='2018-06-{}'.format(i),
                           service=service,
                           template=template,
                           notification_type='sms',
                           rate_multiplier=2,
                           rate=0.162)
     for i in range(1, 32):
-        create_ft_billing(bst_date='2018-07-{}'.format(i),
+        create_ft_billing(utc_date='2018-07-{}'.format(i),
                           service=service,
                           template=template,
                           notification_type='sms',
@@ -387,7 +387,7 @@ def test_fetch_monthly_billing_for_year_adds_data_for_today(notify_db_session):
     service = create_service()
     template = create_template(service=service, template_type="email")
     for i in range(1, 32):
-        create_ft_billing(bst_date='2018-07-{}'.format(i),
+        create_ft_billing(utc_date='2018-07-{}'.format(i),
                           service=service,
                           template=template,
                           notification_type='email',
@@ -401,7 +401,7 @@ def test_fetch_monthly_billing_for_year_adds_data_for_today(notify_db_session):
     assert len(results) == 2
 
 
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_fetch_monthly_billing_for_year_return_financial_year(notify_db_session):
     service = set_up_yearly_data()
 
@@ -409,7 +409,7 @@ def test_fetch_monthly_billing_for_year_return_financial_year(notify_db_session)
     # returns 3 rows, per month, returns financial year april to end of march
     # Orders by Month
 
-    assert len(results) == 48
+    assert len(results) == 52
     assert str(results[0].month) == "2016-04-01"
     assert results[0].notification_type == 'email'
     assert results[0].notifications_sent == 30
