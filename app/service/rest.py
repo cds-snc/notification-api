@@ -8,7 +8,7 @@ from flask import (
     Blueprint
 )
 from notifications_utils.letter_timings import letter_can_be_cancelled
-from notifications_utils.timezones import convert_utc_to_est
+from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -472,7 +472,7 @@ def get_monthly_notification_stats(service_id):
 
     now = datetime.utcnow()
     if end_date > now:
-        todays_deltas = fetch_notification_status_for_service_for_day(convert_utc_to_est(now), service_id=service_id)
+        todays_deltas = fetch_notification_status_for_service_for_day(convert_utc_to_local_timezone(now), service_id=service_id)
         statistics.add_monthly_notification_status_stats(data, todays_deltas)
 
     return jsonify(data=data)

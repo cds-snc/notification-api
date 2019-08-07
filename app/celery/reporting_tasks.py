@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
-from notifications_utils.timezones import convert_utc_to_est
+from notifications_utils.timezones import convert_utc_to_local_timezone
 
 from app import notify_celery
 from app.cronitor import cronitor
@@ -20,7 +20,7 @@ def create_nightly_billing(day_start=None):
     # day_start is a datetime.date() object. e.g.
     # up to 10 days of data counting back from day_start is consolidated
     if day_start is None:
-        day_start = convert_utc_to_est(datetime.utcnow()).date() - timedelta(days=1)
+        day_start = convert_utc_to_local_timezone(datetime.utcnow()).date() - timedelta(days=1)
     else:
         # When calling the task its a string in the format of "YYYY-MM-DD"
         day_start = datetime.strptime(day_start, "%Y-%m-%d").date()
@@ -43,7 +43,7 @@ def create_nightly_notification_status(day_start=None):
     # day_start is a datetime.date() object. e.g.
     # 4 days of data counting back from day_start is consolidated
     if day_start is None:
-        day_start = convert_utc_to_est(datetime.utcnow()).date() - timedelta(days=1)
+        day_start = convert_utc_to_local_timezone(datetime.utcnow()).date() - timedelta(days=1)
     else:
         # When calling the task its a string in the format of "YYYY-MM-DD"
         day_start = datetime.strptime(day_start, "%Y-%m-%d").date()

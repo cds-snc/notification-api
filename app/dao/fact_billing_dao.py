@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, time
 
 from flask import current_app
-from notifications_utils.timezones import convert_est_to_utc, convert_utc_to_est
+from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func, case, desc, Date, Integer
 
@@ -75,7 +75,7 @@ def fetch_billing_totals_for_year(service_id, year):
 def fetch_monthly_billing_for_year(service_id, year):
     year_start_date, year_end_date = get_financial_year(year)
     utcnow = datetime.utcnow()
-    today = convert_utc_to_est(utcnow)
+    today = convert_utc_to_local_timezone(utcnow)
     # if year end date is less than today, we are calculating for data in the past and have no need for deltas.
     if year_end_date >= today:
         yesterday = today - timedelta(days=1)
@@ -144,8 +144,8 @@ def delete_billing_data_for_service_for_day(process_day, service_id):
 
 
 def fetch_billing_data_for_day(process_day, service_id=None):
-    start_date = convert_est_to_utc(datetime.combine(process_day, time.min))
-    end_date = convert_est_to_utc(datetime.combine(process_day + timedelta(days=1), time.min))
+    start_date = convert_local_timezone_to_utc(datetime.combine(process_day, time.min))
+    end_date = convert_local_timezone_to_utc(datetime.combine(process_day + timedelta(days=1), time.min))
     # use notification_history if process day is older than 7 days
     # this is useful if we need to rebuild the ft_billing table for a date older than 7 days ago.
     current_app.logger.info("Populate ft_billing for {} to {}".format(start_date, end_date))

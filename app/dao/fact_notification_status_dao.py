@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, time
 
 from flask import current_app
-from notifications_utils.timezones import convert_est_to_utc
+from notifications_utils.timezones import convert_local_timezone_to_utc
 from sqlalchemy import case, func, Date
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.sql.expression import literal, extract
@@ -32,8 +32,8 @@ from app.utils import get_toronto_midnight_in_utc, midnight_n_days_ago, get_lond
 
 
 def fetch_notification_status_for_day(process_day, service_id=None):
-    start_date = convert_est_to_utc(datetime.combine(process_day, time.min))
-    end_date = convert_est_to_utc(datetime.combine(process_day + timedelta(days=1), time.min))
+    start_date = convert_local_timezone_to_utc(datetime.combine(process_day, time.min))
+    end_date = convert_local_timezone_to_utc(datetime.combine(process_day + timedelta(days=1), time.min))
     # use notification_history if process day is older than 7 days
     # this is useful if we need to rebuild the ft_billing table for a date older than 7 days ago.
     current_app.logger.info("Fetch ft_notification_status for {} to {}".format(start_date, end_date))

@@ -14,7 +14,7 @@ from notifications_utils.recipients import (
     try_validate_and_format_phone_number
 )
 from notifications_utils.statsd_decorators import statsd
-from notifications_utils.timezones import convert_est_to_utc, convert_utc_to_est
+from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
 from sqlalchemy import (desc, func, asc)
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
@@ -291,7 +291,7 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
     deleted = 0
     for f in flexible_data_retention:
         days_of_retention = get_toronto_midnight_in_utc(
-            convert_utc_to_est(datetime.utcnow()).date()) - timedelta(days=f.days_of_retention)
+            convert_utc_to_local_timezone(datetime.utcnow()).date()) - timedelta(days=f.days_of_retention)
 
         if notification_type == LETTER_TYPE:
             _delete_letters_from_s3(
@@ -307,7 +307,7 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
     current_app.logger.info(
         'Deleting {} notifications for services without flexible data retention'.format(notification_type))
 
-    seven_days_ago = get_toronto_midnight_in_utc(convert_utc_to_est(datetime.utcnow()).date()) - timedelta(days=7)
+    seven_days_ago = get_toronto_midnight_in_utc(convert_utc_to_local_timezone(datetime.utcnow()).date()) - timedelta(days=7)
     services_with_data_retention = [x.service_id for x in flexible_data_retention]
     service_ids_to_purge = db.session.query(Service.id).filter(Service.id.notin_(services_with_data_retention)).all()
 
@@ -685,11 +685,11 @@ def notifications_not_yet_sent(should_be_sending_after_seconds, notification_typ
 
 
 def dao_old_letters_with_created_status():
-    yesterday_bst = convert_utc_to_est(datetime.utcnow()) - timedelta(days=1)
+    yesterday_bst = convert_utc_to_local_timezone(datetime.utcnow()) - timedelta(days=1)
     last_processing_deadline = yesterday_bst.replace(hour=17, minute=30, second=0, microsecond=0)
 
     notifications = Notification.query.filter(
-        Notification.created_at < convert_est_to_utc(last_processing_deadline),
+        Notification.created_at < convert_local_timezone_to_utc(last_processing_deadline),
         Notification.notification_type == LETTER_TYPE,
         Notification.status == NOTIFICATION_CREATED
     ).order_by(
