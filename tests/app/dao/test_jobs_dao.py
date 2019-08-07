@@ -134,11 +134,11 @@ def test_get_jobs_for_service_with_limit_days_param(sample_template):
 
 
 @freeze_time('2017-06-10')
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_get_jobs_for_service_with_limit_days_edge_case(sample_template):
     one_job = create_job(sample_template)
-    just_after_midnight_job = create_job(sample_template, created_at=datetime(2017, 6, 2, 23, 0, 1))
-    just_before_midnight_job = create_job(sample_template, created_at=datetime(2017, 6, 2, 22, 59, 0))
+    just_after_midnight_job = create_job(sample_template, created_at=datetime(2017, 6, 3, 4, 0, 1))
+    just_before_midnight_job = create_job(sample_template, created_at=datetime(2017, 6, 3, 3, 59, 0))
 
     jobs_limit_days = dao_get_jobs_by_service_id(one_job.service_id, limit_days=7).items
     assert len(jobs_limit_days) == 2
@@ -346,7 +346,7 @@ def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_notifica
     assert errors == "It’s too late to cancel sending, these letters have already been sent."
 
 
-@pytest.mark.skip(reason="Date math needs to be revisited")
+@pytest.mark.skip(reason="Letter feature")
 def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_letters_already_sent_to_dvla(
     sample_letter_template, admin_request
 ):
