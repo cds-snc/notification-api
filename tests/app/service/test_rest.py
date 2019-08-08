@@ -147,8 +147,8 @@ def test_get_live_services_data(sample_user, admin_request):
     template = create_template(service=service)
     template2 = create_template(service=service, template_type='email')
     dao_add_service_to_organisation(service=service, organisation_id=org.id)
-    create_ft_billing(bst_date='2019-04-20', notification_type='sms', template=template, service=service)
-    create_ft_billing(bst_date='2019-04-20', notification_type='email', template=template2, service=service)
+    create_ft_billing(utc_date='2019-04-20', notification_type='sms', template=template, service=service)
+    create_ft_billing(utc_date='2019-04-20', notification_type='email', template=template2, service=service)
 
     create_annual_billing(service.id, 1, 2019)
     create_annual_billing(service_2.id, 2, 2018)
@@ -1953,14 +1953,14 @@ def test_get_detailed_services_includes_services_with_no_notifications(notify_db
     }
 
 
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_get_detailed_services_only_includes_todays_notifications(notify_db, notify_db_session):
     from app.service.rest import get_detailed_services
 
-    create_sample_notification(notify_db, notify_db_session, created_at=datetime(2015, 10, 9, 23, 59))
-    create_sample_notification(notify_db, notify_db_session, created_at=datetime(2015, 10, 10, 0, 0))
+    create_sample_notification(notify_db, notify_db_session, created_at=datetime(2015, 10, 10, 3, 59))
+    create_sample_notification(notify_db, notify_db_session, created_at=datetime(2015, 10, 10, 4, 0))
     create_sample_notification(notify_db, notify_db_session, created_at=datetime(2015, 10, 10, 12, 0))
-    create_sample_notification(notify_db, notify_db_session, created_at=datetime(2015, 10, 10, 23, 0))
+    create_sample_notification(notify_db, notify_db_session, created_at=datetime(2015, 10, 11, 3, 0))
 
     with freeze_time('2015-10-10T12:00:00'):
         data = get_detailed_services(start_date=datetime.utcnow().date(), end_date=datetime.utcnow().date())
@@ -1983,13 +1983,13 @@ def test_get_detailed_services_only_includes_todays_notifications(notify_db, not
 def test_get_detailed_services_for_date_range(sample_template, start_date_delta, end_date_delta):
     from app.service.rest import get_detailed_services
 
-    create_ft_notification_status(bst_date=(datetime.utcnow() - timedelta(days=3)).date(),
+    create_ft_notification_status(utc_date=(datetime.utcnow() - timedelta(days=3)).date(),
                                   service=sample_template.service,
                                   notification_type='sms')
-    create_ft_notification_status(bst_date=(datetime.utcnow() - timedelta(days=2)).date(),
+    create_ft_notification_status(utc_date=(datetime.utcnow() - timedelta(days=2)).date(),
                                   service=sample_template.service,
                                   notification_type='sms')
-    create_ft_notification_status(bst_date=(datetime.utcnow() - timedelta(days=1)).date(),
+    create_ft_notification_status(utc_date=(datetime.utcnow() - timedelta(days=1)).date(),
                                   service=sample_template.service,
                                   notification_type='sms')
 

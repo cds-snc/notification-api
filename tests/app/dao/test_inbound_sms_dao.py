@@ -1,6 +1,5 @@
 from datetime import datetime
 from itertools import product
-import pytest
 from freezegun import freeze_time
 
 from app.dao.inbound_sms_dao import (
@@ -57,10 +56,10 @@ def test_get_all_inbound_sms_filters_on_service(notify_db_session):
     assert res[0] == sms_one
 
 
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_get_all_inbound_sms_filters_on_time(sample_service, notify_db_session):
-    create_inbound_sms(sample_service, created_at=datetime(2017, 8, 6, 22, 59))  # sunday evening
-    sms_two = create_inbound_sms(sample_service, created_at=datetime(2017, 8, 6, 23, 0))  # monday (7th) morning
+    create_inbound_sms(sample_service, created_at=datetime(2017, 8, 7, 3, 59))  # sunday evening
+    sms_two = create_inbound_sms(sample_service, created_at=datetime(2017, 8, 7, 4, 0))  # monday (7th) morning
 
     with freeze_time('2017-08-14 12:00'):
         res = dao_get_inbound_sms_for_service(sample_service.id, limit_days=7)
@@ -80,19 +79,19 @@ def test_count_inbound_sms_for_service(notify_db_session):
     assert dao_count_inbound_sms_for_service(service_one.id, limit_days=1) == 2
 
 
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_count_inbound_sms_for_service_filters_messages_older_than_n_days(sample_service):
     # test between evening sunday 2nd of june and morning of monday 3rd
-    create_inbound_sms(sample_service, created_at=datetime(2019, 6, 2, 22, 59))
-    create_inbound_sms(sample_service, created_at=datetime(2019, 6, 2, 22, 59))
-    create_inbound_sms(sample_service, created_at=datetime(2019, 6, 2, 23, 1))
+    create_inbound_sms(sample_service, created_at=datetime(2019, 6, 3, 3, 59))
+    create_inbound_sms(sample_service, created_at=datetime(2019, 6, 3, 3, 59))
+    create_inbound_sms(sample_service, created_at=datetime(2019, 6, 3, 4, 1))
 
     with freeze_time('Monday 10th June 2019 12:00'):
         assert dao_count_inbound_sms_for_service(sample_service.id, limit_days=7) == 1
 
 
 @freeze_time("2017-06-08 12:00:00")
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_should_delete_inbound_sms_according_to_data_retention(notify_db_session):
     no_retention_service = create_service(service_name='no retention')
     short_retention_service = create_service(service_name='three days')
@@ -106,10 +105,10 @@ def test_should_delete_inbound_sms_according_to_data_retention(notify_db_session
     create_service_data_retention(short_retention_service, notification_type='email', days_of_retention=4)
 
     dates = [
-        datetime(2017, 6, 4, 23, 00),  # just before three days
-        datetime(2017, 6, 4, 22, 59),  # older than three days
-        datetime(2017, 5, 31, 23, 00),  # just before seven days
-        datetime(2017, 5, 31, 22, 59),  # older than seven days
+        datetime(2017, 6, 5, 4, 00),  # just before three days
+        datetime(2017, 6, 5, 3, 59),  # older than three days
+        datetime(2017, 6, 1, 4, 00),  # just before seven days
+        datetime(2017, 6, 1, 3, 59),  # older than seven days
         datetime(2017, 5, 1, 0, 0),  # older than thirty days
     ]
 
@@ -264,12 +263,12 @@ def test_most_recent_inbound_sms_paginates_properly(notify_api, sample_service):
             assert res.items[1].content == '111 2'
 
 
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_most_recent_inbound_sms_only_returns_values_within_7_days(sample_service):
     # just out of bounds
-    create_inbound_sms(sample_service, user_number='1', content='old', created_at=datetime(2017, 4, 2, 22, 59, 59))
+    create_inbound_sms(sample_service, user_number='1', content='old', created_at=datetime(2017, 4, 3, 3, 59, 59))
     # just in bounds
-    create_inbound_sms(sample_service, user_number='2', content='new', created_at=datetime(2017, 4, 2, 23, 0, 0))
+    create_inbound_sms(sample_service, user_number='2', content='new', created_at=datetime(2017, 4, 3, 4, 0, 0))
 
     with freeze_time('Monday 10th April 2017 12:00:00'):
         res = dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service(sample_service.id, limit_days=7, page=1)  # noqa

@@ -563,13 +563,13 @@ def test_update_notification_sets_status(sample_notification):
 
 
 @freeze_time("2016-01-10")
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_should_limit_notifications_return_by_day_limit_plus_one(sample_template):
     assert len(Notification.query.all()) == 0
 
     # create one notification a day between 1st and 9th
     for i in range(1, 11):
-        past_date = '2016-01-{0:02d}'.format(i)
+        past_date = '2016-01-{0:02d} 12:00:00'.format(i)
         with freeze_time(past_date):
             create_notification(sample_template, created_at=datetime.utcnow(), status="failed")
 

@@ -229,7 +229,6 @@ def test_check_billable_units_when_billable_units_does_not_match_page_count(
     ('20170820230000', date(2017, 8, 20)),
     ('20170120230000', date(2017, 1, 20))
 ])
-@pytest.mark.skip(reason="Figure out hard coded BST")
 def test_get_billing_date_in_est_from_filename(filename_date, billing_date):
     filename = 'NOTIFY-{}-RSP.TXT'.format(filename_date)
     result = get_billing_date_in_est_from_filename(filename)

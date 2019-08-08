@@ -177,7 +177,6 @@ def test_get_yearly_usage_by_monthly_from_ft_billing_populates_deltas(client, no
     assert fact_billing[0].notification_type == 'sms'
 
 
-@pytest.mark.skip(reason="Date math needs to be revisited")
 def test_get_yearly_usage_by_monthly_from_ft_billing(client, notify_db_session):
     service = create_service()
     sms_template = create_template(service=service, template_type="sms")
@@ -187,18 +186,18 @@ def test_get_yearly_usage_by_monthly_from_ft_billing(client, notify_db_session):
         mon = str(month).zfill(2)
         for day in range(1, monthrange(2016, month)[1] + 1):
             d = str(day).zfill(2)
-            create_ft_billing(bst_date='2016-{}-{}'.format(mon, d),
+            create_ft_billing(utc_date='2016-{}-{}'.format(mon, d),
                               service=service,
                               template=sms_template,
                               notification_type='sms',
                               billable_unit=1,
                               rate=0.162)
-            create_ft_billing(bst_date='2016-{}-{}'.format(mon, d),
+            create_ft_billing(utc_date='2016-{}-{}'.format(mon, d),
                               service=service,
                               template=email_template,
                               notification_type='email',
                               rate=0)
-            create_ft_billing(bst_date='2016-{}-{}'.format(mon, d),
+            create_ft_billing(utc_date='2016-{}-{}'.format(mon, d),
                               service=service,
                               template=letter_template,
                               notification_type='letter',
@@ -242,24 +241,24 @@ def set_up_yearly_data():
         mon = str(month).zfill(2)
         for day in range(1, monthrange(2016, month)[1] + 1):
             d = str(day).zfill(2)
-            create_ft_billing(bst_date='2016-{}-{}'.format(mon, d),
+            create_ft_billing(utc_date='2016-{}-{}'.format(mon, d),
                               service=service,
                               template=sms_template,
                               notification_type='sms',
                               rate=0.0162)
-            create_ft_billing(bst_date='2016-{}-{}'.format(mon, d),
+            create_ft_billing(utc_date='2016-{}-{}'.format(mon, d),
                               service=service,
                               template=sms_template,
                               notification_type='sms',
                               rate_multiplier=2,
                               rate=0.0162)
-            create_ft_billing(bst_date='2016-{}-{}'.format(mon, d),
+            create_ft_billing(utc_date='2016-{}-{}'.format(mon, d),
                               service=service,
                               template=email_template,
                               notification_type='email',
                               billable_unit=0,
                               rate=0)
-            create_ft_billing(bst_date='2016-{}-{}'.format(mon, d),
+            create_ft_billing(utc_date='2016-{}-{}'.format(mon, d),
                               service=service,
                               template=letter_template,
                               notification_type='letter',
@@ -291,7 +290,6 @@ def test_get_yearly_billing_usage_summary_from_ft_billing_returns_empty_list_if_
     assert json.loads(response.get_data(as_text=True)) == []
 
 
-@pytest.mark.skip(reason="Date math needs to be revisited")
 def test_get_yearly_billing_usage_summary_from_ft_billing(client, notify_db_session):
     service = set_up_yearly_data()
 
@@ -398,7 +396,7 @@ def set_up_data_for_all_cases():
     sms_template = create_template(service=service, template_type="sms")
     email_template = create_template(service=service, template_type="email")
     letter_template = create_template(service=service, template_type="letter")
-    create_ft_billing(bst_date='2018-05-16',
+    create_ft_billing(utc_date='2018-05-16',
                       notification_type='sms',
                       template=sms_template,
                       service=service,
@@ -407,7 +405,7 @@ def set_up_data_for_all_cases():
                       rate=0.162,
                       billable_unit=1,
                       notifications_sent=1)
-    create_ft_billing(bst_date='2018-05-17',
+    create_ft_billing(utc_date='2018-05-17',
                       notification_type='sms',
                       template=sms_template,
                       service=service,
@@ -416,7 +414,7 @@ def set_up_data_for_all_cases():
                       rate=0.162,
                       billable_unit=2,
                       notifications_sent=1)
-    create_ft_billing(bst_date='2018-05-16',
+    create_ft_billing(utc_date='2018-05-16',
                       notification_type='sms',
                       template=sms_template,
                       service=service,
@@ -425,7 +423,7 @@ def set_up_data_for_all_cases():
                       rate=0.0150,
                       billable_unit=2,
                       notifications_sent=1)
-    create_ft_billing(bst_date='2018-05-16',
+    create_ft_billing(utc_date='2018-05-16',
                       notification_type='email',
                       template=email_template,
                       service=service,
@@ -434,7 +432,7 @@ def set_up_data_for_all_cases():
                       rate=0,
                       billable_unit=0,
                       notifications_sent=1)
-    create_ft_billing(bst_date='2018-05-16',
+    create_ft_billing(utc_date='2018-05-16',
                       notification_type='letter',
                       template=letter_template,
                       service=service,
@@ -444,7 +442,7 @@ def set_up_data_for_all_cases():
                       billable_unit=1,
                       notifications_sent=1,
                       postage='second')
-    create_ft_billing(bst_date='2018-05-17',
+    create_ft_billing(utc_date='2018-05-17',
                       notification_type='letter',
                       template=letter_template,
                       service=service,
@@ -454,7 +452,7 @@ def set_up_data_for_all_cases():
                       billable_unit=2,
                       notifications_sent=1,
                       postage='second')
-    create_ft_billing(bst_date='2018-05-18',
+    create_ft_billing(utc_date='2018-05-18',
                       notification_type='letter',
                       template=letter_template,
                       service=service,

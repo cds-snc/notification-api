@@ -175,8 +175,8 @@ def _stats(requested, delivered, failed):
         ]
     )
 ])
-@freeze_time('2018-05-31 23:59:59')
-@pytest.mark.skip(reason="Date math needs to be revisited")
+@freeze_time('2018-06-01 04:59:59')
+# This test assumes the local timezone is EST
 def test_create_empty_monthly_notification_status_stats_dict(year, expected_years):
     output = create_empty_monthly_notification_status_stats_dict(year)
     assert sorted(output.keys()) == expected_years
@@ -184,8 +184,8 @@ def test_create_empty_monthly_notification_status_stats_dict(year, expected_year
         assert v == {'sms': {}, 'email': {}, 'letter': {}}
 
 
-@freeze_time('2018-05-31 23:59:59')
-@pytest.mark.skip(reason="Date math needs to be revisited")
+@freeze_time('2018-06-01 04:59:59')
+# This test assumes the local timezone is EST
 def test_add_monthly_notification_status_stats():
     row_data = [
         {'month': datetime(2018, 4, 1), 'notification_type': 'sms', 'notification_status': 'sending', 'count': 1},

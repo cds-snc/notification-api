@@ -37,7 +37,7 @@ from app.models import (
 )
 from app.performance_platform import total_sent_notifications, processing_time
 from app.cronitor import cronitor
-from app.utils import get_toronto_midnight_in_utc
+from app.utils import get_local_timezone_midnight_in_utc
 
 
 @notify_celery.task(name="remove_sms_email_jobs")
@@ -165,7 +165,7 @@ def send_daily_performance_platform_stats(date=None):
 
 def send_total_sent_notifications_to_performance_platform(bst_date):
     count_dict = total_sent_notifications.get_total_sent_notifications_for_day(bst_date)
-    start_time = get_toronto_midnight_in_utc(bst_date)
+    start_time = get_local_timezone_midnight_in_utc(bst_date).strftime("%Y-%m-%d")
 
     email_sent_count = count_dict['email']
     sms_sent_count = count_dict['sms']

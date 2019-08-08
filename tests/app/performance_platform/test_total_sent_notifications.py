@@ -1,5 +1,4 @@
 from datetime import datetime, date
-import pytest
 from freezegun import freeze_time
 
 from app.performance_platform.total_sent_notifications import (
@@ -10,12 +9,12 @@ from app.performance_platform.total_sent_notifications import (
 from tests.app.db import create_template, create_ft_notification_status
 
 
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_send_total_notifications_sent_for_day_stats_stats_creates_correct_call(mocker, client):
     send_stats = mocker.patch('app.performance_platform.total_sent_notifications.performance_platform_client.send_stats_to_performance_platform')  # noqa
 
     send_total_notifications_sent_for_day_stats(
-        start_time=datetime(2016, 10, 15, 23, 0, 0),
+        start_time=datetime(2016, 10, 16, 4, 0, 0),
         notification_type='sms',
         count=142
     )
@@ -43,14 +42,14 @@ def test_get_total_sent_notifications_yesterday_returns_expected_totals_dict(sam
     yesterday = date(2018, 6, 9)
 
     # todays is excluded
-    create_ft_notification_status(bst_date=today, template=sms)
-    create_ft_notification_status(bst_date=today, template=email)
-    create_ft_notification_status(bst_date=today, template=letter)
+    create_ft_notification_status(utc_date=today, template=sms)
+    create_ft_notification_status(utc_date=today, template=email)
+    create_ft_notification_status(utc_date=today, template=letter)
 
     # yesterdays is included
-    create_ft_notification_status(bst_date=yesterday, template=sms, count=2)
-    create_ft_notification_status(bst_date=yesterday, template=email, count=3)
-    create_ft_notification_status(bst_date=yesterday, template=letter, count=1)
+    create_ft_notification_status(utc_date=yesterday, template=sms, count=2)
+    create_ft_notification_status(utc_date=yesterday, template=email, count=3)
+    create_ft_notification_status(utc_date=yesterday, template=letter, count=1)
 
     total_count_dict = get_total_sent_notifications_for_day(yesterday)
 

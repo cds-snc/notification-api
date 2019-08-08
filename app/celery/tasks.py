@@ -11,7 +11,7 @@ from notifications_utils.template import (
     SMSMessageTemplate,
     WithSubjectTemplate,
 )
-from notifications_utils.timezones import convert_utc_to_est
+from notifications_utils.timezones import convert_utc_to_local_timezone
 from requests import (
     HTTPError,
     request,
@@ -455,7 +455,7 @@ def get_billing_date_in_est_from_filename(filename):
     # exclude seconds from the date since we don't need it. We got a date ending in 60 second - which is not valid.
     datetime_string = filename.split('-')[1][:-2]
     datetime_obj = datetime.strptime(datetime_string, '%Y%m%d%H%M')
-    return convert_utc_to_est(datetime_obj).date()
+    return convert_utc_to_local_timezone(datetime_obj).date()
 
 
 def persist_daily_sorted_letter_counts(day, file_name, sorted_letter_counts):

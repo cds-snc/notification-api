@@ -4,7 +4,7 @@ import pytest
 from freezegun import freeze_time
 
 from app.utils import (
-    get_toronto_midnight_in_utc,
+    get_local_timezone_midnight_in_utc,
     get_midnight_for_day_before,
     midnight_n_days_ago,
 )
@@ -18,8 +18,8 @@ from app.utils import (
     (date(2016, 1, 15), datetime(2016, 1, 15, 5, 0)),
     (date(2016, 6, 15), datetime(2016, 6, 15, 4, 0)),
 ])
-def test_get_toronto_midnight_in_utc_returns_expected_date(date, expected_date):
-    assert get_toronto_midnight_in_utc(date) == expected_date
+def test_get_local_timezone_midnight_in_utc_returns_expected_date(date, expected_date):
+    assert get_local_timezone_midnight_in_utc(date) == expected_date
 
 
 @pytest.mark.parametrize('date, expected_date', [
