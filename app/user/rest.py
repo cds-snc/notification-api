@@ -3,6 +3,8 @@ import uuid
 from datetime import (datetime, timedelta)
 from urllib.parse import urlencode
 
+import pwnedpasswords
+
 from flask import (jsonify, request, Blueprint, current_app, abort)
 from sqlalchemy.exc import IntegrityError
 
@@ -75,11 +77,20 @@ def handle_integrity_error(exc):
 
 @user_blueprint.route('', methods=['POST'])
 def create_user():
+    # import pdb; pdb.set_trace()
     user_to_create, errors = create_user_schema.load(request.get_json())
     req_json = request.get_json()
-    if not req_json.get('password', None):
+
+    password = req_json.get('password', None)
+    if not password:
         errors.update({'password': ['Missing data for required field.']})
         raise InvalidRequest(errors, status_code=400)
+    else:
+        response = pwnedpasswords.check(password)
+        if response > 0:
+            errors.update({'password': ['Password is blacklisted.']})
+            raise InvalidRequest(errors, status_code=400)
+
     save_model_user(user_to_create, pwd=req_json.get('password'))
     result = user_to_create.serialize()
     return jsonify(data=result), 201
@@ -524,6 +535,12 @@ def update_password(user_id):
     update_dct, errors = user_update_password_schema_load_json.load(req_json)
     if errors:
         raise InvalidRequest(errors, status_code=400)
+
+    response = pwnedpasswords.check(pwd)
+    if response > 0:
+        errors.update({'password': ['Password is blacklisted.']})
+        raise InvalidRequest(errors, status_code=400)
+
     update_user_password(user, pwd)
     return jsonify(data=user.serialize()), 200
 
