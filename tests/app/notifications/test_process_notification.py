@@ -386,13 +386,13 @@ def test_persist_notification_with_international_info_does_not_store_for_email(
     assert persisted_notification.rate_multiplier is None
 
 
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_persist_scheduled_notification(sample_notification):
     persist_scheduled_notification(sample_notification.id, '2017-05-12 14:15')
     scheduled_notification = ScheduledNotification.query.all()
     assert len(scheduled_notification) == 1
     assert scheduled_notification[0].notification_id == sample_notification.id
-    assert scheduled_notification[0].scheduled_for == datetime.datetime(2017, 5, 12, 13, 15)
+    assert scheduled_notification[0].scheduled_for == datetime.datetime(2017, 5, 12, 18, 15)
 
 
 @pytest.mark.parametrize('recipient, expected_recipient_normalised', [

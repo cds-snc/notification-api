@@ -285,7 +285,7 @@ def test_create_nightly_billing_null_sent_by_sms(
 
 
 @freeze_time('2018-01-15T03:30:00')
-@pytest.mark.skip(reason="Figure out hard coded BST")
+# This test assumes the local timezone is EST
 def test_create_nightly_billing_consolidate_from_3_days_delta(
         sample_template,
         mocker):
@@ -314,8 +314,8 @@ def test_create_nightly_billing_consolidate_from_3_days_delta(
     records = FactBilling.query.order_by(FactBilling.bst_date).all()
 
     assert len(records) == 4
-    assert records[0].bst_date == date(2018, 1, 11)
-    assert records[-1].bst_date == date(2018, 1, 14)
+    assert records[0].bst_date == date(2018, 1, 10)
+    assert records[-1].bst_date == date(2018, 1, 13)
 
 
 def test_get_rate_for_letter_latest(notify_db_session):
@@ -342,9 +342,8 @@ def test_get_rate_for_sms_and_email(notify_db_session):
     assert rate == Decimal(0)
 
 
-@freeze_time('2018-03-26T23:30:00')
-# summer time starts on 2018-03-25
-@pytest.mark.skip(reason="Figure out hard coded BST")
+@freeze_time('2018-03-27T04:30:00')
+# This test assumes the local timezone is EST
 def test_create_nightly_billing_use_BST(
         sample_service,
         sample_template,
@@ -363,7 +362,7 @@ def test_create_nightly_billing_use_BST(
     )
 
     create_notification(
-        created_at=datetime(2018, 3, 25, 23, 5),
+        created_at=datetime(2018, 3, 26, 4, 30),
         template=sample_template,
         status='delivered',
         sent_by=None,
@@ -386,7 +385,7 @@ def test_create_nightly_billing_use_BST(
 
 
 @freeze_time('2018-01-15T03:30:00')
-@pytest.mark.skip(reason="Figure out hard coded BST")
+# This test assumes the local timezone is EST
 def test_create_nightly_billing_update_when_record_exists(
         sample_service,
         sample_template,
@@ -411,7 +410,7 @@ def test_create_nightly_billing_update_when_record_exists(
     records = FactBilling.query.order_by(FactBilling.bst_date).all()
 
     assert len(records) == 1
-    assert records[0].bst_date == date(2018, 1, 14)
+    assert records[0].bst_date == date(2018, 1, 13)
     assert records[0].billable_units == 1
     assert not records[0].updated_at
 
@@ -475,25 +474,25 @@ def test_create_nightly_notification_status(notify_db_session):
     assert str(new_data[6].bst_date) == datetime.strftime(datetime.utcnow() - timedelta(days=1), "%Y-%m-%d")
 
 
-# the job runs at 12:30am London time. 04/01 is in BST.
-@freeze_time('2019-04-01T23:30')
-@pytest.mark.skip(reason="Figure out hard coded BST")
+@freeze_time('2019-04-02T04:30')
+# This test assumes the local timezone is EST
 def test_create_nightly_notification_status_respects_bst(sample_template):
-    create_notification(sample_template, status='delivered', created_at=datetime(2019, 4, 1, 23, 0))  # too new
+    create_notification(sample_template, status='delivered', created_at=datetime(2019, 4, 2, 5, 0))  # too new
 
-    create_notification(sample_template, status='created', created_at=datetime(2019, 4, 1, 22, 59))
-    create_notification(sample_template, status='created', created_at=datetime(2019, 3, 31, 23, 0))
+    create_notification(sample_template, status='created', created_at=datetime(2019, 4, 2, 5, 59))
+    create_notification(sample_template, status='created', created_at=datetime(2019, 4, 1, 4, 59))
 
-    create_notification(sample_template, status='temporary-failure', created_at=datetime(2019, 3, 31, 22, 59))
+    create_notification(sample_template, status='temporary-failure', created_at=datetime(2019, 4, 1, 2, 59))
 
     # we create records for last ten days
-    create_notification(sample_template, status='sending', created_at=datetime(2019, 3, 29, 0, 0))
+    create_notification(sample_template, status='sending', created_at=datetime(2019, 3, 29, 5, 0))
 
-    create_notification(sample_template, status='delivered', created_at=datetime(2019, 3, 22, 23, 59))  # too old
+    create_notification(sample_template, status='delivered', created_at=datetime(2019, 3, 21, 17, 59))  # too old
 
     create_nightly_notification_status()
 
     noti_status = FactNotificationStatus.query.order_by(FactNotificationStatus.bst_date).all()
+    print(noti_status)
     assert len(noti_status) == 3
 
     assert noti_status[0].bst_date == date(2019, 3, 29)

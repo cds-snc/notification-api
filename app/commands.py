@@ -47,7 +47,7 @@ from app.models import (
     LetterBranding
 )
 from app.performance_platform.processing_time import send_processing_time_for_start_and_end
-from app.utils import get_toronto_midnight_in_utc, get_midnight_for_day_before
+from app.utils import get_local_timezone_midnight_in_utc, get_midnight_for_day_before
 
 
 @click.group(name='command', help='Additional commands')
@@ -239,7 +239,7 @@ def backfill_processing_time(start_date, end_date):
         process_date = start_date + timedelta(days=i + 1)
 
         process_start_date = get_midnight_for_day_before(process_date)
-        process_end_date = get_toronto_midnight_in_utc(process_date)
+        process_end_date = get_local_timezone_midnight_in_utc(process_date)
 
         print('Sending notification processing-time for {} - {}'.format(
             process_start_date.isoformat(),
@@ -471,8 +471,8 @@ def rebuild_ft_billing_for_day(service_id, day):
         rebuild_ft_data(day, service_id)
     else:
         services = get_service_ids_that_need_billing_populated(
-            get_toronto_midnight_in_utc(day),
-            get_toronto_midnight_in_utc(day + timedelta(days=1))
+            get_local_timezone_midnight_in_utc(day),
+            get_local_timezone_midnight_in_utc(day + timedelta(days=1))
         )
         for row in services:
             rebuild_ft_data(day, row.service_id)

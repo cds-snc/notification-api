@@ -211,20 +211,20 @@ def test_unescape_string(raw, expected):
 
 
 @pytest.mark.parametrize('provider_date, expected_output', [
-    ('2017-01-21+11%3A56%3A11', datetime(2017, 1, 21, 11, 56, 11)),
-    ('2017-05-21+11%3A56%3A11', datetime(2017, 5, 21, 10, 56, 11))
+    ('2017-01-21+11%3A56%3A11', datetime(2017, 1, 21, 16, 56, 11)),
+    ('2017-05-21+11%3A56%3A11', datetime(2017, 5, 21, 15, 56, 11))
 ])
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_format_mmg_datetime(provider_date, expected_output):
     assert format_mmg_datetime(provider_date) == expected_output
 
 
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_create_inbound_mmg_sms_object(sample_service_full_permissions):
     data = {
         'Message': 'hello+there+%F0%9F%93%A9',
         'Number': sample_service_full_permissions.get_inbound_number(),
-        'MSISDN': '07700 900 001',
+        'MSISDN': '447700900001',
         'DateRecieved': '2017-01-02+03%3A04%3A05',
         'ID': 'bar',
     }
@@ -235,7 +235,7 @@ def test_create_inbound_mmg_sms_object(sample_service_full_permissions):
     assert inbound_sms.service_id == sample_service_full_permissions.id
     assert inbound_sms.notify_number == sample_service_full_permissions.get_inbound_number()
     assert inbound_sms.user_number == '447700900001'
-    assert inbound_sms.provider_date == datetime(2017, 1, 2, 3, 4, 5)
+    assert inbound_sms.provider_date == datetime(2017, 1, 2, 8, 4, 5)
     assert inbound_sms.provider_reference == 'bar'
     assert inbound_sms._content != 'hello there 📩'
     assert inbound_sms.content == 'hello there 📩'
@@ -316,7 +316,7 @@ def test_receive_notification_returns_received_to_firetext(notify_db_session, cl
     mocked.assert_called_once_with([str(inbound_sms_id), str(service.id)], queue="notify-internal-tasks")
 
 
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_receive_notification_from_firetext_persists_message(notify_db_session, client, mocker):
     mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
     mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
@@ -326,7 +326,7 @@ def test_receive_notification_from_firetext_persists_message(notify_db_session, 
         service_name='b',
         service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE])
 
-    data = "source=07999999999&destination=07111111111&message=this is a message&time=2017-01-01 12:00:00"
+    data = "source=447999999999&destination=07111111111&message=this is a message&time=2017-01-01 12:00:00"
 
     response = firetext_post(client, data)
 
@@ -340,7 +340,7 @@ def test_receive_notification_from_firetext_persists_message(notify_db_session, 
     assert persisted.service == service
     assert persisted.content == 'this is a message'
     assert persisted.provider == 'firetext'
-    assert persisted.provider_date == datetime(2017, 1, 1, 12, 0, 0, 0)
+    assert persisted.provider_date == datetime(2017, 1, 1, 17, 0, 0, 0)
     mocked.assert_called_once_with([str(persisted.id), str(service.id)], queue="notify-internal-tasks")
 
 

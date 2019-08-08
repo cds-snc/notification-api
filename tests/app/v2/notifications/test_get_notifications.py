@@ -15,7 +15,7 @@ from tests.app.db import (
     (0, 'mmg'),
     (1, None)
 ])
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_get_notification_by_id_returns_200(
         client, billable_units, provider, sample_template
 ):
@@ -71,7 +71,7 @@ def test_get_notification_by_id_returns_200(
         "subject": None,
         'sent_at': sample_notification.sent_at,
         'completed_at': sample_notification.completed_at(),
-        'scheduled_for': '2017-05-12T14:15:00.000000Z',
+        'scheduled_for': '2017-05-12T19:15:00.000000Z',
         'postage': None,
     }
 
@@ -167,7 +167,7 @@ def test_get_notification_by_id_returns_created_by_name_if_notification_created_
     assert json_response['created_by_name'] == 'Test User'
 
 
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_get_notifications_returns_scheduled_for(client, sample_template):
     sample_notification_with_reference = create_notification(template=sample_template,
                                                              client_reference='some-client-reference',
@@ -185,7 +185,7 @@ def test_get_notifications_returns_scheduled_for(client, sample_template):
     assert len(json_response['notifications']) == 1
 
     assert json_response['notifications'][0]['id'] == str(sample_notification_with_reference.id)
-    assert json_response['notifications'][0]['scheduled_for'] == "2017-05-23T16:15:00.000000Z"
+    assert json_response['notifications'][0]['scheduled_for'] == "2017-05-23T21:15:00.000000Z"
 
 
 def test_get_notification_by_reference_nonexistent_reference_returns_no_notifications(client, sample_service):
@@ -247,7 +247,7 @@ def test_get_notification_by_id_invalid_id(client, sample_notification, id):
     (12, 'first', '2000-12-05T16:00:00.000000Z'),  # 4pm GMT in winter
     (6, 'first', '2000-06-03T15:00:00.000000Z'),  # 4pm BST in summer (two days before 2nd class due to weekends)
 ])
-@pytest.mark.skip(reason="Date math needs to be revisited")
+@pytest.mark.skip(reason="Letter feature")
 def test_get_notification_adds_delivery_estimate_for_letters(
     client,
     sample_letter_notification,

@@ -403,16 +403,16 @@ def test_dao_fetch_live_services_data(sample_user):
     template_letter_2 = create_template(service=service_2, template_type='letter')
     dao_add_service_to_organisation(service=service, organisation_id=org.id)
     # two sms billing records for 1st service within current financial year:
-    create_ft_billing(bst_date='2019-04-20', notification_type='sms', template=template, service=service)
-    create_ft_billing(bst_date='2019-04-21', notification_type='sms', template=template, service=service)
+    create_ft_billing(utc_date='2019-04-20', notification_type='sms', template=template, service=service)
+    create_ft_billing(utc_date='2019-04-21', notification_type='sms', template=template, service=service)
     # one sms billing record for 1st service from previous financial year, should not appear in the result:
-    create_ft_billing(bst_date='2018-04-20', notification_type='sms', template=template, service=service)
+    create_ft_billing(utc_date='2018-04-20', notification_type='sms', template=template, service=service)
     # one email billing record for 1st service within current financial year:
-    create_ft_billing(bst_date='2019-04-20', notification_type='email', template=template2, service=service)
+    create_ft_billing(utc_date='2019-04-20', notification_type='email', template=template2, service=service)
     # one letter billing record for 1st service within current financial year:
-    create_ft_billing(bst_date='2019-04-15', notification_type='letter', template=template_letter_1, service=service)
+    create_ft_billing(utc_date='2019-04-15', notification_type='letter', template=template_letter_1, service=service)
     # one letter billing record for 2nd service within current financial year:
-    create_ft_billing(bst_date='2019-04-16', notification_type='letter', template=template_letter_2, service=service_2)
+    create_ft_billing(utc_date='2019-04-16', notification_type='letter', template=template_letter_2, service=service_2)
 
     # 1st service: billing from 2018 and 2019
     create_annual_billing(service.id, 500, 2018)
@@ -811,13 +811,13 @@ def test_fetch_stats_for_today_only_includes_today(notify_db_session):
     ('Sunday 8th July 2018 12:00', 7, 0),
     ('Sunday 8th July 2018 22:59', 7, 0),
     ('Sunday 1th July 2018 12:00', 10, 0),
-    ('Sunday 8th July 2018 23:00', 7, 1),
+    ('Monday 9th July 2018 04:00', 7, 1),
     ('Monday 9th July 2018 09:00', 7, 1),
     ('Monday 9th July 2018 15:00', 7, 1),
     ('Monday 16th July 2018 12:00', 7, 1),
     ('Sunday 8th July 2018 12:00', 10, 1),
 ])
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_fetch_stats_should_not_gather_notifications_older_than_7_days(
         sample_template, created_at, limit_days, rows_returned
 ):
@@ -861,18 +861,18 @@ def test_dao_fetch_todays_stats_for_all_services_includes_all_services(notify_db
     assert stats == sorted(stats, key=lambda x: x.service_id)
 
 
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_dao_fetch_todays_stats_for_all_services_only_includes_today(notify_db_session):
     template = create_template(service=create_service())
-    with freeze_time('2001-01-01T23:59:00'):
+    with freeze_time('2001-01-02T03:59:00'):
         # just_before_midnight_yesterday
         create_notification(template=template, to_field='1', status='delivered')
 
-    with freeze_time('2001-01-02T00:01:00'):
+    with freeze_time('2001-01-02T05:01:00'):
         # just_after_midnight_today
         create_notification(template=template, to_field='2', status='failed')
 
-    with freeze_time('2001-01-02T12:00:00'):
+    with freeze_time('2001-01-02T05:00:00'):
         stats = dao_fetch_todays_stats_for_all_services()
 
     stats = {row.status: row.count for row in stats}

@@ -666,7 +666,7 @@ def create_daily_sorted_letter(billing_day=date(2018, 1, 18),
     return daily_sorted_letter
 
 
-def create_ft_billing(bst_date,
+def create_ft_billing(utc_date,
                       notification_type,
                       template=None,
                       service=None,
@@ -683,7 +683,7 @@ def create_ft_billing(bst_date,
     if not template:
         template = create_template(service=service, template_type=notification_type)
 
-    data = FactBilling(bst_date=bst_date,
+    data = FactBilling(bst_date=utc_date,
                        service_id=service.id,
                        template_id=template.id,
                        notification_type=notification_type,
@@ -700,7 +700,7 @@ def create_ft_billing(bst_date,
 
 
 def create_ft_notification_status(
-    bst_date,
+    utc_date,
     notification_type='sms',
     service=None,
     template=None,
@@ -720,7 +720,7 @@ def create_ft_notification_status(
         template = create_template(service=service, template_type=notification_type)
 
     data = FactNotificationStatus(
-        bst_date=bst_date,
+        bst_date=utc_date,
         template_id=template.id,
         service_id=service.id,
         job_id=job.id if job else uuid.UUID(int=0),

@@ -45,7 +45,7 @@ from app.models import (
     NON_CROWN_ORGANISATION_TYPES,
     SMS_TYPE,
 )
-from app.utils import email_address_is_nhs, get_toronto_midnight_in_utc, midnight_n_days_ago
+from app.utils import email_address_is_nhs, get_local_timezone_midnight_in_utc, midnight_n_days_ago
 
 DEFAULT_SERVICE_PERMISSIONS = [
     SMS_TYPE,
@@ -439,8 +439,8 @@ def _stats_for_service_query(service_id):
 @statsd(namespace='dao')
 def dao_fetch_todays_stats_for_all_services(include_from_test_key=True, only_active=True):
     today = date.today()
-    start_date = get_toronto_midnight_in_utc(today)
-    end_date = get_toronto_midnight_in_utc(today + timedelta(days=1))
+    start_date = get_local_timezone_midnight_in_utc(today)
+    end_date = get_local_timezone_midnight_in_utc(today + timedelta(days=1))
 
     subquery = db.session.query(
         Notification.notification_type,

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, time
 
 from flask import current_app
-from notifications_utils.timezones import convert_est_to_utc, convert_utc_to_est
+from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func, case, desc, Date, Integer
 
@@ -21,11 +21,12 @@ from app.models import (
     EMAIL_TYPE,
     NOTIFICATION_STATUS_TYPES_BILLABLE_FOR_LETTERS
 )
-from app.utils import get_toronto_midnight_in_utc
+from app.utils import get_local_timezone_midnight_in_utc
 
 
 def fetch_billing_totals_for_year(service_id, year):
     year_start_date, year_end_date = get_financial_year(year)
+    print(year_start_date, year_end_date)
     """
       Billing for email: only record the total number of emails.
       Billing for letters: The billing units is used to fetch the correct rate for the sheet count of the letter.
@@ -39,8 +40,9 @@ def fetch_billing_totals_for_year(service_id, year):
         FactBilling.notification_type.label('notification_type')
     ).filter(
         FactBilling.service_id == service_id,
-        FactBilling.bst_date >= year_start_date,
-        FactBilling.bst_date <= year_end_date,
+        FactBilling.bst_date >= year_start_date.strftime("%Y-%m-%d"),
+        # This works only for timezones to the west of GMT
+        FactBilling.bst_date < year_end_date.strftime("%Y-%m-%d"),
         FactBilling.notification_type.in_([EMAIL_TYPE, LETTER_TYPE])
     ).group_by(
         FactBilling.rate,
@@ -56,8 +58,8 @@ def fetch_billing_totals_for_year(service_id, year):
         FactBilling.notification_type
     ).filter(
         FactBilling.service_id == service_id,
-        FactBilling.bst_date >= year_start_date,
-        FactBilling.bst_date <= year_end_date,
+        FactBilling.bst_date >= year_start_date.strftime("%Y-%m-%d"),
+        FactBilling.bst_date < year_end_date.strftime("%Y-%m-%d"),  # This works only for timezones to the west of GMT
         FactBilling.notification_type == SMS_TYPE
     ).group_by(
         FactBilling.rate,
@@ -75,7 +77,7 @@ def fetch_billing_totals_for_year(service_id, year):
 def fetch_monthly_billing_for_year(service_id, year):
     year_start_date, year_end_date = get_financial_year(year)
     utcnow = datetime.utcnow()
-    today = convert_utc_to_est(utcnow)
+    today = convert_utc_to_local_timezone(utcnow)
     # if year end date is less than today, we are calculating for data in the past and have no need for deltas.
     if year_end_date >= today:
         yesterday = today - timedelta(days=1)
@@ -93,8 +95,8 @@ def fetch_monthly_billing_for_year(service_id, year):
         FactBilling.postage
     ).filter(
         FactBilling.service_id == service_id,
-        FactBilling.bst_date >= year_start_date,
-        FactBilling.bst_date <= year_end_date,
+        FactBilling.bst_date >= year_start_date.strftime("%Y-%m-%d"),
+        FactBilling.bst_date <= year_end_date.strftime("%Y-%m-%d"),
         FactBilling.notification_type.in_([EMAIL_TYPE, LETTER_TYPE])
     ).group_by(
         'month',
@@ -112,8 +114,8 @@ def fetch_monthly_billing_for_year(service_id, year):
         FactBilling.postage
     ).filter(
         FactBilling.service_id == service_id,
-        FactBilling.bst_date >= year_start_date,
-        FactBilling.bst_date <= year_end_date,
+        FactBilling.bst_date >= year_start_date.strftime("%Y-%m-%d"),
+        FactBilling.bst_date <= year_end_date.strftime("%Y-%m-%d"),
         FactBilling.notification_type == SMS_TYPE
     ).group_by(
         'month',
@@ -144,8 +146,8 @@ def delete_billing_data_for_service_for_day(process_day, service_id):
 
 
 def fetch_billing_data_for_day(process_day, service_id=None):
-    start_date = convert_est_to_utc(datetime.combine(process_day, time.min))
-    end_date = convert_est_to_utc(datetime.combine(process_day + timedelta(days=1), time.min))
+    start_date = convert_local_timezone_to_utc(datetime.combine(process_day, time.min))
+    end_date = convert_local_timezone_to_utc(datetime.combine(process_day + timedelta(days=1), time.min))
     # use notification_history if process day is older than 7 days
     # this is useful if we need to rebuild the ft_billing table for a date older than 7 days ago.
     current_app.logger.info("Populate ft_billing for {} to {}".format(start_date, end_date))
@@ -250,7 +252,7 @@ def get_service_ids_that_need_billing_populated(start_date, end_date):
 def get_rate(
     non_letter_rates, letter_rates, notification_type, date, crown=None, letter_page_count=None, post_class='second'
 ):
-    start_of_day = get_toronto_midnight_in_utc(date)
+    start_of_day = get_local_timezone_midnight_in_utc(date)
 
     if notification_type == LETTER_TYPE:
         if letter_page_count == 0:

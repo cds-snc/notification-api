@@ -253,7 +253,7 @@ def test_fetch_notification_status_for_service_for_today_and_7_previous_days(not
 
 
 @freeze_time('2018-10-31T18:00:00')
-@pytest.mark.skip(reason="Date math needs to be revisited")
+# This test assumes the local timezone is EST
 def test_fetch_notification_status_by_template_for_service_for_today_and_7_previous_days(notify_db_session):
     service_1 = create_service(service_name='service_1')
     sms_template = create_template(template_name='sms Template 1', service=service_1, template_type=SMS_TYPE)
@@ -288,9 +288,9 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
         ('sms Template Name', False, mock.ANY, 'sms', 'created', 1),
         ('sms Template 1', False, mock.ANY, 'sms', 'delivered', 1),
         ('sms Template 2', False, mock.ANY, 'sms', 'delivered', 1),
-        ('sms Template Name', False, mock.ANY, 'sms', 'delivered', 8),
         ('sms Template Name', False, mock.ANY, 'sms', 'delivered', 10),
         ('sms Template Name', False, mock.ANY, 'sms', 'delivered', 11),
+
     ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
 
 
@@ -449,21 +449,21 @@ def test_fetch_monthly_template_usage_for_service(sample_service):
     template_two = create_template(service=sample_service, template_type='email', template_name='b')
     template_three = create_template(service=sample_service, template_type='letter', template_name='c')
 
-    create_ft_notification_status(bst_date=date(2017, 12, 10),
+    create_ft_notification_status(utc_date=date(2017, 12, 10),
                                   service=sample_service,
                                   template=template_two,
                                   count=3)
-    create_ft_notification_status(bst_date=date(2017, 12, 10),
+    create_ft_notification_status(utc_date=date(2017, 12, 10),
                                   service=sample_service,
                                   template=template_one,
                                   count=6)
 
-    create_ft_notification_status(bst_date=date(2018, 1, 1),
+    create_ft_notification_status(utc_date=date(2018, 1, 1),
                                   service=sample_service,
                                   template=template_one,
                                   count=4)
 
-    create_ft_notification_status(bst_date=date(2018, 3, 1),
+    create_ft_notification_status(utc_date=date(2018, 3, 1),
                                   service=sample_service,
                                   template=template_three,
                                   count=5)
@@ -513,15 +513,15 @@ def test_fetch_monthly_template_usage_for_service_does_join_to_notifications_if_
 ):
     template_one = create_template(service=sample_service, template_type='sms', template_name='a')
     template_two = create_template(service=sample_service, template_type='email', template_name='b')
-    create_ft_notification_status(bst_date=date(2018, 2, 1),
+    create_ft_notification_status(utc_date=date(2018, 2, 1),
                                   service=template_two.service,
                                   template=template_two,
                                   count=15)
-    create_ft_notification_status(bst_date=date(2018, 2, 2),
+    create_ft_notification_status(utc_date=date(2018, 2, 2),
                                   service=template_one.service,
                                   template=template_one,
                                   count=20)
-    create_ft_notification_status(bst_date=date(2018, 3, 1),
+    create_ft_notification_status(utc_date=date(2018, 3, 1),
                                   service=template_one.service,
                                   template=template_one,
                                   count=3)
@@ -552,7 +552,7 @@ def test_fetch_monthly_template_usage_for_service_does_join_to_notifications_if_
 def test_fetch_monthly_template_usage_for_service_does_not_include_cancelled_status(
         sample_template
 ):
-    create_ft_notification_status(bst_date=date(2018, 3, 1),
+    create_ft_notification_status(utc_date=date(2018, 3, 1),
                                   service=sample_template.service,
                                   template=sample_template,
                                   notification_status='cancelled',
@@ -569,7 +569,7 @@ def test_fetch_monthly_template_usage_for_service_does_not_include_cancelled_sta
 def test_fetch_monthly_template_usage_for_service_does_not_include_test_notifications(
         sample_template
 ):
-    create_ft_notification_status(bst_date=date(2018, 3, 1),
+    create_ft_notification_status(utc_date=date(2018, 3, 1),
                                   service=sample_template.service,
                                   template=sample_template,
                                   notification_status='delivered',
@@ -593,11 +593,11 @@ def test_fetch_monthly_template_usage_for_service_does_not_include_test_notifica
 def test_get_total_sent_notifications_for_day_and_type_returns_right_notification_type(
         notification_type, count, sample_template, sample_email_template, sample_letter_template
 ):
-    create_ft_notification_status(bst_date="2019-03-27", service=sample_template.service, template=sample_template,
+    create_ft_notification_status(utc_date="2019-03-27", service=sample_template.service, template=sample_template,
                                   count=3)
-    create_ft_notification_status(bst_date="2019-03-27", service=sample_email_template.service,
+    create_ft_notification_status(utc_date="2019-03-27", service=sample_email_template.service,
                                   template=sample_email_template, count=5)
-    create_ft_notification_status(bst_date="2019-03-27", service=sample_letter_template.service,
+    create_ft_notification_status(utc_date="2019-03-27", service=sample_letter_template.service,
                                   template=sample_letter_template, count=7)
 
     result = get_total_sent_notifications_for_day_and_type(day='2019-03-27', notification_type=notification_type)
@@ -611,11 +611,11 @@ def test_get_total_sent_notifications_for_day_and_type_returns_total_for_right_d
     day, sample_template
 ):
     date = datetime.strptime(day, "%Y-%m-%d")
-    create_ft_notification_status(bst_date=date - timedelta(days=1), notification_type=sample_template.template_type,
+    create_ft_notification_status(utc_date=date - timedelta(days=1), notification_type=sample_template.template_type,
                                   service=sample_template.service, template=sample_template, count=1)
-    create_ft_notification_status(bst_date=date, notification_type=sample_template.template_type,
+    create_ft_notification_status(utc_date=date, notification_type=sample_template.template_type,
                                   service=sample_template.service, template=sample_template, count=2)
-    create_ft_notification_status(bst_date=date + timedelta(days=1), notification_type=sample_template.template_type,
+    create_ft_notification_status(utc_date=date + timedelta(days=1), notification_type=sample_template.template_type,
                                   service=sample_template.service, template=sample_template, count=3)
 
     total = get_total_sent_notifications_for_day_and_type(day, sample_template.template_type)
