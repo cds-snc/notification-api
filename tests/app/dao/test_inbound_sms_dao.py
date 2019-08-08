@@ -1,6 +1,5 @@
 from datetime import datetime
 from itertools import product
-import pytest
 from freezegun import freeze_time
 
 from app.dao.inbound_sms_dao import (

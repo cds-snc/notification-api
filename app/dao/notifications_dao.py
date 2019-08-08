@@ -307,7 +307,8 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
     current_app.logger.info(
         'Deleting {} notifications for services without flexible data retention'.format(notification_type))
 
-    seven_days_ago = get_local_timezone_midnight_in_utc(convert_utc_to_local_timezone(datetime.utcnow()).date()) - timedelta(days=7)
+    seven_days_ago = get_local_timezone_midnight_in_utc(
+        convert_utc_to_local_timezone(datetime.utcnow()).date()) - timedelta(days=7)
     services_with_data_retention = [x.service_id for x in flexible_data_retention]
     service_ids_to_purge = db.session.query(Service.id).filter(Service.id.notin_(services_with_data_retention)).all()
 

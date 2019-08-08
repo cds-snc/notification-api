@@ -472,7 +472,9 @@ def get_monthly_notification_stats(service_id):
 
     now = datetime.utcnow()
     if end_date > now:
-        todays_deltas = fetch_notification_status_for_service_for_day(convert_utc_to_local_timezone(now), service_id=service_id)
+        todays_deltas = fetch_notification_status_for_service_for_day(
+            convert_utc_to_local_timezone(now),
+            service_id=service_id)
         statistics.add_monthly_notification_status_stats(data, todays_deltas)
 
     return jsonify(data=data)

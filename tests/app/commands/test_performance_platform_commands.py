@@ -1,5 +1,4 @@
 from datetime import datetime
-import pytest
 
 from app.commands import backfill_performance_platform_totals, backfill_processing_time
 

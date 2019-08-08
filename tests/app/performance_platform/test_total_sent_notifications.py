@@ -1,5 +1,4 @@
 from datetime import datetime, date
-import pytest
 from freezegun import freeze_time
 
 from app.performance_platform.total_sent_notifications import (

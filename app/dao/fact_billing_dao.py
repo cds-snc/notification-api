@@ -26,7 +26,7 @@ from app.utils import get_local_timezone_midnight_in_utc
 
 def fetch_billing_totals_for_year(service_id, year):
     year_start_date, year_end_date = get_financial_year(year)
-    print(year_start_date, year_end_date )
+    print(year_start_date, year_end_date)
     """
       Billing for email: only record the total number of emails.
       Billing for letters: The billing units is used to fetch the correct rate for the sheet count of the letter.
@@ -41,6 +41,7 @@ def fetch_billing_totals_for_year(service_id, year):
     ).filter(
         FactBilling.service_id == service_id,
         FactBilling.bst_date >= year_start_date.strftime("%Y-%m-%d"),
+        # This works only for timezones to the west of GMT
         FactBilling.bst_date < year_end_date.strftime("%Y-%m-%d"),
         FactBilling.notification_type.in_([EMAIL_TYPE, LETTER_TYPE])
     ).group_by(
@@ -58,7 +59,7 @@ def fetch_billing_totals_for_year(service_id, year):
     ).filter(
         FactBilling.service_id == service_id,
         FactBilling.bst_date >= year_start_date.strftime("%Y-%m-%d"),
-        FactBilling.bst_date < year_end_date.strftime("%Y-%m-%d"),
+        FactBilling.bst_date < year_end_date.strftime("%Y-%m-%d"),  # This works only for timezones to the west of GMT
         FactBilling.notification_type == SMS_TYPE
     ).group_by(
         FactBilling.rate,

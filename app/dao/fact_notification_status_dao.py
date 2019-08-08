@@ -122,6 +122,7 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
     ).filter(
         FactNotificationStatus.service_id == service_id,
         FactNotificationStatus.bst_date >= start_date.strftime("%Y-%m-%d"),
+        # This works only for timezones to the west of GMT
         FactNotificationStatus.bst_date < end_date.strftime("%Y-%m-%d"),
         FactNotificationStatus.key_type != KEY_TYPE_TEST
     ).group_by(
@@ -369,6 +370,7 @@ def fetch_monthly_template_usage_for_service(start_date, end_date, service_id):
     ).filter(
         FactNotificationStatus.service_id == service_id,
         FactNotificationStatus.bst_date >= start_date.strftime("%Y-%m-%d"),
+        # This works only for timezones to the west of GMT
         FactNotificationStatus.bst_date < end_date.strftime("%Y-%m-%d"),
         FactNotificationStatus.key_type != KEY_TYPE_TEST,
         FactNotificationStatus.notification_status != NOTIFICATION_CANCELLED,

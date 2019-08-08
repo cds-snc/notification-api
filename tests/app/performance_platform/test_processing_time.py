@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta, date
 
 from freezegun import freeze_time
-import pytest
 from tests.app.db import create_notification
 from app.performance_platform.processing_time import (
     send_processing_time_to_performance_platform,
