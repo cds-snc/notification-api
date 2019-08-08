@@ -97,7 +97,7 @@ def test_post_user(client, notify_db, notify_db_session):
     data = {
         "name": "Test User",
         "email_address": "user@digital.cabinet-office.gov.uk",
-        "password": "password",
+        "password": "tQETOgIO8yzDMyCsDjLZIEVZHAvkFArYfmSI1KTsJnlnPohI2tfIa8kfng7bxCm",
         "mobile_number": "+16502532222",
         "logged_in_at": None,
         "state": "active",
@@ -124,7 +124,7 @@ def test_post_user_without_auth_type(admin_request, notify_db_session):
     data = {
         "name": "Test User",
         "email_address": "user@digital.cabinet-office.gov.uk",
-        "password": "password",
+        "password": "tQETOgIO8yzDMyCsDjLZIEVZHAvkFArYfmSI1KTsJnlnPohI2tfIa8kfng7bxCm",
         "mobile_number": "+16502532222",
         "permissions": {},
     }
@@ -143,7 +143,7 @@ def test_post_user_missing_attribute_email(client, notify_db, notify_db_session)
     assert User.query.count() == 0
     data = {
         "name": "Test User",
-        "password": "password",
+        "password": "tQETOgIO8yzDMyCsDjLZIEVZHAvkFArYfmSI1KTsJnlnPohI2tfIa8kfng7bxCm",
         "mobile_number": "+16502532222",
         "logged_in_at": None,
         "state": "active",
@@ -188,11 +188,38 @@ def test_create_user_missing_attribute_password(client, notify_db, notify_db_ses
     assert {'password': ['Missing data for required field.']} == json_resp['message']
 
 
+def test_create_user_with_known_bad_password(client, notify_db, notify_db_session):
+    """
+    Tests POST endpoint '/' missing attribute password.
+    """
+    assert User.query.count() == 0
+    data = {
+        "name": "Test User",
+        "password": "Password",
+        "email_address": "user@digital.cabinet-office.gov.uk",
+        "mobile_number": "+16502532222",
+        "logged_in_at": None,
+        "state": "active",
+        "failed_login_count": 0,
+        "permissions": {}
+    }
+    auth_header = create_authorization_header()
+    headers = [('Content-Type', 'application/json'), auth_header]
+    resp = client.post(
+        url_for('user.create_user'),
+        data=json.dumps(data),
+        headers=headers)
+    assert resp.status_code == 400
+    assert User.query.count() == 0
+    json_resp = json.loads(resp.get_data(as_text=True))
+    assert {'password': ['Password is blacklisted.']} == json_resp['message']
+
+
 def test_can_create_user_with_email_auth_and_no_mobile(admin_request, notify_db_session):
     data = {
         'name': 'Test User',
         'email_address': 'user@digital.cabinet-office.gov.uk',
-        'password': 'password',
+        'password': 'tQETOgIO8yzDMyCsDjLZIEVZHAvkFArYfmSI1KTsJnlnPohI2tfIa8kfng7bxCm',
         'mobile_number': None,
         'auth_type': EMAIL_AUTH_TYPE
     }
@@ -207,7 +234,7 @@ def test_cannot_create_user_with_sms_auth_and_no_mobile(admin_request, notify_db
     data = {
         'name': 'Test User',
         'email_address': 'user@digital.cabinet-office.gov.uk',
-        'password': 'password',
+        'password': 'tQETOgIO8yzDMyCsDjLZIEVZHAvkFArYfmSI1KTsJnlnPohI2tfIa8kfng7bxCm',
         'mobile_number': None,
         'auth_type': SMS_AUTH_TYPE
     }
@@ -221,7 +248,7 @@ def test_cannot_create_user_with_empty_strings(admin_request, notify_db_session)
     data = {
         'name': '',
         'email_address': '',
-        'password': 'password',
+        'password': 'tQETOgIO8yzDMyCsDjLZIEVZHAvkFArYfmSI1KTsJnlnPohI2tfIa8kfng7bxCm',
         'mobile_number': '',
         'auth_type': EMAIL_AUTH_TYPE
     }
@@ -766,7 +793,7 @@ def test_send_user_confirm_new_email_returns_400_when_email_missing(client, samp
 
 def test_update_user_password_saves_correctly(client, sample_service):
     sample_user = sample_service.users[0]
-    new_password = '1234567890'
+    new_password = 'tQETOgIO8yzDMyCsDjLZIEVZHAvkFArYfmSI1KTsJnlnPohI2tfIa8kfng7bxCm'
     data = {
         '_password': new_password
     }
@@ -788,6 +815,21 @@ def test_update_user_password_saves_correctly(client, sample_service):
         data=json.dumps(data),
         headers=headers)
     assert resp.status_code == 204
+
+
+def test_update_user_password_failes_when_banned_password_used(client, sample_service):
+    sample_user = sample_service.users[0]
+    new_password = 'password'
+    data = {
+        '_password': new_password
+    }
+    auth_header = create_authorization_header()
+    headers = [('Content-Type', 'application/json'), auth_header]
+    resp = client.post(
+        url_for('user.update_password', user_id=sample_user.id),
+        data=json.dumps(data),
+        headers=headers)
+    assert resp.status_code == 400
 
 
 def test_activate_user(admin_request, sample_user):
