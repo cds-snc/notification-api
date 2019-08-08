@@ -613,7 +613,6 @@ def get_monthly_template_usage(service_id):
             end_date=end_date,
             service_id=service_id
         )
-        print(data)
         stats = list()
         for i in data:
             stats.append(
