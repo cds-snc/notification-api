@@ -1173,8 +1173,9 @@ def test_list_fido2_keys_for_a_user(client, sample_service):
 
     assert response.status_code == 200
     assert list(
-            map( lambda o: o["id"], json.loads(response.get_data(as_text=True)))
-        ) == [str(key_one.id), str(key_two.id)]
+        map(lambda o: o["id"], json.loads(response.get_data(as_text=True)))
+    ) == [str(key_one.id), str(key_two.id)]
+
 
 def test_create_fido2_keys_for_a_user(client, sample_service):
     sample_user = sample_service.users[0]
@@ -1190,6 +1191,7 @@ def test_create_fido2_keys_for_a_user(client, sample_service):
 
     assert response.status_code == 200
     assert json.loads(response.get_data(as_text=True))["id"]
+
 
 def test_create_fido2_keys_for_a_user_fails_if_attributes_missing(client, sample_service):
     sample_user = sample_service.users[0]

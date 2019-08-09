@@ -1,8 +1,3 @@
-from datetime import datetime, timedelta
-
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm.exc import NoResultFound
-
 from app.dao.fido2_key_dao import (
     save_fido2_key,
     list_fido2_keys,
@@ -14,8 +9,8 @@ from app.models import Fido2Key
 
 def test_save_fido2_key_should_create_new_fido2_key(sample_user):
     fido2_key = Fido2Key(**{'user': sample_user,
-                        'name': "Name",
-                        'key': "Key"})
+                            'name': "Name",
+                            'key': "Key"})
 
     save_fido2_key(fido2_key)
     assert Fido2Key.query.count() == 1
@@ -23,8 +18,8 @@ def test_save_fido2_key_should_create_new_fido2_key(sample_user):
 
 def test_list_fido2_keys(sample_fido2_key):
     Fido2Key(**{'user': sample_fido2_key.user,
-        'name': "Name",
-        'key': "Key"})
+                'name': "Name",
+                'key': "Key"})
 
     keys = list_fido2_keys(sample_fido2_key.user.id)
     assert len(keys) == 2

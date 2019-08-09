@@ -63,6 +63,6 @@ fido2_key_schema = {
         'name': {'type': ['string', 'null']},
         'key': {'type': ['string', 'null']},
     },
-    "required": ["name","key"],
+    "required": ["name", "key"],
     "additionalProperties": False
 }

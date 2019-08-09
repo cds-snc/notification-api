@@ -12,7 +12,6 @@ from app.config import QueueNames, Config
 from app.dao.fido2_key_dao import (
     save_fido2_key,
     list_fido2_keys,
-    get_fido2_key,
     delete_fido2_key
 )
 from app.dao.users_dao import (
@@ -562,7 +561,7 @@ def get_organisations_and_services_for_user(user_id):
 @user_blueprint.route('/<uuid:user_id>/fido2_keys', methods=['GET'])
 def list_fido2_keys_user(user_id):
     data = list_fido2_keys(user_id)
-    return jsonify(list(map(lambda o : o.serialize(), data)))
+    return jsonify(list(map(lambda o: o.serialize(), data)))
 
 
 @user_blueprint.route('/<uuid:user_id>/fido2_keys', methods=['POST'])
@@ -573,7 +572,7 @@ def create_fido2_keys_user(user_id):
     save_fido2_key(Fido2Key(id=id, user_id=user_id, name=data["name"], key=data["key"]))
     return jsonify({"id": id})
 
-    
+
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/<uuid:key_id>/', methods=['DELETE'])
 def delete_fido2_keys_user(user_id, key_id):
     delete_fido2_key(user_id, key_id)

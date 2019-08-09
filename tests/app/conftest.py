@@ -1157,6 +1157,7 @@ def sample_organisation(notify_db, notify_db_session):
     dao_create_organisation(org)
     return org
 
+
 @pytest.fixture
 def sample_fido2_key(notify_db, notify_db_session):
     user = create_user()

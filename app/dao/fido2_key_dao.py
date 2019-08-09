@@ -1,6 +1,3 @@
-import uuid
-from datetime import datetime, timedelta
-
 from app import db
 from app.models import Fido2Key
 
@@ -26,7 +23,7 @@ def get_fido2_key(user_id, id):
 
 def list_fido2_keys(user_id):
     return Fido2Key.query.filter(
-          Fido2Key.user_id == user_id
+        Fido2Key.user_id == user_id
     ).order_by(Fido2Key.created_at.asc()).all()
 
 
