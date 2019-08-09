@@ -3,16 +3,18 @@ import uuid
 from datetime import (datetime, timedelta)
 from urllib.parse import urlencode
 
+from fido2 import cbor
 import pwnedpasswords
 
-from flask import (jsonify, request, Blueprint, current_app, abort)
+from flask import (jsonify, request, Blueprint, current_app, abort, session)
 from sqlalchemy.exc import IntegrityError
 
 from app.config import QueueNames, Config
 from app.dao.fido2_key_dao import (
     save_fido2_key,
     list_fido2_keys,
-    delete_fido2_key
+    delete_fido2_key,
+    decode_and_register
 )
 from app.dao.users_dao import (
     get_user_by_id,
@@ -569,8 +571,21 @@ def create_fido2_keys_user(user_id):
     data = request.get_json()
     validate(data, fido2_key_schema)
     id = uuid.uuid4()
-    save_fido2_key(Fido2Key(id=id, user_id=user_id, name=data["name"], key=data["key"]))
+    key = decode_and_register(data["key"], session["fido2_state"])
+    save_fido2_key(Fido2Key(id=id, user_id=user_id, name=data["name"], key=key))
     return jsonify({"id": id})
+
+
+@user_blueprint.route('/<uuid:user_id>/fido2_keys/register', methods=['POST'])
+def fido2_keys_user_register(user_id):
+    user = get_user_and_accounts(user_id)
+    registration_data, state = Config.FIDO2_SERVER.register_begin({
+        'id': str(user_id),
+        'name': user.name,
+        'displayName': user.name
+    }, [], user_verification='discouraged')
+    session["fido2_state"] = state
+    return cbor.encode(registration_data)
 
 
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/<uuid:key_id>/', methods=['DELETE'])

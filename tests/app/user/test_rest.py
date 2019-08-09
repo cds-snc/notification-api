@@ -3,8 +3,9 @@ import pytest
 import mock
 from uuid import UUID
 
-from flask import url_for
+from flask import url_for, session
 from freezegun import freeze_time
+from fido2 import cbor
 
 from app.models import (
     User,
@@ -16,7 +17,7 @@ from app.models import (
     SMS_AUTH_TYPE,
     EMAIL_AUTH_TYPE
 )
-from app.dao.fido2_key_dao import save_fido2_key
+from app.dao.fido2_key_dao import save_fido2_key, decode_and_register
 from app.dao.permissions_dao import default_service_permissions
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from tests import create_authorization_header
@@ -1177,11 +1178,14 @@ def test_list_fido2_keys_for_a_user(client, sample_service):
     ) == [str(key_one.id), str(key_two.id)]
 
 
-def test_create_fido2_keys_for_a_user(client, sample_service):
+def test_create_fido2_keys_for_a_user(client, sample_service, mocker):
     sample_user = sample_service.users[0]
     auth_header = create_authorization_header()
 
     data = {"name": 'sample key one', "key": "abcd"}
+
+    with client.session_transaction() as sess:
+        sess['fido2_state'] = ''
 
     response = client.post(
         url_for("user.create_fido2_keys_user", user_id=sample_user.id),
@@ -1230,3 +1234,16 @@ def test_delete_fido2_keys_for_a_user(client, sample_service):
     assert Fido2Key.query.count() == 0
     assert response.status_code == 200
     assert json.loads(response.get_data(as_text=True))["id"] == data[0]["id"]
+
+def test_start_fido2_registration(client, sample_service):
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    response = client.post(
+        url_for("user.fido2_keys_user_register", user_id=sample_user.id),
+        headers=[('Content-Type', 'application/json'), auth_header]
+    )
+    assert response.status_code == 200
+    data = cbor.decode(response.get_data())
+    assert data['publicKey']['rp']['id'] == "http://localhost:6012"
+    assert data['publicKey']['user']['id'] == str(sample_user.id)

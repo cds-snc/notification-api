@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 from celery.schedules import crontab
 from kombu import Exchange, Queue
 
+from fido2.server import Fido2Server, RelyingParty
+
 load_dotenv()
 
 if os.getenv('VCAP_SERVICES'):
@@ -348,6 +350,10 @@ class Config(object):
 
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
     NOTIFY_LOG_PATH = ''
+
+    FIDO2_SERVER = Fido2Server(
+                                RelyingParty(ADMIN_BASE_URL, 'Notification'),
+                                verify_origin=lambda x: True)
 
 
 ######################

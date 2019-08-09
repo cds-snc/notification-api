@@ -1,11 +1,18 @@
 from app import db
 from app.models import Fido2Key
+from app.config import Config
 
 from app.dao.dao_utils import (
     transactional
 )
 
 from sqlalchemy import and_
+
+from fido2 import cbor
+from fido2.client import ClientData
+from fido2.server import Fido2Server, RelyingParty
+from fido2.ctap2 import AttestationObject, AuthenticatorData
+from fido2.utils import websafe_encode, websafe_decode
 
 
 def delete_fido2_key(user_id, id):
@@ -30,3 +37,20 @@ def list_fido2_keys(user_id):
 @transactional
 def save_fido2_key(fido2_key):
     return db.session.add(fido2_key)
+
+
+def decode_and_register(data, state):
+    try:
+        data = cbor.decode(data)
+        client_data = ClientData(data['clientDataJSON'])
+        att_obj = AttestationObject(data['attestationObject'])
+
+        auth_data = Config.FIDO2_SERVER.register_complete(
+            state,
+            client_data,
+            att_obj
+        )
+
+        return websafe_encode(auth_data.credential_data)
+    except:
+        return ""
