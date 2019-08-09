@@ -9,6 +9,12 @@ from flask import (jsonify, request, Blueprint, current_app, abort)
 from sqlalchemy.exc import IntegrityError
 
 from app.config import QueueNames, Config
+from app.dao.fido2_key_dao import (
+    save_fido2_key,
+    list_fido2_keys,
+    get_fido2_key,
+    delete_fido2_key
+)
 from app.dao.users_dao import (
     get_user_by_id,
     save_model_user,
@@ -32,7 +38,7 @@ from app.dao.service_user_dao import dao_get_service_user, dao_update_service_us
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
-from app.models import KEY_TYPE_NORMAL, Permission, Service, SMS_TYPE, EMAIL_TYPE
+from app.models import KEY_TYPE_NORMAL, Fido2Key, Permission, Service, SMS_TYPE, EMAIL_TYPE
 from app.notifications.process_notifications import (
     persist_notification,
     send_notification_to_queue
@@ -43,7 +49,7 @@ from app.schemas import (
     partial_email_data_request_schema,
     create_user_schema,
     user_update_schema_load_json,
-    user_update_password_schema_load_json
+    user_update_password_schema_load_json,
 )
 from app.errors import (
     register_errors,
@@ -55,6 +61,7 @@ from app.user.users_schema import (
     post_send_user_sms_code_schema,
     post_send_user_email_code_schema,
     post_set_permissions_schema,
+    fido2_key_schema
 )
 from app.schema_validation import validate
 
@@ -550,6 +557,27 @@ def get_organisations_and_services_for_user(user_id):
     user = get_user_and_accounts(user_id)
     data = get_orgs_and_services(user)
     return jsonify(data)
+
+
+@user_blueprint.route('/<uuid:user_id>/fido2_keys', methods=['GET'])
+def list_fido2_keys_user(user_id):
+    data = list_fido2_keys(user_id)
+    return jsonify(list(map(lambda o : o.serialize(), data)))
+
+
+@user_blueprint.route('/<uuid:user_id>/fido2_keys', methods=['POST'])
+def create_fido2_keys_user(user_id):
+    data = request.get_json()
+    validate(data, fido2_key_schema)
+    id = uuid.uuid4()
+    save_fido2_key(Fido2Key(id=id, user_id=user_id, name=data["name"], key=data["key"]))
+    return jsonify({"id": id})
+
+    
+@user_blueprint.route('/<uuid:user_id>/fido2_keys/<uuid:key_id>/', methods=['DELETE'])
+def delete_fido2_keys_user(user_id, key_id):
+    delete_fido2_key(user_id, key_id)
+    return jsonify({"id": key_id})
 
 
 def _create_reset_password_url(email):

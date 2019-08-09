@@ -27,7 +27,7 @@ def get_fido2_key(user_id, id):
 def list_fido2_keys(user_id):
     return Fido2Key.query.filter(
           Fido2Key.user_id == user_id
-    ).all()
+    ).order_by(Fido2Key.created_at.asc()).all()
 
 
 @transactional
