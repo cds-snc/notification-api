@@ -10,7 +10,6 @@ from sqlalchemy import and_
 
 from fido2 import cbor
 from fido2.client import ClientData
-from fido2.server import Fido2Server, RelyingParty
 from fido2.ctap2 import AttestationObject, AuthenticatorData
 from fido2.utils import websafe_encode, websafe_decode
 
@@ -37,7 +36,7 @@ def list_fido2_keys(user_id):
 @transactional
 def save_fido2_key(fido2_key):
     return db.session.add(fido2_key)
-
+  
 
 def decode_and_register(data, state):
     try:

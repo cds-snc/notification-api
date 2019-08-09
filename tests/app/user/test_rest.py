@@ -1247,3 +1247,17 @@ def test_start_fido2_registration(client, sample_service):
     data = cbor.decode(response.get_data())
     assert data['publicKey']['rp']['id'] == "http://localhost:6012"
     assert data['publicKey']['user']['id'] == str(sample_user.id)
+
+
+def test_start_fido2_authentication(client, sample_service):
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    response = client.post(
+        url_for("user.fido2_keys_user_authenticate", user_id=sample_user.id),
+        headers=[('Content-Type', 'application/json'), auth_header]
+    )
+    assert response.status_code == 200
+    data = cbor.decode(response.get_data())
+    assert data['publicKey']['rp']['id'] == "http://localhost:6012"
+    assert data['publicKey']['user']['id'] == str(sample_user.id)

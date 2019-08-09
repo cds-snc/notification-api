@@ -2,8 +2,12 @@ import json
 import uuid
 from datetime import (datetime, timedelta)
 from urllib.parse import urlencode
+import base64
 
 from fido2 import cbor
+from fido2.client import ClientData
+from fido2.ctap2 import AttestationObject, AuthenticatorData
+from fido2.utils import websafe_encode, websafe_decode
 import pwnedpasswords
 
 from flask import (jsonify, request, Blueprint, current_app, abort, session)
@@ -580,12 +584,47 @@ def create_fido2_keys_user(user_id):
 def fido2_keys_user_register(user_id):
     user = get_user_and_accounts(user_id)
     registration_data, state = Config.FIDO2_SERVER.register_begin({
-        'id': str(user_id),
-        'name': user.name,
-        'displayName': user.name
+        'id': b'user_id',
+        'name': 'a_user',
+        'displayName': 'A. User',
+        'icon': 'https://example.com/image.png'
     }, [], user_verification='discouraged')
     session["fido2_state"] = state
-    return cbor.encode(registration_data)
+
+    # API Client only like JSON
+    return jsonify({"data": "".join(map(chr, cbor.encode(registration_data)))})
+
+
+@user_blueprint.route('/<uuid:user_id>/fido2_keys/authenticate', methods=['POST'])
+def fido2_keys_user_authenticate(user_id):
+    keys = list_fido2_keys(user_id)
+    credentials = list(map(lambda k: websafe_decode(k.key), keys))
+    auth_data, state = Config.FIDO2_SERVER.authenticate_begin(credentials)
+    session['fido2_state'] = state
+    return jsonify({"data": "".join(map(chr, cbor.encode(auth_data)))})
+
+
+@user_blueprint.route('/<uuid:user_id>/fido2_keys/validate', methods=['POST'])
+def fido2_keys_user_validate(user_id):
+    keys = list_fido2_keys(user_id)
+    credentials = list(map(lambda k: websafe_decode(k.key), keys))
+
+    data = cbor.decode(request.get_data())
+    credential_id = data['credentialId']
+    client_data = ClientData(data['clientDataJSON'])
+    auth_data = AuthenticatorData(data['authenticatorData'])
+    signature = data['signature']
+
+    Config.FIDO2_SERVER.authenticate_complete(
+        session.pop('fido2_state'),
+        credentials,
+        credential_id,
+        client_data,
+        auth_data,
+        signature
+    )
+
+    return jsonify({'status': 'OK'})
 
 
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/<uuid:key_id>/', methods=['DELETE'])
