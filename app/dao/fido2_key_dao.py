@@ -1,5 +1,5 @@
 from app import db
-from app.models import Fido2Key
+from app.models import Fido2Key, Fido2Session
 from app.config import Config
 
 from app.dao.dao_utils import (
@@ -36,7 +36,27 @@ def list_fido2_keys(user_id):
 @transactional
 def save_fido2_key(fido2_key):
     return db.session.add(fido2_key)
-  
+
+
+@transactional
+def create_fido2_session(user_id, session):
+    delete_fido2_session(user_id)
+    db.session.add(Fido2Session(user_id=user_id, session=session))
+
+
+def delete_fido2_session(user_id):
+    db.session.query(Fido2Session).filter(
+        Fido2Session.user_id == user_id
+    ).delete()
+
+
+def get_fido2_session(user_id):
+    session = db.session.query(Fido2Session).filter(
+        Fido2Session.user_id == user_id
+    ).one()
+    delete_fido2_session(user_id)
+    return session
+
 
 def decode_and_register(data, state):
     try:

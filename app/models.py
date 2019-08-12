@@ -2119,3 +2119,11 @@ class Fido2Key(db.Model):
             'created_at': self.created_at.strftime(DATETIME_FORMAT),
             'updated_at': self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None
         }
+
+
+class Fido2Session(db.Model):
+    __tablename__ = "fido2_sessions"
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), primary_key=True, unique=True, index=True, nullable=False)
+    user = db.relationship(User, backref=db.backref("fido2_sessions"))
+    session = db.Column(db.Text, nullable=False, index=False, unique=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)

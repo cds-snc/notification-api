@@ -28,5 +28,15 @@ def upgrade():
     )
     op.create_index(op.f('ix_fido2_keys_user_id'), 'fido2_keys', ['user_id'], unique=False)
 
+    op.create_table(
+        'fido2_sessions',
+        sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.PrimaryKeyConstraint('user_id'),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+        sa.Column('session', sa.Text(), nullable=False),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+    )
+
 def downgrade():
     op.execute('DROP TABLE fido2_keys')
+    op.execute('DROP TABLE fido2_sessions')

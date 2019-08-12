@@ -60,9 +60,8 @@ fido2_key_schema = {
     "description": "POST schema for adding a fido2 key",
     "type": "object",
     "properties": {
-        'name': {'type': ['string', 'null']},
-        'key': {'type': ['string', 'null']},
+        'payload': {'type': ['string', 'null']},
     },
-    "required": ["name", "key"],
+    "required": ["payload"],
     "additionalProperties": False
 }

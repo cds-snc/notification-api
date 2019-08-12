@@ -3,7 +3,7 @@ import pytest
 import mock
 from uuid import UUID
 
-from flask import url_for, session
+from flask import url_for
 from freezegun import freeze_time
 from fido2 import cbor
 
@@ -17,7 +17,7 @@ from app.models import (
     SMS_AUTH_TYPE,
     EMAIL_AUTH_TYPE
 )
-from app.dao.fido2_key_dao import save_fido2_key, decode_and_register
+from app.dao.fido2_key_dao import save_fido2_key
 from app.dao.permissions_dao import default_service_permissions
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from tests import create_authorization_header
@@ -1234,6 +1234,7 @@ def test_delete_fido2_keys_for_a_user(client, sample_service):
     assert Fido2Key.query.count() == 0
     assert response.status_code == 200
     assert json.loads(response.get_data(as_text=True))["id"] == data[0]["id"]
+
 
 def test_start_fido2_registration(client, sample_service):
     sample_user = sample_service.users[0]

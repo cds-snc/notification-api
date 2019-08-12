@@ -573,26 +573,28 @@ def list_fido2_keys_user(user_id):
 @user_blueprint.route('/<uuid:user_id>/fido2_keys', methods=['POST'])
 def create_fido2_keys_user(user_id):
     data = request.get_json()
+    cbor_data = cbor.decode(base64.b64decode(data["payload"]))
     validate(data, fido2_key_schema)
     id = uuid.uuid4()
-    key = decode_and_register(data["key"], session["fido2_state"])
-    save_fido2_key(Fido2Key(id=id, user_id=user_id, name=data["name"], key=key))
+    key = decode_and_register(cbor_data, session["fido2_state"])
+    save_fido2_key(Fido2Key(id=id, user_id=user_id, name=cbor_data["name"], key=key))
     return jsonify({"id": id})
 
 
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/register', methods=['POST'])
 def fido2_keys_user_register(user_id):
     user = get_user_and_accounts(user_id)
+    keys = list_fido2_keys(user_id)
+    credentials = list(map(lambda k: websafe_decode(k.key), keys))
     registration_data, state = Config.FIDO2_SERVER.register_begin({
-        'id': b'user_id',
-        'name': 'a_user',
-        'displayName': 'A. User',
-        'icon': 'https://example.com/image.png'
-    }, [], user_verification='discouraged')
+        'id': user.id.bytes,
+        'name': user.name,
+        'displayName': user.name,
+    }, credentials, user_verification='discouraged')
     session["fido2_state"] = state
 
     # API Client only like JSON
-    return jsonify({"data": "".join(map(chr, cbor.encode(registration_data)))})
+    return jsonify({"data": base64.b64encode(cbor.encode(registration_data)).decode('utf8')})
 
 
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/authenticate', methods=['POST'])
@@ -601,8 +603,7 @@ def fido2_keys_user_authenticate(user_id):
     credentials = list(map(lambda k: websafe_decode(k.key), keys))
     auth_data, state = Config.FIDO2_SERVER.authenticate_begin(credentials)
     session['fido2_state'] = state
-    return jsonify({"data": "".join(map(chr, cbor.encode(auth_data)))})
-
+    return jsonify({"data": base64.b64encode(cbor.encode(auth_data)).decode('utf8')})
 
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/validate', methods=['POST'])
 def fido2_keys_user_validate(user_id):

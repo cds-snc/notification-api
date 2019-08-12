@@ -352,7 +352,7 @@ class Config(object):
     NOTIFY_LOG_PATH = ''
 
     FIDO2_SERVER = Fido2Server(
-                                RelyingParty(ADMIN_BASE_URL, 'Notification'),
+                                RelyingParty('localhost', 'Notification'),
                                 verify_origin=lambda x: True)
 
 
