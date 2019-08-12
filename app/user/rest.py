@@ -581,7 +581,6 @@ def create_fido2_keys_user(user_id):
     validate(data, fido2_key_schema)
 
     id = uuid.uuid4()
-
     key = decode_and_register(cbor_data, get_fido2_session(user_id))
     save_fido2_key(Fido2Key(id=id, user_id=user_id, name=cbor_data["name"], key=key))
 
@@ -610,8 +609,11 @@ def fido2_keys_user_register(user_id):
 def fido2_keys_user_authenticate(user_id):
     keys = list_fido2_keys(user_id)
     credentials = list(map(lambda k: pickle.loads(k.key), keys))
+    
     auth_data, state = Config.FIDO2_SERVER.authenticate_begin(credentials)
     create_fido2_session(user_id, state)
+
+    # API Client only like JSON
     return jsonify({"data": base64.b64encode(cbor.encode(auth_data)).decode('utf8')})
 
 
