@@ -345,5 +345,4 @@ def test_template_folder_is_parent(sample_service):
 def test_fido2_key_serialization(sample_fido2_key):
     json = sample_fido2_key.serialize()
     assert json['name'] == sample_fido2_key.name
-    assert json['key'] == sample_fido2_key.key
     assert json['created_at']
