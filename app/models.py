@@ -2096,3 +2096,35 @@ class ServiceDataRetention(db.Model):
             "created_at": self.created_at.strftime(DATETIME_FORMAT),
             "updated_at": self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None,
         }
+
+
+class Fido2Key(db.Model):
+    __tablename__ = "fido2_keys"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), unique=False, index=True, nullable=False)
+    user = db.relationship(User, backref=db.backref("fido2_keys"))
+    name = db.Column(db.String, nullable=False, index=False, unique=False)
+    key = db.Column(db.Text, nullable=False, index=False, unique=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
+
+    def serialize(self):
+        return {
+            'id': str(self.id),
+            'user_id': str(self.user_id),
+            'name': self.name,
+            'key': self.key,
+            'created_at': self.created_at.strftime(DATETIME_FORMAT),
+            'updated_at': self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None
+        }
+
+
+class Fido2Session(db.Model):
+    __tablename__ = "fido2_sessions"
+    user_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey('users.id'), primary_key=True, unique=True, index=True, nullable=False)
+    user = db.relationship(User, backref=db.backref("fido2_sessions"))
+    session = db.Column(db.Text, nullable=False, index=False, unique=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)

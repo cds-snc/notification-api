@@ -20,12 +20,16 @@ from app.dao.provider_rates_dao import create_provider_rates
 from app.dao.services_dao import (dao_create_service, dao_add_user_to_service)
 from app.dao.templates_dao import dao_create_template
 from app.dao.users_dao import create_secret_code, create_user_code
+from app.dao.fido2_key_dao import save_fido2_key
 from app.history_meta import create_history
+
+
 from app.models import (
     Service,
     Template,
     TemplateHistory,
     ApiKey,
+    Fido2Key,
     Job,
     Organisation,
     Notification,
@@ -1152,6 +1156,14 @@ def sample_organisation(notify_db, notify_db_session):
     org = Organisation(name='sample organisation')
     dao_create_organisation(org)
     return org
+
+
+@pytest.fixture
+def sample_fido2_key(notify_db, notify_db_session):
+    user = create_user()
+    key = Fido2Key(name='sample key', key="abcd", user_id=user.id)
+    save_fido2_key(key)
+    return key
 
 
 @pytest.fixture

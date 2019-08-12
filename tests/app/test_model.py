@@ -340,3 +340,10 @@ def test_template_folder_is_parent(sample_service):
     assert folders[0].is_parent_of(folders[4])
     assert folders[1].is_parent_of(folders[2])
     assert not folders[1].is_parent_of(folders[0])
+
+
+def test_fido2_key_serialization(sample_fido2_key):
+    json = sample_fido2_key.serialize()
+    assert json['name'] == sample_fido2_key.name
+    assert json['key'] == sample_fido2_key.key
+    assert json['created_at']

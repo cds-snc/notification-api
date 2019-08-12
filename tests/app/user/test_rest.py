@@ -5,9 +5,12 @@ from uuid import UUID
 
 from flask import url_for
 from freezegun import freeze_time
+from fido2 import cbor
+import base64
 
 from app.models import (
     User,
+    Fido2Key,
     Permission,
     MANAGE_SETTINGS,
     MANAGE_TEMPLATES,
@@ -15,6 +18,7 @@ from app.models import (
     SMS_AUTH_TYPE,
     EMAIL_AUTH_TYPE
 )
+from app.dao.fido2_key_dao import save_fido2_key, create_fido2_session
 from app.dao.permissions_dao import default_service_permissions
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from tests import create_authorization_header
@@ -1152,3 +1156,101 @@ def test_search_for_users_by_email_handles_incorrect_data_format(notify_db, clie
 
     assert response.status_code == 400
     assert json.loads(response.get_data(as_text=True))['message'] == {'email': ['Not a valid string.']}
+
+
+def test_list_fido2_keys_for_a_user(client, sample_service):
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    key_one = Fido2Key(name='sample key one', key="abcd", user_id=sample_user.id)
+    save_fido2_key(key_one)
+
+    key_two = Fido2Key(name='sample key two', key="abcd", user_id=sample_user.id)
+    save_fido2_key(key_two)
+
+    response = client.get(
+        url_for("user.list_fido2_keys_user", user_id=sample_user.id),
+        headers=[('Content-Type', 'application/json'), auth_header]
+    )
+
+    assert response.status_code == 200
+    assert list(
+        map(lambda o: o["id"], json.loads(response.get_data(as_text=True)))
+    ) == [str(key_one.id), str(key_two.id)]
+
+
+def test_create_fido2_keys_for_a_user(client, sample_service, mocker):
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    create_fido2_session(sample_user.id, "ABCD")
+
+    data = {"name": 'sample key one', "key": "abcd"}
+    data = cbor.encode(data)
+    data = {'payload': base64.b64encode(data).decode("utf-8")}
+
+    mocker.patch("app.user.rest.decode_and_register", return_value="abcd")
+
+    response = client.post(
+        url_for("user.create_fido2_keys_user", user_id=sample_user.id),
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header]
+    )
+
+    assert response.status_code == 200
+    assert json.loads(response.get_data(as_text=True))["id"]
+
+
+def test_delete_fido2_keys_for_a_user(client, sample_service):
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    key = Fido2Key(name='sample key one', key="abcd", user_id=sample_user.id)
+    save_fido2_key(key)
+
+    response = client.get(
+        url_for("user.list_fido2_keys_user", user_id=sample_user.id),
+        headers=[('Content-Type', 'application/json'), auth_header]
+    )
+
+    assert response.status_code == 200
+    data = json.loads(response.get_data(as_text=True))
+
+    response = client.delete(
+        url_for("user.delete_fido2_keys_user", user_id=sample_user.id, key_id=data[0]["id"]),
+        headers=[('Content-Type', 'application/json'), auth_header]
+    )
+    assert Fido2Key.query.count() == 0
+    assert response.status_code == 200
+    assert json.loads(response.get_data(as_text=True))["id"] == data[0]["id"]
+
+
+def test_start_fido2_registration(client, sample_service):
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    response = client.post(
+        url_for("user.fido2_keys_user_register", user_id=sample_user.id),
+        headers=[('Content-Type', 'application/json'), auth_header]
+    )
+    assert response.status_code == 200
+    data = json.loads(response.get_data())
+    data = base64.b64decode(data["data"])
+    data = cbor.decode(data)
+    assert data['publicKey']['rp']['id'] == "localhost"
+    assert data['publicKey']['user']['id'] == sample_user.id.bytes
+
+
+def test_start_fido2_authentication(client, sample_service):
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    response = client.post(
+        url_for("user.fido2_keys_user_authenticate", user_id=sample_user.id),
+        headers=[('Content-Type', 'application/json'), auth_header]
+    )
+    assert response.status_code == 200
+    data = json.loads(response.get_data())
+    data = base64.b64decode(data["data"])
+    data = cbor.decode(data)
+    assert data['publicKey']['rpId'] == "localhost"

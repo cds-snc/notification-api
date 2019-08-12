@@ -53,3 +53,15 @@ post_set_permissions_schema = {
     "required": ["permissions"],
     "additionalProperties": False
 }
+
+
+fido2_key_schema = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "description": "POST schema for adding a fido2 key",
+    "type": "object",
+    "properties": {
+        'payload': {'type': ['string', 'null']},
+    },
+    "required": ["payload"],
+    "additionalProperties": False
+}

@@ -2,13 +2,26 @@ import json
 import uuid
 from datetime import (datetime, timedelta)
 from urllib.parse import urlencode
+import base64
+import pickle
 
+from fido2 import cbor
+from fido2.client import ClientData
+from fido2.ctap2 import AuthenticatorData
 import pwnedpasswords
 
 from flask import (jsonify, request, Blueprint, current_app, abort)
 from sqlalchemy.exc import IntegrityError
 
 from app.config import QueueNames, Config
+from app.dao.fido2_key_dao import (
+    save_fido2_key,
+    list_fido2_keys,
+    delete_fido2_key,
+    decode_and_register,
+    create_fido2_session,
+    get_fido2_session
+)
 from app.dao.users_dao import (
     get_user_by_id,
     save_model_user,
@@ -32,7 +45,7 @@ from app.dao.service_user_dao import dao_get_service_user, dao_update_service_us
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
-from app.models import KEY_TYPE_NORMAL, Permission, Service, SMS_TYPE, EMAIL_TYPE
+from app.models import KEY_TYPE_NORMAL, Fido2Key, Permission, Service, SMS_TYPE, EMAIL_TYPE
 from app.notifications.process_notifications import (
     persist_notification,
     send_notification_to_queue
@@ -43,7 +56,7 @@ from app.schemas import (
     partial_email_data_request_schema,
     create_user_schema,
     user_update_schema_load_json,
-    user_update_password_schema_load_json
+    user_update_password_schema_load_json,
 )
 from app.errors import (
     register_errors,
@@ -55,6 +68,7 @@ from app.user.users_schema import (
     post_send_user_sms_code_schema,
     post_send_user_email_code_schema,
     post_set_permissions_schema,
+    fido2_key_schema
 )
 from app.schema_validation import validate
 
@@ -550,6 +564,92 @@ def get_organisations_and_services_for_user(user_id):
     user = get_user_and_accounts(user_id)
     data = get_orgs_and_services(user)
     return jsonify(data)
+
+
+@user_blueprint.route('/<uuid:user_id>/fido2_keys', methods=['GET'])
+def list_fido2_keys_user(user_id):
+    data = list_fido2_keys(user_id)
+    return jsonify(list(map(lambda o: o.serialize(), data)))
+
+
+@user_blueprint.route('/<uuid:user_id>/fido2_keys', methods=['POST'])
+def create_fido2_keys_user(user_id):
+    data = request.get_json()
+    cbor_data = cbor.decode(base64.b64decode(data["payload"]))
+    validate(data, fido2_key_schema)
+
+    id = uuid.uuid4()
+    key = decode_and_register(cbor_data, get_fido2_session(user_id))
+    save_fido2_key(Fido2Key(id=id, user_id=user_id, name=cbor_data["name"], key=key))
+
+    return jsonify({"id": id})
+
+
+@user_blueprint.route('/<uuid:user_id>/fido2_keys/register', methods=['POST'])
+def fido2_keys_user_register(user_id):
+    user = get_user_and_accounts(user_id)
+    keys = list_fido2_keys(user_id)
+
+    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+
+    registration_data, state = Config.FIDO2_SERVER.register_begin({
+        'id': user.id.bytes,
+        'name': user.name,
+        'displayName': user.name,
+    }, credentials, user_verification='discouraged')
+    create_fido2_session(user_id, state)
+
+    # API Client only like JSON
+    return jsonify({"data": base64.b64encode(cbor.encode(registration_data)).decode('utf8')})
+
+
+@user_blueprint.route('/<uuid:user_id>/fido2_keys/authenticate', methods=['POST'])
+def fido2_keys_user_authenticate(user_id):
+    keys = list_fido2_keys(user_id)
+    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+
+    auth_data, state = Config.FIDO2_SERVER.authenticate_begin(credentials)
+    create_fido2_session(user_id, state)
+
+    # API Client only like JSON
+    return jsonify({"data": base64.b64encode(cbor.encode(auth_data)).decode('utf8')})
+
+
+@user_blueprint.route('/<uuid:user_id>/fido2_keys/validate', methods=['POST'])
+def fido2_keys_user_validate(user_id):
+    keys = list_fido2_keys(user_id)
+    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+
+    data = request.get_json()
+    cbor_data = cbor.decode(base64.b64decode(data["payload"]))
+
+    credential_id = cbor_data['credentialId']
+    client_data = ClientData(cbor_data['clientDataJSON'])
+    auth_data = AuthenticatorData(cbor_data['authenticatorData'])
+    signature = cbor_data['signature']
+
+    Config.FIDO2_SERVER.authenticate_complete(
+        get_fido2_session(user_id),
+        credentials,
+        credential_id,
+        client_data,
+        auth_data,
+        signature
+    )
+
+    user_to_verify = get_user_by_id(user_id=user_id)
+    user_to_verify.current_session_id = str(uuid.uuid4())
+    user_to_verify.logged_in_at = datetime.utcnow()
+    user_to_verify.failed_login_count = 0
+    save_model_user(user_to_verify)
+
+    return jsonify({'status': 'OK'})
+
+
+@user_blueprint.route('/<uuid:user_id>/fido2_keys/<uuid:key_id>', methods=['DELETE'])
+def delete_fido2_keys_user(user_id, key_id):
+    delete_fido2_key(user_id, key_id)
+    return jsonify({"id": key_id})
 
 
 def _create_reset_password_url(email):
