@@ -8,7 +8,6 @@ import pickle
 from fido2 import cbor
 from fido2.client import ClientData
 from fido2.ctap2 import AuthenticatorData
-from fido2.utils import websafe_decode
 import pwnedpasswords
 
 from flask import (jsonify, request, Blueprint, current_app, abort)
@@ -575,7 +574,6 @@ def list_fido2_keys_user(user_id):
 
 @user_blueprint.route('/<uuid:user_id>/fido2_keys', methods=['POST'])
 def create_fido2_keys_user(user_id):
-
     data = request.get_json()
     cbor_data = cbor.decode(base64.b64decode(data["payload"]))
     validate(data, fido2_key_schema)
@@ -608,8 +606,8 @@ def fido2_keys_user_register(user_id):
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/authenticate', methods=['POST'])
 def fido2_keys_user_authenticate(user_id):
     keys = list_fido2_keys(user_id)
-    credentials = list(map(lambda k: pickle.loads(k.key), keys))
-    
+    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+
     auth_data, state = Config.FIDO2_SERVER.authenticate_begin(credentials)
     create_fido2_session(user_id, state)
 
@@ -620,13 +618,15 @@ def fido2_keys_user_authenticate(user_id):
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/validate', methods=['POST'])
 def fido2_keys_user_validate(user_id):
     keys = list_fido2_keys(user_id)
-    credentials = list(map(lambda k: websafe_decode(k.key), keys))
+    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
 
-    data = cbor.decode(request.get_data())
-    credential_id = data['credentialId']
-    client_data = ClientData(data['clientDataJSON'])
-    auth_data = AuthenticatorData(data['authenticatorData'])
-    signature = data['signature']
+    data = request.get_json()
+    cbor_data = cbor.decode(base64.b64decode(data["payload"]))
+
+    credential_id = cbor_data['credentialId']
+    client_data = ClientData(cbor_data['clientDataJSON'])
+    auth_data = AuthenticatorData(cbor_data['authenticatorData'])
+    signature = cbor_data['signature']
 
     Config.FIDO2_SERVER.authenticate_complete(
         get_fido2_session(user_id),
