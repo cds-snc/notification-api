@@ -4,7 +4,6 @@ from app.dao.fido2_key_dao import (
     get_fido2_key,
     delete_fido2_key,
     create_fido2_session,
-    delete_fido2_session,
     get_fido2_session
 )
 from app.models import Fido2Key, Fido2Session
@@ -53,4 +52,4 @@ def test_get_fido2_key_returns_and_deletes_an_existing_session(sample_user):
     create_fido2_session(sample_user.id, "abcd")
     session = get_fido2_session(sample_user.id)
     assert Fido2Session.query.count() == 0
-    assert session.session == "abcd"
+    assert session == "abcd"

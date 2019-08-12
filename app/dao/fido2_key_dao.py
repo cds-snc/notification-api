@@ -8,10 +8,11 @@ from app.dao.dao_utils import (
 
 from sqlalchemy import and_
 
-from fido2 import cbor
 from fido2.client import ClientData
-from fido2.ctap2 import AttestationObject, AuthenticatorData
-from fido2.utils import websafe_encode, websafe_decode
+from fido2.ctap2 import AttestationObject
+import json
+import pickle
+import base64
 
 
 def delete_fido2_key(user_id, id):
@@ -41,7 +42,9 @@ def save_fido2_key(fido2_key):
 @transactional
 def create_fido2_session(user_id, session):
     delete_fido2_session(user_id)
-    db.session.add(Fido2Session(user_id=user_id, session=session))
+    db.session.add(
+        Fido2Session(user_id=user_id, session=json.dumps(session))
+    )
 
 
 def delete_fido2_session(user_id):
@@ -55,21 +58,17 @@ def get_fido2_session(user_id):
         Fido2Session.user_id == user_id
     ).one()
     delete_fido2_session(user_id)
-    return session
+    return json.loads(session.session)
 
 
 def decode_and_register(data, state):
-    try:
-        data = cbor.decode(data)
-        client_data = ClientData(data['clientDataJSON'])
-        att_obj = AttestationObject(data['attestationObject'])
+    client_data = ClientData(data['clientDataJSON'])
+    att_obj = AttestationObject(data['attestationObject'])
 
-        auth_data = Config.FIDO2_SERVER.register_complete(
-            state,
-            client_data,
-            att_obj
-        )
+    auth_data = Config.FIDO2_SERVER.register_complete(
+        state,
+        client_data,
+        att_obj
+    )
 
-        return websafe_encode(auth_data.credential_data)
-    except:
-        return ""
+    return base64.b64encode(pickle.dumps(auth_data.credential_data)).decode('utf8')

@@ -3,14 +3,15 @@ import uuid
 from datetime import (datetime, timedelta)
 from urllib.parse import urlencode
 import base64
+import pickle
 
 from fido2 import cbor
 from fido2.client import ClientData
-from fido2.ctap2 import AttestationObject, AuthenticatorData
-from fido2.utils import websafe_encode, websafe_decode
+from fido2.ctap2 import AuthenticatorData
+from fido2.utils import websafe_decode
 import pwnedpasswords
 
-from flask import (jsonify, request, Blueprint, current_app, abort, session)
+from flask import (jsonify, request, Blueprint, current_app, abort)
 from sqlalchemy.exc import IntegrityError
 
 from app.config import QueueNames, Config
@@ -18,7 +19,9 @@ from app.dao.fido2_key_dao import (
     save_fido2_key,
     list_fido2_keys,
     delete_fido2_key,
-    decode_and_register
+    decode_and_register,
+    create_fido2_session,
+    get_fido2_session
 )
 from app.dao.users_dao import (
     get_user_by_id,
@@ -572,12 +575,16 @@ def list_fido2_keys_user(user_id):
 
 @user_blueprint.route('/<uuid:user_id>/fido2_keys', methods=['POST'])
 def create_fido2_keys_user(user_id):
+
     data = request.get_json()
     cbor_data = cbor.decode(base64.b64decode(data["payload"]))
     validate(data, fido2_key_schema)
+
     id = uuid.uuid4()
-    key = decode_and_register(cbor_data, session["fido2_state"])
+
+    key = decode_and_register(cbor_data, get_fido2_session(user_id))
     save_fido2_key(Fido2Key(id=id, user_id=user_id, name=cbor_data["name"], key=key))
+
     return jsonify({"id": id})
 
 
@@ -585,13 +592,15 @@ def create_fido2_keys_user(user_id):
 def fido2_keys_user_register(user_id):
     user = get_user_and_accounts(user_id)
     keys = list_fido2_keys(user_id)
-    credentials = list(map(lambda k: websafe_decode(k.key), keys))
+
+    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+
     registration_data, state = Config.FIDO2_SERVER.register_begin({
         'id': user.id.bytes,
         'name': user.name,
         'displayName': user.name,
     }, credentials, user_verification='discouraged')
-    session["fido2_state"] = state
+    create_fido2_session(user_id, state)
 
     # API Client only like JSON
     return jsonify({"data": base64.b64encode(cbor.encode(registration_data)).decode('utf8')})
@@ -600,10 +609,11 @@ def fido2_keys_user_register(user_id):
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/authenticate', methods=['POST'])
 def fido2_keys_user_authenticate(user_id):
     keys = list_fido2_keys(user_id)
-    credentials = list(map(lambda k: websafe_decode(k.key), keys))
+    credentials = list(map(lambda k: pickle.loads(k.key), keys))
     auth_data, state = Config.FIDO2_SERVER.authenticate_begin(credentials)
-    session['fido2_state'] = state
+    create_fido2_session(user_id, state)
     return jsonify({"data": base64.b64encode(cbor.encode(auth_data)).decode('utf8')})
+
 
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/validate', methods=['POST'])
 def fido2_keys_user_validate(user_id):
@@ -617,7 +627,7 @@ def fido2_keys_user_validate(user_id):
     signature = data['signature']
 
     Config.FIDO2_SERVER.authenticate_complete(
-        session.pop('fido2_state'),
+        get_fido2_session(user_id),
         credentials,
         credential_id,
         client_data,
@@ -628,7 +638,7 @@ def fido2_keys_user_validate(user_id):
     return jsonify({'status': 'OK'})
 
 
-@user_blueprint.route('/<uuid:user_id>/fido2_keys/<uuid:key_id>/', methods=['DELETE'])
+@user_blueprint.route('/<uuid:user_id>/fido2_keys/<uuid:key_id>', methods=['DELETE'])
 def delete_fido2_keys_user(user_id, key_id):
     delete_fido2_key(user_id, key_id)
     return jsonify({"id": key_id})
