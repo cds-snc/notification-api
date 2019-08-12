@@ -637,6 +637,12 @@ def fido2_keys_user_validate(user_id):
         signature
     )
 
+    user_to_verify = get_user_by_id(user_id=user_id)    
+    user_to_verify.current_session_id = str(uuid.uuid4())
+    user_to_verify.logged_in_at = datetime.utcnow()
+    user_to_verify.failed_login_count = 0
+    save_model_user(user_to_verify)
+
     return jsonify({'status': 'OK'})
 
 
