@@ -138,7 +138,7 @@ def update_user_attribute(user_id):
         service=service,
         personalisation={
             'base_url': Config.ADMIN_BASE_URL,
-            'contact_us_url': f'{Config.ADMIN_BASE_URL}/support'
+            'contact_us_url': f'{Config.ADMIN_BASE_URL}/support/ask-question-give-feedback'
         },
         notification_type=template.template_type,
         api_key_id=None,
