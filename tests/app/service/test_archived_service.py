@@ -35,6 +35,7 @@ def test_deactivating_inactive_service_does_nothing(client, sample_service):
 
 
 @pytest.fixture
+@freeze_time('2018-04-21 14:00')
 def archived_service(client, notify_db, sample_service):
     create_template(sample_service, template_name='a')
     create_template(sample_service, template_name='b')
@@ -51,8 +52,8 @@ def archived_service(client, notify_db, sample_service):
 
 
 def test_deactivating_service_changes_name_and_email(archived_service):
-    assert archived_service.name == '_archived_Sample service'
-    assert archived_service.email_from == '_archived_sample.service'
+    assert archived_service.name == '_archived_2018-04-21_14:00:00_Sample service'
+    assert archived_service.email_from == '_archived_2018-04-21_14:00:00_sample.service'
 
 
 def test_deactivating_service_revokes_api_keys(archived_service):

@@ -234,9 +234,10 @@ def dao_archive_service(service_id):
         joinedload('api_keys'),
     ).filter(Service.id == service_id).one()
 
+    time = datetime.utcnow().strftime("%Y-%m-%d_%H:%M:%S")
     service.active = False
-    service.name = '_archived_' + service.name
-    service.email_from = '_archived_' + service.email_from
+    service.name = '_archived_' + time + '_' + service.name
+    service.email_from = '_archived_' + time + '_' + service.email_from
 
     for template in service.templates:
         if not template.archived:
