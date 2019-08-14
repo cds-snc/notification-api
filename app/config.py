@@ -7,7 +7,6 @@ from celery.schedules import crontab
 from kombu import Exchange, Queue
 
 from fido2.server import Fido2Server, RelyingParty
-import tldextract
 
 load_dotenv()
 
@@ -353,11 +352,7 @@ class Config(object):
     NOTIFY_LOG_PATH = ''
 
     FIDO2_SERVER = Fido2Server(
-        RelyingParty(
-            tldextract.extract(
-                os.getenv('ADMIN_BASE_URL', 'http://localhost:6012'),
-            ).domain,
-            'Notification'),
+        RelyingParty(os.getenv('FIDO2_DOMAIN', 'localhost'), 'Notification'),
         verify_origin=lambda x: True)
 
 
