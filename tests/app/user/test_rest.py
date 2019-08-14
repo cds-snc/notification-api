@@ -22,7 +22,7 @@ from app.dao.fido2_key_dao import save_fido2_key, create_fido2_session
 from app.dao.permissions_dao import default_service_permissions
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from tests import create_authorization_header
-from tests.app.db import create_service, create_template_folder, create_organisation, create_user
+from tests.app.db import create_service, create_template_folder, create_organisation, create_user, create_reply_to_email
 
 
 def test_get_user_list(admin_request, sample_service):
@@ -1179,8 +1179,9 @@ def test_list_fido2_keys_for_a_user(client, sample_service):
     ) == [str(key_one.id), str(key_two.id)]
 
 
-def test_create_fido2_keys_for_a_user(client, sample_service, mocker):
+def test_create_fido2_keys_for_a_user(client, sample_service, mocker, account_change_template):
     sample_user = sample_service.users[0]
+    create_reply_to_email(sample_service, 'reply-here@example.canada.ca')
     auth_header = create_authorization_header()
 
     create_fido2_session(sample_user.id, "ABCD")
@@ -1190,6 +1191,8 @@ def test_create_fido2_keys_for_a_user(client, sample_service, mocker):
     data = {'payload': base64.b64encode(data).decode("utf-8")}
 
     mocker.patch("app.user.rest.decode_and_register", return_value="abcd")
+    mocker.patch('app.user.rest.persist_notification')
+    mocker.patch('app.user.rest.send_notification_to_queue')
 
     response = client.post(
         url_for("user.create_fido2_keys_user", user_id=sample_user.id),
@@ -1201,8 +1204,11 @@ def test_create_fido2_keys_for_a_user(client, sample_service, mocker):
     assert json.loads(response.get_data(as_text=True))["id"]
 
 
-def test_delete_fido2_keys_for_a_user(client, sample_service):
+def test_delete_fido2_keys_for_a_user(client, sample_service, mocker, account_change_template):
+    mocker.patch('app.user.rest.persist_notification')
+    mocker.patch('app.user.rest.send_notification_to_queue')
     sample_user = sample_service.users[0]
+    create_reply_to_email(sample_service, 'reply-here@example.canada.ca')
     auth_header = create_authorization_header()
 
     key = Fido2Key(name='sample key one', key="abcd", user_id=sample_user.id)
