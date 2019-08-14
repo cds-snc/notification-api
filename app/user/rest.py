@@ -123,30 +123,12 @@ def update_user_attribute(user_id):
     if errors:
         raise InvalidRequest(errors, status_code=400)
 
-    # Alert user that account change took place
-    service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
-    template = dao_get_template_by_id(current_app.config['ACCOUNT_CHANGE_TEMPLATE_ID'])
-    recipient = user_to_update.email_address
-    reply_to = template.service.get_default_reply_to_email_address()
-
     save_user_attribute(user_to_update, update_dict=update_dct)
 
-    saved_notification = persist_notification(
-        template_id=template.id,
-        template_version=template.version,
-        recipient=recipient,
-        service=service,
-        personalisation={
-            'base_url': Config.ADMIN_BASE_URL,
-            'contact_us_url': f'{Config.ADMIN_BASE_URL}/support/ask-question-give-feedback'
-        },
-        notification_type=template.template_type,
-        api_key_id=None,
-        key_type=KEY_TYPE_NORMAL,
-        reply_to_text=reply_to
-    )
+    service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
 
-    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+    # Alert user that account change took place
+    _update_alert(user_to_update)
 
     # Alert that team member edit user
     if updated_by:
@@ -574,6 +556,7 @@ def list_fido2_keys_user(user_id):
 
 @user_blueprint.route('/<uuid:user_id>/fido2_keys', methods=['POST'])
 def create_fido2_keys_user(user_id):
+    user = get_user_and_accounts(user_id)
     data = request.get_json()
     cbor_data = cbor.decode(base64.b64decode(data["payload"]))
     validate(data, fido2_key_schema)
@@ -581,7 +564,7 @@ def create_fido2_keys_user(user_id):
     id = uuid.uuid4()
     key = decode_and_register(cbor_data, get_fido2_session(user_id))
     save_fido2_key(Fido2Key(id=id, user_id=user_id, name=cbor_data["name"], key=key))
-
+    _update_alert(user)
     return jsonify({"id": id})
 
 
@@ -648,7 +631,9 @@ def fido2_keys_user_validate(user_id):
 
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/<uuid:key_id>', methods=['DELETE'])
 def delete_fido2_keys_user(user_id, key_id):
+    user = get_user_and_accounts(user_id)
     delete_fido2_key(user_id, key_id)
+    _update_alert(user)
     return jsonify({"id": key_id})
 
 
@@ -699,3 +684,27 @@ def get_orgs_and_services(user):
             for service in user.services if service.active
         ]
     }
+
+
+def _update_alert(user_to_update):
+    service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
+    template = dao_get_template_by_id(current_app.config['ACCOUNT_CHANGE_TEMPLATE_ID'])
+    recipient = user_to_update.email_address
+    reply_to = template.service.get_default_reply_to_email_address()
+
+    saved_notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        recipient=recipient,
+        service=service,
+        personalisation={
+            'base_url': Config.ADMIN_BASE_URL,
+            'contact_us_url': f'{Config.ADMIN_BASE_URL}/support/ask-question-give-feedback'
+        },
+        notification_type=template.template_type,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+        reply_to_text=reply_to
+    )
+
+    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
