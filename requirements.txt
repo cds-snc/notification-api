@@ -47,21 +47,13 @@ amqp==1.4.9
 anyjson==0.3.3
 asn1crypto==0.24.0
 attrs==19.1.0
-<<<<<<< HEAD
-awscli==1.16.215
-=======
 awscli==1.16.217
->>>>>>> 5ae77efbe0dc1c1e0f4b8b008b06c0383a9d4909
 bcrypt==3.1.7
 billiard==3.3.0.23
 bleach==3.1.0
 blinker==1.4
 boto3==1.6.16
-<<<<<<< HEAD
-botocore==1.12.205
-=======
 botocore==1.12.207
->>>>>>> 5ae77efbe0dc1c1e0f4b8b008b06c0383a9d4909
 certifi==2019.6.16
 chardet==3.0.4
 Click==7.0
@@ -92,11 +84,7 @@ python-editor==1.0.4
 python-json-logger==0.1.11
 pytz==2019.2
 PyYAML==4.2b1
-<<<<<<< HEAD
-redis==3.3.6
-=======
 redis==3.3.7
->>>>>>> 5ae77efbe0dc1c1e0f4b8b008b06c0383a9d4909
 requests==2.22.0
 requests-file==1.4.3
 rsa==3.4.2
