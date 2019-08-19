@@ -487,7 +487,7 @@ def test_create_nightly_notification_status_respects_bst(sample_template, mocker
     mocker.patch('app.celery.reporting_tasks.delete_email_notifications_older_than_retention')
     mocker.patch('app.celery.reporting_tasks.delete_sms_notifications_older_than_retention')
     mocker.patch('app.celery.reporting_tasks.delete_letter_notifications_older_than_retention')
-    
+
     create_notification(sample_template, status='delivered', created_at=datetime(2019, 4, 2, 5, 0))  # too new
 
     create_notification(sample_template, status='created', created_at=datetime(2019, 4, 2, 5, 59))
