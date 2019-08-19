@@ -431,7 +431,13 @@ def test_create_nightly_billing_update_when_record_exists(
     assert records[0].updated_at
 
 
-def test_create_nightly_notification_status(notify_db_session):
+def test_create_nightly_notification_status(notify_db_session, mocker):
+    mocks = [
+        mocker.patch('app.celery.reporting_tasks.delete_email_notifications_older_than_retention'),
+        mocker.patch('app.celery.reporting_tasks.delete_sms_notifications_older_than_retention'),
+        mocker.patch('app.celery.reporting_tasks.delete_letter_notifications_older_than_retention'),
+    ]
+
     first_service = create_service(service_name='First Service')
     first_template = create_template(service=first_service)
     second_service = create_service(service_name='second Service')
@@ -446,14 +452,10 @@ def test_create_nightly_notification_status(notify_db_session):
     create_notification(template=first_template, status='delivered', created_at=datetime.utcnow() - timedelta(days=10))
 
     create_notification(template=second_template, status='temporary-failure')
-    create_notification(template=second_template, status='temporary-failure',
-                        created_at=datetime.utcnow() - timedelta(days=1))
-    create_notification(template=second_template, status='temporary-failure',
-                        created_at=datetime.utcnow() - timedelta(days=2))
-    create_notification(template=second_template, status='temporary-failure',
-                        created_at=datetime.utcnow() - timedelta(days=10))
-    create_notification(template=second_template, status='temporary-failure',
-                        created_at=datetime.utcnow() - timedelta(days=10))
+    create_notification(template=second_template, status='temporary-failure', created_at=datetime.utcnow() - timedelta(days=1))  # noqa
+    create_notification(template=second_template, status='temporary-failure', created_at=datetime.utcnow() - timedelta(days=2))  # noqa
+    create_notification(template=second_template, status='temporary-failure', created_at=datetime.utcnow() - timedelta(days=10))  # noqa
+    create_notification(template=second_template, status='temporary-failure', created_at=datetime.utcnow() - timedelta(days=10))  # noqa
 
     create_notification(template=third_template, status='created')
     create_notification(template=third_template, status='created', created_at=datetime.utcnow() - timedelta(days=1))
@@ -466,17 +468,26 @@ def test_create_nightly_notification_status(notify_db_session):
     create_nightly_notification_status()
     new_data = FactNotificationStatus.query.order_by(
         FactNotificationStatus.bst_date,
-        FactNotificationStatus.notification_type
     ).all()
-    assert len(new_data) == 9
-    assert str(new_data[0].bst_date) == datetime.strftime(datetime.utcnow() - timedelta(days=10), "%Y-%m-%d")
-    assert str(new_data[3].bst_date) == datetime.strftime(datetime.utcnow() - timedelta(days=2), "%Y-%m-%d")
-    assert str(new_data[6].bst_date) == datetime.strftime(datetime.utcnow() - timedelta(days=1), "%Y-%m-%d")
+    assert len(new_data) == 6  #
+    assert str(new_data[0].bst_date) == datetime.strftime(datetime.utcnow() - timedelta(days=2), "%Y-%m-%d")
+    assert str(new_data[1].bst_date) == datetime.strftime(datetime.utcnow() - timedelta(days=2), "%Y-%m-%d")
+    assert str(new_data[2].bst_date) == datetime.strftime(datetime.utcnow() - timedelta(days=2), "%Y-%m-%d")
+    assert str(new_data[3].bst_date) == datetime.strftime(datetime.utcnow() - timedelta(days=1), "%Y-%m-%d")
+    assert str(new_data[4].bst_date) == datetime.strftime(datetime.utcnow() - timedelta(days=1), "%Y-%m-%d")
+    assert str(new_data[5].bst_date) == datetime.strftime(datetime.utcnow() - timedelta(days=1), "%Y-%m-%d")
+
+    for mock in mocks:
+        mock.apply_async.assert_called_once_with(queue='periodic-tasks')
 
 
 @freeze_time('2019-04-02T04:30')
 # This test assumes the local timezone is EST
-def test_create_nightly_notification_status_respects_bst(sample_template):
+def test_create_nightly_notification_status_respects_bst(sample_template, mocker):
+    mocker.patch('app.celery.reporting_tasks.delete_email_notifications_older_than_retention')
+    mocker.patch('app.celery.reporting_tasks.delete_sms_notifications_older_than_retention')
+    mocker.patch('app.celery.reporting_tasks.delete_letter_notifications_older_than_retention')
+    
     create_notification(sample_template, status='delivered', created_at=datetime(2019, 4, 2, 5, 0))  # too new
 
     create_notification(sample_template, status='created', created_at=datetime(2019, 4, 2, 5, 59))
