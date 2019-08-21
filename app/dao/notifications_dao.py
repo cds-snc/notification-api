@@ -694,7 +694,7 @@ def dao_old_letters_with_created_status():
         Notification.notification_type == LETTER_TYPE,
         Notification.status == NOTIFICATION_CREATED
     ).order_by(
-        Notification.created_at
+        Notification.updated_at
     ).all()
     return notifications
 

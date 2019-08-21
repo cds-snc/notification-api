@@ -175,6 +175,14 @@ class User(db.Model):
             'state': self.state,
         }
 
+    def serialize_for_users_list(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email_address': self.email_address,
+            'mobile_number': self.mobile_number,
+        }
+
 
 class ServiceUser(db.Model):
     __tablename__ = 'user_to_service'
@@ -309,15 +317,6 @@ class ServicePermissionTypes(db.Model):
     __tablename__ = 'service_permission_types'
 
     name = db.Column(db.String(255), primary_key=True)
-
-
-organisation_to_service = db.Table(
-    'organisation_to_service',
-    db.Model.metadata,
-    # service_id is a primary key as you can only have one organisation per service
-    db.Column('service_id', UUID(as_uuid=True), db.ForeignKey('services.id'), primary_key=True, nullable=False),
-    db.Column('organisation_id', UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False),
-)
 
 
 class Domain(db.Model):
