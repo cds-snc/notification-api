@@ -690,7 +690,7 @@ def dao_old_letters_with_created_status():
     last_processing_deadline = yesterday_bst.replace(hour=17, minute=30, second=0, microsecond=0)
 
     notifications = Notification.query.filter(
-        Notification.created_at < convert_local_timezone_to_utc(last_processing_deadline),
+        Notification.updated_at < convert_local_timezone_to_utc(last_processing_deadline),
         Notification.notification_type == LETTER_TYPE,
         Notification.status == NOTIFICATION_CREATED
     ).order_by(
