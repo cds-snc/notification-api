@@ -51,5 +51,4 @@ class DocumentDownloadClient:
             )
 
             raise error
-
-        return response.json()['document']['url']
+        return response.json()

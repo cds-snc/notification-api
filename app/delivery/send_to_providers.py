@@ -1,4 +1,6 @@
 from datetime import datetime
+import urllib.request
+import magic
 
 from flask import current_app
 from notifications_utils.recipients import (
@@ -81,18 +83,38 @@ def send_email_to_provider(notification):
         return
     if notification.status == 'created':
         provider = provider_to_use(EMAIL_TYPE, notification.id)
+        
+        # Extract any file objects from the personalization
+        file_keys = [k for k, v in (notification.personalisation or {}).items() if isinstance(v, dict) and 'document' in v]
+        attachments = []
+
+        personalisation_data = notification.personalisation.copy()
+
+        for key in file_keys:
+            try:
+                req = urllib.request.Request(personalisation_data[key]['document']['direct_file_url'])
+                with urllib.request.urlopen(req) as response:
+                    buffer = response.read()
+                    mime_type = magic.from_buffer(buffer, mime=True)
+                    if mime_type == 'application/pdf':
+                        attachments.append({"name": "{}.pdf".format(key), "data": buffer})
+            except:
+                current_app.logger.error(
+                    "Could not download and attach {}".format(personalisation_data[key]['document']['direct_file_url'])
+                )
+            personalisation_data[key] = personalisation_data[key]['document']['url']
 
         template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
 
         html_email = HTMLEmailTemplate(
             template_dict,
-            values=notification.personalisation,
+            values=personalisation_data,
             **get_html_email_options(service)
         )
 
         plain_text_email = PlainTextEmailTemplate(
             template_dict,
-            values=notification.personalisation
+            values=personalisation_data
         )
 
         if service.research_mode or notification.key_type == KEY_TYPE_TEST:
@@ -112,6 +134,7 @@ def send_email_to_provider(notification):
                 body=str(plain_text_email),
                 html_body=str(html_email),
                 reply_to_address=validate_and_format_email_address(email_reply_to) if email_reply_to else None,
+                attachments=attachments
             )
             notification.reference = reference
             update_notification_to_sending(notification, provider)

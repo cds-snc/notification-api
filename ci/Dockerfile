@@ -2,7 +2,7 @@ FROM python:3.6-alpine
 
 ENV PYTHONDONTWRITEBYTECODE 1
 
-RUN apk add --no-cache build-base git gcc musl-dev postgresql-dev g++ make libffi-dev && rm -rf /var/cache/apk/*
+RUN apk add --no-cache build-base git gcc musl-dev postgresql-dev g++ make libffi-dev libmagic && rm -rf /var/cache/apk/*
 
 # update pip
 RUN python -m pip install wheel

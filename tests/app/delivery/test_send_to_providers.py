@@ -118,7 +118,8 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
         'Jo <em>some HTML</em>',
         body='Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n',
         html_body=ANY,
-        reply_to_address=None
+        reply_to_address=None,
+        attachments=[]
     )
 
     assert '<!DOCTYPE html' in app.aws_ses_client.send_email.call_args[1]['html_body']
@@ -378,7 +379,8 @@ def test_send_email_should_use_service_reply_to_email(
         ANY,
         body=ANY,
         html_body=ANY,
-        reply_to_address='foo@bar.com'
+        reply_to_address='foo@bar.com',
+        attachments=[]
     )
 
 
@@ -673,7 +675,8 @@ def test_send_email_to_provider_uses_reply_to_from_notification(
         ANY,
         body=ANY,
         html_body=ANY,
-        reply_to_address="test@test.com"
+        reply_to_address="test@test.com",
+        attachments=[]
     )
 
 
@@ -694,7 +697,8 @@ def test_send_email_to_provider_should_format_reply_to_email_address(
         ANY,
         body=ANY,
         html_body=ANY,
-        reply_to_address="test@test.com"
+        reply_to_address="test@test.com",
+        attachments=[]
     )
 
 
@@ -722,4 +726,5 @@ def test_send_email_to_provider_should_format_email_address(sample_email_notific
         body=ANY,
         html_body=ANY,
         reply_to_address=ANY,
+        attachments=[]
     )
