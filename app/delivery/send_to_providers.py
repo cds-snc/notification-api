@@ -83,9 +83,11 @@ def send_email_to_provider(notification):
         return
     if notification.status == 'created':
         provider = provider_to_use(EMAIL_TYPE, notification.id)
-        
+
         # Extract any file objects from the personalization
-        file_keys = [k for k, v in (notification.personalisation or {}).items() if isinstance(v, dict) and 'document' in v]
+        file_keys = [
+            k for k, v in (notification.personalisation or {}).items() if isinstance(v, dict) and 'document' in v
+        ]
         attachments = []
 
         personalisation_data = notification.personalisation.copy()
@@ -98,7 +100,7 @@ def send_email_to_provider(notification):
                     mime_type = magic.from_buffer(buffer, mime=True)
                     if mime_type == 'application/pdf':
                         attachments.append({"name": "{}.pdf".format(key), "data": buffer})
-            except:
+            except Exception:
                 current_app.logger.error(
                     "Could not download and attach {}".format(personalisation_data[key]['document']['direct_file_url'])
                 )

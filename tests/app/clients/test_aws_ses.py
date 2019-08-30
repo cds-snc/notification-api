@@ -1,6 +1,5 @@
 import botocore
 import pytest
-from unittest.mock import Mock, ANY
 from notifications_utils.recipients import InvalidEmailError
 
 from app import aws_ses_client
