@@ -9,3 +9,7 @@ class NotificationTechnicalFailureException(Exception):
 
 class ArchiveValidationError(Exception):
     pass
+
+
+class MalwarePendingException(Exception):
+    pass
