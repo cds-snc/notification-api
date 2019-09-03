@@ -30,7 +30,7 @@ def test_upload_document(document_download):
 
         resp = document_download.upload_document('service-id', 'abababab')
 
-    assert resp == 'https://document-download/services/service-id/documents/uploaded-url'
+    assert resp == {'document': {'url': 'https://document-download/services/service-id/documents/uploaded-url'}}
 
 
 def test_should_raise_for_status(document_download):

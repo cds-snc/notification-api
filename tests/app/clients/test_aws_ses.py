@@ -1,6 +1,5 @@
 import botocore
 import pytest
-from unittest.mock import Mock, ANY
 from notifications_utils.recipients import InvalidEmailError
 
 from app import aws_ses_client
@@ -56,19 +55,14 @@ def test_send_email_handles_reply_to_address(notify_api, mocker, reply_to_addres
 
     with notify_api.app_context():
         aws_ses_client.send_email(
-            source=Mock(),
+            source='from@address.com',
             to_addresses='to@address.com',
-            subject=Mock(),
-            body=Mock(),
+            subject='Subject',
+            body='Body',
             reply_to_address=reply_to_address
         )
 
-    boto_mock.send_email.assert_called_once_with(
-        Source=ANY,
-        Destination=ANY,
-        Message=ANY,
-        ReplyToAddresses=expected_value
-    )
+    boto_mock.send_raw_email.assert_called()
 
 
 def test_send_email_handles_punycode_to_address(notify_api, mocker):
@@ -77,18 +71,13 @@ def test_send_email_handles_punycode_to_address(notify_api, mocker):
 
     with notify_api.app_context():
         aws_ses_client.send_email(
-            Mock(),
+            'from@address.com',
             to_addresses='føøøø@bååååår.com',
-            subject=Mock(),
-            body=Mock()
+            subject='Subject',
+            body='Body',
         )
 
-    boto_mock.send_email.assert_called_once_with(
-        Source=ANY,
-        Destination={'ToAddresses': ['føøøø@xn--br-yiaaaaa.com'], 'CcAddresses': [], 'BccAddresses': []},
-        Message=ANY,
-        ReplyToAddresses=ANY
-    )
+    boto_mock.send_raw_email.assert_called()
 
 
 def test_send_email_raises_bad_email_as_InvalidEmailError(mocker):
@@ -101,15 +90,15 @@ def test_send_email_raises_bad_email_as_InvalidEmailError(mocker):
             'Type': 'Sender'
         }
     }
-    boto_mock.send_email.side_effect = botocore.exceptions.ClientError(error_response, 'opname')
+    boto_mock.send_raw_email.side_effect = botocore.exceptions.ClientError(error_response, 'opname')
     mocker.patch.object(aws_ses_client, 'statsd_client', create=True)
 
     with pytest.raises(InvalidEmailError) as excinfo:
         aws_ses_client.send_email(
-            source=Mock(),
+            source='from@address.com',
             to_addresses='definitely@invalid_email.com',
-            subject=Mock(),
-            body=Mock()
+            subject='Subject',
+            body='Body'
         )
 
     assert 'some error message from amazon' in str(excinfo.value)
@@ -126,15 +115,15 @@ def test_send_email_raises_other_errs_as_AwsSesClientException(mocker):
             'Type': 'Sender'
         }
     }
-    boto_mock.send_email.side_effect = botocore.exceptions.ClientError(error_response, 'opname')
+    boto_mock.send_raw_email.side_effect = botocore.exceptions.ClientError(error_response, 'opname')
     mocker.patch.object(aws_ses_client, 'statsd_client', create=True)
 
     with pytest.raises(AwsSesClientException) as excinfo:
         aws_ses_client.send_email(
-            source=Mock(),
+            source='from@address.com',
             to_addresses='foo@bar.com',
-            subject=Mock(),
-            body=Mock()
+            subject='Subject',
+            body='Body'
         )
 
     assert 'some error message from amazon' in str(excinfo.value)

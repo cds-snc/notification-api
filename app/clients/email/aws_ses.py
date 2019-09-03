@@ -6,6 +6,9 @@ from notifications_utils.recipients import InvalidEmailError
 
 from app.clients import STATISTICS_DELIVERED, STATISTICS_FAILURE
 from app.clients.email import (EmailClientException, EmailClient)
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
 
 ses_response_map = {
     'Permanent': {
@@ -63,37 +66,37 @@ class AwsSesClient(EmailClient):
                    subject,
                    body,
                    html_body='',
-                   reply_to_address=None):
+                   reply_to_address=None,
+                   attachments=[]):
         try:
             if isinstance(to_addresses, str):
                 to_addresses = [to_addresses]
 
             reply_to_addresses = [reply_to_address] if reply_to_address else []
 
-            body = {
-                'Text': {'Data': body}
-            }
+            multipart_content_subtype = 'alternative' if html_body else 'mixed'
+            msg = MIMEMultipart(multipart_content_subtype)
+            msg['Subject'] = subject
+            msg['From'] = source
+            msg['To'] = ",".join([punycode_encode_email(addr) for addr in to_addresses])
+            if reply_to_addresses != []:
+                msg.add_header('reply-to', ",".join([punycode_encode_email(addr) for addr in reply_to_addresses]))
+            part = MIMEText(body, 'plain')
+            msg.attach(part)
 
             if html_body:
-                body.update({
-                    'Html': {'Data': html_body}
-                })
+                part = MIMEText(html_body, 'html')
+                msg.attach(part)
+
+            for attachment in attachments or []:
+                part = MIMEApplication(attachment["data"])
+                part.add_header('Content-Disposition', 'attachment', filename=attachment["name"])
+                msg.attach(part)
 
             start_time = monotonic()
-            response = self._client.send_email(
+            response = self._client.send_raw_email(
                 Source=source,
-                Destination={
-                    'ToAddresses': [punycode_encode_email(addr) for addr in to_addresses],
-                    'CcAddresses': [],
-                    'BccAddresses': []
-                },
-                Message={
-                    'Subject': {
-                        'Data': subject,
-                    },
-                    'Body': body
-                },
-                ReplyToAddresses=[punycode_encode_email(addr) for addr in reply_to_addresses]
+                RawMessage={'Data': msg.as_string()}
             )
         except botocore.exceptions.ClientError as e:
             self.statsd_client.incr("clients.ses.error")
