@@ -496,8 +496,8 @@ def test_fetch_sms_free_allowance_remainder_with_two_services(notify_db_session)
     dao_add_service_to_organisation(service=service, organisation_id=org.id)
     create_annual_billing(service_id=service.id, free_sms_fragment_limit=10, financial_year_start=2016)
     create_ft_billing(service=service, template=template,
-                      bst_date=datetime(2016, 4, 20), notification_type='sms', billable_unit=2, rate=0.11)
-    create_ft_billing(service=service, template=template, bst_date=datetime(2016, 5, 20), notification_type='sms',
+                      utc_date=datetime(2016, 4, 20), notification_type='sms', billable_unit=2, rate=0.11)
+    create_ft_billing(service=service, template=template, utc_date=datetime(2016, 5, 20), notification_type='sms',
                       billable_unit=3, rate=0.11)
 
     service_2 = create_service(service_name='used free allowance')
@@ -505,11 +505,11 @@ def test_fetch_sms_free_allowance_remainder_with_two_services(notify_db_session)
     org_2 = create_organisation(name="Org for {}".format(service_2.name))
     dao_add_service_to_organisation(service=service_2, organisation_id=org_2.id)
     create_annual_billing(service_id=service_2.id, free_sms_fragment_limit=20, financial_year_start=2016)
-    create_ft_billing(service=service_2, template=template_2, bst_date=datetime(2016, 4, 20), notification_type='sms',
+    create_ft_billing(service=service_2, template=template_2, utc_date=datetime(2016, 4, 20), notification_type='sms',
                       billable_unit=12, rate=0.11)
-    create_ft_billing(service=service_2, template=template_2, bst_date=datetime(2016, 4, 22), notification_type='sms',
+    create_ft_billing(service=service_2, template=template_2, utc_date=datetime(2016, 4, 22), notification_type='sms',
                       billable_unit=10, rate=0.11)
-    create_ft_billing(service=service_2, template=template_2, bst_date=datetime(2016, 5, 20), notification_type='sms',
+    create_ft_billing(service=service_2, template=template_2, utc_date=datetime(2016, 5, 20), notification_type='sms',
                       billable_unit=3, rate=0.11)
     results = fetch_sms_free_allowance_remainder(datetime(2016, 5, 1)).all()
     assert len(results) == 2
@@ -527,8 +527,8 @@ def test_fetch_sms_billing_for_all_services_for_first_quarter(notify_db_session)
     dao_add_service_to_organisation(service=service, organisation_id=org.id)
     create_annual_billing(service_id=service.id, free_sms_fragment_limit=25000, financial_year_start=2019)
     create_ft_billing(service=service, template=template,
-                      bst_date=datetime(2019, 4, 20), notification_type='sms', billable_unit=44, rate=0.11)
-    results = fetch_sms_billing_for_all_services(datetime(2019, 4, 1), datetime(2019, 5, 30))
+                      utc_date=datetime(2019, 4, 20), notification_type='sms', billable_unit=44, rate=0.11)
+    results = fetch_sms_billing_for_all_services(datetime(2019, 4, 2), datetime(2019, 5, 30))
     assert len(results) == 1
     assert results[0] == (org.name, org.id, service.name, service.id, 25000, Decimal('0.11'), 25000, 44, 0,
                           Decimal('0'))
@@ -541,10 +541,10 @@ def test_fetch_sms_billing_for_all_services_with_remainder(notify_db_session):
     dao_add_service_to_organisation(service=service, organisation_id=org.id)
     create_annual_billing(service_id=service.id, free_sms_fragment_limit=10, financial_year_start=2019)
     create_ft_billing(service=service, template=template,
-                      bst_date=datetime(2019, 4, 20), notification_type='sms', billable_unit=2, rate=0.11)
-    create_ft_billing(service=service, template=template, bst_date=datetime(2019, 5, 20), notification_type='sms',
+                      utc_date=datetime(2019, 4, 20), notification_type='sms', billable_unit=2, rate=0.11)
+    create_ft_billing(service=service, template=template, utc_date=datetime(2019, 5, 20), notification_type='sms',
                       billable_unit=2, rate=0.11)
-    create_ft_billing(service=service, template=template, bst_date=datetime(2019, 5, 22), notification_type='sms',
+    create_ft_billing(service=service, template=template, utc_date=datetime(2019, 5, 22), notification_type='sms',
                       billable_unit=1, rate=0.11)
 
     service_2 = create_service(service_name='b - used free allowance')
@@ -552,18 +552,18 @@ def test_fetch_sms_billing_for_all_services_with_remainder(notify_db_session):
     org_2 = create_organisation(name="Org for {}".format(service_2.name))
     dao_add_service_to_organisation(service=service_2, organisation_id=org_2.id)
     create_annual_billing(service_id=service_2.id, free_sms_fragment_limit=10, financial_year_start=2019)
-    create_ft_billing(service=service_2, template=template_2, bst_date=datetime(2019, 4, 20), notification_type='sms',
+    create_ft_billing(service=service_2, template=template_2, utc_date=datetime(2019, 4, 20), notification_type='sms',
                       billable_unit=12, rate=0.11)
-    create_ft_billing(service=service_2, template=template_2, bst_date=datetime(2019, 5, 20), notification_type='sms',
+    create_ft_billing(service=service_2, template=template_2, utc_date=datetime(2019, 5, 20), notification_type='sms',
                       billable_unit=3, rate=0.11)
     service_3 = create_service(service_name='c - partial allowance')
     template_3 = create_template(service=service_3)
     org_3 = create_organisation(name="Org for {}".format(service_3.name))
     dao_add_service_to_organisation(service=service_3, organisation_id=org_3.id)
     create_annual_billing(service_id=service_3.id, free_sms_fragment_limit=10, financial_year_start=2019)
-    create_ft_billing(service=service_3, template=template_3, bst_date=datetime(2019, 4, 20), notification_type='sms',
+    create_ft_billing(service=service_3, template=template_3, utc_date=datetime(2019, 4, 20), notification_type='sms',
                       billable_unit=5, rate=0.11)
-    create_ft_billing(service=service_3, template=template_3, bst_date=datetime(2019, 5, 20), notification_type='sms',
+    create_ft_billing(service=service_3, template=template_3, utc_date=datetime(2019, 5, 20), notification_type='sms',
                       billable_unit=7, rate=0.11)
 
     service_4 = create_service(service_name='d - email only')
@@ -571,7 +571,7 @@ def test_fetch_sms_billing_for_all_services_with_remainder(notify_db_session):
     org_4 = create_organisation(name="Org for {}".format(service_4.name))
     dao_add_service_to_organisation(service=service_4, organisation_id=org_4.id)
     create_annual_billing(service_id=service_4.id, free_sms_fragment_limit=10, financial_year_start=2019)
-    create_ft_billing(service=service_4, template=email_template, bst_date=datetime(2019, 5, 22), notifications_sent=5,
+    create_ft_billing(service=service_4, template=email_template, utc_date=datetime(2019, 5, 22), notifications_sent=5,
                       notification_type='email', billable_unit=0, rate=0)
 
     results = fetch_sms_billing_for_all_services(datetime(2019, 5, 1), datetime(2019, 5, 31))

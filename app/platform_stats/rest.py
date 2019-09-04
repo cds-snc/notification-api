@@ -12,7 +12,7 @@ from app.errors import register_errors, InvalidRequest
 from app.platform_stats.platform_stats_schema import platform_stats_request
 from app.service.statistics import format_admin_stats
 from app.schema_validation import validate
-from app.utils import get_london_midnight_in_utc
+from app.utils import get_local_timezone_midnight_in_utc
 
 platform_stats_blueprint = Blueprint('platform_stats', __name__)
 
@@ -44,8 +44,8 @@ def validate_date_range_is_within_a_financial_year(start_date, end_date):
     if end_date < start_date:
         raise InvalidRequest(message="Start date must be before end date", status_code=400)
 
-    start_fy = get_financial_year_for_datetime(get_london_midnight_in_utc(start_date))
-    end_fy = get_financial_year_for_datetime(get_london_midnight_in_utc(end_date))
+    start_fy = get_financial_year_for_datetime(get_local_timezone_midnight_in_utc(start_date))
+    end_fy = get_financial_year_for_datetime(get_local_timezone_midnight_in_utc(end_date))
 
     if start_fy != end_fy:
         raise InvalidRequest(message="Date must be in a single financial year.", status_code=400)
