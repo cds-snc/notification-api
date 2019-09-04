@@ -748,6 +748,24 @@ def test_notification_can_have_document_attachment_without_mlwr_sid(sample_email
     mlwr_mock.assert_not_called()
 
 
+def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(sample_email_template, mocker):
+    send_mock = mocker.patch('app.aws_ses_client.send_email', return_value='reference')
+    mlwr_mock = mocker.patch('app.check_mlwr_score')
+    personalisation = {
+        "file": {
+            "document":
+                {"id": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar", "mlwr_sid": "false"}}}
+
+    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
+
+    send_to_providers.send_email_to_provider(
+        db_notification,
+    )
+
+    send_mock.assert_called()
+    mlwr_mock.assert_not_called()
+
+
 def test_notification_raises_a_retry_exception_if_mlwr_state_is_missing(sample_email_template, mocker):
     mocker.patch('app.aws_ses_client.send_email', return_value='reference')
     mocker.patch('app.check_mlwr_score', return_value={})

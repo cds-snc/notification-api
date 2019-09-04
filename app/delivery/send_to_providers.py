@@ -96,7 +96,10 @@ def send_email_to_provider(notification):
         for key in file_keys:
 
             # Check if a MLWR sid exists
-            if current_app.config["MLWR_HOST"] and 'mlwr_sid' in personalisation_data[key]['document']:
+            if (current_app.config["MLWR_HOST"] and
+                    'mlwr_sid' in personalisation_data[key]['document'] and
+                    personalisation_data[key]['document']['mlwr_sid'] != "false"):
+
                 mlwr_result = check_mlwr_score(personalisation_data[key]['document']['mlwr_sid'])
 
                 if "state" in mlwr_result and mlwr_result["state"] == "completed":
