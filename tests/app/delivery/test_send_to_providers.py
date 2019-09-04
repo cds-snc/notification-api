@@ -8,12 +8,14 @@ from flask import current_app
 from notifications_utils.recipients import validate_and_format_phone_number
 from requests import HTTPError
 
+
 import app
 from app import aws_sns_client, mmg_client
 from app.dao import (provider_details_dao, notifications_dao)
 from app.dao.provider_details_dao import dao_switch_sms_provider_to_provider_with_identifier
 from app.delivery import send_to_providers
-from app.exceptions import NotificationTechnicalFailureException
+from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException
+
 from app.models import (
     Notification,
     EmailBranding,
@@ -728,3 +730,97 @@ def test_send_email_to_provider_should_format_email_address(sample_email_notific
         reply_to_address=ANY,
         attachments=[]
     )
+
+
+def test_notification_can_have_document_attachment_without_mlwr_sid(sample_email_template, mocker):
+    send_mock = mocker.patch('app.aws_ses_client.send_email', return_value='reference')
+    mlwr_mock = mocker.patch('app.check_mlwr_score')
+    personalisation = {
+        "file": {"document": {"id": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
+
+    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
+
+    send_to_providers.send_email_to_provider(
+        db_notification,
+    )
+
+    send_mock.assert_called()
+    mlwr_mock.assert_not_called()
+
+
+def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(sample_email_template, mocker):
+    send_mock = mocker.patch('app.aws_ses_client.send_email', return_value='reference')
+    mlwr_mock = mocker.patch('app.check_mlwr_score')
+    personalisation = {
+        "file": {
+            "document":
+                {"id": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar", "mlwr_sid": "false"}}}
+
+    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
+
+    send_to_providers.send_email_to_provider(
+        db_notification,
+    )
+
+    send_mock.assert_called()
+    mlwr_mock.assert_not_called()
+
+
+def test_notification_raises_a_retry_exception_if_mlwr_state_is_missing(sample_email_template, mocker):
+    mocker.patch('app.aws_ses_client.send_email', return_value='reference')
+    mocker.patch('app.check_mlwr_score', return_value={})
+    personalisation = {
+        "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
+
+    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
+
+    with pytest.raises(MalwarePendingException):
+        send_to_providers.send_email_to_provider(
+            db_notification,
+        )
+
+
+def test_notification_raises_a_retry_exception_if_mlwr_state_is_not_complete(sample_email_template, mocker):
+    mocker.patch('app.aws_ses_client.send_email', return_value='reference')
+    mocker.patch('app.check_mlwr_score', return_value={"state": "foo"})
+    personalisation = {
+        "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
+
+    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
+
+    with pytest.raises(MalwarePendingException):
+        send_to_providers.send_email_to_provider(
+            db_notification,
+        )
+
+
+def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_is_500(sample_email_template, mocker):
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
+    mocker.patch('app.check_mlwr_score', return_value={"state": "completed", "submission": {"max_score": 500}})
+    personalisation = {
+        "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
+
+    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
+
+    with pytest.raises(NotificationTechnicalFailureException) as e:
+        send_to_providers.send_email_to_provider(db_notification)
+        assert db_notification.id in e.value
+    send_mock.assert_not_called()
+
+    assert Notification.query.get(db_notification.id).status == 'virus-scan-failed'
+
+
+def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_above_500(sample_email_template, mocker):
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
+    mocker.patch('app.check_mlwr_score', return_value={"state": "completed", "submission": {"max_score": 501}})
+    personalisation = {
+        "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
+
+    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
+
+    with pytest.raises(NotificationTechnicalFailureException) as e:
+        send_to_providers.send_email_to_provider(db_notification)
+        assert db_notification.id in e.value
+    send_mock.assert_not_called()
+
+    assert Notification.query.get(db_notification.id).status == 'virus-scan-failed'

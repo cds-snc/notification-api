@@ -9,7 +9,7 @@ from notifications_utils.recipients import (
 )
 from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTemplate, SMSMessageTemplate
 
-from app import clients, statsd_client, create_uuid
+from app import clients, statsd_client, create_uuid, check_mlwr_score
 from app.dao.notifications_dao import (
     dao_update_notification
 )
@@ -19,7 +19,7 @@ from app.dao.provider_details_dao import (
 )
 from app.celery.research_mode_tasks import send_sms_response, send_email_response
 from app.dao.templates_dao import dao_get_template_by_id
-from app.exceptions import NotificationTechnicalFailureException
+from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException
 from app.models import (
     SMS_TYPE,
     KEY_TYPE_TEST,
@@ -27,6 +27,7 @@ from app.models import (
     BRANDING_ORG_BANNER,
     EMAIL_TYPE,
     NOTIFICATION_TECHNICAL_FAILURE,
+    NOTIFICATION_VIRUS_SCAN_FAILED,
     NOTIFICATION_SENT,
     NOTIFICATION_SENDING
 )
@@ -93,6 +94,23 @@ def send_email_to_provider(notification):
         personalisation_data = notification.personalisation.copy()
 
         for key in file_keys:
+
+            # Check if a MLWR sid exists
+            if (current_app.config["MLWR_HOST"] and
+                    'mlwr_sid' in personalisation_data[key]['document'] and
+                    personalisation_data[key]['document']['mlwr_sid'] != "false"):
+
+                mlwr_result = check_mlwr_score(personalisation_data[key]['document']['mlwr_sid'])
+
+                if "state" in mlwr_result and mlwr_result["state"] == "completed":
+                    # Update notification that it contains malware
+                    if "submission" in mlwr_result and mlwr_result["submission"]['max_score'] >= 500:
+                        malware_failure(notification=notification)
+                        return
+                else:
+                    # Throw error so celery will retry in sixty seconds
+                    raise MalwarePendingException
+
             try:
                 req = urllib.request.Request(personalisation_data[key]['document']['direct_file_url'])
                 with urllib.request.urlopen(req) as response:
@@ -104,6 +122,7 @@ def send_email_to_provider(notification):
                 current_app.logger.error(
                     "Could not download and attach {}".format(personalisation_data[key]['document']['direct_file_url'])
                 )
+
             personalisation_data[key] = personalisation_data[key]['document']['url']
 
         template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
@@ -205,3 +224,12 @@ def technical_failure(notification):
             notification.notification_type,
             notification.id,
             notification.service_id))
+
+
+def malware_failure(notification):
+    notification.status = NOTIFICATION_VIRUS_SCAN_FAILED
+    dao_update_notification(notification)
+    raise NotificationTechnicalFailureException(
+        "Send {} for notification id {} to provider is not allowed. Notification contains malware".format(
+            notification.notification_type,
+            notification.id))

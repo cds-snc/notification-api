@@ -114,7 +114,9 @@ class Config(object):
     CRONITOR_KEYS = json.loads(os.getenv('CRONITOR_KEYS', '{}'))
 
     # Antivirus
-    ANTIVIRUS_ENABLED = True
+    MLWR_HOST = os.getenv("MLWR_HOST", False)
+    MLWR_USER = os.getenv("MLWR_USER", "")
+    MLWR_KEY = os.getenv("MLWR_KEY", "")
 
     ###########################
     # Default config values ###
