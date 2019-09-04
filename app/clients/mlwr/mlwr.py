@@ -2,7 +2,7 @@ from assemblyline_client import Client
 from flask import current_app
 
 
-def check_score(sid):
+def check_mlwr_score(sid):
     client = Client(
         current_app.config["MLWR_HOST"],
         apikey=(

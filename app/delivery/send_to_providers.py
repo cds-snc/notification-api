@@ -9,7 +9,7 @@ from notifications_utils.recipients import (
 )
 from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTemplate, SMSMessageTemplate
 
-from app import clients, statsd_client, create_uuid
+from app import clients, statsd_client, create_uuid, check_mlwr_score
 from app.dao.notifications_dao import (
     dao_update_notification
 )
@@ -31,7 +31,6 @@ from app.models import (
     NOTIFICATION_SENT,
     NOTIFICATION_SENDING
 )
-from app.clients.mlwr.mlwr import check_score
 
 
 def send_sms_to_provider(notification):
@@ -97,20 +96,17 @@ def send_email_to_provider(notification):
         for key in file_keys:
 
             # Check if a MLWR sid exists
-            if current_app.config["MLWR_HOST"] and personalisation_data[key]['document']['mlwr_sid']:
-                mlwr_result = check_score(personalisation_data[key]['document']['mlwr_sid'])
+            if current_app.config["MLWR_HOST"] and 'mlwr_sid' in personalisation_data[key]['document']:
+                mlwr_result = check_mlwr_score(personalisation_data[key]['document']['mlwr_sid'])
 
-                if mlwr_result["state"] and mlwr_result["state"] != "completed":
-                    current_app.logger.info(
-                        "MLWR scanning in progress {}".format(personalisation_data[key]['document']['direct_file_url'])
-                    )
-                    # Throw error so celery will retry in sixty seconds
-                    raise MalwarePendingException
-                else:
+                if "state" in mlwr_result and mlwr_result["state"] == "completed":
                     # Update notification that it contains malware
-                    if mlwr_result["submission"] and mlwr_result["submission"]['max_score'] >= 500:
+                    if "submission" in mlwr_result and mlwr_result["submission"]['max_score'] >= 500:
                         malware_failure(notification=notification)
                         return
+                else:
+                    # Throw error so celery will retry in sixty seconds
+                    raise MalwarePendingException
 
             try:
                 req = urllib.request.Request(personalisation_data[key]['document']['direct_file_url'])
