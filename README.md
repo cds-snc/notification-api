@@ -117,3 +117,25 @@ make freeze-requirements
 ```
 
 `requirements.txt` should be committed alongside `requirements-app.txt` changes.
+
+## Frequent problems
+
+__Problem__: `E999 SyntaxError: invalid syntax` when running `flake8`
+__Solution__: Check that you are in your correct virtualenv, with python 3.5 or 3.6
+---
+__Problem__: 
+```
+/bin/sh: 1: Syntax error: "(" unexpected
+make: *** [Makefile:31: freeze-requirements] Error 2
+```
+when running `make freeze-requirements`
+__Solution__: Change `/bin/sh` to `/bin/bash` in the `Makefile`
+---
+__Problem__: `ImportError: failed to find libmagic.  Check your installation`
+__Solution__:Install `libmagic`, ex: `brew install libmagic`
+---
+__Problem__: `assert 'test_notification_api' in db.engine.url.database, 'dont run tests against main db`
+__Solution__: Do not specify a database in your `.env`
+---
+__Problem__: Messages are in the queue but not sending
+__Solution__: Check that `celery` is running. 
