@@ -13,9 +13,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        with:
-          entrypoint: /bin/bash
-          args: $(aws ecr get-login --no-include-email --region us-east-1)
+        args: ecr get-login --no-include-email --region us-east-1
       - name: Build
         uses: actions/docker/cli@master
         with:
