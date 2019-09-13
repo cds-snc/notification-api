@@ -13,8 +13,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        with:
-          args: ecr get-login --no-include-email --region us-east-1 > /dev/null
+        run: $(aws ecr get-login --no-include-email --region us-east-1)
       - name: Build
         uses: actions/docker/cli@master
         with:
@@ -22,6 +21,6 @@ jobs:
       - name: Push short
         uses: actions/docker/cli@master
         with:
-          args: push -t ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:${{ github.sha }}
+          args: push ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:${{ github.sha }}
 
 
