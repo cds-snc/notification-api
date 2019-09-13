@@ -1,8 +1,9 @@
-workflow "Continuous Integration" {
+workflow "Publish to SNS topic" {
   on = "push"
-  resolves = ["docker://cdssnc/seekret-github-action"]
+  resolves = ["Topic"]
 }
 
-action "docker://cdssnc/seekret-github-action" {
-  uses = "docker://cdssnc/seekret-github-action"
+action "Topic" {
+  uses = "actions/docker/cli@master"
+  args = "build -t user/repo ."
 }
