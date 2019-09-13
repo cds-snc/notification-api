@@ -15,7 +15,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         with:
           entrypoint: sh
-          args: -l -c "eval $(aws ecr get-login --no-include-email | sed 's|https://||')"
+          args: -l -c "eval $(aws ecr get-login --no-include-email --region us-east-1 | sed 's|https://||')"
       - name: Build
         uses: actions/docker/cli@master
         with:
