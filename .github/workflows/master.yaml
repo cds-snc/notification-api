@@ -18,7 +18,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         with:
           entrypoint: sh
-          args: -l -c "aws kms decrypt --ciphertext-blob fileb://.env.enc.aws --output text --query Plaintext --region us-east-1 | base64 --decode > .enc"
+          args: -l -c "aws kms decrypt --ciphertext-blob fileb://.env.enc.aws --output text --query Plaintext --region us-east-1 | base64 --decode > .env"
       - name: AWS Login
         uses: actions/aws/cli@master
         env:
