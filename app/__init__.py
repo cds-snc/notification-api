@@ -2,6 +2,7 @@ import os
 import random
 import string
 import uuid
+from dotenv import load_dotenv
 
 from flask import _request_ctx_stack, request, g, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy as _SQLAlchemy
@@ -23,12 +24,15 @@ from app.clients.sms.firetext import FiretextClient
 from app.clients.sms.loadtesting import LoadtestingClient
 from app.clients.sms.mmg import MMGClient
 from app.clients.sms.aws_sns import AwsSnsClient
+from app.clients.sms.twilio import TwilioSMSClient
 from app.clients.mlwr.mlwr import check_mlwr_score
 from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
 from app.encryption import Encryption
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 DATE_FORMAT = "%Y-%m-%d"
+
+load_dotenv()
 
 
 class SQLAlchemy(_SQLAlchemy):
@@ -52,6 +56,11 @@ loadtest_client = LoadtestingClient()
 mmg_client = MMGClient()
 aws_ses_client = AwsSesClient()
 aws_sns_client = AwsSnsClient()
+twilio_sms_client = TwilioSMSClient(
+    account_sid=os.getenv('TWILIO_ACCOUNT_SID'),
+    auth_token=os.getenv('TWILIO_AUTH_TOKEN'),
+    from_number=os.getenv('TWILIO_FROM_NUMBER'),
+)
 encryption = Encryption()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
@@ -86,13 +95,17 @@ def create_app(application):
     mmg_client.init_app(application, statsd_client=statsd_client)
     aws_sns_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config['AWS_REGION'], statsd_client=statsd_client)
+    twilio_sms_client.init_app(
+        logger=application.logger,
+        callback_notify_url_host=application.config["API_HOST_NAME"]
+    )
     notify_celery.init_app(application)
     encryption.init_app(application)
     redis_store.init_app(application)
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
     clients.init_app(
-        sms_clients=[firetext_client, mmg_client, aws_sns_client, loadtest_client],
+        sms_clients=[firetext_client, mmg_client, aws_sns_client, loadtest_client, twilio_sms_client],
         email_clients=[aws_ses_client]
     )
 
