@@ -118,6 +118,9 @@ class Config(object):
     MLWR_USER = os.getenv("MLWR_USER", "")
     MLWR_KEY = os.getenv("MLWR_KEY", "")
 
+    # SendGrid
+    SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
+
     ###########################
     # Default config values ###
     ###########################
