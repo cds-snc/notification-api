@@ -44,6 +44,7 @@ class SendGridClient(EmailClient):
                    reply_to_address=None,
                    attachments=[]):
         try:
+            # Sometimes the source is "Foo <foo@bar.com> vs just foo@bar.com"
             if "<" in source:
                 source = source.split("<")[1].split(">")[0]
 
