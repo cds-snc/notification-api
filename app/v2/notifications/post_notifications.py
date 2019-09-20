@@ -11,11 +11,9 @@ from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.notifications_dao import update_notification_status_by_reference
-from app.dao.templates_dao import dao_create_template
-from app.dao.users_dao import get_user_by_id
+from app.dao.templates_dao import get_precompiled_letter_template
 from app.letters.utils import upload_letter_pdf
 from app.models import (
-    Template,
     SMS_TYPE,
     EMAIL_TYPE,
     LETTER_TYPE,
@@ -27,7 +25,6 @@ from app.models import (
     NOTIFICATION_SENDING,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PENDING_VIRUS_CHECK,
-    SECOND_CLASS
 )
 from app.notifications.process_letter_notifications import (
     create_letter_notification
@@ -259,10 +256,11 @@ def process_letter_notification(*, letter_data, api_key, template, reply_to_text
                                                         template=template,
                                                         reply_to_text=reply_to_text)
 
-    should_send = not (api_key.key_type == KEY_TYPE_TEST)
+    test_key = api_key.key_type == KEY_TYPE_TEST
 
     # if we don't want to actually send the letter, then start it off in SENDING so we don't pick it up
-    status = NOTIFICATION_CREATED if should_send else NOTIFICATION_SENDING
+    status = NOTIFICATION_CREATED if not test_key else NOTIFICATION_SENDING
+    queue = QueueNames.CREATE_LETTERS_PDF if not test_key else QueueNames.RESEARCH_MODE
 
     notification = create_letter_notification(letter_data=letter_data,
                                               template=template,
@@ -270,18 +268,19 @@ def process_letter_notification(*, letter_data, api_key, template, reply_to_text
                                               status=status,
                                               reply_to_text=reply_to_text)
 
-    if should_send:
-        create_letters_pdf.apply_async(
-            [str(notification.id)],
-            queue=QueueNames.CREATE_LETTERS_PDF
-        )
-    elif current_app.config['NOTIFY_ENVIRONMENT'] in ['preview', 'development']:
-        create_fake_letter_response_file.apply_async(
-            (notification.reference,),
-            queue=QueueNames.RESEARCH_MODE
-        )
-    else:
-        update_notification_status_by_reference(notification.reference, NOTIFICATION_DELIVERED)
+    create_letters_pdf.apply_async(
+        [str(notification.id)],
+        queue=queue
+    )
+
+    if test_key:
+        if current_app.config['NOTIFY_ENVIRONMENT'] in ['preview', 'development']:
+            create_fake_letter_response_file.apply_async(
+                (notification.reference,),
+                queue=queue
+            )
+        else:
+            update_notification_status_by_reference(notification.reference, NOTIFICATION_DELIVERED)
 
     return notification
 
@@ -342,28 +341,3 @@ def get_reply_to_text(notification_type, form, template):
         reply_to = template.get_reply_to_text()
 
     return reply_to
-
-
-def get_precompiled_letter_template(service_id):
-    template = Template.query.filter_by(
-        service_id=service_id,
-        template_type=LETTER_TYPE,
-        hidden=True
-    ).first()
-    if template is not None:
-        return template
-
-    template = Template(
-        name='Pre-compiled PDF',
-        created_by=get_user_by_id(current_app.config['NOTIFY_USER_ID']),
-        service_id=service_id,
-        template_type=LETTER_TYPE,
-        hidden=True,
-        subject='Pre-compiled PDF',
-        content='',
-        postage=SECOND_CLASS
-    )
-
-    dao_create_template(template)
-
-    return template

@@ -1,3 +1,5 @@
+import io
+import math
 from datetime import datetime, timedelta
 from enum import Enum
 
@@ -5,6 +7,7 @@ import boto3
 from flask import current_app
 
 from notifications_utils.letter_timings import LETTER_PROCESSING_DEADLINE
+from notifications_utils.pdf import pdf_page_count
 from notifications_utils.s3 import s3upload
 from notifications_utils.timezones import convert_utc_to_local_timezone
 
@@ -50,15 +53,19 @@ def get_letter_pdf_filename(reference, crown, is_scan_letter=False, postage=SECO
 
 
 def get_bucket_name_and_prefix_for_notification(notification):
-    is_test_letter = notification.key_type == KEY_TYPE_TEST and notification.template.is_precompiled_letter
     folder = ''
     if notification.status == NOTIFICATION_VALIDATION_FAILED:
         bucket_name = current_app.config['INVALID_PDF_BUCKET_NAME']
-    elif is_test_letter:
+    elif notification.key_type == KEY_TYPE_TEST:
         bucket_name = current_app.config['TEST_LETTERS_BUCKET_NAME']
     else:
         bucket_name = current_app.config['LETTERS_PDF_BUCKET_NAME']
-        folder = get_folder_name(notification.created_at, False)
+        if notification.sent_at:
+            folder = "{}/".format(notification.sent_at.date())
+        elif notification.updated_at:
+            folder = get_folder_name(notification.updated_at, False)
+        else:
+            folder = get_folder_name(notification.created_at, False)
 
     upload_file_name = PRECOMPILED_BUCKET_PREFIX.format(
         folder=folder,
@@ -81,12 +88,14 @@ def upload_letter_pdf(notification, pdf_data, precompiled=False):
     upload_file_name = get_letter_pdf_filename(
         notification.reference,
         notification.service.crown,
-        is_scan_letter=precompiled,
+        is_scan_letter=precompiled or notification.key_type == KEY_TYPE_TEST,
         postage=notification.postage
     )
 
     if precompiled:
         bucket_name = current_app.config['LETTERS_SCAN_BUCKET_NAME']
+    elif notification.key_type == KEY_TYPE_TEST:
+        bucket_name = current_app.config['TEST_LETTERS_BUCKET_NAME']
     else:
         bucket_name = current_app.config['LETTERS_PDF_BUCKET_NAME']
 
@@ -110,6 +119,14 @@ def move_failed_pdf(source_filename, scan_error_type):
     _move_s3_object(scan_bucket, source_filename, scan_bucket, target_filename)
 
 
+def copy_redaction_failed_pdf(source_filename):
+    scan_bucket = current_app.config['LETTERS_SCAN_BUCKET_NAME']
+
+    target_filename = 'REDACTION_FAILURE/' + source_filename
+
+    _copy_s3_object(scan_bucket, source_filename, scan_bucket, target_filename)
+
+
 def move_error_pdf_to_scan_bucket(source_filename):
     scan_bucket = current_app.config['LETTERS_SCAN_BUCKET_NAME']
     error_file = 'ERROR/' + source_filename
@@ -121,6 +138,15 @@ def move_scan_to_invalid_pdf_bucket(source_filename):
     scan_bucket = current_app.config['LETTERS_SCAN_BUCKET_NAME']
     invalid_pdf_bucket = current_app.config['INVALID_PDF_BUCKET_NAME']
     _move_s3_object(scan_bucket, source_filename, invalid_pdf_bucket, source_filename)
+
+
+def move_uploaded_pdf_to_letters_bucket(source_filename, upload_filename):
+    _move_s3_object(
+        source_bucket=current_app.config['TRANSIENT_UPLOADED_LETTERS'],
+        source_filename=source_filename,
+        target_bucket=current_app.config['LETTERS_PDF_BUCKET_NAME'],
+        target_filename=upload_filename
+    )
 
 
 def get_file_names_from_error_bucket():
@@ -163,6 +189,22 @@ def _move_s3_object(source_bucket, source_filename, target_bucket, target_filena
         source_bucket, source_filename, target_bucket, target_filename))
 
 
+def _copy_s3_object(source_bucket, source_filename, target_bucket, target_filename):
+    s3 = boto3.resource('s3')
+    copy_source = {'Bucket': source_bucket, 'Key': source_filename}
+
+    target_bucket = s3.Bucket(target_bucket)
+    obj = target_bucket.Object(target_filename)
+
+    # Tags are copied across but the expiration time is reset in the destination bucket
+    # e.g. if a file has 5 days left to expire on a ONE_WEEK retention in the source bucket,
+    # in the destination bucket the expiration time will be reset to 7 days left to expire
+    obj.copy(copy_source, ExtraArgs={'ServerSideEncryption': 'AES256'})
+
+    current_app.logger.info("Copied letter PDF: {}/{} to {}/{}".format(
+        source_bucket, source_filename, target_bucket, target_filename))
+
+
 def letter_print_day(created_at):
     bst_print_datetime = convert_utc_to_local_timezone(created_at) + timedelta(hours=6, minutes=30)
     bst_print_date = bst_print_datetime.date()
@@ -174,3 +216,10 @@ def letter_print_day(created_at):
     else:
         print_date = bst_print_datetime.strftime('%d %B').lstrip('0')
         return 'on {}'.format(print_date)
+
+
+def get_page_count(pdf):
+    pages = pdf_page_count(io.BytesIO(pdf))
+    pages_per_sheet = 2
+    billable_units = math.ceil(pages / pages_per_sheet)
+    return billable_units
