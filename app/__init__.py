@@ -20,6 +20,7 @@ from app.celery.celery import NotifyCelery
 from app.clients import Clients
 from app.clients.document_download import DocumentDownloadClient
 from app.clients.email.aws_ses import AwsSesClient
+from app.clients.email.sendgrid_client import SendGridClient
 from app.clients.sms.firetext import FiretextClient
 from app.clients.sms.loadtesting import LoadtestingClient
 from app.clients.sms.mmg import MMGClient
@@ -55,6 +56,7 @@ firetext_client = FiretextClient()
 loadtest_client = LoadtestingClient()
 mmg_client = MMGClient()
 aws_ses_client = AwsSesClient()
+send_grid_client = SendGridClient()
 aws_sns_client = AwsSnsClient()
 twilio_sms_client = TwilioSMSClient(
     account_sid=os.getenv('TWILIO_ACCOUNT_SID'),
@@ -95,6 +97,7 @@ def create_app(application):
     mmg_client.init_app(application, statsd_client=statsd_client)
     aws_sns_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config['AWS_REGION'], statsd_client=statsd_client)
+    send_grid_client.init_app(application.config['SENDGRID_API_KEY'], statsd_client=statsd_client)
     twilio_sms_client.init_app(
         logger=application.logger,
         callback_notify_url_host=application.config["API_HOST_NAME"]
@@ -106,7 +109,7 @@ def create_app(application):
     document_download_client.init_app(application)
     clients.init_app(
         sms_clients=[firetext_client, mmg_client, aws_sns_client, loadtest_client, twilio_sms_client],
-        email_clients=[aws_ses_client]
+        email_clients=[aws_ses_client, send_grid_client]
     )
 
     register_blueprint(application)
@@ -139,6 +142,7 @@ def register_blueprint(application):
     from app.celery.process_ses_receipts_tasks import ses_callback_blueprint
     from app.notifications.notifications_sms_callback import sms_callback_blueprint
     from app.notifications.notifications_letter_callback import letter_callback_blueprint
+    from app.notifications.notifications_email_callback import email_callback_blueprint
     from app.authentication.auth import requires_admin_auth, requires_auth, requires_no_auth
     from app.letters.rest import letter_job
     from app.billing.rest import billing_blueprint
@@ -168,6 +172,9 @@ def register_blueprint(application):
     # TODO: make sure research mode can still trigger sms callbacks, then re-enable this
     sms_callback_blueprint.before_request(requires_no_auth)
     application.register_blueprint(sms_callback_blueprint)
+
+    email_callback_blueprint.before_request(requires_no_auth)
+    application.register_blueprint(email_callback_blueprint)
 
     # inbound sms
     receive_notifications_blueprint.before_request(requires_no_auth)
