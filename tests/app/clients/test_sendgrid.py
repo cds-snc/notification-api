@@ -1,7 +1,7 @@
 import pytest
 
 from app import send_grid_client
-from app.clients.email.sendgrid import get_sendgrid_responses, SendGridClientException
+from app.clients.email.sendgrid_client import get_sendgrid_responses, SendGridClientException
 
 
 def test_should_return_correct_response_details():
