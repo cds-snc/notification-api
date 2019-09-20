@@ -7,6 +7,7 @@ from freezegun import freeze_time
 from moto import mock_s3
 
 from app.letters.utils import (
+    copy_redaction_failed_pdf,
     get_bucket_name_and_prefix_for_notification,
     get_letter_pdf_filename,
     get_letter_pdf,
@@ -27,6 +28,7 @@ def _sample_precompiled_letter_notification(sample_letter_notification):
     sample_letter_notification.reference = 'foo'
     with freeze_time(FROZEN_DATE_TIME):
         sample_letter_notification.created_at = datetime.utcnow()
+        sample_letter_notification.updated_at = datetime.utcnow()
     return sample_letter_notification
 
 
@@ -43,12 +45,40 @@ def _sample_precompiled_letter_notification_using_test_key(sample_precompiled_le
 @pytest.mark.skip(reason="Letter feature")
 def test_get_bucket_name_and_prefix_for_notification_valid_notification(sample_notification, created_at, folder):
     sample_notification.created_at = created_at
+    sample_notification.updated_at = created_at
 
     bucket, bucket_prefix = get_bucket_name_and_prefix_for_notification(sample_notification)
 
     assert bucket == current_app.config['LETTERS_PDF_BUCKET_NAME']
     assert bucket_prefix == '{folder}/NOTIFY.{reference}'.format(
         folder=folder,
+        reference=sample_notification.reference
+    ).upper()
+
+
+def test_get_bucket_name_and_prefix_for_notification_get_from_sent_at_date(sample_notification):
+    sample_notification.created_at = datetime(2019, 8, 1, 17, 35)
+    sample_notification.sent_at = datetime(2019, 8, 2, 17, 45)
+
+    bucket, bucket_prefix = get_bucket_name_and_prefix_for_notification(sample_notification)
+
+    assert bucket == current_app.config['LETTERS_PDF_BUCKET_NAME']
+    assert bucket_prefix == '{folder}/NOTIFY.{reference}'.format(
+        folder='2019-08-02',
+        reference=sample_notification.reference
+    ).upper()
+
+
+def test_get_bucket_name_and_prefix_for_notification_from_created_at_date(sample_notification):
+    sample_notification.created_at = datetime(2019, 8, 1, 12, 00)
+    sample_notification.updated_at = datetime(2019, 8, 2, 12, 00)
+    sample_notification.sent_at = datetime(2019, 8, 3, 12, 00)
+
+    bucket, bucket_prefix = get_bucket_name_and_prefix_for_notification(sample_notification)
+
+    assert bucket == current_app.config['LETTERS_PDF_BUCKET_NAME']
+    assert bucket_prefix == '{folder}/NOTIFY.{reference}'.format(
+        folder='2019-08-03',
         reference=sample_notification.reference
     ).upper()
 
@@ -63,6 +93,16 @@ def test_get_bucket_name_and_prefix_for_notification_precompiled_letter_using_te
     assert bucket == current_app.config['TEST_LETTERS_BUCKET_NAME']
     assert bucket_prefix == 'NOTIFY.{}'.format(
         sample_precompiled_letter_notification_using_test_key.reference).upper()
+
+
+@freeze_time(FROZEN_DATE_TIME)
+def test_get_bucket_name_and_prefix_for_notification_templated_letter_using_test_key(sample_letter_notification):
+    sample_letter_notification.key_type = KEY_TYPE_TEST
+
+    bucket, bucket_prefix = get_bucket_name_and_prefix_for_notification(sample_letter_notification)
+
+    assert bucket == current_app.config['TEST_LETTERS_BUCKET_NAME']
+    assert bucket_prefix == 'NOTIFY.{}'.format(sample_letter_notification.reference).upper()
 
 
 @freeze_time(FROZEN_DATE_TIME)
@@ -250,6 +290,24 @@ def test_move_failed_pdf_scan_failed(notify_api):
 
     assert 'FAILURE/' + filename in [o.key for o in bucket.objects.all()]
     assert filename not in [o.key for o in bucket.objects.all()]
+
+
+@mock_s3
+@freeze_time(FROZEN_DATE_TIME)
+def test_copy_redaction_failed_pdf(notify_api):
+    filename = 'test.pdf'
+    bucket_name = current_app.config['LETTERS_SCAN_BUCKET_NAME']
+
+    conn = boto3.resource('s3', region_name='eu-west-1')
+    bucket = conn.create_bucket(Bucket=bucket_name)
+
+    s3 = boto3.client('s3', region_name='eu-west-1')
+    s3.put_object(Bucket=bucket_name, Key=filename, Body=b'pdf_content')
+
+    copy_redaction_failed_pdf(filename)
+
+    assert 'REDACTION_FAILURE/' + filename in [o.key for o in bucket.objects.all()]
+    assert filename in [o.key for o in bucket.objects.all()]
 
 
 @pytest.mark.parametrize("freeze_date, expected_folder_name",
