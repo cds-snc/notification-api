@@ -6,7 +6,7 @@ from flask import json
 from flask import request, jsonify
 
 from app.errors import InvalidRequest, register_errors
-from app.clients.email.sendgrid import get_sendgrid_responses
+from app.clients.email.sendgrid_client import get_sendgrid_responses
 from app import statsd_client
 from app.dao import notifications_dao
 
