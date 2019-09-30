@@ -441,7 +441,7 @@ def send_support_email(user_id):
 @user_blueprint.route('/<uuid:user_id>/branding-request', methods=['POST'])
 def send_branding_request(user_id):
     to, errors = branding_request_data_schema.load(request.get_json())
-    template = dao_get_template_by_id(current_app.config['CONTACT_US_TEMPLATE_ID'])
+    template = dao_get_template_by_id(current_app.config['BRANDING_REQUEST_TEMPLATE_ID'])
     service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
 
     saved_notification = persist_notification(
