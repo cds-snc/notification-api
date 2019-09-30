@@ -438,7 +438,7 @@ def send_support_email(user_id):
 
     return jsonify({}), 204
 
-
+@user_blueprint.route('/<uuid:user_id>/branding-request', methods=['POST'])
 def send_branding_request(user_id):
     to, errors = branding_request_data_schema.load(request.get_json())
     template = dao_get_template_by_id(current_app.config['CONTACT_US_TEMPLATE_ID'])
