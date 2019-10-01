@@ -450,7 +450,7 @@ def send_branding_request(user_id):
         recipient=to['email'],
         service=service,
         personalisation={
-            'email': to['email'],
+            'user': to['email'],
             'serviceID': to['serviceID'],
             'filename': to['filename']
         },
@@ -459,7 +459,6 @@ def send_branding_request(user_id):
         key_type=KEY_TYPE_NORMAL,
         reply_to_text=service.get_default_reply_to_email_address()
     )
-
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
     return jsonify({}), 204
