@@ -52,19 +52,20 @@ requests[security]
 pycryptodome
 
 git+https://bitbucket.org/cse-assemblyline/assemblyline_client.git@v3.7.3#egg=assemblyline_client==v3.7.3
+
 ## The following requirements were added by pip freeze:
-alembic==1.1.0
+alembic==1.2.1
 amqp==1.4.9
 anyjson==0.3.3
 asn1crypto==0.24.0
-attrs==19.1.0
-awscli==1.16.240
+attrs==19.2.0
+awscli==1.16.250
 bcrypt==3.1.7
 billiard==3.3.0.23
 bleach==3.1.0
 blinker==1.4
 boto3==1.6.16
-botocore==1.12.230
+botocore==1.12.240
 certifi==2019.9.11
 chardet==3.0.4
 Click==7.0
@@ -90,7 +91,7 @@ pyasn1==0.4.7
 pycparser==2.19
 PyPDF2==1.26.0
 pyrsistent==0.15.4
-PySocks==1.7.0
+PySocks==1.7.1
 python-dateutil==2.8.0
 python-editor==1.0.4
 python-http-client==3.2.1
@@ -105,7 +106,7 @@ six==1.12.0
 smartypants==2.0.1
 socketIO-client==0.5.6
 statsd==3.3.0
-urllib3==1.25.3
+urllib3==1.25.6
 webencodings==0.5.1
 websocket-client==0.56.0
-Werkzeug==0.15.6
+Werkzeug==0.16.0
