@@ -53,6 +53,7 @@ from app.notifications.process_notifications import (
 from app.schemas import (
     email_data_request_schema,
     support_email_data_schema,
+    branding_request_data_schema,
     partial_email_data_request_schema,
     create_user_schema,
     user_update_schema_load_json,
@@ -433,6 +434,32 @@ def send_support_email(user_id):
         reply_to_text=service.get_default_reply_to_email_address()
     )
 
+    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+
+    return jsonify({}), 204
+
+
+@user_blueprint.route('/<uuid:user_id>/branding-request', methods=['POST'])
+def send_branding_request(user_id):
+    to, errors = branding_request_data_schema.load(request.get_json())
+    template = dao_get_template_by_id(current_app.config['BRANDING_REQUEST_TEMPLATE_ID'])
+    service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
+
+    saved_notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        recipient=to['email'],
+        service=service,
+        personalisation={
+            'user': to['email'],
+            'serviceID': to['serviceID'],
+            'filename': to['filename']
+        },
+        notification_type=template.template_type,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+        reply_to_text=service.get_default_reply_to_email_address()
+    )
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
     return jsonify({}), 204
