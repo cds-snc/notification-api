@@ -38,6 +38,6 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         with:
-          args: set image deployment.apps/api api=${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:latest --namespace=notification-canada-ca
+          args: set image deployment.apps/api api=${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:latest -n=notification-canada-ca --kubeconfig=/github/home/.kube/config
 
 
