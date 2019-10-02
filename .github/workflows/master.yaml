@@ -3,7 +3,6 @@ on:
   push:
     branches:    
       - master
-
 jobs:
   build:
     name: build and deploy
@@ -12,21 +11,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v1
       - name: AWS Decrypt
-        uses: actions/aws/cli@master
+        uses: docker://gcr.io/cdssnc/aws:latest
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         with:
           entrypoint: sh
           args: -l -c "aws kms decrypt --ciphertext-blob fileb://.env.enc.aws --output text --query Plaintext --region us-east-1 | base64 --decode > .env"
-      - name: AWS Login
-        uses: actions/aws/cli@master
+      - name: AWS Docker
+        uses: docker://gcr.io/cdssnc/aws:latest
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         with:
           entrypoint: sh
           args: -l -c "eval $(aws ecr get-login --no-include-email --region us-east-1 | sed 's|https://||')"
+      - name: EKS
+        uses: docker://gcr.io/cdssnc/aws:latest
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        with:
+          args: eks --region us-east-1 update-kubeconfig --name notification-alpha-canada-ca
       - name: Build
         uses: actions/docker/cli@master
         with:
@@ -35,5 +41,16 @@ jobs:
         uses: actions/docker/cli@master
         with:
           args: push ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:${{ github.sha }}
+      - name: Push latest
+        uses: actions/docker/cli@master
+        with:
+          args: push ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:latest
+      - name: Apply
+        uses: docker://gcr.io/cdssnc/aws-kubectl:latest
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        with:
+          args: set image deployment.apps/api api=${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:${{ github.sha }} -n=notification-canada-ca --kubeconfig=/github/home/.kube/config
 
 
