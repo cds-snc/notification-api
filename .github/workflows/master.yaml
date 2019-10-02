@@ -32,25 +32,12 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         with:
           args: eks --region us-east-1 update-kubeconfig --name notification-alpha-canada-ca
-      - name: Build
-        uses: actions/docker/cli@master
-        with:
-          args: build -t ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:${{ github.sha }} -t ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:latest -f ci/Dockerfile .
-      - name: Push short
-        uses: actions/docker/cli@master
-        with:
-          args: push ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:${{ github.sha }}
-      - name: Push latest
-        uses: actions/docker/cli@master
-        with:
-          args: push ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:latest
-
       - name: Apply
-        uses: docker://gcr.io/cloud-builders/kubectl
+        uses: actions/aws/kubectl@master
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         with:
-          args: set image deployment.apps/api api=${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:${{ github.sha }} --namespace=notification-canada-ca
+          args: set image deployment.apps/api api=${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:latest --namespace=notification-canada-ca
 
 
