@@ -33,7 +33,7 @@ jobs:
         with:
           args: eks --region us-east-1 update-kubeconfig --name notification-alpha-canada-ca
       - name: Apply
-        uses: actions/aws/kubectl@master
+        uses: docker://gcr.io/cdssnc/aws-kubectl
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
