@@ -734,7 +734,7 @@ def test_send_email_to_provider_should_format_email_address(sample_email_notific
 
 def test_notification_can_have_document_attachment_without_mlwr_sid(sample_email_template, mocker):
     send_mock = mocker.patch('app.aws_ses_client.send_email', return_value='reference')
-    mlwr_mock = mocker.patch('app.check_mlwr_score')
+    mlwr_mock = mocker.patch('app.delivery.send_to_providers.check_mlwr')
     personalisation = {
         "file": {"document": {"id": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
 
@@ -750,7 +750,7 @@ def test_notification_can_have_document_attachment_without_mlwr_sid(sample_email
 
 def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(sample_email_template, mocker):
     send_mock = mocker.patch('app.aws_ses_client.send_email', return_value='reference')
-    mlwr_mock = mocker.patch('app.check_mlwr_score')
+    mlwr_mock = mocker.patch('app.delivery.send_to_providers.check_mlwr')
     personalisation = {
         "file": {
             "document":
@@ -768,7 +768,7 @@ def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(sample_e
 
 def test_notification_raises_a_retry_exception_if_mlwr_state_is_missing(sample_email_template, mocker):
     mocker.patch('app.aws_ses_client.send_email', return_value='reference')
-    mocker.patch('app.check_mlwr_score', return_value={})
+    mocker.patch('app.delivery.send_to_providers.check_mlwr', return_value={})
     personalisation = {
         "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
 
@@ -782,7 +782,9 @@ def test_notification_raises_a_retry_exception_if_mlwr_state_is_missing(sample_e
 
 def test_notification_raises_a_retry_exception_if_mlwr_state_is_not_complete(sample_email_template, mocker):
     mocker.patch('app.aws_ses_client.send_email', return_value='reference')
-    mocker.patch('app.check_mlwr_score', return_value={"state": "foo"})
+    mocker.patch(
+        'app.delivery.send_to_providers.check_mlwr',
+        return_value={"state": "foo"})
     personalisation = {
         "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
 
@@ -796,7 +798,9 @@ def test_notification_raises_a_retry_exception_if_mlwr_state_is_not_complete(sam
 
 def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_is_500(sample_email_template, mocker):
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
-    mocker.patch('app.check_mlwr_score', return_value={"state": "completed", "submission": {"max_score": 500}})
+    mocker.patch(
+        'app.delivery.send_to_providers.check_mlwr',
+        return_value={"state": "completed", "submission": {"max_score": 500}})
     personalisation = {
         "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
 
@@ -812,7 +816,9 @@ def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_is_5
 
 def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_above_500(sample_email_template, mocker):
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
-    mocker.patch('app.check_mlwr_score', return_value={"state": "completed", "submission": {"max_score": 501}})
+    mocker.patch(
+        'app.delivery.send_to_providers.check_mlwr',
+        return_value={"state": "completed", "submission": {"max_score": 501}})
     personalisation = {
         "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
 

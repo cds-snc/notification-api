@@ -9,7 +9,7 @@ from notifications_utils.recipients import (
 )
 from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTemplate, SMSMessageTemplate
 
-from app import clients, statsd_client, create_uuid, check_mlwr_score
+from app import clients, statsd_client, create_uuid
 from app.dao.notifications_dao import (
     dao_update_notification
 )
@@ -31,6 +31,7 @@ from app.models import (
     NOTIFICATION_SENT,
     NOTIFICATION_SENDING
 )
+from app.clients.mlwr.mlwr import check_mlwr_score
 
 
 def send_sms_to_provider(notification):
@@ -100,7 +101,7 @@ def send_email_to_provider(notification):
                     'mlwr_sid' in personalisation_data[key]['document'] and
                     personalisation_data[key]['document']['mlwr_sid'] != "false"):
 
-                mlwr_result = check_mlwr_score(personalisation_data[key]['document']['mlwr_sid'])
+                mlwr_result = check_mlwr(personalisation_data[key]['document']['mlwr_sid'])
 
                 if "state" in mlwr_result and mlwr_result["state"] == "completed":
                     # Update notification that it contains malware
@@ -233,3 +234,7 @@ def malware_failure(notification):
         "Send {} for notification id {} to provider is not allowed. Notification contains malware".format(
             notification.notification_type,
             notification.id))
+
+
+def check_mlwr(sid):
+    return check_mlwr_score(sid)
