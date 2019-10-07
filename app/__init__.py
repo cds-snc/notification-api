@@ -26,7 +26,6 @@ from app.clients.sms.loadtesting import LoadtestingClient
 from app.clients.sms.mmg import MMGClient
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.clients.sms.twilio import TwilioSMSClient
-from app.clients.mlwr.mlwr import check_mlwr_score
 from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
 from app.encryption import Encryption
 
@@ -326,7 +325,3 @@ def process_user_agent(user_agent_string):
         return "non-notify-user-agent"
     else:
         return "unknown"
-
-
-def check_mlwr_score(sid):  # noqa: F811
-    return check_mlwr_score(sid)
