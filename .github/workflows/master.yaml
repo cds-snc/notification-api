@@ -34,17 +34,20 @@ jobs:
         with:
           args: eks --region us-east-1 update-kubeconfig --name notification-alpha-canada-ca
       - name: Build
-        uses: actions/docker/cli@master
+        uses: docker://docker:stable
         with:
-          args: build -t ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:${{ github.sha }} -t ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:latest -f ci/Dockerfile .
+          entrypoint: sh
+          args: -c "docker build -t ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:${{ github.sha }} -t ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:latest -f ci/Dockerfile ."
       - name: Push short
-        uses: actions/docker/cli@master
+        uses: docker://docker:stable
         with:
-          args: push ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:${{ github.sha }}
+          entrypoint: sh
+          args: -c "docker push ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:${{ github.sha }}"
       - name: Push latest
-        uses: actions/docker/cli@master
+        uses: docker://docker:stable
         with:
-          args: push ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:latest
+          entrypoint: sh
+          args: -c "docker push ${{ secrets.AWS_REGISTRY }}/notification-canada-ca/api:latest"
       - name: Apply API
         uses: docker://gcr.io/cdssnc/aws-kubectl:latest
         env:
