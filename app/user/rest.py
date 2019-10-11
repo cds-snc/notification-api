@@ -451,8 +451,9 @@ def send_branding_request(user_id):
         recipient=to['email'],
         service=service,
         personalisation={
-            'user': to['email'],
+            'email': to['email'],
             'serviceID': to['serviceID'],
+            'service_name': to['service_name'],
             'filename': to['filename']
         },
         notification_type=template.template_type,

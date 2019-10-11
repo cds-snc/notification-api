@@ -591,6 +591,7 @@ class BrandingRequestDataSchema(ma.Schema):
 
     email = fields.Str(required=True)
     serviceID = fields.Str(required=True)
+    service_name = fields.Str(required=True)
     filename = fields.Str(required=True)
 
     def __init__(self, partial_email=False):

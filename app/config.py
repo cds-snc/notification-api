@@ -387,7 +387,7 @@ class Development(Config):
 
     NOTIFY_ENVIRONMENT = 'development'
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-canada-ca")
-    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
+    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.alpha.canada.ca")
 
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", 'postgresql://postgres@localhost/notification_api')
     REDIS_URL = 'redis://localhost:6379/0'
@@ -404,7 +404,7 @@ class Development(Config):
 
 
 class Test(Development):
-    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "cdssandbox.xyz")
+    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.alpha.canada.ca")
     FROM_NUMBER = 'testing'
     NOTIFY_ENVIRONMENT = 'test'
     TESTING = True
