@@ -6,6 +6,7 @@ import sentry_sdk
 
 from flask import Flask
 from sentry_sdk.integrations.flask import FlaskIntegration
+from werkzeug.contrib.fixers import ProxyFix
 
 from app import create_app
 
@@ -19,4 +20,5 @@ sentry_sdk.init(
 )
 
 application = Flask('app')
+application.wsgi_app = ProxyFix(application.wsgi_app)
 create_app(application)
