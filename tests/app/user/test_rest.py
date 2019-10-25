@@ -63,7 +63,7 @@ def test_get_user(admin_request, sample_service, sample_organisation):
     assert fetched['mobile_number'] == sample_user.mobile_number
     assert fetched['email_address'] == sample_user.email_address
     assert fetched['state'] == sample_user.state
-    assert fetched['auth_type'] == SMS_AUTH_TYPE
+    assert fetched['auth_type'] == EMAIL_AUTH_TYPE
     assert fetched['permissions'].keys() == {str(sample_service.id)}
     assert fetched['services'] == [str(sample_service.id)]
     assert fetched['organisations'] == [str(sample_organisation.id)]
@@ -137,7 +137,7 @@ def test_post_user_without_auth_type(admin_request, notify_db_session):
 
     user = User.query.filter_by(email_address='user@digital.cabinet-office.gov.uk').first()
     assert json_resp['data']['id'] == str(user.id)
-    assert user.auth_type == SMS_AUTH_TYPE
+    assert user.auth_type == EMAIL_AUTH_TYPE
 
 
 def test_post_user_missing_attribute_email(client, notify_db, notify_db_session):
@@ -856,15 +856,15 @@ def test_update_user_auth_type(admin_request, sample_user, account_change_templa
     mocker.patch('app.user.rest.persist_notification')
     mocker.patch('app.user.rest.send_notification_to_queue')
 
-    assert sample_user.auth_type == 'sms_auth'
+    assert sample_user.auth_type == 'email_auth'
     resp = admin_request.post(
         'user.update_user_attribute',
         user_id=sample_user.id,
-        _data={'auth_type': 'email_auth'},
+        _data={'auth_type': 'sms_auth'},
     )
 
     assert resp['data']['id'] == str(sample_user.id)
-    assert resp['data']['auth_type'] == 'email_auth'
+    assert resp['data']['auth_type'] == 'sms_auth'
 
 
 def test_can_set_email_auth_and_remove_mobile_at_same_time(admin_request, sample_user, account_change_template, mocker):

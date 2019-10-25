@@ -1,7 +1,7 @@
 import json
 import pytest
 
-from app.models import Notification, SMS_AUTH_TYPE, EMAIL_AUTH_TYPE
+from app.models import Notification, EMAIL_AUTH_TYPE
 from tests import create_authorization_header
 
 
@@ -85,7 +85,7 @@ def test_create_invited_user_without_auth_type(admin_request, sample_service, mo
         _expected_status=201
     )
 
-    assert json_resp['data']['auth_type'] == SMS_AUTH_TYPE
+    assert json_resp['data']['auth_type'] == EMAIL_AUTH_TYPE
 
 
 def test_create_invited_user_invalid_email(client, sample_service, mocker, fake_uuid):
@@ -146,7 +146,7 @@ def test_get_all_invited_users_by_service(client, notify_db, notify_db_session, 
     for invite in json_resp['data']:
         assert invite['service'] == str(sample_service.id)
         assert invite['from_user'] == str(invite_from.id)
-        assert invite['auth_type'] == SMS_AUTH_TYPE
+        assert invite['auth_type'] == EMAIL_AUTH_TYPE
         assert invite['id']
 
 
