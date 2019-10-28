@@ -24,11 +24,7 @@ from app.dao.templates_dao import dao_get_template_by_id, dao_redact_template
 from app.dao.service_permissions_dao import dao_add_service_permission
 
 from tests import create_authorization_header
-from tests.app.conftest import (
-    sample_template as create_sample_template,
-    sample_template_without_email_permission,
-    sample_template_without_letter_permission,
-    sample_template_without_sms_permission)
+from tests.app.conftest import sample_template as create_sample_template
 from tests.app.db import (
     create_service, create_letter_contact, create_template, create_notification,
     create_template_folder,
@@ -248,14 +244,21 @@ def test_should_raise_error_on_create_if_no_permission(
     assert json_resp['message'] == expected_error
 
 
-@pytest.mark.parametrize('template_factory, expected_error', [
-    (sample_template_without_sms_permission, {'template_type': ['Updating text message templates is not allowed']}),
-    (sample_template_without_email_permission, {'template_type': ['Updating email templates is not allowed']}),
-    (sample_template_without_letter_permission, {'template_type': ['Updating letter templates is not allowed']})
+@pytest.mark.parametrize('template_type, permissions, expected_error', [
+    (SMS_TYPE, [EMAIL_TYPE], {'template_type': ['Updating text message templates is not allowed']}),
+    (EMAIL_TYPE, [LETTER_TYPE], {'template_type': ['Updating email templates is not allowed']}),
+    (LETTER_TYPE, [SMS_TYPE], {'template_type': ['Updating letter templates is not allowed']})
 ])
 def test_should_be_error_on_update_if_no_permission(
-        client, sample_user, template_factory, expected_error, notify_db, notify_db_session):
-    template_without_permission = template_factory(notify_db, notify_db_session)
+    client,
+    sample_user,
+    notify_db_session,
+    template_type,
+    permissions,
+    expected_error,
+):
+    service = create_service(service_permissions=permissions)
+    template_without_permission = create_template(service, template_type=template_type)
     data = {
         'content': 'new template content',
         'created_by': str(sample_user.id)
@@ -644,7 +647,9 @@ def test_should_return_404_if_no_templates_for_service_with_id(client, sample_se
 
 
 def test_create_400_for_over_limit_content(client, notify_api, sample_user, sample_service, fake_uuid):
-    content = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(SMS_CHAR_COUNT_LIMIT + 1))
+    content = ''.join(
+        random.choice(string.ascii_uppercase + string.digits) for _ in range(SMS_CHAR_COUNT_LIMIT + 1)  # nosec
+    )
     data = {
         'name': 'too big template',
         'template_type': SMS_TYPE,
@@ -669,8 +674,9 @@ def test_create_400_for_over_limit_content(client, notify_api, sample_user, samp
 
 def test_update_400_for_over_limit_content(client, notify_api, sample_user, sample_template):
     json_data = json.dumps({
-        'content': ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(
-            SMS_CHAR_COUNT_LIMIT + 1)),
+        'content': ''.join(
+            random.choice(string.ascii_uppercase + string.digits) for _ in range(SMS_CHAR_COUNT_LIMIT + 1)  # nosec
+        ),
         'created_by': str(sample_user.id)
     })
     auth_header = create_authorization_header()
