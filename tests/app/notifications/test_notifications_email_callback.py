@@ -1,21 +1,12 @@
-from datetime import datetime
-
 from flask import json
 
 from app.dao.notifications_dao import get_notification_by_id
 
-from tests.app.conftest import sample_notification as create_sample_notification
+from tests.app.db import create_notification
 
 
-def test_process_sendgrid_response(client, notify_db, notify_db_session, sample_email_template, mocker):
-    notification = create_sample_notification(
-        notify_db,
-        notify_db_session,
-        template=sample_email_template,
-        reference='ref',
-        status='created',
-        sent_at=datetime.utcnow()
-    )
+def test_process_sendgrid_response(client, sample_email_template):
+    notification = create_notification(template=sample_email_template, reference='ref')
 
     data = json.dumps([{
         "sg_message_id": "ref.abcd",
@@ -31,15 +22,8 @@ def test_process_sendgrid_response(client, notify_db, notify_db_session, sample_
     assert get_notification_by_id(notification.id).status == 'sent'
 
 
-def test_process_sendgrid_response_returs_a_400(client, notify_db, notify_db_session, sample_email_template, mocker):
-    create_sample_notification(
-        notify_db,
-        notify_db_session,
-        template=sample_email_template,
-        reference='ref',
-        status='created',
-        sent_at=datetime.utcnow()
-    )
+def test_process_sendgrid_response_returs_a_400(client, sample_email_template):
+    create_notification(template=sample_email_template, reference='ref')
 
     data = json.dumps([{
         "event": "delivered"

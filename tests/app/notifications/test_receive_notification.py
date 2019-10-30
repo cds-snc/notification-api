@@ -19,10 +19,9 @@ from app.notifications.receive_notifications import (
 from app.models import InboundSms, EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE
 from tests.conftest import set_config, set_config_values
 from tests.app.db import create_inbound_number, create_service, create_service_with_inbound_number
-from tests.app.conftest import sample_service
 
 
-def firetext_post(client, data, auth=True, password='testkey'):
+def firetext_post(client, data, auth=True, password='testkey'):  # nosec
     headers = [
         ('Content-Type', 'application/x-www-form-urlencoded'),
     ]
@@ -38,7 +37,7 @@ def firetext_post(client, data, auth=True, password='testkey'):
     )
 
 
-def mmg_post(client, data, auth=True, password='testkey'):
+def mmg_post(client, data, auth=True, password='testkey'):  # nosec
     headers = [
         ('Content-Type', 'application/json'),
     ]
@@ -140,11 +139,10 @@ def test_receive_notification_from_twilio_without_permissions_does_not_persist(
 
 
 def test_twilio_receive_notification_without_permissions_does_not_create_inbound_even_with_inbound_number_set(
-        client, mocker, notify_db, notify_db_session):
+        client, mocker, sample_service):
     mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
 
-    service = sample_service(notify_db, notify_db_session, permissions=[SMS_TYPE])
-    create_inbound_number('+61412345678', service_id=service.id, active=True)
+    create_inbound_number('+61412345678', service_id=sample_service.id, active=True)
 
     mocked_send_inbound_sms = mocker.patch(
         "app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
@@ -361,9 +359,8 @@ def test_receive_notification_from_firetext_without_permissions_does_not_persist
 
 
 def test_receive_notification_without_permissions_does_not_create_inbound_even_with_inbound_number_set(
-        client, mocker, notify_db, notify_db_session):
-    service = sample_service(notify_db, notify_db_session, permissions=[SMS_TYPE])
-    inbound_number = create_inbound_number('1', service_id=service.id, active=True)
+        client, mocker, sample_service):
+    inbound_number = create_inbound_number('1', service_id=sample_service.id, active=True)
 
     mocked_send_inbound_sms = mocker.patch(
         "app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")

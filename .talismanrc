@@ -61,3 +61,5 @@ fileignoreconfig:
       checksum: fc23095eea0a9f6c4c1c7069e956dac3ccd11b2e5c1f68fff3d851a0ff468962
     - filename: load_testing/.envrc.example
       checksum: 81d609827d12e60a59d3f610dc14ff98dd199fcc64300db76083e66abdeadfae
+    - filename: tests/app/notifications/test_receive_notification.py
+      checksum: e6256ebbaae18a88377b49aab94cce35aa9491d5c54a812b176caae152499485

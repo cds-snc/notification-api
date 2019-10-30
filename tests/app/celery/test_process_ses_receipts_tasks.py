@@ -22,7 +22,6 @@ from tests.app.db import (
     ses_smtp_hard_bounce_callback,
     ses_smtp_soft_bounce_callback
 )
-from tests.app.conftest import sample_notification as create_sample_notification
 
 
 def test_notifications_ses_400_with_invalid_header(client):
@@ -136,7 +135,6 @@ def test_remove_email_from_bounce():
 
 def test_ses_callback_should_update_notification_status(
         client,
-        notify_db,
         notify_db_session,
         sample_email_template,
         mocker):
@@ -146,13 +144,10 @@ def test_ses_callback_should_update_notification_status(
         send_mock = mocker.patch(
             'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
         )
-        notification = create_sample_notification(
-            notify_db,
-            notify_db_session,
+        notification = create_notification(
             template=sample_email_template,
-            reference='ref',
             status='sending',
-            sent_at=datetime.utcnow()
+            reference='ref',
         )
         callback_api = create_service_callback_api(service=sample_email_template.service,
                                                    url="https://original_url.com")
@@ -213,7 +208,6 @@ def test_ses_callback_should_not_retry_if_notification_is_old(client, notify_db,
 
 def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
         client,
-        notify_db,
         notify_db_session,
         sample_email_template,
         mocker):
@@ -222,13 +216,10 @@ def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
         send_mock = mocker.patch(
             'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
         )
-        notification = create_sample_notification(
-            notify_db,
-            notify_db_session,
+        notification = create_notification(
             template=sample_email_template,
-            reference='ref',
             status='sending',
-            sent_at=datetime.utcnow()
+            reference='ref',
         )
 
         assert get_notification_by_id(notification.id).status == 'sending'
@@ -241,7 +232,6 @@ def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
 
 def test_ses_callback_should_update_multiple_notification_status_sent(
         client,
-        notify_db,
         notify_db_session,
         sample_email_template,
         mocker):
@@ -249,29 +239,21 @@ def test_ses_callback_should_update_multiple_notification_status_sent(
     send_mock = mocker.patch(
         'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
     )
-    create_sample_notification(
-        notify_db,
-        notify_db_session,
+    create_notification(
         template=sample_email_template,
+        status='sending',
         reference='ref1',
-        sent_at=datetime.utcnow(),
-        status='sending')
-
-    create_sample_notification(
-        notify_db,
-        notify_db_session,
+    )
+    create_notification(
         template=sample_email_template,
+        status='sending',
         reference='ref2',
-        sent_at=datetime.utcnow(),
-        status='sending')
-
-    create_sample_notification(
-        notify_db,
-        notify_db_session,
+    )
+    create_notification(
         template=sample_email_template,
+        status='sending',
         reference='ref3',
-        sent_at=datetime.utcnow(),
-        status='sending')
+    )
     create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
     assert process_ses_results(ses_notification_callback(reference='ref1'))
     assert process_ses_results(ses_notification_callback(reference='ref2'))
@@ -280,20 +262,16 @@ def test_ses_callback_should_update_multiple_notification_status_sent(
 
 
 def test_ses_callback_should_set_status_to_temporary_failure(client,
-                                                             notify_db,
                                                              notify_db_session,
                                                              sample_email_template,
                                                              mocker):
     send_mock = mocker.patch(
         'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
     )
-    notification = create_sample_notification(
-        notify_db,
-        notify_db_session,
+    notification = create_notification(
         template=sample_email_template,
-        reference='ref',
         status='sending',
-        sent_at=datetime.utcnow()
+        reference='ref',
     )
     create_service_callback_api(service=notification.service, url="https://original_url.com")
     assert get_notification_by_id(notification.id).status == 'sending'
@@ -303,20 +281,16 @@ def test_ses_callback_should_set_status_to_temporary_failure(client,
 
 
 def test_ses_callback_should_set_status_to_permanent_failure(client,
-                                                             notify_db,
                                                              notify_db_session,
                                                              sample_email_template,
                                                              mocker):
     send_mock = mocker.patch(
         'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
     )
-    notification = create_sample_notification(
-        notify_db,
-        notify_db_session,
+    notification = create_notification(
         template=sample_email_template,
-        reference='ref',
         status='sending',
-        sent_at=datetime.utcnow()
+        reference='ref',
     )
     create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
 
