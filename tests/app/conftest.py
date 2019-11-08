@@ -21,6 +21,7 @@ from app.dao.services_dao import (dao_create_service, dao_add_user_to_service)
 from app.dao.templates_dao import dao_create_template
 from app.dao.users_dao import create_secret_code, create_user_code
 from app.dao.fido2_key_dao import save_fido2_key
+from app.dao.login_event_dao import save_login_event
 from app.history_meta import create_history
 
 
@@ -31,6 +32,7 @@ from app.models import (
     ApiKey,
     Fido2Key,
     Job,
+    LoginEvent,
     Organisation,
     Notification,
     NotificationHistory,
@@ -1139,6 +1141,14 @@ def sample_fido2_key(notify_db, notify_db_session):
     key = Fido2Key(name='sample key', key="abcd", user_id=user.id)
     save_fido2_key(key)
     return key
+
+@pytest.fixture
+def sample_login_event(notify_db, notify_db_session):
+    user = create_user()
+    event = LoginEvent(data={"ip": "8.8.8.8", "user-agent": "GoogleBot"}, user_id=user.id)
+    save_login_event(event)
+    return event
+
 
 
 @pytest.fixture

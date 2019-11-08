@@ -346,3 +346,9 @@ def test_fido2_key_serialization(sample_fido2_key):
     json = sample_fido2_key.serialize()
     assert json['name'] == sample_fido2_key.name
     assert json['created_at']
+
+def test_login_event_serialization(sample_login_event):
+    json = sample_login_event.serialize()
+    assert json['data'] == sample_login_event.data
+    assert json['created_at']
+

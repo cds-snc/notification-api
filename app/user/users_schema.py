@@ -5,9 +5,10 @@ post_verify_code_schema = {
     'properties': {
         'code': {'type': 'string'},
         'code_type': {'type': 'string'},
+        'header_data': {'type': 'stiring'},
     },
     'required': ['code', 'code_type'],
-    'additionalProperties': False
+    'additionalProperties': True
 }
 
 

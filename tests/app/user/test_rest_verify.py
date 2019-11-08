@@ -9,6 +9,7 @@ import pytest
 from flask import url_for, current_app
 from freezegun import freeze_time
 
+from app.dao.login_event_dao import list_login_events
 from app.dao.users_dao import create_user_code
 from app.dao.services_dao import dao_update_service, dao_fetch_service_by_id
 from app.models import (
@@ -31,7 +32,8 @@ def test_user_verify_sms_code(client, sample_sms_code):
     assert sample_sms_code.user.current_session_id is None
     data = json.dumps({
         'code_type': sample_sms_code.code_type,
-        'code': sample_sms_code.txt_code})
+        'code': sample_sms_code.txt_code,
+        'login_data': {}})
     auth_header = create_authorization_header()
     resp = client.post(
         url_for('user.verify_user_code', user_id=sample_sms_code.user.id),
@@ -41,6 +43,26 @@ def test_user_verify_sms_code(client, sample_sms_code):
     assert VerifyCode.query.first().code_used
     assert sample_sms_code.user.logged_in_at == datetime.utcnow()
     assert sample_sms_code.user.current_session_id is not None
+
+
+@freeze_time('2016-01-01T12:00:00')
+def test_user_verify_sms_code_creates_login_event(client, sample_sms_code):
+    sample_sms_code.user.logged_in_at = datetime.utcnow() - timedelta(days=1)
+    assert not VerifyCode.query.first().code_used
+    assert sample_sms_code.user.current_session_id is None
+    data = json.dumps({
+        'code_type': sample_sms_code.code_type,
+        'code': sample_sms_code.txt_code,
+        'login_data': {}})
+    auth_header = create_authorization_header()
+    resp = client.post(
+        url_for('user.verify_user_code', user_id=sample_sms_code.user.id),
+        data=data,
+        headers=[('Content-Type', 'application/json'), auth_header])
+    assert resp.status_code == 204
+    
+    events = list_login_events(sample_sms_code.user.id)
+    assert len(events) == 1
 
 
 def test_user_verify_code_missing_code(client,
@@ -349,7 +371,8 @@ def test_user_verify_user_code_valid_code_resets_failed_login_count(client, samp
     sample_sms_code.user.failed_login_count = 1
     data = json.dumps({
         'code_type': sample_sms_code.code_type,
-        'code': sample_sms_code.txt_code})
+        'code': sample_sms_code.txt_code,
+        'login_data': {}})
     resp = client.post(
         url_for('user.verify_user_code', user_id=sample_sms_code.user.id),
         data=data,
@@ -454,7 +477,8 @@ def test_user_verify_email_code(admin_request, sample_user):
 
     data = {
         'code_type': 'email',
-        'code': magic_code
+        'code': magic_code,
+        'login_data': {}
     }
 
     admin_request.post(
