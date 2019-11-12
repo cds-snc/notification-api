@@ -32,8 +32,7 @@ def test_user_verify_sms_code(client, sample_sms_code):
     assert sample_sms_code.user.current_session_id is None
     data = json.dumps({
         'code_type': sample_sms_code.code_type,
-        'code': sample_sms_code.txt_code,
-        'login_data': {}})
+        'code': sample_sms_code.txt_code})
     auth_header = create_authorization_header()
     resp = client.post(
         url_for('user.verify_user_code', user_id=sample_sms_code.user.id),
