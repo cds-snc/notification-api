@@ -60,7 +60,7 @@ def test_user_verify_sms_code_creates_login_event(client, sample_sms_code):
         data=data,
         headers=[('Content-Type', 'application/json'), auth_header])
     assert resp.status_code == 204
-    
+
     events = list_login_events(sample_sms_code.user.id)
     assert len(events) == 1
 

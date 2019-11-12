@@ -1142,13 +1142,13 @@ def sample_fido2_key(notify_db, notify_db_session):
     save_fido2_key(key)
     return key
 
+
 @pytest.fixture
 def sample_login_event(notify_db, notify_db_session):
     user = create_user()
     event = LoginEvent(data={"ip": "8.8.8.8", "user-agent": "GoogleBot"}, user_id=user.id)
     save_login_event(event)
     return event
-
 
 
 @pytest.fixture

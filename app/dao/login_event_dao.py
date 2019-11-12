@@ -9,7 +9,7 @@ from app.dao.dao_utils import (
 def list_login_events(user_id):
     return LoginEvent.query.filter(
         LoginEvent.user_id == user_id
-    ).order_by(LoginEvent.created_at.asc()).all()
+    ).order_by(LoginEvent.created_at.desc()).limit(3).all()
 
 
 @transactional

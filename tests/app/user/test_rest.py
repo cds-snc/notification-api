@@ -11,6 +11,7 @@ import base64
 from app.models import (
     User,
     Fido2Key,
+    LoginEvent,
     Permission,
     MANAGE_SETTINGS,
     MANAGE_TEMPLATES,
@@ -19,6 +20,7 @@ from app.models import (
     EMAIL_AUTH_TYPE
 )
 from app.dao.fido2_key_dao import save_fido2_key, create_fido2_session
+from app.dao.login_event_dao import save_login_event
 from app.dao.permissions_dao import default_service_permissions
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from tests import create_authorization_header
@@ -1260,3 +1262,24 @@ def test_start_fido2_authentication(client, sample_service):
     data = base64.b64decode(data["data"])
     data = cbor.decode(data)
     assert data['publicKey']['rpId'] == "localhost"
+
+
+def test_list_login_events_for_a_user(client, sample_service):
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    event_one = LoginEvent(**{'user': sample_user, 'data': {}})
+    save_login_event(event_one)
+
+    event_two = LoginEvent(**{'user': sample_user, 'data': {}})
+    save_login_event(event_two)
+
+    response = client.get(
+        url_for("user.list_login_events_user", user_id=sample_user.id),
+        headers=[('Content-Type', 'application/json'), auth_header]
+    )
+
+    assert response.status_code == 200
+    assert list(
+        map(lambda o: o["id"], json.loads(response.get_data(as_text=True)))
+    ) == [str(event_two.id), str(event_one.id)]

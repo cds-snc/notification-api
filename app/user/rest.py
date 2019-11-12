@@ -23,6 +23,7 @@ from app.dao.fido2_key_dao import (
     get_fido2_session
 )
 from app.dao.login_event_dao import (
+    list_login_events,
     save_login_event
 )
 from app.dao.users_dao import (
@@ -671,6 +672,12 @@ def delete_fido2_keys_user(user_id, key_id):
     delete_fido2_key(user_id, key_id)
     _update_alert(user)
     return jsonify({"id": key_id})
+
+
+@user_blueprint.route('/<uuid:user_id>/login_events', methods=['GET'])
+def list_login_events_user(user_id):
+    data = list_login_events(user_id)
+    return jsonify(list(map(lambda o: o.serialize(), data)))
 
 
 def _create_reset_password_url(email):
