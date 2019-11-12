@@ -368,8 +368,7 @@ def test_user_verify_user_code_valid_code_resets_failed_login_count(client, samp
     sample_sms_code.user.failed_login_count = 1
     data = json.dumps({
         'code_type': sample_sms_code.code_type,
-        'code': sample_sms_code.txt_code,
-        'login_data': {}})
+        'code': sample_sms_code.txt_code})
     resp = client.post(
         url_for('user.verify_user_code', user_id=sample_sms_code.user.id),
         data=data,
@@ -474,8 +473,7 @@ def test_user_verify_email_code(admin_request, sample_user):
 
     data = {
         'code_type': 'email',
-        'code': magic_code,
-        'login_data': {}
+        'code': magic_code
     }
 
     admin_request.post(
