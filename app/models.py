@@ -2120,3 +2120,24 @@ class Fido2Session(db.Model):
     user = db.relationship(User, backref=db.backref("fido2_sessions"))
     session = db.Column(db.Text, nullable=False, index=False, unique=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+
+
+class LoginEvent(db.Model):
+    __tablename__ = "login_events"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), unique=False, index=True, nullable=False)
+    user = db.relationship(User, backref=db.backref("login_events"))
+    data = db.Column(JSONB(none_as_null=True), nullable=False, default={})
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
+
+    def serialize(self):
+        return {
+            'id': str(self.id),
+            'user_id': str(self.user_id),
+            'data': self.data,
+            'created_at': self.created_at.strftime(DATETIME_FORMAT),
+            'updated_at': self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None
+        }

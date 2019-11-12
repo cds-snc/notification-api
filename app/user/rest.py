@@ -22,6 +22,10 @@ from app.dao.fido2_key_dao import (
     create_fido2_session,
     get_fido2_session
 )
+from app.dao.login_event_dao import (
+    list_login_events,
+    save_login_event
+)
 from app.dao.users_dao import (
     get_user_by_id,
     save_model_user,
@@ -45,7 +49,7 @@ from app.dao.service_user_dao import dao_get_service_user, dao_update_service_us
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
-from app.models import KEY_TYPE_NORMAL, Fido2Key, Permission, Service, SMS_TYPE, EMAIL_TYPE
+from app.models import KEY_TYPE_NORMAL, Fido2Key, LoginEvent, Permission, Service, SMS_TYPE, EMAIL_TYPE
 from app.notifications.process_notifications import (
     persist_notification,
     send_notification_to_queue
@@ -194,9 +198,9 @@ def user_reset_failed_login_count(user_id):
 @user_blueprint.route('/<uuid:user_id>/verify/password', methods=['POST'])
 def verify_user_password(user_id):
     user_to_verify = get_user_by_id(user_id=user_id)
-
+    data = request.get_json()
     try:
-        txt_pwd = request.get_json()['password']
+        txt_pwd = data['password']
     except KeyError:
         message = 'Required field missing data'
         errors = {'password': [message]}
@@ -204,6 +208,11 @@ def verify_user_password(user_id):
 
     if user_to_verify.check_password(txt_pwd):
         reset_failed_login_count(user_to_verify)
+        if "loginData" in data and data["loginData"] != {}:
+            save_login_event(LoginEvent(
+                user_id=user_id,
+                data=data["loginData"]
+            ))
         return jsonify({}), 204
     else:
         increment_failed_login_count(user_to_verify)
@@ -663,6 +672,12 @@ def delete_fido2_keys_user(user_id, key_id):
     delete_fido2_key(user_id, key_id)
     _update_alert(user)
     return jsonify({"id": key_id})
+
+
+@user_blueprint.route('/<uuid:user_id>/login_events', methods=['GET'])
+def list_login_events_user(user_id):
+    data = list_login_events(user_id)
+    return jsonify(list(map(lambda o: o.serialize(), data)))
 
 
 def _create_reset_password_url(email):

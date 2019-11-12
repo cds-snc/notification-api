@@ -9,6 +9,7 @@ import pytest
 from flask import url_for, current_app
 from freezegun import freeze_time
 
+from app.dao.login_event_dao import list_login_events
 from app.dao.users_dao import create_user_code
 from app.dao.services_dao import dao_update_service, dao_fetch_service_by_id
 from app.models import (
@@ -106,6 +107,23 @@ def test_user_verify_password(client, sample_user):
         headers=[('Content-Type', 'application/json'), auth_header])
     assert resp.status_code == 204
     assert User.query.get(sample_user.id).logged_in_at == yesterday
+
+
+@freeze_time('2016-01-01T12:00:00')
+def test_user_verify_password_creates_login_event(client, sample_user):
+    yesterday = datetime.utcnow() - timedelta(days=1)
+    sample_user.logged_in_at = yesterday
+    data = json.dumps({'password': 'password', 'loginData': {"foo": "bar"}})
+    auth_header = create_authorization_header()
+    resp = client.post(
+        url_for('user.verify_user_password', user_id=sample_user.id),
+        data=data,
+        headers=[('Content-Type', 'application/json'), auth_header])
+    assert resp.status_code == 204
+    assert User.query.get(sample_user.id).logged_in_at == yesterday
+
+    events = list_login_events(sample_user.id)
+    assert len(events) == 1
 
 
 def test_user_verify_password_invalid_password(client,

@@ -4,7 +4,7 @@ post_verify_code_schema = {
     'type': 'object',
     'properties': {
         'code': {'type': 'string'},
-        'code_type': {'type': 'string'},
+        'code_type': {'type': 'string'}
     },
     'required': ['code', 'code_type'],
     'additionalProperties': False
