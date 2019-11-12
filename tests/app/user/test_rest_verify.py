@@ -45,26 +45,6 @@ def test_user_verify_sms_code(client, sample_sms_code):
     assert sample_sms_code.user.current_session_id is not None
 
 
-@freeze_time('2016-01-01T12:00:00')
-def test_user_verify_sms_code_creates_login_event(client, sample_sms_code):
-    sample_sms_code.user.logged_in_at = datetime.utcnow() - timedelta(days=1)
-    assert not VerifyCode.query.first().code_used
-    assert sample_sms_code.user.current_session_id is None
-    data = json.dumps({
-        'code_type': sample_sms_code.code_type,
-        'code': sample_sms_code.txt_code,
-        'login_data': {}})
-    auth_header = create_authorization_header()
-    resp = client.post(
-        url_for('user.verify_user_code', user_id=sample_sms_code.user.id),
-        data=data,
-        headers=[('Content-Type', 'application/json'), auth_header])
-    assert resp.status_code == 204
-
-    events = list_login_events(sample_sms_code.user.id)
-    assert len(events) == 1
-
-
 def test_user_verify_code_missing_code(client,
                                        sample_sms_code):
     assert not VerifyCode.query.first().code_used
@@ -128,6 +108,23 @@ def test_user_verify_password(client, sample_user):
         headers=[('Content-Type', 'application/json'), auth_header])
     assert resp.status_code == 204
     assert User.query.get(sample_user.id).logged_in_at == yesterday
+
+
+@freeze_time('2016-01-01T12:00:00')
+def test_user_verify_password_creates_login_event(client, sample_user):
+    yesterday = datetime.utcnow() - timedelta(days=1)
+    sample_user.logged_in_at = yesterday
+    data = json.dumps({'password': 'password', 'loginData': {"foo": "bar"}})
+    auth_header = create_authorization_header()
+    resp = client.post(
+        url_for('user.verify_user_password', user_id=sample_user.id),
+        data=data,
+        headers=[('Content-Type', 'application/json'), auth_header])
+    assert resp.status_code == 204
+    assert User.query.get(sample_user.id).logged_in_at == yesterday
+
+    events = list_login_events(sample_user.id)
+    assert len(events) == 1
 
 
 def test_user_verify_password_invalid_password(client,

@@ -198,9 +198,9 @@ def user_reset_failed_login_count(user_id):
 @user_blueprint.route('/<uuid:user_id>/verify/password', methods=['POST'])
 def verify_user_password(user_id):
     user_to_verify = get_user_by_id(user_id=user_id)
-
+    data = request.get_json()
     try:
-        txt_pwd = request.get_json()['password']
+        txt_pwd = data['password']
     except KeyError:
         message = 'Required field missing data'
         errors = {'password': [message]}
@@ -208,6 +208,11 @@ def verify_user_password(user_id):
 
     if user_to_verify.check_password(txt_pwd):
         reset_failed_login_count(user_to_verify)
+        if "loginData" in data and data["loginData"] != {}:
+            save_login_event(LoginEvent(
+                user_id=user_id,
+                data=data["loginData"]
+            ))
         return jsonify({}), 204
     else:
         increment_failed_login_count(user_to_verify)
@@ -243,11 +248,6 @@ def verify_user_code(user_id):
     user_to_verify.logged_in_at = datetime.utcnow()
     user_to_verify.failed_login_count = 0
     save_model_user(user_to_verify)
-
-    save_login_event(LoginEvent(
-        user_id=user_id,
-        data=data["login_data"]
-    ))
 
     use_user_code(code.id)
     return jsonify({}), 204
