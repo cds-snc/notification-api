@@ -15,7 +15,7 @@ down_revision = '0305c_login_events'
 
 
 def upgrade():
-    op.add_column('users', sa.Column('blocked', sa.BOOLEAN(), nullable=False))
+    op.add_column('users', sa.Column('blocked', sa.BOOLEAN(), nullable=False,  server_default=sa.false()))
 
 def downgrade():
     op.drop_column('users', 'blocked')

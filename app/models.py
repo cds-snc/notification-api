@@ -174,6 +174,7 @@ class User(db.Model):
             'platform_admin': self.platform_admin,
             'services': [x.id for x in self.services if x.active],
             'state': self.state,
+            'blocked': self.blocked
         }
 
     def serialize_for_users_list(self):

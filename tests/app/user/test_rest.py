@@ -1283,3 +1283,16 @@ def test_list_login_events_for_a_user(client, sample_service):
     assert list(
         map(lambda o: o["id"], json.loads(response.get_data(as_text=True)))
     ) == [str(event_two.id), str(event_one.id)]
+
+
+def test_update_user_blocked(admin_request, sample_user, account_change_template, mocker):
+    mocker.patch('app.user.rest.persist_notification')
+    mocker.patch('app.user.rest.send_notification_to_queue')
+    resp = admin_request.post(
+        'user.update_user_attribute',
+        user_id=sample_user.id,
+        _data={'blocked': True},
+    )
+
+    assert resp['data']['id'] == str(sample_user.id)
+    assert resp['data']['blocked']
