@@ -22,7 +22,7 @@ def _remove_values_for_keys_if_present(dict, keys):
 def create_secret_code():
     return ''.join(map(str, [SystemRandom().randrange(10) for i in range(5)]))
 
-
+# pytest tests/app/dao/test_users_dao.py
 def save_user_attribute(usr, update_dict={}):
     if(hasattr(update_dict, "blocked") and update_dict.blocked == True):
         update_dict.current_session_id = '00000000-0000-0000-0000-000000000000'
