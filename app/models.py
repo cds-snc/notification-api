@@ -136,6 +136,9 @@ class User(db.Model):
         self._password = hashpw(password)
 
     def check_password(self, password):
+        if self.blocked:
+            return False
+            
         return check_hash(password, self._password)
 
     def get_permissions(self, service_id=None):
