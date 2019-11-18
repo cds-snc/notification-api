@@ -147,7 +147,7 @@ def make_verify_code(user, age=timedelta(hours=0), expiry_age=timedelta(0), code
 @pytest.mark.parametrize('user_attribute, user_value', [
     ('name', 'New User'),
     ('email_address', 'newuser@mail.com'),
-    ('mobile_number', '+4407700900460')
+    ('mobile_number', '+4407700900460'),
 ])
 def test_update_user_attribute(client, sample_user, user_attribute, user_value):
     assert getattr(sample_user, user_attribute) != user_value

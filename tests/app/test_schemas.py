@@ -53,7 +53,8 @@ def test_notification_schema_has_correct_status(sample_notification, schema_name
 @pytest.mark.parametrize('user_attribute, user_value', [
     ('name', 'New User'),
     ('email_address', 'newuser@mail.com'),
-    ('mobile_number', '+16502532222')
+    ('mobile_number', '+16502532222'),
+    ('blocked', False),
 ])
 def test_user_update_schema_accepts_valid_attribute_pairs(user_attribute, user_value):
     update_dict = {
