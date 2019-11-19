@@ -159,11 +159,11 @@ def test_update_user_attribute(client, sample_user, user_attribute, user_value):
 
 
 def test_update_user_attribute_blocked():
-    user = create_user(email='allowed@test.com')
+    user = create_user(email='allowed@test.com',mobile_number="+4407700900460")
     assert user.current_session_id is None
-
-    save_user_attribute(user, {"blocked": True})
-    assert getattr(user, "current_session_id") == "00000000-0000-0000-0000-000000000000"
+    save_user_attribute(user, {"blocked": True, "mobile_number":"+2407700900460" })
+    print(user.mobile_number, user.current_session_id)
+    assert str(getattr(user, "current_session_id")) == "00000000-0000-0000-0000-000000000000"
 
 
 def test_update_user_password(notify_api, notify_db, notify_db_session, sample_user):
