@@ -7,7 +7,6 @@ Create Date: 2019-11-15 16:07:22.019759
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 
 revision = '0305d_block_users'
