@@ -765,7 +765,7 @@ def sample_user_service_permission(
     data = {
         'user': user,
         'service': service,
-        'permission': permission
+        'permission': permission,
     }
     p_model = Permission.query.filter_by(
         user=user,

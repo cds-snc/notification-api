@@ -114,7 +114,7 @@ class User(db.Model):
     current_session_id = db.Column(UUID(as_uuid=True), nullable=True)
     auth_type = db.Column(
         db.String, db.ForeignKey('auth_type.name'), index=True, nullable=False, default=EMAIL_AUTH_TYPE)
-
+    blocked = db.Column(db.Boolean, nullable=False, default=False)
     # either email auth or a mobile number must be provided
     CheckConstraint("auth_type = 'email_auth' or mobile_number is not null")
 
@@ -136,6 +136,9 @@ class User(db.Model):
         self._password = hashpw(password)
 
     def check_password(self, password):
+        if self.blocked:
+            return False
+
         return check_hash(password, self._password)
 
     def get_permissions(self, service_id=None):
@@ -174,6 +177,7 @@ class User(db.Model):
             'platform_admin': self.platform_admin,
             'services': [x.id for x in self.services if x.active],
             'state': self.state,
+            'blocked': self.blocked
         }
 
     def serialize_for_users_list(self):

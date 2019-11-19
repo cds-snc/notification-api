@@ -299,7 +299,8 @@ def test_post_user_attribute(client, mocker, sample_user, user_attribute, user_v
 @pytest.mark.parametrize('user_attribute, user_value', [
     ('name', 'New User'),
     ('email_address', 'newuser@mail.com'),
-    ('mobile_number', '+16502532223')
+    ('mobile_number', '+16502532223'),
+
 ])
 def test_post_user_attribute_send_notification_email(
         client, mocker,
@@ -344,7 +345,7 @@ def test_post_user_attribute_send_notification_email(
         },
         recipient='+16502532223', reply_to_text='testing', service=mock.ANY,
         template_id=UUID('8a31520f-4751-4789-8ea1-fe54496725eb'), template_version=1
-    ))
+    )),
 ])
 def test_post_user_attribute_with_updated_by(
     client, mocker, sample_user, user_attribute,
@@ -1283,3 +1284,16 @@ def test_list_login_events_for_a_user(client, sample_service):
     assert list(
         map(lambda o: o["id"], json.loads(response.get_data(as_text=True)))
     ) == [str(event_two.id), str(event_one.id)]
+
+
+def test_update_user_blocked(admin_request, sample_user, account_change_template, mocker):
+    mocker.patch('app.user.rest.persist_notification')
+    mocker.patch('app.user.rest.send_notification_to_queue')
+    resp = admin_request.post(
+        'user.update_user_attribute',
+        user_id=sample_user.id,
+        _data={'blocked': True},
+    )
+
+    assert resp['data']['id'] == str(sample_user.id)
+    assert resp['data']['blocked']

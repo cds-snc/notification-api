@@ -66,7 +66,8 @@ def create_user(
     email="notify@digital.cabinet-office.gov.uk",
     state='active',
     id_=None,
-    name="Test User"
+    name="Test User",
+    blocked=False,
 ):
     data = {
         'id': id_ or uuid.uuid4(),
@@ -74,7 +75,8 @@ def create_user(
         'email_address': email,
         'password': 'password',
         'mobile_number': mobile_number,
-        'state': state
+        'state': state,
+        'blocked': blocked
     }
     user = User.query.filter_by(email_address=email).first()
     if not user:

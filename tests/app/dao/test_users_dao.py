@@ -147,7 +147,7 @@ def make_verify_code(user, age=timedelta(hours=0), expiry_age=timedelta(0), code
 @pytest.mark.parametrize('user_attribute, user_value', [
     ('name', 'New User'),
     ('email_address', 'newuser@mail.com'),
-    ('mobile_number', '+4407700900460')
+    ('mobile_number', '+4407700900460'),
 ])
 def test_update_user_attribute(client, sample_user, user_attribute, user_value):
     assert getattr(sample_user, user_attribute) != user_value
@@ -156,6 +156,14 @@ def test_update_user_attribute(client, sample_user, user_attribute, user_value):
     }
     save_user_attribute(sample_user, update_dict)
     assert getattr(sample_user, user_attribute) == user_value
+
+
+def test_update_user_attribute_blocked():
+    user = create_user(email='allowed@test.com', mobile_number="+4407700900460")
+    assert user.current_session_id is None
+    save_user_attribute(user, {"blocked": True, "mobile_number": "+2407700900460"})
+    print(user.mobile_number, user.current_session_id)
+    assert str(getattr(user, "current_session_id")) == "00000000-0000-0000-0000-000000000000"
 
 
 def test_update_user_password(notify_api, notify_db, notify_db_session, sample_user):
@@ -285,3 +293,13 @@ def test_user_cannot_be_archived_if_the_other_service_members_do_not_have_the_ma
 
     assert len(sample_service.users) == 3
     assert not user_can_be_archived(active_user)
+
+
+def test_check_password_for_blocked_user(notify_api, notify_db, notify_db_session, sample_user):
+    not_blocked_user = create_user(email='blocked@test.com', blocked=True)
+    assert not not_blocked_user.check_password('password')
+
+
+def test_check_password_for_allowed_user(notify_api, notify_db, notify_db_session, sample_user):
+    allowed_user = create_user(email='allowed@test.com', blocked=False)
+    assert allowed_user.check_password('password')
