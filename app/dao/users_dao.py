@@ -22,13 +22,11 @@ def _remove_values_for_keys_if_present(dict, keys):
 def create_secret_code():
     return ''.join(map(str, [SystemRandom().randrange(10) for i in range(5)]))
 
+
 def save_user_attribute(usr, update_dict={}):
-    if("blocked" in update_dict):
-        print("yes it does", type(update_dict), update_dict)
-    
     if("blocked" in update_dict and update_dict["blocked"]):
         update_dict.update({"current_session_id": '00000000-0000-0000-0000-000000000000'})
-        
+
     db.session.query(User).filter_by(id=usr.id).update(update_dict)
     db.session.commit()
 
