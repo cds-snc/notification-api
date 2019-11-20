@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = '0305d_account_change_type'
+revision = '0305e_account_change_type'
 down_revision = '0305d_block_users'
 
 templates = [
