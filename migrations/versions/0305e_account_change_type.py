@@ -2,7 +2,7 @@
 
 Revision ID: 0305e_account_change_type
 Revises: 0305d_block_users
-Create Date: 2019-11-20 16:07:22.019759
+Create Date: 2019-11-20 17:08:21.019759
 
 """
 from flask import current_app
@@ -29,15 +29,15 @@ templates = [
 
 content = '\n'.join(templates[0]['content_lines'])
 
+sql = """
+        UPDATE {}
+        SET content = '{}', updated_at = now()
+        WHERE id='{}'
+        """;
+
 def upgrade():
-    op.execute(
-            """
-            UPDATE 
-                templates
-            SET content = '{}'
-            WHERE id='{}'
-            """.format(content, templates[0]['id'])
-        )
+    op.execute(sql.format('templates', content, templates[0]['id']))
+    op.execute(sql.format('templates_history', content, templates[0]['id']))
 
 def downgrade():
   pass
