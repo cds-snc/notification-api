@@ -138,6 +138,14 @@ def update_user_attribute(user_id):
         change_type = "email address"
     elif 'mobile_number' in update_dct:
         change_type = "mobile number"
+    elif 'auth_type' in update_dct:
+        if(update_dct["auth_type"] == 'email_auth'):
+            change_type = 'email authorization'
+        elif(update_dct["auth_type"] == 'sms_auth'):
+            change_type = 'sms authorization'
+
+
+    print("update_dct", update_dct)
 
     # Alert user that account change took place
     _update_alert(user_to_update, change_type)
