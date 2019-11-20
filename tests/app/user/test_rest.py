@@ -331,7 +331,9 @@ def test_post_user_attribute_send_notification_email(
     ('email_address', 'newuser@mail.com', dict(
         api_key_id=None, key_type='normal', notification_type='email',
         personalisation={
-            'name': 'Test User', 'servicemanagername': 'Service Manago', 'email address': 'newuser@mail.com'
+            'name': 'Test User', 'servicemanagername': 'Service Manago',
+            'change_type': 'email address',
+            'email address': 'newuser@mail.com'
         },
         recipient='newuser@mail.com', reply_to_text='notify@gov.uk',
         service=mock.ANY,
@@ -341,6 +343,7 @@ def test_post_user_attribute_send_notification_email(
         api_key_id=None, key_type='normal', notification_type='sms',
         personalisation={
             'name': 'Test User', 'servicemanagername': 'Service Manago',
+            'change_type': 'mobile number',
             'email address': 'notify@digital.cabinet-office.gov.uk'
         },
         recipient='+16502532223', reply_to_text='testing', service=mock.ANY,

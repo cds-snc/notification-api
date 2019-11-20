@@ -132,17 +132,15 @@ def update_user_attribute(user_id):
 
     service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
 
-    change_type = "see account";
+    change_type = "see account"
 
     if 'email_address' in update_dct:
-        change_type = "email address";
+        change_type = "email address"
     elif 'mobile_number' in update_dct:
-        change_type = "mobile number";
+        change_type = "mobile number"
 
     # Alert user that account change took place
     _update_alert(user_to_update, change_type)
-
-    
 
     # Alert that team member edit user
     if updated_by:
@@ -739,7 +737,7 @@ def get_orgs_and_services(user):
     }
 
 
-def _update_alert(user_to_update,  change_type = "see account"):
+def _update_alert(user_to_update, change_type="see account"):
     service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
     template = dao_get_template_by_id(current_app.config['ACCOUNT_CHANGE_TEMPLATE_ID'])
     recipient = user_to_update.email_address
