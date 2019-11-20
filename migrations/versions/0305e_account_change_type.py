@@ -2,7 +2,7 @@
 
 Revision ID: 0305e_account_change_type
 Revises: 0305d_block_users
-Create Date: 2019-11-15 16:07:22.019759
+Create Date: 2019-11-20 16:07:22.019759
 
 """
 from flask import current_app
