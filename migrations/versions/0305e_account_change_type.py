@@ -15,10 +15,8 @@ down_revision = '0305d_block_users'
 
 templates = [
     {
-        'id': '5b39e16a-9ff8-487c-9bfb-9e06bdb70f36',
+        'id': current_app.config['ACCOUNT_CHANGE_TEMPLATE_ID'],
         'name': 'Account update',
-        'type': 'email',
-        'subject': 'Notification user account information changed',
         'content_lines': [
             'Your user account information was changed on ((base_url)). ',
             '',
@@ -31,47 +29,17 @@ templates = [
     },
 ]
 
+content = '\n'.join(templates[0]['content_lines'])
 
 def upgrade():
-    insert = """
-        INSERT INTO {} (id, name, template_type, created_at, content, archived, service_id, subject,
-        created_by_id, version, process_type, hidden)
-        VALUES ('{}', '{}', '{}', current_timestamp, '{}', False, '{}', '{}', '{}', 1, '{}', false)
-    """
-
-    for template in templates:
-        for table_name in 'templates', 'templates_history':
-            op.execute(
-                insert.format(
-                    table_name,
-                    template['id'],
-                    template['name'],
-                    template['type'],
-                    '\n'.join(template['content_lines']),
-                    current_app.config['NOTIFY_SERVICE_ID'],
-                    template.get('subject'),
-                    current_app.config['NOTIFY_USER_ID'],
-                    'normal'
-                )
-            )
-
-        op.execute(
+    op.execute(
             """
-            INSERT INTO template_redacted
-            (
-                template_id,
-                redact_personalisation,
-                updated_at,
-                updated_by_id
-            ) VALUES ( '{}', false, current_timestamp, '{}' )
-            """.format(template['id'], current_app.config['NOTIFY_USER_ID'])
+            UPDATE 
+                templates
+            SET content = '{}'
+            WHERE id='{}'
+            """.format(content, templates[0]['id'])
         )
 
-
 def downgrade():
-    for template in templates:
-        op.execute("DELETE FROM notifications WHERE template_id = '{}'".format(template['id']))
-        op.execute("DELETE FROM notification_history WHERE template_id = '{}'".format(template['id']))
-        op.execute("DELETE FROM template_redacted WHERE template_id = '{}'".format(template['id']))
-        op.execute("DELETE FROM templates WHERE id = '{}'".format(template['id']))
-        op.execute("DELETE FROM templates_history WHERE id = '{}'".format(template['id']))
+  pass
