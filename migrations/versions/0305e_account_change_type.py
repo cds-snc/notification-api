@@ -21,7 +21,7 @@ templates = [
         'content_lines': [
             'Your user account information was changed on ((base_url)). ',
             '',
-            'Type: ((change_type))',
+            'Updated information: ((change_type))',
             '',
             'If you did not make this change, contact us immediately using the following link:',
             '',
