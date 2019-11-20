@@ -132,10 +132,17 @@ def update_user_attribute(user_id):
 
     service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
 
-    # Alert user that account change took place
-    _update_alert(user_to_update)
-
     change_type = "see account";
+
+    if 'email_address' in update_dct:
+        change_type = "email address";
+    elif 'mobile_number' in update_dct:
+        change_type = "mobile number";
+
+    # Alert user that account change took place
+    _update_alert(user_to_update, change_type)
+
+    
 
     # Alert that team member edit user
     if updated_by:
@@ -143,12 +150,10 @@ def update_user_attribute(user_id):
             template = dao_get_template_by_id(current_app.config['TEAM_MEMBER_EDIT_EMAIL_TEMPLATE_ID'])
             recipient = user_to_update.email_address
             reply_to = template.service.get_default_reply_to_email_address()
-            change_type = "email address";
         elif 'mobile_number' in update_dct:
             template = dao_get_template_by_id(current_app.config['TEAM_MEMBER_EDIT_MOBILE_TEMPLATE_ID'])
             recipient = user_to_update.mobile_number
             reply_to = template.service.get_default_sms_sender()
-            change_type = "mobile_number";
         else:
             return jsonify(data=user_to_update.serialize()), 200
 
@@ -734,7 +739,7 @@ def get_orgs_and_services(user):
     }
 
 
-def _update_alert(user_to_update):
+def _update_alert(user_to_update,  change_type = "see account"):
     service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
     template = dao_get_template_by_id(current_app.config['ACCOUNT_CHANGE_TEMPLATE_ID'])
     recipient = user_to_update.email_address
@@ -747,7 +752,8 @@ def _update_alert(user_to_update):
         service=service,
         personalisation={
             'base_url': Config.ADMIN_BASE_URL,
-            'contact_us_url': f'{Config.ADMIN_BASE_URL}/support/ask-question-give-feedback'
+            'contact_us_url': f'{Config.ADMIN_BASE_URL}/support/ask-question-give-feedback',
+            'change_type': change_type
         },
         notification_type=template.template_type,
         api_key_id=None,
