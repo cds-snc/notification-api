@@ -119,6 +119,6 @@ def email_address_is_nhs(email_address):
 def update_dct_to_str(update_dct):
     str = "\n"
     for key in update_dct:
-        str+="- {}".format(key.replace("_", " "))
-        str+="\n"
+        str += "- {}".format(key.replace("_", " "))
+        str += "\n"
     return str

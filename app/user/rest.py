@@ -67,6 +67,9 @@ from app.errors import (
     register_errors,
     InvalidRequest
 )
+
+from app.utils import (update_dct_to_str)
+
 from app.utils import url_with_token
 from app.user.users_schema import (
     post_verify_code_schema,
@@ -132,19 +135,8 @@ def update_user_attribute(user_id):
 
     service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
 
-    change_type = "see account"
-
-    if 'email_address' in update_dct:
-        change_type = "email address"
-    elif 'mobile_number' in update_dct:
-        change_type = "mobile number"
-    elif 'auth_type' in update_dct:
-        if(update_dct["auth_type"] == 'email_auth'):
-            change_type = 'email authorization'
-        elif(update_dct["auth_type"] == 'sms_auth'):
-            change_type = 'sms authorization'
-
     # Alert user that account change took place
+    change_type = update_dct_to_str(update_dct)
     _update_alert(user_to_update, change_type)
 
     # Alert that team member edit user
@@ -742,7 +734,7 @@ def get_orgs_and_services(user):
     }
 
 
-def _update_alert(user_to_update, change_type="see account"):
+def _update_alert(user_to_update, change_type=""):
     service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
     template = dao_get_template_by_id(current_app.config['ACCOUNT_CHANGE_TEMPLATE_ID'])
     recipient = user_to_update.email_address
