@@ -824,8 +824,6 @@ def test_update_user_password_saves_correctly(client, sample_service):
         url_for('user.verify_user_password', user_id=str(sample_user.id)),
         data=json.dumps(data),
         headers=headers)
-
-    print(resp)
     assert resp.status_code == 204
 
 
