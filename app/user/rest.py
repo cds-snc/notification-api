@@ -580,6 +580,13 @@ def update_password(user_id):
         raise InvalidRequest(errors, status_code=400)
 
     update_user_password(user, pwd)
+    change_type = update_dct_to_str({'password': "password updated"})
+
+    try:
+        _update_alert(user, change_type)
+    except Exception as e:
+        print(e)
+
     return jsonify(data=user.serialize()), 200
 
 

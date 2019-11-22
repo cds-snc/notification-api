@@ -332,7 +332,7 @@ def test_post_user_attribute_send_notification_email(
         api_key_id=None, key_type='normal', notification_type='email',
         personalisation={
             'name': 'Test User', 'servicemanagername': 'Service Manago',
-            'change_type': 'email address',
+            'change_type': '\n- email address\n',
             'email address': 'newuser@mail.com'
         },
         recipient='newuser@mail.com', reply_to_text='notify@gov.uk',
@@ -343,7 +343,7 @@ def test_post_user_attribute_send_notification_email(
         api_key_id=None, key_type='normal', notification_type='sms',
         personalisation={
             'name': 'Test User', 'servicemanagername': 'Service Manago',
-            'change_type': 'mobile number',
+            'change_type': '\n- mobile number\n',
             'email address': 'notify@digital.cabinet-office.gov.uk'
         },
         recipient='+16502532223', reply_to_text='testing', service=mock.ANY,
@@ -824,6 +824,8 @@ def test_update_user_password_saves_correctly(client, sample_service):
         url_for('user.verify_user_password', user_id=str(sample_user.id)),
         data=json.dumps(data),
         headers=headers)
+
+    print(resp)
     assert resp.status_code == 204
 
 
