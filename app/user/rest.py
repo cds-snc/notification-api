@@ -593,7 +593,7 @@ def update_password(user_id):
     try:
         _update_alert(user, change_type)
     except Exception as e:
-       current_app.logger.error(json.dumps(e))
+        current_app.logger.error(json.dumps(e))
 
     return jsonify(data=user.serialize()), 200
 
