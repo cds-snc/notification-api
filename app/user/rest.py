@@ -504,6 +504,14 @@ def set_permissions(user_id, service_id):
         for p in data['permissions']
     ]
 
+    service_key = "service_id_{}".format(service_id)
+    change_dict = {service_key: service_id, "permissions": permission_list}
+
+    try:
+        _update_alert(user, update_dct_to_str(change_dict))
+    except Exception as e:
+        print(e)
+
     permission_dao.set_user_service_permission(user, service, permission_list, _commit=True, replace=True)
 
     if 'folder_permissions' in data:
