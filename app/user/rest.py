@@ -67,6 +67,9 @@ from app.errors import (
     register_errors,
     InvalidRequest
 )
+
+from app.utils import (update_dct_to_str)
+
 from app.utils import url_with_token
 from app.user.users_schema import (
     post_verify_code_schema,
@@ -133,7 +136,8 @@ def update_user_attribute(user_id):
     service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
 
     # Alert user that account change took place
-    _update_alert(user_to_update)
+    change_type = update_dct_to_str(update_dct)
+    _update_alert(user_to_update, change_type)
 
     # Alert that team member edit user
     if updated_by:
@@ -156,7 +160,8 @@ def update_user_attribute(user_id):
             personalisation={
                 'name': user_to_update.name,
                 'servicemanagername': updated_by.name,
-                'email address': user_to_update.email_address
+                'email address': user_to_update.email_address,
+                'change_type': change_type
             },
             notification_type=template.template_type,
             api_key_id=None,
@@ -499,6 +504,14 @@ def set_permissions(user_id, service_id):
         for p in data['permissions']
     ]
 
+    service_key = "service_id_{}".format(service_id)
+    change_dict = {service_key: service_id, "permissions": permission_list}
+
+    try:
+        _update_alert(user, update_dct_to_str(change_dict))
+    except Exception as e:
+        current_app.logger.error(e)
+
     permission_dao.set_user_service_permission(user, service, permission_list, _commit=True, replace=True)
 
     if 'folder_permissions' in data:
@@ -575,6 +588,13 @@ def update_password(user_id):
         raise InvalidRequest(errors, status_code=400)
 
     update_user_password(user, pwd)
+    change_type = update_dct_to_str({'password': "password updated"})
+
+    try:
+        _update_alert(user, change_type)
+    except Exception as e:
+        current_app.logger.error(e)
+
     return jsonify(data=user.serialize()), 200
 
 
@@ -729,7 +749,7 @@ def get_orgs_and_services(user):
     }
 
 
-def _update_alert(user_to_update):
+def _update_alert(user_to_update, change_type=""):
     service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
     template = dao_get_template_by_id(current_app.config['ACCOUNT_CHANGE_TEMPLATE_ID'])
     recipient = user_to_update.email_address
@@ -742,7 +762,8 @@ def _update_alert(user_to_update):
         service=service,
         personalisation={
             'base_url': Config.ADMIN_BASE_URL,
-            'contact_us_url': f'{Config.ADMIN_BASE_URL}/support/ask-question-give-feedback'
+            'contact_us_url': f'{Config.ADMIN_BASE_URL}/support/ask-question-give-feedback',
+            'change_type': change_type
         },
         notification_type=template.template_type,
         api_key_id=None,
