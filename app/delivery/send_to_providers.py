@@ -144,7 +144,7 @@ def send_email_to_provider(notification):
             update_notification_to_sending(notification, provider)
             send_email_response(notification.reference, notification.to)
         else:
-            if service.sending_domain == None or service.sending_domain.strip() == "":
+            if service.sending_domain is None or service.sending_domain.strip() == "":
                 sending_domain = current_app.config['NOTIFY_EMAIL_DOMAIN']
             else:
                 sending_domain = service.sending_domain

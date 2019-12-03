@@ -146,6 +146,7 @@ def test_should_not_send_email_message_when_service_is_inactive_notifcation_is_i
     send_mock.assert_not_called()
     assert Notification.query.get(sample_notification.id).status == 'technical-failure'
 
+
 def test_should_respect_custom_sending_domains(
         sample_service, mocker, sample_email_template_with_html
 ):

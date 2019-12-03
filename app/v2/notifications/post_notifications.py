@@ -156,7 +156,7 @@ def post_notification(notification_type):
             from_number=reply_to
         )
     elif notification_type == EMAIL_TYPE:
-        if authenticated_service.sending_domain == None or authenticated_service.sending_domain.strip() == "":
+        if authenticated_service.sending_domain is None or authenticated_service.sending_domain.strip() == "":
             sending_domain = current_app.config['NOTIFY_EMAIL_DOMAIN']
         else:
             sending_domain = authenticated_service.sending_domain
