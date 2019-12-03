@@ -156,10 +156,14 @@ def post_notification(notification_type):
             from_number=reply_to
         )
     elif notification_type == EMAIL_TYPE:
+        if authenticated_service.sending_domain == None or authenticated_service.sending_domain.strip() == "":
+            sending_domain = current_app.config['NOTIFY_EMAIL_DOMAIN']
+        else:
+            sending_domain = authenticated_service.sending_domain
         create_resp_partial = functools.partial(
             create_post_email_response_from_notification,
             subject=template_with_content.subject,
-            email_from='{}@{}'.format(authenticated_service.email_from, current_app.config['NOTIFY_EMAIL_DOMAIN'])
+            email_from='{}@{}'.format(authenticated_service.email_from, sending_domain)
         )
     elif notification_type == LETTER_TYPE:
         create_resp_partial = functools.partial(
