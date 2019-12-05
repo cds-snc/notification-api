@@ -441,7 +441,7 @@ def send_support_email(user_id):
         personalisation={
             'user': to['email'],
             'message': to['message'],
-            'sender_email': to["sender"]
+            'sender_email': to["sender"] if "sender" in to else ""
         },
         notification_type=template.template_type,
         api_key_id=None,
