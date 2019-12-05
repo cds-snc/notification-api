@@ -569,6 +569,7 @@ class SupportEmailDataSchema(ma.Schema):
 
     email = fields.Str(required=True)
     message = fields.Str(required=True)
+    sender = fields.Str(required=False)
 
     def __init__(self, partial_email=False):
         super().__init__()
