@@ -440,7 +440,8 @@ def send_support_email(user_id):
         service=service,
         personalisation={
             'user': to['email'],
-            'message': to['message']
+            'message': to['message'],
+            'sender_email': to["sender"] if "sender" in to else ""
         },
         notification_type=template.template_type,
         api_key_id=None,
