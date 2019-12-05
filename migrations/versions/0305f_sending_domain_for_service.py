@@ -5,7 +5,6 @@ Revises: 0305e_account_change_type
 Create Date: 2019-12-03 17:08:21.019759
 
 """
-from flask import current_app
 import sqlalchemy as sa
 from alembic import op
 
