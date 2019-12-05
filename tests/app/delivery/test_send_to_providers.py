@@ -147,6 +147,31 @@ def test_should_not_send_email_message_when_service_is_inactive_notifcation_is_i
     assert Notification.query.get(sample_notification.id).status == 'technical-failure'
 
 
+def test_should_respect_custom_sending_domains(
+        sample_service, mocker, sample_email_template_with_html
+):
+    db_notification = create_notification(
+        template=sample_email_template_with_html,
+        to_field="jo.smith@example.com",
+        personalisation={'name': 'Jo'}
+    )
+
+    sample_service.sending_domain = "foo.bar"
+    mocker.patch("app.aws_ses_client.send_email", return_value='reference')
+
+    send_to_providers.send_email_to_provider(db_notification)
+
+    app.aws_ses_client.send_email.assert_called_once_with(
+        '"Sample service" <sample.service@foo.bar>',
+        'jo.smith@example.com',
+        'Jo <em>some HTML</em>',
+        body='Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n',
+        html_body=ANY,
+        reply_to_address=None,
+        attachments=[]
+    )
+
+
 @pytest.mark.parametrize("client_send", ["app.aws_sns_client.send_sms", "app.mmg_client.send_sms"])
 def test_should_not_send_sms_message_when_service_is_inactive_notifcation_is_in_tech_failure(
         sample_service, sample_notification, mocker, client_send):
