@@ -44,7 +44,7 @@ def smtp_get_user_key(name):
             UserName=name,
         )["AccessKeyMetadata"][0]["AccessKeyId"]
     except Exception as e:
-        raise str(e)
+        raise e
      
 
 def smtp_remove(name):
@@ -88,7 +88,7 @@ def smtp_remove(name):
         return True
 
     except Exception as e:
-        raise str(e)
+        raise e
 
 
 def create_domain_identity(client, name):
@@ -97,7 +97,7 @@ def create_domain_identity(client, name):
             Domain=name
         )['VerificationToken']
     except Exception as e:
-        raise str(e)
+        raise e
 
 
 def get_dkim(client, name):
@@ -106,7 +106,7 @@ def get_dkim(client, name):
             Domain=name
         )['DkimTokens']
     except Exception as e:
-        raise str(e)
+        raise e
 
 
 def add_user(client, name):
@@ -136,7 +136,7 @@ def add_user(client, name):
         credentials = {
             "iam": user_name,
             "domain": name,
-            "name": "email-smtp.us-east-1.amazonaws.com",
+            "name": current_app.config["AWS_SES_SMTP"],
             "port": "465",
             "tls": "Yes",
             "username": response["AccessKey"]["AccessKeyId"],
@@ -145,7 +145,7 @@ def add_user(client, name):
 
         return credentials
     except Exception as e:
-        raise str(e)
+        raise e
 
 
 def add_record(client, name, value, record_type="CNAME"):
@@ -166,7 +166,7 @@ def add_record(client, name, value, record_type="CNAME"):
                     }]
             })
     except Exception as e:
-        raise str(e)
+        raise e
 
 
 def delete_record(client, record):
@@ -184,7 +184,7 @@ def delete_record(client, record):
             }
         )
     except Exception as e:
-        raise str(e)
+        raise e
 
 def generate_user_policy(name):
     policy = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["ses:SendRawEmail"],"Resource":"*","Condition":{"StringLike":{"ses:FromAddress":"*@%s"}}}]}' % name
