@@ -129,7 +129,7 @@ class Config(object):
     ADMIN_CLIENT_USER_NAME = 'notify-admin'
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
     AWS_ROUTE53_ZONE = os.getenv("AWS_ROUTE53_ZONE", "Z2OW036USASMAK")
-    AWS_SES_SMTP = os.getenv("AWS_SES_SMTP","email-smtp.us-east-1.amazonaws.com")
+    AWS_SES_SMTP = os.getenv("AWS_SES_SMTP", "email-smtp.us-east-1.amazonaws.com")
     CSV_UPLOAD_BUCKET_NAME = os.getenv('CVS_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-csv-upload')
     ASSET_UPLOAD_BUCKET_NAME = os.getenv('ASSET_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-asset-upload')
     ASSET_DOMAIN = os.getenv('ASSET_DOMAIN', 's3.amazonaws.com')

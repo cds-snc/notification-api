@@ -45,7 +45,7 @@ def smtp_get_user_key(name):
         )["AccessKeyMetadata"][0]["AccessKeyId"]
     except Exception as e:
         raise e
-     
+
 
 def smtp_remove(name):
     try:
@@ -53,7 +53,7 @@ def smtp_remove(name):
         r53_client = boto3.client('route53', region_name=current_app.config["AWS_REGION"])
         iam_client = boto3.client('iam', region_name=current_app.config["AWS_REGION"])
 
-        [domain,_] = name.split("-")
+        [domain, _] = name.split("-")
 
         policies = iam_client.list_user_policies(
             UserName=name,
@@ -84,7 +84,7 @@ def smtp_remove(name):
 
         for record in records:
             delete_record(r53_client, record)
-        
+
         return True
 
     except Exception as e:
@@ -186,8 +186,12 @@ def delete_record(client, record):
     except Exception as e:
         raise e
 
+
 def generate_user_policy(name):
-    policy = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["ses:SendRawEmail"],"Resource":"*","Condition":{"StringLike":{"ses:FromAddress":"*@%s"}}}]}' % name
+    policy = (
+        '{"Version":"2012-10-17","Statement":'
+        '[{"Effect":"Allow","Action":["ses:SendRawEmail"],"Resource":"*",'
+        '"Condition":{"StringLike":{"ses:FromAddress":"*@%s"}}}]}' % name)
     return policy
 
 # Taken from https://docs.aws.amazon.com/ses/latest/DeveloperGuide/example-create-smtp-credentials.html
