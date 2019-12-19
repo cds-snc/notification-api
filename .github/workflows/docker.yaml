@@ -7,20 +7,21 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Setup Google Cloud
-      uses: actions/gcloud/auth@master
-      env:
-        GCLOUD_AUTH: ${{ secrets.GCLOUD_AUTH }}
-    - name: Configure docker
-      uses: actions/gcloud/cli@master
+      uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
       with:
-        args: auth configure-docker --quiet
-    - name: Build the Docker image
-      uses: actions/gcloud/cli@master
-      with:
-        entrypoint: sh
-        args: -c "docker build -t gcr.io/cdssnc/notify/api:latest ."
-    - name: Push
-      uses: actions/gcloud/cli@master
-      with:
-        entrypoint: sh
-        args: -c "docker push gcr.io/cdssnc/notify/api:latest"
+          version: '270.0.0'
+          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+          service_account_key: ${{ secrets.GCLOUD_AUTH }}
+    - run: |
+      # Set up docker to authenticate
+      # via gcloud command-line tool.
+      gcloud auth configure-docker
+
+    # Build the Docker image
+    - name: Build
+      run: |        
+        docker build -t gcr.io/cdssnc/notify/api:${{ github.sha }} -t gcr.io/cdssnc/notify/api:latest .
+    # Push the Docker image to Google Container Registry
+    - name: Publish
+      run: |
+        docker push gcr.io/cdssnc/notify/api:latest 
