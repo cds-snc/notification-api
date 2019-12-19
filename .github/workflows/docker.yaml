@@ -6,13 +6,13 @@ jobs:
     name: Build and deploy
     steps:
     - uses: actions/checkout@master
-    - name: Setup Google Cloud
-      uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+    - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
       with:
-          version: '270.0.0'
-          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-          service_account_key: ${{ secrets.GCLOUD_AUTH }}
-      run: |
+        version: '270.0.0'
+        service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+        service_account_key: ${{ secrets.GCLOUD_AUTH }}
+        
+    - run: |
         # Set up docker to authenticate
         # via gcloud command-line tool.
         gcloud auth configure-docker
