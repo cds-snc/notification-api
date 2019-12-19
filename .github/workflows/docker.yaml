@@ -1,0 +1,24 @@
+name: Build and push to GCR
+on:
+  push:
+    branches:    
+      - master
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Build and push
+    steps:
+    - uses: actions/checkout@master
+    - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+      with:
+        version: '270.0.0'
+        service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+        service_account_key: ${{ secrets.GCLOUD_AUTH }}
+    - run: |
+        gcloud auth configure-docker
+    - name: Build
+      run: |        
+        docker build -t gcr.io/cdssnc/notify/api:${GITHUB_SHA::8} -t gcr.io/cdssnc/notify/api:latest -f ci/Dockerfile .
+    - name: Publish
+      run: |
+        docker push gcr.io/cdssnc/notify/api:latest && docker push gcr.io/cdssnc/notify/api:${GITHUB_SHA::8}
