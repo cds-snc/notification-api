@@ -20,8 +20,8 @@ jobs:
     # Build the Docker image
     - name: Build
       run: |        
-        docker build -t gcr.io/cdssnc/notify/api:${{ github.sha::8 }} -t gcr.io/cdssnc/notify/api:latest -f ci/Dockerfile .
+        docker build -t gcr.io/cdssnc/notify/api:${GITHUB_SHA::8} -t gcr.io/cdssnc/notify/api:latest -f ci/Dockerfile .
     # Push the Docker image to Google Container Registry
     - name: Publish
       run: |
-        docker push gcr.io/cdssnc/notify/api:latest && docker push gcr.io/cdssnc/notify/api:${{ github.sha::8 }}
+        docker push gcr.io/cdssnc/notify/api:latest && docker push gcr.io/cdssnc/notify/api:${GITHUB_SHA::8}
