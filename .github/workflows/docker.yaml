@@ -11,7 +11,7 @@ jobs:
         version: '270.0.0'
         service_account_email: ${{ secrets.GCP_SA_EMAIL }}
         service_account_key: ${{ secrets.GCLOUD_AUTH }}
-        
+
     - run: |
         # Set up docker to authenticate
         # via gcloud command-line tool.
@@ -20,7 +20,7 @@ jobs:
     # Build the Docker image
     - name: Build
       run: |        
-        docker build -t gcr.io/cdssnc/notify/api:${{ github.sha }} -t gcr.io/cdssnc/notify/api:latest .
+        docker build -t gcr.io/cdssnc/notify/api:${{ github.sha }} -t gcr.io/cdssnc/notify/api:latest -f ci/Dockerfile .
     # Push the Docker image to Google Container Registry
     - name: Publish
       run: |
