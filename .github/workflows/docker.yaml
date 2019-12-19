@@ -3,7 +3,7 @@ on: push
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Build and deploy
+    name: Build and push
     steps:
     - uses: actions/checkout@master
     - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -24,4 +24,4 @@ jobs:
     # Push the Docker image to Google Container Registry
     - name: Publish
       run: |
-        docker push gcr.io/cdssnc/notify/api:latest 
+        docker push gcr.io/cdssnc/notify/api:latest && docker push gcr.io/cdssnc/notify/api:${{ github.sha }}
