@@ -23,7 +23,6 @@ from tests.app.db import create_service, create_template, create_notification, c
 from notifications_utils.timezones import convert_utc_to_local_timezone
 
 
-
 def mocker_get_rate(
     non_letter_rates, letter_rates, notification_type, bst_date, crown=None, rate_multiplier=None, post_class="second"
 ):
