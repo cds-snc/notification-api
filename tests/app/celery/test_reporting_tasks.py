@@ -20,6 +20,7 @@ from app.models import (
 )
 
 from tests.app.db import create_service, create_template, create_notification, create_rate, create_letter_rate
+from notifications_utils.timezones import convert_utc_to_local_timezone
 
 
 def mocker_get_rate(
@@ -73,7 +74,7 @@ def test_create_nightly_billing_for_day_sms_rate_multiplier(
         billable_units,
         multiplier):
 
-    yesterday = datetime.now() - timedelta(days=1)
+    yesterday = convert_utc_to_local_timezone((datetime.now() - timedelta(days=1))).replace(hour=12, minute=00)
 
     mocker.patch('app.dao.fact_billing_dao.get_rate', side_effect=mocker_get_rate)
 
@@ -117,7 +118,7 @@ def test_create_nightly_billing_for_day_different_templates(
         sample_template,
         sample_email_template,
         mocker):
-    yesterday = datetime.now() - timedelta(days=1)
+    yesterday = convert_utc_to_local_timezone((datetime.now() - timedelta(days=1))).replace(hour=12, minute=00)
 
     mocker.patch('app.dao.fact_billing_dao.get_rate', side_effect=mocker_get_rate)
 
@@ -163,7 +164,7 @@ def test_create_nightly_billing_for_day_different_sent_by(
         sample_template,
         sample_email_template,
         mocker):
-    yesterday = datetime.now() - timedelta(days=1)
+    yesterday = convert_utc_to_local_timezone((datetime.now() - timedelta(days=1))).replace(hour=12, minute=00)
 
     mocker.patch('app.dao.fact_billing_dao.get_rate', side_effect=mocker_get_rate)
 
@@ -207,7 +208,7 @@ def test_create_nightly_billing_for_day_different_letter_postage(
         notify_db_session,
         sample_letter_template,
         mocker):
-    yesterday = datetime.now() - timedelta(days=1)
+    yesterday = convert_utc_to_local_timezone((datetime.now() - timedelta(days=1))).replace(hour=12, minute=00)
     mocker.patch('app.dao.fact_billing_dao.get_rate', side_effect=mocker_get_rate)
 
     for i in range(2):
@@ -253,7 +254,7 @@ def test_create_nightly_billing_for_day_letter(
         sample_service,
         sample_letter_template,
         mocker):
-    yesterday = datetime.now() - timedelta(days=1)
+    yesterday = convert_utc_to_local_timezone((datetime.now() - timedelta(days=1))).replace(hour=12, minute=00)
 
     mocker.patch('app.dao.fact_billing_dao.get_rate', side_effect=mocker_get_rate)
 
@@ -286,7 +287,7 @@ def test_create_nightly_billing_for_day_null_sent_by_sms(
         sample_service,
         sample_template,
         mocker):
-    yesterday = datetime.now() - timedelta(days=1)
+    yesterday = convert_utc_to_local_timezone((datetime.now() - timedelta(days=1))).replace(hour=12, minute=00)
 
     mocker.patch('app.dao.fact_billing_dao.get_rate', side_effect=mocker_get_rate)
 
