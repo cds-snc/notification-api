@@ -141,8 +141,8 @@ def send_email_to_provider(notification):
             values=personalisation_data
         )
 
-        if contains_pii(notification, html_email, plain_text_email):
-            return
+        if current_app.config["SCAN_FOR_PII"]:
+            contains_pii(notification, str(html_email), str(plain_text_email))
 
         if service.research_mode or notification.key_type == KEY_TYPE_TEST:
             notification.reference = str(create_uuid())

@@ -35,6 +35,8 @@ from tests.app.db import (
     create_service_with_defined_sms_sender
 )
 
+from tests.conftest import set_config_values
+
 
 def test_should_return_highest_priority_active_provider(restore_provider_details):
     providers = provider_details_dao.get_provider_details_by_notification_type('sms')
@@ -855,3 +857,40 @@ def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_abov
     send_mock.assert_not_called()
 
     assert Notification.query.get(db_notification.id).status == 'virus-scan-failed'
+
+
+def test_notification_raises_error_if_message_contains_sin_pii(sample_email_template_with_html, mocker, notify_api):
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
+
+    db_notification = create_notification(
+        template=sample_email_template_with_html,
+        to_field="jo.smith@example.com",
+        personalisation={'name': '123-456-789'}
+    )
+
+    with set_config_values(notify_api, {
+        'SCAN_FOR_PII': "True",
+    }):
+        with pytest.raises(NotificationTechnicalFailureException) as e:
+            send_to_providers.send_email_to_provider(db_notification)
+            assert db_notification.id in e.value
+
+    send_mock.assert_not_called()
+
+    assert Notification.query.get(db_notification.id).status == 'pii-check-failed'
+
+
+def test_notification_passes_if_message_contains_phone_number(sample_email_template_with_html, mocker):
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
+
+    db_notification = create_notification(
+        template=sample_email_template_with_html,
+        to_field="jo.smith@example.com",
+        personalisation={'name': '123-456-7890'}
+    )
+
+    send_to_providers.send_email_to_provider(db_notification)
+
+    send_mock.assert_called()
+
+    assert Notification.query.get(db_notification.id).status == 'sending'
