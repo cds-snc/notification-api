@@ -3365,3 +3365,110 @@ def test_get_monthly_notification_data_by_service(mocker, admin_request):
 
     dao_mock.assert_called_once_with(start_date, end_date)
     assert response == []
+
+
+def test_create_smtp_relay_for_service_if_it_already_has_one(client, notify_db, notify_db_session):
+    service = create_service(service_name="ABCDEF", smtp_user="foo")
+
+    resp = client.post(
+        '/service/{}/smtp'.format(service.id),
+        headers=[create_authorization_header()]
+    )
+
+    assert resp.status_code == 500
+
+
+def test_create_smtp_relay_for_service(mocker, client, notify_db, notify_db_session):
+    service = create_service(service_name="ABCDEF", smtp_user=None)
+
+    credentials = {
+        "iam": "iam_username",
+        "domain": "domain",
+        "name": "smtp.relay",
+        "port": "465",
+        "tls": "Yes",
+        "username": "foo",
+        "password": "bar"
+    }
+
+    add_mock = mocker.patch(
+        "app.service.rest.smtp_add",
+        return_value=credentials
+    )
+
+    resp = client.post(
+        '/service/{}/smtp'.format(service.id),
+        headers=[create_authorization_header()]
+    )
+
+    add_mock.assert_called_once()
+    assert resp.status_code == 201
+    json_resp = json.loads(resp.get_data(as_text=True))
+    assert json_resp == credentials
+
+
+def test_get_smtp_relay_for_service(mocker, client, notify_db, notify_db_session):
+    service = create_service(service_name="ABCDEF", smtp_user="FOO-BAR")
+
+    username_mock = mocker.patch(
+        "app.service.rest.smtp_get_user_key",
+        return_value="bar"
+    )
+
+    credentials = {
+        "domain": "FOO",
+        "name": "email-smtp.us-east-1.amazonaws.com",
+        "port": "465",
+        "tls": "Yes",
+        "username": "bar",
+    }
+
+    resp = client.get(
+        '/service/{}/smtp'.format(service.id),
+        headers=[create_authorization_header()]
+    )
+
+    username_mock.assert_called_once()
+    assert resp.status_code == 200
+    json_resp = json.loads(resp.get_data(as_text=True))
+    assert json_resp == credentials
+
+
+def test_get_smtp_relay_for_service_returns_empty_if_none(mocker, client, notify_db, notify_db_session):
+    service = create_service(service_name="ABCDEF", smtp_user=None)
+
+    resp = client.get(
+        '/service/{}/smtp'.format(service.id),
+        headers=[create_authorization_header()]
+    )
+
+    assert resp.status_code == 200
+    json_resp = json.loads(resp.get_data(as_text=True))
+    assert json_resp == {}
+
+
+def test_delete_smtp_relay_for_service_returns_500_if_none(mocker, client, notify_db, notify_db_session):
+    service = create_service(service_name="ABCDEF", smtp_user=None)
+
+    resp = client.delete(
+        '/service/{}/smtp'.format(service.id),
+        headers=[create_authorization_header()]
+    )
+
+    assert resp.status_code == 500
+
+
+def test_delete_smtp_relay_for_service_returns_201_if_success(mocker, client, notify_db, notify_db_session):
+    service = create_service(service_name="ABCDEF", smtp_user="foo")
+
+    delete_mock = mocker.patch(
+        "app.service.rest.smtp_remove"
+    )
+
+    resp = client.delete(
+        '/service/{}/smtp'.format(service.id),
+        headers=[create_authorization_header()]
+    )
+
+    delete_mock.assert_called_once()
+    assert resp.status_code == 201
