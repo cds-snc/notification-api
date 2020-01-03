@@ -6,7 +6,6 @@ Create Date: 2020-01-02 11:24:58.773824
 
 """
 from alembic import op
-import sqlalchemy as sa
 
 
 revision = '0305i_add_pii_failed_status'
