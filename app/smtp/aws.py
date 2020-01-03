@@ -12,17 +12,17 @@ def smtp_add(name):
         'ses',
         aws_access_key_id=current_app.config["AWS_SES_ACCESS_KEY"],
         aws_secret_access_key=current_app.config["AWS_SES_SECRET_KEY"],
-        region_name=current_app.config["AWS_REGION"])
+        region_name=current_app.config["AWS_SES_REGION"])
     r53_client = boto3.client(
         'route53',
         aws_access_key_id=current_app.config["AWS_SES_ACCESS_KEY"],
         aws_secret_access_key=current_app.config["AWS_SES_SECRET_KEY"],
-        region_name=current_app.config["AWS_REGION"])
+        region_name=current_app.config["AWS_SES_REGION"])
     iam_client = boto3.client(
         'iam',
         aws_access_key_id=current_app.config["AWS_SES_ACCESS_KEY"],
         aws_secret_access_key=current_app.config["AWS_SES_SECRET_KEY"],
-        region_name=current_app.config["AWS_REGION"])
+        region_name=current_app.config["AWS_SES_REGION"])
 
     # name = name + '.m.' + current_app.config["NOTIFY_EMAIL_DOMAIN"]
     name = name + '.m.' + 'notification.alpha.cdssandbox.xyz'
@@ -51,7 +51,7 @@ def smtp_add(name):
 
 def smtp_get_user_key(name):
     try:
-        iam_client = boto3.client('iam', region_name=current_app.config["AWS_REGION"])
+        iam_client = boto3.client('iam', region_name=current_app.config["AWS_SES_REGION"])
         return iam_client.list_access_keys(
             UserName=name,
         )["AccessKeyMetadata"][0]["AccessKeyId"]
@@ -65,17 +65,17 @@ def smtp_remove(name):
             'ses',
             aws_access_key_id=current_app.config["AWS_SES_ACCESS_KEY"],
             aws_secret_access_key=current_app.config["AWS_SES_SECRET_KEY"],
-            region_name=current_app.config["AWS_REGION"])
+            region_name=current_app.config["AWS_SES_REGION"])
         r53_client = boto3.client(
             'route53',
             aws_access_key_id=current_app.config["AWS_SES_ACCESS_KEY"],
             aws_secret_access_key=current_app.config["AWS_SES_SECRET_KEY"],
-            region_name=current_app.config["AWS_REGION"])
+            region_name=current_app.config["AWS_SES_REGION"])
         iam_client = boto3.client(
             'iam',
             aws_access_key_id=current_app.config["AWS_SES_ACCESS_KEY"],
             aws_secret_access_key=current_app.config["AWS_SES_SECRET_KEY"],
-            region_name=current_app.config["AWS_REGION"])
+            region_name=current_app.config["AWS_SES_REGION"])
 
         [domain, _] = name.split("-")
 

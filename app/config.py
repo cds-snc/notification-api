@@ -129,6 +129,7 @@ class Config(object):
     ADMIN_CLIENT_USER_NAME = 'notify-admin'
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
     AWS_ROUTE53_ZONE = os.getenv("AWS_ROUTE53_ZONE", "Z2OW036USASMAK")
+    AWS_SES_REGION = os.getenv("AWS_SES_REGION", "us-east-1")
     AWS_SES_SMTP = os.getenv("AWS_SES_SMTP", "email-smtp.us-east-1.amazonaws.com")
     AWS_SES_ACCESS_KEY = os.getenv('AWS_SES_ACCESS_KEY')
     AWS_SES_SECRET_KEY = os.getenv('AWS_SES_SECRET_KEY')

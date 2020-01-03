@@ -116,7 +116,7 @@ from app.schemas import (
 from app.user.users_schema import post_set_permissions_schema
 from app.utils import pagination_links
 
-from app.clients.smtp.aws import (smtp_add, smtp_get_user_key, smtp_remove)
+from app.smtp.aws import (smtp_add, smtp_get_user_key, smtp_remove)
 from nanoid import generate
 
 service_blueprint = Blueprint('service', __name__)
