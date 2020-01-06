@@ -142,7 +142,7 @@ def send_email_to_provider(notification):
         )
 
         if current_app.config["SCAN_FOR_PII"]:
-            contains_pii(notification, str(html_email), str(plain_text_email))
+            contains_pii(notification, str(plain_text_email))
 
         if service.research_mode or notification.key_type == KEY_TYPE_TEST:
             notification.reference = str(create_uuid())
@@ -250,12 +250,11 @@ def check_mlwr(sid):
     return check_mlwr_score(sid)
 
 
-def contains_pii(notification, html_content, text_content):
-
-    sin_regex = re.compile(r'\s\d{3}-\d{3}-\d{3}\s')
-
-    if sin_regex.search(html_content) or sin_regex.search(text_content):
-        fail_pii(notification, "Social Insurance Number")
+def contains_pii(notification, text_content):
+    for sin in re.findall(r'\s\d{3}-\d{3}-\d{3}\s', text_content):
+        if luhn(sin.replace("-", "").strip()):
+            fail_pii(notification, "Social Insurance Number")
+            return
 
 
 def fail_pii(notification, pii_type):
@@ -266,3 +265,8 @@ def fail_pii(notification, pii_type):
             notification.notification_type,
             notification.id,
             pii_type))
+
+
+def luhn(n):
+    r = [int(ch) for ch in n][::-1]
+    return (sum(r[0::2]) + sum(sum(divmod(d * 2, 10)) for d in r[1::2])) % 10 == 0
