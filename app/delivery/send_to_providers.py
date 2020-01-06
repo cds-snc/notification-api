@@ -1,6 +1,7 @@
 from datetime import datetime
 import urllib.request
 import magic
+import re
 
 from flask import current_app
 from notifications_utils.recipients import (
@@ -28,6 +29,7 @@ from app.models import (
     EMAIL_TYPE,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_VIRUS_SCAN_FAILED,
+    NOTIFICATION_CONTAINS_PII,
     NOTIFICATION_SENT,
     NOTIFICATION_SENDING
 )
@@ -139,6 +141,9 @@ def send_email_to_provider(notification):
             values=personalisation_data
         )
 
+        if current_app.config["SCAN_FOR_PII"]:
+            contains_pii(notification, str(html_email), str(plain_text_email))
+
         if service.research_mode or notification.key_type == KEY_TYPE_TEST:
             notification.reference = str(create_uuid())
             update_notification_to_sending(notification, provider)
@@ -243,3 +248,21 @@ def malware_failure(notification):
 
 def check_mlwr(sid):
     return check_mlwr_score(sid)
+
+
+def contains_pii(notification, html_content, text_content):
+
+    sin_regex = re.compile(r'\s\d{3}-\d{3}-\d{3}\s')
+
+    if sin_regex.search(html_content) or sin_regex.search(text_content):
+        fail_pii(notification, "Social Insurance Number")
+
+
+def fail_pii(notification, pii_type):
+    notification.status = NOTIFICATION_CONTAINS_PII
+    dao_update_notification(notification)
+    raise NotificationTechnicalFailureException(
+        "Send {} for notification id {} to provider is not allowed. Notification contains PII: {}".format(
+            notification.notification_type,
+            notification.id,
+            pii_type))

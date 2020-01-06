@@ -121,6 +121,9 @@ class Config(object):
     # SendGrid
     SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
 
+    # PII check
+    SCAN_FOR_PII = os.getenv("SCAN_FOR_PII", False)
+
     ###########################
     # Default config values ###
     ###########################
