@@ -859,13 +859,16 @@ def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_abov
     assert Notification.query.get(db_notification.id).status == 'virus-scan-failed'
 
 
-def test_notification_raises_error_if_message_contains_sin_pii(sample_email_template_with_html, mocker, notify_api):
+def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
+        sample_email_template_with_html,
+        mocker,
+        notify_api):
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
 
     db_notification = create_notification(
         template=sample_email_template_with_html,
         to_field="jo.smith@example.com",
-        personalisation={'name': '123-456-789'}
+        personalisation={'name': '046-454-286'}
     )
 
     with set_config_values(notify_api, {
@@ -878,6 +881,25 @@ def test_notification_raises_error_if_message_contains_sin_pii(sample_email_temp
     send_mock.assert_not_called()
 
     assert Notification.query.get(db_notification.id).status == 'pii-check-failed'
+
+
+def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(
+        sample_email_template_with_html,
+        mocker,
+        notify_api):
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
+
+    db_notification = create_notification(
+        template=sample_email_template_with_html,
+        to_field="jo.smith@example.com",
+        personalisation={'name': '123-456-789'}
+    )
+
+    send_to_providers.send_email_to_provider(db_notification)
+
+    send_mock.assert_called()
+
+    assert Notification.query.get(db_notification.id).status == 'sending'
 
 
 def test_notification_passes_if_message_contains_phone_number(sample_email_template_with_html, mocker):
