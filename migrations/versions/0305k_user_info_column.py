@@ -15,7 +15,7 @@ down_revision = '0305j_add_branding_option'
 
 
 def upgrade():
-     op.add_column('users', sa.Column('additional_information', postgresql.JSONB(), nullable=False))
+     op.add_column('users', sa.Column('additional_information', postgresql.JSONB(), nullable=True))
 
 
 def downgrade():
