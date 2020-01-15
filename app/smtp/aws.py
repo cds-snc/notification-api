@@ -35,7 +35,7 @@ def smtp_add(name):
         add_record(
             r53_client,
             token + "._domainkey." + name,
-            token + ".dkim." + name,
+            token + ".dkim.amazonses.com",
         )
 
     add_record(r53_client, name, "\"v=spf1 include:amazonses.com ~all\"", "TXT")
