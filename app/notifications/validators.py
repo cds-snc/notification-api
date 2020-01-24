@@ -44,7 +44,7 @@ def check_service_over_daily_message_limit(key_type, service):
         if (service.message_limit - int(service_stats) <= 100):
             current_app.logger.info('service {} nearing daily limit {} - {}'.format(
             service.id,
-            service.message_limit
+            service.message_limit,
             service_stats
             ))
 
