@@ -941,7 +941,7 @@ def get_smtp_relay(service_id):
     if service.smtp_user is not None:
         credentials = {
             "domain": service.smtp_user.split("-")[0],
-            "name": "email-smtp.us-east-1.amazonaws.com",
+            "name": current_app.config["AWS_SES_SMTP"],
             "port": "465",
             "tls": "Yes",
             "username": smtp_get_user_key(service.smtp_user),
@@ -955,8 +955,10 @@ def get_smtp_relay(service_id):
 def create_smtp_relay(service_id):
     service = dao_fetch_service_by_id(service_id)
 
+    alphabet = "1234567890abcdefghijklmnopqrstuvwxyz"
+
     if service.smtp_user is None:
-        user_id = generate(size=6)
+        user_id = generate(alphabet, size=7)
         credentials = smtp_add(user_id)
         service.smtp_user = credentials["iam"]
         dao_update_service(service)
