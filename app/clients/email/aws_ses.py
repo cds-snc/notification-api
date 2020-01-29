@@ -72,6 +72,8 @@ class AwsSesClient(EmailClient):
             if isinstance(to_addresses, str):
                 to_addresses = [to_addresses]
 
+            source = source.encode('idna').decode("utf-8")
+
             reply_to_addresses = [reply_to_address] if reply_to_address else []
 
             multipart_content_subtype = 'alternative' if html_body else 'mixed'
