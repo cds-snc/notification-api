@@ -18,6 +18,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1     
-    - run: /bin/sh -c "pip3 install -r requirements_for_test.txt && make test"
+    - run: /bin/bash -c "pip3 install -r requirements_for_test.txt && make test"
       env:
         SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@postgres:5432/test_notification_api

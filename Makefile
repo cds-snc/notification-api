@@ -1,11 +1,11 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
-DATE = $(/bin/sh date +%Y-%m-%d:%H:%M:%S)
+DATE = $(shell date +%Y-%m-%d:%H:%M:%S)
 
 APP_VERSION_FILE = app/version.py
 
-GIT_BRANCH ?= $(/bin/sh git symbolic-ref --short HEAD 2> /dev/null || echo "detached")
-GIT_COMMIT ?= $(/bin/sh git rev-parse HEAD)
+GIT_BRANCH ?= $(shell git symbolic-ref --short HEAD 2> /dev/null || echo "detached")
+GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
 .PHONY: help
 help:
