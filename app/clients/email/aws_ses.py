@@ -73,6 +73,7 @@ class AwsSesClient(EmailClient):
                 to_addresses = [to_addresses]
 
             source = source.encode('idna').decode("utf-8")
+            source = source[0:200]
 
             reply_to_addresses = [reply_to_address] if reply_to_address else []
 
