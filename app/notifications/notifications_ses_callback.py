@@ -47,6 +47,28 @@ def handle_complaint(ses_message):
     return complaint, notification, recipient_email
 
 
+def handle_smtp_complaint(ses_message):
+    recipient_email = remove_emails_from_complaint(ses_message)[0]
+    current_app.logger.info("Complaint from SES SMTP: \n{}".format(ses_message))
+    try:
+        reference = ses_message['mail']['messageId']
+    except KeyError as e:
+        current_app.logger.exception("Complaint from SES SMTP failed to get reference from message", e)
+        return
+    notification = dao_get_notification_history_by_reference(reference)
+    ses_complaint = ses_message.get('complaint', None)
+
+    complaint = Complaint(
+        notification_id=notification.id,
+        service_id=notification.service_id,
+        ses_feedback_id=ses_complaint.get('feedbackId', None) if ses_complaint else None,
+        complaint_type=ses_complaint.get('complaintFeedbackType', None) if ses_complaint else None,
+        complaint_date=ses_complaint.get('timestamp', None) if ses_complaint else None
+    )
+    save_complaint(complaint)
+    return complaint, notification, recipient_email
+
+
 def remove_mail_headers(dict_to_edit):
     if dict_to_edit['mail'].get('headers'):
         dict_to_edit['mail'].pop('headers')
