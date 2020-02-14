@@ -4,7 +4,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container:
-      image:  python:3.6-alpine
+      image:  python:3.6-stretch
     services:
       postgres:
         image: postgres:10.8
