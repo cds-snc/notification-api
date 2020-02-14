@@ -1,0 +1,25 @@
+on: push
+name: Continuous Integration Testing
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:10.8
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_notification_api
+        ports:
+        - 5432/tcp
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v1     
+    - name: docker://python:3.6-stretch
+      uses: docker://python:3.6-stretch
+      with:
+        entrypoint: /bin/bash
+        args: -c "pip3 install -r requirements_for_test.txt && make test"
+      env:
+        SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/test_notification_api
