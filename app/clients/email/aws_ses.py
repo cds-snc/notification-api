@@ -3,6 +3,7 @@ import botocore
 from flask import current_app
 from time import monotonic
 from notifications_utils.recipients import InvalidEmailError
+from unidecode import unidecode
 
 from app.clients import STATISTICS_DELIVERED, STATISTICS_FAILURE
 from app.clients.email import (EmailClientException, EmailClient)
@@ -72,7 +73,7 @@ class AwsSesClient(EmailClient):
             if isinstance(to_addresses, str):
                 to_addresses = [to_addresses]
 
-            source = source.encode('idna').decode("utf-8")
+            source = unidecode(source)
 
             reply_to_addresses = [reply_to_address] if reply_to_address else []
 
