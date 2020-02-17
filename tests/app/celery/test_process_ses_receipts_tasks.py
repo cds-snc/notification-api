@@ -6,7 +6,7 @@ from freezegun import freeze_time
 
 
 from app import statsd_client, encryption
-from app.celery.process_ses_receipts_tasks import process_ses_results, process_ses_smtp_results
+from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.research_mode_tasks import ses_hard_bounce_callback, ses_soft_bounce_callback, ses_notification_callback
 from app.celery.service_callback_tasks import create_delivery_status_callback_data
 from app.dao.notifications_dao import get_notification_by_id
@@ -419,6 +419,7 @@ def test_notifications_ses_smtp_200_call_process_task(client, mocker):
     process_mock.assert_called_once_with([{'Message': None}], queue='notify-internal-tasks')
     assert response.status_code == 200
 
+
 # FIX FROM HERE
 def test_process_ses_smtp_results(sample_email_template):
     create_notification(sample_email_template, reference='ref1', sent_at=datetime.utcnow(), status='sending')
@@ -591,10 +592,10 @@ def test_ses_smtp_callback_should_update_multiple_notification_status_sent(
 
 
 def test_ses_smtp_callback_should_set_status_to_temporary_failure(client,
-                                                             notify_db,
-                                                             notify_db_session,
-                                                             sample_email_template,
-                                                             mocker):
+                                                                  notify_db,
+                                                                  notify_db_session,
+                                                                  sample_email_template,
+                                                                  mocker):
     send_mock = mocker.patch(
         'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
     )
@@ -614,10 +615,10 @@ def test_ses_smtp_callback_should_set_status_to_temporary_failure(client,
 
 
 def test_ses_smtp_callback_should_set_status_to_permanent_failure(client,
-                                                             notify_db,
-                                                             notify_db_session,
-                                                             sample_email_template,
-                                                             mocker):
+                                                                  notify_db,
+                                                                  notify_db_session,
+                                                                  sample_email_template,
+                                                                  mocker):
     send_mock = mocker.patch(
         'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
     )
@@ -661,4 +662,3 @@ def test_ses_smtp_callback_should_send_on_complaint_to_user_callback_api(sample_
         'service_callback_api_url': 'https://original_url.com',
         'to': 'recipient1@example.com'
     }
-
