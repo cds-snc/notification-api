@@ -224,9 +224,6 @@ def process_ses_smtp_results(self, response):
 
         if notification_type == 'Bounce':
             notification_type = determine_notification_bounce_type(notification_type, ses_message)
-        elif notification_type == 'Complaint':
-            _check_and_queue_complaint_callback_task(*handle_smtp_complaint(ses_message))
-            return True
 
         aws_response_dict = get_aws_responses(notification_type)
 
@@ -240,21 +237,19 @@ def process_ses_smtp_results(self, response):
             service = services_dao.dao_services_by_partial_smtp_name(source.split("@")[-1])
 
             # Create a sent notification based on details from the payload
-            template = templates_dao.dao_get_template_by_id("1a205c1b-ad05-462e-a7aa-5ce1804fd6d7")
+            template = templates_dao.dao_get_template_by_id(current_app.config['SMTP_TEMPLATE_ID'])
             recipients = ses_message['mail']['destination']
 
             for recipient in recipients:
                 
-                message = (
-                    'A message was sent from ',
-                    headers["from"][0],
-                    ' to ',
-                    recipient, 
-                    ' on ',
-                    headers["date"],
-                    ' with the subject: ',
-                    headers["subject"]
-                    )
+                message = "".join(('A message was sent from: \n',
+                    source,
+                    '\n\n to: \n',
+                    recipient,
+                    '\n\n on: \n',
+                    headers["date"], 
+                    '\n\n with the subject: \n',
+                    headers["subject"]))
                 
                 process_notifications.persist_notification(
                     template_id=template.id,
@@ -270,9 +265,13 @@ def process_ses_smtp_results(self, response):
                     key_type=KEY_TYPE_NORMAL,
                     reply_to_text=recipient,
                     created_at=headers["date"],
-                    status=NOTIFICATION_DELIVERED,
+                    status=notification_status,
                     reference=ses_message['mail']['messageId']
                 )
+
+                if notification_type == 'Complaint':
+                    _check_and_queue_complaint_callback_task(*handle_smtp_complaint(ses_message))
+
         except NoResultFound:
             message_time = iso8601.parse_date(ses_message['mail']['timestamp']).replace(tzinfo=None)
             if datetime.utcnow() - message_time < timedelta(minutes=5):
