@@ -17,7 +17,7 @@ from app import notify_celery, statsd_client
 from app.config import QueueNames
 from app.clients.email.aws_ses import get_aws_responses
 from app.dao import notifications_dao, services_dao, templates_dao
-from app.models import NOTIFICATION_SENDING, NOTIFICATION_PENDING, NOTIFICATION_DELIVERED, EMAIL_TYPE, KEY_TYPE_NORMAL
+from app.models import NOTIFICATION_SENDING, NOTIFICATION_PENDING, EMAIL_TYPE, KEY_TYPE_NORMAL
 from json import decoder
 from app.notifications import process_notifications
 from app.notifications.notifications_ses_callback import (
@@ -127,10 +127,10 @@ def sns_smtp_callback_handler():
     except decoder.JSONDecodeError:
         raise InvalidRequest("SES-SNS SMTP callback failed: invalid JSON given", 400)
 
-    #try:
-    #    validatesns.validate(message, get_certificate=get_certificate)
-    #except validatesns.ValidationError:
-    #    raise InvalidRequest("SES-SNS SMTP callback failed: validation failed", 400)
+    try:
+        validatesns.validate(message, get_certificate=get_certificate)
+    except validatesns.ValidationError:
+        raise InvalidRequest("SES-SNS SMTP callback failed: validation failed", 400)
 
     if message.get('Type') == 'SubscriptionConfirmation':
         url = message.get('SubscribeURL')
@@ -215,6 +215,7 @@ def process_ses_results(self, response):
         current_app.logger.exception('Error processing SES results: {}'.format(type(e)))
         self.retry(queue=QueueNames.RETRY)
 
+
 @notify_celery.task(bind=True, name="process-ses-smtp-results", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def process_ses_smtp_results(self, response):
@@ -229,7 +230,6 @@ def process_ses_smtp_results(self, response):
 
         notification_status = aws_response_dict['notification_status']
         headers = ses_message['mail']['commonHeaders']
-        messageId = headers['messageId']
         source = ses_message['mail']['source']
 
         try:
@@ -241,16 +241,17 @@ def process_ses_smtp_results(self, response):
             recipients = ses_message['mail']['destination']
 
             for recipient in recipients:
-                
-                message = "".join(('A message was sent from: \n',
-                    source,
-                    '\n\n to: \n',
-                    recipient,
-                    '\n\n on: \n',
-                    headers["date"], 
-                    '\n\n with the subject: \n',
-                    headers["subject"]))
-                
+
+                message = "".join((
+                                'A message was sent from: \n',  # noqa: E126
+                                source,
+                                '\n\n to: \n',
+                                recipient,
+                                '\n\n on: \n',
+                                headers["date"],
+                                '\n\n with the subject: \n',
+                                headers["subject"]))
+
                 process_notifications.persist_notification(
                     template_id=template.id,
                     template_version=template.version,
@@ -277,6 +278,7 @@ def process_ses_smtp_results(self, response):
             if datetime.utcnow() - message_time < timedelta(minutes=5):
                 self.retry(queue=QueueNames.RETRY)
             else:
+                reference = ses_message['mail']['messageId']
                 current_app.logger.warning(
                     "SMTP service not found for reference: {} (update to {})".format(reference, notification_status)
                 )
