@@ -49,7 +49,6 @@ class QueueNames(object):
             QueueNames.RETRY,
             QueueNames.NOTIFY,
             QueueNames.CALLBACKS,
-           
         ]
 
 
