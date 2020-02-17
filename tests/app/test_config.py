@@ -70,7 +70,7 @@ def test_queue_names_all_queues_correct():
         QueueNames.JOBS,
         QueueNames.RETRY,
         QueueNames.NOTIFY,
-        QueueNames.CREATE_LETTERS_PDF,
+        # QueueNames.CREATE_LETTERS_PDF,
         QueueNames.CALLBACKS,
-        QueueNames.LETTERS,
+        # QueueNames.LETTERS,
     ]) == set(queues)
