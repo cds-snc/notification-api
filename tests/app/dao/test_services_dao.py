@@ -1104,7 +1104,7 @@ def create_email_sms_letter_template():
     return template_one, template_three, template_two
 
 
-def dao_services_by_partial_smtp_name(notify_db_session):
+def test_dao_services_by_partial_smtp_name(notify_db_session):
     create_service(service_name="SMTP CHAMP", smtp_user="smtp_champ")
     services_from_db = dao_services_by_partial_smtp_name("Tadfield")
     assert len(services_from_db) == 1

@@ -79,6 +79,7 @@ def test_process_ses_results_in_complaint_save_complaint_with_null_complaint_typ
     assert complaints[0].notification_id == notification.id
     assert not complaints[0].complaint_type
 
+
 def test_process_ses_smtp_results_in_complaint(sample_email_template):
     notification = create_notification(template=sample_email_template, reference='ref1')
     handle_smtp_complaint(json.loads(ses_complaint_callback()['Message']))
@@ -115,7 +116,7 @@ def test_process_ses_smtp_results_in_complaint_if_notification_does_not_exist(sa
     assert complaints[0].notification_id == notification.id
 
 
-def test_process_ses_smtp_results_in_complaint_save_complaint_with_null_complaint_type(notify_api, sample_email_template):
+def test_process_smtp_results_in_complaint_save_complaint_with_null_complaint_type(notify_api, sample_email_template):
     notification = create_notification(template=sample_email_template, reference='ref1')
     msg = json.loads(ses_complaint_callback_with_missing_complaint_type()['Message'])
     handle_smtp_complaint(msg)
