@@ -282,39 +282,39 @@ class Config(object):
             'schedule': crontab(hour=4, minute=0),
             'options': {'queue': QueueNames.PERIODIC},
         },
-        #'remove_letter_jobs': {
-            #'task': 'remove_letter_jobs',
-            #'schedule': crontab(hour=4, minute=20),  # this has to run AFTER remove_transformed_dvla_files
-            # since we mark jobs as archived
-            #'options': {'queue': QueueNames.PERIODIC},
-        #},
-        #'check-templated-letter-state': {
-            #'task': 'check-templated-letter-state',
-            #'schedule': crontab(day_of_week='mon-fri', hour=9, minute=0),
-            #'options': {'queue': QueueNames.PERIODIC}
-        #},
-        #'check-precompiled-letter-state': {
-            #'task': 'check-precompiled-letter-state',
-            #'schedule': crontab(day_of_week='mon-fri', hour='9,15', minute=0),
-            #'options': {'queue': QueueNames.PERIODIC}
-        #},
-        #'raise-alert-if-letter-notifications-still-sending': {
-            #'task': 'raise-alert-if-letter-notifications-still-sending',
-            #'schedule': crontab(hour=16, minute=30),
-            #'options': {'queue': QueueNames.PERIODIC}
-        #},
+        # 'remove_letter_jobs': {
+        # 'task': 'remove_letter_jobs',
+        # 'schedule': crontab(hour=4, minute=20),
+        #  since we mark jobs as archived
+        # 'options': {'queue': QueueNames.PERIODIC},
+        # },
+        # 'check-templated-letter-state': {
+        # 'task': 'check-templated-letter-state',
+        # 'schedule': crontab(day_of_week='mon-fri', hour=9, minute=0),
+        # 'options': {'queue': QueueNames.PERIODIC}
+        # },
+        # 'check-precompiled-letter-state': {
+        # 'task': 'check-precompiled-letter-state',
+        # 'schedule': crontab(day_of_week='mon-fri', hour='9,15', minute=0),
+        # 'options': {'queue': QueueNames.PERIODIC}
+        # },
+        # 'raise-alert-if-letter-notifications-still-sending': {
+        # 'task': 'raise-alert-if-letter-notifications-still-sending',
+        # 'schedule': crontab(hour=16, minute=30),
+        # 'options': {'queue': QueueNames.PERIODIC}
+        # },
         # The collate-letter-pdf does assume it is called in an hour that BST does not make a
         # difference to the truncate date which translates to the filename to process
-        #'collate-letter-pdfs-for-day': {
-            #'task': 'collate-letter-pdfs-for-day',
-            #'schedule': crontab(hour=17, minute=50),
-            #'options': {'queue': QueueNames.PERIODIC}
-        #},
-        #'raise-alert-if-no-letter-ack-file': {
-            #'task': 'raise-alert-if-no-letter-ack-file',
-            #'schedule': crontab(hour=23, minute=00),
-            #'options': {'queue': QueueNames.PERIODIC}
-        #},
+        # 'collate-letter-pdfs-for-day': {
+        # 'task': 'collate-letter-pdfs-for-day',
+        # 'schedule': crontab(hour=17, minute=50),
+        # 'options': {'queue': QueueNames.PERIODIC}
+        # },
+        # 'raise-alert-if-no-letter-ack-file': {
+        # 'task': 'raise-alert-if-no-letter-ack-file',
+        # 'schedule': crontab(hour=23, minute=00),
+        # 'options': {'queue': QueueNames.PERIODIC}
+        # },
     }
     CELERY_QUEUES = []
 
