@@ -221,7 +221,11 @@ def process_ses_results(self, response):
 def process_ses_smtp_results(self, response):
     try:
         ses_message = json.loads(response['Message'])
+
         notification_type = ses_message['notificationType']
+        headers = ses_message['mail']['commonHeaders']
+        source = ses_message['mail']['source']
+        recipients = ses_message['mail']['destination']
 
         if notification_type == 'Bounce':
             notification_type = determine_notification_bounce_type(notification_type, ses_message)
@@ -229,8 +233,6 @@ def process_ses_smtp_results(self, response):
         aws_response_dict = get_aws_responses(notification_type)
 
         notification_status = aws_response_dict['notification_status']
-        headers = ses_message['mail']['commonHeaders']
-        source = ses_message['mail']['source']
 
         try:
             # Get service based on SMTP name
@@ -238,7 +240,6 @@ def process_ses_smtp_results(self, response):
 
             # Create a sent notification based on details from the payload
             template = templates_dao.dao_get_template_by_id(current_app.config['SMTP_TEMPLATE_ID'])
-            recipients = ses_message['mail']['destination']
 
             for recipient in recipients:
 
@@ -252,7 +253,7 @@ def process_ses_smtp_results(self, response):
                                 '\n\n with the subject: \n',
                                 headers["subject"]))
 
-                process_notifications.persist_notification(
+                notification = process_notifications.persist_notification(
                     template_id=template.id,
                     template_version=template.version,
                     recipient=recipient,
@@ -272,6 +273,8 @@ def process_ses_smtp_results(self, response):
 
                 if notification_type == 'Complaint':
                     _check_and_queue_complaint_callback_task(*handle_smtp_complaint(ses_message))
+                else:
+                    _check_and_queue_callback_task(notification)
 
         except NoResultFound:
             message_time = iso8601.parse_date(ses_message['mail']['timestamp']).replace(tzinfo=None)
