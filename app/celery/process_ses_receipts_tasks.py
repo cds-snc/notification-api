@@ -277,14 +277,10 @@ def process_ses_smtp_results(self, response):
                     _check_and_queue_callback_task(notification)
 
         except NoResultFound:
-            message_time = iso8601.parse_date(ses_message['mail']['timestamp']).replace(tzinfo=None)
-            if datetime.utcnow() - message_time < timedelta(minutes=5):
-                self.retry(queue=QueueNames.RETRY)
-            else:
-                reference = ses_message['mail']['messageId']
-                current_app.logger.warning(
-                    "SMTP service not found for reference: {} (update to {})".format(reference, notification_status)
-                )
+            reference = ses_message['mail']['messageId']
+            current_app.logger.warning(
+                "SMTP service not found for reference: {} (update to {})".format(reference, notification_status)
+            )
             return
 
         statsd_client.incr('callback.ses-smtp.{}'.format(notification_status))

@@ -429,15 +429,6 @@ def test_process_ses_smtp_results(sample_email_template, smtp_template):
     assert process_ses_smtp_results(response=ses_smtp_notification_callback())
 
 
-def test_process_ses_smtp_results_retry_called(sample_email_template, notify_db, mocker):
-    create_notification(sample_email_template, reference='ref1', sent_at=datetime.utcnow(), status='sending')
-
-    mocker.patch("app.dao.notifications_dao._update_notification_status", side_effect=Exception("EXPECTED"))
-    mocked = mocker.patch('app.celery.process_ses_receipts_tasks.process_ses_smtp_results.retry')
-    process_ses_smtp_results(response=ses_notification_callback(reference='ref1'))
-    assert mocked.call_count != 0
-
-
 def test_process_ses_smtp_results_in_complaint(sample_email_template, mocker, smtp_template):
     create_notification(template=sample_email_template, reference='ref1')
     mocked = mocker.patch("app.dao.notifications_dao.update_notification_status_by_reference")
