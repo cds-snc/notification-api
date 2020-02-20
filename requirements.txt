@@ -39,7 +39,6 @@ unidecode==1.1.1
 # PaaS
 awscli-cwlogs>=1.4,<1.5
 
-
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
 itsdangerous==0.24  # pyup: <1.0.0
 
