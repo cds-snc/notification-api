@@ -524,3 +524,8 @@ def dao_fetch_active_users_for_service(service_id):
     )
 
     return query.all()
+
+
+def dao_services_by_partial_smtp_name(smtp_name):
+    smtp_name = escape_special_characters(smtp_name)
+    return Service.query.filter(Service.smtp_user.ilike("%{}%".format(smtp_name))).one()
