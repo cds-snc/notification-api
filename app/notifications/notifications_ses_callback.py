@@ -30,7 +30,8 @@ def determine_notification_bounce_type(notification_type, ses_message):
 
 def handle_complaint(ses_message):
     recipient_email = remove_emails_from_complaint(ses_message)[0]
-    current_app.logger.info("Complaint from SES: \n{}".format(json.dumps(ses_message).replace('{', '(').replace('}', ')')))
+    current_app.logger.info(
+        "Complaint from SES: \n{}".format(json.dumps(ses_message).replace('{', '(').replace('}', ')')))
     try:
         reference = ses_message['mail']['messageId']
     except KeyError as e:
@@ -52,7 +53,8 @@ def handle_complaint(ses_message):
 
 def handle_smtp_complaint(ses_message):
     recipient_email = remove_emails_from_complaint(ses_message)[0]
-    current_app.logger.info("Complaint from SES SMTP: \n{}".format(json.dumps(ses_message).replace('{', '(').replace('}', ')')))
+    current_app.logger.info(
+        "Complaint from SES SMTP: \n{}".format(json.dumps(ses_message).replace('{', '(').replace('}', ')')))
     try:
         reference = ses_message['mail']['messageId']
     except KeyError as e:
