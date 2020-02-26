@@ -1,4 +1,7 @@
-from flask import current_app
+from flask import (
+    current_app,
+    json
+)
 
 from app.dao.complaint_dao import save_complaint
 from app.dao.notifications_dao import dao_get_notification_history_by_reference
@@ -17,7 +20,7 @@ from app.config import QueueNames
 
 def determine_notification_bounce_type(notification_type, ses_message):
     remove_emails_from_bounce(ses_message)
-    current_app.logger.info('SES bounce dict: {}'.format(ses_message))
+    current_app.logger.info('SES bounce dict: {}'.format(json.dumps(ses_message).replace('{', '(').replace('}', ')')))
     if ses_message['bounce']['bounceType'] == 'Permanent':
         notification_type = ses_message['bounce']['bounceType']  # permanent or not
     else:
@@ -27,7 +30,8 @@ def determine_notification_bounce_type(notification_type, ses_message):
 
 def handle_complaint(ses_message):
     recipient_email = remove_emails_from_complaint(ses_message)[0]
-    current_app.logger.info("Complaint from SES: \n{}".format(ses_message))
+    current_app.logger.info(
+        "Complaint from SES: \n{}".format(json.dumps(ses_message).replace('{', '(').replace('}', ')')))
     try:
         reference = ses_message['mail']['messageId']
     except KeyError as e:
@@ -49,7 +53,8 @@ def handle_complaint(ses_message):
 
 def handle_smtp_complaint(ses_message):
     recipient_email = remove_emails_from_complaint(ses_message)[0]
-    current_app.logger.info("Complaint from SES SMTP: \n{}".format(ses_message))
+    current_app.logger.info(
+        "Complaint from SES SMTP: \n{}".format(json.dumps(ses_message).replace('{', '(').replace('}', ')')))
     try:
         reference = ses_message['mail']['messageId']
     except KeyError as e:
