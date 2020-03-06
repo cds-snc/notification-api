@@ -32,7 +32,7 @@ from app.errors import (
     register_errors,
     InvalidRequest
 )
-from werkzeug.contrib.cache import SimpleCache
+from cachelib import SimpleCache
 import validatesns
 
 ses_callback_blueprint = Blueprint('notifications_ses_callback', __name__)
