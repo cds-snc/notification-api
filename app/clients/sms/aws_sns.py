@@ -11,7 +11,7 @@ class AwsSnsClient(SmsClient):
     '''
 
     def init_app(self, current_app, statsd_client, *args, **kwargs):
-        self._client = boto3.client('sns', region_name=current_app.config["AWS_REGION"])
+        self._client = boto3.client('sns', region_name="us-east-1")
         super(SmsClient, self).__init__(*args, **kwargs)
         self.current_app = current_app
         self.name = 'sns'
