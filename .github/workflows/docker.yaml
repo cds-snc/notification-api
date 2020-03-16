@@ -18,10 +18,10 @@ jobs:
         gcloud auth configure-docker
     - name: Build
       run: |        
-        docker build -t gcr.io/cdssnc/notify/api:${GITHUB_SHA::8} -t gcr.io/cdssnc/notify/api:latest -f ci/Dockerfile .
+        docker build -t gcr.io/cdssnc/notify/api:${GITHUB_SHA::7} -t gcr.io/cdssnc/notify/api:latest -f ci/Dockerfile .
     - name: Publish
       run: |
-        docker push gcr.io/cdssnc/notify/api:latest && docker push gcr.io/cdssnc/notify/api:${GITHUB_SHA::8}
+        docker push gcr.io/cdssnc/notify/api:latest && docker push gcr.io/cdssnc/notify/api:${GITHUB_SHA::7}
     - name: EKS
       uses: docker://gcr.io/cdssnc/aws:latest
       env:
@@ -35,18 +35,18 @@ jobs:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       with:
-        args: set image deployment.apps/api api=gcr.io/cdssnc/notify/api:${GITHUB_SHA::8} -n=notification-canada-ca --kubeconfig=/github/home/.kube/config
+        args: set image deployment.apps/api api=gcr.io/cdssnc/notify/api:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=/github/home/.kube/config
     - name: Apply celery
       uses: docker://gcr.io/cdssnc/aws-kubectl:latest
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       with:
-        args: set image deployment.apps/celery celery=gcr.io/cdssnc/notify/api:${GITHUB_SHA::8} -n=notification-canada-ca --kubeconfig=/github/home/.kube/config
+        args: set image deployment.apps/celery celery=gcr.io/cdssnc/notify/api:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=/github/home/.kube/config
     - name: Apply celery-beat
       uses: docker://gcr.io/cdssnc/aws-kubectl:latest
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       with:
-        args: set image deployment.apps/celery-beat celery-beat=gcr.io/cdssnc/notify/api:${GITHUB_SHA::8} -n=notification-canada-ca --kubeconfig=/github/home/.kube/config
+        args: set image deployment.apps/celery-beat celery-beat=gcr.io/cdssnc/notify/api:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=/github/home/.kube/config
