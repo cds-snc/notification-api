@@ -28,7 +28,11 @@ from app.models import (
     SMS_TYPE,
     Template,
 )
-from app.utils import get_local_timezone_midnight_in_utc, midnight_n_days_ago, get_local_timezone_month_from_utc_column
+from app.utils import (
+    get_local_timezone_midnight_in_utc,
+    midnight_n_days_ago,
+    get_local_timezone_month_from_utc_column, get_local_timezone_midnight
+)
 
 
 def fetch_notification_status_for_day(process_day, service_id=None):
@@ -153,7 +157,7 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
 
 def fetch_notification_status_for_service_for_today_and_7_previous_days(service_id, by_template=False, limit_days=7):
     start_date = midnight_n_days_ago(limit_days)
-    now = datetime.utcnow()
+    now = datetime.now()
     stats_for_7_days = db.session.query(
         FactNotificationStatus.notification_type.label('notification_type'),
         FactNotificationStatus.notification_status.label('status'),
@@ -171,7 +175,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
         *([Notification.template_id] if by_template else []),
         func.count().label('count')
     ).filter(
-        Notification.created_at >= get_local_timezone_midnight_in_utc(now),
+        Notification.created_at >= get_local_timezone_midnight(now),
         Notification.service_id == service_id,
         Notification.key_type != KEY_TYPE_TEST
     ).group_by(
