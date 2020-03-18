@@ -63,7 +63,7 @@ def get_local_timezone_midnight_in_utc(date):
      :param date: the day to calculate the London midnight in UTC for
      :return: the datetime of London midnight in UTC, for example 2016-06-17 = 2016-06-16 23:00:00
     """
-    if hasattr(date, 'astimezone') == False:
+    if hasattr(date, 'astimezone') is False:
         date = datetime.combine(date, datetime.min.time())
     local = date.astimezone(local_timezone)
     return local_timezone.localize(datetime.combine(
