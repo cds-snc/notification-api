@@ -31,7 +31,7 @@ from app.models import (
 from app.utils import (
     get_local_timezone_midnight_in_utc,
     midnight_n_days_ago,
-    get_local_timezone_month_from_utc_column, get_local_timezone_midnight
+    get_local_timezone_month_from_utc_column
 )
 
 
@@ -157,7 +157,7 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
 
 def fetch_notification_status_for_service_for_today_and_7_previous_days(service_id, by_template=False, limit_days=7):
     start_date = midnight_n_days_ago(limit_days)
-    now = datetime.now()
+    now = datetime.utcnow()
     stats_for_7_days = db.session.query(
         FactNotificationStatus.notification_type.label('notification_type'),
         FactNotificationStatus.notification_status.label('status'),
@@ -175,7 +175,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
         *([Notification.template_id] if by_template else []),
         func.count().label('count')
     ).filter(
-        Notification.created_at >= get_local_timezone_midnight(now),
+        Notification.created_at >= get_local_timezone_midnight_in_utc(now),
         Notification.service_id == service_id,
         Notification.key_type != KEY_TYPE_TEST
     ).group_by(
