@@ -13,12 +13,12 @@ from app.utils import (
 
 
 @pytest.mark.parametrize('date, expected_date', [
-    (datetime(2016, 1, 15, 0, 30), datetime(2016, 1, 15, 0, 0)),
-    (datetime(2016, 6, 15, 0, 0), datetime(2016, 6, 15, 0, 0)),
-    (datetime(2016, 9, 15, 11, 59), datetime(2016, 9, 15, 0, 0)),
+    (datetime(2016, 1, 15, 0, 30), datetime(2016, 1, 14, 5, 0)),
+    (datetime(2016, 6, 15, 0, 0), datetime(2016, 6, 14, 4, 0)),
+    (datetime(2016, 9, 16, 4, 0), datetime(2016, 9, 16, 4, 0)),
     # works for both dates and datetimes
-    (date(2016, 1, 15), datetime(2016, 1, 15, 0, 0)),
-    (date(2016, 6, 15), datetime(2016, 6, 15, 0, 0)),
+    (date(2016, 1, 15), datetime(2016, 1, 14, 5, 0)),
+    (date(2016, 6, 15), datetime(2016, 6, 14, 4, 0)),
 ])
 def test_get_local_timezone_midnight_returns_expected_date(date, expected_date):
     assert get_local_timezone_midnight(date) == expected_date
