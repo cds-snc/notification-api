@@ -135,6 +135,7 @@ def register_blueprint(application):
     from app.events.rest import events as events_blueprint
     from app.provider_details.rest import provider_details as provider_details_blueprint
     from app.email_branding.rest import email_branding_blueprint
+    from app.api_key.rest import api_key_blueprint
     from app.inbound_number.rest import inbound_number_blueprint
     from app.inbound_sms.rest import inbound_sms as inbound_sms_blueprint
     from app.notifications.receive_notifications import receive_notifications_blueprint
@@ -211,6 +212,9 @@ def register_blueprint(application):
 
     email_branding_blueprint.before_request(requires_admin_auth)
     application.register_blueprint(email_branding_blueprint, url_prefix='/email-branding')
+
+    api_key_blueprint.before_request(requires_admin_auth)
+    application.register_blueprint(api_key_blueprint, url_prefix='/api-key')
 
     letter_job.before_request(requires_admin_auth)
     application.register_blueprint(letter_job)
