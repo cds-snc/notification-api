@@ -207,7 +207,7 @@ def get_total_notifications_sent_for_api_key(api_key_id):
     """
     SELECT count(*) as total_send_attempts
     FROM notifications
-    WHERE api_key_id = 'whatever'
+    WHERE api_key_id = 'api_key_id';
     """
 
     return db.session.query(
