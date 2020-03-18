@@ -202,6 +202,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
         all_stats_table.c.status,
     ).all()
 
+
 def get_total_notifications_sent_for_api_key(api_key_id):
     """
     SELECT count(*) as total_send_attempts
