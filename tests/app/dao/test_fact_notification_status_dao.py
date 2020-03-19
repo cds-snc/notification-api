@@ -14,7 +14,8 @@ from app.dao.fact_notification_status_dao import (
     fetch_notification_status_totals_for_all_services,
     fetch_notification_statuses_for_job,
     fetch_stats_for_all_services_by_date_range, fetch_monthly_template_usage_for_service,
-    get_total_sent_notifications_for_day_and_type
+    get_total_sent_notifications_for_day_and_type,
+    get_total_notifications_sent_for_api_key
 )
 from app.models import (
     FactNotificationStatus,
@@ -36,7 +37,7 @@ from freezegun import freeze_time
 
 from tests.app.db import (
     create_notification, create_service, create_template, create_ft_notification_status,
-    create_job, create_notification_history
+    create_job, create_notification_history, create_api_key
 )
 
 
@@ -292,6 +293,20 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
         ('sms Template Name', False, mock.ANY, 'sms', 'delivered', 11),
 
     ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
+
+
+def test_get_total_notifications_sent_for_api_key(notify_db_session):
+    service = create_service(service_name='First Service')
+    api_key = create_api_key(service)
+    template = create_template(service=service)
+    total_sends = 10
+
+    for x in range(total_sends):
+        create_notification(template=template, api_key=api_key)
+
+    api_key_stats = get_total_notifications_sent_for_api_key(api_key.id)
+
+    assert api_key_stats[0] == total_sends
 
 
 @pytest.mark.parametrize(
