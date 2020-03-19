@@ -1,18 +1,23 @@
-from app.models import Notification
+from tests.app.db import (
+    create_api_key,
+    create_service
+)
+
+from tests.app.conftest import sample_notification as create_sample_notification
 
 
 def test_get_api_key_stats(admin_request, notify_db, notify_db_session):
-    api_key_id_1 = "api_key_id_1"
-    notifications = []
-    for x in range(10):
-        notifications.append(Notification(api_key_id=api_key_id_1))
 
-    notify_db.session.add_all(notifications)
-    notify_db.session.commit()
+    service = create_service(check_if_service_exists=True)
+    api_key = create_api_key(service)
+
+    for x in range(10):
+        create_sample_notification(notify_db, notify_db_session, api_key=api_key, service=service)
 
     api_key_stats = admin_request.get(
-        'api_key.get_api_key_stats'
+        'api_key.get_api_key_stats',
+        api_key_id=api_key.id
     )['data']
 
-    assert len(api_key_stats) == 1
-    assert api_key_stats[0]["total_sends"] == 10
+    assert api_key_stats["api_key_id"] == str(api_key.id)
+    assert api_key_stats["total_sends"] == 10
