@@ -10,8 +10,9 @@ def test_get_api_key_stats(admin_request, notify_db, notify_db_session):
 
     service = create_service(check_if_service_exists=True)
     api_key = create_api_key(service)
+    total_sends = 10
 
-    for x in range(10):
+    for x in range(total_sends):
         create_sample_notification(notify_db, notify_db_session, api_key=api_key, service=service)
 
     api_key_stats = admin_request.get(
@@ -20,4 +21,4 @@ def test_get_api_key_stats(admin_request, notify_db, notify_db_session):
     )['data']
 
     assert api_key_stats["api_key_id"] == str(api_key.id)
-    assert api_key_stats["total_sends"] == 10
+    assert api_key_stats["total_sends"] == total_sends
