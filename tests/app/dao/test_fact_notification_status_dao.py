@@ -363,7 +363,7 @@ def test_fetch_notification_status_totals_for_all_services(
             start_date=date(2018, 10, start_date), end_date=date(2018, 10, end_date)),
         key=lambda x: (x.notification_type, x.status)
     )
-    print("other results", results)
+
     assert len(results) == 4
 
     assert results[0].notification_type == 'email'
