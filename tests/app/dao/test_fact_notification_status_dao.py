@@ -299,14 +299,20 @@ def test_get_total_notifications_sent_for_api_key(notify_db_session):
     service = create_service(service_name='First Service')
     api_key = create_api_key(service)
     template = create_template(service=service)
+    template_email = create_template(service=service, template_type=EMAIL_TYPE)
+    template_sms = create_template(service=service, template_type=SMS_TYPE)
     total_sends = 10
-
+    print("str(api_key.id)" , str(api_key.id))
     for x in range(total_sends):
         create_notification(template=template, api_key=api_key)
+    # create_ft_notification_status(date(2018, 1, 1), 'email', service, count=total_sends)
 
-    api_key_stats = get_total_notifications_sent_for_api_key(api_key.id)
+        # create_notification(template=template_email, api_key=api_key)
+        # create_notification(template=template_sms, api_key=api_key)
 
-    assert api_key_stats[0] == total_sends
+    api_key_stats = get_total_notifications_sent_for_api_key(str(api_key.id))
+
+    assert api_key_stats == [(EMAIL_TYPE, total_sends), (SMS_TYPE, 0)]
 
 
 @pytest.mark.parametrize(
@@ -335,7 +341,7 @@ def test_fetch_notification_status_totals_for_all_services(
             start_date=date(2018, 10, start_date), end_date=date(2018, 10, end_date)),
         key=lambda x: (x.notification_type, x.status)
     )
-
+    print("other results", results)
     assert len(results) == 4
 
     assert results[0].notification_type == 'email'

@@ -209,16 +209,37 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
 
 def get_total_notifications_sent_for_api_key(api_key_id):
     """
-    SELECT count(*) as total_send_attempts
+    SELECT count(*) as total_send_attempts, notification_type
     FROM notifications
-    WHERE api_key_id = 'api_key_id';
+    WHERE api_key_id = 'api_key_id'
+    GROUP BY notification_type;
     """
 
     return db.session.query(
+        FactNotificationStatus.notification_type.label('notification_type'),
         func.count(Notification.id).label('total_send_attempts')
     ).filter(
         Notification.api_key_id == api_key_id,
-    ).one()
+    ).group_by(
+        FactNotificationStatus.notification_type
+    ).all()
+
+
+def get_last_send_for_api_key(api_key_id):
+    """
+    SELECT max(created_at) as last_notification_created
+    FROM notifications
+    WHERE api_key_id = 'api_key_id'
+    GROUP BY api_key_id;
+    """
+
+    return db.session.query(
+        func.max(FactNotificationStatus.created_at).label('last_notification_created')
+    ).filter(
+        Notification.api_key_id == api_key_id
+    ).group_by(
+        Notification.api_key_id
+    ).all()
 
 
 def fetch_notification_status_totals_for_all_services(start_date, end_date):
