@@ -1,8 +1,8 @@
 import datetime
 
 from flask import Blueprint, jsonify
-from app.dao.fact_notification_status_dao import get_total_notifications_sent_for_api_key, get_last_send_for_api_key
 from app import DATETIME_FORMAT
+from app.dao.fact_notification_status_dao import get_total_notifications_sent_for_api_key, get_last_send_for_api_key
 from app.errors import register_errors
 
 api_key_blueprint = Blueprint('api_key', __name__)
