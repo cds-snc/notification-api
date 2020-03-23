@@ -15,7 +15,8 @@ from app.dao.fact_notification_status_dao import (
     fetch_notification_statuses_for_job,
     fetch_stats_for_all_services_by_date_range, fetch_monthly_template_usage_for_service,
     get_total_sent_notifications_for_day_and_type,
-    get_total_notifications_sent_for_api_key
+    get_total_notifications_sent_for_api_key,
+    get_last_send_for_api_key
 )
 from app.models import (
     FactNotificationStatus,
@@ -298,15 +299,43 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
 def test_get_total_notifications_sent_for_api_key(notify_db_session):
     service = create_service(service_name='First Service')
     api_key = create_api_key(service)
-    template = create_template(service=service)
+    template_email = create_template(service=service, template_type=EMAIL_TYPE)
+    template_sms = create_template(service=service, template_type=SMS_TYPE)
     total_sends = 10
 
+    api_key_stats_1 = get_total_notifications_sent_for_api_key(str(api_key.id))
+    assert api_key_stats_1 == []
+
     for x in range(total_sends):
-        create_notification(template=template, api_key=api_key)
+        create_notification(template=template_email, api_key=api_key)
 
-    api_key_stats = get_total_notifications_sent_for_api_key(api_key.id)
+    api_key_stats_2 = get_total_notifications_sent_for_api_key(str(api_key.id))
+    assert api_key_stats_2 == [(EMAIL_TYPE, total_sends), ]
 
-    assert api_key_stats[0] == total_sends
+    for x in range(total_sends):
+        create_notification(template=template_sms, api_key=api_key)
+
+    api_key_stats_3 = get_total_notifications_sent_for_api_key(str(api_key.id))
+    assert api_key_stats_3 == [(EMAIL_TYPE, total_sends), (SMS_TYPE, total_sends)]
+
+
+def test_get_last_send_for_api_key(notify_db_session):
+    service = create_service(service_name='First Service')
+    api_key = create_api_key(service)
+    template_email = create_template(service=service, template_type=EMAIL_TYPE)
+    total_sends = 10
+
+    last_send = get_last_send_for_api_key(str(api_key.id))
+    assert last_send == []
+
+    for x in range(total_sends):
+        create_notification(template=template_email, api_key=api_key)
+
+    # the following lines test that a send has occurred within the last second
+    last_send = get_last_send_for_api_key(str(api_key.id))[0][0]
+    now = datetime.utcnow()
+    time_delta = now - last_send
+    assert abs(time_delta.total_seconds()) < 1
 
 
 @pytest.mark.parametrize(
