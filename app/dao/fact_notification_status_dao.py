@@ -216,12 +216,12 @@ def get_total_notifications_sent_for_api_key(api_key_id):
     """
 
     return db.session.query(
-        FactNotificationStatus.notification_type.label('notification_type'),
+        Notification.notification_type.label('notification_type'),
         func.count(Notification.id).label('total_send_attempts')
     ).filter(
         Notification.api_key_id == api_key_id,
     ).group_by(
-        FactNotificationStatus.notification_type
+        Notification.notification_type
     ).all()
 
 
@@ -234,7 +234,7 @@ def get_last_send_for_api_key(api_key_id):
     """
 
     return db.session.query(
-        func.max(FactNotificationStatus.created_at).label('last_notification_created')
+        func.max(Notification.created_at).label('last_notification_created')
     ).filter(
         Notification.api_key_id == api_key_id
     ).group_by(
