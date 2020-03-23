@@ -9,8 +9,6 @@ from tests.app.db import (
     create_template
 )
 
-from tests.app.conftest import sample_notification as create_sample_notification
-
 
 def test_get_api_key_stats_with_sends(admin_request, notify_db, notify_db_session):
 
@@ -52,4 +50,4 @@ def test_get_api_key_stats_no_sends(admin_request, notify_db, notify_db_session)
     assert api_key_stats["email_sends"] == 0
     assert api_key_stats["sms_sends"] == 0
     assert api_key_stats["total_sends"] == 0
-    assert api_key_stats["last_send"] == None
+    assert api_key_stats["last_send"] is None
