@@ -331,6 +331,7 @@ def test_get_last_send_for_api_key(notify_db_session):
     for x in range(total_sends):
         create_notification(template=template_email, api_key=api_key)
 
+    # the following lines test that a send has occurred within the last second
     last_send = get_last_send_for_api_key(str(api_key.id))[0][0]
     now = datetime.utcnow()
     time_delta = now - last_send
