@@ -29,7 +29,7 @@ def test_get_api_key_stats_with_sends(admin_request, notify_db, notify_db_sessio
     assert api_key_stats["email_sends"] == total_sends
     assert api_key_stats["sms_sends"] == 0
     assert api_key_stats["total_sends"] == total_sends
-    
+
     # the following lines test that a send has occurred within the last second
     last_send_dt = datetime.strptime(api_key_stats["last_send"], DATETIME_FORMAT)
     now = datetime.utcnow()
