@@ -24,7 +24,7 @@ def test_get_api_key_stats_with_sends(admin_request, notify_db, notify_db_sessio
         'api_key.get_api_key_stats',
         api_key_id=api_key.id
     )['data']
-    print("api_key_stats", api_key_stats)
+
     assert api_key_stats["api_key_id"] == str(api_key.id)
     assert api_key_stats["email_sends"] == total_sends
     assert api_key_stats["sms_sends"] == 0
@@ -32,8 +32,8 @@ def test_get_api_key_stats_with_sends(admin_request, notify_db, notify_db_sessio
 
     last_send_dt = datetime.strptime(api_key_stats["last_send"], DATETIME_FORMAT)
     now = datetime.utcnow()
-    timedelta = now - last_send_dt
-    assert abs(timedelta.total_seconds()) < 1
+    time_delta = now - last_send_dt
+    assert abs(time_delta.total_seconds()) < 1
 
 
 def test_get_api_key_stats_no_sends(admin_request, notify_db, notify_db_session):

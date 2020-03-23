@@ -333,8 +333,8 @@ def test_get_last_send_for_api_key(notify_db_session):
 
     last_send = get_last_send_for_api_key(str(api_key.id))[0][0]
     now = datetime.utcnow()
-    timedelta = now - last_send
-    assert abs(timedelta.total_seconds()) < 1
+    time_delta = now - last_send
+    assert abs(time_delta.total_seconds()) < 1
 
 
 @pytest.mark.parametrize(
