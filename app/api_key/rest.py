@@ -30,6 +30,7 @@ def get_api_key_stats(api_key_id):
     data["total_sends"] = data["email_sends"] + data["sms_sends"]
     return jsonify(data=data)
 
+
 @api_key_blueprint.route('/ranked-by-notifications-created/<n_days_back>', methods=['GET'])
 def get_api_keys_ranked(n_days_back):
     try:
