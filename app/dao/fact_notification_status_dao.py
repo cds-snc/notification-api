@@ -245,7 +245,7 @@ def get_last_send_for_api_key(api_key_id):
 
 def get_api_key_ranked_by_notifications_created(n_days_back):
     """
-    SELECT 
+    SELECT
         a.api_key_id,
         a.service_id,
         a.last_send,
@@ -254,10 +254,10 @@ def get_api_key_ranked_by_notifications_created(n_days_back):
         api_keys.key_type,
         services.name
     FROM (
-        SELECT 
+        SELECT
             api_key_id,
             service_id,
-            max(created_at) as last_send, 
+            max(created_at) as last_send,
             count(*) as total_notifications
         FROM notifications
         WHERE created_at > start_date and api_key_id is not null
@@ -277,7 +277,7 @@ def get_api_key_ranked_by_notifications_created(n_days_back):
         func.count(Notification.id).label('total_notifications')
     ).filter(
         Notification.created_at >= start_date,
-        Notification.api_key_id != None
+        Notification.api_key_id is not None
     ).group_by(
         Notification.api_key_id,
         Notification.service_id

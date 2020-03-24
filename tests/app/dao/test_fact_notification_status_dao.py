@@ -346,14 +346,14 @@ def test_get_api_key_ranked_by_notifications_created(notify_db_session):
     api_key_2 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 2")
     template = create_template(service=service, template_type='email')
     total_sends = 10
-    
+
     create_notification(template=template, api_key=api_key_1)
     for x in range(total_sends):
         create_notification(template=template, api_key=api_key_1)
         create_notification(template=template, api_key=api_key_2)
 
     api_keys_ranked = get_api_key_ranked_by_notifications_created(2)
-    
+
     assert len(api_keys_ranked) == 2
     assert len(api_keys_ranked[0]) == 7
 

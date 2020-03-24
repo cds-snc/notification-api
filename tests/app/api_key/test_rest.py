@@ -12,6 +12,7 @@ from app.models import (
     KEY_TYPE_NORMAL,
 )
 
+
 def test_get_api_key_stats_with_sends(admin_request, notify_db, notify_db_session):
 
     service = create_service(service_name='Service 1')
@@ -55,6 +56,7 @@ def test_get_api_key_stats_no_sends(admin_request, notify_db, notify_db_session)
     assert api_key_stats["total_sends"] == 0
     assert api_key_stats["last_send"] is None
 
+
 def test_get_api_keys_ranked(admin_request, notify_db, notify_db_session):
 
     service = create_service(service_name='Service 1')
@@ -62,7 +64,7 @@ def test_get_api_keys_ranked(admin_request, notify_db, notify_db_session):
     api_key_2 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 2")
     template = create_template(service=service, template_type='email')
     total_sends = 10
-    
+
     create_notification(template=template, api_key=api_key_1)
     for x in range(total_sends):
         create_notification(template=template, api_key=api_key_1)
@@ -72,7 +74,7 @@ def test_get_api_keys_ranked(admin_request, notify_db, notify_db_session):
         'api_key.get_api_keys_ranked',
         n_days_back=2
     )['data']
-    
+
     assert api_keys_ranked[0]["api_key_name"] == api_key_1.name
     assert api_keys_ranked[0]["service_name"] == service.name
     assert api_keys_ranked[0]["total_notifications"] == total_sends + 1
