@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify
 from app import DATETIME_FORMAT
 from app.dao.fact_notification_status_dao import (
-    get_total_notifications_sent_for_api_key, 
+    get_total_notifications_sent_for_api_key,
     get_last_send_for_api_key,
     get_api_key_ranked_by_notifications_created
 )
@@ -49,4 +49,5 @@ def get_api_keys_ranked(n_days_back):
             "api_key_type": x[5],
             "service_name": x[6]
         })
+    print("data", data)
     return jsonify(data=data)
