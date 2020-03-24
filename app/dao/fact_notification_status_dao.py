@@ -9,6 +9,7 @@ from sqlalchemy.types import DateTime, Integer
 
 from app import db
 from app.models import (
+    ApiKey,
     EMAIL_TYPE,
     FactNotificationStatus,
     KEY_TYPE_TEST,
@@ -245,18 +246,31 @@ def get_last_send_for_api_key(api_key_id):
 def get_api_key_ranked_by_notifications_created(n_days_back):
     """
     SELECT 
-        api_key_id,
-        service_id,
-        max(created_at) as last_send, 
-        count(*) as total_notifications
-    FROM notifications
-    where created_at >= start_date and api_key_id is not null
-    group by api_key_id, service_id
-    order by count(*) DESC;
+        a.api_key_id,
+        a.service_id,
+        a.last_send,
+        a.total_notifications,
+        api_keys.name,
+        api_keys.key_type,
+        services.name
+    FROM (
+        SELECT 
+            api_key_id,
+            service_id,
+            max(created_at) as last_send, 
+            count(*) as total_notifications
+        FROM notifications
+        WHERE created_at > start_date and api_key_id is not null
+        GROUP BY api_key_id, service_id
+        ORDER BY count(*) DESC
+        LIMIT 50
+    ) as A
+    JOIN api_keys on api_keys.id = A.api_key_id
+    JOIN services on services.id = A.service_id;
     """
 
     start_date = datetime.utcnow() - timedelta(days=n_days_back)
-    return db.session.query(
+    table_a = db.session.query(
         Notification.api_key_id,
         Notification.service_id,
         func.max(Notification.created_at).label('last_notification_created'),
@@ -269,6 +283,20 @@ def get_api_key_ranked_by_notifications_created(n_days_back):
         Notification.service_id
     ).order_by(
         func.count(Notification.id).desc()
+    ).subquery()
+
+    return db.session.query(
+        table_a.c.api_key_id,
+        table_a.c.service_id,
+        table_a.c.last_notification_created,
+        table_a.c.total_notifications,
+        ApiKey.name,
+        ApiKey.key_type,
+        Service.name
+    ).join(
+        ApiKey, ApiKey.id == table_a.c.api_key_id
+    ).join(
+        Service, Service.id == table_a.c.service_id
     ).all()
 
 
