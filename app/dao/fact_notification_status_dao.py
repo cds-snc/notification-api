@@ -242,6 +242,36 @@ def get_last_send_for_api_key(api_key_id):
     ).all()
 
 
+def get_api_key_ranked_by_notifications_created(n_days_back):
+    """
+    SELECT 
+        api_key_id,
+        service_id,
+        max(created_at) as last_send, 
+        count(*) as total_notifications
+    FROM notifications
+    where created_at >= start_date and api_key_id is not null
+    group by api_key_id, service_id
+    order by count(*) DESC;
+    """
+
+    start_date = datetime.utcnow() - timedelta(days=n_days_back)
+    return db.session.query(
+        Notification.api_key_id,
+        Notification.service_id,
+        func.max(Notification.created_at).label('last_notification_created'),
+        func.count(Notification.id).label('total_notifications')
+    ).filter(
+        Notification.created_at >= start_date,
+        Notification.api_key_id != None
+    ).group_by(
+        Notification.api_key_id,
+        Notification.service_id
+    ).order_by(
+        func.count(Notification.id).desc()
+    ).all()
+
+
 def fetch_notification_status_totals_for_all_services(start_date, end_date):
     stats = db.session.query(
         FactNotificationStatus.notification_type.label('notification_type'),
