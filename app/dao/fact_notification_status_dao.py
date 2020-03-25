@@ -250,29 +250,29 @@ def get_api_key_ranked_by_notifications_created(n_days_back):
         api_keys.key_type,
         services.name,
         b.api_key_id,
-		b.service_id,
+        b.service_id,
         b.last_notification_created,
         b.email_notifications,
         b.sms_notifications,
-		b.total_notifications
+        b.total_notifications
     FROM (
-        SELECT 
+        SELECT
             a.api_key_id,
             a.service_id,
             max(a.last_notification_created) as last_notification_created,
             sum(a.email_notifications) as email_notifications,
             sum(a.sms_notifications) as sms_notifications,
-			sum(a.email_notifications) + sum(a.sms_notifications) as total_notifications
+            sum(a.email_notifications) + sum(a.sms_notifications) as total_notifications
         FROM (
-            SELECT 
+            SELECT
                 api_key_id,
                 service_id,
                 max(created_at) as last_notification_created,
-                (CASE 
+                (CASE
                     WHEN notification_type = 'email' THEN count(*)
                     ELSE 0
                 END) as email_notifications,
-                (CASE 
+                (CASE
                     WHEN notification_type = 'sms' THEN count(*)
                     ELSE 0
                 END) as sms_notifications
@@ -282,7 +282,7 @@ def get_api_key_ranked_by_notifications_created(n_days_back):
         ) as a
         GROUP BY a.api_key_id, a.service_id
         ORDER BY total_notifications DESC
-		limit 50
+        limit 50
     ) as b
     JOIN api_keys on api_keys.id = b.api_key_id
     JOIN services on services.id = b.service_id
@@ -295,35 +295,31 @@ def get_api_key_ranked_by_notifications_created(n_days_back):
         Notification.service_id,
         func.max(Notification.created_at).label('last_notification_created'),
         case([
-                (Notification.notification_type == EMAIL_TYPE,
-                func.count())
-            ],
-            else_=0).label('email_notifications'),
+            (Notification.notification_type == EMAIL_TYPE, func.count())
+        ], else_=0).label('email_notifications'),
         case([
-                (Notification.notification_type == SMS_TYPE,
-                func.count())
-            ],
-            else_=0).label('sms_notifications')
-        ).filter(
-            Notification.created_at >= start_date,
-            Notification.api_key_id is not None
-        ).group_by(
-            Notification.api_key_id,
-            Notification.service_id,
-            Notification.notification_type
-        ).subquery()
+            (Notification.notification_type == SMS_TYPE, func.count())
+        ], else_=0).label('sms_notifications')
+    ).filter(
+        Notification.created_at >= start_date,
+        Notification.api_key_id is not None
+    ).group_by(
+        Notification.api_key_id,
+        Notification.service_id,
+        Notification.notification_type
+    ).subquery()
 
     b = db.session.query(
-            a.c.api_key_id,
-            a.c.service_id,
-            func.max(a.c.last_notification_created).label('last_notification_created'),
-            func.sum(a.c.email_notifications).label('email_notifications'),
-            func.sum(a.c.sms_notifications).label('sms_notifications'),
-            (func.sum(a.c.email_notifications) + func.sum(a.c.sms_notifications)).label('total_notifications')
-        ).group_by(
-            a.c.api_key_id,
-            a.c.service_id
-        ).subquery()
+        a.c.api_key_id,
+        a.c.service_id,
+        func.max(a.c.last_notification_created).label('last_notification_created'),
+        func.sum(a.c.email_notifications).label('email_notifications'),
+        func.sum(a.c.sms_notifications).label('sms_notifications'),
+        (func.sum(a.c.email_notifications) + func.sum(a.c.sms_notifications)).label('total_notifications')
+    ).group_by(
+        a.c.api_key_id,
+        a.c.service_id
+    ).subquery()
 
     return db.session.query(
         ApiKey.name,
