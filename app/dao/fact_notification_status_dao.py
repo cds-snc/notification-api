@@ -281,11 +281,11 @@ def get_api_key_ranked_by_notifications_created(n_days_back):
             GROUP BY api_key_id, service_id, notification_type
         ) as a
         GROUP BY a.api_key_id, a.service_id
-        ORDER BY total_notifications DESC
-        limit 50
     ) as b
     JOIN api_keys on api_keys.id = b.api_key_id
     JOIN services on services.id = b.service_id
+    ORDER BY total_notifications DESC
+    LIMIT 50;
     """
 
     start_date = datetime.utcnow() - timedelta(days=n_days_back)
@@ -337,6 +337,8 @@ def get_api_key_ranked_by_notifications_created(n_days_back):
         Service, Service.id == b.c.service_id
     ).order_by(
         b.c.total_notifications.desc()
+    ).limit(
+        50
     ).all()
 
 
