@@ -62,13 +62,13 @@ def test_get_api_keys_ranked(admin_request, notify_db, notify_db_session):
     service = create_service(service_name='Service 1')
     api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
     api_key_2 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 2")
-    template = create_template(service=service, template_type='email')
+    template_email = create_template(service=service, template_type='email')
     total_sends = 10
 
-    create_notification(template=template, api_key=api_key_1)
+    create_notification(template=template_email, api_key=api_key_1)
     for x in range(total_sends):
-        create_notification(template=template, api_key=api_key_1)
-        create_notification(template=template, api_key=api_key_2)
+        create_notification(template=template_email, api_key=api_key_1)
+        create_notification(template=template_email, api_key=api_key_2)
 
     api_keys_ranked = admin_request.get(
         'api_key.get_api_keys_ranked',
@@ -77,10 +77,14 @@ def test_get_api_keys_ranked(admin_request, notify_db, notify_db_session):
 
     assert api_keys_ranked[0]["api_key_name"] == api_key_1.name
     assert api_keys_ranked[0]["service_name"] == service.name
+    assert api_keys_ranked[0]["sms_notifications"] == 0
+    assert api_keys_ranked[0]["email_notifications"] == total_sends + 1
     assert api_keys_ranked[0]["total_notifications"] == total_sends + 1
-    assert "last_send" in api_keys_ranked[0]
+    assert "last_notification_created" in api_keys_ranked[0]
 
     assert api_keys_ranked[1]["api_key_name"] == api_key_2.name
     assert api_keys_ranked[1]["service_name"] == service.name
+    assert api_keys_ranked[1]["sms_notifications"] == 0
+    assert api_keys_ranked[1]["email_notifications"] == total_sends
     assert api_keys_ranked[1]["total_notifications"] == total_sends
-    assert "last_send" in api_keys_ranked[0]
+    assert "last_notification_created" in api_keys_ranked[0]
