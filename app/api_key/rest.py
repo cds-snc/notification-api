@@ -42,13 +42,14 @@ def get_api_keys_ranked(n_days_back):
     data = []
     for x in _data:
         data.append({
-            "api_key_id": x[0],
-            "service_id": x[1],
-            "last_send": x[2].strftime(DATETIME_FORMAT),
-            "total_notifications": x[3],
-            "api_key_name": x[4],
-            "api_key_type": x[5],
-            "service_name": x[6]
+            "api_key_name": x[0],
+            "api_key_type": x[1],
+            "service_name": x[2],
+            "api_key_id": x[3],
+            "service_id": x[4],
+            "last_notification_created": x[5].strftime(DATETIME_FORMAT),
+            "email_notifications": int(x[6]),
+            "sms_notifications": int(x[7]),
+            "total_notifications": int(x[8])
         })
-    print("data", data)
     return jsonify(data=data)
