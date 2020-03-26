@@ -12,6 +12,7 @@ from app.models import (
     ApiKey,
     EMAIL_TYPE,
     FactNotificationStatus,
+    KEY_TYPE_NORMAL,
     KEY_TYPE_TEST,
     LETTER_TYPE,
     Notification,
@@ -277,7 +278,10 @@ def get_api_key_ranked_by_notifications_created(n_days_back):
                     ELSE 0
                 END) as sms_notifications
             FROM notifications
-            WHERE created_at > 'start_date' and api_key_id is not null
+            WHERE
+                created_at > 'start_date'
+                and api_key_id is not null
+                and key_type = 'normal'
             GROUP BY api_key_id, service_id, notification_type
         ) as a
         GROUP BY a.api_key_id, a.service_id
@@ -302,7 +306,8 @@ def get_api_key_ranked_by_notifications_created(n_days_back):
         ], else_=0).label('sms_notifications')
     ).filter(
         Notification.created_at >= start_date,
-        Notification.api_key_id is not None
+        Notification.api_key_id is not None,
+        Notification.key_type == KEY_TYPE_NORMAL
     ).group_by(
         Notification.api_key_id,
         Notification.service_id,
