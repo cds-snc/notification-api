@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from unittest import mock
+# from unittest import mock
 
 import pytest
 from freezegun import freeze_time
@@ -481,7 +481,6 @@ def test_dao_fetch_live_services_data(sample_user):
     # checks the results and that they are ordered by date:
     # @todo: this test is temporarily forced to pass until we can add the fiscal year back into
     # the query and create a new endpoint for the homepage stats
-    assert results == results
     # assert results == [
     #     {'service_id': mock.ANY, 'service_name': 'Sample service', 'organisation_name': 'test_org_1',
     #         'organisation_type': 'nhs_central', 'consent_to_research': None, 'contact_name': 'Test User',
