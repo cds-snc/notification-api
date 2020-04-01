@@ -95,10 +95,7 @@ def dao_fetch_live_services_data():
         AnnualBilling.service_id
     ).subquery()
 
-    this_year_ft_billing = FactBilling.query.filter(
-        FactBilling.bst_date >= year_start_date,
-        FactBilling.bst_date <= year_end_date,
-    ).subquery()
+    this_year_ft_billing = FactBilling.query.subquery()
 
     data = db.session.query(
         Service.id.label('service_id'),
