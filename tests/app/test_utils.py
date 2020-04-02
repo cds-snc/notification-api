@@ -4,11 +4,24 @@ import pytest
 from freezegun import freeze_time
 
 from app.utils import (
+    get_local_timezone_midnight,
     get_local_timezone_midnight_in_utc,
     get_midnight_for_day_before,
     midnight_n_days_ago,
     update_dct_to_str
 )
+
+
+@pytest.mark.parametrize('date, expected_date', [
+    (datetime(2016, 1, 15, 0, 30), datetime(2016, 1, 14, 5, 0)),
+    (datetime(2016, 6, 15, 0, 0), datetime(2016, 6, 14, 4, 0)),
+    (datetime(2016, 9, 16, 4, 0), datetime(2016, 9, 16, 4, 0)),
+    # works for both dates and datetimes
+    (date(2016, 1, 15), datetime(2016, 1, 14, 5, 0)),
+    (date(2016, 6, 15), datetime(2016, 6, 14, 4, 0)),
+])
+def test_get_local_timezone_midnight_returns_expected_date(date, expected_date):
+    assert get_local_timezone_midnight(date) == expected_date
 
 
 @pytest.mark.parametrize('date, expected_date', [

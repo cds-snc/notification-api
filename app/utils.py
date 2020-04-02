@@ -48,6 +48,17 @@ def get_html_email_body_from_template(template_instance):
     )
 
 
+def get_local_timezone_midnight(date):
+    """
+     Gets the local timezones midnight
+    """
+    if hasattr(date, 'astimezone') is False:
+        date = datetime.combine(date, datetime.min.time())
+    local = date.astimezone(local_timezone)
+    return local_timezone.localize(datetime.combine(
+        local, datetime.min.time())).astimezone(pytz.UTC).replace(tzinfo=None)
+
+
 def get_local_timezone_midnight_in_utc(date):
     """
      This function converts date to midnight as BST (British Standard Time) to UTC,
