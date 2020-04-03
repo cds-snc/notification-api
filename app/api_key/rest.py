@@ -37,6 +37,8 @@ def get_api_keys_ranked(n_days_back):
         n_days_back = int(n_days_back)
     except ValueError:
         return jsonify(data=[])
+    if (n_days_back > 30 or n_days_back < 1):
+        return jsonify(data=[])
 
     _data = get_api_key_ranked_by_notifications_created(n_days_back)
     data = []
