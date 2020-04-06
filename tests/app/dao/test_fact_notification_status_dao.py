@@ -16,10 +16,12 @@ from app.dao.fact_notification_status_dao import (
     fetch_stats_for_all_services_by_date_range, fetch_monthly_template_usage_for_service,
     get_total_sent_notifications_for_day_and_type,
     get_total_notifications_sent_for_api_key,
-    get_last_send_for_api_key
+    get_last_send_for_api_key,
+    get_api_key_ranked_by_notifications_created
 )
 from app.models import (
     FactNotificationStatus,
+    KEY_TYPE_NORMAL,
     KEY_TYPE_TEST,
     KEY_TYPE_TEAM,
     EMAIL_TYPE,
@@ -336,6 +338,46 @@ def test_get_last_send_for_api_key(notify_db_session):
     now = datetime.utcnow()
     time_delta = now - last_send
     assert abs(time_delta.total_seconds()) < 1
+
+
+def test_get_api_key_ranked_by_notifications_created(notify_db_session):
+    service = create_service(service_name='Service 1')
+    api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
+    api_key_2 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 2")
+    template_email = create_template(service=service, template_type='email')
+    template_sms = create_template(service=service, template_type='sms')
+    email_sends = 1
+    sms_sends = 10
+
+    for x in range(email_sends):
+        create_notification(template=template_email, api_key=api_key_1)
+
+    for x in range(sms_sends):
+        create_notification(template=template_sms, api_key=api_key_1)
+        create_notification(template=template_sms, api_key=api_key_2)
+
+    api_keys_ranked = get_api_key_ranked_by_notifications_created(2)
+
+    assert len(api_keys_ranked) == 2
+
+    first_place = api_keys_ranked[0]
+    second_place = api_keys_ranked[1]
+
+    # check there are 9 fields/columns returned
+    assert len(first_place) == 9
+    assert len(second_place) == 9
+
+    assert first_place[0] == api_key_1.name
+    assert first_place[2] == service.name
+    assert int(first_place[6]) == email_sends
+    assert int(first_place[7]) == sms_sends
+    assert int(first_place[8]) == sms_sends + email_sends
+
+    assert second_place[0] == api_key_2.name
+    assert second_place[2] == service.name
+    assert int(second_place[6]) == 0
+    assert int(second_place[7]) == sms_sends
+    assert int(second_place[8]) == sms_sends
 
 
 @pytest.mark.parametrize(
