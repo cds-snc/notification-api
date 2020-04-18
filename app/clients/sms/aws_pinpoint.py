@@ -22,7 +22,6 @@ class AwsPinpointClient(SmsClient):
 
     def send_sms(self, to, content, reference, multi=True, sender=None):
 
-
         # The phone number or short code to send the message from. The phone number
         # or short code that you specify has to be associated with your Amazon Pinpoint
         # account. For best results, specify long codes in E.164 format.
@@ -49,7 +48,6 @@ class AwsPinpointClient(SmsClient):
         # varies by country or region. For more information, see
         # https://docs.aws.amazon.com/pinpoint/latest/userguide/channels-sms-countries.html
         senderId = "MySenderID"
-
 
         matched = False
 
