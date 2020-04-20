@@ -40,13 +40,13 @@ from tests.conftest import set_config_values
 
 def test_should_return_highest_priority_active_provider(restore_provider_details):
     providers = provider_details_dao.get_provider_details_by_notification_type('sms')
-
+    print("providers.id", [x.identifier for x in providers])
     first = providers[0]
     second = providers[1]
 
     assert send_to_providers.provider_to_use('sms', '1234').name == first.identifier
 
-    first.priority = 15
+    first.priority = 12
     second.priority = 10
 
     provider_details_dao.dao_update_provider_details(first)
@@ -56,11 +56,12 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
 
     first.priority = 10
     first.active = False
-    second.priority = 15
+    second.priority = 12
 
     provider_details_dao.dao_update_provider_details(first)
     provider_details_dao.dao_update_provider_details(second)
 
+    # this is failing
     assert send_to_providers.provider_to_use('sms', '1234').name == second.identifier
 
     first.active = True
