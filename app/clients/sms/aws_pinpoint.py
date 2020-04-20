@@ -42,7 +42,7 @@ class AwsPinpointClient(SmsClient):
         messageType = "TRANSACTIONAL"
 
         # The registered keyword associated with the originating short code.
-        registeredKeyword = "keyword_138259381045"
+        registeredKeyword = self.current_app.config['AWS_PINPOINT_KEYWORD']
 
         # The sender ID to use when sending the message. Support for sender ID
         # varies by country or region. For more information, see
