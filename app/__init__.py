@@ -110,7 +110,14 @@ def create_app(application):
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
     clients.init_app(
-        sms_clients=[firetext_client, mmg_client, aws_sns_client, aws_pinpoint_client, loadtest_client, twilio_sms_client],
+        sms_clients=[
+            firetext_client,
+            mmg_client,
+            aws_sns_client,
+            aws_pinpoint_client,
+            loadtest_client,
+            twilio_sms_client,
+        ],
         email_clients=[aws_ses_client, send_grid_client]
     )
 
