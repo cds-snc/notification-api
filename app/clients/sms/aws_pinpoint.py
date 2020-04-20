@@ -34,7 +34,7 @@ class AwsPinpointClient(SmsClient):
         # The Amazon Pinpoint project/application ID to use when you send this message.
         # Make sure that the SMS channel is enabled for the project or application
         # that you choose.
-        applicationId = "ce796be37f32f178af652b26eexample"
+        applicationId = "applicationId"
 
         # The type of SMS message that you want to send. If you plan to send
         # time-sensitive content, specify TRANSACTIONAL. If you plan to send
@@ -47,7 +47,7 @@ class AwsPinpointClient(SmsClient):
         # The sender ID to use when sending the message. Support for sender ID
         # varies by country or region. For more information, see
         # https://docs.aws.amazon.com/pinpoint/latest/userguide/channels-sms-countries.html
-        senderId = "MySenderID"
+        # senderId = "MySenderID"
 
         matched = False
 
@@ -71,8 +71,8 @@ class AwsPinpointClient(SmsClient):
                                 'Body': content,
                                 'Keyword': registeredKeyword,
                                 'MessageType': messageType,
-                                'OriginationNumber': originationNumber,
-                                'SenderId': senderId
+                                'OriginationNumber': originationNumber
+                                # 'SenderId': senderId
                             }
                         }
                     }
