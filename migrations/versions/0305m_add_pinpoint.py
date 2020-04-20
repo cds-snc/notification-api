@@ -6,7 +6,6 @@ Create Date: 2020-04-20 12:00:00
 
 """
 from alembic import op
-import sqlalchemy as sa
 import uuid
 
 
