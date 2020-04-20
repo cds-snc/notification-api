@@ -25,7 +25,7 @@ class AwsPinpointClient(SmsClient):
         # The phone number or short code to send the message from. The phone number
         # or short code that you specify has to be associated with your Amazon Pinpoint
         # account. For best results, specify long codes in E.164 format.
-        originationNumber = "+12065550199"
+        originationNumber = self.current_app.config['AWS_PINPOINT_LONG_CODE']
 
         # The recipient's phone number.  For best results, you should specify the
         # phone number in E.164 format.
@@ -34,7 +34,7 @@ class AwsPinpointClient(SmsClient):
         # The Amazon Pinpoint project/application ID to use when you send this message.
         # Make sure that the SMS channel is enabled for the project or application
         # that you choose.
-        applicationId = "applicationId"
+        applicationId = self.current_app.config['AWS_PINPOINT_APP_ID']
 
         # The type of SMS message that you want to send. If you plan to send
         # time-sensitive content, specify TRANSACTIONAL. If you plan to send
@@ -42,7 +42,7 @@ class AwsPinpointClient(SmsClient):
         messageType = "TRANSACTIONAL"
 
         # The registered keyword associated with the originating short code.
-        registeredKeyword = "myKeyword"
+        registeredKeyword = "keyword_138259381045"
 
         # The sender ID to use when sending the message. Support for sender ID
         # varies by country or region. For more information, see
