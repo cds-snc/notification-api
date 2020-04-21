@@ -437,6 +437,7 @@ def send_support_email(user_id):
     API_KEY = current_app.config['FRESH_DESK_API_KEY']
 
     ticket = {
+        'product_id': 61000000046,
         'subject': data["support_type"] if "support_type" in data else "Support Request",
         'description': data['message'],
         'email': data["email"],
