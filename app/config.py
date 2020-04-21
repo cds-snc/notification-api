@@ -105,6 +105,10 @@ class Config(object):
     # Zendesk
     ZENDESK_API_KEY = os.getenv('ZENDESK_API_KEY')
 
+    # Freshdesk
+    FRESH_DESK_API_URL = os.getenv('FRESH_DESK_API_URL')
+    FRESH_DESK_API_KEY = os.getenv('FRESH_DESK_API_KEY')
+
     # Logging
     DEBUG = False
     NOTIFY_LOG_PATH = os.getenv('NOTIFY_LOG_PATH')
