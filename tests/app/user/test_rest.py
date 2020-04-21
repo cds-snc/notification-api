@@ -741,6 +741,7 @@ def test_send_already_registered_email_returns_400_when_data_is_missing(client, 
     assert json.loads(resp.get_data(as_text=True))['message'] == {'email': ['Missing data for required field.']}
 
 
+@pytest.mark.skip(reason="not in use")
 def test_send_support_email(client, sample_user, contact_us_template, mocker):
     data = json.dumps({'email': sample_user.email_address, 'message': "test"})
     auth_header = create_authorization_header()
@@ -758,6 +759,7 @@ def test_send_support_email(client, sample_user, contact_us_template, mocker):
     assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
 
 
+@pytest.mark.skip(reason="not in use")
 def test_send_support_email_returns_400_when_data_is_missing(client, sample_user):
     data = json.dumps({})
     auth_header = create_authorization_header()

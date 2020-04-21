@@ -4,6 +4,8 @@ from datetime import (datetime, timedelta)
 from urllib.parse import urlencode
 import base64
 import pickle
+import requests
+from requests.auth import HTTPBasicAuth
 
 from fido2 import cbor
 from fido2.client import ClientData
@@ -429,30 +431,33 @@ def send_already_registered_email(user_id):
 
 @user_blueprint.route('/<uuid:user_id>/support-email', methods=['POST'])
 def send_support_email(user_id):
-    to, errors = support_email_data_schema.load(request.get_json())
-    template = dao_get_template_by_id(current_app.config['CONTACT_US_TEMPLATE_ID'])
-    service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
+    data, errors = support_email_data_schema.load(request.get_json())
 
-    saved_notification = persist_notification(
-        template_id=template.id,
-        template_version=template.version,
-        recipient=to['email'],
-        service=service,
-        personalisation={
-            'user': to['email'],
-            'message': to['message'],
-            'sender_email': to["sender"] if "sender" in to else "",
-            'support_type': to["support_type"] if "support_type" in to else ""
-        },
-        notification_type=template.template_type,
-        api_key_id=None,
-        key_type=KEY_TYPE_NORMAL,
-        reply_to_text=service.get_default_reply_to_email_address()
+    API_URL = current_app.config['FRESH_DESK_API_URL']
+    API_KEY = current_app.config['FRESH_DESK_API_KEY']
+
+    ticket = {
+        'subject': data["support_type"] if "support_type" in data else "Support Request",
+        'description': data['message'],
+        'email': data["email"],
+        'priority': 1,
+        'status': 2,
+    }
+
+    response = requests.post(
+        "{}/api/v2/tickets".format(API_URL),
+        json=ticket,
+        auth=HTTPBasicAuth(API_KEY, "x")
     )
 
-    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+    if response.status_code != 201:
+        print("Failed to create ticket, errors are displayed below")
+        content = json.loads(response.content)
+        print(content["errors"])
+        print("x-request-id : {}".format(content.headers['x-request-id']))
+        print("Status Code : {}".format(str(content.status_code)))
 
-    return jsonify({}), 204
+    return jsonify({"status_code": response.status_code}), 204
 
 
 @user_blueprint.route('/<uuid:user_id>/branding-request', methods=['POST'])
