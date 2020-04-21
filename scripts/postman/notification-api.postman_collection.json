@@ -22,7 +22,7 @@
 									"",
 									"pm.test(\"Check if commit is correct\", function() {",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData.travis_commit).to.eql(pm.environment.get('expected-git-sha'));",
+									"    pm.expect(jsonData.git_commit).to.eql(pm.environment.get('expected-git-sha'));",
 									"})"
 								],
 								"type": "text/javascript"
