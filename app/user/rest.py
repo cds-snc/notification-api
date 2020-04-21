@@ -6,7 +6,6 @@ import base64
 import pickle
 import requests
 from requests.auth import HTTPBasicAuth
-from base64 import b64encode
 
 from fido2 import cbor
 from fido2.client import ClientData
@@ -433,32 +432,30 @@ def send_already_registered_email(user_id):
 @user_blueprint.route('/<uuid:user_id>/support-email', methods=['POST'])
 def send_support_email(user_id):
     data, errors = support_email_data_schema.load(request.get_json())
-    
+
     API_URL = current_app.config['FRESH_DESK_API_URL']
     API_KEY = current_app.config['FRESH_DESK_API_KEY']
 
     ticket = {
-        'subject' : data["support_type"] if "support_type" in data else "Support Request",
-        'description' : data['message'],
-        'email' : data["email"],
-        'priority' : 1,
-        'status' : 2,
+        'subject': data["support_type"] if "support_type" in data else "Support Request",
+        'description': data['message'],
+        'email': data["email"],
+        'priority': 1,
+        'status': 2,
     }
-    
-    headers = { 'Content-Type' : 'application/json' }
-    
+
     response = requests.post(
-            "{}/api/v2/tickets".format(API_URL),
-            json=ticket,
-            auth=HTTPBasicAuth(API_KEY, "x") 
-        )
+        "{}/api/v2/tickets".format(API_URL),
+        json=ticket,
+        auth=HTTPBasicAuth(API_KEY, "x")
+    )
 
     if response.status_code != 201:
-        print ("Failed to create ticket, errors are displayed below")
+        print("Failed to create ticket, errors are displayed below")
         content = json.loads(response.content)
-        print (content["errors"])
-        print ("x-request-id : {}".format(content.headers['x-request-id']))
-        print ("Status Code : {}".format(str(content.status_code)))
+        print(content["errors"])
+        print("x-request-id : {}".format(content.headers['x-request-id']))
+        print("Status Code : {}".format(str(content.status_code)))
 
     return jsonify({"status_code": response.status_code}), 204
 
