@@ -140,7 +140,7 @@ class Config(object):
     AWS_SES_SMTP = os.getenv("AWS_SES_SMTP", "email-smtp.us-east-1.amazonaws.com")
     AWS_SES_ACCESS_KEY = os.getenv('AWS_SES_ACCESS_KEY')
     AWS_SES_SECRET_KEY = os.getenv('AWS_SES_SECRET_KEY')
-    CSV_UPLOAD_BUCKET_NAME = os.getenv('CVS_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-csv-upload')
+    CSV_UPLOAD_BUCKET_NAME = os.getenv('CSV_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-csv-upload')
     ASSET_UPLOAD_BUCKET_NAME = os.getenv('ASSET_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-asset-upload')
     ASSET_DOMAIN = os.getenv('ASSET_DOMAIN', 's3.amazonaws.com')
     INVITATION_EXPIRATION_DAYS = 2
