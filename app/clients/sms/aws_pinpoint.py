@@ -25,7 +25,7 @@ class AwsPinpointClient(SmsClient):
         # The phone number or short code to send the message from. The phone number
         # or short code that you specify has to be associated with your Amazon Pinpoint
         # account. For best results, specify long codes in E.164 format.
-        originationNumber = self.current_app.config['AWS_PINPOINT_LONG_CODE']
+        # originationNumber = sender
 
         # The recipient's phone number.  For best results, you should specify the
         # phone number in E.164 format.
@@ -43,7 +43,6 @@ class AwsPinpointClient(SmsClient):
 
         # The registered keyword associated with the originating short code.
         registeredKeyword = self.current_app.config['AWS_PINPOINT_KEYWORD']
-
         # The sender ID to use when sending the message. Support for sender ID
         # varies by country or region. For more information, see
         # https://docs.aws.amazon.com/pinpoint/latest/userguide/channels-sms-countries.html
@@ -71,13 +70,17 @@ class AwsPinpointClient(SmsClient):
                                 'Body': content,
                                 'Keyword': registeredKeyword,
                                 'MessageType': messageType,
-                                'OriginationNumber': originationNumber
+                                'OriginationNumber': sender
                                 # 'SenderId': senderId
                             }
                         }
                     }
                 )
-
+                
+                # this will be true if the originationNumber does not exist in pinpoint
+                if response['MessageResponse']['Result'][destinationNumber]['StatusCode'] == 400:
+                    self.statsd_client.incr("clients.pinpoint.error")
+                    raise Exception(response['MessageResponse']['Result'][destinationNumber]['StatusMessage'])
             except ClientError as e:
                 self.statsd_client.incr("clients.pinpoint.error")
                 raise Exception(e)
