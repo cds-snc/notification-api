@@ -5,12 +5,11 @@ import os
 import sentry_sdk
 
 from flask import Flask
-from sentry_sdk.integrations.flask import (
-    CeleryIntegration,
-    FlaskIntegration,
-    RedisIntegration,
-    SqlalchemyIntegration
-)
+from sentry_sdk.integrations.celery import CeleryIntegration
+from sentry_sdk.integrations.flask import FlaskIntegration
+from sentry_sdk.integrations.redis import RedisIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import create_app
