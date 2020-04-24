@@ -118,13 +118,11 @@ def receive_twilio_sms():
         current_app.logger.warning("Inbound sms (Twilio) incorrect username ({}) or password".format(auth.username))
         abort(403)
 
-    # Locally, when using ngrok the URL comes in without HTTPS so force it
-    # otherwise the Twilio signature validator will fail.
-    # url = request.url.replace("http://", "https://")
+    url = request.url
     post_data = request.form
     twilio_signature = request.headers.get('X-Twilio-Signature')
 
-    validator = RequestValidator(os.getenv('TWILIO_AUTH_TOKEN'))
+    validator = RequestValidator(current_app.config['TWILIO_AUTH_TOKEN'])
 
     if not validator.validate(url, post_data, twilio_signature):
         current_app.logger.warning("Inbound sms (Twilio) signature did not match request")
