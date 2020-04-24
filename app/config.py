@@ -412,7 +412,6 @@ class Development(Config):
             Queue(queue, Exchange('default'), routing_key=queue)
         )
 
-    API_HOST_NAME = "http://localhost:6011"
     API_RATE_LIMIT_ENABLED = True
 
 

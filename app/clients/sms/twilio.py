@@ -10,6 +10,7 @@ twilio_response_map = {
     'delivered': 'delivered',
     'undelivered': 'permanent-failure',
     'failed': 'technical-failure',
+    'received': 'received'
 }
 
 

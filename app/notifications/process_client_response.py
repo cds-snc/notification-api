@@ -6,6 +6,7 @@ from notifications_utils.template import SMSMessageTemplate
 
 from app import statsd_client
 from app.clients import ClientException
+from app.clients.sms.twilio import get_twilio_responses
 from app.dao import notifications_dao
 from app.clients.sms.firetext import get_firetext_responses
 from app.clients.sms.mmg import get_mmg_responses
@@ -21,7 +22,8 @@ from app.models import NOTIFICATION_PENDING
 
 sms_response_mapper = {
     'MMG': get_mmg_responses,
-    'Firetext': get_firetext_responses
+    'Firetext': get_firetext_responses,
+    'Twilio': get_twilio_responses
 }
 
 
