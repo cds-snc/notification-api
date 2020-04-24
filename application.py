@@ -39,6 +39,7 @@ if os.environ.get('USE_LOCAL_JINJA_TEMPLATES') == 'True':
     print('========================================================')
     print('')
     print('WARNING: USING LOCAL JINJA from /jinja_templates FOLDER!')
+    print('.env USE_LOCAL_JINJA_TEMPLATES=True')
     print('')
     print('========================================================')
     print('')

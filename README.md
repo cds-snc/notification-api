@@ -118,19 +118,21 @@ make freeze-requirements
 
 `requirements.txt` should be committed alongside `requirements-app.txt` changes.
 
-## Using Local Jinja for template changes
+## Using Local Jinja for testing template changes
 
-HTML Email Templates (`email_template.jinja2`) are pulled in from the [notification-utils](https://github.com/cds-snc/notification-utils) repo. To test jinja changes locally (without needing to update the upstream), follow this procedure:
+Jinja templates used in this repo: `email_template.jinja2`
 
-1. Create a `jinja_templates` folder in the project root directory, and put a .gitignore in it so nothing is tracked or pushed to this repo.
+Jinja templates are pulled in from the [notification-utils](https://github.com/cds-snc/notification-utils) repo. To test jinja changes locally (without needing to update the upstream), follow this procedure:
 
-2. Copy `./notification-utils/jinja_templates/email_template.jinja2` from [notification-utils](https://github.com/cds-snc/notification-utils) into the `jinja_templates` folder created in step 1
+1. Create a `jinja_templates` folder in the project root directory. This folder name is already gitignored and won't be tracked.
+
+2. Copy the jinja template files from [notification-utils](https://github.com/cds-snc/notification-utils) into the `jinja_templates` folder created in step 1
 
 3. Set a new .ENV variable: `USE_LOCAL_JINJA_TEMPLATES=True`
 
 4. Make markup changes, and see them locally!
 
-5. When finished, copy `email_template.jinja2` back to notification-utils, and push up the PR for your changes in that repo.
+5. When finished, copy any changed jinja files back to notification-utils, and push up the PR for your changes in that repo.
 
 6. Remove `USE_LOCAL_JINJA_TEMPLATES=True` from your .env file, and delete any jinja in `jinja_templates`. Deleting the folder and jinja files is not required, but recommended. Make sure you're pulling up-to-date jinja from notification-utils the next time you need to make changes.
 

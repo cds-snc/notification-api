@@ -78,3 +78,5 @@ celerybeat-schedule
 
 /scripts/run_my_tests.sh
 .vscode
+
+jinja_templates/
