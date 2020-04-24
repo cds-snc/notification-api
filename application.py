@@ -5,7 +5,12 @@ import os
 import sentry_sdk
 
 from flask import Flask
-from sentry_sdk.integrations.flask import CeleryIntegration, FlaskIntegration, SqlalchemyIntegration
+from sentry_sdk.integrations.flask import (
+    CeleryIntegration,
+    FlaskIntegration,
+    RedisIntegration,
+    SqlalchemyIntegration
+)
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import create_app
@@ -16,7 +21,12 @@ load_dotenv()
 
 sentry_sdk.init(
     dsn=os.environ.get('SENTRY_URL', ''),
-    integrations=[CeleryIntegration(), FlaskIntegration(), SqlalchemyIntegration()],
+    integrations=[
+        CeleryIntegration(),
+        FlaskIntegration(),
+        RedisIntegration(),
+        SqlalchemyIntegration()
+    ],
     release="notify-api@" + os.environ.get('GIT_SHA', '')
 )
 
