@@ -347,6 +347,10 @@ class Config(object):
     FREE_SMS_TIER_FRAGMENT_COUNT = 250000
 
     SMS_INBOUND_WHITELIST = json.loads(os.getenv('SMS_INBOUND_WHITELIST', '[]'))
+    TWILIO_INBOUND_SMS_USERNAMES = json.loads(os.environ.get('TWILIO_INBOUND_SMS_USERNAMES', '[]'))
+    TWILIO_INBOUND_SMS_PASSWORDS = json.loads(os.environ.get('TWILIO_INBOUND_SMS_PASSWORDS', '[]'))
+    TWILIO_CALLBACK_USERNAME = os.environ.get('TWILIO_CALLBACK_USERNAME', '')
+    TWILIO_CALLBACK_PASSWORD = os.environ.get('TWILIO_CALLBACK_PASSWORD', '')
     FIRETEXT_INBOUND_SMS_AUTH = json.loads(os.getenv('FIRETEXT_INBOUND_SMS_AUTH', '[]'))
     MMG_INBOUND_SMS_AUTH = json.loads(os.getenv('MMG_INBOUND_SMS_AUTH', '[]'))
     MMG_INBOUND_SMS_USERNAME = json.loads(os.getenv('MMG_INBOUND_SMS_USERNAME', '[]'))

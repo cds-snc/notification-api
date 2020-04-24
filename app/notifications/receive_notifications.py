@@ -4,6 +4,8 @@ import iso8601
 from flask import jsonify, Blueprint, current_app, request, abort
 from notifications_utils.recipients import try_validate_and_format_phone_number
 from notifications_utils.timezones import convert_local_timezone_to_utc
+from twilio.twiml.messaging_response import MessagingResponse
+from twilio.request_validator import RequestValidator
 
 from app import statsd_client
 from app.celery import tasks
@@ -101,6 +103,57 @@ def receive_firetext_sms():
     return jsonify({
         "status": "ok"
     }), 200
+
+
+@receive_notifications_blueprint.route('/notifications/sms/receive/twilio', methods=['POST'])
+def receive_twilio_sms():
+    response = MessagingResponse()
+
+    auth = request.authorization
+
+    if not auth:
+        current_app.logger.warning("Inbound sms (Twilio) no auth header")
+        abort(401)
+    elif auth.username not in current_app.config['TWILIO_INBOUND_SMS_USERNAMES'] or auth.password not in current_app.config['TWILIO_INBOUND_SMS_PASSWORDS']:
+        current_app.logger.warning("Inbound sms (Twilio) incorrect username ({}) or password".format(auth.username))
+        abort(403)
+
+    # Locally, when using ngrok the URL comes in without HTTPS so force it
+    # otherwise the Twilio signature validator will fail.
+    # url = request.url.replace("http://", "https://")
+    post_data = request.form
+    twilio_signature = request.headers.get('X-Twilio-Signature')
+
+    validator = RequestValidator(os.getenv('TWILIO_AUTH_TOKEN'))
+
+    if not validator.validate(url, post_data, twilio_signature):
+        current_app.logger.warning("Inbound sms (Twilio) signature did not match request")
+        abort(400)
+
+    service = fetch_potential_service(post_data['To'], 'twilio')
+
+    if not service:
+        # Since this is an issue with our service <-> number mapping, or no
+        # inbound_sms service permission we should still tell Twilio that we
+        # received it successfully.
+        return str(response), 200
+
+    statsd_client.incr('inbound.twilio.successful')
+
+    inbound = create_inbound_sms_object(service,
+                                        content=post_data["Body"],
+                                        from_number=post_data['From'],
+                                        provider_ref=post_data["MessageSid"],
+                                        provider_name="twilio")
+
+    tasks.send_inbound_sms_to_service.apply_async([str(inbound.id), str(service.id)], queue=QueueNames.NOTIFY)
+
+    current_app.logger.debug('{} received inbound SMS with reference {} from Twilio'.format(
+        service.id,
+        inbound.provider_reference,
+    ))
+
+    return str(response), 200
 
 
 def format_mmg_message(message):
