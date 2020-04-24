@@ -135,7 +135,7 @@ def send_email_to_provider(notification):
         # Add a folder to the project root called 'jinja_templates'
         # with a copy of 'email_template.jinja2' from notification-utils repo
         debug_template_path = (os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                               if os.environ.get('USE_LOCAL_JINJA_TEMPLATES') is 'True' else None)
+                               if os.environ.get('USE_LOCAL_JINJA_TEMPLATES') == 'True' else None)
 
         html_email = HTMLEmailTemplate(
             template_dict,
