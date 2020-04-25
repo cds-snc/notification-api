@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify
 
 from app.dao.inbound_numbers_dao import (
+    dao_add_inbound_number,
     dao_get_inbound_numbers,
     dao_get_inbound_number_for_service,
     dao_get_available_inbound_numbers,
@@ -17,6 +18,14 @@ def get_inbound_numbers():
     inbound_numbers = [i.serialize() for i in dao_get_inbound_numbers()]
 
     return jsonify(data=inbound_numbers if inbound_numbers else [])
+
+
+@inbound_number_blueprint.route('/add', methods=['POST'])
+def add_inbound_number():
+    request_json = request.get_json()
+    inbound_number = request_json["inbound_number"]
+    dao_add_inbound_number(inbound_number)
+    return jsonify(data=inbound_number), 201
 
 
 @inbound_number_blueprint.route('/service/<uuid:service_id>', methods=['GET'])
