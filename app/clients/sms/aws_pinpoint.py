@@ -93,6 +93,7 @@ class AwsPinpointClient(SmsClient):
                 self.statsd_client.timing("clients.pinpoint.request-time", elapsed_time)
                 self.statsd_client.incr("clients.pinpoint.success")
 
+            print("Sending w/ Pinpoint")
             return response['MessageResponse']['Result'][destinationNumber]['MessageId']
 
         if not matched:
