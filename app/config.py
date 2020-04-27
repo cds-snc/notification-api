@@ -459,6 +459,9 @@ class Test(Development):
     MMG_URL = 'https://example.com/mmg'
     FIRETEXT_URL = 'https://example.com/firetext'
 
+    TWILIO_INBOUND_SMS_USERNAMES = '["username"]'
+    TWILIO_INBOUND_SMS_PASSWORDS = '["password"]'
+
 
 class Production(Config):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.alpha.canada.ca")
