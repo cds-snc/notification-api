@@ -1,4 +1,5 @@
 import base64
+import urllib
 from datetime import datetime
 from unittest.mock import call
 
@@ -52,6 +53,23 @@ def mmg_post(client, data, auth=True, password='testkey'):
     )
 
 
+def twilio_post(client, data, auth='username:password', signature='signature'):
+    headers = [
+        ('Content-Type', 'application/x-www-form-urlencoded'),
+        ('X-Twilio-Signature', signature),
+    ]
+
+    if bool(auth):
+        auth_value = base64.b64encode(auth.encode('utf-8')).decode('utf-8')
+        headers.append(('Authorization', 'Basic ' + auth_value))
+
+    return client.post(
+        path='/notifications/sms/receive/twilio',
+        data=data,
+        headers=headers
+    )
+
+
 def test_receive_notification_returns_received_to_mmg(client, mocker, sample_service_full_permissions):
     mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
     data = {
@@ -72,6 +90,57 @@ def test_receive_notification_returns_received_to_mmg(client, mocker, sample_ser
     inbound_sms_id = InboundSms.query.all()[0].id
     mocked.assert_called_once_with(
         [str(inbound_sms_id), str(sample_service_full_permissions.id)], queue="notify-internal-tasks")
+
+
+@pytest.mark.parametrize('permissions', [
+    [SMS_TYPE],
+    [INBOUND_SMS_TYPE],
+])
+def test_receive_notification_from_twilio_without_permissions_does_not_persist(
+    client,
+    mocker,
+    notify_db_session,
+    permissions
+):
+    mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
+
+    service = create_service_with_inbound_number(inbound_number='+61412888888', service_permissions=permissions)
+    mocker.patch("app.notifications.receive_notifications.dao_fetch_service_by_inbound_number",
+                 return_value=service)
+    mocked_send_inbound_sms = mocker.patch(
+        "app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+    mocker.patch("app.notifications.receive_notifications.has_inbound_sms_permissions", return_value=False)
+
+    data = urllib.parse.urlencode({'MessageSid': '1', 'From': '+61412999999', 'To': '+61412888888', 'Body': 'this is a message'})
+
+    response = twilio_post(client, data)
+
+    assert response.status_code == 200
+    assert response.get_data(as_text=True) == '<?xml version="1.0" encoding="UTF-8"?><Response />'
+    assert InboundSms.query.count() == 0
+    assert not mocked_send_inbound_sms.called
+
+
+def test_twilio_receive_notification_without_permissions_does_not_create_inbound_even_with_inbound_number_set(
+        client, mocker, notify_db, notify_db_session):
+    mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
+
+    service = sample_service(notify_db, notify_db_session, permissions=[SMS_TYPE])
+    create_inbound_number('+61412345678', service_id=service.id, active=True)
+
+    mocked_send_inbound_sms = mocker.patch(
+        "app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+    mocked_has_permissions = mocker.patch(
+        "app.notifications.receive_notifications.has_inbound_sms_permissions", return_value=False)
+
+    data = urllib.parse.urlencode({'MessageSid': '1', 'From': '+61412999999', 'To': '+61412345678', 'Body': 'this is a message'})
+
+    response = twilio_post(client, data)
+
+    assert response.status_code == 200
+    assert len(InboundSms.query.all()) == 0
+    assert mocked_has_permissions.called
+    mocked_send_inbound_sms.assert_not_called()
 
 
 @pytest.mark.parametrize('permissions', [

@@ -142,6 +142,7 @@ def receive_twilio_sms():
                                         content=post_data["Body"],
                                         from_number=post_data['From'],
                                         provider_ref=post_data["MessageSid"],
+                                        date_received=None,
                                         provider_name="twilio")
 
     tasks.send_inbound_sms_to_service.apply_async([str(inbound.id), str(service.id)], queue=QueueNames.NOTIFY)
