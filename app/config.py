@@ -351,6 +351,7 @@ class Config(object):
     TWILIO_INBOUND_SMS_PASSWORDS = json.loads(os.environ.get('TWILIO_INBOUND_SMS_PASSWORDS', '[]'))
     TWILIO_CALLBACK_USERNAME = os.environ.get('TWILIO_CALLBACK_USERNAME', '')
     TWILIO_CALLBACK_PASSWORD = os.environ.get('TWILIO_CALLBACK_PASSWORD', '')
+    TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
     FIRETEXT_INBOUND_SMS_AUTH = json.loads(os.getenv('FIRETEXT_INBOUND_SMS_AUTH', '[]'))
     MMG_INBOUND_SMS_AUTH = json.loads(os.getenv('MMG_INBOUND_SMS_AUTH', '[]'))
     MMG_INBOUND_SMS_USERNAME = json.loads(os.getenv('MMG_INBOUND_SMS_USERNAME', '[]'))
