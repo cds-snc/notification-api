@@ -299,7 +299,7 @@ def test_create_inbound_mmg_sms_object(sample_service_full_permissions):
     }
 
     inbound_sms = create_inbound_sms_object(sample_service_full_permissions, format_mmg_message(data["Message"]),
-                                            data["MSISDN"], data["ID"], data["DateRecieved"], "mmg")
+                                            data["MSISDN"], data["ID"], format_mmg_datetime(data["DateRecieved"]), "mmg")
 
     assert inbound_sms.service_id == sample_service_full_permissions.id
     assert inbound_sms.notify_number == sample_service_full_permissions.get_inbound_number()
@@ -328,7 +328,7 @@ def test_create_inbound_mmg_sms_object_uses_inbound_number_if_set(sample_service
         format_mmg_message(data["Message"]),
         data["MSISDN"],
         data["ID"],
-        data["DateRecieved"],
+        format_mmg_datetime(data["DateRecieved"]),
         "mmg"
     )
 

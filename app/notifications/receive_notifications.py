@@ -56,7 +56,7 @@ def receive_mmg_sms():
                                         content=format_mmg_message(post_data["Message"]),
                                         from_number=post_data['MSISDN'],
                                         provider_ref=post_data["ID"],
-                                        date_received=post_data.get('DateRecieved'),
+                                        date_received=format_mmg_datetime(post_data.get('DateRecieved')),
                                         provider_name="mmg")
 
     tasks.send_inbound_sms_to_service.apply_async([str(inbound.id), str(service.id)], queue=QueueNames.NOTIFY)
@@ -92,7 +92,7 @@ def receive_firetext_sms():
                                         content=post_data["message"],
                                         from_number=post_data['source'],
                                         provider_ref=None,
-                                        date_received=post_data['time'],
+                                        date_received=format_mmg_datetime(post_data['time']),
                                         provider_name="firetext")
 
     statsd_client.incr('inbound.firetext.successful')
@@ -180,15 +180,11 @@ def create_inbound_sms_object(service, content, from_number, provider_ref, date_
         log_msg='Invalid from_number received'
     )
 
-    provider_date = date_received
-    if provider_date:
-        provider_date = format_mmg_datetime(provider_date)
-
     inbound = InboundSms(
         service=service,
         notify_number=service.get_inbound_number(),
         user_number=user_number,
-        provider_date=provider_date,
+        provider_date=date_received,
         provider_reference=provider_ref,
         content=content,
         provider=provider_name
