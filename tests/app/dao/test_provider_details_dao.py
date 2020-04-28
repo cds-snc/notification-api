@@ -306,8 +306,7 @@ def test_dao_get_provider_stats(notify_db_session):
     create_ft_billing('2018-06-28', 'sms', sms_template_2, service_2, provider='sns', billable_unit=2)
 
     result = dao_get_provider_stats()
-    assert [{'identifier': x.identifier, 'priority': x.priority} for x in result] == ['abc', 'def']
-    # assert result == ['abc', 'def']
+
     assert len(result) == 7
 
     assert result[0].identifier == 'ses'
