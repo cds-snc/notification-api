@@ -3,12 +3,20 @@ from flask import json
 from freezegun import freeze_time
 
 from app.models import ProviderDetails, ProviderDetailsHistory
+from app.dao.provider_details_dao import (
+    get_provider_details_by_identifier,
+    dao_update_provider_details
+)
 
 from tests import create_authorization_header
 from tests.app.db import create_ft_billing
 
 
 def test_get_provider_details_in_type_and_identifier_order(client, notify_db):
+    provider = get_provider_details_by_identifier('pinpoint')
+    provider.priority = 50
+    dao_update_provider_details(provider)
+
     response = client.get(
         '/provider-details',
         headers=[create_authorization_header()]
@@ -22,8 +30,8 @@ def test_get_provider_details_in_type_and_identifier_order(client, notify_db):
     assert json_resp[2]['identifier'] == 'mmg'
     assert json_resp[3]['identifier'] == 'firetext'
     assert json_resp[4]['identifier'] == 'loadtesting'
-    assert json_resp[5]['identifier'] == 'dvla'
-    assert json_resp[6]['identifier'] == 'pinpoint'
+    assert json_resp[5]['identifier'] == 'pinpoint'
+    assert json_resp[6]['identifier'] == 'dvla'
 
 
 def test_get_provider_details_by_id(client, notify_db):

@@ -305,6 +305,10 @@ def test_dao_get_provider_stats(notify_db_session):
     create_ft_billing('2018-06-15', 'sms', sms_template_1, service_2, provider='mmg', billable_unit=1)
     create_ft_billing('2018-06-28', 'sms', sms_template_2, service_2, provider='sns', billable_unit=2)
 
+    provider = get_provider_details_by_identifier('pinpoint')
+    provider.priority = 50
+    dao_update_provider_details(provider)
+
     result = dao_get_provider_stats()
 
     assert len(result) == 7
