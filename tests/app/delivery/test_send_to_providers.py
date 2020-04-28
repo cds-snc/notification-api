@@ -40,7 +40,7 @@ from tests.conftest import set_config_values
 
 def test_should_return_highest_priority_active_provider(restore_provider_details):
     providers = provider_details_dao.get_provider_details_by_notification_type('sms')
-    print("providers.id", [x.identifier for x in providers])
+
     first = providers[0]
     second = providers[1]
 

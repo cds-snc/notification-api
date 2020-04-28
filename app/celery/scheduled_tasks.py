@@ -1,18 +1,14 @@
-import csv
-from io import StringIO
 from datetime import (
     datetime,
     timedelta
 )
-import uuid
 
-import boto3
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import db, notify_celery, zendesk_client
+from app import notify_celery, zendesk_client
 from app.celery.tasks import process_job
 from app.config import QueueNames, TaskNames
 from app.dao.invited_org_user_dao import delete_org_invitations_created_more_than_two_days_ago
@@ -41,9 +37,7 @@ from app.models import (
 )
 from app.notifications.process_notifications import send_notification_to_queue
 from app.v2.errors import JobIncompleteError
-from app.dao.inbound_numbers_dao import (
-    dao_get_inbound_numbers
-)
+
 
 @notify_celery.task(name="run-scheduled-jobs")
 @statsd(namespace="tasks")
@@ -228,30 +222,3 @@ def check_templated_letter_state():
                 message=msg,
                 ticket_type=zendesk_client.TYPE_INCIDENT
             )
-
-
-@notify_celery.task(name='add-pinpoint-longcodes-to-db')
-@statsd(namespace="tasks")
-def add_pinpoint_longcodes_to_db():
-    """
-    AWS pinpoint does not provide an way to get your longcodes through the api.
-    For now we can manually add them to a file in S3, and then periodically
-    check this file and write the new long codes to the db.
-    """
-    inbound_numbers = [i.serialize()["number"] for i in dao_get_inbound_numbers()]
-
-    s3 = boto3.resource('s3')
-    key = "longcodes.csv"
-    obj = s3.Object(current_app.config['LONGCODES_BUCKET'], key)
-    csv_str = obj.get()['Body'].read().decode('utf-8')
-    f = StringIO(csv_str)
-    reader = csv.DictReader(f, delimiter=',')
-    for row in reader:
-        # check if longcode is in the db
-        if row["longcode"] not in inbound_numbers:
-            # if not in db, add
-            sql = "insert into inbound_numbers values('{}', '{}', 'pinpoint', null, True, now(), null);"
-            db.session.execute(sql.format(uuid.uuid4(), row["longcode"]))
-            db.session.commit()
-            log_message = "The following long code has been added to the db: {}"
-            current_app.logger.info(log_message.format(row["longcode"]))

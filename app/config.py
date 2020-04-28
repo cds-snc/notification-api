@@ -138,7 +138,6 @@ class Config(object):
     AWS_SES_SECRET_KEY = os.getenv('AWS_SES_SECRET_KEY')
     AWS_PINPOINT_APP_ID = os.getenv('AWS_PINPOINT_APP_ID')
     AWS_PINPOINT_KEYWORD = os.getenv('AWS_PINPOINT_KEYWORD')
-    LONGCODES_BUCKET = os.getenv('LONGCODES_BUCKET')
     CSV_UPLOAD_BUCKET_NAME = os.getenv('CVS_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-csv-upload')
     ASSET_UPLOAD_BUCKET_NAME = os.getenv('ASSET_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-asset-upload')
     ASSET_DOMAIN = os.getenv('ASSET_DOMAIN', 's3.amazonaws.com')
@@ -224,11 +223,6 @@ class Config(object):
         #     'schedule': crontab(),  # Every minute
         #     'options': {'queue': QueueNames.PERIODIC}
         # },
-        'add-pinpoint-longcodes-to-db': {
-            'task': 'add-pinpoint-longcodes-to-db',
-            'schedule': timedelta(minutes=1),
-            'options': {'queue': QueueNames.PERIODIC}
-        },
         'check-job-status': {
             'task': 'check-job-status',
             'schedule': crontab(),
