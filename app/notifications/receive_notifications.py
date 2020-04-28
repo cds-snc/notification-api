@@ -114,7 +114,8 @@ def receive_twilio_sms():
     if not auth:
         current_app.logger.warning("Inbound sms (Twilio) no auth header")
         abort(401)
-    elif auth.username not in current_app.config['TWILIO_INBOUND_SMS_USERNAMES'] or auth.password not in current_app.config['TWILIO_INBOUND_SMS_PASSWORDS']:
+    elif auth.username not in current_app.config['TWILIO_INBOUND_SMS_USERNAMES'] \
+            or auth.password not in current_app.config['TWILIO_INBOUND_SMS_PASSWORDS']:
         current_app.logger.warning("Inbound sms (Twilio) incorrect username ({}) or password".format(auth.username))
         abort(403)
 

@@ -111,7 +111,14 @@ def test_receive_notification_from_twilio_without_permissions_does_not_persist(
         "app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
     mocker.patch("app.notifications.receive_notifications.has_inbound_sms_permissions", return_value=False)
 
-    data = urllib.parse.urlencode({'MessageSid': '1', 'From': '+61412999999', 'To': '+61412888888', 'Body': 'this is a message'})
+    data = urllib.parse.urlencode(
+        {
+            'MessageSid': '1',
+            'From': '+61412999999',
+            'To': '+61412888888',
+            'Body': 'this is a message'
+        }
+    )
 
     response = twilio_post(client, data)
 
@@ -133,7 +140,14 @@ def test_twilio_receive_notification_without_permissions_does_not_create_inbound
     mocked_has_permissions = mocker.patch(
         "app.notifications.receive_notifications.has_inbound_sms_permissions", return_value=False)
 
-    data = urllib.parse.urlencode({'MessageSid': '1', 'From': '+61412999999', 'To': '+61412345678', 'Body': 'this is a message'})
+    data = urllib.parse.urlencode(
+        {
+            'MessageSid': '1',
+            'From': '+61412999999',
+            'To': '+61412345678',
+            'Body': 'this is a message'
+        }
+    )
 
     response = twilio_post(client, data)
 
@@ -298,8 +312,14 @@ def test_create_inbound_mmg_sms_object(sample_service_full_permissions):
         'ID': 'bar',
     }
 
-    inbound_sms = create_inbound_sms_object(sample_service_full_permissions, format_mmg_message(data["Message"]),
-                                            data["MSISDN"], data["ID"], format_mmg_datetime(data["DateRecieved"]), "mmg")
+    inbound_sms = create_inbound_sms_object(
+        sample_service_full_permissions,
+        format_mmg_message(data["Message"]),
+        data["MSISDN"],
+        data["ID"],
+        format_mmg_datetime(data["DateRecieved"]),
+        "mmg"
+    )
 
     assert inbound_sms.service_id == sample_service_full_permissions.id
     assert inbound_sms.notify_number == sample_service_full_permissions.get_inbound_number()
