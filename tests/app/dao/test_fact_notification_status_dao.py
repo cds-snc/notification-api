@@ -318,7 +318,7 @@ def test_get_total_notifications_sent_for_api_key(notify_db_session):
         create_notification(template=template_sms, api_key=api_key)
 
     api_key_stats_3 = get_total_notifications_sent_for_api_key(str(api_key.id))
-    assert api_key_stats_3 == [(EMAIL_TYPE, total_sends), (SMS_TYPE, total_sends)]
+    assert dict(api_key_stats_3) == dict([(EMAIL_TYPE, total_sends), (SMS_TYPE, total_sends)])
 
 
 def test_get_last_send_for_api_key(notify_db_session):
