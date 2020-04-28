@@ -46,9 +46,10 @@ def send_sms_to_provider(notification):
 
     if notification.status == 'created':
         provider = provider_to_use(
-          SMS_TYPE, notification.id, 
-          notification.international, 
-          notification.reply_to_text
+            SMS_TYPE,
+            notification.id,
+            notification.international,
+            notification.reply_to_text
         )
 
         template_model = dao_get_template_by_id(notification.template_id, notification.template_version)
@@ -144,7 +145,7 @@ def send_email_to_provider(notification):
         html_email = HTMLEmailTemplate(
             template_dict,
             values=personalisation_data,
-            jinja_path=debug_template_path,
+            # jinja_path=debug_template_path,
             **get_html_email_options(service)
         )
 

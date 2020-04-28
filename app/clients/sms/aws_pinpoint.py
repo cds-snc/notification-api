@@ -76,7 +76,7 @@ class AwsPinpointClient(SmsClient):
                         }
                     }
                 )
-                
+
                 # this will be true if the originationNumber does not exist in pinpoint
                 if response['MessageResponse']['Result'][destinationNumber]['StatusCode'] == 400:
                     self.statsd_client.incr("clients.pinpoint.error")
