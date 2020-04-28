@@ -306,7 +306,8 @@ def test_dao_get_provider_stats(notify_db_session):
     create_ft_billing('2018-06-28', 'sms', sms_template_2, service_2, provider='sns', billable_unit=2)
 
     result = dao_get_provider_stats()
-
+    assert [{'identifier': x.identifier, 'priority': x.priority} for x in result] == ['abc', 'def']
+    # assert result == ['abc', 'def']
     assert len(result) == 7
 
     assert result[0].identifier == 'ses'
@@ -320,21 +321,21 @@ def test_dao_get_provider_stats(notify_db_session):
     assert result[1].active is True
     assert result[1].current_month_billable_sms == 4
 
-    assert result[2].identifier == 'pinpoint'
+    assert result[2].identifier == 'mmg'
     assert result[2].notification_type == 'sms'
-    assert result[2].supports_international is False
+    assert result[2].supports_international is True
     assert result[2].active is True
-    assert result[2].current_month_billable_sms == 0
+    assert result[2].current_month_billable_sms == 5
 
-    assert result[3].identifier == 'mmg'
-    assert result[3].notification_type == 'sms'
-    assert result[3].supports_international is True
-    assert result[3].active is True
-    assert result[3].current_month_billable_sms == 5
+    assert result[3].identifier == 'firetext'
+    assert result[3].current_month_billable_sms == 0
 
-    assert result[4].identifier == 'firetext'
+    assert result[4].identifier == 'loadtesting'
     assert result[4].current_month_billable_sms == 0
+    assert result[4].supports_international is False
 
-    assert result[5].identifier == 'loadtesting'
-    assert result[5].current_month_billable_sms == 0
+    assert result[5].identifier == 'pinpoint'
+    assert result[5].notification_type == 'sms'
     assert result[5].supports_international is False
+    assert result[5].active is True
+    assert result[5].current_month_billable_sms == 0
