@@ -13,5 +13,4 @@ COPY . /app
 
 RUN set -ex && pip3 install -r requirements.txt
 RUN make generate-version-file
-CMD ["sh", "-c", "env"]
-# CMD ["sh", "-c", "flask db upgrade"]
+CMD ["sh", "-c", "flask db upgrade"]
