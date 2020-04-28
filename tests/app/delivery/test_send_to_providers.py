@@ -72,7 +72,7 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
 def test_provider_to_use(restore_provider_details):
     providers = provider_details_dao.get_provider_details_by_notification_type('sms')
     first = providers[0]
-    
+
     # provider is pinpoint if sms and sender is set
     provider = send_to_providers.provider_to_use('sms', '1234', False, '+12345678901')
     assert "pinpoint" == provider.name
