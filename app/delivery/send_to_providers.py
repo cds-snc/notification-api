@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 import urllib.request
 import magic
 import re
@@ -134,9 +135,16 @@ def send_email_to_provider(notification):
 
         template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
 
+        # Local Jinja support - Add USE_LOCAL_JINJA_TEMPLATES=True to .env
+        # Add a folder to the project root called 'jinja_templates'
+        # with a copy of 'email_template.jinja2' from notification-utils repo
+        debug_template_path = (os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                               if os.environ.get('USE_LOCAL_JINJA_TEMPLATES') == 'True' else None)
+
         html_email = HTMLEmailTemplate(
             template_dict,
             values=personalisation_data,
+            jinja_path=debug_template_path,
             **get_html_email_options(service)
         )
 

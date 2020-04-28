@@ -21,10 +21,11 @@ python-magic==0.4.15
 psycopg2-binary==2.8.4
 PyJWT==1.7.1
 SQLAlchemy==1.3.13
-sentry-sdk[flask]==0.10.2
+sentry-sdk[flask]==0.14.3
 validatesns==0.1.1
 cachelib==0.1
 
+newrelic==5.12.0.140
 notifications-python-client==5.5.1
 python-dotenv==0.10.3
 pwnedpasswords==2.0.0
@@ -42,7 +43,7 @@ awscli-cwlogs>=1.4,<1.5
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
 itsdangerous==0.24  # pyup: <1.0.0
 
-git+https://github.com/cds-snc/notifier-utils.git@40.0.2#egg=notifications-utils==40.0.2
+git+https://github.com/cds-snc/notifier-utils.git@41.0.0#egg=notifications-utils==41.0.0
 
 git+https://github.com/alphagov/boto.git@2.43.0-patch3#egg=boto==2.43.0-patch3
 
