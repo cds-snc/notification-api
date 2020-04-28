@@ -1,5 +1,5 @@
 from urllib.parse import unquote
-
+from datetime import datetime
 import iso8601
 from flask import jsonify, Blueprint, current_app, request, abort
 from notifications_utils.recipients import try_validate_and_format_phone_number
@@ -142,7 +142,7 @@ def receive_twilio_sms():
                                         content=post_data["Body"],
                                         from_number=post_data['From'],
                                         provider_ref=post_data["MessageSid"],
-                                        date_received=None,
+                                        date_received=datetime.utcnow(),
                                         provider_name="twilio")
 
     tasks.send_inbound_sms_to_service.apply_async([str(inbound.id), str(service.id)], queue=QueueNames.NOTIFY)
