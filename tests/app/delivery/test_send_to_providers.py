@@ -61,7 +61,6 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
     provider_details_dao.dao_update_provider_details(first)
     provider_details_dao.dao_update_provider_details(second)
 
-    # this is failing
     assert send_to_providers.provider_to_use('sms', '1234').name == second.identifier
 
     first.active = True

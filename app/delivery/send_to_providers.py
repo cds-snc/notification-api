@@ -145,7 +145,7 @@ def send_email_to_provider(notification):
         html_email = HTMLEmailTemplate(
             template_dict,
             values=personalisation_data,
-            # jinja_path=debug_template_path,
+            jinja_path=debug_template_path,
             **get_html_email_options(service)
         )
 
