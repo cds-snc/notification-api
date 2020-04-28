@@ -9,9 +9,10 @@ def test_send_sms_successful_returns_aws_pinpoint_response(notify_api, mocker):
 
     to = "6135555555"
     content = reference = 'foo'
+    sender = "+12345678901"
 
     with notify_api.app_context():
-        aws_pinpoint_client.send_sms(to, content, reference)
+        aws_pinpoint_client.send_sms(to, content, reference, True, sender)
 
     boto_mock.send_messages.assert_called_once_with(
         ApplicationId=current_app.config['AWS_PINPOINT_APP_ID'],
@@ -26,7 +27,7 @@ def test_send_sms_successful_returns_aws_pinpoint_response(notify_api, mocker):
                     'Body': content,
                     'Keyword': current_app.config['AWS_PINPOINT_KEYWORD'],
                     'MessageType': "TRANSACTIONAL",
-                    'OriginationNumber': current_app.config['AWS_PINPOINT_LONG_CODE']
+                    'OriginationNumber': sender
                 }
             }
         }
