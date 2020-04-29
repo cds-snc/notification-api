@@ -208,7 +208,7 @@ def provider_to_use(notification_type, notification_id, international=False, sen
         )
         raise Exception("No active {} providers".format(notification_type))
 
-    if sender is not None and sender[0] == "+":
+    if sender is not None and notification_type == SMS_TYPE and sender[0] == "+":
         return clients.get_client_by_name_and_type("pinpoint", notification_type)
 
     return clients.get_client_by_name_and_type(active_providers_in_order[0].identifier, notification_type)
