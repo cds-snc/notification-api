@@ -277,6 +277,22 @@ def test_twilio_no_service_matches_inbound_number(notify_db_session, client, moc
     mocked.call_count == 0
 
 
+def test_twilio_inbound_sms_fails_if_incorrect_signature(notify_db_session, notify_api, client, mocker):
+    mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=False)
+
+    data = urllib.parse.urlencode(
+        {
+            'MessageSid': '1',
+            'From': '+61412999999',
+            'To': '+61412345678',
+            'Body': 'this is a message'
+        }
+    )
+
+    response = twilio_post(client, data)
+    assert response.status_code == 400
+
+
 @pytest.mark.parametrize("auth, usernames, passwords, status_code", [
     ["username:password", ["username"], ["password"], 200],
     ["username2:password", ["username", "username2"], ["password"], 200],
