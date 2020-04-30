@@ -216,7 +216,7 @@ def get_html_email_options(service):
 
     if service.email_branding is None:
         return {
-            'govuk_banner': True,
+            'fip_banner_english': True,
             'brand_banner': False,
         }
 
@@ -226,7 +226,7 @@ def get_html_email_options(service):
     ) if service.email_branding.logo else None
 
     return {
-        'govuk_banner': service.email_branding.brand_type == BRANDING_BOTH,
+        'fip_banner_english': service.email_branding.brand_type == BRANDING_BOTH,
         'brand_banner': service.email_branding.brand_type == BRANDING_ORG_BANNER,
         'brand_colour': service.email_branding.colour,
         'brand_logo': logo_url,

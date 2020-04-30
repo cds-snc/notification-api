@@ -224,10 +224,10 @@ user_folder_permissions = db.Table(
 )
 
 
-BRANDING_GOVUK = 'govuk'  # Deprecated outside migrations
-BRANDING_ORG = 'org'
+BRANDING_GOVUK = 'fip_english'  # Deprecated outside migrations
+BRANDING_ORG = 'custom_logo'
 BRANDING_BOTH = 'both'
-BRANDING_ORG_BANNER = 'org_banner'
+BRANDING_ORG_BANNER = 'custom_logo_with_background_colour'
 BRANDING_NO_BRANDING = "no_branding"
 BRANDING_TYPES = [BRANDING_ORG, BRANDING_BOTH, BRANDING_ORG_BANNER, BRANDING_NO_BRANDING]
 
