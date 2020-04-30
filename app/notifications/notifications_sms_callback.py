@@ -2,6 +2,7 @@ from flask import Blueprint
 from flask import current_app
 from flask import json
 from flask import request, jsonify
+from twilio.twiml.messaging_response import MessagingResponse
 
 from app.errors import InvalidRequest, register_errors
 from app.notifications.process_client_response import validate_callback_data, process_sms_client_response
@@ -85,3 +86,28 @@ def process_twilio_response(notification_id):
         raise InvalidRequest(errors, status_code=400)
     else:
         return jsonify(result='success', message=success), 200
+
+
+@sms_callback_blueprint.route('/twilio/reply', methods=['POST'])
+def process_twilio_reply():
+    client_name = 'Twilio'
+
+    current_app.logger.info('reply is called ')
+    data = request.values
+    errors = validate_callback_data(
+        data=data,
+        fields=['SmsStatus', 'MessageSid'],
+        client_name=client_name
+    )
+    response = MessagingResponse()
+    current_app.logger.info('validate_callback_data passed')
+    if errors:
+        raise InvalidRequest(errors, status_code=400)
+
+    current_app.logger.info(
+        "Full {} body from {}: {}".format(client_name, data.get('From'), data.get('Body')))
+    if errors:
+        raise InvalidRequest(errors, status_code=400)
+    else:
+        response.message('notification test got it')
+        return str(response)

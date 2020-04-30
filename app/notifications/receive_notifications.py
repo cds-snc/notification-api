@@ -1,9 +1,11 @@
 from urllib.parse import unquote
-
+from datetime import datetime
 import iso8601
 from flask import jsonify, Blueprint, current_app, request, abort
 from notifications_utils.recipients import try_validate_and_format_phone_number
 from notifications_utils.timezones import convert_local_timezone_to_utc
+from twilio.twiml.messaging_response import MessagingResponse
+from twilio.request_validator import RequestValidator
 
 from app import statsd_client
 from app.celery import tasks
@@ -54,7 +56,7 @@ def receive_mmg_sms():
                                         content=format_mmg_message(post_data["Message"]),
                                         from_number=post_data['MSISDN'],
                                         provider_ref=post_data["ID"],
-                                        date_received=post_data.get('DateRecieved'),
+                                        date_received=format_mmg_datetime(post_data.get('DateRecieved')),
                                         provider_name="mmg")
 
     tasks.send_inbound_sms_to_service.apply_async([str(inbound.id), str(service.id)], queue=QueueNames.NOTIFY)
@@ -90,7 +92,7 @@ def receive_firetext_sms():
                                         content=post_data["message"],
                                         from_number=post_data['source'],
                                         provider_ref=None,
-                                        date_received=post_data['time'],
+                                        date_received=format_mmg_datetime(post_data['time']),
                                         provider_name="firetext")
 
     statsd_client.incr('inbound.firetext.successful')
@@ -101,6 +103,57 @@ def receive_firetext_sms():
     return jsonify({
         "status": "ok"
     }), 200
+
+
+@receive_notifications_blueprint.route('/notifications/sms/receive/twilio', methods=['POST'])
+def receive_twilio_sms():
+    response = MessagingResponse()
+
+    auth = request.authorization
+
+    if not auth:
+        current_app.logger.warning("Inbound sms (Twilio) no auth header")
+        abort(401)
+    elif auth.username not in current_app.config['TWILIO_INBOUND_SMS_USERNAMES'] \
+            or auth.password not in current_app.config['TWILIO_INBOUND_SMS_PASSWORDS']:
+        current_app.logger.warning("Inbound sms (Twilio) incorrect username ({}) or password".format(auth.username))
+        abort(403)
+
+    url = request.url
+    post_data = request.form
+    twilio_signature = request.headers.get('X-Twilio-Signature')
+
+    validator = RequestValidator(current_app.config['TWILIO_AUTH_TOKEN'])
+
+    if not validator.validate(url, post_data, twilio_signature):
+        current_app.logger.warning("Inbound sms (Twilio) signature did not match request")
+        abort(400)
+
+    service = fetch_potential_service(post_data['To'], 'twilio')
+
+    if not service:
+        # Since this is an issue with our service <-> number mapping, or no
+        # inbound_sms service permission we should still tell Twilio that we
+        # received it successfully.
+        return str(response), 200
+
+    statsd_client.incr('inbound.twilio.successful')
+
+    inbound = create_inbound_sms_object(service,
+                                        content=post_data["Body"],
+                                        from_number=post_data['From'],
+                                        provider_ref=post_data["MessageSid"],
+                                        date_received=datetime.utcnow(),
+                                        provider_name="twilio")
+
+    tasks.send_inbound_sms_to_service.apply_async([str(inbound.id), str(service.id)], queue=QueueNames.NOTIFY)
+
+    current_app.logger.debug('{} received inbound SMS with reference {} from Twilio'.format(
+        service.id,
+        inbound.provider_reference,
+    ))
+
+    return str(response), 200
 
 
 def format_mmg_message(message):
@@ -128,15 +181,11 @@ def create_inbound_sms_object(service, content, from_number, provider_ref, date_
         log_msg='Invalid from_number received'
     )
 
-    provider_date = date_received
-    if provider_date:
-        provider_date = format_mmg_datetime(provider_date)
-
     inbound = InboundSms(
         service=service,
         notify_number=service.get_inbound_number(),
         user_number=user_number,
-        provider_date=provider_date,
+        provider_date=date_received,
         provider_reference=provider_ref,
         content=content,
         provider=provider_name
