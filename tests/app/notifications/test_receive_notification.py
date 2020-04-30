@@ -388,16 +388,6 @@ def test_receive_notification_without_permissions_does_not_create_inbound_even_w
     mocked_send_inbound_sms.assert_not_called()
 
 
-@pytest.mark.parametrize('permissions,expected_response', [
-    ([SMS_TYPE, INBOUND_SMS_TYPE], True),
-    ([INBOUND_SMS_TYPE], False),
-    ([SMS_TYPE], False),
-])
-def test_check_permissions_for_inbound_sms(notify_db, notify_db_session, permissions, expected_response):
-    service = create_service(service_permissions=permissions)
-    assert has_inbound_sms_permissions(service.permissions) is expected_response
-
-
 @pytest.mark.parametrize('message, expected_output', [
     ('abc', 'abc'),
     ('', ''),
@@ -411,28 +401,28 @@ def test_format_mmg_message(message, expected_output):
 
 @pytest.mark.parametrize('raw, expected', [
     (
-            '😬',
-            '😬',
+        '😬',
+        '😬',
     ),
     (
-            '1\\n2',
-            '1\n2',
+        '1\\n2',
+        '1\n2',
     ),
     (
-            '\\\'"\\\'',
-            '\'"\'',
+        '\\\'"\\\'',
+        '\'"\'',
     ),
     (
-            """
+        """
 
         """,
-            """
+        """
 
         """,
     ),
     (
-            '\x79 \\x79 \\\\x79',  # we should never see the middle one
-            'y y \\x79',
+        '\x79 \\x79 \\\\x79',  # we should never see the middle one
+        'y y \\x79',
     ),
 ])
 def test_unescape_string(raw, expected):
