@@ -106,12 +106,13 @@ def smtp_remove(name):
         ses_client.delete_identity(Identity=domain)
         records = r53_client.list_resource_record_sets(
             HostedZoneId=current_app.config["AWS_ROUTE53_ZONE"],
-            MaxItems="6",
+            MaxItems="6",  # Change this if # records per domain are changed
             StartRecordName=domain
         )["ResourceRecordSets"]
 
         for record in records:
-            delete_record(r53_client, record)
+            if domain in record["Name"]:
+                delete_record(r53_client, record)
 
         return True
 
