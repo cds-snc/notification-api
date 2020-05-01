@@ -31,4 +31,5 @@ jobs:
           repository: ${{ github.repository }}/notification-api
           tags: latest
           dockerfile: ci/Dockerfile
+          tag_with_sha: true
 
