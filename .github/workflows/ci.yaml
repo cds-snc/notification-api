@@ -11,4 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - run: /bin/bash -c "docker-compose -f ci/docker-compose-test.yml up --build"
+      - name: Run tests with docker-compose-test
+        run: |
+          docker-compose -f ci/docker-compose-test.yml up --build --abort-on-container-exit
