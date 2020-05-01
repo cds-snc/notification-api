@@ -1,4 +1,4 @@
-from datetime import datetime, date, timezone
+from datetime import datetime, date
 
 import pytest
 from freezegun import freeze_time
@@ -10,6 +10,7 @@ from app.utils import (
     midnight_n_days_ago,
     update_dct_to_str
 )
+
 
 @pytest.mark.skip(reason="failing on a machine with US/Eastern timezone")
 @pytest.mark.parametrize('date, expected_date', [
