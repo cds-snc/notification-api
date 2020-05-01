@@ -10,7 +10,7 @@ jobs:
 
       - name: Run tests with docker-compose-test
         run: |
-          echo "this is where tests go"
+          docker-compose -f ci/docker-compose-test.yml up --build --abort-on-container-exit
 
   build-and-push:
     runs-on: ubuntu-latest
