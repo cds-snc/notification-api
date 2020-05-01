@@ -26,4 +26,5 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
           repository: docker.pkg.github.com/${{ github.repository }}
           tags: latest
+          dockerfile: ci/Dockerfile
 
