@@ -88,6 +88,8 @@ def notify_db(notify_api, worker_id):
     db.session.remove()
     db.get_engine(notify_api).dispose()
 
+#     TODO: properly delete the database after all workers finish?
+
 
 @pytest.fixture(scope='function')
 def notify_db_session(notify_db):

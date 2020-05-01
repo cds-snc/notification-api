@@ -733,10 +733,13 @@ def test_send_email_to_provider_should_format_reply_to_email_address(
 
 def test_send_sms_to_provider_should_format_phone_number(sample_notification, mocker):
     sample_notification.to = '+1 650 253 2222'
+    # TODO: instead of mocking SNS client, mock provider_to_use so it returns a mock provider
     send_mock = mocker.patch('app.aws_sns_client.send_sms')
 
     send_to_providers.send_sms_to_provider(sample_notification)
 
+    # TODO: don't test the actual return value of notification_utils.recipients.validate_and_format_phone_number
+    # instead, mock that dependency and check that it's used properly
     assert send_mock.call_args[1]['to'] == '+16502532222'
 
 

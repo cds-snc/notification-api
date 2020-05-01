@@ -17,11 +17,11 @@ id = uuid.uuid4()
 def upgrade():
     op.execute(f"""
         INSERT INTO provider_details (id, display_name, identifier, priority, notification_type, active, version) 
-        VALUES ('{id}', 'Twilio', 'twilio', 2, 'sms', true, 1)
+        VALUES ('{id}', 'Twilio', 'twilio', 25, 'sms', true, 1)
     """)
     op.execute(f"""
         INSERT INTO provider_details_history (id, display_name, identifier, priority, notification_type, active, version) 
-        VALUES ('{id}', 'Twilio', 'twilio', 2, 'sms', true, 1)
+        VALUES ('{id}', 'Twilio', 'twilio', 25, 'sms', true, 1)
     """)
 
 
