@@ -90,8 +90,6 @@ A sane set of defaults exists in `.env.example`
 
 `make test`
 
-
-
 ##  To run the queues 
 ```
 scripts/run_celery.sh
@@ -100,6 +98,13 @@ scripts/run_celery.sh
 ```
 scripts/run_celery_beat.sh
 ```
+
+## Running in Docker
+To run all the tests
+`docker-compose -f ci/docker-compose-test.yml up --build --abort-on-container-exit`
+
+To run the application and it's associated postgres instance
+`docker-compose -f ci/docker-compose.yml up --build --abort-on-container-exit`
 
 ### Python version
 
