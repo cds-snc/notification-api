@@ -6,8 +6,6 @@ Create Date: 2020-04:28 10:44:00
 
 """
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 
 revision = '0306_branding_variables_rename'
