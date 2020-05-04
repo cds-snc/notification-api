@@ -4,13 +4,8 @@ provider "aws" {
 
 terraform {
   backend "s3" {
-    bucket = "mybucket"
-    key    = "path/to/my/key"
+    bucket = "terraform-notification-test"
+    key    = "notification-test.tfstate"
     region = "us-east-2"
   }
-}
-
-resource "aws_s3_bucket" "test_bucket" {
-  bucket = "my-test-bucket"
-  acl    = "private"
 }
