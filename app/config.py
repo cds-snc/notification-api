@@ -140,6 +140,8 @@ class Config(object):
     AWS_SES_SMTP = os.getenv("AWS_SES_SMTP", "email-smtp.us-east-1.amazonaws.com")
     AWS_SES_ACCESS_KEY = os.getenv('AWS_SES_ACCESS_KEY')
     AWS_SES_SECRET_KEY = os.getenv('AWS_SES_SECRET_KEY')
+    AWS_PINPOINT_APP_ID = os.getenv('AWS_PINPOINT_APP_ID')
+    AWS_PINPOINT_KEYWORD = os.getenv('AWS_PINPOINT_KEYWORD')
     CSV_UPLOAD_BUCKET_NAME = os.getenv('CSV_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-csv-upload')
     ASSET_UPLOAD_BUCKET_NAME = os.getenv('ASSET_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-asset-upload')
     ASSET_DOMAIN = os.getenv('ASSET_DOMAIN', 's3.amazonaws.com')
@@ -218,11 +220,6 @@ class Config(object):
         'delete-invitations': {
             'task': 'delete-invitations',
             'schedule': timedelta(minutes=66),
-            'options': {'queue': QueueNames.PERIODIC}
-        },
-        'switch-current-sms-provider-on-slow-delivery': {
-            'task': 'switch-current-sms-provider-on-slow-delivery',
-            'schedule': crontab(),  # Every minute
             'options': {'queue': QueueNames.PERIODIC}
         },
         'check-job-status': {

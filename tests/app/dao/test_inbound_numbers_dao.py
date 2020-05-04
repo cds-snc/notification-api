@@ -7,7 +7,8 @@ from app.dao.inbound_numbers_dao import (
     dao_get_available_inbound_numbers,
     dao_set_inbound_number_to_service,
     dao_set_inbound_number_active_flag,
-    dao_allocate_number_for_service)
+    dao_allocate_number_for_service,
+    dao_add_inbound_number)
 from app.models import InboundNumber
 
 from tests.app.db import create_service, create_inbound_number
@@ -105,3 +106,13 @@ def test_dao_allocate_number_for_service_raises_if_invalid_inbound_number(notify
     with pytest.raises(Exception) as exc:
         dao_allocate_number_for_service(service_id=service.id, inbound_number_id=fake_uuid)
     assert 'is not available' in str(exc.value)
+
+
+def test_dao_add_inbound_number(notify_db_session):
+    inbound_number = '12345678901'
+    dao_add_inbound_number(inbound_number)
+
+    res = dao_get_available_inbound_numbers()
+
+    assert len(res) == 1
+    assert res[0].number == inbound_number

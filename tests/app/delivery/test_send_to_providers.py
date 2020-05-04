@@ -46,7 +46,7 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
 
     assert send_to_providers.provider_to_use('sms', '1234').name == first.identifier
 
-    first.priority = 15
+    first.priority = 12
     second.priority = 10
 
     provider_details_dao.dao_update_provider_details(first)
@@ -56,7 +56,7 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
 
     first.priority = 10
     first.active = False
-    second.priority = 15
+    second.priority = 12
 
     provider_details_dao.dao_update_provider_details(first)
     provider_details_dao.dao_update_provider_details(second)
@@ -67,6 +67,19 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
     provider_details_dao.dao_update_provider_details(first)
 
     assert send_to_providers.provider_to_use('sms', '1234').name == first.identifier
+
+
+def test_provider_to_use(restore_provider_details):
+    providers = provider_details_dao.get_provider_details_by_notification_type('sms')
+    first = providers[0]
+
+    # provider is pinpoint if sms and sender is set
+    provider = send_to_providers.provider_to_use('sms', '1234', False, '+12345678901')
+    assert "pinpoint" == provider.name
+
+    # provider is highest priority sms provider if sender is not set
+    provider = send_to_providers.provider_to_use('sms', '1234', False)
+    assert first.identifier == provider.name
 
 
 def test_should_send_personalised_template_to_correct_sms_provider_and_persist(

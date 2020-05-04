@@ -1,3 +1,4 @@
+import uuid
 from app import db
 from app.dao.dao_utils import transactional
 from app.models import InboundNumber
@@ -45,3 +46,9 @@ def dao_allocate_number_for_service(service_id, inbound_number_id):
     if not updated:
         raise Exception("Inbound number: {} is not available".format(inbound_number_id))
     return InboundNumber.query.get(inbound_number_id)
+
+
+def dao_add_inbound_number(inbound_number):
+    sql = "insert into inbound_numbers values('{}', '{}', 'pinpoint', null, True, now(), null);"
+    db.session.execute(sql.format(uuid.uuid4(), inbound_number))
+    db.session.commit()

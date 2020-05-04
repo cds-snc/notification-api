@@ -50,7 +50,6 @@ class AwsSnsClient(SmsClient):
                 self.current_app.logger.info("AWS SNS request finished in {}".format(elapsed_time))
                 self.statsd_client.timing("clients.sns.request-time", elapsed_time)
                 self.statsd_client.incr("clients.sns.success")
-
             return response['MessageId']
 
         if not matched:
