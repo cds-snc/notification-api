@@ -78,3 +78,6 @@ celerybeat-schedule
 
 /scripts/run_my_tests.sh
 .vscode
+
+# Terraform
+.terraform
