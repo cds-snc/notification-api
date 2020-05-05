@@ -13,6 +13,19 @@ jobs:
     if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@master
+
+      - name: Build and push to AWS ECR
+        uses: kciter/aws-ecr-action@v1
+        with:
+          access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+          repo: notification_api
+          region: us-east-2
+          tags: latest
+          create_repo: true
+          path: ci
+
       - name: 'Terraform Init'
         uses: hashicorp/terraform-github-actions@master
         with:
