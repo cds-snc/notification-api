@@ -24,7 +24,7 @@ jobs:
           region: us-east-2
           tags: latest
           create_repo: true
-          path: ci
+          path: ./ci
 
       - name: 'Terraform Init'
         uses: hashicorp/terraform-github-actions@master
