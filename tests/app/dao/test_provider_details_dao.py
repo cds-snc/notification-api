@@ -38,7 +38,7 @@ def set_primary_sms_provider(identifier):
 
 def test_can_get_sms_non_international_providers(restore_provider_details):
     sms_providers = get_provider_details_by_notification_type('sms')
-    assert len(sms_providers) == 4
+    assert len(sms_providers) == 5
     assert all('sms' == prov.notification_type for prov in sms_providers)
 
 
@@ -305,9 +305,13 @@ def test_dao_get_provider_stats(notify_db_session):
     create_ft_billing('2018-06-15', 'sms', sms_template_1, service_2, provider='mmg', billable_unit=1)
     create_ft_billing('2018-06-28', 'sms', sms_template_2, service_2, provider='sns', billable_unit=2)
 
+    provider = get_provider_details_by_identifier('pinpoint')
+    provider.priority = 50
+    dao_update_provider_details(provider)
+
     result = dao_get_provider_stats()
 
-    assert len(result) == 6
+    assert len(result) == 7
 
     assert result[0].identifier == 'ses'
     assert result[0].display_name == 'AWS SES'
@@ -332,3 +336,9 @@ def test_dao_get_provider_stats(notify_db_session):
     assert result[4].identifier == 'loadtesting'
     assert result[4].current_month_billable_sms == 0
     assert result[4].supports_international is False
+
+    assert result[5].identifier == 'pinpoint'
+    assert result[5].notification_type == 'sms'
+    assert result[5].supports_international is False
+    assert result[5].active is True
+    assert result[5].current_month_billable_sms == 0

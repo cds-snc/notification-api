@@ -46,7 +46,12 @@ def send_sms_to_provider(notification):
         return
 
     if notification.status == 'created':
-        provider = provider_to_use(SMS_TYPE, notification.id, notification.international)
+        provider = provider_to_use(
+            SMS_TYPE,
+            notification.id,
+            notification.international,
+            notification.reply_to_text
+        )
 
         template_model = dao_get_template_by_id(notification.template_id, notification.template_version)
 
@@ -193,7 +198,7 @@ def update_notification_to_sending(notification, provider):
     dao_update_notification(notification)
 
 
-def provider_to_use(notification_type, notification_id, international=False):
+def provider_to_use(notification_type, notification_id, international=False, sender=None):
     active_providers_in_order = [
         p for p in get_provider_details_by_notification_type(notification_type, international) if p.active
     ]
@@ -203,6 +208,9 @@ def provider_to_use(notification_type, notification_id, international=False):
             "{} {} failed as no active providers".format(notification_type, notification_id)
         )
         raise Exception("No active {} providers".format(notification_type))
+
+    if sender is not None and notification_type == SMS_TYPE and sender[0] == "+":
+        return clients.get_client_by_name_and_type("pinpoint", notification_type)
 
     return clients.get_client_by_name_and_type(active_providers_in_order[0].identifier, notification_type)
 
