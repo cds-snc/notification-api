@@ -8,7 +8,7 @@
     "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-create-group": true
+          "awslogs-create-group": "true"
         }
     },
     "portMappings": [
