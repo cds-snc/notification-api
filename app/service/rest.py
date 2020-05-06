@@ -231,18 +231,28 @@ def create_service():
 
 @service_blueprint.route('/<uuid:service_id>', methods=['POST'])
 def update_service(service_id):
+    print("Code?")
     req_json = request.get_json()
     fetched_service = dao_fetch_service_by_id(service_id)
     # Capture the status change here as Marshmallow changes this later
     service_going_live = fetched_service.restricted and not req_json.get('restricted', True)
     current_data = dict(service_schema.dump(fetched_service).data.items())
+    print(current_data)
+    print(req_json)
     current_data.update(request.get_json())
 
     service = service_schema.load(current_data).data
 
+    print("COde 2?")
+
     if 'email_branding' in req_json:
         email_branding_id = req_json['email_branding']
-        service.email_branding = None if not email_branding_id else EmailBranding.query.get(email_branding_id)
+        print(email_branding_id)
+        service.email_branding = None
+        #if email_branding_id in ["533076c9-c9ae-4831-b9b2-ff5886d10301","90f88238-5eca-4fa2-a7c4-b1aea62366c6 ]:
+        #    service.email_branding = None
+        #else:
+        #    service.email_branding = EmailBranding.query.get(email_branding_id)
     if 'letter_branding' in req_json:
         letter_branding_id = req_json['letter_branding']
         service.letter_branding = None if not letter_branding_id else LetterBranding.query.get(letter_branding_id)

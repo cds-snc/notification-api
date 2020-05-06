@@ -25,7 +25,8 @@ from app.exceptions import NotificationTechnicalFailureException, MalwarePending
 from app.models import (
     SMS_TYPE,
     KEY_TYPE_TEST,
-    BRANDING_BOTH,
+    BRANDING_BOTH_EN,
+    BRANDING_BOTH_FR,
     BRANDING_ORG_BANNER,
     EMAIL_TYPE,
     NOTIFICATION_TECHNICAL_FAILURE,
@@ -214,9 +215,15 @@ def get_logo_url(base_url, logo_file):
 
 def get_html_email_options(service):
 
-    if service.email_branding is None:
+    if service.email_branding == '533076c9-c9ae-4831-b9b2-ff5886d10301' or service.email_branding is None:
         return {
             'fip_banner_english': True,
+            'logo_with_background_colour': False,
+        }
+    elif service.email_branding == '90f88238-5eca-4fa2-a7c4-b1aea62366c6 ':
+        return {
+            'fip_banner_english': False,
+            'fip_banner_french': True,
             'logo_with_background_colour': False,
         }
 
@@ -226,7 +233,8 @@ def get_html_email_options(service):
     ) if service.email_branding.logo else None
 
     return {
-        'fip_banner_english': service.email_branding.brand_type == BRANDING_BOTH,
+        'fip_banner_english': service.email_branding.brand_type == BRANDING_BOTH_EN,
+        'fip_banner_french': service.email_branding.brand_type == BRANDING_BOTH_FR,
         'logo_with_background_colour': service.email_branding.brand_type == BRANDING_ORG_BANNER,
         'brand_colour': service.email_branding.colour,
         'brand_logo': logo_url,
