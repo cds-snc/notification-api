@@ -28,7 +28,7 @@ cachelib==0.1
 notifications-python-client==5.5.1
 python-dotenv==0.13.0
 pwnedpasswords==2.0.0
-sendgrid==6.1.0
+sendgrid==6.3.0
 tldextract==2.2.1
 twilio==6.16
 nanoid==2.0.0
