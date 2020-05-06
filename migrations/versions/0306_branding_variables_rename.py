@@ -1,15 +1,15 @@
 """
 
 Revision ID: 0306_branding_variables_rename
-Revises: 0305l_smtp_template
-Create Date: 2020-04:28 10:44:00
+Revises: 0305m_add_pinpoint
+Create Date: 2020-05-06 10:44:00
 
 """
 from alembic import op
 
 
 revision = '0306_branding_variables_rename'
-down_revision = '0305l_smtp_template'
+down_revision = '0305m_add_pinpoint'
 
 
 def upgrade():
