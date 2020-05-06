@@ -11,7 +11,8 @@ terraform {
 }
 
 resource "aws_vpc" "ecs-vpc" {
-  cidr_block = "10.0.0.0/24"
+  cidr_block           = "10.0.0.0/24"
+  enable_dns_hostnames = "true"
 }
 
 resource "aws_subnet" "ecs-subnet" {
