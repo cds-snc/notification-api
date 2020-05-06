@@ -73,5 +73,10 @@ data "template_file" "notification-api" {
     fargate_memory = 1024
     aws_region     = "us-east-2"
     app_name       = "notification-api"
+    log_group_name = aws_cloudwatch_log_group.notification-log-group.name
   }
+}
+
+resource "aws_cloudwatch_log_group" "notification-log-group" {
+  name = "notification-log-group"
 }
