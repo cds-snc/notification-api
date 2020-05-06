@@ -48,7 +48,7 @@ git+https://github.com/alphagov/boto.git@2.43.0-patch3#egg=boto==2.43.0-patch3
 
 # MLWR
 socketio-client==0.7.2
-requests
+requests==2.23.0
 requests[security]
 pycryptodome
 
