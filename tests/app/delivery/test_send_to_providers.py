@@ -461,9 +461,9 @@ def test_get_html_email_renderer_with_branding_details(branding_type, fip_banner
     assert options['brand_name'] == 'Justice League'
 
     if branding_type == BRANDING_ORG_BANNER_NEW:
-        assert options['custom_logo_with_background_colour'] is True
+        assert options['logo_with_background_colour'] is True
     else:
-        assert options['custom_logo_with_background_colour'] is False
+        assert options['logo_with_background_colour'] is False
 
 
 def test_get_html_email_renderer_with_branding_details_and_render_fip_banner_english_only(notify_db, sample_service):
