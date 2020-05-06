@@ -4,7 +4,7 @@ on: [push, pull_request]
 env:
   tf_version: 'latest'
   tf_working_dir: './cd'
-  TF_LOG: TRACE
+  TF_LOG: DEBUG 
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 jobs:
