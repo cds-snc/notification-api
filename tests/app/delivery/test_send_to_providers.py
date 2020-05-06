@@ -473,7 +473,7 @@ def test_get_html_email_renderer_with_branding_details_and_render_fip_banner_eng
 
     options = send_to_providers.get_html_email_options(sample_service)
 
-    assert options == {'fip_banner_english': True, 'custom_logo_with_background_colour': False}
+    assert options == {'fip_banner_english': True, 'logo_with_background_colour': False}
 
 
 def test_get_html_email_renderer_prepends_logo_path(notify_api):
@@ -514,7 +514,7 @@ def test_get_html_email_renderer_handles_email_branding_without_logo(notify_api)
     renderer = send_to_providers.get_html_email_options(service)
 
     assert renderer['fip_banner_english'] is False
-    assert renderer['custom_logo_with_background_colour'] is True
+    assert renderer['logo_with_background_colour'] is True
     assert renderer['brand_logo'] is None
     assert renderer['brand_text'] == 'League of Justice'
     assert renderer['brand_colour'] == '#000000'
