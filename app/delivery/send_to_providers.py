@@ -225,7 +225,7 @@ def get_html_email_options(service):
     if service.email_branding is None:
         return {
             'fip_banner_english': True,
-            'logo_with_background_colour': False,
+            'custom_logo_with_background_colour': False,
         }
 
     logo_url = get_logo_url(
@@ -235,7 +235,7 @@ def get_html_email_options(service):
 
     return {
         'fip_banner_english': service.email_branding.brand_type == BRANDING_BOTH,
-        'logo_with_background_colour': service.email_branding.brand_type == BRANDING_ORG_BANNER_NEW,
+        'custom_logo_with_background_colour': service.email_branding.brand_type == BRANDING_ORG_BANNER_NEW,
         'brand_colour': service.email_branding.colour,
         'brand_logo': logo_url,
         'brand_text': service.email_branding.text,
