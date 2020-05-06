@@ -50,6 +50,6 @@ git+https://github.com/alphagov/boto.git@2.43.0-patch3#egg=boto==2.43.0-patch3
 socketio-client==0.7.2
 requests==2.23.0
 requests[security]==2.23.0
-pycryptodome
+pycryptodome==3.9.7
 
 git+https://bitbucket.org/cse-assemblyline/assemblyline_client.git@v3.7.3#egg=assemblyline_client==v3.7.3
