@@ -224,7 +224,7 @@ def get_html_email_options(service):
 
     if service.email_branding is None:
         return {
-            'fip_banner_english': True,
+            'fip_banner_english': True, # Federal Identity Program branding
             'logo_with_background_colour': False,
         }
 
