@@ -45,7 +45,7 @@ resource "aws_ecs_service" "notification_api_service" {
   network_configuration {
     security_groups  = [aws_security_group.ecs_tasks.id]
     subnets          = aws_subnet.ecs-subnet.*.id
-    assign_public_ip = true
+    assign_public_ip = false
   }
 
   depends_on = [aws_iam_role_policy_attachment.ecs_task_execution_role]
@@ -115,7 +115,7 @@ resource "aws_vpc_endpoint" "vpc_endpoint_s3" {
   vpc_id            = aws_vpc.ecs-vpc.id
   service_name      = "com.amazonaws.us-east-2.s3"
   vpc_endpoint_type = "Gateway"
-  route_table_ids = [aws_vpc.ecs-vpc.default_route_table_id]
+  route_table_ids = [aws_vpc.ecs-vpc.main_route_table_id]
 }
 
 data "template_file" "notification-api" {
