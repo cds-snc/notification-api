@@ -253,7 +253,7 @@ def test_create_email_branding_reject_invalid_brand_type(admin_request):
         _expected_status=400
     )
 
-    expect = 'brand_type NOT A TYPE is not one of [custom_logo, both, custom_logo_with_banner, no_branding]'
+    expect = 'brand_type NOT A TYPE is not one of [custom_logo, both, custom_logo_with_background_colour, no_branding]'
     assert response['errors'][0]['message'] == expect
 
 
@@ -270,5 +270,5 @@ def test_update_email_branding_reject_invalid_brand_type(admin_request, notify_d
         email_branding_id=email_branding.id
     )
 
-    expect = 'brand_type NOT A TYPE is not one of [custom_logo, both, custom_logo_with_banner, no_branding]'
+    expect = 'brand_type NOT A TYPE is not one of [custom_logo, both, custom_logo_with_background_colour, no_branding]'
     assert response['errors'][0]['message'] == expect
