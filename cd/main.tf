@@ -90,6 +90,7 @@ resource "aws_vpc_endpoint" "vpc_endpoint_ecr_api" {
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
   vpc_endpoint_type   = "Interface"
+  subnet_ids = [aws_subnet.ecs-subnet.id]
 }
 
 resource "aws_vpc_endpoint" "vpc_endpoint_ecr_dkr" {
@@ -98,6 +99,7 @@ resource "aws_vpc_endpoint" "vpc_endpoint_ecr_dkr" {
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
   vpc_endpoint_type   = "Interface"
+  subnet_ids = [aws_subnet.ecs-subnet.id]
 }
 
 resource "aws_vpc_endpoint" "vpc_endpoint_cloudwatch" {
@@ -106,6 +108,7 @@ resource "aws_vpc_endpoint" "vpc_endpoint_cloudwatch" {
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
   vpc_endpoint_type   = "Interface"
+  subnet_ids = [aws_subnet.ecs-subnet.id]
 }
 
 resource "aws_vpc_endpoint" "vpc_endpoint_s3" {
