@@ -1,5 +1,5 @@
 provider "aws" {
-  region     = "us-east-2"
+  region = "us-east-2"
 }
 
 terraform {
@@ -21,13 +21,13 @@ resource "aws_subnet" "ecs-subnet" {
 }
 
 resource "aws_ecs_cluster" "ecs-cluster" {
-  name = "notify-fargate-cluster"
+  name               = "notify-fargate-cluster"
   capacity_providers = ["FARGATE"]
 }
 
 resource "aws_ecs_task_definition" "ecs-task-definition" {
-  container_definitions = data.template_file.notification-api.rendered
-  family = "notification-api-task"
+  container_definitions    = data.template_file.notification-api.rendered
+  family                   = "notification-api-task"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
@@ -69,6 +69,49 @@ resource "aws_security_group" "ecs_tasks" {
     to_port     = 0
     cidr_blocks = ["0.0.0.0/0"]
   }
+}
+
+resource "aws_security_group" "vpc_endpoints" {
+  name        = "vpc-private-subnet-endpoints"
+  description = "Allow hosts in private subnet to talk to AWS enpoints"
+  vpc_id      = aws_vpc.ecs-vpc.id
+
+  ingress {
+    protocol    = "-1"
+    from_port   = 0
+    to_port     = 0
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_vpc_endpoint" "vpc_endpoint_ecr_api" {
+  vpc_id              = aws_vpc.ecs-vpc.id
+  service_name        = "com.amazonaws.us-east-2.ecr.api"
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+  vpc_endpoint_type   = "Interface"
+}
+
+resource "aws_vpc_endpoint" "vpc_endpoint_ecr_dkr" {
+  vpc_id              = aws_vpc.ecs-vpc.id
+  service_name        = "com.amazonaws.us-east-2.ecr.dkr"
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+  vpc_endpoint_type   = "Interface"
+}
+
+resource "aws_vpc_endpoint" "vpc_endpoint_cloudwatch" {
+  vpc_id              = aws_vpc.ecs-vpc.id
+  service_name        = "com.amazonaws.us-east-2.logs"
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+  vpc_endpoint_type   = "Interface"
+}
+
+resource "aws_vpc_endpoint" "vpc_endpoint_s3" {
+  vpc_id            = aws_vpc.ecs-vpc.id
+  service_name      = "com.amazonaws.us-east-2.s3"
+  vpc_endpoint_type = "Gateway"
 }
 
 data "template_file" "notification-api" {
