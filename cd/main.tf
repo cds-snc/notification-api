@@ -43,7 +43,7 @@ resource "aws_ecs_service" "notification_api_service" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    security_groups  = [aws_security_group.ecs_tasks.id, aws_security_group.vpc_endpoints.id]
+    security_groups  = [aws_security_group.ecs_tasks.id]
     subnets          = aws_subnet.ecs-subnet.*.id
     assign_public_ip = true
   }
@@ -75,13 +75,6 @@ resource "aws_security_group" "vpc_endpoints" {
   name        = "vpc-private-subnet-endpoints"
   description = "Allow hosts in private subnet to talk to AWS enpoints"
   vpc_id      = aws_vpc.ecs-vpc.id
-
-  egress {
-    protocol = "-1"
-    from_port = 0
-    to_port = 0
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 
   ingress {
     protocol    = "-1"
