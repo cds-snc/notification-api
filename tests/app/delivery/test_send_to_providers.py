@@ -22,9 +22,9 @@ from app.models import (
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEST,
     KEY_TYPE_TEAM,
-    BRANDING_ORG,
+    BRANDING_ORG_NEW,
     BRANDING_BOTH,
-    BRANDING_ORG_BANNER
+    BRANDING_ORG_BANNER_NEW
 )
 from tests.app.db import (
     create_service,
@@ -436,9 +436,9 @@ def test_get_html_email_renderer_should_return_for_normal_service(sample_service
 
 
 @pytest.mark.parametrize('branding_type, fip_banner_english', [
-    (BRANDING_ORG, False),
+    (BRANDING_ORG_NEW, False),
     (BRANDING_BOTH, True),
-    (BRANDING_ORG_BANNER, False)
+    (BRANDING_ORG_BANNER_NEW, False)
 ])
 def test_get_html_email_renderer_with_branding_details(branding_type, fip_banner_english, notify_db, sample_service):
 
@@ -460,7 +460,7 @@ def test_get_html_email_renderer_with_branding_details(branding_type, fip_banner
     assert options['brand_text'] == 'League of Justice'
     assert options['brand_name'] == 'Justice League'
 
-    if branding_type == BRANDING_ORG_BANNER:
+    if branding_type == BRANDING_ORG_BANNER_NEW:
         assert options['logo_with_background_colour'] is True
     else:
         assert options['logo_with_background_colour'] is False
@@ -481,7 +481,7 @@ def test_get_html_email_renderer_prepends_logo_path(notify_api):
     EmailBranding = namedtuple('EmailBranding', ['brand_type', 'colour', 'name', 'logo', 'text'])
 
     email_branding = EmailBranding(
-        brand_type=BRANDING_ORG,
+        brand_type=BRANDING_ORG_NEW,
         colour='#000000',
         logo='justice-league.png',
         name='Justice League',
@@ -501,7 +501,7 @@ def test_get_html_email_renderer_handles_email_branding_without_logo(notify_api)
     EmailBranding = namedtuple('EmailBranding', ['brand_type', 'colour', 'name', 'logo', 'text'])
 
     email_branding = EmailBranding(
-        brand_type=BRANDING_ORG_BANNER,
+        brand_type=BRANDING_ORG_BANNER_NEW,
         colour='#000000',
         logo=None,
         name='Justice League',

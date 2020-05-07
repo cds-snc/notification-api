@@ -225,12 +225,13 @@ user_folder_permissions = db.Table(
 
 
 BRANDING_GOVUK = 'fip_english'  # Deprecated outside migrations
-BRANDING_ORG = 'custom_logo'
-BRANDING_BOTH_EN = 'both_english'
-BRANDING_BOTH_FR = 'both_french'
-BRANDING_ORG_BANNER = 'custom_logo_with_background_colour'
+BRANDING_ORG = 'org'  # Used in migrations only - do not remove or they will break
+BRANDING_ORG_BANNER = 'org_banner'  # Used in migrations only - do not remove or they will break
+BRANDING_ORG_NEW = 'custom_logo'  # Use this and BRANDING_ORG_BANNER_NEW for actual code
+BRANDING_BOTH = 'both'
+BRANDING_ORG_BANNER_NEW = 'custom_logo_with_banner'
 BRANDING_NO_BRANDING = "no_branding"
-BRANDING_TYPES = [BRANDING_ORG, BRANDING_BOTH_EN, BRANDING_BOTH_FR, BRANDING_ORG_BANNER, BRANDING_NO_BRANDING]
+BRANDING_TYPES = [BRANDING_ORG_NEW, BRANDING_BOTH, BRANDING_ORG_BANNER_NEW, BRANDING_NO_BRANDING]
 
 
 class BrandingTypes(db.Model):
@@ -250,7 +251,7 @@ class EmailBranding(db.Model):
         db.ForeignKey('branding_type.name'),
         index=True,
         nullable=False,
-        default=BRANDING_ORG
+        default=BRANDING_ORG_NEW
     )
 
     def serialize(self):
