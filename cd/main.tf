@@ -43,7 +43,7 @@ resource "aws_ecs_service" "notification_api_service" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    security_groups  = [aws_security_group.ecs_tasks.id]
+    security_groups  = [aws_security_group.ecs_tasks.id, aws_security_group.vpc_endpoints.id]
     subnets          = aws_subnet.ecs-subnet.*.id
     assign_public_ip = true
   }
