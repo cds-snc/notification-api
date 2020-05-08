@@ -19,12 +19,12 @@
         "hostPort": ${app_port}
       }
     ],
-    "environment": [{
-        "TWILIO_ACCOUNT_SID": "account_sid",
-        "TWILIO_AUTH_TOKEN": "auth_token",
-        "TWILIO_FROM_NUMBER": "0123456789",
-        "NOTIFY_ENVIRONMENT": "development",
-        "FLASK_APP": "application.py"
-    }]
+    "environment": [
+        {"name": "TWILIO_ACCOUNT_SID", "value": "account_sid"},
+        {"name": "TWILIO_AUTH_TOKEN", "value": "auth_token"},
+        {"name": "TWILIO_FROM_NUMBER", "value": "0123456789"},
+        {"name": "NOTIFY_ENVIRONMENT", "value": "development"},
+        {"name": "FLASK_APP", "value": "application.py"}
+    ]
   }
 ]
