@@ -135,3 +135,12 @@ data "template_file" "notification-api" {
 resource "aws_cloudwatch_log_group" "notification-log-group" {
   name = "notification-log-group"
 }
+
+resource "aws_route_table" "vpc_route_table" {
+  vpc_id = aws_vpc.ecs-vpc.id
+}
+
+resource "aws_route_table_association" "vpc_route_table_association" {
+  subnet_id      = aws_subnet.ecs-subnet.id
+  route_table_id = aws_route_table.vpc_route_table.id
+}
