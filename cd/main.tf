@@ -59,7 +59,13 @@ resource "aws_ecs_service" "notification_api_service" {
     assign_public_ip = false
   }
 
-  depends_on = [aws_iam_role_policy_attachment.ecs_task_execution_role]
+  load_balancer {
+    target_group_arn = aws_alb_target_group.notify_app.id
+    container_name   = "notification-api"
+    container_port   = 6011
+  }
+
+  depends_on = [aws_alb_listener.front_end, aws_iam_role_policy_attachment.ecs_task_execution_role]
 }
 
 resource "aws_security_group" "ecs_tasks" {
@@ -189,5 +195,24 @@ resource "aws_security_group" "notification_alb_security_group" {
     from_port   = 0
     to_port     = 0
     cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_alb_target_group" "notify_app" {
+  name        = "notification-target-group"
+  port        = 6011
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.ecs-vpc.id
+  target_type = "ip"
+}
+
+resource "aws_alb_listener" "front_end" {
+  load_balancer_arn = aws_alb.notification_alb.id
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    target_group_arn = aws_alb_target_group.notify_app.id
+    type             = "forward"
   }
 }
