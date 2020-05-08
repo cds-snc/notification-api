@@ -20,6 +20,17 @@ resource "aws_subnet" "ecs-subnet" {
   cidr_block = "10.0.0.0/24"
 }
 
+data "aws_availability_zones" "available_zones" {
+}
+
+resource "aws_subnet" "notification_subnet_public" {
+  count                   = 2
+  cidr_block              = cidrsubnet(aws_vpc.ecs-vpc.cidr_block, 8, 2 + count.index)
+  availability_zone       = data.aws_availability_zones.available_zones.names[count.index]
+  vpc_id                  = aws_vpc.ecs-vpc.id
+  map_public_ip_on_launch = true
+}
+
 resource "aws_ecs_cluster" "ecs-cluster" {
   name               = "notify-fargate-cluster"
   capacity_providers = ["FARGATE"]
@@ -157,7 +168,7 @@ resource "aws_nat_gateway" "notification_nat" {
 
 resource "aws_alb" "notification_alb" {
   name            = "notification-load-balancer"
-  subnets         = aws_subnet.ecs-subnet.*.id
+  subnets         = aws_subnet.notification_subnet_public.*.id
   security_groups = [aws_security_group.notification_alb_security_group.id]
 }
 
