@@ -17,7 +17,7 @@ resource "aws_vpc" "ecs-vpc" {
 
 resource "aws_subnet" "ecs-subnet" {
   vpc_id     = aws_vpc.ecs-vpc.id
-  cidr_block = aws_vpc.ecs-vpc.cidr_block
+  cidr_block = "10.0.0.32/28"
 }
 
 data "aws_availability_zones" "available_zones" {
