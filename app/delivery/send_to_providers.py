@@ -26,7 +26,7 @@ from app.models import (
     SMS_TYPE,
     KEY_TYPE_TEST,
     BRANDING_BOTH,
-    BRANDING_ORG_BANNER,
+    BRANDING_ORG_BANNER_NEW,
     EMAIL_TYPE,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_VIRUS_SCAN_FAILED,
@@ -224,8 +224,8 @@ def get_html_email_options(service):
 
     if service.email_branding is None:
         return {
-            'govuk_banner': True,
-            'brand_banner': False,
+            'fip_banner_english': True,  # Federal Identity Program branding
+            'logo_with_background_colour': False,
         }
 
     logo_url = get_logo_url(
@@ -234,8 +234,8 @@ def get_html_email_options(service):
     ) if service.email_branding.logo else None
 
     return {
-        'govuk_banner': service.email_branding.brand_type == BRANDING_BOTH,
-        'brand_banner': service.email_branding.brand_type == BRANDING_ORG_BANNER,
+        'fip_banner_english': service.email_branding.brand_type == BRANDING_BOTH,
+        'logo_with_background_colour': service.email_branding.brand_type == BRANDING_ORG_BANNER_NEW,
         'brand_colour': service.email_branding.colour,
         'brand_logo': logo_url,
         'brand_text': service.email_branding.text,

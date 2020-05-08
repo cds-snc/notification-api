@@ -4,7 +4,7 @@
 # with package version changes made in requirements-app.txt
 
 cffi==1.14.0
-celery==3.1.26.post2 # pyup: <4
+celery[sqs]==3.1.26.post2 # pyup: <4
 docopt==0.6.2
 fido2==0.7.0
 Flask-Bcrypt==0.7.1
@@ -22,6 +22,7 @@ marshmallow==2.20.5
 python-magic==0.4.15
 psycopg2-binary==2.8.4
 PyJWT==1.7.1
+PyYAML==5.3.1
 SQLAlchemy==1.3.13
 sentry-sdk[flask]==0.14.3
 validatesns==0.1.1
@@ -44,9 +45,7 @@ awscli-cwlogs>=1.4,<1.5
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
 itsdangerous==0.24  # pyup: <1.0.0
 
-git+https://github.com/cds-snc/notifier-utils.git@41.0.1#egg=notifications-utils==41.0.1
-
-git+https://github.com/alphagov/boto.git@2.43.0-patch3#egg=boto==2.43.0-patch3
+git+https://github.com/cds-snc/notifier-utils.git@42.0.0#egg=notifications-utils==42.0.0
 
 # MLWR
 socketio-client==0.5.6
@@ -62,13 +61,14 @@ amqp==1.4.9
 anyjson==0.3.3
 asn1crypto==1.3.0
 attrs==19.3.0
-awscli==1.18.49
+awscli==1.18.53
 bcrypt==3.1.7
 billiard==3.3.0.23
 bleach==3.1.4
 blinker==1.4
+boto==2.49.0
 boto3==1.12.13
-botocore==1.15.49
+botocore==1.16.3
 certifi==2020.4.5.1
 chardet==3.0.4
 click==7.1.2
@@ -101,7 +101,6 @@ python-editor==1.0.4
 python-http-client==3.2.7
 python-json-logger==0.1.11
 pytz==2020.1
-PyYAML==5.3.1
 redis==3.5.0
 requests-file==1.5.1
 rsa==3.4.2
