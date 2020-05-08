@@ -140,3 +140,43 @@ resource "aws_route_table_association" "vpc_route_table_association" {
   subnet_id      = aws_subnet.ecs-subnet.id
   route_table_id = aws_vpc.ecs-vpc.main_route_table_id
 }
+
+resource "aws_internet_gateway" "notification_internet_gateway" {
+  vpc_id = aws_vpc.ecs-vpc.id
+}
+
+resource "aws_eip" "eip_notification" {
+  vpc        = true
+  depends_on = [aws_internet_gateway.notification_internet_gateway]
+}
+
+resource "aws_nat_gateway" "notification_nat" {
+  allocation_id = aws_eip.eip_notification.id
+  subnet_id = aws_subnet.ecs-subnet.id
+}
+
+resource "aws_alb" "notification_alb" {
+  name            = "notification-load-balancer"
+  subnets         = aws_subnet.ecs-subnet.*.id
+  security_groups = [aws_security_group.notification_alb_security_group.id]
+}
+
+resource "aws_security_group" "notification_alb_security_group" {
+  name        = "notification-load-balancer-security-group"
+  description = "controls access to the ALB"
+  vpc_id      = aws_vpc.ecs-vpc.id
+
+  ingress {
+    protocol    = "tcp"
+    from_port   = 0
+    to_port     = 0
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    protocol    = "-1"
+    from_port   = 0
+    to_port     = 0
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
