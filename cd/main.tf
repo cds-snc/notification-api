@@ -11,7 +11,7 @@ terraform {
 }
 
 resource "aws_vpc" "ecs-vpc" {
-  cidr_block           = "10.0.0.0/16"
+  cidr_block           = "10.0.0.0/24"
   enable_dns_hostnames = "true"
 }
 
@@ -25,7 +25,7 @@ data "aws_availability_zones" "available_zones" {
 
 resource "aws_subnet" "notification_subnet_public" {
   count                   = 2
-  cidr_block              = cidrsubnet(aws_vpc.ecs-vpc.cidr_block, 8, 2 + count.index)
+  cidr_block              = cidrsubnet(aws_vpc.ecs-vpc.cidr_block, 4, count.index)
   availability_zone       = data.aws_availability_zones.available_zones.names[count.index]
   vpc_id                  = aws_vpc.ecs-vpc.id
   map_public_ip_on_launch = true
