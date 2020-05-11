@@ -27,7 +27,6 @@ from app.models import (
     KEY_TYPE_TEST,
     BRANDING_BOTH_EN,
     BRANDING_BOTH_FR,
-    BRANDING_ORG_BANNER,
     BRANDING_ORG_BANNER_NEW,
     EMAIL_TYPE,
     NOTIFICATION_TECHNICAL_FAILURE,
@@ -245,7 +244,7 @@ def get_html_email_options(service):
     return {
         'fip_banner_english': service.email_branding.brand_type == BRANDING_BOTH_EN,
         'fip_banner_french': service.email_branding.brand_type == BRANDING_BOTH_FR,
-        'logo_with_background_colour': service.email_branding.brand_type == BRANDING_ORG_BANNER,
+        'logo_with_background_colour': service.email_branding.brand_type == BRANDING_ORG_BANNER_NEW,
         'brand_colour': service.email_branding.colour,
         'brand_logo': logo_url,
         'brand_text': service.email_branding.text,
