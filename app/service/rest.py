@@ -247,16 +247,14 @@ def update_service(service_id):
 
     if 'email_branding' in req_json:
         email_branding_id = req_json['email_branding']
-        print(email_branding_id)
-        service.email_branding = None
-        #if email_branding_id in ["533076c9-c9ae-4831-b9b2-ff5886d10301","90f88238-5eca-4fa2-a7c4-b1aea62366c6 ]:
-        #    service.email_branding = None
-        #else:
-        #    service.email_branding = EmailBranding.query.get(email_branding_id)
+        service.email_branding = None if not email_branding_id else EmailBranding.query.get(email_branding_id)
     if 'letter_branding' in req_json:
         letter_branding_id = req_json['letter_branding']
         service.letter_branding = None if not letter_branding_id else LetterBranding.query.get(letter_branding_id)
     dao_update_service(service)
+
+    if 'default_email_is_french' in req_json:
+        service.default_email_is_french = req_json['default_email_is_french']
 
     if service_going_live:
         send_notification_to_service_users(

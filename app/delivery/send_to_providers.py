@@ -224,17 +224,18 @@ def get_logo_url(base_url, logo_file):
 
 def get_html_email_options(service):
 
-    if service.email_branding == '533076c9-c9ae-4831-b9b2-ff5886d10301' or service.email_branding is None:
-        return {
-            'fip_banner_english': True,
-            'logo_with_background_colour': False,
-        }
-    elif service.email_branding == '90f88238-5eca-4fa2-a7c4-b1aea62366c6 ':
-        return {
-            'fip_banner_english': False,
-            'fip_banner_french': True,
-            'logo_with_background_colour': False,
-        }
+    if service.email_branding is None:
+        if service.default_branding_is_french:
+            return {
+                'fip_banner_english': False,
+                'fip_banner_french': True,
+                'logo_with_background_colour': False,
+            }
+        else:
+            return {
+                'fip_banner_english': True,
+                'logo_with_background_colour': False,
+            }
 
     logo_url = get_logo_url(
         current_app.config['ADMIN_BASE_URL'],

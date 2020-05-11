@@ -228,10 +228,11 @@ BRANDING_GOVUK = 'fip_english'  # Deprecated outside migrations
 BRANDING_ORG = 'org'  # Used in migrations only - do not remove or they will break
 BRANDING_ORG_BANNER = 'org_banner'  # Used in migrations only - do not remove or they will break
 BRANDING_ORG_NEW = 'custom_logo'  # Use this and BRANDING_ORG_BANNER_NEW for actual code
-BRANDING_BOTH = 'both'
+BRANDING_BOTH_EN = 'both_english'
+BRANDING_BOTH_FR = 'both_french'
 BRANDING_ORG_BANNER_NEW = 'custom_logo_with_background_colour'
 BRANDING_NO_BRANDING = "no_branding"
-BRANDING_TYPES = [BRANDING_ORG_NEW, BRANDING_BOTH, BRANDING_ORG_BANNER_NEW, BRANDING_NO_BRANDING]
+BRANDING_TYPES = [BRANDING_ORG_NEW, BRANDING_BOTH_EN, BRANDING_BOTH_FR, BRANDING_ORG_BANNER_NEW, BRANDING_NO_BRANDING]
 
 
 class BrandingTypes(db.Model):
@@ -466,6 +467,7 @@ class Service(db.Model, Versioned):
     email_from = db.Column(db.Text, index=False, unique=True, nullable=False)
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), index=True, nullable=False)
     created_by = db.relationship('User', foreign_keys=[created_by_id])
+    default_branding_is_french = db.Column(db.Boolean, index=False, unique=False, nullable=False)
     prefix_sms = db.Column(db.Boolean, nullable=False, default=True)
     organisation_type = db.Column(
         db.String(255),
