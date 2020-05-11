@@ -15,17 +15,19 @@ resource "aws_vpc" "ecs-vpc" {
   enable_dns_hostnames = "true"
 }
 
-resource "aws_subnet" "ecs-subnet" {
-  vpc_id     = aws_vpc.ecs-vpc.id
-  cidr_block = "10.0.0.32/28"
+data "aws_availability_zones" "available_zones" {
 }
 
-data "aws_availability_zones" "available_zones" {
+resource "aws_subnet" "ecs-subnet" {
+  count = 2
+  cidr_block = cidrsubnet(aws_vpc.ecs-vpc.cidr_block, 4, count.index)
+  availability_zone = data.aws_availability_zones.available_zones.names[count.index]
+  vpc_id     = aws_vpc.ecs-vpc.id
 }
 
 resource "aws_subnet" "notification_subnet_public" {
   count                   = 2
-  cidr_block              = cidrsubnet(aws_vpc.ecs-vpc.cidr_block, 4, count.index)
+  cidr_block              = cidrsubnet(aws_vpc.ecs-vpc.cidr_block, 4, 2 + count.index)
   availability_zone       = data.aws_availability_zones.available_zones.names[count.index]
   vpc_id                  = aws_vpc.ecs-vpc.id
   map_public_ip_on_launch = true
@@ -107,7 +109,7 @@ resource "aws_vpc_endpoint" "vpc_endpoint_ecr_api" {
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
   vpc_endpoint_type   = "Interface"
-  subnet_ids = [aws_subnet.ecs-subnet.id]
+  subnet_ids = aws_subnet.ecs-subnet.*.id
 }
 
 resource "aws_vpc_endpoint" "vpc_endpoint_ecr_dkr" {
@@ -116,7 +118,7 @@ resource "aws_vpc_endpoint" "vpc_endpoint_ecr_dkr" {
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
   vpc_endpoint_type   = "Interface"
-  subnet_ids = [aws_subnet.ecs-subnet.id]
+  subnet_ids = aws_subnet.ecs-subnet.*.id
 }
 
 resource "aws_vpc_endpoint" "vpc_endpoint_cloudwatch" {
@@ -125,7 +127,7 @@ resource "aws_vpc_endpoint" "vpc_endpoint_cloudwatch" {
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
   vpc_endpoint_type   = "Interface"
-  subnet_ids = [aws_subnet.ecs-subnet.id]
+  subnet_ids = aws_subnet.ecs-subnet.*.id
 }
 
 resource "aws_vpc_endpoint" "vpc_endpoint_s3" {
@@ -154,7 +156,8 @@ resource "aws_cloudwatch_log_group" "notification-log-group" {
 }
 
 resource "aws_route_table_association" "vpc_route_table_association" {
-  subnet_id      = aws_subnet.ecs-subnet.id
+  count = 2
+  subnet_id      = element(aws_subnet.ecs-subnet.*.id, count.index)
   route_table_id = aws_vpc.ecs-vpc.main_route_table_id
 }
 
@@ -168,8 +171,9 @@ resource "aws_eip" "eip_notification" {
 }
 
 resource "aws_nat_gateway" "notification_nat" {
-  allocation_id = aws_eip.eip_notification.id
-  subnet_id = aws_subnet.ecs-subnet.id
+  count = 2
+  subnet_id      = element(aws_subnet.notification_subnet_public.*.id, count.index)
+  allocation_id = element(aws_eip.eip_notification.*.id, count.index)
 }
 
 resource "aws_alb" "notification_alb" {
