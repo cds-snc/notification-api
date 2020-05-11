@@ -218,6 +218,11 @@ resource "aws_alb_target_group" "notify_app" {
   protocol    = "HTTP"
   vpc_id      = aws_vpc.ecs-vpc.id
   target_type = "ip"
+
+  health_check {
+    path = "/_status?simple=simple"
+    matcher = "200"
+  }
 }
 
 resource "aws_alb_listener" "front_end" {
