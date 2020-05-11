@@ -166,6 +166,7 @@ resource "aws_internet_gateway" "notification_internet_gateway" {
 }
 
 resource "aws_eip" "eip_notification" {
+  count      = 2
   vpc        = true
   depends_on = [aws_internet_gateway.notification_internet_gateway]
 }
