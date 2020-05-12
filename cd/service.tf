@@ -22,12 +22,12 @@ resource "aws_ecs_service" "notification_api_service" {
   }
 
   load_balancer {
-    target_group_arn = aws_alb_target_group.notify_app.id
+    target_group_arn = aws_alb_target_group.notify_api.id
     container_name   = "notification-api"
     container_port   = 6011
   }
 
-  depends_on = [aws_alb_listener.front_end, aws_iam_role_policy_attachment.ecs_task_execution_role]
+  depends_on = [aws_alb_listener.notify_api, aws_iam_role_policy_attachment.ecs_task_execution_role]
 }
 
 data "template_file" "notification-api" {
