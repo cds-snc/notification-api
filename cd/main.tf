@@ -85,7 +85,7 @@ resource "aws_vpc_endpoint" "vpc_endpoint_s3" {
   vpc_id            = aws_vpc.ecs-vpc.id
   service_name      = "com.amazonaws.us-east-2.s3"
   vpc_endpoint_type = "Gateway"
-  route_table_ids = [aws_route_table.notification_route_table.id]
+  route_table_ids = aws_route_table.private.*.id
 }
 
 resource "aws_internet_gateway" "notification_internet_gateway" {
