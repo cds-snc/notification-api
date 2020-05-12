@@ -1,15 +1,3 @@
-provider "aws" {
-  region = "us-east-2"
-}
-
-terraform {
-  backend "s3" {
-    bucket = "terraform-notification-test"
-    key    = "notification-test.tfstate"
-    region = "us-east-2"
-  }
-}
-
 resource "aws_vpc" "ecs-vpc" {
   cidr_block           = "10.0.0.0/24"
   enable_dns_hostnames = "true"
@@ -31,43 +19,6 @@ resource "aws_subnet" "notification_subnet_public" {
   availability_zone       = data.aws_availability_zones.available_zones.names[count.index]
   vpc_id                  = aws_vpc.ecs-vpc.id
   map_public_ip_on_launch = true
-}
-
-resource "aws_ecs_cluster" "ecs-cluster" {
-  name               = "notify-fargate-cluster"
-  capacity_providers = ["FARGATE"]
-}
-
-resource "aws_ecs_task_definition" "ecs-task-definition" {
-  container_definitions    = data.template_file.notification-api.rendered
-  family                   = "notification-api-task"
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = 512
-  memory                   = 1024
-}
-
-resource "aws_ecs_service" "notification_api_service" {
-  name            = "cb-service"
-  cluster         = aws_ecs_cluster.ecs-cluster.id
-  task_definition = aws_ecs_task_definition.ecs-task-definition.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
-
-  network_configuration {
-    security_groups  = [aws_security_group.ecs_tasks.id]
-    subnets          = aws_subnet.ecs-subnet.*.id
-    assign_public_ip = false
-  }
-
-  load_balancer {
-    target_group_arn = aws_alb_target_group.notify_app.id
-    container_name   = "notification-api"
-    container_port   = 6011
-  }
-
-  depends_on = [aws_alb_listener.front_end, aws_iam_role_policy_attachment.ecs_task_execution_role]
 }
 
 resource "aws_security_group" "ecs_tasks" {
@@ -137,39 +88,6 @@ resource "aws_vpc_endpoint" "vpc_endpoint_s3" {
   route_table_ids = [aws_route_table.notification_route_table.id]
 }
 
-data "template_file" "notification-api" {
-  template = file("./container_definition.json.tpl")
-
-  vars = {
-    app_image      = "437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:latest"
-    app_port       = 6011
-    fargate_cpu    = 512
-    fargate_memory = 1024
-    aws_region     = "us-east-2"
-    app_name       = "notification-api"
-    log_group_name = aws_cloudwatch_log_group.notification-log-group.name
-  }
-}
-
-resource "aws_cloudwatch_log_group" "notification-log-group" {
-  name = "notification-log-group"
-}
-
-resource "aws_route_table" "notification_route_table" {
-  vpc_id = aws_vpc.ecs-vpc.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.notification_internet_gateway.id
-  }
-}
-
-resource "aws_route_table_association" "vpc_route_table_association" {
-  count = 2
-  subnet_id      = element(aws_subnet.ecs-subnet.*.id, count.index)
-  route_table_id = aws_route_table.notification_route_table.id
-}
-
 resource "aws_internet_gateway" "notification_internet_gateway" {
   vpc_id = aws_vpc.ecs-vpc.id
 }
@@ -184,12 +102,6 @@ resource "aws_nat_gateway" "notification_nat" {
   count = 2
   subnet_id      = element(aws_subnet.notification_subnet_public.*.id, count.index)
   allocation_id = element(aws_eip.eip_notification.*.id, count.index)
-}
-
-resource "aws_alb" "notification_alb" {
-  name            = "notification-load-balancer"
-  subnets         = aws_subnet.notification_subnet_public.*.id
-  security_groups = [aws_security_group.notification_alb_security_group.id]
 }
 
 resource "aws_security_group" "notification_alb_security_group" {
@@ -209,29 +121,5 @@ resource "aws_security_group" "notification_alb_security_group" {
     from_port   = 0
     to_port     = 0
     cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-resource "aws_alb_target_group" "notify_app" {
-  name        = "notification-target-group"
-  port        = 6011
-  protocol    = "HTTP"
-  vpc_id      = aws_vpc.ecs-vpc.id
-  target_type = "ip"
-
-  health_check {
-    path = "/_status?simple=simple"
-    matcher = "200"
-  }
-}
-
-resource "aws_alb_listener" "front_end" {
-  load_balancer_arn = aws_alb.notification_alb.id
-  port              = 80
-  protocol          = "HTTP"
-
-  default_action {
-    target_group_arn = aws_alb_target_group.notify_app.id
-    type             = "forward"
   }
 }
