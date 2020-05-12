@@ -27,3 +27,23 @@ resource "aws_alb" "notification_alb" {
   subnets         = aws_subnet.notification_subnet_public.*.id
   security_groups = [aws_security_group.notification_alb_security_group.id]
 }
+
+resource "aws_security_group" "notification_alb_security_group" {
+  name        = "notification-load-balancer-security-group"
+  description = "controls access to the ALB"
+  vpc_id      = aws_vpc.ecs-vpc.id
+
+  ingress {
+    protocol    = "tcp"
+    from_port   = 0
+    to_port     = 0
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    protocol    = "-1"
+    from_port   = 0
+    to_port     = 0
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}

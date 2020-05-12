@@ -103,23 +103,3 @@ resource "aws_nat_gateway" "notification_nat" {
   subnet_id      = element(aws_subnet.notification_subnet_public.*.id, count.index)
   allocation_id = element(aws_eip.eip_notification.*.id, count.index)
 }
-
-resource "aws_security_group" "notification_alb_security_group" {
-  name        = "notification-load-balancer-security-group"
-  description = "controls access to the ALB"
-  vpc_id      = aws_vpc.ecs-vpc.id
-
-  ingress {
-    protocol    = "tcp"
-    from_port   = 0
-    to_port     = 0
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    protocol    = "-1"
-    from_port   = 0
-    to_port     = 0
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
