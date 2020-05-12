@@ -26,5 +26,5 @@ resource "aws_route_table" "private" {
 resource "aws_route_table_association" "private" {
   count = 2
   subnet_id      = element(aws_subnet.ecs-subnet.*.id, count.index)
-  route_table_id = elemeent(aws_route_table.private.*.id, count.index)
+  route_table_id = element(aws_route_table.private.*.id, count.index)
 }
