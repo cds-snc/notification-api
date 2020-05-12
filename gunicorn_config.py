@@ -1,5 +1,5 @@
-# import newrelic.agent  # See https://bit.ly/2xBVKBH
-# newrelic.agent.initialize()
+import newrelic.agent  # See https://bit.ly/2xBVKBH
+newrelic.agent.initialize()    # noqa: E402
 import os
 import sys
 import traceback
