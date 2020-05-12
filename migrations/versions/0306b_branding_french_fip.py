@@ -27,5 +27,5 @@ def downgrade():
     op.execute("DELETE FROM branding_type WHERE name = 'both_english'")
     op.execute("DELETE FROM branding_type WHERE name = 'both_french'")
 
-    op.execute('ALTER TABLE services DROP COLUMN default_branding_is_french bool')
-    op.execute('ALTER TABLE services_history DROP COLUMN default_branding_is_french bool')
+    op.execute('ALTER TABLE services DROP COLUMN default_branding_is_french')
+    op.execute('ALTER TABLE services_history DROP COLUMN default_branding_is_french')
