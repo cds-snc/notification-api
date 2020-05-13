@@ -23,7 +23,7 @@ from app.models import (
     KEY_TYPE_TEST,
     KEY_TYPE_TEAM,
     BRANDING_ORG_NEW,
-    BRANDING_BOTH,
+    BRANDING_BOTH_EN,
     BRANDING_ORG_BANNER_NEW
 )
 from tests.app.db import (
@@ -437,7 +437,7 @@ def test_get_html_email_renderer_should_return_for_normal_service(sample_service
 
 @pytest.mark.parametrize('branding_type, fip_banner_english', [
     (BRANDING_ORG_NEW, False),
-    (BRANDING_BOTH, True),
+    (BRANDING_BOTH_EN, True),
     (BRANDING_ORG_BANNER_NEW, False)
 ])
 def test_get_html_email_renderer_with_branding_details(branding_type, fip_banner_english, notify_db, sample_service):
