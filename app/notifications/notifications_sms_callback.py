@@ -57,6 +57,20 @@ def process_firetext_response():
         return jsonify(result='success', message=success), 200
 
 
+@sms_callback_blueprint.route('/sns', methods=['POST'])
+def process_sns_response():
+    # setting provider_reference = 'send-sms-code' mocks a successful response
+    success, errors = process_sms_client_response(None, 'send-sms-code', 'sns')
+    return jsonify(result='success', message=success), 200
+
+
+@sms_callback_blueprint.route('/pinpoint', methods=['POST'])
+def process_pinpoint_response():
+    # setting provider_reference = 'send-sms-code' mocks a successful response
+    success, errors = process_sms_client_response(None, 'send-sms-code', 'pinpoint')
+    return jsonify(result='success', message=success), 200
+
+
 @sms_callback_blueprint.route('/twilio/<notification_id>', methods=['POST'])
 def process_twilio_response(notification_id):
     client_name = 'Twilio'
