@@ -222,9 +222,8 @@ def get_logo_url(base_url, logo_file):
 
 
 def get_html_email_options(service):
-
     if service.email_branding is None:
-        if service.default_branding_is_french:
+        if service.default_branding_is_french is True:
             return {
                 'fip_banner_english': False,
                 'fip_banner_french': True,
