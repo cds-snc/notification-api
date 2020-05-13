@@ -8,14 +8,14 @@ data "aws_availability_zones" "available_zones" {
 
 resource "aws_subnet" "ecs-subnet" {
   count = 2
-  cidr_block = cidrsubnet(aws_vpc.ecs-vpc.cidr_block, 4, count.index)
+  cidr_block = cidrsubnet(aws_vpc.ecs-vpc.cidr_block, 2, count.index)
   availability_zone = data.aws_availability_zones.available_zones.names[count.index]
   vpc_id     = aws_vpc.ecs-vpc.id
 }
 
 resource "aws_subnet" "notification_subnet_public" {
   count                   = 2
-  cidr_block              = cidrsubnet(aws_vpc.ecs-vpc.cidr_block, 4, 2 + count.index)
+  cidr_block              = cidrsubnet(aws_vpc.ecs-vpc.cidr_block, 2, 2 + count.index)
   availability_zone       = data.aws_availability_zones.available_zones.names[count.index]
   vpc_id                  = aws_vpc.ecs-vpc.id
   map_public_ip_on_launch = true
