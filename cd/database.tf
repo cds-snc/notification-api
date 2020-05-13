@@ -4,7 +4,7 @@ module "db" {
   name                            = "notification-api-db"
 
   engine                          = "aurora-postgresql"
-  engine_version                  = "3.1.2"
+  engine_version                  = "11.6"
 
   vpc_id                          = aws_vpc.ecs-vpc.id
   subnets                         = aws_subnet.ecs-subnet.*.id
