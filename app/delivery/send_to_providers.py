@@ -25,7 +25,8 @@ from app.exceptions import NotificationTechnicalFailureException, MalwarePending
 from app.models import (
     SMS_TYPE,
     KEY_TYPE_TEST,
-    BRANDING_BOTH,
+    BRANDING_BOTH_EN,
+    BRANDING_BOTH_FR,
     BRANDING_ORG_BANNER_NEW,
     EMAIL_TYPE,
     NOTIFICATION_TECHNICAL_FAILURE,
@@ -221,12 +222,19 @@ def get_logo_url(base_url, logo_file):
 
 
 def get_html_email_options(service):
-
     if service.email_branding is None:
-        return {
-            'fip_banner_english': True,  # Federal Identity Program branding
-            'logo_with_background_colour': False,
-        }
+        if service.default_branding_is_french is True:
+            return {
+                'fip_banner_english': False,
+                'fip_banner_french': True,
+                'logo_with_background_colour': False,
+            }
+        else:
+            return {
+                'fip_banner_english': True,
+                'fip_banner_french': False,
+                'logo_with_background_colour': False,
+            }
 
     logo_url = get_logo_url(
         current_app.config['ADMIN_BASE_URL'],
@@ -234,7 +242,8 @@ def get_html_email_options(service):
     ) if service.email_branding.logo else None
 
     return {
-        'fip_banner_english': service.email_branding.brand_type == BRANDING_BOTH,
+        'fip_banner_english': service.email_branding.brand_type == BRANDING_BOTH_EN,
+        'fip_banner_french': service.email_branding.brand_type == BRANDING_BOTH_FR,
         'logo_with_background_colour': service.email_branding.brand_type == BRANDING_ORG_BANNER_NEW,
         'brand_colour': service.email_branding.colour,
         'brand_logo': logo_url,

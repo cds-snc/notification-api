@@ -207,6 +207,7 @@ class ServiceSchema(BaseSchema):
     letter_logo_filename = fields.Method(dump_only=True, serialize='get_letter_logo_filename')
     permissions = fields.Method("service_permissions")
     email_branding = field_for(models.Service, 'email_branding')
+    default_branding_is_french = field_for(models.Service, 'default_branding_is_french')
     organisation = field_for(models.Service, 'organisation')
     override_flag = False
     letter_contact_block = fields.Method(serialize="get_letter_contact")

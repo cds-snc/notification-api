@@ -236,6 +236,7 @@ def update_service(service_id):
     # Capture the status change here as Marshmallow changes this later
     service_going_live = fetched_service.restricted and not req_json.get('restricted', True)
     current_data = dict(service_schema.dump(fetched_service).data.items())
+
     current_data.update(request.get_json())
 
     service = service_schema.load(current_data).data
@@ -247,6 +248,9 @@ def update_service(service_id):
         letter_branding_id = req_json['letter_branding']
         service.letter_branding = None if not letter_branding_id else LetterBranding.query.get(letter_branding_id)
     dao_update_service(service)
+
+    if 'default_email_is_french' in req_json:
+        service.default_email_is_french = req_json['default_email_is_french']
 
     if service_going_live:
         send_notification_to_service_users(
