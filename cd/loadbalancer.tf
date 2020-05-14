@@ -1,25 +1,25 @@
-resource "aws_alb" "notify_alb" {
+resource "aws_alb" "notification_api" {
   name            = "notification-load-balancer"
   subnets         = aws_subnet.public.*.id
-  security_groups = [aws_security_group.notify_alb.id]
+  security_groups = [aws_security_group.notification_api.id]
 }
 
-resource "aws_alb_listener" "notify_api" {
-  load_balancer_arn = aws_alb.notify_alb.id
+resource "aws_alb_listener" "notification_api" {
+  load_balancer_arn = aws_alb.notification_api.id
   port              = 80
   protocol          = "HTTP"
 
   default_action {
-    target_group_arn = aws_alb_target_group.notify_api.id
+    target_group_arn = aws_alb_target_group.notification_api.id
     type             = "forward"
   }
 }
 
-resource "aws_alb_target_group" "notify_api" {
+resource "aws_alb_target_group" "notification_api" {
   name        = "notification-target-group"
   port        = 6011
   protocol    = "HTTP"
-  vpc_id      = aws_vpc.notify.id
+  vpc_id      = aws_vpc.notification.id
   target_type = "ip"
 
   health_check {
@@ -28,10 +28,10 @@ resource "aws_alb_target_group" "notify_api" {
   }
 }
 
-resource "aws_security_group" "notify_alb" {
+resource "aws_security_group" "notification_api" {
   name        = "notification-load-balancer-security-group"
   description = "controls access to the ALB"
-  vpc_id      = aws_vpc.notify.id
+  vpc_id      = aws_vpc.notification.id
 
   ingress {
     protocol    = "tcp"

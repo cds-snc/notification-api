@@ -1,3 +1,3 @@
-resource "aws_cloudwatch_log_group" "notify_logs" {
+resource "aws_cloudwatch_log_group" "notification" {
   name = "notification-api-log-group"
 }
