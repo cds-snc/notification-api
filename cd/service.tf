@@ -9,7 +9,7 @@ resource "aws_ecs_task_definition" "ecs_task_definition" {
 }
 
 resource "aws_ecs_service" "notify_api" {
-  name            = "cb-service"
+  name            = "notification-api-service"
   cluster         = aws_ecs_cluster.fargate.id
   task_definition = aws_ecs_task_definition.ecs_task_definition.arn
   desired_count   = 1

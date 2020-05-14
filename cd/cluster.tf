@@ -1,4 +1,4 @@
 resource "aws_ecs_cluster" "fargate" {
-  name               = "notify-fargate-cluster"
+  name               = "notification-fargate-cluster"
   capacity_providers = ["FARGATE"]
 }
