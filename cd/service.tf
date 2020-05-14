@@ -41,5 +41,10 @@ data "template_file" "notify_api" {
     aws_region     = "us-east-2"
     app_name       = "notification-api"
     log_group_name = aws_cloudwatch_log_group.notify_logs.name
+
+    db_user = module.db.this_rds_cluster_master_username
+    db_password = module.db.this_rds_cluster_master_password
+    db_endpoint = module.db.this_rds_cluster_endpoint
+    db_port = module.db.this_rds_cluster_port
   }
 }
