@@ -10,7 +10,7 @@ module "db" {
   subnets                         = aws_subnet.ecs-subnet.*.id
 
   replica_count                   = 1
-  instance_type                   = "db.m4.large"
+  instance_type                   = "db.r4.large"
   storage_encrypted               = true
   apply_immediately               = true
   monitoring_interval             = 10
