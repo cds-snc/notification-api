@@ -7,5 +7,6 @@ terraform {
     bucket = "terraform-notification-test"
     key    = "notification-test.tfstate"
     region = "us-east-2"
+    encrypt = true
   }
 }
