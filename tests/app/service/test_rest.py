@@ -700,6 +700,16 @@ def test_update_service_remove_email_branding(admin_request, notify_db, sample_s
     assert resp['data']['email_branding'] is None
 
 
+def test_update_service_change_default_branding_language(admin_request, notify_db, sample_service):
+    resp = admin_request.post(
+        'service.update_service',
+        service_id=sample_service.id,
+        _data={'default_branding_is_french': True}
+    )
+
+    assert resp['data']['default_branding_is_french'] is True
+
+
 def test_update_service_change_email_branding(admin_request, notify_db, sample_service):
     brand1 = EmailBranding(colour='#000000', logo='justice-league.png', name='Justice League')
     brand2 = EmailBranding(colour='#111111', logo='avengers.png', name='Avengers')

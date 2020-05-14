@@ -232,6 +232,7 @@ def get_html_email_options(service):
         else:
             return {
                 'fip_banner_english': True,
+                'fip_banner_french': False,
                 'logo_with_background_colour': False,
             }
 
