@@ -1,4 +1,4 @@
-resource "aws_vpc" "ecs-vpc" {
+resource "aws_vpc" "notify" {
   cidr_block           = "10.0.0.0/24"
   enable_dns_hostnames = "true"
 }
@@ -6,25 +6,25 @@ resource "aws_vpc" "ecs-vpc" {
 data "aws_availability_zones" "available_zones" {
 }
 
-resource "aws_subnet" "ecs-subnet" {
+resource "aws_subnet" "private" {
   count = 2
-  cidr_block = cidrsubnet(aws_vpc.ecs-vpc.cidr_block, 2, count.index)
+  cidr_block = cidrsubnet(aws_vpc.notify.cidr_block, 2, count.index)
   availability_zone = data.aws_availability_zones.available_zones.names[count.index]
-  vpc_id     = aws_vpc.ecs-vpc.id
+  vpc_id     = aws_vpc.notify.id
 }
 
-resource "aws_subnet" "notification_subnet_public" {
+resource "aws_subnet" "public" {
   count                   = 2
-  cidr_block              = cidrsubnet(aws_vpc.ecs-vpc.cidr_block, 2, 2 + count.index)
+  cidr_block              = cidrsubnet(aws_vpc.notify.cidr_block, 2, 2 + count.index)
   availability_zone       = data.aws_availability_zones.available_zones.names[count.index]
-  vpc_id                  = aws_vpc.ecs-vpc.id
+  vpc_id                  = aws_vpc.notify.id
   map_public_ip_on_launch = true
 }
 
 resource "aws_security_group" "ecs_tasks" {
   name        = "cb-ecs-tasks-security-group"
   description = "allow outbound access"
-  vpc_id      = aws_vpc.ecs-vpc.id
+  vpc_id      = aws_vpc.notify.id
 
   egress {
     protocol    = "-1"
@@ -44,7 +44,7 @@ resource "aws_security_group" "ecs_tasks" {
 resource "aws_security_group" "vpc_endpoints" {
   name        = "vpc-private-subnet-endpoints"
   description = "Allow hosts in private subnet to talk to AWS enpoints"
-  vpc_id      = aws_vpc.ecs-vpc.id
+  vpc_id      = aws_vpc.notify.id
 
   ingress {
     protocol    = "-1"
@@ -54,52 +54,52 @@ resource "aws_security_group" "vpc_endpoints" {
   }
 }
 
-resource "aws_vpc_endpoint" "vpc_endpoint_ecr_api" {
-  vpc_id              = aws_vpc.ecs-vpc.id
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id              = aws_vpc.notify.id
   service_name        = "com.amazonaws.us-east-2.ecr.api"
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
   vpc_endpoint_type   = "Interface"
-  subnet_ids = aws_subnet.ecs-subnet.*.id
+  subnet_ids = aws_subnet.private.*.id
 }
 
-resource "aws_vpc_endpoint" "vpc_endpoint_ecr_dkr" {
-  vpc_id              = aws_vpc.ecs-vpc.id
+resource "aws_vpc_endpoint" "ecr_dkr" {
+  vpc_id              = aws_vpc.notify.id
   service_name        = "com.amazonaws.us-east-2.ecr.dkr"
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
   vpc_endpoint_type   = "Interface"
-  subnet_ids = aws_subnet.ecs-subnet.*.id
+  subnet_ids = aws_subnet.private.*.id
 }
 
-resource "aws_vpc_endpoint" "vpc_endpoint_cloudwatch" {
-  vpc_id              = aws_vpc.ecs-vpc.id
+resource "aws_vpc_endpoint" "cloudwatch" {
+  vpc_id              = aws_vpc.notify.id
   service_name        = "com.amazonaws.us-east-2.logs"
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
   vpc_endpoint_type   = "Interface"
-  subnet_ids = aws_subnet.ecs-subnet.*.id
+  subnet_ids = aws_subnet.private.*.id
 }
 
-resource "aws_vpc_endpoint" "vpc_endpoint_s3" {
-  vpc_id            = aws_vpc.ecs-vpc.id
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.notify.id
   service_name      = "com.amazonaws.us-east-2.s3"
   vpc_endpoint_type = "Gateway"
   route_table_ids = aws_route_table.private.*.id
 }
 
-resource "aws_internet_gateway" "notification_internet_gateway" {
-  vpc_id = aws_vpc.ecs-vpc.id
+resource "aws_internet_gateway" "notify_internet_gateway" {
+  vpc_id = aws_vpc.notify.id
 }
 
-resource "aws_eip" "eip_notification" {
+resource "aws_eip" "notify_eip" {
   count      = 2
   vpc        = true
-  depends_on = [aws_internet_gateway.notification_internet_gateway]
+  depends_on = [aws_internet_gateway.notify_internet_gateway]
 }
 
-resource "aws_nat_gateway" "notification_nat" {
+resource "aws_nat_gateway" "notify_nat" {
   count = 2
-  subnet_id      = element(aws_subnet.notification_subnet_public.*.id, count.index)
-  allocation_id = element(aws_eip.eip_notification.*.id, count.index)
+  subnet_id      = element(aws_subnet.public.*.id, count.index)
+  allocation_id = element(aws_eip.notify_eip.*.id, count.index)
 }

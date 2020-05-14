@@ -6,8 +6,8 @@ module "db" {
   engine                          = "aurora-postgresql"
   engine_version                  = "11.6"
 
-  vpc_id                          = aws_vpc.ecs-vpc.id
-  subnets                         = aws_subnet.ecs-subnet.*.id
+  vpc_id                          = aws_vpc.notify.id
+  subnets                         = aws_subnet.private.*.id
 
   replica_count                   = 1
   instance_type                   = "db.r4.large"

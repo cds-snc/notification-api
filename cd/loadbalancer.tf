@@ -1,6 +1,6 @@
 resource "aws_alb" "notify_alb" {
   name            = "notification-load-balancer"
-  subnets         = aws_subnet.notification_subnet_public.*.id
+  subnets         = aws_subnet.public.*.id
   security_groups = [aws_security_group.notify_alb.id]
 }
 
@@ -19,7 +19,7 @@ resource "aws_alb_target_group" "notify_api" {
   name        = "notification-target-group"
   port        = 6011
   protocol    = "HTTP"
-  vpc_id      = aws_vpc.ecs-vpc.id
+  vpc_id      = aws_vpc.notify.id
   target_type = "ip"
 
   health_check {
@@ -31,7 +31,7 @@ resource "aws_alb_target_group" "notify_api" {
 resource "aws_security_group" "notify_alb" {
   name        = "notification-load-balancer-security-group"
   description = "controls access to the ALB"
-  vpc_id      = aws_vpc.ecs-vpc.id
+  vpc_id      = aws_vpc.notify.id
 
   ingress {
     protocol    = "tcp"
