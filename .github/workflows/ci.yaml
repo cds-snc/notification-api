@@ -9,23 +9,10 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - name: 'Terraform Validate'
-        uses: hashicorp/terraform-github-actions@master
-        with:
-          tf_actions_version: ${{ env.tf_version }}
-          tf_actions_subcommand: 'validate'
-          tf_actions_working_dir: ${{ env.tf_working_dir }}
-          tf_actions_comment: false
-
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-
       - name: Run tests with docker-compose-test
         run: |
           docker-compose -f ci/docker-compose-test.yml up --build --abort-on-container-exit
@@ -69,6 +56,13 @@ jobs:
         with:
           tf_actions_version: ${{ env.tf_version }}
           tf_actions_subcommand: 'init'
+          tf_actions_working_dir: ${{ env.tf_working_dir }}
+          tf_actions_comment: false
+      - name: 'Terraform Validate'
+        uses: hashicorp/terraform-github-actions@master
+        with:
+          tf_actions_version: ${{ env.tf_version }}
+          tf_actions_subcommand: 'validate'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
       - name: 'Terraform Apply'
