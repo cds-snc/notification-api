@@ -34,7 +34,7 @@ data "template_file" "notification-api" {
   template = file("./container_definition.json.tpl")
 
   vars = {
-    app_image      = "437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:latest"
+    app_image      = format("437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:%s", var.app_tag)
     app_port       = 6011
     fargate_cpu    = 512
     fargate_memory = 1024
