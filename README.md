@@ -13,7 +13,6 @@ Contains:
 
 
 ## Setting Up
-
 ### Local installation instruction 
 
 On OS X:

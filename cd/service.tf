@@ -1,36 +1,36 @@
-resource "aws_ecs_task_definition" "ecs_task_definition" {
-  container_definitions    = data.template_file.notify_api.rendered
+resource "aws_ecs_task_definition" "notification_api" {
+  container_definitions    = data.template_file.notification_api_container_definition.rendered
   family                   = "notification-api-task"
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  execution_role_arn       = aws_iam_role.notification_ecs_task_execution.arn
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = 512
   memory                   = 1024
 }
 
-resource "aws_ecs_service" "notify_api" {
+resource "aws_ecs_service" "notification_api" {
   name            = "notification-api-service"
-  cluster         = aws_ecs_cluster.fargate.id
-  task_definition = aws_ecs_task_definition.ecs_task_definition.arn
+  cluster         = aws_ecs_cluster.notification_fargate.id
+  task_definition = aws_ecs_task_definition.notification_api.arn
   desired_count   = 1
   launch_type     = "FARGATE"
 
   network_configuration {
-    security_groups  = [aws_security_group.ecs_tasks.id]
+    security_groups  = [aws_security_group.ecs_task_outbound_access.id]
     subnets          = aws_subnet.private.*.id
     assign_public_ip = false
   }
 
   load_balancer {
-    target_group_arn = aws_alb_target_group.notify_api.id
+    target_group_arn = aws_alb_target_group.notification_api.id
     container_name   = "notification-api"
     container_port   = 6011
   }
 
-  depends_on = [aws_alb_listener.notify_api, aws_iam_role_policy_attachment.ecs_task_execution_role]
+  depends_on = [aws_alb_listener.notification_api, aws_iam_role_policy_attachment.notification_ecs_task_execution]
 }
 
-data "template_file" "notify_api" {
+data "template_file" "notification_api_container_definition" {
   template = file("./container_definition.json.tpl")
 
   vars = {
@@ -40,8 +40,8 @@ data "template_file" "notify_api" {
     fargate_memory = 1024
     aws_region     = "us-east-2"
     app_name       = "notification-api"
-    log_group_name = aws_cloudwatch_log_group.notify_logs.name
-
+    log_group_name = aws_cloudwatch_log_group.notification.name
+    
     db_user = module.db.this_rds_cluster_master_username
     db_password = module.db.this_rds_cluster_master_password
     db_endpoint = module.db.this_rds_cluster_endpoint
