@@ -4,5 +4,5 @@ variable "app_tag" {
 
 variable "database_name" {
   type = string
-  default = "notification-api"
+  default = "notification_api"
 }
