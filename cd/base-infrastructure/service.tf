@@ -46,5 +46,6 @@ data "template_file" "notification_api_container_definition" {
     db_password = module.db.this_rds_cluster_master_password
     db_endpoint = module.db.this_rds_cluster_endpoint
     db_port = module.db.this_rds_cluster_port
+    db_name = var.database_name
   }
 }

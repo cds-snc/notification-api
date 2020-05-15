@@ -10,10 +10,12 @@ module "db" {
   subnets                         = aws_subnet.private.*.id
 
   replica_count                   = 1
-  instance_type                   = "db.r4.large"
+  instance_type                   = "db.t3.medium"
   storage_encrypted               = true
   apply_immediately               = true
   monitoring_interval             = 10
+
+  database_name                   = var.database_name
 }
 
 resource "aws_security_group" "notification_db_access" {
@@ -31,11 +33,3 @@ resource "aws_security_group_rule" "allow_db_ingress" {
   security_group_id        = module.db.this_security_group_id
 }
 
-resource "aws_security_group_rule" "allow_db_egress" {
-  type                     = "egress"
-  from_port                = module.db.this_rds_cluster_port
-  to_port                  = module.db.this_rds_cluster_port
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.notification_db_access.id
-  security_group_id        = module.db.this_security_group_id
-}
