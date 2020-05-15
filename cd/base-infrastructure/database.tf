@@ -14,8 +14,10 @@ module "db" {
   storage_encrypted               = true
   apply_immediately               = true
   monitoring_interval             = 10
+}
 
-  database_name                   = var.database_name
+resource "postgresql_database" "notification_db" {
+  name = var.database_name
 }
 
 resource "aws_security_group" "notification_db_access" {
