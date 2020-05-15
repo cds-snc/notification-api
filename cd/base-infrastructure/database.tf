@@ -30,3 +30,12 @@ resource "aws_security_group_rule" "allow_db_ingress" {
   source_security_group_id = aws_security_group.notification_db_access.id
   security_group_id        = module.db.this_security_group_id
 }
+
+resource "aws_security_group_rule" "allow_db_egress" {
+  type                     = "egress"
+  from_port                = module.db.this_rds_cluster_port
+  to_port                  = module.db.this_rds_cluster_port
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.notification_db_access.id
+  security_group_id        = module.db.this_security_group_id
+}
