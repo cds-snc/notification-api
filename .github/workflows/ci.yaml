@@ -23,16 +23,6 @@ jobs:
     if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v1
-
-      - name: Build and push to GitHub Packages
-        uses: docker/build-push-action@v1
-        with:
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          registry: docker.pkg.github.com
-          repository: ${{ github.repository }}/notification-api
-          dockerfile: ci/Dockerfile
-          tag_with_sha: true
       - name: Build and push to AWS ECR
         uses: kciter/aws-ecr-action@v1
         with:
