@@ -21,26 +21,6 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 }
 
-resource "aws_security_group" "ecs_task_outbound_access" {
-  name        = "ecs-task-outbound-access-security-group"
-  description = "allow outbound access"
-  vpc_id      = aws_vpc.notification.id
-
-  egress {
-    protocol    = "-1"
-    from_port   = 0
-    to_port     = 0
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    protocol    = "-1"
-    from_port   = 0
-    to_port     = 0
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
 resource "aws_security_group" "vpc_endpoints" {
   name        = "vpc-private-subnet-endpoints"
   description = "Allow hosts in private subnet to talk to AWS enpoints"

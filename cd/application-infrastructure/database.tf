@@ -6,8 +6,8 @@ module "db" {
   engine                          = "aurora-postgresql"
   engine_version                  = "11.6"
 
-  vpc_id                          = aws_vpc.notification.id
-  subnets                         = aws_subnet.private.*.id
+  vpc_id                          = data.aws_vpc.notification.id
+  subnets                         = [data.aws_subnet.private_az_a.id, data.aws_subnet.private_az_b.id]
 
   replica_count                   = 1
   instance_type                   = "db.t3.medium"
@@ -21,7 +21,7 @@ module "db" {
 resource "aws_security_group" "notification_db_access" {
   name_prefix = "notification-db-access-"
   description = "For access to the Notification Database"
-  vpc_id      = aws_vpc.notification.id
+  vpc_id      = data.aws_vpc.notification.id
 }
 
 resource "aws_security_group_rule" "allow_db_ingress" {
