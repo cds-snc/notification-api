@@ -24,7 +24,8 @@
         {"name": "TWILIO_AUTH_TOKEN", "value": "auth_token"},
         {"name": "TWILIO_FROM_NUMBER", "value": "0123456789"},
         {"name": "NOTIFY_ENVIRONMENT", "value": "development"},
-        {"name": "FLASK_APP", "value": "application.py"}
+        {"name": "FLASK_APP", "value": "application.py"},
+        {"name": "SQLALCHEMY_DATABASE_URI", "value": "postgresql://${db_user}:${db_password}@${db_endpoint}:${db_port}/notification_api"}
     ]
   }
 ]
