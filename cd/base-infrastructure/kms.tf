@@ -4,6 +4,11 @@ resource "aws_kms_key" "notification" {
   policy                  = data.aws_iam_policy_document.notification.json
 }
 
+resource "aws_kms_alias" "notification" {
+  name          = "alias/notification"
+  target_key_id = aws_kms_key.notification.key_id
+}
+
 data "aws_iam_policy_document" "notification" {
   statement {
     sid = "Allow access for Key Administrators"
