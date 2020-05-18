@@ -33,3 +33,9 @@ resource "aws_security_group_rule" "allow_db_ingress" {
   security_group_id        = module.db.this_security_group_id
 }
 
+resource "aws_ssm_parameter" "database_uri" {
+  name        = "/dev/notification-api/database/uri"
+  description = "The database URI for dev"
+  type        = "SecureString"
+  value       = format("postgresql://%s:%s@%s:%s/%s", module.db.this_rds_cluster_master_username, module.db.this_rds_cluster_master_password, module.db.this_rds_cluster_endpoint, module.db.this_rds_cluster_port, module.db.this_rds_cluster_database_name)
+}
