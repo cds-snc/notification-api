@@ -1,21 +1,21 @@
 module "db" {
-  source                          = "terraform-aws-modules/rds-aurora/aws"
+  source = "terraform-aws-modules/rds-aurora/aws"
 
-  name                            = "notification-api-db"
+  name = "notification-api-db"
 
-  engine                          = "aurora-postgresql"
-  engine_version                  = "11.6"
+  engine         = "aurora-postgresql"
+  engine_version = "11.6"
 
-  vpc_id                          = data.aws_vpc.notification.id
-  subnets                         = [data.aws_subnet.private_az_a.id, data.aws_subnet.private_az_b.id]
+  vpc_id  = data.aws_vpc.notification.id
+  subnets = [data.aws_subnet.private_az_a.id, data.aws_subnet.private_az_b.id]
 
-  replica_count                   = 1
-  instance_type                   = "db.t3.medium"
-  storage_encrypted               = true
-  apply_immediately               = true
-  monitoring_interval             = 10
+  replica_count       = 1
+  instance_type       = "db.t3.medium"
+  storage_encrypted   = true
+  apply_immediately   = true
+  monitoring_interval = 10
 
-  database_name                   = var.database_name
+  database_name = var.database_name
 }
 
 resource "aws_security_group" "notification_db_access" {

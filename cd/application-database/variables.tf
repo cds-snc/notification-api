@@ -1,5 +1,5 @@
 variable "database_name" {
-  type = string
+  type    = string
   default = "notification_api"
 }
 
