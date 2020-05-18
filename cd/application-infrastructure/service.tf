@@ -16,7 +16,7 @@ resource "aws_ecs_service" "notification_api" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    security_groups  = [aws_security_group.ecs_task_outbound_access.id]
+    security_groups  = [aws_security_group.ecs_task_outbound_access.id, data.aws_security_group.notification_db_access.id]
     subnets          = [ data.aws_subnet.private_az_a.id, data.aws_subnet.private_az_b.id ]
     assign_public_ip = false
   }
@@ -41,5 +41,6 @@ data "template_file" "notification_api_container_definition" {
     aws_region     = "us-east-2"
     app_name       = "notification-api"
     log_group_name = aws_cloudwatch_log_group.notification.name
+    database_uri   = data.aws_ssm_parameter.database_uri.value
   }
 }

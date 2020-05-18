@@ -30,3 +30,11 @@ data "aws_subnet" "private_az_b" {
 data "aws_ecs_cluster" "notification_fargate" {
   cluster_name = "notification-fargate-cluster"
 }
+
+data "aws_ssm_parameter" "database_uri" {
+  name = "/dev/notification-api/database/uri"
+}
+
+data "aws_security_group" "notification_db_access" {
+  id = "sg-01917621dc6bb029f" // TODO: don't hardcode id
+}
