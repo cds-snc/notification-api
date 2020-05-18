@@ -36,5 +36,5 @@ data "aws_ssm_parameter" "database_uri" {
 }
 
 data "aws_security_group" "notification_db_access" {
-  id = "sg-01917621dc6bb029f" // TODO: don't hardcode id
+  name = "notification-db-access"
 }

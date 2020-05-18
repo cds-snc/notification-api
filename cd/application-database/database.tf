@@ -19,7 +19,7 @@ module "db" {
 }
 
 resource "aws_security_group" "notification_db_access" {
-  name_prefix = "notification-db-access-"
+  name        = "notification-db-access"
   description = "For access to the Notification Database"
   vpc_id      = data.aws_vpc.notification.id
 }
