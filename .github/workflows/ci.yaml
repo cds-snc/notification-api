@@ -114,7 +114,7 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: application-${{ github.sha }}.tfplan
-          path: ./cd/base-infrastructure/application-${{ github.sha }}.tfplan
+          path: ./cd/application-infrastructure/application-${{ github.sha }}.tfplan
       - name: 'Terraform Apply'
         uses: hashicorp/terraform-github-actions@master
         with:
