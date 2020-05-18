@@ -79,9 +79,54 @@ jobs:
           tf_actions_comment: false
           args: '"base-${{ github.sha }}.tfplan"'
 
-  deploy-dev:
+  create-database:
     runs-on: ubuntu-latest
     needs: [create-dev-infrastructure]
+    env:
+      tf_working_dir: './cd/application-database'
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@master
+      - name: 'Terraform Init'
+        uses: hashicorp/terraform-github-actions@master
+        with:
+          tf_actions_version: ${{ env.tf_version }}
+          tf_actions_subcommand: 'init'
+          tf_actions_working_dir: ${{ env.tf_working_dir }}
+          tf_actions_comment: false
+      - name: 'Terraform Validate'
+        uses: hashicorp/terraform-github-actions@master
+        with:
+          tf_actions_version: ${{ env.tf_version }}
+          tf_actions_subcommand: 'validate'
+          tf_actions_working_dir: ${{ env.tf_working_dir }}
+          tf_actions_comment: false
+      - name: 'Terraform Plan'
+        uses: hashicorp/terraform-github-actions@master
+        with:
+          tf_actions_version: ${{ env.tf_version }}
+          tf_actions_subcommand: 'plan'
+          tf_actions_working_dir: ${{ env.tf_working_dir }}
+          tf_actions_comment: false
+        env:
+          TF_CLI_ARGS_plan: '-var="app_tag=${{ github.sha }}" -out=database-${{ github.sha }}.tfplan'
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: database-${{ github.sha }}.tfplan
+          path: ./cd/application-database/database-${{ github.sha }}.tfplan
+      - name: 'Terraform Apply'
+        uses: hashicorp/terraform-github-actions@master
+        with:
+          tf_actions_version: ${{ env.tf_version }}
+          tf_actions_subcommand: 'apply'
+          tf_actions_working_dir: ${{ env.tf_working_dir }}
+          tf_actions_comment: false
+          args: '"database-${{ github.sha }}.tfplan"'
+
+  deploy-dev:
+    runs-on: ubuntu-latest
+    needs: [create-database]
     env:
       tf_working_dir: './cd/application-infrastructure'
     if: github.ref == 'refs/heads/master'
