@@ -80,7 +80,7 @@ data "aws_iam_policy_document" "notification" {
       "*"
     ]
 
-    condition = {
+    condition {
       test = "Bool"
       values = ["true"]
       variable = "kms:GrantIsForAWSResource"
