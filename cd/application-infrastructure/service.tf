@@ -45,5 +45,6 @@ data "template_file" "notification_api_container_definition" {
     twilio_from_number = data.aws_ssm_parameter.twilio_from_number.value
     twilio_account_sid = data.aws_ssm_parameter.twilio_account_sid.value
     twilio_auth_token  = data.aws_ssm_parameter.twilio_auth_token.value
+    notify_environment = var.notify_environment
   }
 }

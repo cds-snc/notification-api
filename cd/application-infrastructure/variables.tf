@@ -2,6 +2,11 @@ variable "app_tag" {
   type = string
 }
 
+variable "notify_environment" {
+  type    = string
+  default = "development"
+}
+
 variable "database_name" {
   type = string
   default = "notification_api"

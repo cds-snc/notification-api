@@ -154,7 +154,7 @@ jobs:
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
         env:
-          TF_CLI_ARGS_plan: '-var="app_tag=${{ github.sha }}" -out=application-${{ github.sha }}.tfplan'
+          TF_CLI_ARGS_plan: '-var="app_tag=${{ github.sha }}" -var="notify_environment=development" -out=application-${{ github.sha }}.tfplan'
       - name: Upload Plan Artifact
         uses: actions/upload-artifact@v1
         with:
