@@ -52,6 +52,16 @@ data "aws_ssm_parameter" "twilio_auth_token" {
   name = "/dev/notification-api/twilio/auth-token"
 }
 
+data "terraform_remote_state" "application_db" {
+  backend = "s3"
+
+  config = {
+    bucket = "terraform-notification-test"
+    key    = "notification-api-dev-db.tfstate"
+    region = "us-east-2"
+  }
+}
+
 variable "default_tags" {
   type = map(string)
   default = {
