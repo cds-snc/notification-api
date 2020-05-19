@@ -20,9 +20,9 @@
       }
     ],
     "environment": [
-        {"name": "TWILIO_ACCOUNT_SID", "value": "account_sid"},
-        {"name": "TWILIO_AUTH_TOKEN", "value": "auth_token"},
-        {"name": "TWILIO_FROM_NUMBER", "value": "0123456789"},
+        {"name": "TWILIO_ACCOUNT_SID", "value": "${twilio_account_sid}"},
+        {"name": "TWILIO_AUTH_TOKEN", "value": "${twilio_auth_token}"},
+        {"name": "TWILIO_FROM_NUMBER", "value": "${twilio_from_number}"},
         {"name": "NOTIFY_ENVIRONMENT", "value": "development"},
         {"name": "FLASK_APP", "value": "application.py"},
         {"name": "SQLALCHEMY_DATABASE_URI", "value": "${database_uri}"}

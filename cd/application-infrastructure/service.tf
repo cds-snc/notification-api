@@ -34,13 +34,16 @@ data "template_file" "notification_api_container_definition" {
   template = file("./container_definition.json.tpl")
 
   vars = {
-    app_image      = format("437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:%s", var.app_tag)
-    app_port       = 6011
-    fargate_cpu    = 512
-    fargate_memory = 1024
-    aws_region     = "us-east-2"
-    app_name       = "notification-api"
-    log_group_name = aws_cloudwatch_log_group.notification.name
-    database_uri   = data.aws_ssm_parameter.database_uri.value
+    app_image          = format("437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:%s", var.app_tag)
+    app_port           = 6011
+    fargate_cpu        = 512
+    fargate_memory     = 1024
+    aws_region         = "us-east-2"
+    app_name           = "notification-api"
+    log_group_name     = aws_cloudwatch_log_group.notification.name
+    database_uri       = data.aws_ssm_parameter.database_uri.value
+    twilio_from_number = data.aws_ssm_parameter.twilio_from_number.value
+    twilio_account_sid = data.aws_ssm_parameter.twilio_account_sid.value
+    twilio_auth_token  = data.aws_ssm_parameter.twilio_auth_token.value
   }
 }
