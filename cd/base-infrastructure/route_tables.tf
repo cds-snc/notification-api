@@ -5,8 +5,6 @@ resource "aws_route_table" "public" {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.notification.id
   }
-
-  tags = var.default_tags
 }
 
 resource "aws_route_table_association" "public" {
@@ -23,8 +21,6 @@ resource "aws_route_table" "private" {
     cidr_block = "0.0.0.0/0"
     gateway_id = element(aws_nat_gateway.notification.*.id, count.index)
   }
-
-  tags = var.default_tags
 }
 
 resource "aws_route_table_association" "private" {
