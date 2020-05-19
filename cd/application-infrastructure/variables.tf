@@ -34,7 +34,3 @@ data "aws_ecs_cluster" "notification_fargate" {
 data "aws_ssm_parameter" "database_uri" {
   name = "/dev/notification-api/database/uri"
 }
-
-data "aws_security_group" "notification_db_access" {
-  name = "notification-db-access"
-}
