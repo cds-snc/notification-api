@@ -8,7 +8,7 @@ variable "notify_environment" {
 }
 
 variable "database_name" {
-  type = string
+  type    = string
   default = "notification_api"
 }
 
@@ -50,4 +50,13 @@ data "aws_ssm_parameter" "twilio_account_sid" {
 
 data "aws_ssm_parameter" "twilio_auth_token" {
   name = "/dev/notification-api/twilio/auth-token"
+}
+
+variable "default_tags" {
+  type = map(string)
+  default = {
+    Stack       = "application-infrastructure",
+    Environment = "dev",
+    Team        = "va-notify"
+  }
 }

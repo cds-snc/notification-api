@@ -6,6 +6,7 @@ resource "aws_ecs_task_definition" "notification_api" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = 512
   memory                   = 1024
+  tags                     = var.default_tags
 }
 
 resource "aws_ecs_service" "notification_api" {
@@ -14,10 +15,11 @@ resource "aws_ecs_service" "notification_api" {
   task_definition = aws_ecs_task_definition.notification_api.arn
   desired_count   = 1
   launch_type     = "FARGATE"
+  tags            = var.default_tags
 
   network_configuration {
     security_groups  = [aws_security_group.ecs_task_outbound_access.id]
-    subnets          = [ data.aws_subnet.private_az_a.id, data.aws_subnet.private_az_b.id ]
+    subnets          = [data.aws_subnet.private_az_a.id, data.aws_subnet.private_az_b.id]
     assign_public_ip = false
   }
 

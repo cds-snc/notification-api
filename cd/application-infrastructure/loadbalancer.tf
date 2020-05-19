@@ -2,6 +2,7 @@ resource "aws_alb" "notification_api" {
   name            = "notification-load-balancer"
   subnets         = [data.aws_subnet.public_az_a.id, data.aws_subnet.public_az_b.id]
   security_groups = [aws_security_group.notification_api.id]
+  tags            = var.default_tags
 }
 
 resource "aws_alb_listener" "notification_api" {
@@ -21,9 +22,10 @@ resource "aws_alb_target_group" "notification_api" {
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.notification.id
   target_type = "ip"
+  tags        = var.default_tags
 
   health_check {
-    path = "/_status?simple=simple"
+    path    = "/_status?simple=simple"
     matcher = "200"
   }
 }
@@ -32,6 +34,7 @@ resource "aws_security_group" "notification_api" {
   name        = "notification-load-balancer-security-group"
   description = "controls access to the ALB"
   vpc_id      = data.aws_vpc.notification.id
+  tags        = var.default_tags
 
   ingress {
     protocol    = "tcp"
