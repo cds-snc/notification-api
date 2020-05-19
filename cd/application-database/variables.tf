@@ -14,3 +14,12 @@ data "aws_subnet" "private_az_a" {
 data "aws_subnet" "private_az_b" {
   cidr_block = "10.0.0.0/26"
 }
+
+variable "default_tags" {
+  type = map(string)
+  default = {
+    Stack = "application-database",
+    Environment = "dev",
+    Team = "va-notify"
+  }
+}

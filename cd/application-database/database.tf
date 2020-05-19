@@ -16,6 +16,7 @@ module "db" {
   monitoring_interval = 10
 
   database_name = var.database_name
+  tags          = var.default_tags
 }
 
 resource "aws_ssm_parameter" "database_uri" {
@@ -23,4 +24,5 @@ resource "aws_ssm_parameter" "database_uri" {
   description = "The database URI for dev"
   type        = "SecureString"
   value       = format("postgresql://%s:%s@%s:%s/%s", module.db.this_rds_cluster_master_username, module.db.this_rds_cluster_master_password, module.db.this_rds_cluster_endpoint, module.db.this_rds_cluster_port, module.db.this_rds_cluster_database_name)
+  tags        = var.default_tags
 }
