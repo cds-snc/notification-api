@@ -2,6 +2,8 @@ resource "aws_kms_key" "notification" {
   description             = "Notification KMS Key"
   deletion_window_in_days = 7
   policy                  = data.aws_iam_policy_document.notification.json
+
+  tags = var.default_tags
 }
 
 resource "aws_kms_alias" "notification" {
