@@ -15,7 +15,6 @@ resource "aws_ecs_service" "notification_api" {
   task_definition = aws_ecs_task_definition.notification_api.arn
   desired_count   = 1
   launch_type     = "FARGATE"
-  tags            = var.default_tags
 
   network_configuration {
     security_groups  = [aws_security_group.ecs_task_outbound_access.id]
