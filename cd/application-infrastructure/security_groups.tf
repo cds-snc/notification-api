@@ -26,9 +26,9 @@ resource "aws_security_group" "notification_db_access" {
 }
 resource "aws_security_group_rule" "allow_db_ingress" {
   type                     = "ingress"
-  from_port                = data.terraform_remote_state.application_db.database_port
-  to_port                  = data.terraform_remote_state.application_db.database_port
+  from_port                = data.terraform_remote_state.application_db.outputs.database_port
+  to_port                  = data.terraform_remote_state.application_db.outputs.database_port
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.notification_db_access.id
-  security_group_id        = data.terraform_remote_state.application_db.database_security_group
+  security_group_id        = data.terraform_remote_state.application_db.outputs.database_security_group
 }
