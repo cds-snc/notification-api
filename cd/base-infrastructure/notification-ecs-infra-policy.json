@@ -67,6 +67,7 @@
         "ecs:DeleteService",
         "ecs:DescribeClusters",
         "ecs:DescribeServices",
+        "ecs:*Tag*",
         "ecs:UpdateService",
         "elasticloadbalancing:AddTags",
         "elasticloadbalancing:CreateListener",
@@ -151,8 +152,7 @@
         "ssm:GetParametersByPath",
         "ssm:LabelParameterVersion",
         "ssm:ListTagsForResource",
-        "ssm:PutParameter",
-        "*:*Tag*"
+        "ssm:PutParameter"
       ],
       "Resource": "*"
     }
