@@ -26,3 +26,11 @@ resource "aws_ssm_parameter" "database_uri" {
   value       = format("postgresql://%s:%s@%s:%s/%s", module.db.this_rds_cluster_master_username, module.db.this_rds_cluster_master_password, module.db.this_rds_cluster_endpoint, module.db.this_rds_cluster_port, module.db.this_rds_cluster_database_name)
   tags        = var.default_tags
 }
+
+output "database_port" {
+  value = module.db.this_rds_cluster_port
+}
+
+output "database_security_group" {
+  value = module.db.this_security_group_id
+}
