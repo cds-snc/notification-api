@@ -24,10 +24,10 @@
         {"name": "FLASK_APP", "value": "application.py"}
     ],
     "secrets": [
-        {"name": "TWILIO_ACCOUNT_SID", "value": "${twilio_account_sid_arn}"},
-        {"name": "TWILIO_AUTH_TOKEN", "value": "${twilio_auth_token_arn}"},
-        {"name": "TWILIO_FROM_NUMBER", "value": "${twilio_from_number_arn}"},
-        {"name": "SQLALCHEMY_DATABASE_URI", "value": "${database_uri_arn}"}
+        {"name": "TWILIO_ACCOUNT_SID", "valueFrom": "${twilio_account_sid_arn}"},
+        {"name": "TWILIO_AUTH_TOKEN", "valueFrom": "${twilio_auth_token_arn}"},
+        {"name": "TWILIO_FROM_NUMBER", "valueFrom": "${twilio_from_number_arn}"},
+        {"name": "SQLALCHEMY_DATABASE_URI", "valueFrom": "${database_uri_arn}"}
     ]
   }
 ]
