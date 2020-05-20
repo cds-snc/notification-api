@@ -31,7 +31,7 @@ notifications-python-client==5.5.1
 python-dotenv==0.13.0
 pwnedpasswords==2.0.0
 sendgrid==6.3.1
-tldextract==2.2.1
+tldextract==2.2.2
 twilio==6.16
 nanoid==2.0.0
 unidecode==1.1.1
