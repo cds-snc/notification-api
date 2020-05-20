@@ -20,12 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     # needs: [test]
     if: github.ref == 'refs/heads/master'
-    outputs:
-      image: ${{ steps.build-and-push-to-ecr.outputs.image }}
     steps:
       - uses: actions/checkout@v1
       - name: Build and push to AWS ECR
-        id: build-and-push-to-ecr
         uses: kciter/aws-ecr-action@v1
         with:
           access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -36,8 +33,6 @@ jobs:
           tags: ${{ github.sha }}
           create_repo: true
           dockerfile: ci/Dockerfile
-      - name: Print output for debugging
-        run: echo ${{ toJson(steps.build-and-push-to-ecr.outputs) }}
 
   create-dev-infrastructure:
     runs-on: ubuntu-latest
@@ -131,14 +126,12 @@ jobs:
 
   deploy-dev:
     runs-on: ubuntu-latest
-    needs: [build-and-push, create-database]
+    needs: create-database
     env:
       tf_working_dir: './cd/application-infrastructure'
     if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@master
-      - name: Print deploy-dev output for debugging
-        run: echo ${{ toJson(needs.build-and-push.outputs) }}
       - name: 'Terraform Init'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -181,7 +174,7 @@ jobs:
         with:
           task-definition: ./cd/application-deployment/dev-api-task-definition.json
           container-name: notification-api
-          image: ${{ needs.build-and-push.outputs.image }}
+          image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
       - name: Deploy to Amazon Fargate
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
