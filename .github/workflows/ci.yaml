@@ -20,10 +20,12 @@ jobs:
     runs-on: ubuntu-latest
     # needs: [test]
     if: github.ref == 'refs/heads/master'
+    outputs:
+      image: ${{ steps.build-and-push-to-ecr.outputs.image }}
     steps:
       - uses: actions/checkout@v1
       - name: Build and push to AWS ECR
-        id: build-and-push
+        id: build-and-push-to-ecr
         uses: kciter/aws-ecr-action@v1
         with:
           access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -175,7 +177,7 @@ jobs:
         with:
           task-definition: ./cd/application-deployment/dev-api-task-definition.json
           container-name: notification-api
-          image: ${{ steps.build-and-push.outputs.image }}
+          image: ${{ jobs.build-and-push.outputs.image }}
       - name: Deploy to Amazon Fargate
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
