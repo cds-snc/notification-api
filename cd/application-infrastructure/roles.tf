@@ -54,6 +54,4 @@ resource "aws_kms_grant" "ecs_decrypt_secrets" {
   key_id            = data.terraform_remote_state.base_infrastructure.outputs.notification_kms_key_id
   grantee_principal = aws_iam_role.notification_ecs_task_execution.arn
   operations        = ["Decrypt"]
-
-  tags = var.default_tags
 }
