@@ -7,6 +7,10 @@ resource "aws_ecs_task_definition" "notification_api" {
   cpu                      = 512
   memory                   = 1024
   tags                     = var.default_tags
+
+  lifecycle {
+    ignore_changes = []
+  }
 }
 
 resource "aws_ecs_service" "notification_api" {

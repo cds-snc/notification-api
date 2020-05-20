@@ -23,6 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Build and push to AWS ECR
+        id: build-and-push
         uses: kciter/aws-ecr-action@v1
         with:
           access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -168,3 +169,17 @@ jobs:
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
           args: '"application-${{ github.sha }}.tfplan"'
+      - name: Render API task definition
+        id: render-api-container
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ./cd/application-deployment/dev-api-task-definition.json
+          container-name: notification-api
+          image: ${{ steps.build-and-push.outputs.image }}
+      - name: Deploy to Amazon Fargate
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-api-container.outputs.task-definition }}
+          service: notification-api-service
+          cluster: notification-fargate-cluster
+          wait-for-service-stability: true
