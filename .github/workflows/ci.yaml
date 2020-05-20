@@ -129,7 +129,7 @@ jobs:
 
   deploy-dev:
     runs-on: ubuntu-latest
-    needs: [create-database]
+    needs: [build-and-push, create-database]
     env:
       tf_working_dir: './cd/application-infrastructure'
     if: github.ref == 'refs/heads/master'
