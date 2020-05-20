@@ -8,7 +8,6 @@
       "image": "{must-be-specified}",
       "cpu": 512,
       "memory": 1024,
-      "networkMode": "awsvpc",
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
