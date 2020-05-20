@@ -2,7 +2,7 @@
   "family": "notification-api-task",
   "executionRoleArn": "arn:aws:iam::437518843863:role/notification-api-ecs-task-execution-role",
   "networkMode": "awsvpc",
-  "containerDefintions": [
+  "containerDefinitions": [
     {
       "name": "notification-api",
       "image": "{must-be-specified}",
