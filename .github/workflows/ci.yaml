@@ -177,7 +177,7 @@ jobs:
         with:
           task-definition: ./cd/application-deployment/dev-api-task-definition.json
           container-name: notification-api
-          image: ${{ jobs.build-and-push.outputs.image }}
+          image: ${{ needs.build-and-push.outputs.image }}
       - name: Deploy to Amazon Fargate
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
