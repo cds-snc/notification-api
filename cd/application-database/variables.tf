@@ -21,5 +21,6 @@ variable "default_tags" {
     Stack = "application-database",
     Environment = "dev",
     Team = "va-notify"
+    ManagedBy = "Terraform"
   }
 }
