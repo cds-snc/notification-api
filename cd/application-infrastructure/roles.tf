@@ -48,3 +48,12 @@ data "aws_iam_policy_document" "ssm_parameter_fetch" {
     resources = ["arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/*"]
   }
 }
+
+resource "aws_kms_grant" "ecs_decrypt_secrets" {
+  name              = "notification-ecs-decrypt-secrets"
+  key_id            = data.terraform_remote_state.base_infrastructure.outputs.notification_kms_key_id
+  grantee_principal = aws_iam_role.notification_ecs_task_execution.arn
+  operations        = ["Decrypt"]
+
+  tags = var.default_tags
+}

@@ -62,6 +62,16 @@ data "terraform_remote_state" "application_db" {
   }
 }
 
+data "terraform_remote_state" "base_infrastructure" {
+  backend = "s3"
+
+  config = {
+    bucket = "terraform-notification-test"
+    key    = "notification-test.tfstate"
+    region = "us-east-2"
+  }
+}
+
 variable "default_tags" {
   type = map(string)
   default = {

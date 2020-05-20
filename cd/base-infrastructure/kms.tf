@@ -6,6 +6,10 @@ resource "aws_kms_key" "notification" {
   tags = var.default_tags
 }
 
+output "notification_kms_key_id" {
+  value = aws_kms_key.notification.id
+}
+
 resource "aws_kms_alias" "notification" {
   name          = "alias/notification"
   target_key_id = aws_kms_key.notification.key_id
@@ -18,7 +22,10 @@ data "aws_iam_policy_document" "notification" {
     effect = "Allow"
 
     principals {
-      identifiers = ["arn:aws:iam::437518843863:role/notification-deploy-role"]
+      identifiers = [
+        "arn:aws:iam::437518843863:role/notification-deploy-role",
+        "arn:aws:iam::437518843863:role/federated-admin"
+      ]
       type = "AWS"
     }
 
