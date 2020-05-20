@@ -41,14 +41,10 @@ data "aws_iam_policy_document" "ssm_parameter_fetch" {
       "ssm:GetParametersByPath",
       "ssm:GetParameters",
       "ssm:GetParameter",
-      "ssm:DescribeParameters"
+      "ssm:DescribeParameters",
+      "kms:Decrypt"
     ]
 
-    resources = [
-      data.aws_ssm_parameter.database_uri.arn,
-      data.aws_ssm_parameter.twilio_account_sid.arn,
-      data.aws_ssm_parameter.twilio_auth_token.arn,
-      data.aws_ssm_parameter.twilio_from_number.arn
-    ]
+    resources = ["arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/*"]
   }
 }
