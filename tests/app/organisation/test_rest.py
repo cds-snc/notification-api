@@ -351,8 +351,13 @@ def test_update_organisation_default_branding(
     assert org.email_branding == email_branding
     assert org.letter_branding == letter_branding
 
-def test_update_organisation_change_default_branding_language(admin_request, notify_db, sample_service):
-    resp = admin_request.post(
+
+def test_update_organisation_change_default_branding_language(admin_request, notify_db):
+    org = create_organisation(name='Test Organisation')
+
+    assert org.default_branding_is_french is False
+
+    admin_request.post(
         'organisation.update_organisation',
         _data={'default_branding_is_french': True},
         organisation_id=org.id,
