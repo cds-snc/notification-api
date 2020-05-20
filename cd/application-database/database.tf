@@ -27,10 +27,26 @@ resource "aws_ssm_parameter" "database_uri" {
   tags        = var.default_tags
 }
 
-output "database_port" {
-  value = module.db.this_rds_cluster_port
+resource "aws_security_group" "notification_db_access" {
+  name_prefix = "notification-db-access-"
+  description = "For access to the Notification Database"
+  vpc_id      = data.aws_vpc.notification.id
+
+  revoke_rules_on_delete = true
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
-output "database_security_group" {
-  value = module.db.this_security_group_id
+resource "aws_security_group_rule" "allow_db_ingress" {
+  type                     = "ingress"
+  from_port                = module.db.this_rds_cluster_port
+  to_port                  = module.db.this_rds_cluster_port
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.notification_db_access.id
+  security_group_id        = module.db.this_security_group_id
+}
+
+output "notification_db_access_security_group_id" {
+  value = aws_security_group.notification_db_access.id
 }
