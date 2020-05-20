@@ -7,10 +7,6 @@ resource "aws_ecs_task_definition" "notification_api" {
   cpu                      = 512
   memory                   = 1024
   tags                     = var.default_tags
-
-  lifecycle {
-    ignore_changes = []
-  }
 }
 
 resource "aws_ecs_service" "notification_api" {
@@ -33,6 +29,11 @@ resource "aws_ecs_service" "notification_api" {
   }
 
   depends_on = [aws_alb_listener.notification_api, aws_iam_role_policy_attachment.notification_ecs_task_execution]
+
+//  Changes to the task definition will be managed by CI, not Terraform
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
 }
 
 data "template_file" "notification_api_container_definition" {
