@@ -42,10 +42,10 @@ data "template_file" "notification_api_container_definition" {
     aws_region         = "us-east-2"
     app_name           = "notification-api"
     log_group_name     = aws_cloudwatch_log_group.notification.name
-    database_uri       = data.aws_ssm_parameter.database_uri.value
-    twilio_from_number = data.aws_ssm_parameter.twilio_from_number.value
-    twilio_account_sid = data.aws_ssm_parameter.twilio_account_sid.value
-    twilio_auth_token  = data.aws_ssm_parameter.twilio_auth_token.value
+    database_uri_arn       = data.aws_ssm_parameter.database_uri.arn
+    twilio_from_number_arn = data.aws_ssm_parameter.twilio_from_number.arn
+    twilio_account_sid_arn = data.aws_ssm_parameter.twilio_account_sid.arn
+    twilio_auth_token_arn  = data.aws_ssm_parameter.twilio_auth_token.arn
     notify_environment = var.notify_environment
   }
 }
