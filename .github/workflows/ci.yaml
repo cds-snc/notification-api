@@ -37,7 +37,7 @@ jobs:
           create_repo: true
           dockerfile: ci/Dockerfile
       - name: Print output for debugging
-        run: echo ${{ steps.build-and-push-to-ecr.outputs.image }}
+        run: echo ${{ toJson(steps.build-and-push-to-ecr.outputs) }}
 
   create-dev-infrastructure:
     runs-on: ubuntu-latest
@@ -138,7 +138,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Print deploy-dev output for debugging
-        run: echo ${{ needs.build-and-push.outputs }}
+        run: echo ${{ toJson(needs.build-and-push.outputs) }}
       - name: 'Terraform Init'
         uses: hashicorp/terraform-github-actions@master
         with:
