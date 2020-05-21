@@ -5,7 +5,7 @@
 # also removed inner loop, because the migration should hopefully never take longer than 10 minutes (default aws ecs wait timeout)
 set -e
 
-function usage() {
+usage() {
     set -e
     cat <<EOM
     ##### ecs-run #####
@@ -33,7 +33,7 @@ EOM
 if [ $# == 0 ]; then usage; fi
 
 # Check requirements
-function require {
+require() {
     command -v $1 > /dev/null 2>&1 || {
         echo "Some of the required software is not installed:"
         echo "    please install $1" >&2;
