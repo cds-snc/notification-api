@@ -90,7 +90,8 @@ resource "aws_vpc_endpoint" "sqs" {
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
   vpc_endpoint_type = "Interface"
-  route_table_ids = aws_route_table.private.*.id
+  subnet_ids = aws_subnet.private.*.id
+
   tags = var.default_tags
 }
 
