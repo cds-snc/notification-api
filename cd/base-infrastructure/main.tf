@@ -84,6 +84,16 @@ resource "aws_vpc_endpoint" "s3" {
   tags = var.default_tags
 }
 
+resource "aws_vpc_endpoint" "sqs" {
+  vpc_id            = aws_vpc.notification.id
+  service_name      = "com.amazonaws.us-east-2.sqs"
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+  vpc_endpoint_type = "Interface"
+  route_table_ids = aws_route_table.private.*.id
+  tags = var.default_tags
+}
+
 resource "aws_internet_gateway" "notification" {
   vpc_id = aws_vpc.notification.id
 
