@@ -42,7 +42,17 @@
           "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/database/uri"
         }
       ],
-      "command": ["sh", "-c", "celery -A run_celery.notify_celery worker --pidfile=\"/tmp/celery.pid\" --loglevel=INFO --concurrency=4"]
+      "command": ["sh", "-c", "celery -A run_celery.notify_celery worker --pidfile=\"/tmp/celery.pid\" --loglevel=INFO --concurrency=4"],
+      "healthCheck": {
+              "retries": 3,
+              "command": [
+                  "CMD-SHELL",
+                  "test $(ps | grep 'python' | wc -l) > 2 || exit 1"
+              ],
+              "timeout": 5,
+              "interval": 30,
+              "startPeriod": null
+          }
     }
   ],
   "requiresCompatibilities": [
