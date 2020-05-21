@@ -220,7 +220,7 @@ jobs:
           wait-for-service-stability: true
       - name: Render celery task definition
         id: render-celery-container
-        uses: aws-actions/amazon-ecs-render-api-definition@v1
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ./cd/application-deployment/dev-celery-task-definition.json
           container-name: notification-celery
