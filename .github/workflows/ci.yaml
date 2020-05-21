@@ -181,7 +181,7 @@ jobs:
       - name: Get VPC endpoints access security group
         id: get-endpoints-security-group
         run: |
-          echo "::set-output name=id::$(aws ssm get-parameter --name /dev/notification-api/database/access-endpoints | jq -r '.Parameter.Value')"
+          echo "::set-output name=id::$(aws ssm get-parameter --name /dev/notification-api/security-group/access-endpoints | jq -r '.Parameter.Value')"
 
       - name: Register migration task definition
         id: register
