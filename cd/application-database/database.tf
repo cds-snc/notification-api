@@ -38,6 +38,14 @@ resource "aws_security_group" "notification_db_access" {
   }
 }
 
+resource "aws_ssm_parameter" "database_access_security_group" {
+  name        = "/dev/notification-api/security-group/access-db"
+  description = "The ID of the security group that allows DB access"
+  type        = "String"
+  value       = aws_security_group.notification_db_access.id
+  tags        = var.default_tags
+}
+
 resource "aws_security_group_rule" "allow_db_ingress" {
   type                     = "ingress"
   from_port                = module.db.this_rds_cluster_port

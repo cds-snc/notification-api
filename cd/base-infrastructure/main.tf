@@ -17,6 +17,14 @@ resource "aws_subnet" "private" {
   tags = var.default_tags
 }
 
+resource "aws_ssm_parameter" "private_subnets" {
+  name        = "/dev/notification-api/subnets/private"
+  description = "The IDs of the private subnets"
+  type        = "String"
+  value       = join(",", aws_subnet.private.*.id)
+  tags        = var.default_tags
+}
+
 resource "aws_subnet" "public" {
   count                   = 2
   cidr_block              = cidrsubnet(aws_vpc.notification.cidr_block, 2, 2 + count.index)
@@ -40,6 +48,14 @@ resource "aws_security_group" "vpc_endpoints" {
   }
 
   tags = var.default_tags
+}
+
+resource "aws_ssm_parameter" "vpc_endpoints_security_group" {
+  name        = "/dev/notification-api/security-group/access-endpoints"
+  description = "The ID of the security group that allows VPC endpoint access"
+  type        = "String"
+  value       = aws_security_group.vpc_endpoints.id
+  tags        = var.default_tags
 }
 
 resource "aws_vpc_endpoint" "ecr_api" {

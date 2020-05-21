@@ -1,11 +1,11 @@
 {
-  "family": "notification-api-task",
+  "family": "notification-api-db-migrations-task",
   "executionRoleArn": "arn:aws:iam::437518843863:role/notification-api-ecs-task-execution-role",
   "networkMode": "awsvpc",
   "containerDefinitions": [
     {
-      "name": "notification-api",
-      "image": "{must-be-specified}",
+      "name": "notification-api-db-migrations",
+      "image": "437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:ddb34593bfef1810e87b9fb4dbd69957381b5641",
       "cpu": 512,
       "memory": 1024,
       "logConfiguration": {
@@ -22,6 +22,7 @@
           "hostPort": 6011
         }
       ],
+      "command": ["sh", "-c", "flask db upgrade"],
       "environment": [
         {
           "name": "NOTIFY_ENVIRONMENT",
@@ -30,21 +31,21 @@
         {
           "name": "FLASK_APP",
           "value": "application.py"
-        }
-      ],
-      "secrets": [
+        },
         {
           "name": "TWILIO_ACCOUNT_SID",
-          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/twilio/account-sid"
+          "value": "fake"
         },
         {
           "name": "TWILIO_AUTH_TOKEN",
-          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/twilio/auth-token"
+          "value": "fake"
         },
         {
           "name": "TWILIO_FROM_NUMBER",
-          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/twilio/from-number"
-        },
+          "value": "fake"
+        }
+      ],
+      "secrets": [
         {
           "name": "SQLALCHEMY_DATABASE_URI",
           "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/database/uri"
@@ -60,7 +61,7 @@
   "tags": [
     {
       "key": "Stack",
-      "value": "application-infrastructure"
+      "value": "application-deployment"
     },
     {
       "key": "Environment",

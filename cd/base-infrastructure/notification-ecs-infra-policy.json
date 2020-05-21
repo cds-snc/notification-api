@@ -70,6 +70,7 @@
         "ecs:DeregisterTaskDefinition",
         "ecs:ListTaskDefinitions",
         "ecs:RegisterTaskDefinition",
+        "ecs:RunTask",
         "ecs:UpdateService",
         "elasticloadbalancing:CreateListener",
         "elasticloadbalancing:CreateLoadBalancer",
