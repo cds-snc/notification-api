@@ -2,8 +2,8 @@ resource "aws_ecs_task_definition" "notification_api" {
   container_definitions = <<DEFINITION
 [
     {
-      "name": "notification-api"
-      "image": "nginx:1.17.10",
+      "name": "notification-api",
+      "image": "nginx:1.17.10"
     }
 ]
 DEFINITION
