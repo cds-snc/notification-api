@@ -171,22 +171,22 @@ jobs:
       - name: Get private subnets
         id: get-private-subnets
         run: |
-          echo "::set-output name=ids::$(aws ssm get-parameter --name /dev/notification-api/subnets/private | jq -r '.Parameter.Value'"
+          echo "::set-output name=ids::$(aws ssm get-parameter --name /dev/notification-api/subnets/private | jq -r '.Parameter.Value')"
 
       - name: Get DB access security group
         id: get-db-security-group
         run: |
-          echo "::set-output name=id::$(aws ssm get-parameter --name /dev/notification-api/security-group/access-db | jq -r '.Parameter.Value'"
+          echo "::set-output name=id::$(aws ssm get-parameter --name /dev/notification-api/security-group/access-db | jq -r '.Parameter.Value')"
 
       - name: Get VPC endpoints access security group
         id: get-endpoints-security-group
         run: |
-          echo "::set-output name=id::$(aws ssm get-parameter --name /dev/notification-api/database/access-endpoints | jq -r '.Parameter.Value'"
+          echo "::set-output name=id::$(aws ssm get-parameter --name /dev/notification-api/database/access-endpoints | jq -r '.Parameter.Value')"
 
       - name: Register migration task definition
         id: register
         run: |
-          echo "::set-output name=arn::$(aws ecs register-task-definition --cli-input-json file://./cd/application-deployment/dev-db-migrations-task-definition.json | | jq -r '.taskDefinition.taskDefinitionArn'"
+          echo "::set-output name=arn::$(aws ecs register-task-definition --cli-input-json file://./cd/application-deployment/dev-db-migrations-task-definition.json | jq -r '.taskDefinition.taskDefinitionArn')"
 
       - name: Run migration task
         run: |
