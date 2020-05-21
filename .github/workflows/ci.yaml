@@ -189,6 +189,7 @@ jobs:
           echo "::set-output name=arn::$(aws ecs register-task-definition --cli-input-json file://./cd/application-deployment/dev-db-migrations-task-definition.json | jq -r '.taskDefinition.taskDefinitionArn')"
 
       - name: Run migration task
+        shell: bash
         run: |
           sh ./scripts/ecs_run.sh -c notification-fargate-cluster -d ${{ steps.register.outputs.arn }} -g ${{ steps.get-db-security-group.outputs.id }},${{ steps.get-outbound-security-group.outputs.id }} -s ${{ steps.get-private-subnets.outputs.ids }}
 
