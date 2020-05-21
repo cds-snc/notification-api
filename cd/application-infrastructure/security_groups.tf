@@ -19,6 +19,14 @@ resource "aws_security_group" "ecs_task_outbound_access" {
   }
 }
 
+resource "aws_ssm_parameter" "outbound_access_security_group" {
+  name        = "/dev/notification-api/security-group/access-outbound"
+  description = "The ID of the security group that allows outbound access"
+  type        = "String"
+  value       = aws_security_group.ecs_task_outbound_access.id
+  tags        = var.default_tags
+}
+
 resource "aws_security_group" "notification_db_access" {
   name_prefix = "notification-db-access-"
   description = "For access to the Notification Database"

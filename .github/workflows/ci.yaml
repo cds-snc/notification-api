@@ -178,10 +178,10 @@ jobs:
         run: |
           echo "::set-output name=id::$(aws ssm get-parameter --name /dev/notification-api/security-group/access-db | jq -r '.Parameter.Value')"
 
-      - name: Get VPC endpoints access security group
-        id: get-endpoints-security-group
+      - name: Get outbound access security group
+        id: get-outbound-security-group
         run: |
-          echo "::set-output name=id::$(aws ssm get-parameter --name /dev/notification-api/security-group/access-endpoints | jq -r '.Parameter.Value')"
+          echo "::set-output name=id::$(aws ssm get-parameter --name /dev/notification-api/security-group/access-outbound | jq -r '.Parameter.Value')"
 
       - name: Register migration task definition
         id: register
@@ -190,7 +190,7 @@ jobs:
 
       - name: Run migration task
         run: |
-          aws ecs run-task --cluster notification-fargate-cluster --task-definition ${{ steps.register.outputs.arn }} --network-configuration "awsvpcConfiguration={subnets=[${{ steps.get-private-subnets.outputs.ids }}],securityGroups=[${{ steps.get-db-security-group.outputs.id }},${{ steps.get-endpoints-security-group.outputs.id }}],assignPublicIp=DISABLED}" --launch-type FARGATE
+          aws ecs run-task --cluster notification-fargate-cluster --task-definition ${{ steps.register.outputs.arn }} --network-configuration "awsvpcConfiguration={subnets=[${{ steps.get-private-subnets.outputs.ids }}],securityGroups=[${{ steps.get-db-security-group.outputs.id }},${{ steps.get-outbound-security-group.outputs.id }}],assignPublicIp=DISABLED}" --launch-type FARGATE
 
   dev-deploy:
     runs-on: ubuntu-latest
