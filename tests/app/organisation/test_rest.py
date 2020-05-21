@@ -58,6 +58,7 @@ def test_get_organisation_by_id(admin_request, notify_db_session):
         'name',
         'active',
         'crown',
+        'default_branding_is_french',
         'organisation_type',
         'agreement_signed',
         'agreement_signed_at',
@@ -349,6 +350,21 @@ def test_update_organisation_default_branding(
 
     assert org.email_branding == email_branding
     assert org.letter_branding == letter_branding
+
+
+def test_update_organisation_change_default_branding_language(admin_request, notify_db):
+    org = create_organisation(name='Test Organisation')
+
+    assert org.default_branding_is_french is False
+
+    admin_request.post(
+        'organisation.update_organisation',
+        _data={'default_branding_is_french': True},
+        organisation_id=org.id,
+        _expected_status=204
+    )
+
+    assert org.default_branding_is_french is True
 
 
 def test_post_update_organisation_raises_400_on_existing_org_name(
