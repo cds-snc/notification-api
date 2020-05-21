@@ -65,11 +65,11 @@ jobs:
           tf_actions_comment: false
         env:
           TF_CLI_ARGS_plan: '-out=base-${{ github.sha }}.tfplan'
-      - name: Upload Plan Artifact
-        uses: actions/upload-artifact@v1
-        with:
-          name: base-${{ github.sha }}.tfplan
-          path: ./cd/base-infrastructure/base-${{ github.sha }}.tfplan
+#      - name: Upload Plan Artifact
+#        uses: actions/upload-artifact@v1
+#        with:
+#          name: base-${{ github.sha }}.tfplan
+#          path: ./cd/base-infrastructure/base-${{ github.sha }}.tfplan
       - name: 'Terraform Apply'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -110,11 +110,11 @@ jobs:
           tf_actions_comment: false
         env:
           TF_CLI_ARGS_plan: '-out=database-${{ github.sha }}.tfplan'
-      - name: Upload Plan Artifact
-        uses: actions/upload-artifact@v1
-        with:
-          name: database-${{ github.sha }}.tfplan
-          path: ./cd/application-database/database-${{ github.sha }}.tfplan
+#      - name: Upload Plan Artifact
+#        uses: actions/upload-artifact@v1
+#        with:
+#          name: database-${{ github.sha }}.tfplan
+#          path: ./cd/application-database/database-${{ github.sha }}.tfplan
       - name: 'Terraform Apply'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -155,11 +155,11 @@ jobs:
           tf_actions_comment: false
         env:
           TF_CLI_ARGS_plan: '-var="app_tag=${{ github.sha }}" -var="notify_environment=development" -out=application-${{ github.sha }}.tfplan'
-      - name: Upload Plan Artifact
-        uses: actions/upload-artifact@v1
-        with:
-          name: application-${{ github.sha }}.tfplan
-          path: ./cd/application-infrastructure/application-${{ github.sha }}.tfplan
+#      - name: Upload Plan Artifact
+#        uses: actions/upload-artifact@v1
+#        with:
+#          name: application-${{ github.sha }}.tfplan
+#          path: ./cd/application-infrastructure/application-${{ github.sha }}.tfplan
       - name: 'Terraform Apply'
         uses: hashicorp/terraform-github-actions@master
         with:
