@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # from https://gist.github.com/victorcoder/3ac4aae9279d7c68c486fecccc2546cc
 # modified to use fargate launch type and network-configuration
 # also removed outer retry loop, because we don't expect to get CPU/memory resources errors with Fargate
