@@ -156,7 +156,7 @@ jobs:
 
   dev-run-migrations:
     runs-on: ubuntu-latest
-    needs: create-dev-database
+    needs: [create-dev-database, create-dev-app-infrastructure]
     if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@master
