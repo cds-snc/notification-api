@@ -96,6 +96,7 @@
         "iam:DeleteServiceLinkedRole",
         "iam:DetachRolePolicy",
         "iam:GetPolicy",
+        "iam:GetPolicyVersion",
         "iam:GetRole",
         "iam:GetServiceLinkedRoleDeletionStatus",
         "iam:ListAttachedRolePolicies",
