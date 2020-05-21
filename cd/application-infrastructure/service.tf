@@ -1,5 +1,13 @@
 resource "aws_ecs_task_definition" "notification_api" {
-  container_definitions    = data.template_file.notification_api_container_definition.rendered
+  container_definitions = <<DEFINITION
+[
+    {
+      "name": "notification-api"
+      "image": "nginx:1.17.10",
+    }
+]
+DEFINITION
+
   family                   = "notification-api-task"
   execution_role_arn       = aws_iam_role.notification_ecs_task_execution.arn
   network_mode             = "awsvpc"
@@ -30,27 +38,8 @@ resource "aws_ecs_service" "notification_api" {
 
   depends_on = [aws_alb_listener.notification_api, aws_iam_role_policy_attachment.notification_ecs_task_execution]
 
-//  Changes to the task definition will be managed by CI, not Terraform
+  //  Changes to the task definition will be managed by CI, not Terraform
   lifecycle {
     ignore_changes = [task_definition]
-  }
-}
-
-data "template_file" "notification_api_container_definition" {
-  template = file("./container_definition.json.tpl")
-
-  vars = {
-    app_image          = format("437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:%s", var.app_tag)
-    app_port           = 6011
-    fargate_cpu        = 512
-    fargate_memory     = 1024
-    aws_region         = "us-east-2"
-    app_name           = "notification-api"
-    log_group_name     = aws_cloudwatch_log_group.notification.name
-    database_uri_arn       = data.aws_ssm_parameter.database_uri.arn
-    twilio_from_number_arn = data.aws_ssm_parameter.twilio_from_number.arn
-    twilio_account_sid_arn = data.aws_ssm_parameter.twilio_account_sid.arn
-    twilio_auth_token_arn  = data.aws_ssm_parameter.twilio_auth_token.arn
-    notify_environment = var.notify_environment
   }
 }
