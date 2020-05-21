@@ -190,7 +190,7 @@ jobs:
 
       - name: Run migration task
         run: |
-          aws ecs run-task --cluster notification-fargate-cluster --task-definition ${{ steps.register.outputs.arn }} --network-configuration "awsvpcConfiguration={subnets=[${{ steps.get-private-subnets.outputs.ids }}],securityGroups=[${{ steps.get-db-security-group.outputs.id }},${{ steps.get-outbound-security-group.outputs.id }}],assignPublicIp=DISABLED}" --launch-type FARGATE
+          sh ./scripts/ecs_run.sh -c notification-fargate-cluster -d ${{ steps.register.outputs.arn }} -g ${{ steps.get-db-security-group.outputs.id }},${{ steps.get-outbound-security-group.outputs.id }} -s ${{ steps.get-private-subnets.outputs.ids }}
 
   dev-deploy:
     runs-on: ubuntu-latest
