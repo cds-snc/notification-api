@@ -26,6 +26,10 @@
         {
           "name": "NOTIFICATION_QUEUE_PREFIX",
           "value": "notification-va-"
+        },
+        {
+          "name": "AWS_REGION",
+          "value": "us-east-2"
         }
       ],
       "secrets": [
@@ -44,6 +48,14 @@
         {
           "name": "SQLALCHEMY_DATABASE_URI",
           "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/database/uri"
+        },
+        {
+          "name": "AWS_ACCESS_KEY_ID",
+          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/aws-access-key-id"
+        },
+        {
+          "name": "AWS_SECRET_ACCESS_KEY",
+          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/aws-secret-access-key"
         }
       ],
       "command": ["sh", "-c", "/app/scripts/run_celery.sh"]
