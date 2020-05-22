@@ -240,3 +240,17 @@ jobs:
           service: notification-celery-service
           cluster: notification-fargate-cluster
           wait-for-service-stability: true
+      - name: Render celery beat task definition
+        id: render-celery-beat-container
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ./cd/application-deployment/dev-celery-beat-task-definition.json
+          container-name: notification-celery-beat
+          image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
+      - name: Deploy to Amazon Fargate
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-celery-beat-container.outputs.task-definition }}
+          service: notification-celery-beat-service
+          cluster: notification-fargate-cluster
+          wait-for-service-stability: true
