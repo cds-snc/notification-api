@@ -183,10 +183,18 @@ jobs:
         run: |
           echo "::set-output name=id::$(aws ssm get-parameter --name /dev/notification-api/security-group/access-outbound | jq -r '.Parameter.Value')"
 
+      - name: Render migration task definition
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ./cd/application-deployment/dev-db-migrations-task-definition.json
+          container-name: notification-api-db-migrations
+          image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
+
       - name: Register migration task definition
         id: register
         run: |
-          echo "::set-output name=arn::$(aws ecs register-task-definition --cli-input-json file://./cd/application-deployment/dev-db-migrations-task-definition.json | jq -r '.taskDefinition.taskDefinitionArn')"
+          echo "::set-output name=arn::$(aws ecs register-task-definition --cli-input-json file://${{ steps.render.outputs.task-definition}} | jq -r '.taskDefinition.taskDefinitionArn')"
 
       - name: Run migration task
         run: |
