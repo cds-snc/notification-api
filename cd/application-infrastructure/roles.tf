@@ -68,19 +68,11 @@ data "aws_iam_policy_document" "notification_sqs" {
       "sqs:ReceiveMessage",
       "sqs:DeleteQueue",
       "sqs:SendMessage",
-      "sqs:CreateQueue"
-    ]
-
-    resources = ["arn:aws:sqs:us-east-2:437518843863:notification-va-*"]
-  }
-  statement {
-    sid = "NotificationSqsList"
-
-    actions = [
+      "sqs:CreateQueue",
       "sqs:ListQueues"
     ]
 
-    resources = ["arn:aws:sqs:*:*:*"]
+    resources = ["*"]
   }
 }
 
