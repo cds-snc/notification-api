@@ -22,6 +22,10 @@
         {
           "name": "FLASK_APP",
           "value": "run_celery.py"
+        },
+        {
+          "name": "NOTIFICATION_QUEUE_PREFIX",
+          "value": "notification-va-"
         }
       ],
       "secrets": [
