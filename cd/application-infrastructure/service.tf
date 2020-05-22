@@ -83,3 +83,43 @@ resource "aws_ecs_service" "notification_celery" {
     ignore_changes = [task_definition]
   }
 }
+
+resource "aws_ecs_task_definition" "notification_celery_beat" {
+  container_definitions = <<DEFINITION
+[
+    {
+      "name": "notification-celery-beat",
+      "image": "nginx:1.17.10"
+    }
+]
+DEFINITION
+
+  family                   = "notification-celery-beat-task"
+  execution_role_arn       = aws_iam_role.notification_ecs_task_execution.arn
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = 512
+  memory                   = 1024
+  tags                     = var.default_tags
+}
+
+resource "aws_ecs_service" "notification_celery_beat" {
+  name            = "notification-celery-beat-service"
+  cluster         = data.aws_ecs_cluster.notification_fargate.id
+  task_definition = aws_ecs_task_definition.notification_celery_beat.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    security_groups  = [aws_security_group.ecs_task_outbound_access.id, data.terraform_remote_state.application_db.outputs.notification_db_access_security_group_id]
+    subnets          = [data.aws_subnet.private_az_a.id, data.aws_subnet.private_az_b.id]
+    assign_public_ip = false
+  }
+
+  depends_on = [aws_iam_role_policy_attachment.notification_ecs_task_execution]
+
+  //  Changes to the task definition will be managed by CI, not Terraform
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
+}
