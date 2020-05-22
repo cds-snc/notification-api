@@ -49,6 +49,41 @@ data "aws_iam_policy_document" "ssm_parameter_fetch" {
   }
 }
 
+resource "aws_iam_role_policy_attachment" "notification_ecs_task_sqs" {
+  role = aws_iam_role.notification_ecs_task_execution.name
+  policy_arn = aws_iam_policy.notification_ecs_task_sqs.arn
+}
+
+resource "aws_iam_policy" "notification_ecs_task_sqs" {
+  name = "notification-ecs-task-sqs"
+  policy = data.aws_iam_policy_document.notification_sqs.json
+}
+
+data "aws_iam_policy_document" "notification_sqs" {
+  statement {
+    sid = "NotificationTaskSqs"
+
+    actions = [
+      "sqs:DeleteMessage",
+      "sqs:ReceiveMessage",
+      "sqs:DeleteQueue",
+      "sqs:SendMessage",
+      "sqs:CreateQueue"
+    ]
+
+    resources = ["arn:aws:sqs:us-east-2:437518843863:notification-va-*"]
+  }
+  statement {
+    sid = "NotificationSqsList"
+
+    actions = [
+      "sqs:ListQueues"
+    ]
+
+    resources = ["arn:aws:sqs:*:*:*"]
+  }
+}
+
 resource "aws_kms_grant" "ecs_decrypt_secrets" {
   name              = "notification-ecs-decrypt-secrets"
   key_id            = data.terraform_remote_state.base_infrastructure.outputs.notification_kms_key_id
