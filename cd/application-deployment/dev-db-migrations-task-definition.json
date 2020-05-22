@@ -5,7 +5,7 @@
   "containerDefinitions": [
     {
       "name": "notification-api-db-migrations",
-      "image": "437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:ddb34593bfef1810e87b9fb4dbd69957381b5641",
+      "image": "{provided-by-ci}",
       "cpu": 512,
       "memory": 1024,
       "logConfiguration": {
