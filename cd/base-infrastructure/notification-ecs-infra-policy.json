@@ -91,6 +91,7 @@
         "elasticloadbalancing:SetSecurityGroups",
         "iam:AttachRolePolicy",
         "iam:CreatePolicy",
+        "iam:CreatePolicyVersion",
         "iam:CreateRole",
         "iam:CreateServiceLinkedRole",
         "iam:DeleteRole",
