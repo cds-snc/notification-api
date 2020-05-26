@@ -21,6 +21,7 @@ from app.dao.provider_details_dao import (
 from app.celery.research_mode_tasks import send_sms_response, send_email_response
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException
+from app.feature_flags import is_provider_enabled
 from app.models import (
     SMS_TYPE,
     KEY_TYPE_TEST,
@@ -184,9 +185,13 @@ def update_notification_to_sending(notification, provider):
     dao_update_notification(notification)
 
 
+def should_use_provider(provider):
+    return provider.active and is_provider_enabled(current_app, provider.identifier)
+
+
 def provider_to_use(notification_type, notification_id, international=False):
     active_providers_in_order = [
-        p for p in get_provider_details_by_notification_type(notification_type, international) if p.active
+        p for p in get_provider_details_by_notification_type(notification_type, international) if should_use_provider(p)
     ]
 
     if not active_providers_in_order:

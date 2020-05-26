@@ -379,6 +379,9 @@ class Config(object):
         RelyingParty(os.getenv('FIDO2_DOMAIN', 'localhost'), 'Notification'),
         verify_origin=lambda x: True)
 
+    # Feature flags
+    GOVDELIVERY_EMAIL_CLIENT_ENABLED = False
+
 
 ######################
 # Config overrides ###
@@ -418,6 +421,9 @@ class Development(Config):
         )
 
     API_RATE_LIMIT_ENABLED = True
+
+    # Feature flags
+    GOVDELIVERY_EMAIL_CLIENT_ENABLED = True
 
 
 class Test(Development):
@@ -462,6 +468,9 @@ class Test(Development):
     TWILIO_INBOUND_SMS_USERNAMES = '["username"]'
     TWILIO_INBOUND_SMS_PASSWORDS = '["password"]'
 
+    # Feature flags
+    GOVDELIVERY_EMAIL_CLIENT_ENABLED = True
+
 
 class Production(Config):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.alpha.canada.ca")
@@ -478,6 +487,9 @@ class Production(Config):
     API_RATE_LIMIT_ENABLED = True
     CHECK_PROXY_HEADER = False
     CRONITOR_ENABLED = False
+
+    # Feature flags
+    GOVDELIVERY_EMAIL_CLIENT_ENABLED = False
 
 
 configs = {

@@ -69,6 +69,22 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
     assert send_to_providers.provider_to_use('sms', '1234').name == first.identifier
 
 
+def test_should_not_use_active_but_disabled_provider(mocker):
+    active_provider = mocker.Mock(active=True)
+    mocker.patch(
+        'app.delivery.send_to_providers.get_provider_details_by_notification_type',
+        return_value=[active_provider]
+    )
+
+    mocker.patch(
+        'app.delivery.send_to_providers.is_provider_enabled',
+        return_value=False
+    )
+
+    with pytest.raises(Exception, match="No active email providers"):
+        send_to_providers.provider_to_use('email', '1234')
+
+
 def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
     sample_sms_template_with_html,
     mocker
