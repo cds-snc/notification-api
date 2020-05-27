@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timedelta
 
 import pytz
-from flask import url_for
+from flask import current_app, url_for
 from sqlalchemy import func
 from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate, get_html_email_body
 
@@ -135,9 +135,12 @@ def update_dct_to_str(update_dct):
     return str
 
 
-def service_can_bulk_send(service_id):
+def get_csv_max_rows(service_id):
     bulk_sending_services = [
         current_app.config['HC_EN_SERVICE_ID'],
         current_app.config['HC_FR_SERVICE_ID'],
     ]
-    return service_id in bulk_sending_services    
+
+    if service_id in bulk_sending_services:
+        return current_app.config['CSV_MAX_ROWS_BULK_SEND']
+    return current_app.config['CSV_MAX_ROWS']
