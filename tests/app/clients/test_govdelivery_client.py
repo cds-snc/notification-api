@@ -8,7 +8,7 @@ from app.clients.email.govdelivery_client import GovdeliveryClient
 def client(mocker):
     govdelivery_client = GovdeliveryClient()
     statsd_client = mocker.Mock()
-    govdelivery_client.init_app(statsd_client)
+    govdelivery_client.init_app("some-token", statsd_client)
     return govdelivery_client
 
 
@@ -26,6 +26,20 @@ def test_send_email_posts_to_correct_url(client):
     expected_govdelivery_url = "https://tms.govdelivery.com/messages/email"
 
     assert rmock.request_history[0].url == expected_govdelivery_url
+
+
+def test_token_appears_as_header_in_request(mocker):
+    token = "some-token"
+    client = GovdeliveryClient()
+    client.init_app(token, mocker.Mock())
+
+    with requests_mock.mock() as rmock:
+        rmock.post(
+            requests_mock.ANY
+        )
+        client.send_email("source", "address", "subject", "body")
+
+    assert rmock.request_history[0].headers["X-AUTH-TOKEN"] == token
 
 
 def test_send_email_has_correct_payload(client):

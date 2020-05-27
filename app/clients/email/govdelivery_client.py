@@ -8,8 +8,9 @@ class GovdeliveryClient(EmailClient):
     Govdelivery email client.
     '''
 
-    def init_app(self, statsd_client, *args, **kwargs):
+    def init_app(self, token, statsd_client, *args, **kwargs):
         self.name = 'govdelivery'
+        self.token = token
         self.statsd_client = statsd_client
         self.govdelivery_url = "https://tms.govdelivery.com/messages/email"
 
@@ -45,7 +46,10 @@ class GovdeliveryClient(EmailClient):
 
         response = requests.post(
             self.govdelivery_url,
-            json=payload
+            json=payload,
+            headers={
+                "X-AUTH-TOKEN": self.token
+            }
         )
 
         return response
