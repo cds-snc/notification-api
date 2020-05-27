@@ -20,6 +20,7 @@ from app.celery.celery import NotifyCelery
 from app.clients import Clients
 from app.clients.document_download import DocumentDownloadClient
 from app.clients.email.aws_ses import AwsSesClient
+from app.clients.email.govdelivery_client import GovdeliveryClient
 from app.clients.email.sendgrid_client import SendGridClient
 from app.clients.sms.firetext import FiretextClient
 from app.clients.sms.loadtesting import LoadtestingClient
@@ -55,6 +56,7 @@ firetext_client = FiretextClient()
 loadtest_client = LoadtestingClient()
 mmg_client = MMGClient()
 aws_ses_client = AwsSesClient()
+govdelivery_client = GovdeliveryClient()
 send_grid_client = SendGridClient()
 aws_sns_client = AwsSnsClient()
 twilio_sms_client = TwilioSMSClient(
@@ -97,6 +99,7 @@ def create_app(application):
     aws_sns_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config['AWS_REGION'], statsd_client=statsd_client)
     send_grid_client.init_app(application.config['SENDGRID_API_KEY'], statsd_client=statsd_client)
+    govdelivery_client.init_app(application.config['GRANICUS_TOKEN'], statsd_client)
     twilio_sms_client.init_app(
         logger=application.logger,
         callback_notify_url_host=application.config["API_HOST_NAME"]
@@ -108,7 +111,7 @@ def create_app(application):
     document_download_client.init_app(application)
     clients.init_app(
         sms_clients=[firetext_client, mmg_client, aws_sns_client, loadtest_client, twilio_sms_client],
-        email_clients=[aws_ses_client, send_grid_client]
+        email_clients=[aws_ses_client, send_grid_client, govdelivery_client]
     )
 
     register_blueprint(application)
