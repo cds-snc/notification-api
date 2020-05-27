@@ -69,6 +69,7 @@ from app.models import (
 )
 from app.notifications.process_notifications import persist_notification
 from app.service.utils import service_allowed_to_send_to
+from app.utils import service_can_bulk_send
 
 
 @notify_celery.task(name="process-job")
@@ -106,7 +107,8 @@ def process_job(job_id, sender_id=None):
     for row in RecipientCSV(
             s3.get_job_from_s3(str(service.id), str(job_id)),
             template_type=template.template_type,
-            placeholders=template.placeholders
+            placeholders=template.placeholders,
+            max_rows=100000 if service_can_bulk_send(service_id) else 50000,
     ).get_rows():
         process_row(row, template, job, service, sender_id=sender_id)
 
@@ -601,7 +603,8 @@ def process_incomplete_job(job_id):
     for row in RecipientCSV(
             s3.get_job_from_s3(str(job.service_id), str(job.id)),
             template_type=template.template_type,
-            placeholders=template.placeholders
+            placeholders=template.placeholders,
+            max_rows=100000 if service_can_bulk_send(service_id) else 50000,
     ).get_rows():
         if row.index > resume_from_row:
             process_row(row, template, job, job.service)

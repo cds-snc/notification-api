@@ -133,3 +133,11 @@ def update_dct_to_str(update_dct):
         str += "- {}".format(key.replace("_", " "))
         str += "\n"
     return str
+
+
+def service_can_bulk_send(service_id):
+    bulk_sending_services = [
+        current_app.config['HC_EN_SERVICE_ID'],
+        current_app.config['HC_FR_SERVICE_ID'],
+    ]
+    return service_id in bulk_sending_services    

@@ -371,6 +371,8 @@ class Config(object):
         RelyingParty(os.getenv('FIDO2_DOMAIN', 'localhost'), 'Notification'),
         verify_origin=lambda x: True)
 
+    HC_EN_SERVICE_ID = os.getenv('HC_EN_SERVICE_ID')
+    HC_FR_SERVICE_ID = os.getenv('HC_FR_SERVICE_ID')
 
 ######################
 # Config overrides ###
