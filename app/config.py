@@ -355,6 +355,7 @@ class Config(object):
     FIRETEXT_INBOUND_SMS_AUTH = json.loads(os.getenv('FIRETEXT_INBOUND_SMS_AUTH', '[]'))
     MMG_INBOUND_SMS_AUTH = json.loads(os.getenv('MMG_INBOUND_SMS_AUTH', '[]'))
     MMG_INBOUND_SMS_USERNAME = json.loads(os.getenv('MMG_INBOUND_SMS_USERNAME', '[]'))
+    GRANICUS_TOKEN = os.environ.get('GRANICUS_TOKEN', '')
 
     ROUTE_SECRET_KEY_1 = os.getenv('ROUTE_SECRET_KEY_1', '')
     ROUTE_SECRET_KEY_2 = os.getenv('ROUTE_SECRET_KEY_2', '')

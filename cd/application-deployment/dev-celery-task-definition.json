@@ -46,6 +46,10 @@
           "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/twilio/from-number"
         },
         {
+          "name": "GRANICUS_TOKEN",
+          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/granicus/token"
+        },
+        {
           "name": "SQLALCHEMY_DATABASE_URI",
           "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/database/uri"
         },
