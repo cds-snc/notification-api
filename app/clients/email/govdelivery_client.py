@@ -27,6 +27,11 @@ class GovdeliveryClient(EmailClient):
         if isinstance(to_addresses, str):
             to_addresses = [to_addresses]
 
+        # Sometimes the source is "Foo <foo@bar.com> vs just foo@bar.com"
+        # TODO: Possibly revisit this to take in sender name and sender email address separately
+        if "<" in source:
+            source = source.split("<")[1].split(">")[0]
+
         recipients = [
             {"email": to_address} for to_address in to_addresses
         ]

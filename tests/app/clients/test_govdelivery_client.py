@@ -69,3 +69,14 @@ def test_send_email_with_multiple_recipients(client):
     assert json["recipients"][0]["email"] == recipient_emails[0]
     assert json["recipients"][1]["email"] == recipient_emails[1]
     assert json["recipients"][2]["email"] == recipient_emails[2]
+
+
+def test_from_email_is_only_email_when_name_also_provided(client):
+    source = '"Sender Name" <sender@email.com>'
+    with requests_mock.mock() as rmock:
+        rmock.post(
+            requests_mock.ANY
+        )
+        client.send_email(source, "recipient@email.com", "subject", "body")
+
+    assert rmock.request_history[0].json()["from_email"] == "sender@email.com"
