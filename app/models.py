@@ -373,6 +373,7 @@ class Organisation(db.Model):
     agreement_signed_on_behalf_of_email_address = db.Column(db.String(255), nullable=True)
     agreement_signed_version = db.Column(db.Float, nullable=True)
     crown = db.Column(db.Boolean, nullable=True)
+    default_branding_is_french = db.Column(db.Boolean, index=False, unique=False, nullable=False, default=False)
     organisation_type = db.Column(
         db.String(255),
         db.ForeignKey('organisation_types.name'),
@@ -418,6 +419,7 @@ class Organisation(db.Model):
             "name": self.name,
             "active": self.active,
             "crown": self.crown,
+            "default_branding_is_french": self.default_branding_is_french,
             "organisation_type": self.organisation_type,
             "letter_branding_id": self.letter_branding_id,
             "email_branding_id": self.email_branding_id,

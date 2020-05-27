@@ -50,3 +50,6 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       with:
         args: set image deployment.apps/celery-beat celery-beat=gcr.io/cdssnc/notify/api:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=/github/home/.kube/config
+    - uses: cds-snc/notification-pr-bot@master
+      env:
+        TOKEN: ${{ secrets.TOKEN }}
