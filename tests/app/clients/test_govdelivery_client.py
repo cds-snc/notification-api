@@ -50,3 +50,20 @@ def test_send_email_has_correct_payload(client):
     }
 
     assert rmock.request_history[0].json() == expected_payload
+
+
+def test_send_email_with_multiple_recipients(client):
+    recipient_emails = ["recipient1@email.com", "recipient2@email.com", "recipient3@email.com"]
+
+    with requests_mock.mock() as rmock:
+        rmock.post(
+            requests_mock.ANY
+        )
+        client.send_email("source", recipient_emails, "subject", "body")
+
+    json = rmock.request_history[0].json()
+
+    assert len(json["recipients"]) == 3
+    assert json["recipients"][0]["email"] == recipient_emails[0]
+    assert json["recipients"][1]["email"] == recipient_emails[1]
+    assert json["recipients"][2]["email"] == recipient_emails[2]

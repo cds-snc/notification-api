@@ -24,17 +24,22 @@ class GovdeliveryClient(EmailClient):
                    html_body='',
                    reply_to_address=None,
                    attachments=[]):
+        if isinstance(to_addresses, str):
+            to_addresses = [to_addresses]
+
+        recipients = [
+            {"email": to_address} for to_address in to_addresses
+        ]
+
         payload = {
             "subject": subject,
             "body": body,
-            "recipients": [
-                {
-                    "email": to_addresses
-                }
-            ]
+            "recipients": recipients
         }
+
         response = requests.post(
             self.govdelivery_url,
             json=payload
         )
+
         return response
