@@ -71,7 +71,7 @@ data "aws_iam_policy_document" "notification_sqs" {
       "sqs:CreateQueue",
       "sqs:ListQueues",
       "sqs:GetQueueAttributes",
-      "sqs:CreateQueue"
+      "sqs:GetQueueUrl"
     ]
 
     resources = ["*"]
