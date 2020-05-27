@@ -34,7 +34,8 @@ class GovdeliveryClient(EmailClient):
         payload = {
             "subject": subject,
             "body": body,
-            "recipients": recipients
+            "recipients": recipients,
+            "from_email": source
         }
 
         response = requests.post(

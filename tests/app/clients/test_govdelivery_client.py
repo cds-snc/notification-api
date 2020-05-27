@@ -32,12 +32,13 @@ def test_send_email_has_correct_payload(client):
     subject = "some subject"
     body = "some body"
     recipient = "recipient@email.com"
+    sender = "sender@email.com"
 
     with requests_mock.mock() as rmock:
         rmock.post(
             requests_mock.ANY
         )
-        client.send_email("sender@email.com", recipient, subject, body)
+        client.send_email(sender, recipient, subject, body)
 
     expected_payload = {
         "subject": subject,
@@ -46,7 +47,8 @@ def test_send_email_has_correct_payload(client):
             {
                 "email": recipient
             }
-        ]
+        ],
+        "from_email": sender
     }
 
     assert rmock.request_history[0].json() == expected_payload
