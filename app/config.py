@@ -371,6 +371,11 @@ class Config(object):
         RelyingParty(os.getenv('FIDO2_DOMAIN', 'localhost'), 'Notification'),
         verify_origin=lambda x: True)
 
+    HC_EN_SERVICE_ID = os.getenv('HC_EN_SERVICE_ID', '')
+    HC_FR_SERVICE_ID = os.getenv('HC_FR_SERVICE_ID', '')
+    CSV_MAX_ROWS = os.getenv('CSV_MAX_ROWS', 50000)
+    CSV_MAX_ROWS_BULK_SEND = os.getenv('CSV_MAX_ROWS_BULK_SEND', 100000)
+
 
 ######################
 # Config overrides ###
