@@ -69,7 +69,9 @@ data "aws_iam_policy_document" "notification_sqs" {
       "sqs:DeleteQueue",
       "sqs:SendMessage",
       "sqs:CreateQueue",
-      "sqs:ListQueues"
+      "sqs:ListQueues",
+      "sqs:GetQueueAttributes",
+      "sqs:CreateQueue"
     ]
 
     resources = ["*"]
