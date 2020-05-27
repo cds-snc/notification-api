@@ -1,3 +1,5 @@
+import requests
+
 from app.clients.email import EmailClient
 
 
@@ -9,6 +11,7 @@ class GovdeliveryClient(EmailClient):
     def init_app(self, statsd_client, *args, **kwargs):
         self.name = 'govdelivery'
         self.statsd_client = statsd_client
+        self.govdelivery_url = "https://tms.govdelivery.com/messages/email"
 
     def get_name(self):
         return self.name
@@ -21,4 +24,7 @@ class GovdeliveryClient(EmailClient):
                    html_body='',
                    reply_to_address=None,
                    attachments=[]):
-        pass
+        response = requests.post(
+            self.govdelivery_url
+        )
+        return response
