@@ -10,7 +10,7 @@ set -e
 usage() {
     set -e
     cat <<EOM
-    ##### ecs-run #####
+    ##### run_ci_migrations #####
     Simple script for running tasks on Amazon Elastic Container Service
     One of the following is required:
     Required arguments:
@@ -26,7 +26,7 @@ usage() {
         jq:   Command-line JSON processor
     Examples:
       Simple deployment of a service (Using env vars for AWS settings):
-        ecs-run -c production1 -t foo-taskdef -e dev
+        run_ci_migrations -c production1 -t foo-taskdef -e dev
       All options:
 EOM
 
