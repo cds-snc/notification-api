@@ -16,12 +16,6 @@
           "awslogs-stream-prefix": "ecs"
         }
       },
-      "portMappings": [
-        {
-          "containerPort": 6011,
-          "hostPort": 6011
-        }
-      ],
       "command": ["sh", "-c", "flask db upgrade"],
       "environment": [
         {
