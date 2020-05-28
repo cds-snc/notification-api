@@ -63,9 +63,11 @@ class GovdeliveryClient(EmailClient):
 
             return response
         except HTTPError as e:
+            self.statsd_client.incr("clients.govdelivery.error")
             if e.response.status_code == 422:
                 raise InvalidEmailError(str(e))
             else:
                 raise GovdeliveryClientException(str(e))
         except Exception as e:
+            self.statsd_client.incr("clients.govdelivery.error")
             raise GovdeliveryClientException(str(e))

@@ -106,6 +106,7 @@ def test_should_raise_http_errors_as_govdelivery_client_exception(client):
         )
         with pytest.raises(GovdeliveryClientException):
             client.send_email("source", "recipient@email.com", "subject", "body")
+    client.statsd_client.incr.assert_called_with("clients.govdelivery.error")
 
 
 def test_should_raise_connection_errors_as_govdelivery_client_exception(client):
@@ -116,6 +117,7 @@ def test_should_raise_connection_errors_as_govdelivery_client_exception(client):
         )
         with pytest.raises(GovdeliveryClientException):
             client.send_email("source", "recipient@email.com", "subject", "body")
+    client.statsd_client.incr.assert_called_with("clients.govdelivery.error")
 
 
 def test_should_raise_422_as_invalid_email_exception(client):
@@ -126,3 +128,4 @@ def test_should_raise_422_as_invalid_email_exception(client):
         )
         with pytest.raises(InvalidEmailError):
             client.send_email("source", "recipient@email.com", "subject", "body")
+    client.statsd_client.incr.assert_called_with("clients.govdelivery.error")
