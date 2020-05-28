@@ -1,6 +1,10 @@
 import requests
 
-from app.clients.email import EmailClient
+from app.clients.email import EmailClient, EmailClientException
+
+
+class GovdeliveryClientException(EmailClientException):
+    pass
 
 
 class GovdeliveryClient(EmailClient):
@@ -25,31 +29,36 @@ class GovdeliveryClient(EmailClient):
                    html_body='',
                    reply_to_address=None,
                    attachments=[]):
-        if isinstance(to_addresses, str):
-            to_addresses = [to_addresses]
+        try:
+            if isinstance(to_addresses, str):
+                to_addresses = [to_addresses]
 
-        # Sometimes the source is "Foo <foo@bar.com> vs just foo@bar.com"
-        # TODO: Possibly revisit this to take in sender name and sender email address separately
-        if "<" in source:
-            source = source.split("<")[1].split(">")[0]
+            # Sometimes the source is "Foo <foo@bar.com> vs just foo@bar.com"
+            # TODO: Possibly revisit this to take in sender name and sender email address separately
+            if "<" in source:
+                source = source.split("<")[1].split(">")[0]
 
-        recipients = [
-            {"email": to_address} for to_address in to_addresses
-        ]
+            recipients = [
+                {"email": to_address} for to_address in to_addresses
+            ]
 
-        payload = {
-            "subject": subject,
-            "body": body,
-            "recipients": recipients,
-            "from_email": source
-        }
-
-        response = requests.post(
-            self.govdelivery_url,
-            json=payload,
-            headers={
-                "X-AUTH-TOKEN": self.token
+            payload = {
+                "subject": subject,
+                "body": body,
+                "recipients": recipients,
+                "from_email": source
             }
-        )
 
-        return response
+            response = requests.post(
+                self.govdelivery_url,
+                json=payload,
+                headers={
+                    "X-AUTH-TOKEN": self.token
+                }
+            )
+
+            response.raise_for_status()
+
+            return response
+        except Exception as e:
+            raise GovdeliveryClientException(str(e))

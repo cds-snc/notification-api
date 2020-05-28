@@ -1,7 +1,7 @@
 import pytest
 import requests_mock
 
-from app.clients.email.govdelivery_client import GovdeliveryClient
+from app.clients.email.govdelivery_client import GovdeliveryClient, GovdeliveryClientException
 
 
 @pytest.fixture(scope='function')
@@ -94,3 +94,13 @@ def test_from_email_is_only_email_when_name_also_provided(client):
         client.send_email(source, "recipient@email.com", "subject", "body")
 
     assert rmock.request_history[0].json()["from_email"] == "sender@email.com"
+
+
+def test_should_raise_errors_as_govdelivery_client_exception(client):
+    with requests_mock.mock() as rmock:
+        rmock.post(
+            requests_mock.ANY,
+            status_code=500
+        )
+        with pytest.raises(GovdeliveryClientException):
+            client.send_email("source", "recipient@email.com", "subject", "body")
