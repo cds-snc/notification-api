@@ -1,4 +1,6 @@
 import requests
+from notifications_utils.recipients import InvalidEmailError
+from requests import HTTPError
 
 from app.clients.email import EmailClient, EmailClientException
 
@@ -60,5 +62,10 @@ class GovdeliveryClient(EmailClient):
             response.raise_for_status()
 
             return response
+        except HTTPError as e:
+            if e.response.status_code == 422:
+                raise InvalidEmailError(str(e))
+            else:
+                raise GovdeliveryClientException(str(e))
         except Exception as e:
             raise GovdeliveryClientException(str(e))

@@ -1,6 +1,7 @@
 import pytest
 import requests
 import requests_mock
+from notifications_utils.recipients import InvalidEmailError
 
 from app.clients.email.govdelivery_client import GovdeliveryClient, GovdeliveryClientException
 
@@ -114,4 +115,14 @@ def test_should_raise_connection_errors_as_govdelivery_client_exception(client):
             exc=requests.exceptions.ConnectionError
         )
         with pytest.raises(GovdeliveryClientException):
+            client.send_email("source", "recipient@email.com", "subject", "body")
+
+
+def test_should_raise_422_as_invalid_email_exception(client):
+    with requests_mock.mock() as rmock:
+        rmock.post(
+            requests_mock.ANY,
+            status_code=422
+        )
+        with pytest.raises(InvalidEmailError):
             client.send_email("source", "recipient@email.com", "subject", "body")
