@@ -1,4 +1,7 @@
+from time import monotonic
+
 import requests
+from flask import current_app
 from notifications_utils.recipients import InvalidEmailError
 from requests import HTTPError
 
@@ -51,6 +54,7 @@ class GovdeliveryClient(EmailClient):
                 "from_email": source
             }
 
+            start_time = monotonic()
             response = requests.post(
                 self.govdelivery_url,
                 json=payload,
@@ -58,10 +62,8 @@ class GovdeliveryClient(EmailClient):
                     "X-AUTH-TOKEN": self.token
                 }
             )
-
             response.raise_for_status()
 
-            return response
         except HTTPError as e:
             self.statsd_client.incr("clients.govdelivery.error")
             if e.response.status_code == 422:
@@ -71,3 +73,9 @@ class GovdeliveryClient(EmailClient):
         except Exception as e:
             self.statsd_client.incr("clients.govdelivery.error")
             raise GovdeliveryClientException(str(e))
+        else:
+            elapsed_time = monotonic() - start_time
+            current_app.logger.info("Govdelivery request finished in {}".format(elapsed_time))
+            self.statsd_client.timing("clients.govdelivery.request-time", elapsed_time)
+            self.statsd_client.incr("clients.govdelivery.success")
+            return response

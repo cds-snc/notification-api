@@ -1,3 +1,5 @@
+from unittest.mock import ANY
+
 import pytest
 import requests
 import requests_mock
@@ -7,11 +9,12 @@ from app.clients.email.govdelivery_client import GovdeliveryClient, GovdeliveryC
 
 
 @pytest.fixture(scope='function')
-def client(mocker):
-    govdelivery_client = GovdeliveryClient()
-    statsd_client = mocker.Mock()
-    govdelivery_client.init_app("some-token", statsd_client)
-    return govdelivery_client
+def client(notify_api, mocker):
+    with notify_api.app_context():
+        govdelivery_client = GovdeliveryClient()
+        statsd_client = mocker.Mock()
+        govdelivery_client.init_app("some-token", statsd_client)
+        return govdelivery_client
 
 
 def test_should_get_name(client):
@@ -129,3 +132,12 @@ def test_should_raise_422_as_invalid_email_exception(client):
         with pytest.raises(InvalidEmailError):
             client.send_email("source", "recipient@email.com", "subject", "body")
     client.statsd_client.incr.assert_called_with("clients.govdelivery.error")
+
+
+def test_should_time_request_and_increment_success_count(client):
+    with requests_mock.mock() as rmock:
+        rmock.post(requests_mock.ANY)
+        client.send_email("source", "recipient@email.com", "subject", "body")
+
+    client.statsd_client.timing.assert_called_with("clients.govdelivery.request-time", ANY)
+    client.statsd_client.incr.assert_called_with("clients.govdelivery.success")
