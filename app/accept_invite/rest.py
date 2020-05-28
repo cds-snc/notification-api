@@ -27,19 +27,20 @@ register_errors(accept_invite)
 def validate_invitation_token(invitation_type, token):
 
     max_age_seconds = 60 * 60 * 24 * current_app.config['INVITATION_EXPIRATION_DAYS']
-
+    max_age_seconds = 1
     try:
         invited_user_id = check_token(token,
                                       current_app.config['SECRET_KEY'],
                                       current_app.config['DANGEROUS_SALT'],
                                       max_age_seconds)
     except SignatureExpired:
-        errors = {'invitation':
-                  ['Your invitation to GOV.UK Notify has expired. '
-                   'Please ask the person that invited you to send you another one']}
+        errors = {'invitation': 'invitation expired'}
+                #   ['Your invitation to GOV.UK Notify has expired. '
+                #    'Please ask the person that invited you to send you another one']}
         raise InvalidRequest(errors, status_code=400)
     except BadData:
-        errors = {'invitation': 'Something’s wrong with this link. Make sure you’ve copied the whole thing.'}
+        errors = {'invitation': 'bad invitation link'}
+        # errors = {'invitation': 'Something’s wrong with this link. Make sure you’ve copied the whole thing.'}
         raise InvalidRequest(errors, status_code=400)
 
     if invitation_type == 'service':
