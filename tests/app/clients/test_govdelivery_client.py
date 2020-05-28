@@ -19,13 +19,13 @@ def client(notify_api, mocker):
 
 @pytest.fixture(scope='function')
 def respond_successfully():
-    with requests_mock.mock() as rmock:
-        rmock.post(
-            requests_mock.ANY,
-            json={
-                "id": 1234
-            }
-        )
+    rmock = requests_mock.mock()
+    rmock.post(
+        requests_mock.ANY,
+        json={
+            "id": 1234
+        }
+    )
     return rmock
 
 
