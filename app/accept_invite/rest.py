@@ -27,7 +27,6 @@ register_errors(accept_invite)
 def validate_invitation_token(invitation_type, token):
 
     max_age_seconds = 60 * 60 * 24 * current_app.config['INVITATION_EXPIRATION_DAYS']
-    max_age_seconds = 1
     try:
         invited_user_id = check_token(token,
                                       current_app.config['SECRET_KEY'],
