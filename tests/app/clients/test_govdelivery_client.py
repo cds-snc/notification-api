@@ -23,9 +23,7 @@ def respond_successfully():
         rmock.post(
             requests_mock.ANY,
             json={
-                "_links": {
-                    "self": "/messages/email/1234"
-                }
+                "id": 1234
             }
         )
     return rmock
@@ -141,14 +139,12 @@ def test_should_time_request_and_increment_success_count(client, respond_success
 
 
 def test_should_return_message_id(client):
-    message_id = "some-id"
+    message_id = 5678
     with requests_mock.mock() as rmock:
         rmock.post(
             requests_mock.ANY,
             json={
-                "_links": {
-                    "self": "/messages/email/" + message_id
-                }
+                "id": message_id
             }
         )
         response = client.send_email("source", "recipient@email.com", "subject", "body")
