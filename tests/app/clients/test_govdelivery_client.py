@@ -44,10 +44,9 @@ def test_send_email_posts_to_correct_url(client, respond_successfully):
     assert respond_successfully.request_history[0].url == expected_govdelivery_url
 
 
-def test_token_appears_as_header_in_request(mocker, respond_successfully):
+def test_token_appears_as_header_in_request(client, respond_successfully):
     token = "some-token"
-    client = GovdeliveryClient()
-    client.init_app(token, mocker.Mock())
+    client.token = token
 
     with respond_successfully:
         client.send_email("source", "address", "subject", "body")
