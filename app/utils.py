@@ -141,6 +141,6 @@ def get_csv_max_rows(service_id):
         current_app.config['HC_FR_SERVICE_ID'],
     ]
 
-    if service_id in bulk_sending_services:
-        return current_app.config['CSV_MAX_ROWS_BULK_SEND']
-    return current_app.config['CSV_MAX_ROWS']
+    if str(service_id) in bulk_sending_services:
+        return int(current_app.config['CSV_MAX_ROWS_BULK_SEND'])
+    return int(current_app.config['CSV_MAX_ROWS'])
