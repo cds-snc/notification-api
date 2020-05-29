@@ -421,6 +421,7 @@ class Development(Config):
     CELERY_RESULT_BACKEND = 'cache'
     CELERY_CACHE_BACKEND = 'memory'
 
+
 class Test(Development):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.alpha.canada.ca")
     FROM_NUMBER = 'testing'
