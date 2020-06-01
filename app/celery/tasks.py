@@ -108,7 +108,7 @@ def process_job(job_id, sender_id=None):
             s3.get_job_from_s3(str(service.id), str(job_id)),
             template_type=template.template_type,
             placeholders=template.placeholders,
-            max_rows=get_csv_max_rows(job.service_id),
+            max_rows=get_csv_max_rows(service.id),
     ).get_rows():
         process_row(row, template, job, service, sender_id=sender_id)
 
