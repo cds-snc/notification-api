@@ -16,7 +16,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.globals.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -28,8 +28,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.globals.get(\"NOTID\") || '',",
-							"\t'ist': pm.environment.get('jwt_ist') || '',",
+							"\t'iss': pm.environment.get(\"NOTID\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -125,7 +124,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.globals.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -137,8 +136,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.globals.get(\"NOTID\") || '',",
-							"\t'ist': pm.environment.get('jwt_ist') || '',",
+							"\t'iss': pm.environment.get(\"NOTID\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -225,7 +223,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.globals.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -237,8 +235,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.globals.get(\"NOTID\") || '',",
-							"\t'ist': pm.environment.get('jwt_ist') || '',",
+							"\t'iss': pm.environment.get(\"NOTID\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -334,7 +331,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.globals.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -346,8 +343,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.globals.get(\"NOTID\") || '',",
-							"\t'ist': pm.environment.get('jwt_ist') || '',",
+							"\t'iss': pm.environment.get(\"NOTID\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -438,7 +434,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.globals.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -450,8 +446,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.globals.get(\"NOTID\") || '',",
-							"\t'ist': pm.environment.get('jwt_ist') || '',",
+							"\t'iss': pm.environment.get(\"NOTID\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -545,7 +540,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.globals.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -557,8 +552,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.globals.get(\"NOTID\") || '',",
-							"\t'ist': pm.environment.get('jwt_ist') || '',",
+							"\t'iss': pm.environment.get(\"NOTID\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -626,18 +620,429 @@
 					"raw": "{\n    \"name\": \"test template 1\",\n    \"subject\": \"test subject 1\",\n    \"template_type\": \"sms\",\n    \"content\": \"<b>This is a test SMS message</b>\",\n    \"service\": \"df673078-d723-4709-b448-a245d75c178a\",\n    \"created_by\": \"dc898a42-7d8f-4c7d-974e-2231ada88478\"\n}"
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}//service/df673078-d723-4709-b448-a245d75c178a/template",
+					"raw": "http://{{NOTAPI}}/service/df673078-d723-4709-b448-a245d75c178a/template",
 					"protocol": "http",
 					"host": [
 						"{{NOTAPI}}"
 					],
 					"path": [
-						"",
 						"service",
 						"df673078-d723-4709-b448-a245d75c178a",
 						"template"
 					]
 				}
+			},
+			"response": []
+		},
+		{
+			"name": "create api key",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"id": "7a0fdff3-9b62-43fb-acb1-e836e7dd89a2",
+						"exec": [
+							"// JWT generation script adapted from",
+							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"",
+							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
+							"",
+							"// Set headers for JWT",
+							"var header = {",
+							"\t'typ': 'JWT',",
+							"\t'alg': 'HS256'",
+							"};",
+							"",
+							"// Prepare timestamp in seconds",
+							"var currentTimestamp = Math.floor(Date.now() / 1000)",
+							"",
+							"var data = {",
+							"\t'iss': pm.environment.get(\"NOTID\") || '',",
+							"\t'iat': currentTimestamp,",
+							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
+							"\t'jti': 'jwt_nonce'",
+							"}",
+							"",
+							"",
+							"function base64url(source) {",
+							"    // Encode in classical base64",
+							"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+							"    ",
+							"    // Remove padding equal characters",
+							"    encodedSource = encodedSource.replace(/=+$/, '')",
+							"    ",
+							"    // Replace characters according to base64url specifications",
+							"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+							"    encodedSource = encodedSource.replace(/\\//g, '_')",
+							"    ",
+							"    return encodedSource",
+							"}",
+							"",
+							"// encode header",
+							"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+							"var encodedHeader = base64url(stringifiedHeader)",
+							"",
+							"// encode data",
+							"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+							"var encodedData = base64url(stringifiedData)",
+							"",
+							"// build token",
+							"var token = `${encodedHeader}.${encodedData}`",
+							"",
+							"// sign token",
+							"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+							"signature = base64url(signature)",
+							"var signedToken = `${token}.${signature}`",
+							"",
+							"pm.environment.set('jwt_signed', signedToken)",
+							"console.log('Signed and encoded JWT', signedToken)"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_signed}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"created_by\": \"dc898a42-7d8f-4c7d-974e-2231ada88478\",\n    \"key_type\": \"normal\",\n    \"name\": \"postmantestapikey\"\n}"
+				},
+				"url": {
+					"raw": "http://{{NOTAPI}}/service/df673078-d723-4709-b448-a245d75c178a/api-key",
+					"protocol": "http",
+					"host": [
+						"{{NOTAPI}}"
+					],
+					"path": [
+						"service",
+						"df673078-d723-4709-b448-a245d75c178a",
+						"api-key"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get api keys for service",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"id": "522d15fc-c0e2-47ae-9b86-ef4cf8d7486a",
+						"exec": [
+							"// JWT generation script adapted from",
+							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"",
+							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
+							"",
+							"// Set headers for JWT",
+							"var header = {",
+							"\t'typ': 'JWT',",
+							"\t'alg': 'HS256'",
+							"};",
+							"",
+							"// Prepare timestamp in seconds",
+							"var currentTimestamp = Math.floor(Date.now() / 1000)",
+							"",
+							"var data = {",
+							"\t'iss': pm.environment.get(\"NOTID\") || '',",
+							"\t'iat': currentTimestamp,",
+							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
+							"\t'jti': 'jwt_nonce'",
+							"}",
+							"",
+							"",
+							"function base64url(source) {",
+							"    // Encode in classical base64",
+							"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+							"    ",
+							"    // Remove padding equal characters",
+							"    encodedSource = encodedSource.replace(/=+$/, '')",
+							"    ",
+							"    // Replace characters according to base64url specifications",
+							"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+							"    encodedSource = encodedSource.replace(/\\//g, '_')",
+							"    ",
+							"    return encodedSource",
+							"}",
+							"",
+							"// encode header",
+							"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+							"var encodedHeader = base64url(stringifiedHeader)",
+							"",
+							"// encode data",
+							"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+							"var encodedData = base64url(stringifiedData)",
+							"",
+							"// build token",
+							"var token = `${encodedHeader}.${encodedData}`",
+							"",
+							"// sign token",
+							"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+							"signature = base64url(signature)",
+							"var signedToken = `${token}.${signature}`",
+							"",
+							"pm.environment.set('jwt_signed', signedToken)",
+							"console.log('Signed and encoded JWT', signedToken)"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_signed}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "http://{{NOTAPI}}/service/df673078-d723-4709-b448-a245d75c178a/api-keys",
+					"protocol": "http",
+					"host": [
+						"{{NOTAPI}}"
+					],
+					"path": [
+						"service",
+						"df673078-d723-4709-b448-a245d75c178a",
+						"api-keys"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "send sms",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"id": "d43a3399-c039-4ab9-b834-0b3ef22b32fb",
+						"exec": [
+							"// JWT generation script adapted from",
+							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"",
+							"var jwtSecret = pm.environment.get(\"service-api-secret\");",
+							"",
+							"// Set headers for JWT",
+							"var header = {",
+							"\t'typ': 'JWT',",
+							"\t'alg': 'HS256'",
+							"};",
+							"",
+							"// Prepare timestamp in seconds",
+							"var currentTimestamp = Math.floor(Date.now() / 1000)",
+							"",
+							"var data = {",
+							"\t'iss': pm.environment.get(\"service-id\"),",
+							"\t'iat': currentTimestamp",
+							"}",
+							"",
+							"",
+							"function base64url(source) {",
+							"    // Encode in classical base64",
+							"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+							"    ",
+							"    // Remove padding equal characters",
+							"    encodedSource = encodedSource.replace(/=+$/, '')",
+							"    ",
+							"    // Replace characters according to base64url specifications",
+							"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+							"    encodedSource = encodedSource.replace(/\\//g, '_')",
+							"    ",
+							"    return encodedSource",
+							"}",
+							"",
+							"// encode header",
+							"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+							"var encodedHeader = base64url(stringifiedHeader)",
+							"",
+							"// encode data",
+							"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+							"var encodedData = base64url(stringifiedData)",
+							"",
+							"// build token",
+							"var token = `${encodedHeader}.${encodedData}`",
+							"",
+							"// sign token",
+							"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+							"signature = base64url(signature)",
+							"var signedToken = `${token}.${signature}`",
+							"",
+							"pm.environment.set('jwt_signed', signedToken)",
+							"console.log('Signed and encoded JWT', signedToken)"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_signed}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"template\": \"6282f4ef-b57d-4b12-9a81-cc72ef7c8c8c\",\n    \"to\": \"+17035017710\"\n}"
+				},
+				"url": {
+					"raw": "http://{{NOTAPI}}/notifications/sms",
+					"protocol": "http",
+					"host": [
+						"{{NOTAPI}}"
+					],
+					"path": [
+						"notifications",
+						"sms"
+					]
+				},
+				"description": "api-key field combines key name, serivce id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key"
+			},
+			"response": []
+		},
+		{
+			"name": "send sms 2",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"id": "e643a384-bf1e-4db9-9232-8bab5cc882ed",
+						"exec": [
+							"// JWT generation script adapted from",
+							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"",
+							"var jwtSecret = pm.environment.get(\"service-api-secret\");",
+							"",
+							"// Set headers for JWT",
+							"var header = {",
+							"\t'typ': 'JWT',",
+							"\t'alg': 'HS256'",
+							"};",
+							"",
+							"// Prepare timestamp in seconds",
+							"var currentTimestamp = Math.floor(Date.now() / 1000)",
+							"",
+							"var data = {",
+							"\t'iss': pm.environment.get(\"service-id\"),",
+							"\t'iat': currentTimestamp",
+							"}",
+							"",
+							"",
+							"function base64url(source) {",
+							"    // Encode in classical base64",
+							"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+							"    ",
+							"    // Remove padding equal characters",
+							"    encodedSource = encodedSource.replace(/=+$/, '')",
+							"    ",
+							"    // Replace characters according to base64url specifications",
+							"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+							"    encodedSource = encodedSource.replace(/\\//g, '_')",
+							"    ",
+							"    return encodedSource",
+							"}",
+							"",
+							"// encode header",
+							"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+							"var encodedHeader = base64url(stringifiedHeader)",
+							"",
+							"// encode data",
+							"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+							"var encodedData = base64url(stringifiedData)",
+							"",
+							"// build token",
+							"var token = `${encodedHeader}.${encodedData}`",
+							"",
+							"// sign token",
+							"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+							"signature = base64url(signature)",
+							"var signedToken = `${token}.${signature}`",
+							"",
+							"pm.environment.set('jwt_signed', signedToken)",
+							"console.log('Signed and encoded JWT', signedToken)"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_signed}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"template_id\": \"6282f4ef-b57d-4b12-9a81-cc72ef7c8c8c\",\n    \"phone_number\": \"+17035017710\"\n}"
+				},
+				"url": {
+					"raw": "http://{{NOTAPI}}/v2/notifications/sms",
+					"protocol": "http",
+					"host": [
+						"{{NOTAPI}}"
+					],
+					"path": [
+						"v2",
+						"notifications",
+						"sms"
+					]
+				},
+				"description": "api-key field combines key name, serivce id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-secret to generate the JWT bearer toekn"
 			},
 			"response": []
 		}
