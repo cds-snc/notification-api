@@ -4,12 +4,15 @@ from datetime import datetime, timedelta
 
 import pytest
 import pytz
+from random import randrange
 import requests_mock
 from flask import current_app, url_for
 from sqlalchemy import asc
 from sqlalchemy.orm.session import make_transient
 
 from app import db
+from app.clients.email import EmailClient
+from app.clients.sms import SmsClient
 from app.clients.sms.firetext import FiretextClient
 from app.dao.api_key_dao import save_model_api_key
 from app.dao.invited_user_dao import save_invited_user
@@ -23,7 +26,6 @@ from app.dao.users_dao import create_secret_code, create_user_code
 from app.dao.fido2_key_dao import save_fido2_key
 from app.dao.login_event_dao import save_login_event
 from app.history_meta import create_history
-
 
 from app.models import (
     Service,
@@ -162,15 +164,15 @@ def sample_sms_code(notify_db,
 
 @pytest.fixture(scope='function')
 def sample_service(
-    notify_db,
-    notify_db_session,
-    service_name="Sample service",
-    user=None,
-    restricted=False,
-    limit=1000,
-    email_from=None,
-    permissions=None,
-    research_mode=None
+        notify_db,
+        notify_db_session,
+        service_name="Sample service",
+        user=None,
+        restricted=False,
+        limit=1000,
+        email_from=None,
+        permissions=None,
+        research_mode=None
 ):
     if user is None:
         user = create_user()
@@ -222,19 +224,19 @@ def _sample_service_custom_letter_contact_block(sample_service):
 
 @pytest.fixture(scope='function')
 def sample_template(
-    notify_db,
-    notify_db_session,
-    template_name="Template Name",
-    template_type="sms",
-    content="This is a template:\nwith a newline",
-    archived=False,
-    hidden=False,
-    subject_line='Subject',
-    user=None,
-    service=None,
-    created_by=None,
-    process_type='normal',
-    permissions=[EMAIL_TYPE, SMS_TYPE]
+        notify_db,
+        notify_db_session,
+        template_name="Template Name",
+        template_type="sms",
+        content="This is a template:\nwith a newline",
+        archived=False,
+        hidden=False,
+        subject_line='Subject',
+        user=None,
+        service=None,
+        created_by=None,
+        process_type='normal',
+        permissions=[EMAIL_TYPE, SMS_TYPE]
 ):
     if user is None:
         user = create_user()
@@ -381,17 +383,17 @@ def sample_team_api_key(notify_db, notify_db_session, service=None):
 
 @pytest.fixture(scope='function')
 def sample_job(
-    notify_db,
-    notify_db_session,
-    service=None,
-    template=None,
-    notification_count=1,
-    created_at=None,
-    job_status='pending',
-    scheduled_for=None,
-    processing_started=None,
-    original_file_name='some.csv',
-    archived=False
+        notify_db,
+        notify_db_session,
+        service=None,
+        template=None,
+        notification_count=1,
+        created_at=None,
+        job_status='pending',
+        scheduled_for=None,
+        processing_started=None,
+        original_file_name='some.csv',
+        archived=False
 ):
     if service is None:
         service = create_service(check_if_service_exists=True)
@@ -525,28 +527,28 @@ def sample_notification_with_job(
 
 @pytest.fixture(scope='function')
 def sample_notification(
-    notify_db,
-    notify_db_session,
-    service=None,
-    template=None,
-    job=None,
-    job_row_number=None,
-    to_field=None,
-    status='created',
-    reference=None,
-    created_at=None,
-    sent_at=None,
-    billable_units=1,
-    personalisation=None,
-    api_key=None,
-    key_type=KEY_TYPE_NORMAL,
-    sent_by=None,
-    international=False,
-    client_reference=None,
-    rate_multiplier=1.0,
-    scheduled_for=None,
-    normalised_to=None,
-    postage=None,
+        notify_db,
+        notify_db_session,
+        service=None,
+        template=None,
+        job=None,
+        job_row_number=None,
+        to_field=None,
+        status='created',
+        reference=None,
+        created_at=None,
+        sent_at=None,
+        billable_units=1,
+        personalisation=None,
+        api_key=None,
+        key_type=KEY_TYPE_NORMAL,
+        sent_by=None,
+        international=False,
+        client_reference=None,
+        rate_multiplier=1.0,
+        scheduled_for=None,
+        normalised_to=None,
+        postage=None,
 ):
     if created_at is None:
         created_at = datetime.utcnow()
@@ -662,15 +664,15 @@ def sample_email_notification(notify_db, notify_db_session):
 
 @pytest.fixture(scope='function')
 def sample_notification_history(
-    notify_db,
-    notify_db_session,
-    sample_template,
-    status='created',
-    created_at=None,
-    notification_type=None,
-    key_type=KEY_TYPE_NORMAL,
-    sent_at=None,
-    api_key=None
+        notify_db,
+        notify_db_session,
+        sample_template,
+        status='created',
+        created_at=None,
+        notification_type=None,
+        key_type=KEY_TYPE_NORMAL,
+        sent_at=None,
+        api_key=None
 ):
     if created_at is None:
         created_at = datetime.utcnow()
@@ -728,7 +730,6 @@ def sample_invited_user(notify_db,
                         notify_db_session,
                         service=None,
                         to_email_address=None):
-
     if service is None:
         service = create_service(check_if_service_exists=True)
     if to_email_address is None:
@@ -750,17 +751,17 @@ def sample_invited_user(notify_db,
 
 @pytest.fixture(scope='function')
 def sample_invited_org_user(
-    notify_db,
-    notify_db_session,
-    sample_user,
-    sample_organisation
+        notify_db,
+        notify_db_session,
+        sample_user,
+        sample_organisation
 ):
     return create_invited_org_user(sample_organisation, sample_user)
 
 
 @pytest.fixture(scope='function')
 def sample_user_service_permission(
-    notify_db, notify_db_session, service=None, user=None, permission="manage_settings"
+        notify_db, notify_db_session, service=None, user=None, permission="manage_settings"
 ):
     if user is None:
         user = create_user()
@@ -1200,7 +1201,6 @@ def restore_provider_details(notify_db, notify_db_session):
 
 @pytest.fixture
 def admin_request(client):
-
     class AdminRequest:
         app = client.application
 
@@ -1242,6 +1242,54 @@ def admin_request(client):
             return json_resp
 
     return AdminRequest
+
+
+@pytest.fixture(scope='function')
+def mock_sms_client(mocker):
+    mocked_client = SmsClient()
+    mocker.patch.object(mocked_client, 'send_sms')
+    mocker.patch.object(mocked_client, 'get_name', return_value='Fake SMS Client')
+    mocker.patch('app.delivery.send_to_providers.provider_to_use', return_value=mocked_client)
+    return mocked_client
+
+
+@pytest.fixture(scope='function')
+def mock_email_client(mocker):
+    mocked_client = EmailClient()
+    mocker.patch.object(mocked_client, 'send_email', return_value='message id')
+    mocker.patch.object(mocked_client, 'get_name', return_value='Fake Email Client')
+    mocker.patch('app.delivery.send_to_providers.provider_to_use', return_value=mocked_client)
+    return mocked_client
+
+
+@pytest.fixture(scope='function')
+def mocked_provider_stats(sample_user, mocker):
+    return [
+        mocker.Mock(**{
+            'id': uuid.uuid4(),
+            'display_name': 'foo',
+            'identifier': 'foo',
+            'priority': 10,
+            'notification_type': 'sms',
+            'active': True,
+            'updated_at': datetime.utcnow(),
+            'supports_international': False,
+            'created_by_name': sample_user.name,
+            'current_month_billable_sms': randrange(100)
+        }),
+        mocker.Mock(**{
+            'id': uuid.uuid4(),
+            'display_name': 'bar',
+            'identifier': 'bar',
+            'priority': 20,
+            'notification_type': 'sms',
+            'active': True,
+            'updated_at': datetime.utcnow(),
+            'supports_international': False,
+            'created_by_name': sample_user.name,
+            'current_month_billable_sms': randrange(100)
+        })
+    ]
 
 
 def datetime_in_past(days=0, seconds=0):

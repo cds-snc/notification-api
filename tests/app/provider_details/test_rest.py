@@ -1,6 +1,7 @@
 import pytest
 from flask import json
 from freezegun import freeze_time
+from werkzeug.http import http_date
 
 from app.models import ProviderDetails, ProviderDetailsHistory
 
@@ -8,7 +9,8 @@ from tests import create_authorization_header
 from tests.app.db import create_ft_billing
 
 
-def test_get_provider_details_in_type_and_identifier_order(client, notify_db):
+def test_get_provider_details_returns_information_about_providers(client, notify_db, mocked_provider_stats, mocker):
+    mocker.patch('app.provider_details.rest.dao_get_provider_stats', return_value=mocked_provider_stats)
     response = client.get(
         '/provider-details',
         headers=[create_authorization_header()]
@@ -16,18 +18,18 @@ def test_get_provider_details_in_type_and_identifier_order(client, notify_db):
     assert response.status_code == 200
     json_resp = json.loads(response.get_data(as_text=True))['provider_details']
 
-    # TODO: i strongly feel like we should be mocking a dao function or something rather
-    # than asserting on the response from the database
+    assert len(json_resp) == len(mocked_provider_stats)
 
-    assert len(json_resp) == 7
-
-    assert json_resp[0]['identifier'] == 'ses'
-    assert json_resp[1]['identifier'] == 'sns'
-    assert json_resp[2]['identifier'] == 'mmg'
-    assert json_resp[3]['identifier'] == 'firetext'
-    assert json_resp[4]['identifier'] == 'twilio'
-    assert json_resp[5]['identifier'] == 'loadtesting'
-    assert json_resp[6]['identifier'] == 'dvla'
+    for idx, provider in enumerate(mocked_provider_stats):
+        assert json_resp[idx]['identifier'] == provider.identifier
+        assert json_resp[idx]['display_name'] == provider.display_name
+        assert json_resp[idx]['priority'] == provider.priority
+        assert json_resp[idx]['notification_type'] == provider.notification_type
+        assert json_resp[idx]['active'] == provider.active
+        assert json_resp[idx]['updated_at'] == http_date(provider.updated_at)
+        assert json_resp[idx]['supports_international'] == provider.supports_international
+        assert json_resp[idx]['created_by_name'] == provider.created_by_name
+        assert json_resp[idx]['current_month_billable_sms'] == provider.current_month_billable_sms
 
 
 def test_get_provider_details_by_id(client, notify_db):

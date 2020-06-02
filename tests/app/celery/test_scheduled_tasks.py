@@ -135,8 +135,8 @@ def test_switch_providers_on_slow_delivery_switches_once_then_does_not_switch_if
     mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user)
     starting_provider = get_current_provider('sms')
 
-    _create_slow_delivery_notification(sample_template)
-    _create_slow_delivery_notification(sample_template)
+    _create_slow_delivery_notification(sample_template, starting_provider.identifier)
+    _create_slow_delivery_notification(sample_template, starting_provider.identifier)
 
     switch_current_sms_provider_on_slow_delivery()
 

@@ -5,6 +5,7 @@ pytest==3.10.1  # pyup: <4
 pytest-env==0.6.2
 pytest-mock==1.10.4
 pytest-cov==2.6.1
+pytest-flask-sqlalchemy==1.0.2
 coveralls==1.7.0
 pytest-xdist==1.27.0  # pyup: ignore, version 1.28.0 requires pytest >= 4.4
 freezegun==0.3.11

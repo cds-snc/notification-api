@@ -46,17 +46,15 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
 
     assert send_to_providers.provider_to_use('sms', '1234').name == first.identifier
 
-    first.priority = 15
-    second.priority = 10
+    first.priority, second.priority = second.priority, first.priority
 
     provider_details_dao.dao_update_provider_details(first)
     provider_details_dao.dao_update_provider_details(second)
 
     assert send_to_providers.provider_to_use('sms', '1234').name == second.identifier
 
-    first.priority = 10
+    first.priority, second.priority = second.priority, first.priority
     first.active = False
-    second.priority = 15
 
     provider_details_dao.dao_update_provider_details(first)
     provider_details_dao.dao_update_provider_details(second)
@@ -87,20 +85,18 @@ def test_should_not_use_active_but_disabled_provider(mocker):
 
 def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
     sample_sms_template_with_html,
-    mocker
+    mock_sms_client
 ):
     db_notification = create_notification(template=sample_sms_template_with_html,
                                           to_field="+16502532222", personalisation={"name": "Jo"},
                                           status='created',
                                           reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender())
 
-    mocker.patch('app.aws_sns_client.send_sms')
-
     send_to_providers.send_sms_to_provider(
         db_notification
     )
 
-    aws_sns_client.send_sms.assert_called_once_with(
+    mock_sms_client.send_sms.assert_called_once_with(
         to=validate_and_format_phone_number("+16502532222"),
         content="Sample service: Hello Jo\nHere is <em>some HTML</em> & entities",
         reference=str(db_notification.id),
@@ -111,14 +107,14 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
 
     assert notification.status == 'sent'
     assert notification.sent_at <= datetime.utcnow()
-    assert notification.sent_by == 'sns'
+    assert notification.sent_by == mock_sms_client.get_name()
     assert notification.billable_units == 1
     assert notification.personalisation == {"name": "Jo"}
 
 
 def test_should_send_personalised_template_to_correct_email_provider_and_persist(
     sample_email_template_with_html,
-    mocker
+    mock_email_client
 ):
     db_notification = create_notification(
         template=sample_email_template_with_html,
@@ -126,13 +122,11 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
         personalisation={'name': 'Jo'}
     )
 
-    mocker.patch('app.aws_ses_client.send_email', return_value='reference')
-
     send_to_providers.send_email_to_provider(
         db_notification
     )
 
-    app.aws_ses_client.send_email.assert_called_once_with(
+    mock_email_client.send_email.assert_called_once_with(
         '"Sample service" <sample.service@notification.alpha.canada.ca>',
         'jo.smith@example.com',
         'Jo <em>some HTML</em>',
@@ -142,31 +136,34 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
         attachments=[]
     )
 
-    assert '<!DOCTYPE html' in app.aws_ses_client.send_email.call_args[1]['html_body']
-    assert '&lt;em&gt;some HTML&lt;/em&gt;' in app.aws_ses_client.send_email.call_args[1]['html_body']
+    assert '<!DOCTYPE html' in mock_email_client.send_email.call_args[1]['html_body']
+    assert '&lt;em&gt;some HTML&lt;/em&gt;' in mock_email_client.send_email.call_args[1]['html_body']
 
     notification = Notification.query.filter_by(id=db_notification.id).one()
     assert notification.status == 'sending'
     assert notification.sent_at <= datetime.utcnow()
-    assert notification.sent_by == 'ses'
+    assert notification.sent_by == mock_email_client.get_name()
     assert notification.personalisation == {"name": "Jo"}
 
 
-def test_should_not_send_email_message_when_service_is_inactive_notifcation_is_in_tech_failure(
-        sample_service, sample_notification, mocker
+def test_should_not_send_email_message_when_service_is_inactive_notification_is_in_tech_failure(
+        sample_service,
+        sample_notification,
+        mock_email_client
 ):
     sample_service.active = False
-    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
 
     with pytest.raises(NotificationTechnicalFailureException) as e:
         send_to_providers.send_email_to_provider(sample_notification)
     assert str(sample_notification.id) in str(e.value)
-    send_mock.assert_not_called()
+    mock_email_client.send_email.assert_not_called()
     assert Notification.query.get(sample_notification.id).status == 'technical-failure'
 
 
 def test_should_respect_custom_sending_domains(
-        sample_service, mocker, sample_email_template_with_html
+        sample_service,
+        mock_email_client,
+        sample_email_template_with_html
 ):
     db_notification = create_notification(
         template=sample_email_template_with_html,
@@ -175,11 +172,10 @@ def test_should_respect_custom_sending_domains(
     )
 
     sample_service.sending_domain = "foo.bar"
-    mocker.patch("app.aws_ses_client.send_email", return_value='reference')
 
     send_to_providers.send_email_to_provider(db_notification)
 
-    app.aws_ses_client.send_email.assert_called_once_with(
+    mock_email_client.send_email.assert_called_once_with(
         '"Sample service" <sample.service@foo.bar>',
         'jo.smith@example.com',
         'Jo <em>some HTML</em>',
@@ -205,11 +201,9 @@ def test_should_not_send_sms_message_when_service_is_inactive_notifcation_is_in_
 
 def test_send_sms_should_use_template_version_from_notification_not_latest(
         sample_template,
-        mocker):
+        mock_sms_client):
     db_notification = create_notification(template=sample_template, to_field='+16502532222', status='created',
                                           reply_to_text=sample_template.service.get_default_sms_sender())
-
-    mocker.patch('app.aws_sns_client.send_sms')
 
     version_on_notification = sample_template.version
 
@@ -224,7 +218,7 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(
         db_notification
     )
 
-    aws_sns_client.send_sms.assert_called_once_with(
+    mock_sms_client.send_sms.assert_called_once_with(
         to=validate_and_format_phone_number("+16502532222"),
         content="Sample service: This is a template:\nwith a newline",
         reference=str(db_notification.id),
@@ -245,9 +239,8 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(
     (False, KEY_TYPE_TEST)
 ])
 def test_should_call_send_sms_response_task_if_research_mode(
-        notify_db, sample_service, sample_notification, mocker, research_mode, key_type
+        notify_db, sample_service, sample_notification, mocker, mock_sms_client, research_mode, key_type
 ):
-    mocker.patch('app.aws_sns_client.send_sms')
     mocker.patch('app.delivery.send_to_providers.send_sms_response')
 
     if research_mode:
@@ -260,10 +253,10 @@ def test_should_call_send_sms_response_task_if_research_mode(
     send_to_providers.send_sms_to_provider(
         sample_notification
     )
-    assert not aws_sns_client.send_sms.called
+    assert not mock_sms_client.send_sms.called
 
     app.delivery.send_to_providers.send_sms_response.assert_called_once_with(
-        'sns', str(sample_notification.id), sample_notification.to
+        mock_sms_client.get_name(), str(sample_notification.id), sample_notification.to
     )
 
     persisted_notification = notifications_dao.get_notification_by_id(sample_notification.id)
@@ -271,11 +264,11 @@ def test_should_call_send_sms_response_task_if_research_mode(
     assert persisted_notification.template_id == sample_notification.template_id
     assert persisted_notification.status == 'sent'
     assert persisted_notification.sent_at <= datetime.utcnow()
-    assert persisted_notification.sent_by == 'sns'
+    assert persisted_notification.sent_by == mock_sms_client.get_name()
     assert not persisted_notification.personalisation
 
 
-def test_should_have_sent_status_if_fake_callback_function_fails(sample_notification, mocker):
+def test_should_have_sent_status_if_fake_callback_function_fails(sample_notification, mocker, mock_sms_client):
     mocker.patch('app.delivery.send_to_providers.send_sms_response', side_effect=HTTPError)
 
     sample_notification.key_type = KEY_TYPE_TEST
@@ -285,7 +278,7 @@ def test_should_have_sent_status_if_fake_callback_function_fails(sample_notifica
             sample_notification
         )
     assert sample_notification.status == 'sent'
-    assert sample_notification.sent_by == 'sns'
+    assert sample_notification.sent_by == mock_sms_client.get_name()
 
 
 def test_should_not_send_to_provider_when_status_is_not_created(
@@ -304,7 +297,7 @@ def test_should_not_send_to_provider_when_status_is_not_created(
     response_mock.assert_not_called()
 
 
-def test_should_send_sms_with_downgraded_content(notify_db_session, mocker):
+def test_should_send_sms_with_downgraded_content(notify_db_session, mock_sms_client):
     # é, o, and u are in GSM.
     # á, ï, grapes, tabs, zero width space and ellipsis are not
     msg = "á é ï o u 🍇 foo\tbar\u200bbaz((misc))…"
@@ -317,11 +310,9 @@ def test_should_send_sms_with_downgraded_content(notify_db_session, mocker):
         personalisation={'misc': placeholder}
     )
 
-    mocker.patch('app.aws_sns_client.send_sms')
-
     send_to_providers.send_sms_to_provider(db_notification)
 
-    aws_sns_client.send_sms.assert_called_once_with(
+    mock_sms_client.send_sms.assert_called_once_with(
         to=ANY,
         content=gsm_message,
         reference=ANY,
@@ -332,9 +323,7 @@ def test_should_send_sms_with_downgraded_content(notify_db_session, mocker):
 def test_send_sms_should_use_service_sms_sender(
         sample_service,
         sample_template,
-        mocker):
-    mocker.patch('app.aws_sns_client.send_sms')
-
+        mock_sms_client):
     sms_sender = create_service_sms_sender(service=sample_service, sms_sender='123456', is_default=False)
     db_notification = create_notification(template=sample_template, reply_to_text=sms_sender.sms_sender)
 
@@ -342,7 +331,7 @@ def test_send_sms_should_use_service_sms_sender(
         db_notification,
     )
 
-    app.aws_sns_client.send_sms.assert_called_once_with(
+    mock_sms_client.send_sms.assert_called_once_with(
         to=ANY,
         content=ANY,
         reference=ANY,
@@ -358,6 +347,7 @@ def test_send_email_to_provider_should_call_research_mode_task_response_task_if_
         sample_service,
         sample_email_template,
         mocker,
+        mock_email_client,
         research_mode,
         key_type):
     notification = create_notification(
@@ -370,14 +360,13 @@ def test_send_email_to_provider_should_call_research_mode_task_response_task_if_
 
     reference = uuid.uuid4()
     mocker.patch('app.uuid.uuid4', return_value=reference)
-    mocker.patch('app.aws_ses_client.send_email')
     mocker.patch('app.delivery.send_to_providers.send_email_response')
 
     send_to_providers.send_email_to_provider(
         notification
     )
 
-    assert not app.aws_ses_client.send_email.called
+    assert not mock_email_client.send_email.called
     app.delivery.send_to_providers.send_email_response.assert_called_once_with(str(reference), 'john@smith.com')
     persisted_notification = Notification.query.filter_by(id=notification.id).one()
     assert persisted_notification.to == 'john@smith.com'
@@ -385,7 +374,7 @@ def test_send_email_to_provider_should_call_research_mode_task_response_task_if_
     assert persisted_notification.status == 'sending'
     assert persisted_notification.sent_at <= datetime.utcnow()
     assert persisted_notification.created_at <= datetime.utcnow()
-    assert persisted_notification.sent_by == 'ses'
+    assert persisted_notification.sent_by == mock_email_client.get_name()
     assert persisted_notification.reference == str(reference)
     assert persisted_notification.billable_units == 0
 
@@ -408,9 +397,7 @@ def test_send_email_to_provider_should_not_send_to_provider_when_status_is_not_c
 def test_send_email_should_use_service_reply_to_email(
         sample_service,
         sample_email_template,
-        mocker):
-    mocker.patch('app.aws_ses_client.send_email', return_value='reference')
-
+        mock_email_client):
     db_notification = create_notification(template=sample_email_template, reply_to_text='foo@bar.com')
     create_reply_to_email(service=sample_service, email_address='foo@bar.com')
 
@@ -418,7 +405,7 @@ def test_send_email_should_use_service_reply_to_email(
         db_notification,
     )
 
-    app.aws_ses_client.send_email.assert_called_once_with(
+    mock_email_client.send_email.assert_called_once_with(
         ANY,
         ANY,
         ANY,
@@ -571,13 +558,13 @@ def __update_notification(notification_to_update, research_mode, expected_status
 def test_should_update_billable_units_and_status_according_to_research_mode_and_key_type(
     sample_template,
     mocker,
+    mock_sms_client,
     research_mode,
     key_type,
     billable_units,
     expected_status
 ):
     notification = create_notification(template=sample_template, billable_units=0, status='created', key_type=key_type)
-    mocker.patch('app.aws_sns_client.send_sms')
     mocker.patch('app.delivery.send_to_providers.send_sms_response',
                  side_effect=__update_notification(notification, research_mode, expected_status))
 
@@ -681,21 +668,20 @@ def test_should_send_sms_to_international_providers(
     ('testing', 'testing', False, 'bar'),
 ])
 def test_should_handle_sms_sender_and_prefix_message(
-    mocker,
+    mock_sms_client,
     sms_sender,
     prefix_sms,
     expected_sender,
     expected_content,
     notify_db_session
 ):
-    mocker.patch('app.aws_sns_client.send_sms')
     service = create_service_with_defined_sms_sender(sms_sender_value=sms_sender, prefix_sms=prefix_sms)
     template = create_template(service, content='bar')
     notification = create_notification(template, reply_to_text=sms_sender)
 
     send_to_providers.send_sms_to_provider(notification)
 
-    aws_sns_client.send_sms.assert_called_once_with(
+    mock_sms_client.send_sms.assert_called_once_with(
         content=expected_content,
         sender=expected_sender,
         to=ANY,
@@ -705,16 +691,15 @@ def test_should_handle_sms_sender_and_prefix_message(
 
 def test_send_email_to_provider_uses_reply_to_from_notification(
         sample_email_template,
-        mocker):
-    mocker.patch('app.aws_ses_client.send_email', return_value='reference')
-
+        mock_email_client
+):
     db_notification = create_notification(template=sample_email_template, reply_to_text="test@test.com")
 
     send_to_providers.send_email_to_provider(
         db_notification,
     )
 
-    app.aws_ses_client.send_email.assert_called_once_with(
+    mock_email_client.send_email.assert_called_once_with(
         ANY,
         ANY,
         ANY,
@@ -727,16 +712,15 @@ def test_send_email_to_provider_uses_reply_to_from_notification(
 
 def test_send_email_to_provider_should_format_reply_to_email_address(
         sample_email_template,
-        mocker):
-    mocker.patch('app.aws_ses_client.send_email', return_value='reference')
-
+        mock_email_client
+):
     db_notification = create_notification(template=sample_email_template, reply_to_text="test@test.com\t")
 
     send_to_providers.send_email_to_provider(
         db_notification,
     )
 
-    app.aws_ses_client.send_email.assert_called_once_with(
+    mock_email_client.send_email.assert_called_once_with(
         ANY,
         ANY,
         ANY,
@@ -747,26 +731,23 @@ def test_send_email_to_provider_should_format_reply_to_email_address(
     )
 
 
-def test_send_sms_to_provider_should_format_phone_number(sample_notification, mocker):
+def test_send_sms_to_provider_should_format_phone_number(sample_notification, mock_sms_client):
     sample_notification.to = '+1 650 253 2222'
-    # TODO: instead of mocking SNS client, mock provider_to_use so it returns a mock provider
-    send_mock = mocker.patch('app.aws_sns_client.send_sms')
 
     send_to_providers.send_sms_to_provider(sample_notification)
 
     # TODO: don't test the actual return value of notification_utils.recipients.validate_and_format_phone_number
     # instead, mock that dependency and check that it's used properly
-    assert send_mock.call_args[1]['to'] == '+16502532222'
+    assert mock_sms_client.send_sms.call_args[1]['to'] == '+16502532222'
 
 
-def test_send_email_to_provider_should_format_email_address(sample_email_notification, mocker):
+def test_send_email_to_provider_should_format_email_address(sample_email_notification, mock_email_client):
     sample_email_notification.to = 'test@example.com\t'
-    send_mock = mocker.patch('app.aws_ses_client.send_email', return_value='reference')
 
     send_to_providers.send_email_to_provider(sample_email_notification)
 
     # to_addresses
-    send_mock.assert_called_once_with(
+    mock_email_client.send_email.assert_called_once_with(
         ANY,
         # to_addresses
         'test@example.com',
@@ -778,8 +759,11 @@ def test_send_email_to_provider_should_format_email_address(sample_email_notific
     )
 
 
-def test_notification_can_have_document_attachment_without_mlwr_sid(sample_email_template, mocker):
-    send_mock = mocker.patch('app.aws_ses_client.send_email', return_value='reference')
+def test_notification_can_have_document_attachment_without_mlwr_sid(
+        sample_email_template,
+        mocker,
+        mock_email_client
+):
     mlwr_mock = mocker.patch('app.delivery.send_to_providers.check_mlwr')
     personalisation = {
         "file": {"document": {"id": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
@@ -790,12 +774,15 @@ def test_notification_can_have_document_attachment_without_mlwr_sid(sample_email
         db_notification,
     )
 
-    send_mock.assert_called()
+    mock_email_client.send_email.assert_called()
     mlwr_mock.assert_not_called()
 
 
-def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(sample_email_template, mocker):
-    send_mock = mocker.patch('app.aws_ses_client.send_email', return_value='reference')
+def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(
+        sample_email_template,
+        mocker,
+        mock_email_client
+):
     mlwr_mock = mocker.patch('app.delivery.send_to_providers.check_mlwr')
     personalisation = {
         "file": {
@@ -808,7 +795,7 @@ def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(sample_e
         db_notification,
     )
 
-    send_mock.assert_called()
+    mock_email_client.send_email.assert_called()
     mlwr_mock.assert_not_called()
 
 
@@ -904,10 +891,8 @@ def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
 
 def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(
         sample_email_template_with_html,
-        mocker,
-        notify_api):
-    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
-
+        mock_email_client
+):
     db_notification = create_notification(
         template=sample_email_template_with_html,
         to_field="jo.smith@example.com",
@@ -916,13 +901,12 @@ def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(
 
     send_to_providers.send_email_to_provider(db_notification)
 
-    send_mock.assert_called()
+    mock_email_client.send_email.assert_called()
 
     assert Notification.query.get(db_notification.id).status == 'sending'
 
 
-def test_notification_passes_if_message_contains_phone_number(sample_email_template_with_html, mocker):
-    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
+def test_notification_passes_if_message_contains_phone_number(sample_email_template_with_html, mock_email_client):
 
     db_notification = create_notification(
         template=sample_email_template_with_html,
@@ -932,6 +916,6 @@ def test_notification_passes_if_message_contains_phone_number(sample_email_templ
 
     send_to_providers.send_email_to_provider(db_notification)
 
-    send_mock.assert_called()
+    mock_email_client.send_email.assert_called()
 
     assert Notification.query.get(db_notification.id).status == 'sending'

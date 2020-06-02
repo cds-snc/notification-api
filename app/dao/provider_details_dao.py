@@ -21,12 +21,15 @@ def get_provider_details_by_identifier(identifier):
     return ProviderDetails.query.filter_by(identifier=identifier).one()
 
 
+# TODO: refactor to have logic that does not contain hardcoded providers
 def get_alternative_sms_provider(identifier):
     alternate_provider = None
     if identifier == 'mmg':
         alternate_provider = 'sns'
     elif identifier == 'sns':
         alternate_provider = 'mmg'
+    elif identifier == 'twilio':
+        alternate_provider = 'sns'
 
     return ProviderDetails.query.filter_by(identifier=alternate_provider).one()
 

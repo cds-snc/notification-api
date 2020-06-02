@@ -140,6 +140,12 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize(argnames, argvalues, ids=ids)
 
 
+# this is necessary for using https://github.com/jeancochrane/pytest-flask-sqlalchemy
+@pytest.fixture(scope='session')
+def _db(notify_db):
+    return notify_db
+
+
 @contextmanager
 def set_config(app, name, value):
     old_val = app.config.get(name)
