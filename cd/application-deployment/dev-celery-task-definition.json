@@ -63,7 +63,7 @@
         },
         {
           "name": "API_HOST_NAME",
-          "value": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/api-host-name"
+          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/api-host-name"
         }
       ],
       "command": ["sh", "-c", "/app/scripts/run_celery.sh"]
