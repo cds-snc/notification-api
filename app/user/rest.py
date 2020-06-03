@@ -1,7 +1,6 @@
 import json
 import uuid
 from datetime import (datetime, timedelta)
-from urllib.parse import urlencode
 import base64
 import pickle
 import requests
@@ -302,10 +301,11 @@ def send_user_sms_code(user_to_send_to, data):
 def send_user_email_code(user_to_send_to, data):
     recipient = user_to_send_to.email_address
 
-    secret_code = str(uuid.uuid4())
+    secret_code = create_secret_code()
+
     personalisation = {
         'name': user_to_send_to.name,
-        'url': _create_2fa_url(user_to_send_to, secret_code, data.get('next'), data.get('email_auth_link_host'))
+        'url': secret_code
     }
 
     create_2fa_code(
@@ -726,6 +726,7 @@ def _create_confirmation_url(user, email_address):
     return url_with_token(data, url, current_app.config)
 
 
+"""
 def _create_2fa_url(user, secret_code, next_redir, email_auth_link_host):
     data = json.dumps({'user_id': str(user.id), 'secret_code': secret_code})
     url = '/email-auth/'
@@ -733,6 +734,7 @@ def _create_2fa_url(user, secret_code, next_redir, email_auth_link_host):
     if next_redir:
         ret += '?{}'.format(urlencode({'next': next_redir}))
     return ret
+"""
 
 
 def get_orgs_and_services(user):
