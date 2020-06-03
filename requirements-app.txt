@@ -48,7 +48,7 @@ git+https://github.com/cds-snc/notifier-utils.git@42.1.4#egg=notifications-utils
 
 # MLWR
 socketio-client==0.7.2
-requests
+requests==2.23.0
 requests[security]
 pycryptodome
 
