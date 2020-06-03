@@ -60,12 +60,34 @@ def setup_provider_details(db_session):
     })
     db_session.add(prioritised_sms_provider)
 
+    deprioritised_sms_provider = ProviderDetails(**{
+        'display_name': 'some deprioritised sms provider',
+        'identifier': 'some_deprioritised_sms_provider',
+        'priority': 50,
+        'notification_type': 'sms',
+        'active': True,
+        'supports_international': False,
+    })
+    db_session.add(deprioritised_sms_provider)
+
+    inactive_sms_provider = ProviderDetails(**{
+        'display_name': 'some deprioritised sms provider',
+        'identifier': 'some_deprioritised_sms_provider',
+        'priority': 20,
+        'notification_type': 'sms',
+        'active': False,
+        'supports_international': False,
+    })
+    db_session.add(inactive_sms_provider)
+
     db_session.commit()
 
     return [
         prioritised_email_provider,
         deprioritised_email_provider,
-        prioritised_sms_provider
+        prioritised_sms_provider,
+        deprioritised_sms_provider,
+        inactive_sms_provider
     ]
 
 
@@ -172,7 +194,7 @@ def test_can_get_sms_providers_in_order_of_priority(restore_provider_details):
 
 def test_can_get_email_providers_in_order_of_priority(setup_provider_details):
     providers = get_provider_details_by_notification_type('email')
-    [prioritised_email_provider, deprioritised_email_provider, _] = setup_provider_details
+    [prioritised_email_provider, deprioritised_email_provider, _, _, _] = setup_provider_details
     assert providers[0].identifier == prioritised_email_provider.identifier
     assert providers[1].identifier == deprioritised_email_provider.identifier
 
@@ -236,10 +258,17 @@ def test_get_current_sms_provider_returns_provider_highest_priority_active_provi
     assert provider.identifier == setup_sms_providers[1].identifier
 
 
-@pytest.mark.parametrize('provider_identifier', ['mmg', 'sns'])
-def test_get_alternative_sms_provider_returns_expected_provider(notify_db, provider_identifier):
-    provider = get_alternative_sms_provider(provider_identifier)
-    assert provider.identifier != provider
+def test_get_alternative_sms_provider_returns_next_highest_priority_active_sms_provider(setup_provider_details):
+    active_sms_providers = [
+        provider for provider in setup_provider_details
+        if provider.notification_type == 'sms' and provider.active
+    ]
+
+    for provider in active_sms_providers:
+        alternative_provider = get_alternative_sms_provider(provider.identifier)
+
+        assert alternative_provider.identifier != provider.identifier
+        assert alternative_provider.active
 
 
 def test_switch_sms_provider_to_current_provider_does_not_switch(
@@ -262,6 +291,19 @@ def test_switch_sms_provider_to_inactive_provider_does_not_switch(setup_sms_prov
 
     assert new_provider.id == current_provider.id
     assert new_provider.identifier == current_provider.identifier
+
+
+def test_toggle_sms_provider_should_not_switch_provider_if_no_alternate_provider(mocker):
+    mocker.patch(
+        'app.dao.provider_details_dao.get_alternative_sms_provider',
+        return_value=None
+    )
+    mock_dao_switch_sms_provider_to_provider_with_identifier = mocker.patch(
+        'app.dao.provider_details_dao.dao_switch_sms_provider_to_provider_with_identifier'
+    )
+    dao_toggle_sms_provider('some-identifier')
+
+    mock_dao_switch_sms_provider_to_provider_with_identifier.assert_not_called()
 
 
 def test_toggle_sms_provider_switches_provider(
@@ -397,7 +439,7 @@ def test_dao_get_provider_stats_returns_data_in_type_and_identifier_order(setup_
     result = dao_get_provider_stats()
     assert len(result) == len(all_provider_details)
 
-    [prioritised_email_provider, deprioritised_email_provider, prioritised_sms_provider] = setup_provider_details
+    [prioritised_email_provider, deprioritised_email_provider, prioritised_sms_provider, _, _] = setup_provider_details
 
     assert result[0].identifier == prioritised_email_provider.identifier
     assert result[0].display_name == prioritised_email_provider.display_name

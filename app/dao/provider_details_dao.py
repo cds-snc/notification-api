@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from flask import current_app
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import asc, desc, func
 
@@ -21,17 +22,15 @@ def get_provider_details_by_identifier(identifier):
     return ProviderDetails.query.filter_by(identifier=identifier).one()
 
 
-# TODO: refactor to have logic that does not contain hardcoded providers
 def get_alternative_sms_provider(identifier):
-    alternate_provider = None
-    if identifier == 'mmg':
-        alternate_provider = 'sns'
-    elif identifier == 'sns':
-        alternate_provider = 'mmg'
-    elif identifier == 'twilio':
-        alternate_provider = 'sns'
-
-    return ProviderDetails.query.filter_by(identifier=alternate_provider).one()
+    return ProviderDetails.query.filter_by(
+        notification_type=SMS_TYPE,
+        active=True
+    ).filter(
+        ProviderDetails.identifier != identifier
+    ).order_by(
+        asc(ProviderDetails.priority)
+    ).first()
 
 
 def get_current_provider(notification_type):
@@ -54,7 +53,12 @@ def dao_get_provider_versions(provider_id):
 @transactional
 def dao_toggle_sms_provider(identifier):
     alternate_provider = get_alternative_sms_provider(identifier)
-    dao_switch_sms_provider_to_provider_with_identifier(alternate_provider.identifier)
+    if alternate_provider:
+        dao_switch_sms_provider_to_provider_with_identifier(alternate_provider.identifier)
+    else:
+        current_app.logger.warning('Cancelling switch from {} as there is no alternative provider'.format(
+            identifier,
+        ))
 
 
 @transactional
