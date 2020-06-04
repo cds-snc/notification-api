@@ -16,7 +16,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('notification-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -28,7 +28,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.environment.get(\"NOTID\") || '',",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -114,10 +114,10 @@
 					}
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}/organisations",
+					"raw": "http://{{notification-api}}/organisations",
 					"protocol": "http",
 					"host": [
-						"{{NOTAPI}}"
+						"{{notification-api}}"
 					],
 					"path": [
 						"organisations"
@@ -137,7 +137,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('notification-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -149,7 +149,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.environment.get(\"NOTID\") || '',",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -226,10 +226,10 @@
 					"raw": ""
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}/organisations",
+					"raw": "http://{{notification-api}}/organisations",
 					"protocol": "http",
 					"host": [
-						"{{NOTAPI}}"
+						"{{notification-api}}"
 					],
 					"path": [
 						"organisations"
@@ -249,7 +249,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('notification-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -261,7 +261,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.environment.get(\"NOTID\") || '',",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -313,7 +313,7 @@
 							"    var jsonData = pm.response.json(); ",
 							"    pm.environment.set(\"user-id\", jsonData.id);",
 							"} else {",
-							"    var url = \"http://\" + pm.environment.get(\"NOTAPI\") + \"/user/email?email=saman.moshafi@thoughtworks.com\";",
+							"    var url = \"http://\" + pm.environment.get(\"notification-api\") + \"/user/email?email=saman.moshafi@thoughtworks.com\";",
 							"    pm.sendRequest({",
 							"        url: url,",
 							"        method: 'GET',",
@@ -361,10 +361,10 @@
 					}
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}/user",
+					"raw": "http://{{notification-api}}/user",
 					"protocol": "http",
 					"host": [
-						"{{NOTAPI}}"
+						"{{notification-api}}"
 					],
 					"path": [
 						"user"
@@ -384,7 +384,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('notification-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -396,7 +396,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.environment.get(\"NOTID\") || '',",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -487,10 +487,10 @@
 					}
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}/user",
+					"raw": "http://{{notification-api}}/user",
 					"protocol": "http",
 					"host": [
-						"{{NOTAPI}}"
+						"{{notification-api}}"
 					],
 					"path": [
 						"user"
@@ -510,7 +510,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('notification-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -522,7 +522,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.environment.get(\"NOTID\") || '',",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -574,7 +574,7 @@
 							"    var jsonData = pm.response.json(); ",
 							"    pm.environment.set(\"service-id\", jsonData.id);",
 							"} else {",
-							"    var url = \"http://\" + pm.environment.get(\"NOTAPI\") + \"/service/find-services-by-name?service_name=main service\";",
+							"    var url = \"http://\" + pm.environment.get(\"notification-api\") + \"/service/find-services-by-name?service_name=main service\";",
 							"    pm.sendRequest({",
 							"        url: url,",
 							"        method: 'GET',",
@@ -613,10 +613,10 @@
 					"raw": "{\n    \"name\": \"main service for Govdelivery\",\n    \"user_id\": \"{{user-id}}\",\n    \"organisation_id\": \"{{organization-id}}\",\n    \"message_limit\": 1000,\n    \"restricted\": false,\n    \"active\": true,\n    \"email_from\": \"{{email_from}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}/service",
+					"raw": "http://{{notification-api}}/service",
 					"protocol": "http",
 					"host": [
-						"{{NOTAPI}}"
+						"{{notification-api}}"
 					],
 					"path": [
 						"service"
@@ -636,7 +636,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('notification-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -648,7 +648,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.environment.get(\"NOTID\") || '',",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -719,10 +719,10 @@
 					"raw": ""
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}/service",
+					"raw": "http://{{notification-api}}/service",
 					"protocol": "http",
 					"host": [
-						"{{NOTAPI}}"
+						"{{notification-api}}"
 					],
 					"path": [
 						"service"
@@ -742,7 +742,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('notification-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -754,7 +754,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.environment.get(\"NOTID\") || '',",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -835,10 +835,10 @@
 					"raw": "{\n    \"name\": \"test template\",\n    \"subject\": \"test subject\",\n    \"template_type\": \"sms\",\n    \"content\": \"This is a test SMS message\",\n    \"service\": \"{{service-id}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}/service/{{service-id}}/template",
+					"raw": "http://{{notification-api}}/service/{{service-id}}/template",
 					"protocol": "http",
 					"host": [
-						"{{NOTAPI}}"
+						"{{notification-api}}"
 					],
 					"path": [
 						"service",
@@ -860,7 +860,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('notification-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -872,7 +872,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.environment.get(\"NOTID\") || '',",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -953,10 +953,10 @@
 					"raw": "{\n    \"name\": \"test template\",\n    \"subject\": \"test subject\",\n    \"template_type\": \"email\",\n    \"content\": \"This is a test email message\",\n    \"service\": \"{{service-id}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}/service/{{service-id}}/template",
+					"raw": "http://{{notification-api}}/service/{{service-id}}/template",
 					"protocol": "http",
 					"host": [
-						"{{NOTAPI}}"
+						"{{notification-api}}"
 					],
 					"path": [
 						"service",
@@ -978,7 +978,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('notification-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -990,7 +990,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.environment.get(\"NOTID\") || '',",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -1074,10 +1074,10 @@
 					"raw": ""
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}/service/{{service-id}}/template",
+					"raw": "http://{{notification-api}}/service/{{service-id}}/template",
 					"protocol": "http",
 					"host": [
-						"{{NOTAPI}}"
+						"{{notification-api}}"
 					],
 					"path": [
 						"service",
@@ -1099,7 +1099,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('notification-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -1111,7 +1111,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.environment.get(\"NOTID\") || '',",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -1193,10 +1193,10 @@
 					"raw": "{\n    \"created_by\": \"{{user-id}}\",\n    \"key_type\": \"normal\",\n    \"name\": \"postmantestapikey\"\n}"
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}/service/{{service-id}}/api-key",
+					"raw": "http://{{notification-api}}/service/{{service-id}}/api-key",
 					"protocol": "http",
 					"host": [
-						"{{NOTAPI}}"
+						"{{notification-api}}"
 					],
 					"path": [
 						"service",
@@ -1218,7 +1218,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('notification-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -1230,7 +1230,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.environment.get(\"NOTID\") || '',",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -1298,10 +1298,10 @@
 					"raw": ""
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}/service/{{service-id}}/api-key/revoke/{{api-key-id}}",
+					"raw": "http://{{notification-api}}/service/{{service-id}}/api-key/revoke/{{api-key-id}}",
 					"protocol": "http",
 					"host": [
-						"{{NOTAPI}}"
+						"{{notification-api}}"
 					],
 					"path": [
 						"service",
@@ -1325,7 +1325,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('NOTSECRET') || ''",
+							"var jwtSecret = pm.environment.get('notification-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -1337,7 +1337,7 @@
 							"var currentTimestamp = Math.floor(Date.now() / 1000)",
 							"",
 							"var data = {",
-							"\t'iss': pm.environment.get(\"NOTID\") || '',",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
 							"\t'iat': currentTimestamp,",
 							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
 							"\t'jti': 'jwt_nonce'",
@@ -1416,10 +1416,10 @@
 					"raw": ""
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}/service/{{service-id}}/api-keys",
+					"raw": "http://{{notification-api}}/service/{{service-id}}/api-keys",
 					"protocol": "http",
 					"host": [
-						"{{NOTAPI}}"
+						"{{notification-api}}"
 					],
 					"path": [
 						"service",
@@ -1518,10 +1518,10 @@
 					"raw": "{\n    \"template\": \"{{template-id}}\",\n    \"to\": \"+17035017710\"\n}"
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}/notifications/sms",
+					"raw": "http://{{notification-api}}/notifications/sms",
 					"protocol": "http",
 					"host": [
-						"{{NOTAPI}}"
+						"{{notification-api}}"
 					],
 					"path": [
 						"notifications",
@@ -1618,10 +1618,10 @@
 					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"phone_number\": \"+17035017710\"\n}"
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}/v2/notifications/sms",
+					"raw": "http://{{notification-api}}/v2/notifications/sms",
 					"protocol": "http",
 					"host": [
-						"{{NOTAPI}}"
+						"{{notification-api}}"
 					],
 					"path": [
 						"v2",
@@ -1719,10 +1719,10 @@
 					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"email_address\": \"<insert email here>\"\n}"
 				},
 				"url": {
-					"raw": "http://{{NOTAPI}}/v2/notifications/email",
+					"raw": "http://{{notification-api}}/v2/notifications/email",
 					"protocol": "http",
 					"host": [
-						"{{NOTAPI}}"
+						"{{notification-api}}"
 					],
 					"path": [
 						"v2",
