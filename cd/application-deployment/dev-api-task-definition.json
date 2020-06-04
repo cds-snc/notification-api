@@ -64,6 +64,10 @@
         {
           "name": "AWS_SECRET_ACCESS_KEY",
           "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/aws-secret-access-key"
+        },
+        {
+          "name": "ADMIN_CLIENT_SECRET",
+          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/admin-client-secret"
         }
       ]
     }
