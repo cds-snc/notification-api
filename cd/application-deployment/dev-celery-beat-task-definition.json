@@ -60,6 +60,14 @@
         {
           "name": "AWS_SECRET_ACCESS_KEY",
           "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/aws-secret-access-key"
+        },
+        {
+          "name": "SECRET_KEY",
+          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/secret-key"
+        },
+        {
+          "name": "DANGEROUS_SALT",
+          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/dangerous-salt"
         }
       ],
       "command": ["sh", "-c", "/app/scripts/run_celery_beat.sh"]
