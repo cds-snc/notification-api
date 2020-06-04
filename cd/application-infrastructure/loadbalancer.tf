@@ -19,7 +19,7 @@ resource "aws_alb_listener" "notification_api" {
 resource "aws_ssm_parameter" "api_host_name" {
   name        = "/dev/notification-api/api-host-name"
   description = "The notification api URL"
-  type        = "SecureString"
+  type        = "String"
   value       = format("http://%s", aws_alb.notification_api.dns_name)
   tags        = var.default_tags
 }
