@@ -1,7 +1,8 @@
 {
 	"info": {
-		"_postman_id": "25e6a128-1bec-4cce-89c2-eed2e1f121bd",
 		"name": "notification-api",
+		"_postman_id": "2ba18460-ead4-7643-c129-e55101b2887c",
+		"description": "",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -106,12 +107,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"name\": \"test organization 2\",\n    \"active\": true,\n    \"organisation_type\": \"other\",\n    \"crown\": false\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
+					"raw": "{\n    \"name\": \"test organization 2\",\n    \"active\": true,\n    \"organisation_type\": \"other\",\n    \"crown\": false\n}"
 				},
 				"url": {
 					"raw": "http://{{notification-api}}/organisations",
@@ -206,9 +202,6 @@
 					}
 				}
 			],
-			"protocolProfileBehavior": {
-				"disableBodyPruning": true
-			},
 			"request": {
 				"auth": {
 					"type": "noauth"
@@ -353,12 +346,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"name\": \"Test User\",\n    \"password\": \"JDJiJDEwJDRFSXJaTVhXdzQ2UjRlVlJBU0ZMdXVtWXlXbXlRWXl3YlpnVllSbDNsMTZ4bE40NzdZYnE2\",\n    \"email_address\": \"saman.moshafi@thoughtworks.com\",\n    \"mobile_number\": \"+17035017710\",\n    \"state\": \"active\",\n    \"user_permissions\": [\n        \"manage_templates\",\n        \"send_texts\",\n        \"manage_settings\",\n        \"send_emails\",\n        \"manage_api_keys\"\n    ],\n    \"auth_type\": \"sms_auth\"\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
+					"raw": "{\n    \"name\": \"Test User\",\n    \"password\": \"JDJiJDEwJDRFSXJaTVhXdzQ2UjRlVlJBU0ZMdXVtWXlXbXlRWXl3YlpnVllSbDNsMTZ4bE40NzdZYnE2\",\n    \"email_address\": \"saman.moshafi@thoughtworks.com\",\n    \"mobile_number\": \"+17035017710\",\n    \"state\": \"active\",\n    \"user_permissions\": [\n        \"manage_templates\",\n        \"send_texts\",\n        \"manage_settings\",\n        \"send_emails\",\n        \"manage_api_keys\"\n    ],\n    \"auth_type\": \"sms_auth\"\n}"
 				},
 				"url": {
 					"raw": "http://{{notification-api}}/user",
@@ -450,9 +438,6 @@
 					}
 				}
 			],
-			"protocolProfileBehavior": {
-				"disableBodyPruning": true
-			},
 			"request": {
 				"auth": {
 					"type": "bearer",
@@ -479,12 +464,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
+					"raw": ""
 				},
 				"url": {
 					"raw": "http://{{notification-api}}/user",
@@ -692,9 +672,6 @@
 					}
 				}
 			],
-			"protocolProfileBehavior": {
-				"disableBodyPruning": true
-			},
 			"request": {
 				"auth": {
 					"type": "bearer",
@@ -1047,9 +1024,6 @@
 					}
 				}
 			],
-			"protocolProfileBehavior": {
-				"disableBodyPruning": true
-			},
 			"request": {
 				"auth": {
 					"type": "bearer",
@@ -1395,9 +1369,6 @@
 					}
 				}
 			],
-			"protocolProfileBehavior": {
-				"disableBodyPruning": true
-			},
 			"request": {
 				"auth": {
 					"type": "bearer",
@@ -1640,6 +1611,7 @@
 					"listen": "prerequest",
 					"script": {
 						"id": "e7704681-cd8a-479a-8050-9b0cdae98237",
+						"type": "text/javascript",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -1692,8 +1664,21 @@
 							"var signedToken = `${token}.${signature}`",
 							"",
 							"pm.environment.set('jwt_signed', signedToken)"
-						],
-						"type": "text/javascript"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"id": "051cfeb3-233d-4b4c-b10c-8c8a05341973",
+						"type": "text/javascript",
+						"exec": [
+							"if (pm.response.code == 201) {",
+							"    var jsonData = pm.response.json(); ",
+							"    pm.environment.set(\"notification-id\", jsonData.id);",
+							"}",
+							""
+						]
 					}
 				}
 			],
@@ -1705,18 +1690,16 @@
 				"header": [
 					{
 						"key": "Content-Type",
-						"type": "text",
 						"value": "application/json"
 					},
 					{
 						"key": "Authorization",
-						"value": "Bearer {{jwt_signed}}",
-						"type": "text"
+						"value": "Bearer {{jwt_signed}}"
 					}
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"email_address\": \"<insert email here>\"\n}"
+					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"email_address\": \"marisa.hoenig@thoughtworks.com\"\n}"
 				},
 				"url": {
 					"raw": "http://{{notification-api}}/v2/notifications/email",
@@ -1733,7 +1716,99 @@
 				"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-secret to generate the JWT bearer token"
 			},
 			"response": []
+		},
+		{
+			"name": "notification status",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"id": "522aa34e-b82c-4a26-9e89-861d9a35741c",
+						"type": "text/javascript",
+						"exec": [
+							"// JWT generation script adapted from",
+							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"",
+							"var jwtSecret = pm.environment.get(\"service-api-secret\");",
+							"",
+							"// Set headers for JWT",
+							"var header = {",
+							"\t'typ': 'JWT',",
+							"\t'alg': 'HS256'",
+							"};",
+							"",
+							"// Prepare timestamp in seconds",
+							"var currentTimestamp = Math.floor(Date.now() / 1000)",
+							"",
+							"var data = {",
+							"\t'iss': pm.environment.get(\"service-id\"),",
+							"\t'iat': currentTimestamp",
+							"}",
+							"",
+							"",
+							"function base64url(source) {",
+							"    // Encode in classical base64",
+							"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+							"    ",
+							"    // Remove padding equal characters",
+							"    encodedSource = encodedSource.replace(/=+$/, '')",
+							"    ",
+							"    // Replace characters according to base64url specifications",
+							"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+							"    encodedSource = encodedSource.replace(/\\//g, '_')",
+							"    ",
+							"    return encodedSource",
+							"}",
+							"",
+							"// encode header",
+							"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+							"var encodedHeader = base64url(stringifiedHeader)",
+							"",
+							"// encode data",
+							"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+							"var encodedData = base64url(stringifiedData)",
+							"",
+							"// build token",
+							"var token = `${encodedHeader}.${encodedData}`",
+							"",
+							"// sign token",
+							"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+							"signature = base64url(signature)",
+							"var signedToken = `${token}.${signature}`",
+							"",
+							"pm.environment.set('jwt_signed', signedToken)"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_signed}}"
+					}
+				],
+				"body": {},
+				"url": {
+					"raw": "http://{{notification-api}}/v2/notifications/{{notification-id}}",
+					"protocol": "http",
+					"host": [
+						"{{notification-api}}"
+					],
+					"path": [
+						"v2",
+						"notifications",
+						"{{notification-id}}"
+					]
+				},
+				"description": ""
+			},
+			"response": []
 		}
-	],
-	"protocolProfileBehavior": {}
+	]
 }
