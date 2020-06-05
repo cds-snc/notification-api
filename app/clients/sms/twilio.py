@@ -2,14 +2,17 @@ from monotonic import monotonic
 from app.clients.sms import SmsClient
 from twilio.rest import Client
 
+from app.models import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_DELIVERED, \
+    NOTIFICATION_SENT, NOTIFICATION_SENDING, NOTIFICATION_CREATED
+
 twilio_response_map = {
-    'accepted': 'created',
-    'queued': 'sending',
-    'sending': 'sending',
-    'sent': 'sent',
-    'delivered': 'delivered',
-    'undelivered': 'permanent-failure',
-    'failed': 'technical-failure',
+    'accepted': NOTIFICATION_CREATED,
+    'queued': NOTIFICATION_SENDING,
+    'sending': NOTIFICATION_SENDING,
+    'sent': NOTIFICATION_SENT,
+    'delivered': NOTIFICATION_DELIVERED,
+    'undelivered': NOTIFICATION_PERMANENT_FAILURE,
+    'failed': NOTIFICATION_TECHNICAL_FAILURE,
     'received': 'received'
 }
 

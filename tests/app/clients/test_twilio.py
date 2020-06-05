@@ -6,6 +6,9 @@ from app import twilio_sms_client
 from app.clients.sms.twilio import get_twilio_responses
 from twilio.base.exceptions import TwilioRestException
 
+from app.models import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_DELIVERED, \
+    NOTIFICATION_SENT, NOTIFICATION_SENDING
+
 
 def make_twilio_message_response_dict():
     return {
@@ -37,23 +40,23 @@ def make_twilio_message_response_dict():
 
 @pytest.mark.parametrize('status', ['queued', 'sending'])
 def test_should_return_correct_details_for_sending(status):
-    assert get_twilio_responses(status) == 'sending'
+    assert get_twilio_responses(status) == NOTIFICATION_SENDING
 
 
 def test_should_return_correct_details_for_sent():
-    assert get_twilio_responses('sent') == 'sent'
+    assert get_twilio_responses('sent') == NOTIFICATION_SENT
 
 
 def test_should_return_correct_details_for_delivery():
-    assert get_twilio_responses('delivered') == 'delivered'
+    assert get_twilio_responses('delivered') == NOTIFICATION_DELIVERED
 
 
 def test_should_return_correct_details_for_bounce():
-    assert get_twilio_responses('undelivered') == 'permanent-failure'
+    assert get_twilio_responses('undelivered') == NOTIFICATION_PERMANENT_FAILURE
 
 
 def test_should_return_correct_details_for_technical_failure():
-    assert get_twilio_responses('failed') == 'technical-failure'
+    assert get_twilio_responses('failed') == NOTIFICATION_TECHNICAL_FAILURE
 
 
 def test_should_be_raise_if_unrecognised_status_code():
