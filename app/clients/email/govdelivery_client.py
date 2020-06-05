@@ -7,7 +7,7 @@ from requests import HTTPError
 
 from app.clients.email import EmailClient, EmailClientException
 
-govdelivery_response_map = {
+govdelivery_status_map = {
     'sending': 'sending',
     'sent': 'sent',
     'blacklisted': 'permanent-failure',
@@ -17,8 +17,8 @@ govdelivery_response_map = {
 }
 
 
-def get_govdelivery_response(status):
-    return govdelivery_response_map[status]
+def map_govdelivery_status_to_notify_status(govdelivery_status):
+    return govdelivery_status_map[govdelivery_status]
 
 
 class GovdeliveryClientException(EmailClientException):

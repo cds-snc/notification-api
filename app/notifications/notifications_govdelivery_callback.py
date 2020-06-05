@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify
 from flask import json
 from flask import request
 
+from app.clients.email.govdelivery_client import map_govdelivery_status_to_notify_status
 from app.dao import notifications_dao
 from app.errors import register_errors
 
@@ -16,5 +17,7 @@ def process_govdelivery_response():
     reference = data['message_url'].split("/")[-1]
 
     notifications_dao.dao_get_notification_by_reference(reference)
+
+    map_govdelivery_status_to_notify_status(data['status'])
 
     return jsonify(result='success'), 200
