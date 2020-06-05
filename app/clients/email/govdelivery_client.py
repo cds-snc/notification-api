@@ -7,6 +7,19 @@ from requests import HTTPError
 
 from app.clients.email import EmailClient, EmailClientException
 
+govdelivery_response_map = {
+    'sending': 'sending',
+    'sent': 'sent',
+    'blacklisted': 'permanent-failure',
+    'canceled': 'cancelled',
+    'failed': 'failed',
+    'inconclusive': 'pending',
+}
+
+
+def get_govdelivery_response(status):
+    return govdelivery_response_map[status]
+
 
 class GovdeliveryClientException(EmailClientException):
     pass
