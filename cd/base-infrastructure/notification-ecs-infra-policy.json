@@ -119,6 +119,7 @@
         "logs:CreateLogGroup",
         "logs:DeleteLogGroup",
         "logs:DescribeLogGroups",
+        "logs:PutRetentionPolicy",
         "rds:AddRoleToDBCluster",
         "rds:AddRoleToDBInstance",
         "rds:AuthorizeDBSecurityGroupIngress",
