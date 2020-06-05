@@ -146,6 +146,7 @@ def register_blueprint(application):
     from app.notifications.notifications_sms_callback import sms_callback_blueprint
     from app.notifications.notifications_letter_callback import letter_callback_blueprint
     from app.notifications.notifications_email_callback import email_callback_blueprint
+    from app.notifications.notifications_govdelivery_callback import govdelivery_callback_blueprint
     from app.authentication.auth import requires_admin_auth, requires_auth, requires_no_auth
     from app.letters.rest import letter_job
     from app.billing.rest import billing_blueprint
@@ -181,6 +182,9 @@ def register_blueprint(application):
 
     email_callback_blueprint.before_request(requires_no_auth)
     application.register_blueprint(email_callback_blueprint)
+
+    govdelivery_callback_blueprint.before_request(requires_no_auth)
+    application.register_blueprint(govdelivery_callback_blueprint)
 
     # inbound sms
     receive_notifications_blueprint.before_request(requires_no_auth)
