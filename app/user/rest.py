@@ -726,17 +726,6 @@ def _create_confirmation_url(user, email_address):
     return url_with_token(data, url, current_app.config)
 
 
-"""
-def _create_2fa_url(user, secret_code, next_redir, email_auth_link_host):
-    data = json.dumps({'user_id': str(user.id), 'secret_code': secret_code})
-    url = '/email-auth/'
-    ret = url_with_token(data, url, current_app.config, base_url=email_auth_link_host)
-    if next_redir:
-        ret += '?{}'.format(urlencode({'next': next_redir}))
-    return ret
-"""
-
-
 def get_orgs_and_services(user):
     return {
         'organisations': [
