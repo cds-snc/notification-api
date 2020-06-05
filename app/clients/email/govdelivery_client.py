@@ -78,5 +78,4 @@ class GovdeliveryClient(EmailClient):
             current_app.logger.info("Govdelivery request finished in {}".format(elapsed_time))
             self.statsd_client.timing("clients.govdelivery.request-time", elapsed_time)
             self.statsd_client.incr("clients.govdelivery.success")
-            current_app.logger.info(response.json())
             return response.json()["id"]
