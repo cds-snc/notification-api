@@ -393,18 +393,13 @@ def test_reset_failed_login_count_returns_404_when_user_does_not_exist(client):
     assert resp.status_code == 404
 
 
-@pytest.mark.parametrize('data, expected_auth_url', (
+@pytest.mark.parametrize('data', (
+    ({}),
     (
-        {},
-        'http://localhost:6012/email-auth/%2E',
+        {'to': None}
     ),
     (
-        {'to': None},
-        'http://localhost:6012/email-auth/%2E',
-    ),
-    (
-        {'to': None, 'email_auth_link_host': 'https://example.com'},
-        'https://example.com/email-auth/%2E',
+        {'to': None, 'email_auth_link_host': 'https://example.com'}
     ),
 ))
 def test_send_user_email_code(
@@ -413,9 +408,9 @@ def test_send_user_email_code(
     sample_user,
     email_2fa_code_template,
     data,
-    expected_auth_url,
 ):
     deliver_email = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
+    mocked = mocker.patch('app.user.rest.create_secret_code', return_value='11111')
 
     admin_request.post(
         'user.send_user_2fa_code',
@@ -428,8 +423,9 @@ def test_send_user_email_code(
     assert noti.reply_to_text == email_2fa_code_template.service.get_default_reply_to_email_address()
     assert noti.to == sample_user.email_address
     assert str(noti.template_id) == current_app.config['EMAIL_2FA_TEMPLATE_ID']
+    assert mocked.call_count == 1
     assert noti.personalisation['name'] == 'Test User'
-    assert noti.personalisation['url'].startswith(expected_auth_url)
+    assert noti.personalisation['url'] == '11111'
     deliver_email.assert_called_once_with(
         [str(noti.id)],
         queue='notify-internal-tasks'
@@ -438,6 +434,7 @@ def test_send_user_email_code(
 
 def test_send_user_email_code_with_urlencoded_next_param(admin_request, mocker, sample_user, email_2fa_code_template):
     mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
+    mocked = mocker.patch('app.user.rest.create_secret_code', return_value='11111')
 
     data = {
         'to': None,
@@ -451,7 +448,8 @@ def test_send_user_email_code_with_urlencoded_next_param(admin_request, mocker, 
         _expected_status=204
     )
     noti = Notification.query.one()
-    assert noti.personalisation['url'].endswith('?next=%2Fservices')
+    assert mocked.call_count == 1
+    assert noti.personalisation['url'] == '11111'
 
 
 def test_send_email_code_returns_404_for_bad_input_data(admin_request):
