@@ -2,16 +2,14 @@ import pytest
 
 from app import send_grid_client
 from app.clients.email.sendgrid_client import get_sendgrid_responses, SendGridClientException
-from app.models import NOTIFICATION_CREATED, NOTIFICATION_SENT, NOTIFICATION_PERMANENT_FAILURE, \
-    NOTIFICATION_TECHNICAL_FAILURE
 
 
 def test_should_return_correct_response_details():
-    assert get_sendgrid_responses('processed') == NOTIFICATION_CREATED
+    assert get_sendgrid_responses('processed') == "created"
     assert get_sendgrid_responses('deferred') == "deferred"
-    assert get_sendgrid_responses('delivered') == NOTIFICATION_SENT
-    assert get_sendgrid_responses('bounce') == NOTIFICATION_PERMANENT_FAILURE
-    assert get_sendgrid_responses('dropped') == NOTIFICATION_TECHNICAL_FAILURE
+    assert get_sendgrid_responses('delivered') == "sent"
+    assert get_sendgrid_responses('bounce') == "permanent-failure"
+    assert get_sendgrid_responses('dropped') == "technical-failure"
 
 
 @pytest.mark.parametrize('reply_to_address, expected_value', [

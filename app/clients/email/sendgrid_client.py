@@ -3,15 +3,13 @@ from time import monotonic
 from sendgrid import SendGridAPIClient
 
 from app.clients.email import (EmailClientException, EmailClient)
-from app.models import NOTIFICATION_CREATED, NOTIFICATION_SENT, NOTIFICATION_PERMANENT_FAILURE, \
-    NOTIFICATION_TECHNICAL_FAILURE
 
 sendgrid_response_map = {
-    'processed': NOTIFICATION_CREATED,
+    'processed': 'created',
     'deferred': 'deferred',
-    'delivered': NOTIFICATION_SENT,
-    'bounce': NOTIFICATION_PERMANENT_FAILURE,
-    'dropped': NOTIFICATION_TECHNICAL_FAILURE,
+    'delivered': 'sent',
+    'bounce': 'permanent-failure',
+    'dropped': 'technical-failure',
 }
 
 
