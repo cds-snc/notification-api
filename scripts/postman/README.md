@@ -15,7 +15,7 @@ Run the following command to get the value:
 aws ssm get-parameter --name /dev/notification-api/api-host-name | jq '.Parameter.Value' -r
 ```
 - notification-secret
--- the secret key that is used to generate JWT.  You can see its value at `arn:aws:ssm:<aws region>:<aws id>:parameter/dev/notification-api/secret-key`.
+-- the secret key that is used to generate JWT.  You can see its value at `arn:aws:ssm:<aws region>:<aws id>:parameter/dev/notification-api/admin-client-secret`.
 Run the following command to get the value:
 ```
  aws ssm get-parameter --name /dev/notification-api/admin-client-secret --with-decryption | jq '.Parameter.Value' -r
