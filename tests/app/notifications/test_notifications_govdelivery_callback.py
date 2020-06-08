@@ -24,6 +24,17 @@ def mock_update_notification_status(mocker):
     )
 
 
+def get_govdelivery_response(reference, status):
+    return json.dumps({
+        "sid": "some_sid",
+        "message_url": "https://tms.govdelivery.com/messages/sms/{0}".format(reference),
+        "recipient_url": "https://tms.govdelivery.com/messages/sms/{0}/recipients/373810".format(reference),
+        "status": status,
+        "message_type": "sms",
+        "completed_at": "2015-08-05 18:47:18 UTC"
+    })
+
+
 def test_gets_reference_from_payload(
         client,
         mock_dao_get_notification_by_reference,
@@ -31,14 +42,7 @@ def test_gets_reference_from_payload(
         mock_update_notification_status
 ):
     reference = "123456"
-    data = json.dumps({
-        "sid": "e6c48d6d2e4ad639ac4ef6cadd386ed7",
-        "message_url": "https://tms.govdelivery.com/messages/sms/{0}".format(reference),
-        "recipient_url": "https://tms.govdelivery.com/messages/sms/{0}/recipients/373810".format(reference),
-        "status": "sent",
-        "message_type": "sms",
-        "completed_at": "2015-08-05 18:47:18 UTC"
-    })
+    data = get_govdelivery_response(reference, "sent")
 
     client.post(
         path='/notifications/govdelivery',
@@ -56,14 +60,7 @@ def test_maps_govdelivery_status_to_notify_status(
         mock_update_notification_status
 ):
     govdelivery_status = "sent"
-    data = json.dumps({
-        "sid": "e6c48d6d2e4ad639ac4ef6cadd386ed7",
-        "message_url": "https://tms.govdelivery.com/messages/sms/123456",
-        "recipient_url": "https://tms.govdelivery.com/messages/sms/123456/recipients/373810",
-        "status": govdelivery_status,
-        "message_type": "sms",
-        "completed_at": "2015-08-05 18:47:18 UTC"
-    })
+    data = get_govdelivery_response("123456", govdelivery_status)
 
     client.post(
         path='/notifications/govdelivery',
@@ -84,14 +81,7 @@ def test_should_update_notification_status(
     notify_status = "sent"
     notification = mocker.Mock(Notification)
 
-    data = json.dumps({
-        "sid": "e6c48d6d2e4ad639ac4ef6cadd386ed7",
-        "message_url": "https://tms.govdelivery.com/messages/sms/123456",
-        "recipient_url": "https://tms.govdelivery.com/messages/sms/123456/recipients/373810",
-        "status": "sent",
-        "message_type": "sms",
-        "completed_at": "2015-08-05 18:47:18 UTC"
-    })
+    data = get_govdelivery_response("123456", "sent")
 
     mock_dao_get_notification_by_reference.return_value = notification
     mock_map_govdelivery_status_to_notify_status.return_value = notify_status
