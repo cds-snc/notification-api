@@ -1,5 +1,6 @@
 import pytest
 from flask import json
+from app.models import Notification
 
 
 @pytest.fixture
@@ -23,7 +24,12 @@ def mock_update_notification_status(mocker):
     )
 
 
-def test_gets_reference_from_payload(client, mock_dao_get_notification_by_reference):
+def test_gets_reference_from_payload(
+        client,
+        mock_dao_get_notification_by_reference,
+        mock_map_govdelivery_status_to_notify_status,
+        mock_update_notification_status
+):
     reference = "123456"
     data = json.dumps({
         "sid": "e6c48d6d2e4ad639ac4ef6cadd386ed7",
@@ -46,7 +52,8 @@ def test_gets_reference_from_payload(client, mock_dao_get_notification_by_refere
 def test_maps_govdelivery_status_to_notify_status(
         client,
         mock_dao_get_notification_by_reference,
-        mock_map_govdelivery_status_to_notify_status
+        mock_map_govdelivery_status_to_notify_status,
+        mock_update_notification_status
 ):
     govdelivery_status = "sent"
     data = json.dumps({
@@ -69,10 +76,14 @@ def test_maps_govdelivery_status_to_notify_status(
 
 def test_should_update_notification_status(
         client,
+        mocker,
         mock_dao_get_notification_by_reference,
         mock_map_govdelivery_status_to_notify_status,
         mock_update_notification_status
 ):
+    notify_status = "sent"
+    notification = mocker.Mock(Notification)
+
     data = json.dumps({
         "sid": "e6c48d6d2e4ad639ac4ef6cadd386ed7",
         "message_url": "https://tms.govdelivery.com/messages/sms/123456",
@@ -82,10 +93,13 @@ def test_should_update_notification_status(
         "completed_at": "2015-08-05 18:47:18 UTC"
     })
 
+    mock_dao_get_notification_by_reference.return_value = notification
+    mock_map_govdelivery_status_to_notify_status.return_value = notify_status
+
     client.post(
         path='/notifications/govdelivery',
         data=data,
         headers=[('Content-Type', 'application/json')]
     )
 
-    mock_update_notification_status.assert_called()
+    mock_update_notification_status.assert_called_with(notification, notify_status)
