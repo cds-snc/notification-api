@@ -16,8 +16,10 @@ def process_govdelivery_response():
 
     reference = data['message_url'].split("/")[-1]
 
-    notifications_dao.dao_get_notification_by_reference(reference)
+    notification = notifications_dao.dao_get_notification_by_reference(reference)
 
-    map_govdelivery_status_to_notify_status(data['status'])
+    notify_status = map_govdelivery_status_to_notify_status(data['status'])
+
+    notifications_dao._update_notification_status(notification, notify_status)
 
     return jsonify(result='success'), 200
