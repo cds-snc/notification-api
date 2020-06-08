@@ -93,3 +93,20 @@ def test_should_update_notification_status(
     )
 
     mock_update_notification_status.assert_called_with(notification, notify_status)
+
+
+def test_govdelivery_callback_returns_200(
+        client,
+        mock_dao_get_notification_by_reference,
+        mock_map_govdelivery_status_to_notify_status,
+        mock_update_notification_status
+):
+    data = get_govdelivery_response("123456", "sent")
+
+    response = client.post(
+        path='/notifications/govdelivery',
+        data=data,
+        headers=[('Content-Type', 'application/json')]
+    )
+
+    assert response.status_code == 200
