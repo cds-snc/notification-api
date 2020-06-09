@@ -1,6 +1,9 @@
+from datetime import datetime
+
 from flask import Blueprint, current_app, json, jsonify, request
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
+from app import statsd_client
 from app.clients.email.govdelivery_client import map_govdelivery_status_to_notify_status
 from app.dao import notifications_dao
 from app.errors import register_errors
@@ -27,6 +30,12 @@ def process_govdelivery_response():
         )
 
         notifications_dao._update_notification_status(notification, notify_status)
+
+        statsd_client.incr('callback.govdelivery.{}'.format(notify_status))
+
+        if notification.sent_at:
+            statsd_client.timing_with_dates(
+                'callback.govdelivery.elapsed-time', datetime.utcnow(), notification.sent_at)
 
     except MultipleResultsFound:
         pass
