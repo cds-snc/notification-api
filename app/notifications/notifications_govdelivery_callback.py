@@ -1,6 +1,4 @@
-from flask import Blueprint, jsonify
-from flask import json
-from flask import request
+from flask import Blueprint, current_app, json, jsonify, request
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 from app.clients.email.govdelivery_client import map_govdelivery_status_to_notify_status
@@ -20,7 +18,13 @@ def process_govdelivery_response():
 
         notification = notifications_dao.dao_get_notification_by_reference(reference)
 
-        notify_status = map_govdelivery_status_to_notify_status(data['status'])
+        govdelivery_status = data['status']
+        notify_status = map_govdelivery_status_to_notify_status(govdelivery_status)
+
+        current_app.logger.info(
+            'Govdelivery callback for notification {} has status "{}", which maps to notification-api status "{}"'
+            .format(notification.id, govdelivery_status, notify_status)
+        )
 
         notifications_dao._update_notification_status(notification, notify_status)
 
