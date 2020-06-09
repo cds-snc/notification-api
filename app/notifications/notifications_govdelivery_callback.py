@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, current_app, json, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 from app import statsd_client
@@ -15,7 +15,7 @@ register_errors(govdelivery_callback_blueprint)
 @govdelivery_callback_blueprint.route('', methods=['POST'])
 def process_govdelivery_response():
     try:
-        data = json.loads(request.data)
+        data = request.form
 
         reference = data['message_url'].split("/")[-1]
 

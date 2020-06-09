@@ -1,5 +1,4 @@
 import pytest
-from flask import json
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 from app.models import Notification
@@ -27,14 +26,14 @@ def mock_update_notification_status(mocker):
 
 
 def get_govdelivery_response(reference, status):
-    return json.dumps({
+    return {
         "sid": "some_sid",
         "message_url": "https://tms.govdelivery.com/messages/sms/{0}".format(reference),
         "recipient_url": "https://tms.govdelivery.com/messages/sms/{0}/recipients/373810".format(reference),
         "status": status,
         "message_type": "sms",
         "completed_at": "2015-08-05 18:47:18 UTC"
-    })
+    }
 
 
 def test_gets_reference_from_payload(
@@ -49,7 +48,7 @@ def test_gets_reference_from_payload(
     client.post(
         path='/notifications/govdelivery',
         data=data,
-        headers=[('Content-Type', 'application/json')]
+        headers=[('Content-Type', 'application/x-www-form-urlencoded')]
     )
 
     mock_dao_get_notification_by_reference.assert_called_with(reference)
@@ -67,7 +66,7 @@ def test_maps_govdelivery_status_to_notify_status(
     client.post(
         path='/notifications/govdelivery',
         data=data,
-        headers=[('Content-Type', 'application/json')]
+        headers=[('Content-Type', 'application/x-www-form-urlencoded')]
     )
 
     mock_map_govdelivery_status_to_notify_status.assert_called_with(govdelivery_status)
@@ -91,7 +90,7 @@ def test_should_update_notification_status(
     client.post(
         path='/notifications/govdelivery',
         data=data,
-        headers=[('Content-Type', 'application/json')]
+        headers=[('Content-Type', 'application/x-www-form-urlencoded')]
     )
 
     mock_update_notification_status.assert_called_with(notification, notify_status)
@@ -108,7 +107,7 @@ def test_govdelivery_callback_returns_200(
     response = client.post(
         path='/notifications/govdelivery',
         data=data,
-        headers=[('Content-Type', 'application/json')]
+        headers=[('Content-Type', 'application/x-www-form-urlencoded')]
     )
 
     assert response.status_code == 200
@@ -129,7 +128,7 @@ def test_govdelivery_callback_always_returns_200_after_expected_exceptions(
     response = client.post(
         path='/notifications/govdelivery',
         data=data,
-        headers=[('Content-Type', 'application/json')]
+        headers=[('Content-Type', 'application/x-www-form-urlencoded')]
     )
 
     assert response.status_code == 200
@@ -149,5 +148,5 @@ def test_govdelivery_callback_raises_exceptions_after_unexpected_exceptions(
         client.post(
             path='/notifications/govdelivery',
             data=data,
-            headers=[('Content-Type', 'application/json')]
+            headers=[('Content-Type', 'application/x-www-form-urlencoded')]
         )
