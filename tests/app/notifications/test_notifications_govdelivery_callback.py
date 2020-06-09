@@ -25,7 +25,7 @@ def mock_update_notification_status(mocker):
     )
 
 
-def get_govdelivery_response(reference, status):
+def get_govdelivery_request(reference, status):
     return {
         "sid": "some_sid",
         "message_url": "https://tms.govdelivery.com/messages/sms/{0}".format(reference),
@@ -36,6 +36,14 @@ def get_govdelivery_response(reference, status):
     }
 
 
+def post(client, data):
+    return client.post(
+        path='/notifications/govdelivery',
+        data=data,
+        headers=[('Content-Type', 'application/x-www-form-urlencoded')]
+    )
+
+
 def test_gets_reference_from_payload(
         client,
         mock_dao_get_notification_by_reference,
@@ -43,13 +51,8 @@ def test_gets_reference_from_payload(
         mock_update_notification_status
 ):
     reference = "123456"
-    data = get_govdelivery_response(reference, "sent")
 
-    client.post(
-        path='/notifications/govdelivery',
-        data=data,
-        headers=[('Content-Type', 'application/x-www-form-urlencoded')]
-    )
+    post(client, get_govdelivery_request(reference, "sent"))
 
     mock_dao_get_notification_by_reference.assert_called_with(reference)
 
@@ -61,13 +64,8 @@ def test_maps_govdelivery_status_to_notify_status(
         mock_update_notification_status
 ):
     govdelivery_status = "sent"
-    data = get_govdelivery_response("123456", govdelivery_status)
 
-    client.post(
-        path='/notifications/govdelivery',
-        data=data,
-        headers=[('Content-Type', 'application/x-www-form-urlencoded')]
-    )
+    post(client, get_govdelivery_request("123456", govdelivery_status))
 
     mock_map_govdelivery_status_to_notify_status.assert_called_with(govdelivery_status)
 
@@ -79,19 +77,13 @@ def test_should_update_notification_status(
         mock_map_govdelivery_status_to_notify_status,
         mock_update_notification_status
 ):
-    notify_status = "sent"
     notification = mocker.Mock(Notification)
-
-    data = get_govdelivery_response("123456", "sent")
-
     mock_dao_get_notification_by_reference.return_value = notification
+
+    notify_status = "sent"
     mock_map_govdelivery_status_to_notify_status.return_value = notify_status
 
-    client.post(
-        path='/notifications/govdelivery',
-        data=data,
-        headers=[('Content-Type', 'application/x-www-form-urlencoded')]
-    )
+    post(client, get_govdelivery_request("123456", "sent"))
 
     mock_update_notification_status.assert_called_with(notification, notify_status)
 
@@ -102,13 +94,7 @@ def test_govdelivery_callback_returns_200(
         mock_map_govdelivery_status_to_notify_status,
         mock_update_notification_status,
 ):
-    data = get_govdelivery_response("123456", "sent")
-
-    response = client.post(
-        path='/notifications/govdelivery',
-        data=data,
-        headers=[('Content-Type', 'application/x-www-form-urlencoded')]
-    )
+    response = post(client, get_govdelivery_request("123456", "sent"))
 
     assert response.status_code == 200
 
@@ -121,15 +107,9 @@ def test_govdelivery_callback_always_returns_200_after_expected_exceptions(
         mock_update_notification_status,
         exception
 ):
-    data = get_govdelivery_response("123456", "sent")
-
     mock_dao_get_notification_by_reference.side_effect = exception
 
-    response = client.post(
-        path='/notifications/govdelivery',
-        data=data,
-        headers=[('Content-Type', 'application/x-www-form-urlencoded')]
-    )
+    response = post(client, get_govdelivery_request("123456", "sent"))
 
     assert response.status_code == 200
 
@@ -140,13 +120,7 @@ def test_govdelivery_callback_raises_exceptions_after_unexpected_exceptions(
         mock_map_govdelivery_status_to_notify_status,
         mock_update_notification_status
 ):
-    data = get_govdelivery_response("123456", "sent")
-
     mock_dao_get_notification_by_reference.side_effect = RuntimeError()
 
     with pytest.raises(RuntimeError):
-        client.post(
-            path='/notifications/govdelivery',
-            data=data,
-            headers=[('Content-Type', 'application/x-www-form-urlencoded')]
-        )
+        post(client, get_govdelivery_request("123456", "sent"))
