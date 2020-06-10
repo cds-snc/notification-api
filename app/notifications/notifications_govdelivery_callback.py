@@ -6,7 +6,7 @@ from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from app import statsd_client
 from app.clients.email.govdelivery_client import map_govdelivery_status_to_notify_status
 from app.dao import notifications_dao
-from app.errors import register_errors
+from app.errors import register_errors, InvalidRequest
 
 govdelivery_callback_blueprint = Blueprint("govdelivery_callback", __name__, url_prefix="/notifications/govdelivery")
 register_errors(govdelivery_callback_blueprint)
@@ -47,5 +47,8 @@ def process_govdelivery_response():
             'Govdelivery callback for reference {} did not find any notifications'.format(reference)
         )
         pass
+
+    except Exception as e:
+        raise InvalidRequest('Error processing Govdelivery callback: {}'.format(e), 400)
 
     return jsonify(result='success'), 200

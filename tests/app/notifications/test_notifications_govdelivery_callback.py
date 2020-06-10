@@ -120,7 +120,8 @@ def test_govdelivery_callback_raises_exceptions_after_unexpected_exceptions(
         mock_map_govdelivery_status_to_notify_status,
         mock_update_notification_status
 ):
-    mock_dao_get_notification_by_reference.side_effect = RuntimeError()
+    mock_dao_get_notification_by_reference.side_effect = Exception("Bad stuff happened")
 
-    with pytest.raises(RuntimeError):
-        post(client, get_govdelivery_request("123456", "sent"))
+    response = post(client, get_govdelivery_request("123456", "sent"))
+
+    assert response.status_code == 400
