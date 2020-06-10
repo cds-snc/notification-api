@@ -114,6 +114,23 @@ def test_govdelivery_callback_always_returns_200_after_expected_exceptions(
     assert response.status_code == 200
 
 
+def test_govdelivery_callback_raises_invalid_request_if_missing_data(client):
+    response = post(client, {"not-the-right-key": "foo"})
+
+    assert response.status_code == 400
+
+
+def test_govdelivery_callback_raises_invalid_request_if_unrecognised_status(
+        client,
+        mock_map_govdelivery_status_to_notify_status
+):
+    mock_map_govdelivery_status_to_notify_status.side_effect = KeyError()
+
+    response = post(client, get_govdelivery_request("123456", "some-status"))
+
+    assert response.status_code == 400
+
+
 def test_govdelivery_callback_raises_exceptions_after_unexpected_exceptions(
         client,
         mock_dao_get_notification_by_reference,
@@ -122,6 +139,6 @@ def test_govdelivery_callback_raises_exceptions_after_unexpected_exceptions(
 ):
     mock_dao_get_notification_by_reference.side_effect = Exception("Bad stuff happened")
 
-    response = post(client, get_govdelivery_request("123456", "sent"))
-
-    assert response.status_code == 400
+    with pytest.raises(Exception):
+        response = post(client, get_govdelivery_request("123456", "sent"))
+        assert response.status_code == 500
