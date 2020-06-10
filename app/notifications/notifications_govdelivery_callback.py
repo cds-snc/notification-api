@@ -27,14 +27,10 @@ def process_govdelivery_response():
         try:
             notification = notifications_dao.dao_get_notification_by_reference(reference)
 
-        except MultipleResultsFound:
+        except (MultipleResultsFound, NoResultFound) as e:
             current_app.logger.exception(
-                'Govdelivery callback for reference {} found multiple notifications'.format(reference)
-            )
-            pass
-        except NoResultFound:
-            current_app.logger.exception(
-                'Govdelivery callback for reference {} did not find any notifications'.format(reference)
+                'Govdelivery callback for reference {} did not find exactly one notification: {}'
+                .format(reference, type(e))
             )
             pass
 
