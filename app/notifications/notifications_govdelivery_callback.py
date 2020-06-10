@@ -14,11 +14,10 @@ register_errors(govdelivery_callback_blueprint)
 
 @govdelivery_callback_blueprint.route('', methods=['POST'])
 def process_govdelivery_response():
+    data = request.form
+    reference = data['message_url'].split("/")[-1]
+
     try:
-        data = request.form
-
-        reference = data['message_url'].split("/")[-1]
-
         notification = notifications_dao.dao_get_notification_by_reference(reference)
 
         govdelivery_status = data['status']
@@ -38,9 +37,15 @@ def process_govdelivery_response():
                 'callback.govdelivery.elapsed-time', datetime.utcnow(), notification.sent_at)
 
     except MultipleResultsFound:
+        current_app.logger.warning(
+            'Govdelivery callback for reference {} found multiple notifications'.format(reference)
+        )
         pass
 
     except NoResultFound:
+        current_app.logger.warning(
+            'Govdelivery callback for reference {} did not find any notifications'.format(reference)
+        )
         pass
 
     return jsonify(result='success'), 200
