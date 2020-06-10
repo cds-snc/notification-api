@@ -213,13 +213,7 @@ def test_upload_letter_pdf_to_correct_bucket(
 
     mock_s3 = mocker.patch('app.letters.utils.s3upload')
 
-    filename = get_letter_pdf_filename(
-        reference=sample_letter_notification.reference,
-        crown=sample_letter_notification.service.crown,
-        is_scan_letter=is_precompiled_letter
-    )
-
-    upload_letter_pdf(sample_letter_notification, b'\x00\x01', precompiled=is_precompiled_letter)
+    filename = upload_letter_pdf(sample_letter_notification, b'\x00\x01', precompiled=is_precompiled_letter)
 
     mock_s3.assert_called_once_with(
         bucket_name=current_app.config[bucket_config_name],
@@ -239,14 +233,7 @@ def test_upload_letter_pdf_uses_postage_from_notification(
     letter_notification = create_notification(template=sample_letter_template, postage=postage)
     mock_s3 = mocker.patch('app.letters.utils.s3upload')
 
-    filename = get_letter_pdf_filename(
-        reference=letter_notification.reference,
-        crown=letter_notification.service.crown,
-        is_scan_letter=False,
-        postage=letter_notification.postage
-    )
-
-    upload_letter_pdf(letter_notification, b'\x00\x01', precompiled=False)
+    filename = upload_letter_pdf(letter_notification, b'\x00\x01', precompiled=False)
 
     mock_s3.assert_called_once_with(
         bucket_name=current_app.config['LETTERS_PDF_BUCKET_NAME'],
