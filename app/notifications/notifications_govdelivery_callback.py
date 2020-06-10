@@ -37,13 +37,13 @@ def process_govdelivery_response():
                 'callback.govdelivery.elapsed-time', datetime.utcnow(), notification.sent_at)
 
     except MultipleResultsFound:
-        current_app.logger.warning(
+        current_app.logger.exception(
             'Govdelivery callback for reference {} found multiple notifications'.format(reference)
         )
         pass
 
     except NoResultFound:
-        current_app.logger.warning(
+        current_app.logger.exception(
             'Govdelivery callback for reference {} did not find any notifications'.format(reference)
         )
         pass
