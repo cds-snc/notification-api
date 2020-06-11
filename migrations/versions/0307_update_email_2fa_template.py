@@ -8,7 +8,6 @@ Create Date: 2020-06-10 08:08:00
 from datetime import datetime
 
 from alembic import op
-from flask import current_app
 
 
 revision = '0307_update_email_2fa_template'
