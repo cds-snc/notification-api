@@ -425,7 +425,7 @@ def test_send_user_email_code(
     assert str(noti.template_id) == current_app.config['EMAIL_2FA_TEMPLATE_ID']
     assert mocked.call_count == 1
     assert noti.personalisation['name'] == 'Test User'
-    assert noti.personalisation['url'] == '11111'
+    assert noti.personalisation['verify_code'] == '11111'
     deliver_email.assert_called_once_with(
         [str(noti.id)],
         queue='notify-internal-tasks'
@@ -449,7 +449,7 @@ def test_send_user_email_code_with_urlencoded_next_param(admin_request, mocker, 
     )
     noti = Notification.query.one()
     assert mocked.call_count == 1
-    assert noti.personalisation['url'] == '11111'
+    assert noti.personalisation['verify_code'] == '11111'
 
 
 def test_send_email_code_returns_404_for_bad_input_data(admin_request):
