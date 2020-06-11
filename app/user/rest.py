@@ -305,7 +305,7 @@ def send_user_email_code(user_to_send_to, data):
 
     personalisation = {
         'name': user_to_send_to.name,
-        'url': secret_code
+        'verify_code': secret_code
     }
 
     create_2fa_code(
@@ -327,6 +327,7 @@ def create_2fa_code(template_id, user_to_send_to, secret_code, recipient, person
         reply_to = template.service.get_default_sms_sender()
     elif template.template_type == EMAIL_TYPE:
         reply_to = template.service.get_default_reply_to_email_address()
+
     saved_notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
