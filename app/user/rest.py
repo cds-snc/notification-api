@@ -242,13 +242,15 @@ def verify_user_code(user_id):
     if user_to_verify.failed_login_count >= current_app.config.get('MAX_VERIFY_CODE_COUNT'):
         raise InvalidRequest("Code not found", status_code=404)
     if not code:
-        # only relevant from sms
         increment_failed_login_count(user_to_verify)
         raise InvalidRequest("Code not found", status_code=404)
-    if datetime.utcnow() > code.expiry_datetime or code.code_used:
+    if datetime.utcnow() > code.expiry_datetime:
         # sms and email
         increment_failed_login_count(user_to_verify)
         raise InvalidRequest("Code has expired", status_code=400)
+    if code.code_used:
+        increment_failed_login_count(user_to_verify)
+        raise InvalidRequest("Code has already been used", status_code=400)
 
     user_to_verify.current_session_id = str(uuid.uuid4())
     user_to_verify.logged_in_at = datetime.utcnow()
@@ -288,6 +290,7 @@ def send_user_sms_code(user_to_send_to, data):
 
     secret_code = create_secret_code()
     personalisation = {'verify_code': secret_code}
+    print(secret_code)
 
     create_2fa_code(
         current_app.config['SMS_CODE_TEMPLATE_ID'],
