@@ -13,3 +13,15 @@ variable "workspace_iam_roles" {
     default = "arn:aws:iam::437518843863:role/notification-deploy-role"
   }
 }
+
+variable "admin_principal" {
+  default = {
+    default = "arn:aws:iam::437518843863:role/federated-admin"
+  }
+}
+
+variable "cluster_name" {
+  default = {
+    default = "notification-fargate-cluster"
+  }
+}

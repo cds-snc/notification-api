@@ -23,8 +23,8 @@ data "aws_iam_policy_document" "notification" {
 
     principals {
       identifiers = [
-        "arn:aws:iam::437518843863:role/notification-deploy-role",
-        "arn:aws:iam::437518843863:role/federated-admin"
+        var.workspace_iam_roles[terraform.workspace],
+        var.admin_principal[terraform.workspace]
       ]
       type = "AWS"
     }
@@ -57,7 +57,7 @@ data "aws_iam_policy_document" "notification" {
     effect = "Allow"
 
     principals {
-      identifiers = ["arn:aws:iam::437518843863:role/notification-deploy-role"]
+      identifiers = [var.workspace_iam_roles[terraform.workspace]]
       type = "AWS"
     }
 
@@ -80,7 +80,7 @@ data "aws_iam_policy_document" "notification" {
     effect = "Allow"
 
     principals {
-      identifiers = ["arn:aws:iam::437518843863:role/notification-deploy-role"]
+      identifiers = [var.workspace_iam_roles[terraform.workspace]]
       type = "AWS"
     }
 
