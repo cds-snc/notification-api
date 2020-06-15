@@ -24,3 +24,9 @@ variable "default_tags" {
     ManagedBy = "Terraform"
   }
 }
+
+variable "workspace_iam_roles" {
+  default = {
+    default = "arn:aws:iam::437518843863:role/notification-deploy-role"
+  }
+}
