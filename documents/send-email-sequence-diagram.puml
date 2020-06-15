@@ -1,0 +1,68 @@
+@startuml
+title Email sending sequence diagram
+participant "External system" as EXT  #99FF99
+box "Notifications API" #LightBlue
+EXT -> post_notifications.py : POST request to send email url: /v2/notifications/email
+post_notifications.py -> post_notifications.py: validate against email request schema
+alt error
+    post_notifications.py --> EXT: errors
+end
+post_notifications.py -> validators.py: check_service_has_permission()
+note left: validate if service has permissions to send emails
+validators.py --> post_notifications.py: TRUE
+post_notifications.py -> validators.py: check_service_can_schedule_notification(scheduled_for from request)
+note left: validate if service has permissions to schedule notifications
+post_notifications.py -> validators.py: check_rate_limiting(service, api_key)
+validators.py -> validators.py: check_service_over_api_rate_limit()
+note left: if API_RATE_LIMIT_ENABLED and REDIS_ENABLED
+note right: per KEY_TYPE [normal/team/test] per 60 seconds
+alt RateLimitError
+    validators.py -> post_notifications.py: raise RateLimitError
+end
+validators.py -> validators.py: check_service_over_daily_message_limit()
+note left: if key_type != KEY_TYPE_TEST and REDIS_ENABLED
+note right: per KEY_TYPE [normal/team] per day
+alt TooManyRequestsError
+    validators.py -> post_notifications.py: raise TooManyRequestsError
+end
+post_notifications.py -> validators.py: validate_template(template_id, personalisation, service, notification_type)
+validators.py -> validators.py: check_template_is_for_notification_type
+validators.py -> validators.py: check_template_is_active
+validators.py -> process_notifications.py: create_content_for_notification(template, personalisation)
+process_notifications.py -> process_notifications.py: get_template_instance -> WithSubjectTemplate.object
+process_notifications.py -> process_notifications.py: check_placeholders
+note left: Seems that all placeholders are required (no optional perosnalizations)
+alt BadRequestError
+    validators.py -> post_notifications.py: raise BadRequestError
+end
+process_notifications.py --> post_notifications.py: populated template object
+post_notifications.py -> post_notifications.py: get_reply_to_text(notification_type, form, template) -> reply_to
+note left: Lookup 'from email' by id passed in request or take template default
+alt NoResultFound
+    validators.py -> post_notifications.py: raise BadRequestError
+end
+post_notifications.py -> post_notifications.py: process_sms_or_email_notification()
+post_notifications.py -> validators.py: validate_and_format_recipient(send_to, key_type,\nservice, notification_type, allow_whitelisted_recipients=True)
+validators.py -> validators.py: service_can_send_to_recipient(send_to, key_type,\n service, allow_whitelisted_recipients=True))
+note left: Checks if api key can send to given recipient
+validators.py -> notifications_utils: validate_and_format_email_address(email_address)
+notifications_utils --> validators.py: formatted email address
+validators.py --> post_notifications.py: formatted email address
+post_notifications.py -> process_notifications.py: simulated_recipient(to_address, notification_type)
+process_notifications.py --> post_notifications.py: TRUE/FALSE
+post_notifications.py -> post_notifications.py: process_document_uploads(personalisation_data, service, simulated=False)
+note left: Synchronously download any attachments that are specified as dicts with 'file' key in personalisation object
+post_notifications.py --> post_notifications.py: personalisation data
+post_notifications.py -> process_notifications.py: persist_notification()
+process_notifications.py --> post_notifications.py: Notification model
+post_notifications.py -> process_notifications.py: persist_scheduled_notification(notification_id, scheduled_for)
+note left: Transform local datetime to UTC and persist scheduled notification id pointing to Notification
+post_notifications.py -> process_notifications.py: send_notification_to_queue(notification, research_mode, queue=None)
+note left: Will use priority queue if template is marked as priority
+post_notifications.py --> post_notifications.py: notification
+post_notifications.py -> post_notifications.py: set sending_domain from service or use default one
+post_notifications.py -> create_response.py: create_post_email_response_from_notification(\nnotification, content, subject, email_from, url_root, scheduled_for)
+note left: prepares response json
+create_response.py --> post_notifications.py: response JSON
+post_notifications.py --> EXT: response JSON
+@enduml
