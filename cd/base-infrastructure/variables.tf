@@ -25,3 +25,9 @@ variable "cluster_name" {
     default = "notification-fargate-cluster"
   }
 }
+
+variable "vpc_cidr" {
+  default = {
+    default = "10.0.0.0/24"
+  }
+}

@@ -1,5 +1,5 @@
 resource "aws_vpc" "notification" {
-  cidr_block           = "10.0.0.0/24"
+  cidr_block           = var.vpc_cidr[terraform.workspace]
   enable_dns_hostnames = "true"
 
   tags = var.default_tags
