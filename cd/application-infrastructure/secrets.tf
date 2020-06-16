@@ -3,7 +3,7 @@ resource "random_password" "admin_client_secret" {
 }
 
 resource "aws_ssm_parameter" "admin_client_secret" {
-  name        = "/dev/notification-api/admin-client-secret"
+  name        = "/${var.environment_prefix}/notification-api/admin-client-secret"
   description = "The notification api URL"
   type        = "SecureString"
   value       = random_password.admin_client_secret.result
@@ -15,7 +15,7 @@ resource "random_password" "secret_key" {
 }
 
 resource "aws_ssm_parameter" "secret_key" {
-  name        = "/dev/notification-api/secret-key"
+  name        = "/${var.environment_prefix}/notification-api/secret-key"
   description = "The notification api URL"
   type        = "SecureString"
   value       = random_password.secret_key.result
@@ -27,7 +27,7 @@ resource "random_password" "dangerous_salt" {
 }
 
 resource "aws_ssm_parameter" "dangerous_salt" {
-  name        = "/dev/notification-api/dangerous-salt"
+  name        = "/${var.environment_prefix}/notification-api/dangerous-salt"
   description = "The notification api URL"
   type        = "SecureString"
   value       = random_password.dangerous_salt.result

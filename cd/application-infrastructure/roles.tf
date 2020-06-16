@@ -45,7 +45,7 @@ data "aws_iam_policy_document" "ssm_parameter_fetch" {
       "kms:Decrypt"
     ]
 
-    resources = ["arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/*"]
+    resources = ["arn:aws:ssm:us-east-2:437518843863:parameter/${var.environment_prefix}/notification-api/*"]
   }
 }
 

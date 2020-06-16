@@ -17,7 +17,7 @@ resource "aws_alb_listener" "notification_api" {
 }
 
 resource "aws_ssm_parameter" "api_host_name" {
-  name        = "/dev/notification-api/api-host-name"
+  name        = "/${var.environment_prefix}/notification-api/api-host-name"
   description = "The notification api URL"
   type        = "String"
   value       = format("http://%s", aws_alb.notification_api.dns_name)
@@ -28,7 +28,7 @@ resource "aws_alb_target_group" "notification_api" {
   name        = "notification-target-group"
   port        = 6011
   protocol    = "HTTP"
-  vpc_id      = data.aws_vpc.notification.id
+  vpc_id      = data.terraform_remote_state.base_infrastructure.outputs.notification_vpc_id
   target_type = "ip"
   tags        = local.default_tags
 
@@ -41,7 +41,7 @@ resource "aws_alb_target_group" "notification_api" {
 resource "aws_security_group" "notification_api" {
   name        = "notification-load-balancer-security-group"
   description = "controls access to the ALB"
-  vpc_id      = data.aws_vpc.notification.id
+  vpc_id      = data.terraform_remote_state.base_infrastructure.outputs.notification_vpc_id
   tags        = local.default_tags
 
   ingress {
