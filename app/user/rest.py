@@ -290,7 +290,6 @@ def send_user_sms_code(user_to_send_to, data):
 
     secret_code = create_secret_code()
     personalisation = {'verify_code': secret_code}
-    print(secret_code)
 
     create_2fa_code(
         current_app.config['SMS_CODE_TEMPLATE_ID'],
