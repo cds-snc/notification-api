@@ -7,7 +7,6 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   TF_WORKSPACE: default
-  TF_CLI_ARGS: '-var-file="development.tfvars"'
 
 jobs:
   test:
@@ -51,6 +50,7 @@ jobs:
           tf_actions_subcommand: 'init'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
+          tf_cli_args: '-var-file="development.tfvars"'
       - name: 'Terraform Validate'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -58,6 +58,7 @@ jobs:
           tf_actions_subcommand: 'validate'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
+          tf_cli_args: '-var-file="development.tfvars"'
       - name: 'Terraform Plan'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -65,6 +66,7 @@ jobs:
           tf_actions_subcommand: 'plan'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
+          tf_cli_args: '-var-file="development.tfvars"'
         env:
           TF_CLI_ARGS_plan: '-out=base-${{ github.sha }}.tfplan'
       - name: 'Terraform Apply'
@@ -91,6 +93,7 @@ jobs:
           tf_actions_subcommand: 'init'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
+          tf_cli_args: '-var-file="development.tfvars"'
       - name: 'Terraform Validate'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -98,6 +101,7 @@ jobs:
           tf_actions_subcommand: 'validate'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
+          tf_cli_args: '-var-file="development.tfvars"'
       - name: 'Terraform Plan'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -105,6 +109,7 @@ jobs:
           tf_actions_subcommand: 'plan'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
+          tf_cli_args: '-var-file="development.tfvars"'
         env:
           TF_CLI_ARGS_plan: '-out=database-${{ github.sha }}.tfplan'
       - name: 'Terraform Apply'
@@ -131,6 +136,7 @@ jobs:
           tf_actions_subcommand: 'init'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
+          tf_cli_args: '-var-file="development.tfvars"'
       - name: 'Terraform Validate'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -138,6 +144,7 @@ jobs:
           tf_actions_subcommand: 'validate'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
+          tf_cli_args: '-var-file="development.tfvars"'
       - name: 'Terraform Plan'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -145,6 +152,7 @@ jobs:
           tf_actions_subcommand: 'plan'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
+          tf_cli_args: '-var-file="development.tfvars"'
         env:
           TF_CLI_ARGS_plan: '-var="app_tag=${{ github.sha }}" -var="notify_environment=development" -out=application-${{ github.sha }}.tfplan'
       - name: 'Terraform Apply'
