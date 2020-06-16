@@ -145,7 +145,7 @@ jobs:
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
         env:
-          TF_CLI_ARGS: '-var="app_tag=${{ github.sha }}" -var="notify_environment=development" -out=application-${{ github.sha }}.tfplan -var-file="development.tfvars"'
+          TF_CLI_ARGS: '-var="app_tag=${{ github.sha }}" -out=application-${{ github.sha }}.tfplan -var-file="development.tfvars"'
       - name: 'Terraform Apply'
         uses: hashicorp/terraform-github-actions@master
         with:
