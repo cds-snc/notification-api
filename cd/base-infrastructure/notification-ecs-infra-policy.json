@@ -61,6 +61,7 @@
         "ec2:RevokeSecurityGroupEgress",
         "ec2:RevokeSecurityGroupIngress",
         "ec2:StartVpcEndpointServicePrivateDnsVerification",
+        "ecs:CreateCluster",
         "ecs:CreateService",
         "ecs:DeleteCluster",
         "ecs:DeleteService",
