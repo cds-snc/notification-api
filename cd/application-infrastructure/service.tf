@@ -14,12 +14,12 @@ DEFINITION
   requires_compatibilities = ["FARGATE"]
   cpu                      = 512
   memory                   = 1024
-  tags                     = var.default_tags
+  tags                     = local.default_tags
 }
 
 resource "aws_ecs_service" "notification_api" {
   name            = "notification-api-service"
-  cluster         = data.aws_ecs_cluster.notification_fargate.id
+  cluster         = data.terraform_remote_state.base_infrastructure.outputs.notification_cluster_id
   task_definition = aws_ecs_task_definition.notification_api.arn
   desired_count   = 1
   launch_type     = "FARGATE"
@@ -60,12 +60,12 @@ DEFINITION
   requires_compatibilities = ["FARGATE"]
   cpu                      = 512
   memory                   = 1024
-  tags                     = var.default_tags
+  tags                     = local.default_tags
 }
 
 resource "aws_ecs_service" "notification_celery" {
   name            = "notification-celery-service"
-  cluster         = data.aws_ecs_cluster.notification_fargate.id
+  cluster         = data.terraform_remote_state.base_infrastructure.outputs.notification_cluster_id
   task_definition = aws_ecs_task_definition.notification_celery.arn
   desired_count   = 1
   launch_type     = "FARGATE"
@@ -100,12 +100,12 @@ DEFINITION
   requires_compatibilities = ["FARGATE"]
   cpu                      = 512
   memory                   = 1024
-  tags                     = var.default_tags
+  tags                     = local.default_tags
 }
 
 resource "aws_ecs_service" "notification_celery_beat" {
   name            = "notification-celery-beat-service"
-  cluster         = data.aws_ecs_cluster.notification_fargate.id
+  cluster         = data.terraform_remote_state.base_infrastructure.outputs.notification_cluster_id
   task_definition = aws_ecs_task_definition.notification_celery_beat.arn
   desired_count   = 1
   launch_type     = "FARGATE"

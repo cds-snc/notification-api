@@ -2,7 +2,7 @@ resource "aws_security_group" "ecs_task_outbound_access" {
   name        = "ecs-task-outbound-access-security-group"
   description = "allow outbound access"
   vpc_id      = data.aws_vpc.notification.id
-  tags        = var.default_tags
+  tags        = local.default_tags
 
   egress {
     protocol    = "-1"
@@ -24,7 +24,7 @@ resource "aws_ssm_parameter" "outbound_access_security_group" {
   description = "The ID of the security group that allows outbound access"
   type        = "String"
   value       = aws_security_group.ecs_task_outbound_access.id
-  tags        = var.default_tags
+  tags        = local.default_tags
 }
 
 resource "aws_security_group" "notification_db_access" {

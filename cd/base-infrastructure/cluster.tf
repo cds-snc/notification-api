@@ -1,6 +1,10 @@
 resource "aws_ecs_cluster" "notification_fargate" {
-  name               = var.cluster_name[terraform.workspace]
+  name               = "${var.environment_prefix}-notification-cluster"
   capacity_providers = ["FARGATE"]
 
-  tags = var.default_tags
+  tags = local.default_tags
+}
+
+output "notification_cluster_id" {
+  value = aws_ecs_cluster.notification_fargate.id
 }

@@ -1,33 +1,24 @@
-variable "default_tags" {
-  type = map(string)
-  default = {
+variable "environment_prefix" {
+  default = "dev"
+}
+
+locals {
+  default_tags = {
     Stack = "base-infrastructure",
-    Environment = "dev",
+    Environment = var.environment_prefix,
     Team = "va-notify"
     ManagedBy = "Terraform"
   }
 }
 
-variable "workspace_iam_roles" {
-  default = {
-    default = "arn:aws:iam::437518843863:role/notification-deploy-role"
-  }
+variable "deploy_role" {
+  default = "arn:aws:iam::437518843863:role/notification-deploy-role"
 }
 
 variable "admin_principal" {
-  default = {
-    default = "arn:aws:iam::437518843863:role/federated-admin"
-  }
-}
-
-variable "cluster_name" {
-  default = {
-    default = "notification-fargate-cluster"
-  }
+  default = "arn:aws:iam::437518843863:role/federated-admin"
 }
 
 variable "vpc_cidr" {
-  default = {
-    default = "10.0.0.0/24"
-  }
+  default = "10.0.0.0/24"
 }

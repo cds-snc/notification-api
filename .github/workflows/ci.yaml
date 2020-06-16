@@ -7,6 +7,7 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   TF_WORKSPACE: default
+  TF_CLI_ARGS: '-var-file="development.tfvars"'
 
 jobs:
   test:
@@ -184,7 +185,7 @@ jobs:
 
       - name: Run migration task
         run: |
-          bash ./scripts/run_ci_migrations.sh -c notification-fargate-cluster -e dev -t ${{ steps.register.outputs.arn }}
+          bash ./scripts/run_ci_migrations.sh -c dev-notification-cluster -e dev -t ${{ steps.register.outputs.arn }}
 
   dev-deploy-api:
     runs-on: ubuntu-latest
@@ -210,7 +211,7 @@ jobs:
         with:
           task-definition: ${{ steps.render-api-container.outputs.task-definition }}
           service: notification-api-service
-          cluster: notification-fargate-cluster
+          cluster: dev-notification-cluster
           wait-for-service-stability: true
   dev-deploy-celery:
     runs-on: ubuntu-latest
@@ -236,7 +237,7 @@ jobs:
         with:
           task-definition: ${{ steps.render-celery-container.outputs.task-definition }}
           service: notification-celery-service
-          cluster: notification-fargate-cluster
+          cluster: dev-notification-cluster
           wait-for-service-stability: true
   dev-deploy-celery-beat:
     runs-on: ubuntu-latest
@@ -262,5 +263,5 @@ jobs:
         with:
           task-definition: ${{ steps.render-celery-beat-container.outputs.task-definition }}
           service: notification-celery-beat-service
-          cluster: notification-fargate-cluster
+          cluster: dev-notification-cluster
           wait-for-service-stability: true

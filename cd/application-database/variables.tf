@@ -1,3 +1,7 @@
+variable "environment_prefix" {
+  default = "dev"
+}
+
 variable "database_name" {
   type    = string
   default = "notification_api"
@@ -15,11 +19,10 @@ data "aws_subnet" "private_az_b" {
   cidr_block = "10.0.0.0/26"
 }
 
-variable "default_tags" {
-  type = map(string)
-  default = {
+locals {
+  default_tags = {
     Stack = "application-database",
-    Environment = "dev",
+    Environment = var.environment_prefix,
     Team = "va-notify"
     ManagedBy = "Terraform"
   }

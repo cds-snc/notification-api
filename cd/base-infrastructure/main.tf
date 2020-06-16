@@ -1,8 +1,8 @@
 resource "aws_vpc" "notification" {
-  cidr_block           = var.vpc_cidr[terraform.workspace]
+  cidr_block           = var.vpc_cidr
   enable_dns_hostnames = "true"
 
-  tags = var.default_tags
+  tags = local.default_tags
 }
 
 data "aws_availability_zones" "available_zones" {
@@ -14,15 +14,15 @@ resource "aws_subnet" "private" {
   availability_zone = data.aws_availability_zones.available_zones.names[count.index]
   vpc_id     = aws_vpc.notification.id
 
-  tags = var.default_tags
+  tags = local.default_tags
 }
 
 resource "aws_ssm_parameter" "private_subnets" {
-  name        = "/dev/notification-api/subnets/private"
+  name        = "/${var.environment_prefix}/notification-api/subnets/private"
   description = "The IDs of the private subnets"
   type        = "String"
   value       = join(",", aws_subnet.private.*.id)
-  tags        = var.default_tags
+  tags        = local.default_tags
 }
 
 resource "aws_subnet" "public" {
@@ -32,7 +32,7 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.notification.id
   map_public_ip_on_launch = true
 
-  tags = var.default_tags
+  tags = local.default_tags
 }
 
 resource "aws_security_group" "vpc_endpoints" {
@@ -47,15 +47,15 @@ resource "aws_security_group" "vpc_endpoints" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = var.default_tags
+  tags = local.default_tags
 }
 
 resource "aws_ssm_parameter" "vpc_endpoints_security_group" {
-  name        = "/dev/notification-api/security-group/access-endpoints"
+  name        = "/${var.environment_prefix}/notification-api/security-group/access-endpoints"
   description = "The ID of the security group that allows VPC endpoint access"
   type        = "String"
   value       = aws_security_group.vpc_endpoints.id
-  tags        = var.default_tags
+  tags        = local.default_tags
 }
 
 resource "aws_vpc_endpoint" "ecr_api" {
@@ -66,7 +66,7 @@ resource "aws_vpc_endpoint" "ecr_api" {
   vpc_endpoint_type   = "Interface"
   subnet_ids = aws_subnet.private.*.id
 
-  tags = var.default_tags
+  tags = local.default_tags
 }
 
 resource "aws_vpc_endpoint" "ecr_dkr" {
@@ -77,7 +77,7 @@ resource "aws_vpc_endpoint" "ecr_dkr" {
   vpc_endpoint_type   = "Interface"
   subnet_ids = aws_subnet.private.*.id
 
-  tags = var.default_tags
+  tags = local.default_tags
 }
 
 resource "aws_vpc_endpoint" "cloudwatch" {
@@ -88,7 +88,7 @@ resource "aws_vpc_endpoint" "cloudwatch" {
   vpc_endpoint_type   = "Interface"
   subnet_ids = aws_subnet.private.*.id
 
-  tags = var.default_tags
+  tags = local.default_tags
 }
 
 resource "aws_vpc_endpoint" "s3" {
@@ -97,7 +97,7 @@ resource "aws_vpc_endpoint" "s3" {
   vpc_endpoint_type = "Gateway"
   route_table_ids = aws_route_table.private.*.id
 
-  tags = var.default_tags
+  tags = local.default_tags
 }
 
 resource "aws_vpc_endpoint" "sqs" {
@@ -108,13 +108,13 @@ resource "aws_vpc_endpoint" "sqs" {
   vpc_endpoint_type = "Interface"
   subnet_ids = aws_subnet.private.*.id
 
-  tags = var.default_tags
+  tags = local.default_tags
 }
 
 resource "aws_internet_gateway" "notification" {
   vpc_id = aws_vpc.notification.id
 
-  tags = var.default_tags
+  tags = local.default_tags
 }
 
 resource "aws_eip" "notification" {
@@ -122,7 +122,7 @@ resource "aws_eip" "notification" {
   vpc        = true
   depends_on = [aws_internet_gateway.notification]
 
-  tags = var.default_tags
+  tags = local.default_tags
 }
 
 resource "aws_nat_gateway" "notification" {
@@ -130,5 +130,5 @@ resource "aws_nat_gateway" "notification" {
   subnet_id      = element(aws_subnet.public.*.id, count.index)
   allocation_id = element(aws_eip.notification.*.id, count.index)
 
-  tags = var.default_tags
+  tags = local.default_tags
 }

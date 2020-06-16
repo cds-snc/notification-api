@@ -3,7 +3,7 @@ resource "aws_kms_key" "notification" {
   deletion_window_in_days = 7
   policy                  = data.aws_iam_policy_document.notification.json
 
-  tags = var.default_tags
+  tags = local.default_tags
 }
 
 output "notification_kms_key_id" {
@@ -23,8 +23,8 @@ data "aws_iam_policy_document" "notification" {
 
     principals {
       identifiers = [
-        var.workspace_iam_roles[terraform.workspace],
-        var.admin_principal[terraform.workspace]
+        var.deploy_role,
+        var.admin_principal
       ]
       type = "AWS"
     }
@@ -57,7 +57,7 @@ data "aws_iam_policy_document" "notification" {
     effect = "Allow"
 
     principals {
-      identifiers = [var.workspace_iam_roles[terraform.workspace]]
+      identifiers = [var.deploy_role]
       type = "AWS"
     }
 
@@ -80,7 +80,7 @@ data "aws_iam_policy_document" "notification" {
     effect = "Allow"
 
     principals {
-      identifiers = [var.workspace_iam_roles[terraform.workspace]]
+      identifiers = [var.deploy_role]
       type = "AWS"
     }
 

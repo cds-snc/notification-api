@@ -1,3 +1,7 @@
+variable "environment_prefix" {
+  default = "dev"
+}
+
 variable "app_tag" {
   type = string
 }
@@ -30,10 +34,6 @@ data "aws_subnet" "private_az_a" {
 
 data "aws_subnet" "private_az_b" {
   cidr_block = "10.0.0.0/26"
-}
-
-data "aws_ecs_cluster" "notification_fargate" {
-  cluster_name = "notification-fargate-cluster"
 }
 
 data "aws_ssm_parameter" "database_uri" {
@@ -72,11 +72,10 @@ data "terraform_remote_state" "base_infrastructure" {
   }
 }
 
-variable "default_tags" {
-  type = map(string)
-  default = {
+locals {
+  default_tags = {
     Stack       = "application-infrastructure",
-    Environment = "dev",
+    Environment = var.environment_prefix,
     Team        = "va-notify"
     ManagedBy   = "Terraform"
   }

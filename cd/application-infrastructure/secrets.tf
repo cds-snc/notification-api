@@ -7,7 +7,7 @@ resource "aws_ssm_parameter" "admin_client_secret" {
   description = "The notification api URL"
   type        = "SecureString"
   value       = random_password.admin_client_secret.result
-  tags        = var.default_tags
+  tags        = local.default_tags
 }
 
 resource "random_password" "secret_key" {
@@ -19,7 +19,7 @@ resource "aws_ssm_parameter" "secret_key" {
   description = "The notification api URL"
   type        = "SecureString"
   value       = random_password.secret_key.result
-  tags        = var.default_tags
+  tags        = local.default_tags
 }
 
 resource "random_password" "dangerous_salt" {
@@ -31,5 +31,5 @@ resource "aws_ssm_parameter" "dangerous_salt" {
   description = "The notification api URL"
   type        = "SecureString"
   value       = random_password.dangerous_salt.result
-  tags        = var.default_tags
+  tags        = local.default_tags
 }
