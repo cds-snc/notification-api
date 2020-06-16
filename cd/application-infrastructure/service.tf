@@ -3,7 +3,12 @@ resource "aws_ecs_task_definition" "notification_api" {
 [
     {
       "name": "notification-api",
-      "image": "nginx:1.17.10"
+      "image": "nginx:1.17.10",
+      "portMappings": [
+        {
+          "containerPort": 6011
+        }
+      ]
     }
 ]
 DEFINITION
