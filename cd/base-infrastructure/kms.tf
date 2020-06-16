@@ -6,10 +6,6 @@ resource "aws_kms_key" "notification" {
   tags = local.default_tags
 }
 
-output "notification_kms_key_id" {
-  value = aws_kms_key.notification.id
-}
-
 resource "aws_kms_alias" "notification" {
   name          = "alias/notification"
   target_key_id = aws_kms_key.notification.key_id

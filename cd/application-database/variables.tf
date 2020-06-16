@@ -28,8 +28,16 @@ locals {
   }
 }
 
-variable "workspace_iam_roles" {
-  default = {
-    default = "arn:aws:iam::437518843863:role/notification-deploy-role"
+variable "workspace_iam_role" {
+  default = "arn:aws:iam::437518843863:role/notification-deploy-role"
+}
+
+data "terraform_remote_state" "base_infrastructure" {
+  backend = "s3"
+
+  config = {
+    bucket = "terraform-notification-test"
+    key    = "notification-test.tfstate"
+    region = "us-east-2"
   }
 }

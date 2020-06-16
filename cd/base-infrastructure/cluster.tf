@@ -4,7 +4,3 @@ resource "aws_ecs_cluster" "notification_fargate" {
 
   tags = local.default_tags
 }
-
-output "notification_cluster_id" {
-  value = aws_ecs_cluster.notification_fargate.id
-}
