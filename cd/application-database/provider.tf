@@ -10,7 +10,7 @@ terraform {
   backend "s3" {
     bucket  = "terraform-notification-test"
     key     = "notification-api-dev-db.tfstate"
-    region  = var.region
+    region  = "us-east-2"
     encrypt = true
   }
 }
