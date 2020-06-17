@@ -1,7 +1,6 @@
 import json
 import uuid
 from datetime import (datetime, timedelta)
-from urllib.parse import urlencode
 import base64
 import pickle
 import requests
@@ -243,13 +242,15 @@ def verify_user_code(user_id):
     if user_to_verify.failed_login_count >= current_app.config.get('MAX_VERIFY_CODE_COUNT'):
         raise InvalidRequest("Code not found", status_code=404)
     if not code:
-        # only relevant from sms
         increment_failed_login_count(user_to_verify)
         raise InvalidRequest("Code not found", status_code=404)
-    if datetime.utcnow() > code.expiry_datetime or code.code_used:
+    if datetime.utcnow() > code.expiry_datetime:
         # sms and email
         increment_failed_login_count(user_to_verify)
         raise InvalidRequest("Code has expired", status_code=400)
+    if code.code_used:
+        increment_failed_login_count(user_to_verify)
+        raise InvalidRequest("Code has already been used", status_code=400)
 
     user_to_verify.current_session_id = str(uuid.uuid4())
     user_to_verify.logged_in_at = datetime.utcnow()
@@ -302,10 +303,11 @@ def send_user_sms_code(user_to_send_to, data):
 def send_user_email_code(user_to_send_to, data):
     recipient = user_to_send_to.email_address
 
-    secret_code = str(uuid.uuid4())
+    secret_code = create_secret_code()
+
     personalisation = {
         'name': user_to_send_to.name,
-        'url': _create_2fa_url(user_to_send_to, secret_code, data.get('next'), data.get('email_auth_link_host'))
+        'verify_code': secret_code
     }
 
     create_2fa_code(
@@ -327,6 +329,7 @@ def create_2fa_code(template_id, user_to_send_to, secret_code, recipient, person
         reply_to = template.service.get_default_sms_sender()
     elif template.template_type == EMAIL_TYPE:
         reply_to = template.service.get_default_reply_to_email_address()
+
     saved_notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
@@ -724,15 +727,6 @@ def _create_confirmation_url(user, email_address):
     data = json.dumps({'user_id': str(user.id), 'email': email_address})
     url = '/user-profile/email/confirm/'
     return url_with_token(data, url, current_app.config)
-
-
-def _create_2fa_url(user, secret_code, next_redir, email_auth_link_host):
-    data = json.dumps({'user_id': str(user.id), 'secret_code': secret_code})
-    url = '/email-auth/'
-    ret = url_with_token(data, url, current_app.config, base_url=email_auth_link_host)
-    if next_redir:
-        ret += '?{}'.format(urlencode({'next': next_redir}))
-    return ret
 
 
 def get_orgs_and_services(user):

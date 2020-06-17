@@ -847,10 +847,9 @@ def email_2fa_code_template(notify_db, notify_db_session):
         content=(
             'Hi ((name)),'
             ''
-            'To sign in to GOV.​UK Notify please open this link:'
-            '((url))'
+            '((verify_code)) is your security code to log in to Notify.'
         ),
-        subject='Sign in to GOV.UK Notify',
+        subject='Sign in to Notify',
         template_type='email'
     )
 
