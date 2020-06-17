@@ -22,3 +22,7 @@ variable "admin_principal" {
 variable "vpc_cidr" {
   default = "10.0.0.0/24"
 }
+
+variable "region" {
+  default = "us-east-2"
+}

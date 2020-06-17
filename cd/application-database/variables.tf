@@ -32,12 +32,16 @@ variable "workspace_iam_role" {
   default = "arn:aws:iam::437518843863:role/notification-deploy-role"
 }
 
+variable "region" {
+  default = "us-east-2"
+}
+
 data "terraform_remote_state" "base_infrastructure" {
   backend = "s3"
 
   config = {
     bucket = "terraform-notification-test"
     key    = "notification-test.tfstate"
-    region = "us-east-2"
+    region = var.region
   }
 }
