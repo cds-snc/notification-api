@@ -8,8 +8,8 @@ provider "aws" {
 
 terraform {
   backend "s3" {
-    bucket = "terraform-notification-test"
-    key    = "notification-test.tfstate"
+    bucket = "va-notification-terraform"
+    key    = "base-infrastructure.tfstate"
     region = "us-east-2"
     encrypt = true
   }

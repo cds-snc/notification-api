@@ -40,8 +40,8 @@ data "terraform_remote_state" "base_infrastructure" {
   backend = "s3"
 
   config = {
-    bucket = "terraform-notification-test"
-    key    = "notification-test.tfstate"
+    bucket = "va-notification-terraform"
+    key    = "base-infrastructure.tfstate"
     region = var.region
   }
 }
