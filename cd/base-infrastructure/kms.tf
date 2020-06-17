@@ -7,7 +7,7 @@ resource "aws_kms_key" "notification" {
 }
 
 resource "aws_kms_alias" "notification" {
-  name          = "alias/notification"
+  name          = "alias/${var.environment_prefix}-notification"
   target_key_id = aws_kms_key.notification.key_id
 }
 
