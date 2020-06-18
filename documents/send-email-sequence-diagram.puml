@@ -1,6 +1,7 @@
 @startuml
 title Email sending sequence diagram
 participant "External system" as EXT  #99FF99
+
 box "Notifications API" #LightBlue
 EXT -> post_notifications.py : POST request to send email url: /v2/notifications/email
 post_notifications.py -> post_notifications.py: validate against email request schema
@@ -59,6 +60,37 @@ post_notifications.py -> process_notifications.py: persist_scheduled_notificatio
 note left: Transform local datetime to UTC and persist scheduled notification id pointing to Notification
 post_notifications.py -> process_notifications.py: send_notification_to_queue(notification, research_mode, queue=None)
 note left: Will use priority queue if template is marked as priority
+end box
+
+box "Celery" #LightGreen
+process_notifications.py -> provider_tasks.py: deliver_email(notification_id)
+note left: max_retries=48, default_retry_delay=300
+provider_tasks.py ->  notifications_dao.py: get_notification_by_id(notification_id)
+provider_tasks.py -> send_to_providers.py: send_email_to_provider(notification)
+alt NoResultFound / InvalidEmailError / MalwarePendingException
+    provider_tasks.py --> provider_tasks.py: Log failure and retry
+end
+alt MaxRetriesExceededError
+    provider_tasks.py --> provider_tasks.py: Log failure and update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+end
+
+send_to_providers.py -> send_to_providers.py: check if notification.service is active
+alt ServiceInactive
+    send_to_providers.py --> notifications_dao.py: dao_update_notification()\nwith notification.status = NOTIFICATION_TECHNICAL_FAILURE
+    send_to_providers.py -> send_to_providers.py: raise NotificationTechnicalFailureException
+end 
+
+send_to_providers.py -> send_to_providers.py: provider_to_use(EMAIL_TYPE, notification.id)
+note left: if notification_status == created
+alt Exception
+    send_to_providers.py -> send_to_providers.py: raise Exception for no active providers
+end
+send_to_providers.py --> send_to_providers.py: extracts file objects from personalisation dict
+alt for each file
+    send_to_providers.py --> send_to_providers.py: check malware and download file to upload as attachment
+end
+end box
+
 post_notifications.py --> post_notifications.py: notification
 post_notifications.py -> post_notifications.py: set sending_domain from service or use default one
 post_notifications.py -> create_response.py: create_post_email_response_from_notification(\nnotification, content, subject, email_from, url_root, scheduled_for)
