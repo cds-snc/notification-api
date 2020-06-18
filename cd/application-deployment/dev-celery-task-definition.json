@@ -1,5 +1,5 @@
 {
-  "family": "notification-celery-task",
+  "family": "dev-notification-celery-task",
   "executionRoleArn": "arn:aws:iam::437518843863:role/notification-api-ecs-task-execution-role",
   "networkMode": "awsvpc",
   "containerDefinitions": [
@@ -9,7 +9,7 @@
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "notification-api-log-group",
+          "awslogs-group": "dev-notification-api-log-group",
           "awslogs-region": "us-east-2",
           "awslogs-stream-prefix": "ecs"
         }

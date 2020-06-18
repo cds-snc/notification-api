@@ -1,17 +1,17 @@
 {
-  "family": "notification-api-task",
+  "family": "dev-notification-api-task",
   "executionRoleArn": "arn:aws:iam::437518843863:role/notification-api-ecs-task-execution-role",
   "networkMode": "awsvpc",
   "containerDefinitions": [
     {
       "name": "notification-api",
-      "image": "{must-be-specified}",
+      "image": "{will-be-replaced-by-ci}",
       "cpu": 512,
       "memory": 1024,
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "notification-api-log-group",
+          "awslogs-group": "dev-notification-api-log-group",
           "awslogs-region": "us-east-2",
           "awslogs-stream-prefix": "ecs"
         }
