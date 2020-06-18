@@ -209,7 +209,7 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.render-api-container.outputs.task-definition }}
-          service: notification-api-service
+          service: dev-notification-api-service
           cluster: dev-notification-cluster
           wait-for-service-stability: true
   dev-deploy-celery:
@@ -235,7 +235,7 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.render-celery-container.outputs.task-definition }}
-          service: notification-celery-service
+          service: dev-notification-celery-service
           cluster: dev-notification-cluster
           wait-for-service-stability: true
   dev-deploy-celery-beat:
@@ -261,6 +261,6 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.render-celery-beat-container.outputs.task-definition }}
-          service: notification-celery-beat-service
+          service: dev-notification-celery-beat-service
           cluster: dev-notification-cluster
           wait-for-service-stability: true
