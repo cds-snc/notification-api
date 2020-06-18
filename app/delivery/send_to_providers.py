@@ -86,9 +86,12 @@ def send_email_to_provider(notification):
     if not service.active:
         technical_failure(notification=notification)
         return
+
+    # TODO: no else - replace with if statement raising error / logging when not 'created'
     if notification.status == 'created':
         provider = provider_to_use(EMAIL_TYPE, notification.id)
 
+        # TODO: remove that code or extract attachment handling to separate method
         # Extract any file objects from the personalization
         file_keys = [
             k for k, v in (notification.personalisation or {}).items() if isinstance(v, dict) and 'document' in v
