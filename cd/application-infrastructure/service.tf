@@ -13,7 +13,7 @@ resource "aws_ecs_task_definition" "notification_api" {
 ]
 DEFINITION
 
-  family                   = "notification-api-task"
+  family                   = "${var.environment_prefix}-notification-api-task"
   execution_role_arn       = aws_iam_role.notification_ecs_task_execution.arn
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
@@ -23,7 +23,7 @@ DEFINITION
 }
 
 resource "aws_ecs_service" "notification_api" {
-  name            = "notification-api-service"
+  name            = "${var.environment_prefix}-notification-api-service"
   cluster         = data.terraform_remote_state.base_infrastructure.outputs.notification_cluster_id
   task_definition = aws_ecs_task_definition.notification_api.arn
   desired_count   = 1
@@ -59,7 +59,7 @@ resource "aws_ecs_task_definition" "notification_celery" {
 ]
 DEFINITION
 
-  family                   = "notification-celery-task"
+  family                   = "${var.environment_prefix}-notification-celery-task"
   execution_role_arn       = aws_iam_role.notification_ecs_task_execution.arn
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
@@ -69,7 +69,7 @@ DEFINITION
 }
 
 resource "aws_ecs_service" "notification_celery" {
-  name            = "notification-celery-service"
+  name            = "${var.environment_prefix}-notification-celery-service"
   cluster         = data.terraform_remote_state.base_infrastructure.outputs.notification_cluster_id
   task_definition = aws_ecs_task_definition.notification_celery.arn
   desired_count   = 1
@@ -99,7 +99,7 @@ resource "aws_ecs_task_definition" "notification_celery_beat" {
 ]
 DEFINITION
 
-  family                   = "notification-celery-beat-task"
+  family                   = "${var.environment_prefix}-notification-celery-beat-task"
   execution_role_arn       = aws_iam_role.notification_ecs_task_execution.arn
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
@@ -109,7 +109,7 @@ DEFINITION
 }
 
 resource "aws_ecs_service" "notification_celery_beat" {
-  name            = "notification-celery-beat-service"
+  name            = "${var.environment_prefix}-notification-celery-beat-service"
   cluster         = data.terraform_remote_state.base_infrastructure.outputs.notification_cluster_id
   task_definition = aws_ecs_task_definition.notification_celery_beat.arn
   desired_count   = 1

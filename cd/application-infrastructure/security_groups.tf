@@ -1,5 +1,5 @@
 resource "aws_security_group" "ecs_task_outbound_access" {
-  name        = "ecs-task-outbound-access-security-group"
+  name        = "${var.environment_prefix}-notification-ecs-task-outbound-access"
   description = "allow outbound access"
   vpc_id      = data.terraform_remote_state.base_infrastructure.outputs.notification_vpc_id
   tags        = local.default_tags
@@ -28,7 +28,7 @@ resource "aws_ssm_parameter" "outbound_access_security_group" {
 }
 
 resource "aws_security_group" "notification_db_access" {
-  name_prefix = "notification-db-access-"
+  name_prefix = "${var.environment_prefix}-notification-db-access-"
   description = "For access to the Notification Database"
   vpc_id      = data.terraform_remote_state.base_infrastructure.outputs.notification_vpc_id
 }

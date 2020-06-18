@@ -26,3 +26,6 @@ variable "vpc_cidr" {
 variable "region" {
   default = "us-east-2"
 }
+
+data "aws_availability_zones" "available_zones" {
+}

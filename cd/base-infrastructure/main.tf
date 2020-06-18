@@ -5,9 +5,6 @@ resource "aws_vpc" "notification" {
   tags = local.default_tags
 }
 
-data "aws_availability_zones" "available_zones" {
-}
-
 resource "aws_subnet" "private" {
   count = 2
   cidr_block = cidrsubnet(aws_vpc.notification.cidr_block, 2, count.index)
@@ -36,7 +33,7 @@ resource "aws_subnet" "public" {
 }
 
 resource "aws_security_group" "vpc_endpoints" {
-  name        = "vpc-private-subnet-endpoints"
+  name        = "${var.environment_prefix}-notification-private-subnet-endpoints"
   description = "Allow hosts in private subnet to talk to AWS enpoints"
   vpc_id      = aws_vpc.notification.id
 
@@ -118,7 +115,7 @@ resource "aws_internet_gateway" "notification" {
 }
 
 resource "aws_eip" "notification" {
-  count      = 2
+  count      = length(aws_subnet.public)
   vpc        = true
   depends_on = [aws_internet_gateway.notification]
 
@@ -126,7 +123,7 @@ resource "aws_eip" "notification" {
 }
 
 resource "aws_nat_gateway" "notification" {
-  count = 2
+  count = length(aws_subnet.public)
   subnet_id      = element(aws_subnet.public.*.id, count.index)
   allocation_id = element(aws_eip.notification.*.id, count.index)
 

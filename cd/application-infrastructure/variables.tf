@@ -65,3 +65,9 @@ variable "workspace_iam_roles" {
 variable "region" {
   default = "us-east-2"
 }
+
+variable "log_retention_in_days" {
+  type = number
+  description = "number of days to keep logs in cloud watch"
+  default = 7
+}

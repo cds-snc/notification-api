@@ -1,5 +1,5 @@
 resource "aws_alb" "notification_api" {
-  name            = "notification-load-balancer"
+  name            = "${var.environment_prefix}-notification-load-balancer"
   subnets         = [data.aws_subnet.public_az_a.id, data.aws_subnet.public_az_b.id]
   security_groups = [aws_security_group.notification_api.id]
   tags            = local.default_tags
@@ -25,7 +25,7 @@ resource "aws_ssm_parameter" "api_host_name" {
 }
 
 resource "aws_alb_target_group" "notification_api" {
-  name        = "notification-target-group"
+  name        = "${var.environment_prefix}-notification-target-group"
   port        = 6011
   protocol    = "HTTP"
   vpc_id      = data.terraform_remote_state.base_infrastructure.outputs.notification_vpc_id
@@ -39,7 +39,7 @@ resource "aws_alb_target_group" "notification_api" {
 }
 
 resource "aws_security_group" "notification_api" {
-  name        = "notification-load-balancer-security-group"
+  name        = "${var.environment_prefix}-notification-load-balancer"
   description = "controls access to the ALB"
   vpc_id      = data.terraform_remote_state.base_infrastructure.outputs.notification_vpc_id
   tags        = local.default_tags

@@ -45,3 +45,7 @@ data "terraform_remote_state" "base_infrastructure" {
     region = var.region
   }
 }
+
+variable "database_instance_type" {
+  default = "db.t3.medium"
+}
