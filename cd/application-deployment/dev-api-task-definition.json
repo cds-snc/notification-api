@@ -1,6 +1,6 @@
 {
   "family": "dev-notification-api-task",
-  "executionRoleArn": "arn:aws:iam::437518843863:role/notification-api-ecs-task-execution-role",
+  "executionRoleArn": "arn:aws:iam::437518843863:role/dev-notification-ecs-task-execution-role",
   "networkMode": "awsvpc",
   "containerDefinitions": [
     {
