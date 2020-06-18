@@ -89,6 +89,25 @@ A sane set of defaults exists in `.env.example`
 
 `make test`
 
+### Pre-commit hooks
+
+We're using [pre-commit](https://pre-commit.com/) and [talisman](https://github.com/thoughtworks/talisman)
+to scan changesets for suspicious items (eg keys and secrets).
+
+To set it up, install pre-commit:
+
+```
+brew install pre-commit
+```
+
+Then initialise it, to register the git hooks:
+
+```
+pre-commit install
+```
+
+Configuration is stored in `.pre-commit-config.yaml`.
+
 ##  To run the queues 
 ```
 scripts/run_celery.sh
