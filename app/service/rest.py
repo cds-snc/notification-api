@@ -994,8 +994,8 @@ def check_if_reply_to_address_already_in_use(service_id, email_address):
     if email_address in [i.email_address for i in existing_reply_to_addresses]:
         raise InvalidRequest(
             {
-                "0":"Your service already uses ",
+                "0": "Your service already uses ",
                 "1": "‘{}’ ".format(email_address),
-                "2":"as an email reply-to address."
+                "2": "as an email reply-to address."
             }, status_code=400
         )
