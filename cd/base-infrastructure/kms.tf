@@ -4,6 +4,10 @@ resource "aws_kms_key" "notification" {
   policy                  = data.aws_iam_policy_document.notification.json
 
   tags = local.default_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_kms_alias" "notification" {
