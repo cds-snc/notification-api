@@ -264,3 +264,22 @@ jobs:
           service: dev-notification-celery-beat-service
           cluster: dev-notification-cluster
           wait-for-service-stability: true
+  create-tag:
+    runs-on: ubuntu-latest
+    needs: [dev-deploy-api, dev-deploy-celery, dev-deploy-celery-beat]
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/github-script@v2
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            git.createTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: 'v0.0.0',
+              message: 'testing tag inside workflow'
+              object: ${{ github.sha }},
+              type: "commit"
+            }, function(err, res) {
+              console.log(err, res);
+            });
