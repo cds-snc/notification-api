@@ -141,6 +141,32 @@ make freeze-requirements
 
 `requirements.txt` should be committed alongside `requirements-app.txt` changes.
 
+## Testing template changes
+
+Jinja templates used in this repo: `email_template.jinja2`
+
+Jinja templates are pulled in from the [notification-utils](https://github.com/cds-snc/notification-utils) repo. To test jinja changes locally without needing to push changes to notification-utils, follow this procedure:
+
+1. Make markup changes to `email_template.jinja2` (notifications_utils/jinja_templates/email_template.jinja2)
+
+2. (optional) Modify notifications_utils/version.py and add -SNAPSHOT to version number.
+This will allow to easily revert local copy of notifications-utils in sites-packages to official version from git. 
+
+2. From within virtual environment run:
+
+    ```commandline
+    pip install file:///path/to/notification-utils
+    ```
+   
+3. See the changes locally!
+
+4. Repeat steps 1, 2 and 3 until satisfied.
+
+4. When finished run:
+    ```commandline
+    pip install -r requirements.txt
+    ```
+
 ## Frequent problems
 
 __Problem__ : `E999 SyntaxError: invalid syntax` when running `flake8`
