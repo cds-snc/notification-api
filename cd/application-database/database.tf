@@ -30,6 +30,7 @@ resource "aws_ssm_parameter" "database_uri" {
                   module.db.this_rds_cluster_endpoint,
                   module.db.this_rds_cluster_port,
                   module.db.this_rds_cluster_database_name)
+  key_id      = "alias/${var.environment_prefix}-notification"
   tags        = local.default_tags
 }
 
