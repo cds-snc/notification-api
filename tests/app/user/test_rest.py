@@ -410,7 +410,8 @@ def test_archive_user_when_user_cannot_be_archived(mocker, client, sample_user):
     )
     json_resp = json.loads(response.get_data(as_text=True))
 
-    msg = "User can’t be removed from a service - check all services have another team member with manage_settings"
+    msg = "User cannot be removed from service. "\
+          "Check that all services have another team member who can manage settings"
 
     assert response.status_code == 400
     assert json_resp['message'] == msg
