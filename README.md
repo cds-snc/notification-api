@@ -94,10 +94,10 @@ A sane set of defaults exists in `.env.example`
 We're using [pre-commit](https://pre-commit.com/) and [talisman](https://github.com/thoughtworks/talisman)
 to scan changesets for suspicious items (eg keys and secrets).
 
-To set it up, install pre-commit:
+To set it up, install the required dependencies (including `pre-commit` and `go`):
 
 ```
-brew install pre-commit
+brew bundle
 ```
 
 Then initialise it, to register the git hooks:
