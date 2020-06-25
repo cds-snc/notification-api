@@ -1,0 +1,18 @@
+name: Staging CI
+
+on:
+  push:
+    tags:
+      - rc-**
+env:
+  tf_version: 'latest'
+  TF_LOG: INFO
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - name: Run staging
+        run: |
+          echo "Staging began for: ${{ github.sha }}"
