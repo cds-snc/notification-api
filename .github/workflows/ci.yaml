@@ -268,3 +268,14 @@ jobs:
           service: dev-notification-celery-beat-service
           cluster: dev-notification-cluster
           wait-for-service-stability: true
+  create-tag:
+    runs-on: ubuntu-latest
+    needs: [dev-deploy-api, dev-deploy-celery, dev-deploy-celery-beat]
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ssh-key: ${{ secrets.CD_KEY }}
+      - name: Create Tag
+        run: |
+          sh ./scripts/increment_tag.sh ${{ github.sha }}
