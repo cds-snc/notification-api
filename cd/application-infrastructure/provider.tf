@@ -8,9 +8,6 @@ provider "aws" {
 
 terraform {
   backend "s3" {
-    bucket = "va-notification-terraform"
-    key    = "application-infrastructure.tfstate"
-    region  = "us-east-2"
     encrypt = true
   }
 }

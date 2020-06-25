@@ -7,7 +7,6 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   BACKEND_BUCKET: "va-notification-terraform"
-  BACKEND_KEY: "base-infrastructure.tfstate"
   BACKEND_REGION: "us-east-2"
 
 jobs:
@@ -52,7 +51,7 @@ jobs:
           tf_actions_subcommand: 'init'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
-          args: '-backend-config="bucket=${{ env.BACKEND_BUCKET }}" -backend-config="key=${{ env.BACKEND_KEY }}" -backend-config="region=${{ env.BACKEND_REGION }}"'
+          args: '-backend-config="bucket=${{ env.BACKEND_BUCKET }}" -backend-config="key=base-infrastructure.tfstate" -backend-config="region=${{ env.BACKEND_REGION }}"'
       - name: 'Terraform Validate'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -93,7 +92,7 @@ jobs:
           tf_actions_subcommand: 'init'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
-          args: '-backend-config="bucket=${{ env.BACKEND_BUCKET }}" -backend-config="key=${{ env.BACKEND_KEY }}" -backend-config="region=${{ env.BACKEND_REGION }}"'
+          args: '-backend-config="bucket=${{ env.BACKEND_BUCKET }}" -backend-config="key=application-database.tfstate" -backend-config="region=${{ env.BACKEND_REGION }}"'
       - name: 'Terraform Validate'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -134,7 +133,7 @@ jobs:
           tf_actions_subcommand: 'init'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
-          args: '-backend-config="bucket=${{ env.BACKEND_BUCKET }}" -backend-config="key=${{ env.BACKEND_KEY }}" -backend-config="region=${{ env.BACKEND_REGION }}"'
+          args: '-backend-config="bucket=${{ env.BACKEND_BUCKET }}" -backend-config="key=application-infrastructure.tfstate" -backend-config="region=${{ env.BACKEND_REGION }}"'
       - name: 'Terraform Validate'
         uses: hashicorp/terraform-github-actions@master
         with:
