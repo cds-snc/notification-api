@@ -7,6 +7,8 @@ on:
 env:
   tf_version: 'latest'
   TF_LOG: INFO
+  BACKEND_BUCKET: "va-notification-terraform-staging"
+  BACKEND_REGION: "us-east-2"
 
 jobs:
   smoke-test:
@@ -16,3 +18,44 @@ jobs:
       - name: Run staging
         run: |
           echo "Staging began for: ${{ github.sha }}"
+
+  create-base-infrastructure:
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    env:
+      tf_working_dir: './cd/base-infrastructure'
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v2
+      - name: 'Terraform Init'
+        uses: hashicorp/terraform-github-actions@master
+        with:
+          tf_actions_version: ${{ env.tf_version }}
+          tf_actions_subcommand: 'init'
+          tf_actions_working_dir: ${{ env.tf_working_dir }}
+          tf_actions_comment: false
+          args: '-backend-config="bucket=${{ env.BACKEND_BUCKET }}" -backend-config="key=base-infrastructure.tfstate" -backend-config="region=${{ env.BACKEND_REGION }}"'
+      - name: 'Terraform Validate'
+        uses: hashicorp/terraform-github-actions@master
+        with:
+          tf_actions_version: ${{ env.tf_version }}
+          tf_actions_subcommand: 'validate'
+          tf_actions_working_dir: ${{ env.tf_working_dir }}
+          tf_actions_comment: false
+      - name: 'Terraform Plan'
+        uses: hashicorp/terraform-github-actions@master
+        with:
+          tf_actions_version: ${{ env.tf_version }}
+          tf_actions_subcommand: 'plan'
+          tf_actions_working_dir: ${{ env.tf_working_dir }}
+          tf_actions_comment: false
+        env:
+          TF_CLI_ARGS: '-out=base-${{ github.sha }}.tfplan -var-file="staging.tfvars"'
+      - name: 'Terraform Apply'
+        uses: hashicorp/terraform-github-actions@master
+        with:
+          tf_actions_version: ${{ env.tf_version }}
+          tf_actions_subcommand: 'apply'
+          tf_actions_working_dir: ${{ env.tf_working_dir }}
+          tf_actions_comment: false
+          args: '"base-${{ github.sha }}.tfplan"'
