@@ -14,7 +14,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Run tests with docker-compose-test
         run: |
           docker-compose -f ci/docker-compose-test.yml up --build --abort-on-container-exit --force-recreate
@@ -24,7 +24,7 @@ jobs:
     needs: [test]
     if: github.ref == 'refs/heads/master'
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Build and push to AWS ECR
         uses: kciter/aws-ecr-action@v1
         with:
@@ -44,7 +44,7 @@ jobs:
       tf_working_dir: './cd/base-infrastructure'
     if: github.ref == 'refs/heads/master'
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: 'Terraform Init'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -85,7 +85,7 @@ jobs:
       tf_working_dir: './cd/application-database'
     if: github.ref == 'refs/heads/master'
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: 'Terraform Init'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -126,7 +126,7 @@ jobs:
       tf_working_dir: './cd/application-infrastructure'
     if: github.ref == 'refs/heads/master'
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: 'Terraform Init'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -165,7 +165,7 @@ jobs:
     needs: [create-dev-database, create-dev-app-infrastructure]
     if: github.ref == 'refs/heads/master'
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -196,7 +196,7 @@ jobs:
     needs: [create-dev-app-infrastructure, dev-run-migrations]
     if: github.ref == 'refs/heads/master'
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -222,7 +222,7 @@ jobs:
     needs: [create-dev-app-infrastructure, dev-run-migrations]
     if: github.ref == 'refs/heads/master'
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -248,7 +248,7 @@ jobs:
     needs: [create-dev-app-infrastructure, dev-run-migrations]
     if: github.ref == 'refs/heads/master'
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
