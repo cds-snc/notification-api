@@ -13,7 +13,6 @@ env:
 jobs:
   smoke-test:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
     steps:
       - name: Run staging
         run: |
@@ -24,7 +23,6 @@ jobs:
     needs: [build-and-push]
     env:
       tf_working_dir: './cd/base-infrastructure'
-    if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v2
       - name: 'Terraform Init'
