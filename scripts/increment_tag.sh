@@ -23,8 +23,8 @@ get_latest_version_tag () {
 }
 
 create_git_tag () {
-  echo "git tag $1 $2"
-  echo "git push origin $1"
+  git tag $1 $2
+  git push origin $1
 }
 
 current_version_tag=$(get_latest_version_tag)
