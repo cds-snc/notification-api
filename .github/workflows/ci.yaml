@@ -52,7 +52,7 @@ jobs:
           tf_actions_subcommand: 'init'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
-          args: '-backend-config="bucket=${{ BACKEND_BUCKET }}" -backend-config="key=${{ BACKEND_KEY }}" -backend-config="region=${{ BACKEND_REGION }}"'
+          args: '-backend-config="bucket=${{ env.BACKEND_BUCKET }}" -backend-config="key=${{ env.BACKEND_KEY }}" -backend-config="region=${{ env.BACKEND_REGION }}"'
       - name: 'Terraform Validate'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -93,7 +93,7 @@ jobs:
           tf_actions_subcommand: 'init'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
-          args: '-backend-config="bucket=${{ BACKEND_BUCKET }}" -backend-config="key=${{ BACKEND_KEY }}" -backend-config="region=${{ BACKEND_REGION }}"'
+          args: '-backend-config="bucket=${{ env.BACKEND_BUCKET }}" -backend-config="key=${{ env.BACKEND_KEY }}" -backend-config="region=${{ env.BACKEND_REGION }}"'
       - name: 'Terraform Validate'
         uses: hashicorp/terraform-github-actions@master
         with:
@@ -134,7 +134,7 @@ jobs:
           tf_actions_subcommand: 'init'
           tf_actions_working_dir: ${{ env.tf_working_dir }}
           tf_actions_comment: false
-          args: '-backend-config="bucket=${{ BACKEND_BUCKET }}" -backend-config="key=${{ BACKEND_KEY }}" -backend-config="region=${{ BACKEND_REGION }}"'
+          args: '-backend-config="bucket=${{ env.BACKEND_BUCKET }}" -backend-config="key=${{ env.BACKEND_KEY }}" -backend-config="region=${{ env.BACKEND_REGION }}"'
       - name: 'Terraform Validate'
         uses: hashicorp/terraform-github-actions@master
         with:
