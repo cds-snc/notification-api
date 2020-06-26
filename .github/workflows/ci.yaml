@@ -3,6 +3,8 @@ name: Development CI
 on:
   push:
     tags-ignore:
+      - rc-**
+    branches:
       - '**'
   pull_request:
     branches:
