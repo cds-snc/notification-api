@@ -32,11 +32,15 @@ variable "region" {
   default = "us-east-2"
 }
 
+variable "bucket" {
+  default = "va-notification-terraform"
+}
+
 data "terraform_remote_state" "base_infrastructure" {
   backend = "s3"
 
   config = {
-    bucket = "va-notification-terraform"
+    bucket = var.bucket
     key    = "base-infrastructure.tfstate"
     region = var.region
   }
