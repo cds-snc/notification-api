@@ -7,6 +7,8 @@ on:
 env:
   tf_version: 'latest'
   TF_LOG: INFO
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   BACKEND_BUCKET: "va-notification-terraform-staging"
   BACKEND_REGION: "us-east-2"
 
