@@ -56,10 +56,8 @@ locals {
   }
 }
 
-variable "workspace_iam_roles" {
-  default = {
+variable "deploy_role" {
     default = "arn:aws:iam::437518843863:role/notification-deploy-role"
-  }
 }
 
 variable "region" {
