@@ -60,6 +60,7 @@ post_notifications.py -> process_notifications.py: persist_scheduled_notificatio
 note left: Transform local datetime to UTC and persist scheduled notification id pointing to Notification
 post_notifications.py -> process_notifications.py: send_notification_to_queue(notification, research_mode, queue=None)
 note left: Will use priority queue if template is marked as priority
+participant create_response.py
 end box
 
 box "Celery" #LightGreen
@@ -67,28 +68,71 @@ process_notifications.py -> provider_tasks.py: deliver_email(notification_id)
 note left: max_retries=48, default_retry_delay=300
 provider_tasks.py ->  notifications_dao.py: get_notification_by_id(notification_id)
 provider_tasks.py -> send_to_providers.py: send_email_to_provider(notification)
-alt NoResultFound / InvalidEmailError / MalwarePendingException
+alt NoResultFound / MalwarePendingException / Exception
     provider_tasks.py --> provider_tasks.py: Log failure and retry
 end
-alt MaxRetriesExceededError
+alt MaxRetriesExceededError / InvalidEmailError
     provider_tasks.py --> provider_tasks.py: Log failure and update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
 end
 
 send_to_providers.py -> send_to_providers.py: check if notification.service is active
 alt ServiceInactive
-    send_to_providers.py --> notifications_dao.py: dao_update_notification()\nwith notification.status = NOTIFICATION_TECHNICAL_FAILURE
-    send_to_providers.py -> send_to_providers.py: raise NotificationTechnicalFailureException
+    send_to_providers.py -> notifications_dao.py: dao_update_notification()\nwith notification.status = NOTIFICATION_TECHNICAL_FAILURE
+    send_to_providers.py --> provider_tasks.py: raise NotificationTechnicalFailureException
 end 
 
 send_to_providers.py -> send_to_providers.py: provider_to_use(EMAIL_TYPE, notification.id)
 note left: if notification_status == created
+note right: select provider to send email
 alt Exception
-    send_to_providers.py -> send_to_providers.py: raise Exception for no active providers
+    send_to_providers.py -> provider_tasks.py: raise Exception for no active providers
 end
-send_to_providers.py --> send_to_providers.py: extracts file objects from personalisation dict
+send_to_providers.py -> send_to_providers.py: extracts file objects from personalisation dict
+
+note left: Added by CDS to send files as attachments instead of links
 alt for each file
-    send_to_providers.py --> send_to_providers.py: check malware and download file to upload as attachment
+    send_to_providers.py -> send_to_providers.py: check malware and download file to upload as attachment
 end
+hnote right: Potentially to be removed
+
+send_to_providers.py -> templates_dao.py: dao_get_template_by_id(notification.template_id, notification.template_version)
+templates_dao.py --> send_to_providers.py: template with correct version
+send_to_providers.py -> send_to_providers.py: generate HTMLEmailTemplate
+note left: use html_email_options from service
+send_to_providers.py -> send_to_providers.py: generate PlainTextEmailTemplate
+send_to_providers.py -> send_to_providers.py: scan for PII
+note left: if SCAN_FOR_PII
+alt Contains PII
+    send_to_providers.py -> notifications_dao.py: dao_update_notification()\nwith notification.status = NOTIFICATION_TECHNICAL_FAILURE
+    send_to_providers.py --> provider_tasks.py: raise NotificationTechnicalFailureException
+end
+hnote right
+Has to be updated for US.
+Currently looking for regex: r'\s\d{3}-\d{3}-\d{3}\s' 
+end note
+
+alt If research mode
+send_to_providers.py -> send_to_providers.py: generate UUID reference
+send_to_providers.py -> send_to_providers.py: update_notification_to_sending(notification, provider)
+create research_mode_tasks.py
+send_to_providers.py -> research_mode_tasks.py: send_email_response(notification.reference, notification.to)
+hnote right: Uses hardoced SES
+research_mode_tasks.py ->] : async process_ses_results
+note left: result (perm fail / temp fail / success) depends on "to" email
+end
+ 
+send_to_providers.py -> send_to_providers.py: set sending domain
+note right: uses service.sending_domain if exists
+send_to_providers.py -> send_to_providers.py: format from_address
+send_to_providers.py -> send_to_providers.py: set email_reply_to
+
+create provider
+send_to_providers.py -> provider: send_email()
+return reference
+
+send_to_providers.py -> send_to_providers.py: update_notification_to_sending(notification, provider)
+
+
 end box
 
 post_notifications.py --> post_notifications.py: notification
