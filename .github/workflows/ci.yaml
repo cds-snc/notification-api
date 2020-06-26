@@ -1,6 +1,12 @@
 name: Development CI
 
-on: [push, pull_request]
+on:
+  push:
+    tags-ignore:
+      - '**'
+  pull_request:
+    branches:
+      - master
 env:
   tf_version: 'latest'
   TF_LOG: INFO
