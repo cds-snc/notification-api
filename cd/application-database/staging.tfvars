@@ -1,4 +1,4 @@
-environment_prefix = "dev"
+environment_prefix = "staging"
 
 database_name = "notification_api"
 

@@ -27,13 +27,17 @@ data "aws_subnet" "private_az_b" {
   cidr_block = "10.0.0.0/26"
 }
 
+variable "bucket" {
+  default = "va-notification-terraform"
+}
+
 data "terraform_remote_state" "application_db" {
   backend = "s3"
 
   config = {
-    bucket = "va-notification-terraform"
+    bucket = var.bucket
     key    = "application-database.tfstate"
-    region = "us-east-2"
+    region = var.region
   }
 }
 
@@ -41,9 +45,9 @@ data "terraform_remote_state" "base_infrastructure" {
   backend = "s3"
 
   config = {
-    bucket = "va-notification-terraform"
+    bucket = var.bucket
     key    = "base-infrastructure.tfstate"
-    region = "us-east-2"
+    region = var.region
   }
 }
 
