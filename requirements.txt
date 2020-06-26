@@ -104,7 +104,7 @@ python-json-logger==0.1.11
 pytz==2020.1
 redis==3.5.2
 requests-file==1.5.1
-rsa==3.4.2
+rsa==4.1
 s3transfer==0.3.3
 six==1.15.0
 smartypants==2.0.1
