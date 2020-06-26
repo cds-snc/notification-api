@@ -13,16 +13,8 @@ env:
   BACKEND_REGION: "us-east-2"
 
 jobs:
-  smoke-test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run staging
-        run: |
-          echo "Staging began for: ${{ github.sha }}"
-
   create-base-infrastructure:
     runs-on: ubuntu-latest
-    needs: [smoke-test]
     env:
       tf_working_dir: './cd/base-infrastructure'
     steps:
