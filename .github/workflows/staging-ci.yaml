@@ -20,7 +20,7 @@ jobs:
 
   create-base-infrastructure:
     runs-on: ubuntu-latest
-    needs: [build-and-push]
+    needs: [smoke-test]
     env:
       tf_working_dir: './cd/base-infrastructure'
     steps:
