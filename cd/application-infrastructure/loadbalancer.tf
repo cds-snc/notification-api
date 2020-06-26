@@ -1,6 +1,6 @@
 resource "aws_alb" "notification_api" {
   name            = "${var.environment_prefix}-notification-load-balancer"
-  subnets         = [data.aws_subnet.public_az_a.id, data.aws_subnet.public_az_b.id]
+  subnets         = data.terraform_remote_state.base_infrastructure.outputs.public_subnet_ids
   security_groups = [aws_security_group.notification_api.id]
   tags            = local.default_tags
 }

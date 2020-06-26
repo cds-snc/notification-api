@@ -9,3 +9,11 @@ output "notification_cluster_id" {
 output "notification_kms_key_id" {
   value = aws_kms_key.notification.id
 }
+
+output "private_subnet_ids" {
+  value = aws_subnet.private.*.id
+}
+
+output "public_subnet_ids" {
+  value = aws_subnet.public.*.id
+}

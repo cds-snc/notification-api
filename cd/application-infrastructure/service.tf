@@ -31,7 +31,7 @@ resource "aws_ecs_service" "notification_api" {
 
   network_configuration {
     security_groups  = [aws_security_group.ecs_task_outbound_access.id, data.terraform_remote_state.application_db.outputs.notification_db_access_security_group_id]
-    subnets          = [data.aws_subnet.private_az_a.id, data.aws_subnet.private_az_b.id]
+    subnets          = data.terraform_remote_state.base_infrastructure.outputs.private_subnet_ids
     assign_public_ip = false
   }
 
@@ -77,7 +77,7 @@ resource "aws_ecs_service" "notification_celery" {
 
   network_configuration {
     security_groups  = [aws_security_group.ecs_task_outbound_access.id, data.terraform_remote_state.application_db.outputs.notification_db_access_security_group_id]
-    subnets          = [data.aws_subnet.private_az_a.id, data.aws_subnet.private_az_b.id]
+    subnets          = data.terraform_remote_state.base_infrastructure.outputs.private_subnet_ids
     assign_public_ip = false
   }
 
@@ -117,7 +117,7 @@ resource "aws_ecs_service" "notification_celery_beat" {
 
   network_configuration {
     security_groups  = [aws_security_group.ecs_task_outbound_access.id, data.terraform_remote_state.application_db.outputs.notification_db_access_security_group_id]
-    subnets          = [data.aws_subnet.private_az_a.id, data.aws_subnet.private_az_b.id]
+    subnets          = data.terraform_remote_state.base_infrastructure.outputs.private_subnet_ids
     assign_public_ip = false
   }
 

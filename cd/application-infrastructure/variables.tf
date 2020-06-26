@@ -11,22 +11,6 @@ variable "database_name" {
   default = "notification_api"
 }
 
-data "aws_subnet" "public_az_a" {
-  cidr_block = "10.0.0.128/26"
-}
-
-data "aws_subnet" "public_az_b" {
-  cidr_block = "10.0.0.192/26"
-}
-
-data "aws_subnet" "private_az_a" {
-  cidr_block = "10.0.0.64/26"
-}
-
-data "aws_subnet" "private_az_b" {
-  cidr_block = "10.0.0.0/26"
-}
-
 variable "bucket" {
   default = "va-notification-terraform"
 }

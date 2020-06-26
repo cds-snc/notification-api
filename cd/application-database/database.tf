@@ -7,7 +7,7 @@ module "db" {
   engine_version = "11.6"
 
   vpc_id  = data.terraform_remote_state.base_infrastructure.outputs.notification_vpc_id
-  subnets = [data.aws_subnet.private_az_a.id, data.aws_subnet.private_az_b.id]
+  subnets = data.terraform_remote_state.base_infrastructure.outputs.private_subnet_ids
 
   replica_count       = 1
   instance_type       = var.database_instance_type
