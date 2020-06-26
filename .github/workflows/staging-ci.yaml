@@ -3,7 +3,7 @@ name: Staging CI
 on:
   push:
     tags:
-      - rc-**
+      - staging-v**
 env:
   tf_version: 'latest'
   TF_LOG: INFO
