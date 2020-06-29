@@ -8,6 +8,7 @@ provider "aws" {
 
 terraform {
   backend "s3" {
+    key = application-infrastructure.tfstate
     encrypt = true
   }
 }
