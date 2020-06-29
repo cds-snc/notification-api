@@ -6,8 +6,8 @@ resource "aws_vpc" "notification" {
 }
 
 resource "aws_subnet" "private" {
-  count = 2
-  cidr_block = cidrsubnet(aws_vpc.notification.cidr_block, 2, count.index)
+  count = length(var.private_cidrs)
+  cidr_block = var.private_cidrs[count.index]
   availability_zone = data.aws_availability_zones.available_zones.names[count.index]
   vpc_id     = aws_vpc.notification.id
 
@@ -23,8 +23,8 @@ resource "aws_ssm_parameter" "private_subnets" {
 }
 
 resource "aws_subnet" "public" {
-  count                   = 2
-  cidr_block              = cidrsubnet(aws_vpc.notification.cidr_block, 2, 2 + count.index)
+  count                   = length(var.public_cidrs)
+  cidr_block              = var.public_cidrs[count.index]
   availability_zone       = data.aws_availability_zones.available_zones.names[count.index]
   vpc_id                  = aws_vpc.notification.id
   map_public_ip_on_launch = true
@@ -115,7 +115,7 @@ resource "aws_internet_gateway" "notification" {
 }
 
 resource "aws_eip" "notification" {
-  count      = length(aws_subnet.public)
+  count      = length(var.public_cidrs)
   vpc        = true
   depends_on = [aws_internet_gateway.notification]
 
@@ -123,7 +123,7 @@ resource "aws_eip" "notification" {
 }
 
 resource "aws_nat_gateway" "notification" {
-  count = length(aws_subnet.public)
+  count = length(var.public_cidrs)
   subnet_id      = element(aws_subnet.public.*.id, count.index)
   allocation_id = element(aws_eip.notification.*.id, count.index)
 

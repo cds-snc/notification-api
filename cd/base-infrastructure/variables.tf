@@ -23,6 +23,14 @@ variable "vpc_cidr" {
   default = "10.0.0.0/24"
 }
 
+variable "private_cidrs" {
+  default = []
+}
+
+variable "public_cidrs" {
+  default = []
+}
+
 variable "region" {
   default = "us-east-2"
 }
