@@ -1,2 +1,2 @@
-bucket=va-notification-terraform
-region=us-east-2
+bucket = "va-notification-terraform"
+region = "us-east-2"
