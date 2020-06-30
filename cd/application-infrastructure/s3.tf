@@ -17,6 +17,7 @@ resource "aws_s3_bucket_object" "va_logo" {
   bucket = aws_s3_bucket.assets.id
   key    = "header-logo.png"
   source = "assets/header-logo.png"
+  acl = "public-read"
 
   tags = local.default_tags
 }
