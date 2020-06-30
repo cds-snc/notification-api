@@ -182,11 +182,14 @@
       "Action": [
         "s3:CreateBucket",
         "s3:DeleteBucket",
+        "s3:DeleteBucketWebsite",
         "s3:GetBucketCors",
         "s3:GetBucketTagging",
+        "s3:GetBucketWebsite",
         "s3:PutBucketAcl",
         "s3:PutBucketCors",
         "s3:PutBucketTagging",
+        "s3:PutBucketWebsite",
         "s3:PutEncryptionConfiguration"
       ],
       "Resource": "arn:aws:s3:::*notifications-va-gov-assets"
