@@ -44,7 +44,7 @@ class GovdeliveryClient(EmailClient):
                    to_addresses,
                    subject,
                    body,
-                   html_body='',
+                   html_body,
                    reply_to_address=None,
                    attachments=[]):
         try:
@@ -62,7 +62,7 @@ class GovdeliveryClient(EmailClient):
 
             payload = {
                 "subject": subject,
-                "body": body,
+                "body": html_body,
                 "recipients": recipients,
                 "from_email": source
             }

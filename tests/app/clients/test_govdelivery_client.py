@@ -38,7 +38,7 @@ def test_should_get_name(client):
 
 def test_send_email_posts_to_correct_url(client, respond_successfully):
     with respond_successfully:
-        client.send_email("source", "address", "subject", "body")
+        client.send_email("source", "address", "subject", "body", "html body")
 
     expected_govdelivery_url = "https://tms.govdelivery.com/messages/email"
 
@@ -50,23 +50,24 @@ def test_token_appears_as_header_in_request(client, respond_successfully):
     client.token = token
 
     with respond_successfully:
-        client.send_email("source", "address", "subject", "body")
+        client.send_email("source", "address", "subject", "body", "html body")
 
     assert respond_successfully.request_history[0].headers["X-AUTH-TOKEN"] == token
 
 
-def test_send_email_has_correct_payload(client, respond_successfully):
+def test_send_email_has_correct_payload_and_uses_html_body(client, respond_successfully):
     subject = "some subject"
     body = "some body"
+    html_body = "some html body"
     recipient = "recipient@email.com"
     sender = "sender@email.com"
 
     with respond_successfully:
-        client.send_email(sender, recipient, subject, body)
+        client.send_email(sender, recipient, subject, body, html_body)
 
     expected_payload = {
         "subject": subject,
-        "body": body,
+        "body": html_body,
         "recipients": [
             {
                 "email": recipient
@@ -82,7 +83,7 @@ def test_send_email_with_multiple_recipients(client, respond_successfully):
     recipient_emails = ["recipient1@email.com", "recipient2@email.com", "recipient3@email.com"]
 
     with respond_successfully:
-        client.send_email("source", recipient_emails, "subject", "body")
+        client.send_email("source", recipient_emails, "subject", "body", "html body")
 
     json = respond_successfully.request_history[0].json()
 
@@ -95,7 +96,7 @@ def test_send_email_with_multiple_recipients(client, respond_successfully):
 def test_from_email_is_only_email_when_name_also_provided(client, respond_successfully):
     source = '"Sender Name" <sender@email.com>'
     with respond_successfully:
-        client.send_email(source, "recipient@email.com", "subject", "body")
+        client.send_email(source, "recipient@email.com", "subject", "body", "html body")
 
     assert respond_successfully.request_history[0].json()["from_email"] == "sender@email.com"
 
@@ -107,7 +108,7 @@ def test_should_raise_http_errors_as_govdelivery_client_exception(client):
             status_code=500
         )
         with pytest.raises(GovdeliveryClientException):
-            client.send_email("source", "recipient@email.com", "subject", "body")
+            client.send_email("source", "recipient@email.com", "subject", "body", "html body")
     client.statsd_client.incr.assert_called_with("clients.govdelivery.error")
 
 
@@ -118,7 +119,7 @@ def test_should_raise_connection_errors_as_govdelivery_client_exception(client):
             exc=requests.exceptions.ConnectionError
         )
         with pytest.raises(GovdeliveryClientException):
-            client.send_email("source", "recipient@email.com", "subject", "body")
+            client.send_email("source", "recipient@email.com", "subject", "body", "html body")
     client.statsd_client.incr.assert_called_with("clients.govdelivery.error")
 
 
@@ -129,13 +130,13 @@ def test_should_raise_422_as_invalid_email_exception(client):
             status_code=422
         )
         with pytest.raises(InvalidEmailError):
-            client.send_email("source", "recipient@email.com", "subject", "body")
+            client.send_email("source", "recipient@email.com", "subject", "body", "html body")
     client.statsd_client.incr.assert_called_with("clients.govdelivery.error")
 
 
 def test_should_time_request_and_increment_success_count(client, respond_successfully):
     with respond_successfully:
-        client.send_email("source", "recipient@email.com", "subject", "body")
+        client.send_email("source", "recipient@email.com", "subject", "body", "html body")
 
     client.statsd_client.timing.assert_called_with("clients.govdelivery.request-time", ANY)
     client.statsd_client.incr.assert_called_with("clients.govdelivery.success")
@@ -150,7 +151,7 @@ def test_should_return_message_id(client):
                 "id": message_id
             }
         )
-        response = client.send_email("source", "recipient@email.com", "subject", "body")
+        response = client.send_email("source", "recipient@email.com", "subject", "body", "html body")
 
     assert response == message_id
 
