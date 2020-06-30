@@ -408,7 +408,7 @@ class Development(Config):
     MMG_INBOUND_SMS_USERNAME = ['username']
 
     NOTIFY_ENVIRONMENT = 'development'
-    NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-canada-ca")
+    NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-va")
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "public.govdelivery.com")
 
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", 'postgresql://postgres@localhost/notification_api')
@@ -428,7 +428,7 @@ class Development(Config):
 
 
 class Test(Development):
-    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.alpha.canada.ca")
+    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "public.govdelivery.com")
     FROM_NUMBER = 'testing'
     NOTIFY_ENVIRONMENT = 'test'
     TESTING = True
@@ -474,7 +474,7 @@ class Test(Development):
 
 
 class Production(Config):
-    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.alpha.canada.ca")
+    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "public.govdelivery.com")
     NOTIFY_ENVIRONMENT = 'production'
     # CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'production-test-letters'
@@ -483,7 +483,7 @@ class Production(Config):
     LETTERS_SCAN_BUCKET_NAME = 'production-letters-scan'
     INVALID_PDF_BUCKET_NAME = 'production-letters-invalid-pdf'
     TRANSIENT_UPLOADED_LETTERS = 'production-transient-uploaded-letters'
-    FROM_NUMBER = 'CANADA.CA'
+    FROM_NUMBER = 'VA.GOV'
     PERFORMANCE_PLATFORM_ENABLED = False
     API_RATE_LIMIT_ENABLED = True
     CHECK_PROXY_HEADER = False
