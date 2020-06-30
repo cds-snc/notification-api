@@ -14,6 +14,7 @@ module "db" {
   storage_encrypted   = true
   apply_immediately   = true
   monitoring_interval = 10
+  deletion_protection = var.database_deletion_protection
 
   database_name = var.database_name
   tags          = local.default_tags
@@ -23,15 +24,15 @@ resource "aws_ssm_parameter" "database_uri" {
   name        = "/${var.environment_prefix}/notification-api/database/uri"
   description = "The database URI for ${var.environment_prefix}"
   type        = "SecureString"
-  value       = format(
-                  "postgresql://%s:%s@%s:%s/%s",
-                  module.db.this_rds_cluster_master_username,
-                  module.db.this_rds_cluster_master_password,
-                  module.db.this_rds_cluster_endpoint,
-                  module.db.this_rds_cluster_port,
-                  module.db.this_rds_cluster_database_name)
-  key_id      = "alias/${var.environment_prefix}-notification"
-  tags        = local.default_tags
+  value = format(
+    "postgresql://%s:%s@%s:%s/%s",
+    module.db.this_rds_cluster_master_username,
+    module.db.this_rds_cluster_master_password,
+    module.db.this_rds_cluster_endpoint,
+    module.db.this_rds_cluster_port,
+  module.db.this_rds_cluster_database_name)
+  key_id = "alias/${var.environment_prefix}-notification"
+  tags   = local.default_tags
 }
 
 resource "aws_security_group" "notification_db_access" {

@@ -2,20 +2,6 @@ variable "environment_prefix" {
   default = "dev"
 }
 
-variable "database_name" {
-  type    = string
-  default = "notification_api"
-}
-
-locals {
-  default_tags = {
-    Stack = "application-database",
-    Environment = var.environment_prefix,
-    Team = "va-notify"
-    ManagedBy = "Terraform"
-  }
-}
-
 variable "workspace_iam_role" {
   default = "arn:aws:iam::437518843863:role/notification-deploy-role"
 }
@@ -38,6 +24,26 @@ data "terraform_remote_state" "base_infrastructure" {
   }
 }
 
+variable "database_name" {
+  type    = string
+  default = "notification_api"
+}
+
 variable "database_instance_type" {
   default = "db.t3.medium"
+}
+
+variable "database_deletion_protection" {
+  description = "If the DB instance should have deletion protection enabled"
+  type        = bool
+  default     = true
+}
+
+locals {
+  default_tags = {
+    Stack       = "application-database",
+    Environment = var.environment_prefix,
+    Team        = "va-notify"
+    ManagedBy   = "Terraform"
+  }
 }
