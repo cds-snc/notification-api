@@ -29,6 +29,15 @@ On OS X:
 
 `pyenv global 3.6.9`
 
+Note: 
+- if md5 hash issue, may be related to openssl version. `brew upgrade openssl && brew switch openssl`
+
+- problem: if can't find virtualenv.sh in current python version
+`echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bash_profile `
+
+`pip install --upgrade pip`
+`pip install --upgrade virtualenvwrapper`
+
 4. Ensure it installed by running
 
 `python --version` 
@@ -61,29 +70,23 @@ source  ~/.pyenv/versions/3.6.9/bin/virtualenvwrapper.sh
 
 `createdb --user=postgres notification_api`
 
-11. Decrypt our existing set of environment variables
-
-`gcloud kms decrypt --project=[PROJECT_NAME] --plaintext-file=.env --ciphertext-file=.env.enc --location=global --keyring=[KEY_RING] --key=[KEY_NAME]`
-
-A sane set of defaults exists in `.env.example`
-
-12. Install all dependencies
+11. Install all dependencies
 
 `pip3 install -r requirements.txt`
 
-13. Generate the version file ?!?
+12. Generate the version file ?!?
 
 `make generate-version-file`
 
-14. Run all DB migrations
+13. Run all DB migrations
 
 `flask db upgrade`
 
-15. Run the service
+14. Run the service
 
 `flask run -p 6011 --host=0.0.0.0`
 
-15a. To test
+14a. To test
 
 `pip3 install -r requirements_for_test.txt`
 
@@ -123,6 +126,69 @@ To run all the tests
 
 To run the application and it's associated postgres instance
 `docker-compose -f ci/docker-compose.yml up --build --abort-on-container-exit`
+
+## AWS Configuration
+At the moment, we have our own AWS account. In order to run the application you have to be authenticated with AWS because of this AWS infrastructure setup. So the following will need to be installed.
+
+### Install tools
+```
+brew install awscli
+brew tap versent/homebrew-taps
+brew install saml2aws
+```
+
+Upon successful installation, grab a team member. They can walk you through specific configuration for our AWS account.
+
+### Useful commands
+
+To export profile as env var locally, run the following. For local env persistance, can save this env var through other means (like using direnv):
+```
+export AWS_PROFILE={profile}
+```
+
+To check currently assumed AWS role (i.e. AWS_PROFILE value), run:
+```
+aws sts get-caller-identity
+```
+
+## Terraform
+In this repository, our Terraform infrastructure files are separated into several directories. The following directories dictate the order in which `terraform init` needs to be separately run. Order is important because each directory configures resources that the next one needs. Currently, the order is:
+
+```
+1. /cd/base-infrastructure/
+2. /cd/application-database/
+3. /cd/application-infrastructure/
+```
+
+### Install tools
+```
+brew install terraform
+```
+
+### Useful commands
+These might be commonly used Terraform cli commands used on this project. Check out [Terraform documentation](https://www.terraform.io/docs/cli-index.html) for more details.
+
+To initialize the project and create a Terraform directory with remote state, run this command separately in the directories listed above:
+```
+terraform init
+```
+
+To validate syntatical correctness of configuration (not the Terraform state), run:
+```
+terraform validate
+```
+
+To do a dry-run locally for applying Terrform changes, run:
+```
+terraform plan
+```
+
+**WARNING: DO NOT RUN THE FOLLOWING ON LOCAL MACHINE. OUR CI IS ALREADY HANDLING THIS.**
+
+But if you caused some issues that require running this locally, to make all the changes (add, delete, edit) to the infrastructure, run: 
+```
+terraform apply
+```
 
 ### Python version
 
