@@ -2,10 +2,6 @@ variable "environment_prefix" {
   default = "dev"
 }
 
-variable "app_tag" {
-  type = string
-}
-
 variable "database_name" {
   type    = string
   default = "notification_api"
