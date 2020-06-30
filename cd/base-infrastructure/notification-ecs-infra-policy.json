@@ -182,8 +182,10 @@
       "Action": [
         "s3:CreateBucket",
         "s3:DeleteBucket",
+        "s3:GetBucketCors",
         "s3:GetBucketTagging",
         "s3:PutBucketAcl",
+        "s3:PutBucketCors",
         "s3:PutBucketTagging",
         "s3:PutEncryptionConfiguration"
       ],
