@@ -216,8 +216,8 @@ def get_html_email_options(service):
 
     if service.email_branding is None:
         return {
-            'govuk_banner': True,
-            'brand_banner': False,
+            'govuk_banner': False,
+            'brand_banner': True,
         }
 
     logo_url = get_logo_url(
