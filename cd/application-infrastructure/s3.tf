@@ -1,6 +1,5 @@
 resource "aws_s3_bucket" "assets" {
   bucket  = var.environment_prefix == "prod" ? "notifications-va-gov-assets" : "${var.environment_prefix}-notifications-va-gov-assets"
-  acl = "public-read"
 
   server_side_encryption_configuration {
     rule {
