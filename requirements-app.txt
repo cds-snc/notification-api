@@ -47,7 +47,7 @@ itsdangerous==0.24  # pyup: <1.0.0
 git+https://github.com/cds-snc/notifier-utils.git@42.1.4#egg=notifications-utils==42.1.4
 
 # MLWR
-socketio-client==0.5.6
+socketio-client==0.7.2
 requests
 requests[security]
 pycryptodome
