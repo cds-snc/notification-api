@@ -1,15 +1,16 @@
 #!/bin/bash
+set -e
 
 increase_patch_number () {
-  patch_version=`echo $1 | sed 's/\(.*[0-9]\.\)\([0-9]\)/\2/'`
-  first_portion=`echo $1 | sed 's/\(.*[0-9]\.\)\([0-9]\)/\1/'`
+  first_portion=`echo $1 | cut -f1-2 -d'.'`
+  patch_version=`echo $1 | cut -f3 -d'.'`
 
   if [[ $patch_version =~ [a-zA-Z] ]];then
     echo "Invalid patch format: $patch_version"
     exit 1
   else
     ((patch_version++))
-    result=$first_portion$patch_version
+    result="$first_portion.$patch_version"
   fi
   echo $result
 }
