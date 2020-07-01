@@ -127,13 +127,13 @@ get_parameter_value() {
 
 run_task () {
     local private_subnets
-    private_subnets=$(get_parameter_value dev subnets/private)
+    private_subnets=$(get_parameter_value $ENVIRONMENT subnets/private)
 
     local security_group_access_db
-    security_group_access_db=$(get_parameter_value dev security-group/access-db)
+    security_group_access_db=$(get_parameter_value $ENVIRONMENT security-group/access-db)
 
     local security_group_access_outbound
-    security_group_access_outbound=$(get_parameter_value dev security-group/access-outbound)
+    security_group_access_outbound=$(get_parameter_value $ENVIRONMENT security-group/access-outbound)
 
     local network_configuration="awsvpcConfiguration={subnets=[$private_subnets],securityGroups=[$security_group_access_db,$security_group_access_outbound],assignPublicIp=DISABLED}"
 
