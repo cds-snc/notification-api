@@ -24,12 +24,12 @@ resource "aws_iam_role_policy_attachment" "notification_ecs_task_execution" {
 }
 
 resource "aws_iam_role_policy_attachment" "notification_ecs_task_ssm_fetch" {
-  role = aws_iam_role.notification_ecs_task_execution.name
+  role       = aws_iam_role.notification_ecs_task_execution.name
   policy_arn = aws_iam_policy.notification_ecs_task_secrets_fetch.arn
 }
 
 resource "aws_iam_policy" "notification_ecs_task_secrets_fetch" {
-  name = "${var.environment_prefix}-notification-ecs-task-secrets-fetch"
+  name   = "${var.environment_prefix}-notification-ecs-task-secrets-fetch"
   policy = data.aws_iam_policy_document.ssm_parameter_fetch.json
 }
 
@@ -50,12 +50,12 @@ data "aws_iam_policy_document" "ssm_parameter_fetch" {
 }
 
 resource "aws_iam_role_policy_attachment" "notification_ecs_task_sqs" {
-  role = aws_iam_role.notification_ecs_task_execution.name
+  role       = aws_iam_role.notification_ecs_task_execution.name
   policy_arn = aws_iam_policy.notification_ecs_task_sqs.arn
 }
 
 resource "aws_iam_policy" "notification_ecs_task_sqs" {
-  name = "${var.environment_prefix}-notification-ecs-task-sqs"
+  name   = "${var.environment_prefix}-notification-ecs-task-sqs"
   policy = data.aws_iam_policy_document.notification_sqs.json
 }
 

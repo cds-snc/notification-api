@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "assets" {
-  bucket  = var.environment_prefix == "prod" ? "notifications-va-gov-assets" : "${var.environment_prefix}-notifications-va-gov-assets"
+  bucket = var.environment_prefix == "prod" ? "notifications-va-gov-assets" : "${var.environment_prefix}-notifications-va-gov-assets"
 
   server_side_encryption_configuration {
     rule {
@@ -14,9 +14,10 @@ resource "aws_s3_bucket" "assets" {
 
 resource "aws_s3_bucket_object" "va_logo" {
   bucket = aws_s3_bucket.assets.id
-  key    = "header-logo.png"
+  key    = "va-logo.png"
   source = "assets/header-logo.png"
-  acl = "public-read"
+  etag   = filemd5("assets/header-logo.png")
+  acl    = "public-read"
 
   tags = local.default_tags
 }

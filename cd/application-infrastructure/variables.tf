@@ -41,7 +41,7 @@ locals {
 }
 
 variable "deploy_role" {
-    default = "arn:aws:iam::437518843863:role/notification-deploy-role"
+  default = "arn:aws:iam::437518843863:role/notification-deploy-role"
 }
 
 variable "region" {
@@ -49,7 +49,7 @@ variable "region" {
 }
 
 variable "log_retention_in_days" {
-  type = number
+  type        = number
   description = "number of days to keep logs in cloud watch"
-  default = 7
+  default     = 7
 }
