@@ -495,6 +495,6 @@ class Production(Config):
 
 configs = {
     'development': Development,
-    'staging': Test,
+    'test': Test,
     'production': Production,
 }
