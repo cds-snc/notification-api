@@ -482,7 +482,7 @@ def test_get_html_email_renderer_prepends_logo_path(notify_api):
     )
 
     renderer = send_to_providers.get_html_email_options(service)
-    domain = "https://notification-alpha-canada-ca-asset-upload.s3.amazonaws.com"
+    domain = "https://dev-notifications-va-gov-assets.s3.amazonaws.com"
     assert renderer['brand_logo'] == "{}{}".format(domain, '/justice-league.png')
 
 
@@ -520,7 +520,7 @@ def test_get_logo_url_works_for_different_environments(base_url, expected_url):
     logo_file = 'filename.png'
 
     logo_url = send_to_providers.get_logo_url(base_url, logo_file)
-    domain = "notification-alpha-canada-ca-asset-upload.s3.amazonaws.com"
+    domain = "dev-notifications-va-gov-assets.s3.amazonaws.com"
     assert logo_url == "https://{}/{}".format(domain, expected_url)
 
 

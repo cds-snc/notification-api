@@ -141,7 +141,7 @@ class Config(object):
     AWS_SES_ACCESS_KEY = os.getenv('AWS_SES_ACCESS_KEY')
     AWS_SES_SECRET_KEY = os.getenv('AWS_SES_SECRET_KEY')
     CSV_UPLOAD_BUCKET_NAME = os.getenv('CSV_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-csv-upload')
-    ASSET_UPLOAD_BUCKET_NAME = os.getenv('ASSET_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-asset-upload')
+    ASSET_UPLOAD_BUCKET_NAME = os.getenv('ASSET_UPLOAD_BUCKET_NAME', 'dev-notifications-va-gov-assets')
     ASSET_DOMAIN = os.getenv('ASSET_DOMAIN', 's3.amazonaws.com')
     INVITATION_EXPIRATION_DAYS = 2
     NOTIFY_APP_NAME = 'api'
