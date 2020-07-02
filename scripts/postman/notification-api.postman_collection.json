@@ -832,11 +832,8 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "f82f9b10-77ff-4283-beaf-88c6514ca726",
+						"id": "859e9b58-0e31-4e50-bdd4-8c4f4235b425",
 						"exec": [
-							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
-							"",
 							"var jwtSecret = pm.environment.get('notification-secret') || ''",
 							"",
 							"// Set headers for JWT",
@@ -895,7 +892,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "61c2986b-180b-49c2-880a-c9b2bde15642",
+						"id": "dbb572df-5d3c-4995-b7ad-cc7932203ab0",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -921,13 +918,12 @@
 				"header": [
 					{
 						"key": "Content-Type",
-						"type": "text",
 						"value": "application/json"
 					}
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"name\": \"test template\",\n    \"subject\": \"test subject\",\n    \"template_type\": \"email\",\n    \"content\": \"This is a test email message\",\n    \"service\": \"{{service-id}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
+					"raw": "{\n    \"name\": \"test template\",\n    \"subject\": \"test subject\",\n    \"template_type\": \"email\",\n    \"content\": \"This is a test email\",\n    \"service\": \"{{service-id}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
 					"raw": "http://{{notification-api}}/service/{{service-id}}/template",
@@ -939,6 +935,121 @@
 						"service",
 						"{{service-id}}",
 						"template"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "update template",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"id": "cc23fb7e-e0ee-4d88-be39-b5e2c481e934",
+						"type": "text/javascript",
+						"exec": [
+							"var jwtSecret = pm.environment.get('notification-secret') || ''",
+							"",
+							"// Set headers for JWT",
+							"var header = {",
+							"\t'typ': 'JWT',",
+							"\t'alg': 'HS256'",
+							"};",
+							"",
+							"// Prepare timestamp in seconds",
+							"var currentTimestamp = Math.floor(Date.now() / 1000)",
+							"",
+							"var data = {",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
+							"\t'iat': currentTimestamp,",
+							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
+							"\t'jti': 'jwt_nonce'",
+							"}",
+							"",
+							"",
+							"function base64url(source) {",
+							"    // Encode in classical base64",
+							"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+							"    ",
+							"    // Remove padding equal characters",
+							"    encodedSource = encodedSource.replace(/=+$/, '')",
+							"    ",
+							"    // Replace characters according to base64url specifications",
+							"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+							"    encodedSource = encodedSource.replace(/\\//g, '_')",
+							"    ",
+							"    return encodedSource",
+							"}",
+							"",
+							"// encode header",
+							"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+							"var encodedHeader = base64url(stringifiedHeader)",
+							"",
+							"// encode data",
+							"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+							"var encodedData = base64url(stringifiedData)",
+							"",
+							"// build token",
+							"var token = `${encodedHeader}.${encodedData}`",
+							"",
+							"// sign token",
+							"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+							"signature = base64url(signature)",
+							"var signedToken = `${token}.${signature}`",
+							"",
+							"pm.environment.set('jwt_signed', signedToken)",
+							"console.log('Signed and encoded JWT', signedToken)"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"id": "61c2986b-180b-49c2-880a-c9b2bde15642",
+						"type": "text/javascript",
+						"exec": [
+							"if (pm.response.code == 201) {",
+							"    var jsonData = pm.response.json(); ",
+							"    pm.environment.set(\"template-id\", jsonData.data.id);",
+							"}"
+						]
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_signed}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"some name\",\n    \"subject\": \"some subject\",\n    \"template_type\": \"email\",\n    \"content\": \"some content\",\n    \"service\": \"{{service-id}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
+				},
+				"url": {
+					"raw": "http://{{notification-api}}/service/{{service-id}}/template/{{template-id}}",
+					"protocol": "http",
+					"host": [
+						"{{notification-api}}"
+					],
+					"path": [
+						"service",
+						"{{service-id}}",
+						"template",
+						"{{template-id}}"
 					]
 				}
 			},
