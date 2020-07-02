@@ -418,7 +418,7 @@ def test_send_email_should_use_service_reply_to_email(
 
 def test_get_html_email_renderer_should_return_for_normal_service(sample_service):
     options = send_to_providers.get_html_email_options(sample_service)
-    assert options['govuk_banner'] is False
+    assert options['govuk_banner'] is True
     assert 'brand_colour' not in options.keys()
     assert 'brand_logo' not in options.keys()
     assert 'brand_text' not in options.keys()
@@ -456,7 +456,6 @@ def test_get_html_email_renderer_with_branding_details(branding_type, govuk_bann
         assert options['brand_banner'] is False
 
 
-@pytest.mark.skip(reason="the UK brand is not valid for USA VA")
 def test_get_html_email_renderer_with_branding_details_and_render_govuk_banner_only(notify_db, sample_service):
     sample_service.email_branding = None
     notify_db.session.add_all([sample_service])
