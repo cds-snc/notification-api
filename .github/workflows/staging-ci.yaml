@@ -159,3 +159,29 @@ jobs:
       - name: Run migration task
         run: |
           bash ./scripts/run_ci_migrations.sh -c staging-notification-cluster -e staging -t ${{ steps.register.outputs.arn }}
+
+  deploy-api:
+    runs-on: ubuntu-latest
+    needs: [create-app-infrastructure, run-migrations]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+      - name: Render API task definition
+        id: render-api-container
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ./cd/application-deployment/staging/staging-api-task-definition.json
+          container-name: notification-api
+          image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
+      - name: Deploy API task definition to Fargate
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-api-container.outputs.task-definition }}
+          service: staging-notification-api-service
+          cluster: staging-notification-cluster
+          wait-for-service-stability: true
