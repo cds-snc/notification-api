@@ -287,6 +287,7 @@ def test_that_when_exceed_rate_limit_request_fails(
         key_type,
         mocker):
     with freeze_time("2016-01-01 12:00:00.000000"):
+        current_app.config['API_RATE_LIMIT_ENABLED'] = True
 
         if key_type == 'live':
             api_key_type = 'normal'

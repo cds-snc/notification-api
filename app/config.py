@@ -383,6 +383,8 @@ class Config(object):
     # Feature flags
     GOVDELIVERY_EMAIL_CLIENT_ENABLED = False
 
+    API_RATE_LIMIT_ENABLED = False
+
 
 ######################
 # Config overrides ###
@@ -421,8 +423,6 @@ class Development(Config):
             Queue(queue, Exchange('default'), routing_key=queue)
         )
 
-    API_RATE_LIMIT_ENABLED = True
-
     # Feature flags
     GOVDELIVERY_EMAIL_CLIENT_ENABLED = True
 
@@ -456,7 +456,6 @@ class Test(Development):
             Queue(queue, Exchange('default'), routing_key=queue)
         )
 
-    API_RATE_LIMIT_ENABLED = True
     API_HOST_NAME = "http://localhost:6011"
 
     SMS_INBOUND_WHITELIST = ['203.0.113.195']
@@ -485,7 +484,6 @@ class Production(Config):
     TRANSIENT_UPLOADED_LETTERS = 'production-transient-uploaded-letters'
     FROM_NUMBER = 'VA.GOV'
     PERFORMANCE_PLATFORM_ENABLED = False
-    API_RATE_LIMIT_ENABLED = True
     CHECK_PROXY_HEADER = False
     CRONITOR_ENABLED = False
 
