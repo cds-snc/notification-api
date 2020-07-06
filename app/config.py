@@ -384,6 +384,7 @@ class Config(object):
     GOVDELIVERY_EMAIL_CLIENT_ENABLED = False
 
     API_RATE_LIMIT_ENABLED = False
+    API_MESSAGE_LIMIT_ENABLED = False
 
 
 ######################

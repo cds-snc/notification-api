@@ -34,7 +34,9 @@ def check_service_over_api_rate_limit(service, api_key):
 
 
 def check_service_over_daily_message_limit(key_type, service):
-    if key_type != KEY_TYPE_TEST and current_app.config['REDIS_ENABLED']:
+    if current_app.config['API_MESSAGE_LIMIT_ENABLED'] \
+            and key_type != KEY_TYPE_TEST \
+            and current_app.config['REDIS_ENABLED']:
         cache_key = daily_limit_cache_key(service.id)
         service_stats = redis_store.get(cache_key)
         if not service_stats:

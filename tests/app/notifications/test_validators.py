@@ -41,6 +41,28 @@ def enable_redis(notify_api):
 
 
 @pytest.mark.parametrize('key_type', ['test', 'team', 'normal'])
+def test_should_not_enforce_message_limit_if_limiting_is_disabled(
+        notify_db,
+        notify_db_session,
+        key_type,
+        mocker):
+    with freeze_time("2016-01-01 12:00:00.000000"):
+        current_app.config['API_MESSAGE_LIMIT_ENABLED'] = False
+        current_app.config['REDIS_ENABLED'] = True
+
+        if key_type == 'live':
+            api_key_type = 'normal'
+        else:
+            api_key_type = key_type
+
+        mocker.patch('app.notifications.validators.redis_store.get')
+
+        service = create_service(notify_db, notify_db_session, restricted=False)
+        check_service_over_daily_message_limit(api_key_type, service)
+        app.notifications.validators.redis_store.get.assert_not_called()
+
+
+@pytest.mark.parametrize('key_type', ['test', 'team', 'normal'])
 def test_check_service_message_limit_in_cache_with_unrestricted_service_is_allowed(
         key_type,
         sample_service,
@@ -82,6 +104,8 @@ def test_should_set_cache_value_as_value_from_database_if_cache_not_set(
         mocker
 ):
     with freeze_time("2016-01-01 12:00:00.000000"):
+        current_app.config['API_MESSAGE_LIMIT_ENABLED'] = True
+
         for x in range(5):
             create_notification(notify_db, notify_db_session, service=sample_service)
         mocker.patch('app.notifications.validators.redis_store.get', return_value=None)
@@ -104,6 +128,8 @@ def test_should_not_access_database_if_redis_disabled(notify_api, sample_service
 @pytest.mark.parametrize('key_type', ['team', 'normal'])
 def test_check_service_message_limit_over_message_limit_fails(key_type, notify_db, notify_db_session, mocker):
     with freeze_time("2016-01-01 12:00:00.000000"):
+        current_app.config['API_MESSAGE_LIMIT_ENABLED'] = True
+
         mocker.patch('app.redis_store.get', return_value=None)
         mocker.patch('app.notifications.validators.redis_store.set')
 
@@ -127,6 +153,8 @@ def test_check_service_message_limit_in_cache_over_message_limit_fails(
         key_type,
         mocker):
     with freeze_time("2016-01-01 12:00:00.000000"):
+        current_app.config['API_MESSAGE_LIMIT_ENABLED'] = True
+
         mocker.patch('app.redis_store.get', return_value=5)
         mocker.patch('app.notifications.validators.redis_store.set')
         mocker.patch('app.notifications.validators.services_dao')
