@@ -42,24 +42,16 @@ def enable_redis(notify_api):
 
 @pytest.mark.parametrize('key_type', ['test', 'team', 'normal'])
 def test_should_not_enforce_message_limit_if_limiting_is_disabled(
-        notify_db,
-        notify_db_session,
         key_type,
+        sample_service,
         mocker):
-    with freeze_time("2016-01-01 12:00:00.000000"):
-        current_app.config['API_MESSAGE_LIMIT_ENABLED'] = False
-        current_app.config['REDIS_ENABLED'] = True
 
-        if key_type == 'live':
-            api_key_type = 'normal'
-        else:
-            api_key_type = key_type
+    current_app.config['API_MESSAGE_LIMIT_ENABLED'] = False
 
-        mocker.patch('app.notifications.validators.redis_store.get')
+    mocker.patch('app.notifications.validators.redis_store.get')
 
-        service = create_service(notify_db, notify_db_session, restricted=False)
-        check_service_over_daily_message_limit(api_key_type, service)
-        app.notifications.validators.redis_store.get.assert_not_called()
+    check_service_over_daily_message_limit(key_type, sample_service)
+    app.notifications.validators.redis_store.get.assert_not_called()
 
 
 @pytest.mark.parametrize('key_type', ['test', 'team', 'normal'])
