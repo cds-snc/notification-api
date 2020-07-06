@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from flask import json
@@ -17,11 +19,6 @@ valid_post = [
         None,
         "Some subject",
         "Some content",
-        (
-            '<p style="Margin: 0 0 20px 0; font-size: 19px; line-height: 25px; color: #0B0C0C;">'
-            'Some content'
-            '</p>'
-        ),
     ),
     (
         "Some subject",
@@ -29,11 +26,6 @@ valid_post = [
         valid_personalisation,
         "Some subject",
         "Dear Jo, Hello. Yours Truly, The Government.",
-        (
-            '<p style="Margin: 0 0 20px 0; font-size: 19px; line-height: 25px; color: #0B0C0C;">'
-            'Dear Jo, Hello. Yours Truly, The Government.'
-            '</p>'
-        ),
     ),
     (
         "Message for ((Name))",
@@ -41,11 +33,6 @@ valid_post = [
         valid_personalisation,
         "Message for Jo",
         "Dear Jo, Hello. Yours Truly, The Government.",
-        (
-            '<p style="Margin: 0 0 20px 0; font-size: 19px; line-height: 25px; color: #0B0C0C;">'
-            'Dear Jo, Hello. Yours Truly, The Government.'
-            '</p>'
-        ),
     ),
     (
         "Message for ((Name))",
@@ -53,18 +40,13 @@ valid_post = [
         valid_personalisation,
         "Message for Jo",
         "Some content",
-        (
-            '<p style="Margin: 0 0 20px 0; font-size: 19px; line-height: 25px; color: #0B0C0C;">'
-            'Some content'
-            '</p>'
-        ),
     ),
 ]
 
 
 @pytest.mark.parametrize("tmp_type", TEMPLATE_TYPES)
 @pytest.mark.parametrize(
-    "subject,content,post_data,expected_subject,expected_content,expected_html",
+    "subject,content,post_data,expected_subject,expected_content",
     valid_post
 )
 def test_valid_post_template_returns_200(
@@ -76,7 +58,6 @@ def test_valid_post_template_returns_200(
     post_data,
     expected_subject,
     expected_content,
-    expected_html,
 ):
     template = create_template(
         sample_service,
@@ -101,7 +82,7 @@ def test_valid_post_template_returns_200(
         assert expected_subject in resp_json['subject']
 
     if tmp_type == EMAIL_TYPE:
-        assert resp_json['html'] == expected_html
+        assert expected_content in resp_json['html']
     else:
         assert resp_json['html'] is None
 
