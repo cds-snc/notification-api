@@ -227,7 +227,7 @@ jobs:
         id: render-celery-beat-container
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ./cd/application-deployment/staging-celery-beat-task-definition.json
+          task-definition: ./cd/application-deployment/staging/staging-celery-beat-task-definition.json
           container-name: notification-celery-beat
           image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
       - name: Deploy celery beat task definition to Fargate
