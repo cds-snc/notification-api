@@ -16,7 +16,8 @@ increase_patch_number () {
 }
 
 get_latest_version_tag () {
-  local latest_version_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+  local latest_version_tag=$(git describe --tags --match="staging-v*")
+  latest_version_tag=`echo $latest_version_tag | cut -f1-2 -d'-'`
   if [ -z "$latest_version_tag" ]; then
     latest_version_tag="staging-v0.0.0"
   fi
