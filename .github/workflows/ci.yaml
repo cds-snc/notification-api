@@ -183,7 +183,7 @@ jobs:
         id: render
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ./cd/application-deployment/dev-db-migrations-task-definition.json
+          task-definition: ./cd/application-deployment/dev/dev-db-migrations-task-definition.json
           container-name: notification-api-db-migrations
           image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
 
@@ -212,7 +212,7 @@ jobs:
         id: render-api-container
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ./cd/application-deployment/dev-api-task-definition.json
+          task-definition: ./cd/application-deployment/dev/dev-api-task-definition.json
           container-name: notification-api
           image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
       - name: Deploy API task definition to Fargate
@@ -238,7 +238,7 @@ jobs:
         id: render-celery-container
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ./cd/application-deployment/dev-celery-task-definition.json
+          task-definition: ./cd/application-deployment/dev/dev-celery-task-definition.json
           container-name: notification-celery
           image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
       - name: Deploy celery task definition to Fargate
@@ -264,7 +264,7 @@ jobs:
         id: render-celery-beat-container
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ./cd/application-deployment/dev-celery-beat-task-definition.json
+          task-definition: ./cd/application-deployment/dev/dev-celery-beat-task-definition.json
           container-name: notification-celery-beat
           image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
       - name: Deploy celery beat task definition to Fargate
