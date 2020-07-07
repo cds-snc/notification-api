@@ -237,3 +237,14 @@ jobs:
           service: staging-notification-celery-beat-service
           cluster: staging-notification-cluster
           wait-for-service-stability: true
+
+  create-tag:
+    runs-on: ubuntu-latest
+    needs: [deploy-api, deploy-celery, deploy-celery-beat]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ssh-key: ${{ secrets.CD_KEY }}
+      - name: Create Tag
+        run: |
+          bash ./scripts/push_git_tag.sh ${{ github.ref }}
