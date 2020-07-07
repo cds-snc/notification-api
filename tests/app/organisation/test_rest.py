@@ -15,7 +15,7 @@ from tests.app.db import (
 
 
 def test_get_all_organisations(admin_request, notify_db_session):
-    create_organisation(name='inactive org', active=False, organisation_type='nhs_central')
+    create_organisation(name='inactive org', active=False, organisation_type='other')
     create_organisation(name='active org', domains=['example.com'])
 
     response = admin_request.get(
@@ -41,7 +41,7 @@ def test_get_all_organisations(admin_request, notify_db_session):
     assert response[1]['active'] is False
     assert response[1]['count_of_live_services'] == 0
     assert response[1]['domains'] == []
-    assert response[1]['organisation_type'] == 'nhs_central'
+    assert response[1]['organisation_type'] == 'other'
 
 
 def test_get_organisation_by_id(admin_request, notify_db_session):
@@ -148,7 +148,7 @@ def test_post_create_organisation(admin_request, notify_db_session, crown):
         'name': 'test organisation',
         'active': True,
         'crown': crown,
-        'organisation_type': 'local',
+        'organisation_type': 'other',
     }
 
     response = admin_request.post(
@@ -172,7 +172,7 @@ def test_post_create_organisation_existing_name_raises_400(admin_request, sample
         'name': sample_organisation.name,
         'active': True,
         'crown': True,
-        'organisation_type': 'central',
+        'organisation_type': 'other',
     }
 
     response = admin_request.post(
@@ -191,12 +191,12 @@ def test_post_create_organisation_existing_name_raises_400(admin_request, sample
     ({
         'active': False,
         'crown': True,
-        'organisation_type': 'central',
+        'organisation_type': 'other',
     }, 'name is a required property'),
     ({
         'active': False,
         'name': 'Service name',
-        'organisation_type': 'central',
+        'organisation_type': 'other',
     }, 'crown is a required property'),
     ({
         'active': False,
@@ -207,7 +207,7 @@ def test_post_create_organisation_existing_name_raises_400(admin_request, sample
         'active': False,
         'name': 'Service name',
         'crown': None,
-        'organisation_type': 'central',
+        'organisation_type': 'other',
     }, 'crown None is not of type boolean'),
     ({
         'active': False,
@@ -216,7 +216,7 @@ def test_post_create_organisation_existing_name_raises_400(admin_request, sample
         'organisation_type': 'foo',
     }, (
         'organisation_type foo is not one of '
-        '[central, local, nhs_central, nhs_local, nhs_gp, emergency_service, school_or_college, other]'
+        '[other]'
     )),
 ))
 def test_post_create_organisation_with_missing_data_gives_validation_error(
@@ -249,7 +249,7 @@ def test_post_update_organisation_updates_fields(
         'name': 'new organisation name',
         'active': False,
         'crown': crown,
-        'organisation_type': 'central',
+        'organisation_type': 'other',
     }
     assert org.crown is None
 
@@ -268,7 +268,7 @@ def test_post_update_organisation_updates_fields(
     assert organisation[0].active == data['active']
     assert organisation[0].crown == crown
     assert organisation[0].domains == []
-    assert organisation[0].organisation_type == 'central'
+    assert organisation[0].organisation_type == 'other'
 
 
 @pytest.mark.parametrize('domain_list', (

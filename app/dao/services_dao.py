@@ -13,8 +13,6 @@ from app.dao.dao_utils import (
     version_class,
     VersionOptions,
 )
-from app.dao.email_branding_dao import dao_get_email_branding_by_name
-from app.dao.letter_branding_dao import dao_get_letter_branding_by_name
 from app.dao.organisation_dao import dao_get_organisation_by_email_address
 from app.dao.service_sms_sender_dao import insert_service_sms_sender
 from app.dao.service_user_dao import dao_get_service_user
@@ -38,16 +36,12 @@ from app.models import (
     TemplateRedacted,
     User,
     VerifyCode,
-    CROWN_ORGANISATION_TYPES,
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
     KEY_TYPE_TEST,
-    NHS_ORGANISATION_TYPES,
-    NON_CROWN_ORGANISATION_TYPES,
     SMS_TYPE,
 )
 from app.utils import (
-    email_address_is_nhs,
     escape_special_characters,
     get_local_timezone_midnight_in_utc,
     midnight_n_days_ago)
@@ -307,15 +301,8 @@ def dao_create_service(
         if organisation.letter_branding and not service.letter_branding:
             service.letter_branding = organisation.letter_branding
 
-    elif service.organisation_type in NHS_ORGANISATION_TYPES or email_address_is_nhs(user.email_address):
-        service.email_branding = dao_get_email_branding_by_name('NHS')
-        service.letter_branding = dao_get_letter_branding_by_name('NHS')
-    if organisation:
         service.crown = organisation.crown
-    elif service.organisation_type in CROWN_ORGANISATION_TYPES:
-        service.crown = True
-    elif service.organisation_type in NON_CROWN_ORGANISATION_TYPES:
-        service.crown = False
+
     service.count_as_live = not user.platform_admin
 
     db.session.add(service)
