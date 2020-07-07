@@ -670,17 +670,17 @@ def test_send_user_reset_password_should_send_reset_password_link(client,
 def test_send_user_reset_password_should_send_400_if_user_blocked(client,
                                                                   mocker,
                                                                   password_reset_email_template):
-    blocked_user = create_user(blocked=True, email="blocked@cds-snc.ca")                                                             
+    blocked_user = create_user(blocked=True, email="blocked@cds-snc.ca")
     mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
     data = json.dumps({'email': blocked_user.email_address})
     auth_header = create_authorization_header()
-    notify_service = password_reset_email_template.service
     resp = client.post(
         url_for('user.send_user_reset_password'),
         data=data,
         headers=[('Content-Type', 'application/json'), auth_header])
     assert resp.status_code == 400
     assert 'user blocked' in json.loads(resp.get_data(as_text=True))['message']
+    assert mocked.call_count == 0
 
 
 def test_send_user_reset_password_should_return_400_when_email_is_missing(client, mocker):
