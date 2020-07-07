@@ -64,7 +64,8 @@ class GovdeliveryClient(EmailClient):
                 "subject": subject,
                 "body": html_body,
                 "recipients": recipients,
-                "from_email": source
+                "from_email": source,
+                "click_tracking_enabled": False
             }
 
             start_time = monotonic()

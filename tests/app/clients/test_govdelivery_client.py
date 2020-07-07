@@ -73,7 +73,8 @@ def test_send_email_has_correct_payload_and_uses_html_body(client, respond_succe
                 "email": recipient
             }
         ],
-        "from_email": sender
+        "from_email": sender,
+        "click_tracking_enabled": False
     }
 
     assert respond_successfully.request_history[0].json() == expected_payload
