@@ -23,11 +23,11 @@ On OS X:
 
 2. Install Python 3.6.9 or whatever is the latest
 
-`pyenv install 3.6.9`
+`pyenv install 3.6.10`
 
-3. If you expect no conflicts, set `3.6.9` as you default
+3. If you expect no conflicts, set `3.6.10` as you default
 
-`pyenv global 3.6.9`
+`pyenv global 3.6.10`
 
 Note: 
 - if md5 hash issue, may be related to openssl version. `brew upgrade openssl && brew switch openssl`
@@ -37,6 +37,10 @@ Note:
 
 `pip install --upgrade pip`
 `pip install --upgrade virtualenvwrapper`
+
+- to check Python version currently being used, run `pyenv version`
+
+- to check list of Python versions installed, run `pyenv versions`
 
 4. Ensure it installed by running
 
@@ -48,17 +52,20 @@ if it did not, take a look here: https://github.com/pyenv/pyenv/issues/660
 
 `pip install virtualenvwrapper`
 
+Note:
+- if you update to a later Python version, you will need to repeat steps 5~7 with reference to the new version.
+
 6. Add the following to your shell rc file. ex: `.bashrc` or `.zshrc`
 
 ```
 export WORKON_HOME=$HOME/.virtualenvs
 export PROJECT_HOME=$HOME/Devel
-source  ~/.pyenv/versions/3.6.9/bin/virtualenvwrapper.sh
+source  ~/.pyenv/versions/3.6.10/bin/virtualenvwrapper.sh
 ```
 
 7. Restart your terminal and make your virtual environtment:
 
-`mkvirtualenv -p ~/.pyenv/versions/3.6.9/bin/python notifications-api`
+`mkvirtualenv -p ~/.pyenv/versions/3.6.10/bin/python notifications-api`
 
 8. You can now return to your environment any time by entering
 
