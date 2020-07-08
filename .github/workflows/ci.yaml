@@ -3,7 +3,7 @@ name: Development CI
 on:
   push:
     tags-ignore:
-      - staging-v**
+      - '**'
     branches:
       - '**'
   pull_request:
