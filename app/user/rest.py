@@ -565,6 +565,9 @@ def send_user_reset_password():
 
     user_to_send_to = get_user_by_email(email['email'])
 
+    if user_to_send_to.blocked:
+        return jsonify({'message': 'cannot reset password: user blocked'}), 400
+
     template = dao_get_template_by_id(current_app.config['PASSWORD_RESET_TEMPLATE_ID'])
     service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
     saved_notification = persist_notification(
