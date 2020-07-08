@@ -137,8 +137,11 @@ def update_user_attribute(user_id):
     service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
 
     # Alert user that account change took place
-    change_type = update_dct_to_str(update_dct)
-    _update_alert(user_to_update, change_type)
+    user_alert_dct = update_dct.copy()
+    user_alert_dct.pop('blocked', None)
+    user_alert_dct.pop('current_session_id', None)
+    if user_alert_dct:
+        _update_alert(user_to_update, update_dct_to_str(user_alert_dct))
 
     # Alert that team member edit user
     if updated_by:
@@ -162,7 +165,7 @@ def update_user_attribute(user_id):
                 'name': user_to_update.name,
                 'servicemanagername': updated_by.name,
                 'email address': user_to_update.email_address,
-                'change_type': change_type
+                'change_type': update_dct_to_str(update_dct)
             },
             notification_type=template.template_type,
             api_key_id=None,
