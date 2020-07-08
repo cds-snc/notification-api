@@ -121,12 +121,6 @@ def escape_special_characters(string):
     return string
 
 
-def email_address_is_nhs(email_address):
-    return email_address.lower().endswith((
-        '@nhs.uk', '@nhs.net', '.nhs.uk', '.nhs.net',
-    ))
-
-
 def update_dct_to_str(update_dct):
     str = "\n"
     for key in update_dct:

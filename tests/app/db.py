@@ -107,7 +107,7 @@ def create_service(
         email_from=None,
         prefix_sms=True,
         message_limit=1000,
-        organisation_type='central',
+        organisation_type='other',
         check_if_service_exists=False,
         go_live_user=None,
         go_live_at=None,
