@@ -73,9 +73,6 @@ source  ~/.pyenv/versions/3.6.10/bin/virtualenvwrapper.sh
 
 9. Install [Postgres.app](http://postgresapp.com/).
 
-Note:
-- check version of Postgres used in `docker-compose.yml` to install correct `db:image` version.
-
 10. Create the database for the application
 
 `createdb --user=postgres notification_api`
