@@ -26,6 +26,7 @@ from app.dao.users_dao import create_secret_code, create_user_code
 from app.dao.fido2_key_dao import save_fido2_key
 from app.dao.login_event_dao import save_login_event
 from app.history_meta import create_history
+from app.dao.organisation_types_dao import dao_create_organisation_type
 
 from app.models import (
     Service,
@@ -36,6 +37,7 @@ from app.models import (
     Job,
     LoginEvent,
     Organisation,
+    OrganisationTypes,
     Notification,
     NotificationHistory,
     InvitedUser,
@@ -1151,6 +1153,13 @@ def sample_organisation(notify_db, notify_db_session):
     org = Organisation(name='sample organisation')
     dao_create_organisation(org)
     return org
+
+
+@pytest.fixture
+def sample_org_type():
+    org_type = OrganisationTypes(name='some other', annual_free_sms_fragment_limit=25000)
+    dao_create_organisation_type(org_type)
+    return org_type
 
 
 @pytest.fixture

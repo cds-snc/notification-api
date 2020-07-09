@@ -67,7 +67,7 @@ def test_update_organisation(notify_db_session):
     data = {
         'name': 'new name',
         "crown": True,
-        "organisation_type": 'local',
+        "organisation_type": 'other',
         "agreement_signed": True,
         "agreement_signed_at": datetime.datetime.utcnow(),
         "agreement_signed_by_id": user.id,
@@ -123,8 +123,8 @@ def test_update_organisation_does_not_update_the_service_org_type_if_org_type_is
     sample_service,
     sample_organisation,
 ):
-    sample_service.organisation_type = 'local'
-    sample_organisation.organisation_type = 'central'
+    sample_service.organisation_type = 'other'
+    sample_organisation.organisation_type = 'other'
 
     sample_organisation.services.append(sample_service)
     db.session.commit()
@@ -134,34 +134,35 @@ def test_update_organisation_does_not_update_the_service_org_type_if_org_type_is
     dao_update_organisation(sample_organisation.id, name='updated org name')
 
     assert sample_organisation.name == 'updated org name'
-    assert sample_service.organisation_type == 'local'
+    assert sample_service.organisation_type == 'other'
 
 
 def test_update_organisation_updates_the_service_org_type_if_org_type_is_provided(
     sample_service,
     sample_organisation,
+    sample_org_type
 ):
-    sample_service.organisation_type = 'local'
-    sample_organisation.organisation_type = 'local'
+    sample_service.organisation_type = sample_org_type.name
+    sample_organisation.organisation_type = sample_org_type.name
 
     sample_organisation.services.append(sample_service)
     db.session.commit()
 
-    dao_update_organisation(sample_organisation.id, organisation_type='central')
+    dao_update_organisation(sample_organisation.id, organisation_type='other')
 
-    assert sample_organisation.organisation_type == 'central'
-    assert sample_service.organisation_type == 'central'
+    assert sample_organisation.organisation_type == 'other'
+    assert sample_service.organisation_type == 'other'
     assert Service.get_history_model().query.filter_by(
         id=sample_service.id,
         version=2
-    ).one().organisation_type == 'central'
+    ).one().organisation_type == 'other'
 
 
 def test_add_service_to_organisation(sample_service, sample_organisation):
     assert sample_organisation.services == []
 
-    sample_service.organisation_type = "central"
-    sample_organisation.organisation_type = "local"
+    sample_service.organisation_type = "other"
+    sample_organisation.organisation_type = "other"
     sample_organisation.crown = False
 
     dao_add_service_to_organisation(sample_service, sample_organisation.id)

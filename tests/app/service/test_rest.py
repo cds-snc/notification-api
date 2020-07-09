@@ -604,7 +604,7 @@ def test_update_service(client, notify_db, sample_service):
         'email_from': 'updated.service.name',
         'created_by': str(sample_service.created_by.id),
         'email_branding': str(brand.id),
-        'organisation_type': 'school_or_college',
+        'organisation_type': 'other',
     }
 
     auth_header = create_authorization_header()
@@ -619,7 +619,7 @@ def test_update_service(client, notify_db, sample_service):
     assert result['data']['name'] == 'updated service name'
     assert result['data']['email_from'] == 'updated.service.name'
     assert result['data']['email_branding'] == str(brand.id)
-    assert result['data']['organisation_type'] == 'school_or_college'
+    assert result['data']['organisation_type'] == 'other'
 
 
 def test_cant_update_service_org_type_to_random_value(client, sample_service):
