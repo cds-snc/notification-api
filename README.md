@@ -92,6 +92,9 @@ Note:
 
 `flask db upgrade`
 
+Note:
+- For list of flask migration cli commands, see `/migrations/README.md`
+
 14. Run the service
 
 `flask run -p 6011 --host=0.0.0.0`
