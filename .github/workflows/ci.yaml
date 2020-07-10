@@ -289,4 +289,5 @@ jobs:
       - name: Tag Docker Image
         run: |
           echo "::set-env name=MANIFEST::$(aws ecr batch-get-image --repository-name notification_api --image-ids imageTag=${{ github.sha }} --region us-east-2 --query 'images[].imageManifest' --output text)"
-          aws ecr put-image --repository-name notification_api --image-tag ${{ env.TAG }} --image-manifest "${{ env.MANIFEST }}" --region us-east-2
+          echo ${{ env.MANIFEST }}
+          aws ecr put-image --repository-name notification_api --image-tag ${{ env.TAG }} --image-manifest ${{ env.MANIFEST }} --region us-east-2
