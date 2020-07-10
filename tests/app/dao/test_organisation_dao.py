@@ -17,7 +17,8 @@ from app.dao.organisation_dao import (
     dao_get_users_for_organisation,
     dao_add_user_to_organisation
 )
-from app.models import Organisation, Service
+from app.dao.services_dao import (dao_create_service, dao_add_user_to_service)
+from app.models import Organisation, OrganisationTypes, Service
 
 from tests.app.db import (
     create_domain,
@@ -25,7 +26,7 @@ from tests.app.db import (
     create_letter_branding,
     create_organisation,
     create_service,
-    create_user,
+    create_user
 )
 
 
@@ -137,23 +138,70 @@ def test_update_organisation_does_not_update_the_service_org_type_if_org_type_is
     assert sample_service.organisation_type == 'other'
 
 
-def test_update_organisation_updates_the_service_org_type_if_org_type_is_provided(
-    sample_service,
-    sample_organisation,
-    sample_org_type
-):
-    sample_service.organisation_type = sample_org_type.name
-    sample_organisation.organisation_type = sample_org_type.name
+@pytest.fixture(scope="function")
+def setup_org_type(db_session):
+    org_type = OrganisationTypes(name='some other', annual_free_sms_fragment_limit=25000)
+    db_session.add(org_type)
+    db_session.commit()
+    return org_type
 
-    sample_organisation.services.append(sample_service)
+
+@pytest.fixture(scope="function")
+def setup_service(
+        db_session,
+        service_name="Sample service",
+        user=None,
+        restricted=False,
+        limit=1000,
+        email_from=None,
+        permissions=None,
+        research_mode=None
+):
+    if user is None:
+        user = create_user()
+    if email_from is None:
+        email_from = service_name.lower().replace(' ', '.')
+
+    data = {
+        'name': service_name,
+        'message_limit': limit,
+        'restricted': restricted,
+        'email_from': email_from,
+        'created_by': user,
+        'crown': True
+    }
+    service = Service.query.filter_by(name=service_name).first()
+    if not service:
+        service = Service(**data)
+        dao_create_service(service, user, service_permissions=permissions)
+
+        if research_mode:
+            service.research_mode = research_mode
+
+    else:
+        if user not in service.users:
+            dao_add_user_to_service(service, user)
+
+    return service
+
+
+def test_update_organisation_updates_the_service_org_type_if_org_type_is_provided(
+    setup_service,
+    sample_organisation,
+    setup_org_type
+):
+    setup_service.organisation_type = setup_org_type.name
+    sample_organisation.organisation_type = setup_org_type.name
+
+    sample_organisation.services.append(setup_service)
     db.session.commit()
 
     dao_update_organisation(sample_organisation.id, organisation_type='other')
 
     assert sample_organisation.organisation_type == 'other'
-    assert sample_service.organisation_type == 'other'
+    assert setup_service.organisation_type == 'other'
     assert Service.get_history_model().query.filter_by(
-        id=sample_service.id,
+        id=setup_service.id,
         version=2
     ).one().organisation_type == 'other'
 
