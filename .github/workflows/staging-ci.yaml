@@ -245,6 +245,9 @@ jobs:
       - uses: actions/checkout@v2
         with:
           ssh-key: ${{ secrets.CD_KEY }}
-      - name: Create Tag
+      - name: Tag Git Commit
         run: |
           bash ./scripts/push_git_tag.sh ${{ github.ref }}
+      - name: Tag Docker Image
+        run: |
+          bash ./scripts/tag-docker-image.sh ${{ env.STAGING_TAG }} ${{ env.TAG }}
