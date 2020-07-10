@@ -31,5 +31,5 @@ create_git_tag () {
 
 current_version_tag=$(get_latest_version_tag)
 incremented_tag=$(increase_patch_number $current_version_tag)
-export TAG=$incremented_tag
+echo "::set-env name=TAG::$incremented_tag"
 create_git_tag "$incremented_tag" "$1"
