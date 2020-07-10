@@ -71,10 +71,13 @@ source  ~/.pyenv/versions/3.6.10/bin/virtualenvwrapper.sh
 
 `workon notifications-api`
 
+Note: 
+- To exit the virtual environment, run `deactivate`
+
 9. Install [Postgres.app](http://postgresapp.com/).
 
-Note:
-- check version of Postgres used in `docker-compose.yml` to install correct `db:image` version.
+ > Note:
+    > - check version of Postgres used in `ci/docker-compose.yml` to install correct `db:image` version.
 
 10. Create the database for the application
 
@@ -87,6 +90,13 @@ Note:
 12. Generate the version file ?!?
 
 `make generate-version-file`
+
+12. Create .env file
+
+`cp .env.example .env`
+
+> Note:
+    > - You will need to get a team member to help you get appropriate values
 
 13. Run all DB migrations
 
