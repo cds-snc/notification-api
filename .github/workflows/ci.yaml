@@ -285,7 +285,7 @@ jobs:
       - name: Tag Git Commit
         run: |
           git fetch --prune --unshallow
-          bash ./scripts/increment_tag.sh ${{ github.sha }}
+          source ./scripts/increment_tag.sh ${{ github.sha }}
       - name: Tag Docker Image
         run: |
           MANIFEST=$(aws ecr batch-get-image --repository-name notification_api --image-ids imageTag=${{ github.sha }} --region us-east-2 --query 'images[].imageManifest' --output text)
