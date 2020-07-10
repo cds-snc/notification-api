@@ -286,8 +286,8 @@ jobs:
         run: |
           git fetch --prune --unshallow
           bash ./scripts/increment_tag.sh ${{ github.sha }}
+      - name: Get Docker Image Manifest
+        id: get-manifest
+        run: echo "::set-output name=manifest::$(aws ecr batch-get-image --repository-name notification_api --image-ids imageTag=${{ github.sha }} --region us-east-2 --query 'images[].imageManifest' --output text)"
       - name: Tag Docker Image
-        run: |
-          echo "::set-env name=MANIFEST::$(aws ecr batch-get-image --repository-name notification_api --image-ids imageTag=${{ github.sha }} --region us-east-2 --query 'images[].imageManifest' --output text)"
-          echo ${{ env.MANIFEST }}
-          aws ecr put-image --repository-name notification_api --image-tag ${{ env.TAG }} --image-manifest ${{ env.MANIFEST }} --region us-east-2
+        run: aws ecr put-image --repository-name notification_api --image-tag ${{ env.TAG }} --image-manifest ${{ steps.get-manifest.outputs.manifest}} --region us-east-2
