@@ -288,7 +288,7 @@ jobs:
       - name: Tag Git Commit
         run: |
           git fetch --prune --unshallow
-          bash ./scripts/increment_tag.sh ${{ github.sha }}
+          bash ./scripts/tag_git_dev.sh ${{ github.sha }}
       - name: Tag Docker Image
         run: |
-          bash ./scripts/tag-docker-image.sh ${{ github.sha }} ${{ env.TAG }}
+          bash ./scripts/tag_docker_image.sh ${{ github.sha }} ${{ env.TAG }}

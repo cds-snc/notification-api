@@ -267,7 +267,7 @@ jobs:
           ssh-key: ${{ secrets.CD_KEY }}
       - name: Tag Git Commit
         run: |
-          bash ./scripts/push_git_tag.sh ${{ github.ref }}
+          bash ./scripts/tag_git_staging.sh ${{ github.ref }}
       - name: Tag Docker Image
         run: |
-          bash ./scripts/tag-docker-image.sh ${{ env.STAGING_TAG }} ${{ env.TAG }}
+          bash ./scripts/tag_docker_image.sh ${{ env.STAGING_TAG }} ${{ env.TAG }}
