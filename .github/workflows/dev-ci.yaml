@@ -279,6 +279,7 @@ jobs:
 
   smoke-test:
     runs-on: ubuntu-latest
+    container: postman/newman:5-ubuntu
     needs: [deploy-api, deploy-celery, deploy-celery-beat]
     steps:
       - uses: actions/checkout@v2
@@ -288,16 +289,12 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
-      - uses: actions/setup-node@v2-beta
-        with:
-          node-version: '12'
       - name: Get API URL
         id: get-url
         run: |
           echo "::set-output name=notification-api::$(aws ssm get-parameter --name /dev/notification-api/api-host-name | jq '.Parameter.Value' -r)"
       - name: Run Smoke Test
         run: |
-          npm install -g newman
           newman run scripts/postman/notification-api.postman_collection.json --folder "smoke-test" --env-var "notification-api=${{ steps.get-url.outputs.notification-api }}" --env-var "expected-git-sha=${{ github.sha }}"
 
   create-tag:
