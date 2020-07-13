@@ -1,6 +1,8 @@
 fileignoreconfig:
     - filename: .github/workflows/staging-ci.yaml
       checksum: 92acfa31554b7ea857d6e901b6c10a3833d96f63b3b96e17e13c7a33b4aab6b7
+    - filename: .github/workflows/dev-ci.yaml
+      checksum: 9948c4dc19370e0ba1ade0cc7a7776ea6fd17c5f6f8b6743742104d262cfc6f8
     - filename: scripts/postman/development.postman_environment.json
       checksum: 95bdf967b079026415510694e78029c34cb27d65b286fd7d6aca02e0ee6d0cc0
     - filename: scripts/postman/staging.postman_environment.json
