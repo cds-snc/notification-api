@@ -42,7 +42,7 @@ jobs:
           create_repo: true
           dockerfile: ci/Dockerfile
 
-  create-dev-base-infrastructure:
+  create-base-infrastructure:
     runs-on: ubuntu-latest
     needs: [build-and-push]
     env:
@@ -83,9 +83,9 @@ jobs:
           tf_actions_comment: false
           args: '"base-${{ github.sha }}.tfplan"'
 
-  create-dev-database:
+  create-database:
     runs-on: ubuntu-latest
-    needs: [create-dev-base-infrastructure]
+    needs: [create-base-infrastructure]
     env:
       tf_working_dir: './cd/application-database'
     if: github.ref == 'refs/heads/master'
@@ -124,9 +124,9 @@ jobs:
           tf_actions_comment: false
           args: '"database-${{ github.sha }}.tfplan"'
 
-  create-dev-app-infrastructure:
+  create-app-infrastructure:
     runs-on: ubuntu-latest
-    needs: create-dev-database
+    needs: create-database
     env:
       tf_working_dir: './cd/application-infrastructure'
     if: github.ref == 'refs/heads/master'
@@ -165,9 +165,9 @@ jobs:
           tf_actions_comment: false
           args: '"application-${{ github.sha }}.tfplan"'
 
-  dev-run-migrations:
+  run-migrations:
     runs-on: ubuntu-latest
-    needs: [create-dev-database, create-dev-app-infrastructure]
+    needs: [create-database, create-app-infrastructure]
     if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v2
@@ -196,9 +196,9 @@ jobs:
         run: |
           bash ./scripts/run_ci_migrations.sh -c dev-notification-cluster -e dev -t ${{ steps.register.outputs.arn }}
 
-  dev-deploy-api:
+  deploy-api:
     runs-on: ubuntu-latest
-    needs: [create-dev-app-infrastructure, dev-run-migrations]
+    needs: [create-app-infrastructure, run-migrations]
     if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v2
@@ -222,9 +222,9 @@ jobs:
           service: dev-notification-api-service
           cluster: dev-notification-cluster
           wait-for-service-stability: true
-  dev-deploy-celery:
+  deploy-celery:
     runs-on: ubuntu-latest
-    needs: [create-dev-app-infrastructure, dev-run-migrations]
+    needs: [create-app-infrastructure, run-migrations]
     if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v2
@@ -248,9 +248,9 @@ jobs:
           service: dev-notification-celery-service
           cluster: dev-notification-cluster
           wait-for-service-stability: true
-  dev-deploy-celery-beat:
+  deploy-celery-beat:
     runs-on: ubuntu-latest
-    needs: [create-dev-app-infrastructure, dev-run-migrations]
+    needs: [create-app-infrastructure, run-migrations]
     if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v2
@@ -276,7 +276,7 @@ jobs:
           wait-for-service-stability: true
   create-tag:
     runs-on: ubuntu-latest
-    needs: [dev-deploy-api, dev-deploy-celery, dev-deploy-celery-beat]
+    needs: [deploy-api, deploy-celery, deploy-celery-beat]
     if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v2
