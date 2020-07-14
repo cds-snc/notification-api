@@ -161,7 +161,7 @@ def send_email_to_provider(notification):
         if service.research_mode or notification.key_type == KEY_TYPE_TEST:
             notification.reference = str(create_uuid())
             update_notification_to_sending(notification, provider)
-            send_email_response(notification.reference, notification.to)
+            # send_email_response(notification.reference, notification.to)
         else:
             if service.sending_domain is None or service.sending_domain.strip() == "":
                 sending_domain = current_app.config['NOTIFY_EMAIL_DOMAIN']
