@@ -9,6 +9,7 @@ import requests_mock
 from app.config import QueueNames
 from app.celery.research_mode_tasks import (
     send_sms_response,
+    send_email_response,
     mmg_callback,
     firetext_callback,
     ses_notification_callback,
