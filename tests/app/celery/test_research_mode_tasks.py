@@ -1,4 +1,4 @@
-import uuid
+# import uuid
 from unittest.mock import ANY, call
 
 from flask import current_app, json
@@ -6,13 +6,13 @@ from freezegun import freeze_time
 import pytest
 import requests_mock
 
-from app.config import QueueNames
+# from app.config import QueueNames
 from app.celery.research_mode_tasks import (
     send_sms_response,
-    send_email_response,
+    # send_email_response,
     mmg_callback,
     firetext_callback,
-    ses_notification_callback,
+    # ses_notification_callback,
     create_fake_letter_response_file,
 )
 from tests.conftest import set_config_values, Matcher
@@ -85,6 +85,7 @@ def test_make_pinpoint_callback(notify_api, rmock):
     assert 'mobile={}'.format(phone_number) in rmock.request_history[0].text
 
 
+"""
 def test_make_ses_callback(notify_api, mocker):
     mock_task = mocker.patch('app.celery.research_mode_tasks.process_ses_results')
     some_ref = str(uuid.uuid4())
@@ -93,6 +94,7 @@ def test_make_ses_callback(notify_api, mocker):
 
     mock_task.apply_async.assert_called_once_with(ANY, queue=QueueNames.RESEARCH_MODE)
     assert mock_task.apply_async.call_args[0][0][0] == ses_notification_callback(some_ref)
+"""
 
 
 @pytest.mark.parametrize("phone_number", ["07700900001", "+447700900001", "7700900001", "+44 7700900001",
