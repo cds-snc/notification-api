@@ -19,7 +19,7 @@ from app.dao.provider_details_dao import (
     get_provider_details_by_notification_type,
     dao_toggle_sms_provider
 )
-from app.celery.research_mode_tasks import send_sms_response, send_email_response
+from app.celery.research_mode_tasks import send_sms_response
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException
 from app.models import (
