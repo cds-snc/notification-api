@@ -1,4 +1,4 @@
-import uuid
+# import uuid
 from unittest.mock import ANY, call
 
 from flask import current_app, json
@@ -6,13 +6,13 @@ from freezegun import freeze_time
 import pytest
 import requests_mock
 
-from app.config import QueueNames
+# from app.config import QueueNames
 from app.celery.research_mode_tasks import (
     send_sms_response,
-    send_email_response,
+    # send_email_response,
     mmg_callback,
     firetext_callback,
-    ses_notification_callback,
+    # ses_notification_callback,
     create_fake_letter_response_file,
 )
 from tests.conftest import set_config_values, Matcher
