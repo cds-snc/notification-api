@@ -1,7 +1,7 @@
 {
 	"info": {
 		"_postman_id": "f16abf86-d4c9-42d1-b958-b04cbdaf1e09",
-		"name": "notification-api",
+		"name": "notification-api-url",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -44,9 +44,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{notification-api}}/_status",
+							"raw": "{{notification-api-url}}/_status",
 							"host": [
-								"{{notification-api}}"
+								"{{notification-api-url}}"
 							],
 							"path": [
 								"_status"
@@ -69,7 +69,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('notification-secret') || ''",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -162,10 +162,10 @@
 					"raw": "{\n    \"name\": \"test organization 2\",\n    \"active\": true,\n    \"organisation_type\": \"other\",\n    \"crown\": false\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api}}/organisations",
+					"raw": "http://{{notification-api-url}}/organisations",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"organisations"
@@ -185,7 +185,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('notification-secret') || ''",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -267,10 +267,10 @@
 					}
 				],
 				"url": {
-					"raw": "http://{{notification-api}}/organisations",
+					"raw": "http://{{notification-api-url}}/organisations",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"organisations"
@@ -290,7 +290,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('notification-secret') || ''",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -354,7 +354,7 @@
 							"    var jsonData = pm.response.json(); ",
 							"    pm.environment.set(\"user-id\", jsonData.id);",
 							"} else {",
-							"    var url = \"http://\" + pm.environment.get(\"notification-api\") + \"/user/email?email=saman.moshafi@thoughtworks.com\";",
+							"    var url = \"http://\" + pm.environment.get(\"notification-api-url\") + \"/user/email?email=saman.moshafi@thoughtworks.com\";",
 							"    pm.sendRequest({",
 							"        url: url,",
 							"        method: 'GET',",
@@ -397,10 +397,10 @@
 					"raw": "{\n    \"name\": \"Test User\",\n    \"password\": \"JDJiJDEwJDRFSXJaTVhXdzQ2UjRlVlJBU0ZMdXVtWXlXbXlRWXl3YlpnVllSbDNsMTZ4bE40NzdZYnE2\",\n    \"email_address\": \"saman.moshafi@thoughtworks.com\",\n    \"mobile_number\": \"+17035017710\",\n    \"state\": \"active\",\n    \"user_permissions\": [\n        \"manage_templates\",\n        \"send_texts\",\n        \"manage_settings\",\n        \"send_emails\",\n        \"manage_api_keys\"\n    ],\n    \"auth_type\": \"sms_auth\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api}}/user",
+					"raw": "http://{{notification-api-url}}/user",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"user"
@@ -420,7 +420,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('notification-secret') || ''",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -511,10 +511,10 @@
 					}
 				],
 				"url": {
-					"raw": "http://{{notification-api}}/user",
+					"raw": "http://{{notification-api-url}}/user",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"user"
@@ -534,7 +534,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('notification-secret') || ''",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -598,7 +598,7 @@
 							"    var jsonData = pm.response.json(); ",
 							"    pm.environment.set(\"service-id\", jsonData.id);",
 							"} else {",
-							"    var url = \"http://\" + pm.environment.get(\"notification-api\") + \"/service/find-services-by-name?service_name=main service\";",
+							"    var url = \"http://\" + pm.environment.get(\"notification-api-url\") + \"/service/find-services-by-name?service_name=main service\";",
 							"    pm.sendRequest({",
 							"        url: url,",
 							"        method: 'GET',",
@@ -637,10 +637,10 @@
 					"raw": "{\n    \"name\": \"main service for Govdelivery\",\n    \"user_id\": \"{{user-id}}\",\n    \"organisation_id\": \"{{organization-id}}\",\n    \"message_limit\": 1000,\n    \"restricted\": false,\n    \"active\": true,\n    \"email-from\": \"{{email-from}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api}}/service",
+					"raw": "http://{{notification-api-url}}/service",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"service"
@@ -660,7 +660,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('notification-secret') || ''",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -736,10 +736,10 @@
 					}
 				],
 				"url": {
-					"raw": "http://{{notification-api}}/service",
+					"raw": "http://{{notification-api-url}}/service",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"service"
@@ -759,7 +759,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('notification-secret') || ''",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -852,10 +852,10 @@
 					"raw": "{\n    \"name\": \"test template\",\n    \"subject\": \"test subject\",\n    \"template_type\": \"sms\",\n    \"content\": \"This is a test SMS message\",\n    \"service\": \"{{service-id}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api}}/service/{{service-id}}/template",
+					"raw": "http://{{notification-api-url}}/service/{{service-id}}/template",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"service",
@@ -874,7 +874,7 @@
 					"script": {
 						"id": "6232fa19-f332-4a19-a894-4705fbc1d370",
 						"exec": [
-							"var jwtSecret = pm.environment.get('notification-secret') || ''",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -966,10 +966,10 @@
 					"raw": "{\n    \"name\": \"test template\",\n    \"subject\": \"test subject\",\n    \"template_type\": \"email\",\n    \"content\": \"This is a test email\",\n    \"service\": \"{{service-id}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api}}/service/{{service-id}}/template",
+					"raw": "http://{{notification-api-url}}/service/{{service-id}}/template",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"service",
@@ -989,7 +989,7 @@
 						"id": "0af9be38-c79e-46da-ad1d-a1c3fa49218e",
 						"type": "text/javascript",
 						"exec": [
-							"var jwtSecret = pm.environment.get('notification-secret') || ''",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -1080,10 +1080,10 @@
 					"raw": "{\n    \"name\": \"some name\",\n    \"subject\": \"some subject\",\n    \"template_type\": \"email\",\n    \"content\": \"some content\",\n    \"service\": \"{{service-id}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api}}/service/{{service-id}}/template/{{template-id}}",
+					"raw": "http://{{notification-api-url}}/service/{{service-id}}/template/{{template-id}}",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"service",
@@ -1106,7 +1106,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('notification-secret') || ''",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -1195,10 +1195,10 @@
 					}
 				],
 				"url": {
-					"raw": "http://{{notification-api}}/service/{{service-id}}/template",
+					"raw": "http://{{notification-api-url}}/service/{{service-id}}/template",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"service",
@@ -1220,7 +1220,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('notification-secret') || ''",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -1282,7 +1282,7 @@
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
-							"    pm.environment.set(\"service-api-secret\", jsonData.data);",
+							"    pm.environment.set(\"service-api-key\", jsonData.data);",
 							"}",
 							""
 						],
@@ -1314,10 +1314,10 @@
 					"raw": "{\n    \"created_by\": \"{{user-id}}\",\n    \"key_type\": \"normal\",\n    \"name\": \"postmantestapikey\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api}}/service/{{service-id}}/api-key",
+					"raw": "http://{{notification-api-url}}/service/{{service-id}}/api-key",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"service",
@@ -1339,7 +1339,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('notification-secret') || ''",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -1419,10 +1419,10 @@
 					"raw": ""
 				},
 				"url": {
-					"raw": "http://{{notification-api}}/service/{{service-id}}/api-key/revoke/{{api-key-id}}",
+					"raw": "http://{{notification-api-url}}/service/{{service-id}}/api-key/revoke/{{api-key-id}}",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"service",
@@ -1446,7 +1446,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get('notification-secret') || ''",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -1530,10 +1530,10 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://{{notification-api}}/service/{{service-id}}/api-keys",
+					"raw": "http://{{notification-api-url}}/service/{{service-id}}/api-keys",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"service",
@@ -1555,7 +1555,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get(\"service-api-secret\");",
+							"var jwtSecret = pm.environment.get(\"service-api-key\");",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -1632,10 +1632,10 @@
 					"raw": "{\n    \"template\": \"{{template-id}}\",\n    \"to\": \"+17035017710\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api}}/notifications/sms",
+					"raw": "http://{{notification-api-url}}/notifications/sms",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"notifications",
@@ -1657,7 +1657,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get(\"service-api-secret\");",
+							"var jwtSecret = pm.environment.get(\"service-api-key\");",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -1732,10 +1732,10 @@
 					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"phone_number\": \"+17035017710\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api}}/v2/notifications/sms",
+					"raw": "http://{{notification-api-url}}/v2/notifications/sms",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"v2",
@@ -1743,7 +1743,7 @@
 						"sms"
 					]
 				},
-				"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-secret to generate the JWT bearer token"
+				"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-key to generate the JWT bearer token"
 			},
 			"response": []
 		},
@@ -1759,7 +1759,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get(\"service-api-secret\");",
+							"var jwtSecret = pm.environment.get(\"service-api-key\");",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -1845,10 +1845,10 @@
 					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"email_address\": \"marisa.hoenig@thoughtworks.com\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api}}/v2/notifications/email",
+					"raw": "http://{{notification-api-url}}/v2/notifications/email",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"v2",
@@ -1856,7 +1856,7 @@
 						"email"
 					]
 				},
-				"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-secret to generate the JWT bearer token"
+				"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-key to generate the JWT bearer token"
 			},
 			"response": []
 		},
@@ -1872,7 +1872,7 @@
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
 							"",
-							"var jwtSecret = pm.environment.get(\"service-api-secret\");",
+							"var jwtSecret = pm.environment.get(\"service-api-key\");",
 							"",
 							"// Set headers for JWT",
 							"var header = {",
@@ -1937,10 +1937,10 @@
 					}
 				],
 				"url": {
-					"raw": "http://{{notification-api}}/v2/notifications/{{notification-id}}",
+					"raw": "http://{{notification-api-url}}/v2/notifications/{{notification-id}}",
 					"protocol": "http",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"v2",
@@ -1957,9 +1957,9 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{notification-api}}/_status",
+					"raw": "{{notification-api-url}}/_status",
 					"host": [
-						"{{notification-api}}"
+						"{{notification-api-url}}"
 					],
 					"path": [
 						"_status"
