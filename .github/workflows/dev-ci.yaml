@@ -298,7 +298,7 @@ jobs:
       - name: Run Smoke Test
         run: |
           npm install -g newman
-          newman run scripts/postman/notification-api.postman_collection.json --folder "smoke-test" --env-var "notification-api=${{ steps.get-url.outputs.notification-api }}" --env-var "expected-git-sha=${{ github.sha }}"
+          newman run scripts/postman/notification-api.postman_collection.json --folder "smoke-test" --env-var "notification-api-url=${{ steps.get-url.outputs.notification-api }}" --env-var "expected-git-sha=${{ github.sha }}"
 
   create-tag:
     runs-on: ubuntu-latest
