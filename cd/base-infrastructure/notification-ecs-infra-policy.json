@@ -10,6 +10,7 @@
         "acm:DescribeCertificate",
         "acm:GetCertificate",
         "acm:ListCertificates",
+        "acm:ListTagsForCertificate",
         "acm:RemoveTagsFromCertificate",
         "acm:RequestCertificate",
         "acm:UpdateCertificateOptions",
