@@ -3,7 +3,7 @@ locals {
 }
 
 data "aws_route53_zone" "notification" {
-  name         = "twnotify.com."
+  name = "twnotify.com."
 }
 
 resource "aws_route53_record" "notification" {

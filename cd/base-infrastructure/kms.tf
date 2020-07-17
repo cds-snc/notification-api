@@ -58,7 +58,7 @@ data "aws_iam_policy_document" "notification" {
 
     principals {
       identifiers = [var.deploy_role]
-      type = "AWS"
+      type        = "AWS"
     }
 
     actions = [
@@ -81,7 +81,7 @@ data "aws_iam_policy_document" "notification" {
 
     principals {
       identifiers = [var.deploy_role]
-      type = "AWS"
+      type        = "AWS"
     }
 
     actions = [
@@ -95,8 +95,8 @@ data "aws_iam_policy_document" "notification" {
     ]
 
     condition {
-      test = "Bool"
-      values = ["true"]
+      test     = "Bool"
+      values   = ["true"]
       variable = "kms:GrantIsForAWSResource"
     }
   }

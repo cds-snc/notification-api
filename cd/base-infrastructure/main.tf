@@ -6,10 +6,10 @@ resource "aws_vpc" "notification" {
 }
 
 resource "aws_subnet" "private" {
-  count = length(var.private_cidrs)
-  cidr_block = var.private_cidrs[count.index]
+  count             = length(var.private_cidrs)
+  cidr_block        = var.private_cidrs[count.index]
   availability_zone = data.aws_availability_zones.available_zones.names[count.index]
-  vpc_id     = aws_vpc.notification.id
+  vpc_id            = aws_vpc.notification.id
 
   tags = local.default_tags
 }
@@ -61,7 +61,7 @@ resource "aws_vpc_endpoint" "ecr_api" {
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
   vpc_endpoint_type   = "Interface"
-  subnet_ids = aws_subnet.private.*.id
+  subnet_ids          = aws_subnet.private.*.id
 
   tags = local.default_tags
 }
@@ -72,7 +72,7 @@ resource "aws_vpc_endpoint" "ecr_dkr" {
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
   vpc_endpoint_type   = "Interface"
-  subnet_ids = aws_subnet.private.*.id
+  subnet_ids          = aws_subnet.private.*.id
 
   tags = local.default_tags
 }
@@ -83,7 +83,7 @@ resource "aws_vpc_endpoint" "cloudwatch" {
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
   vpc_endpoint_type   = "Interface"
-  subnet_ids = aws_subnet.private.*.id
+  subnet_ids          = aws_subnet.private.*.id
 
   tags = local.default_tags
 }
@@ -92,18 +92,18 @@ resource "aws_vpc_endpoint" "s3" {
   vpc_id            = aws_vpc.notification.id
   service_name      = "com.amazonaws.${var.region}.s3"
   vpc_endpoint_type = "Gateway"
-  route_table_ids = aws_route_table.private.*.id
+  route_table_ids   = aws_route_table.private.*.id
 
   tags = local.default_tags
 }
 
 resource "aws_vpc_endpoint" "sqs" {
-  vpc_id            = aws_vpc.notification.id
-  service_name      = "com.amazonaws.${var.region}.sqs"
+  vpc_id              = aws_vpc.notification.id
+  service_name        = "com.amazonaws.${var.region}.sqs"
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
-  vpc_endpoint_type = "Interface"
-  subnet_ids = aws_subnet.private.*.id
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private.*.id
 
   tags = local.default_tags
 }
@@ -123,8 +123,8 @@ resource "aws_eip" "notification" {
 }
 
 resource "aws_nat_gateway" "notification" {
-  count = length(var.public_cidrs)
-  subnet_id      = element(aws_subnet.public.*.id, count.index)
+  count         = length(var.public_cidrs)
+  subnet_id     = element(aws_subnet.public.*.id, count.index)
   allocation_id = element(aws_eip.notification.*.id, count.index)
 
   tags = local.default_tags

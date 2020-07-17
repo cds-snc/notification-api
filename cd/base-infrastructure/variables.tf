@@ -4,10 +4,10 @@ variable "environment_prefix" {
 
 locals {
   default_tags = {
-    Stack = "base-infrastructure",
+    Stack       = "base-infrastructure",
     Environment = var.environment_prefix,
-    Team = "va-notify"
-    ManagedBy = "Terraform"
+    Team        = "va-notify"
+    ManagedBy   = "Terraform"
   }
 }
 
