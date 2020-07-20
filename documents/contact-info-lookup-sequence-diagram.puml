@@ -1,7 +1,20 @@
 @startuml
 title Contact information lookup sequence diagram
 
-participant "External system" as ext  #99FF99
+participant "External system" as ext #99FF99
+participant api
+database database
+
+queue "lookup_vet360id\ntask queue" as lookup_vet360id_tasks
+queue "lookup_email\ntask queue" as lookup_email_tasks
+queue "deliver_email\ntask queue" as deliver_email_tasks
+
+participant celery
+
+box External services #f3f3f3
+participant "VA Profile" as vaprofile
+participant "Master Person Index" as mpi
+end box
 
 ext -> api : POST to send email with lookup: /v2/notifications/lookup/email
 activate api
@@ -12,11 +25,10 @@ note right of ext
   ""}""
 end note
 
-database database
 api -> database: persist notification with blank email, Participant ID, and status "REQUIRES_LOOKUP"
 
-queue queue
-api -> queue: enqueue **lookup_email** task
+api -> lookup_vet360id_tasks: enqueue **lookup_vet360id** task
+activate lookup_vet360id_tasks
 
 api -> ext: Partial response
 note right of ext
@@ -28,18 +40,12 @@ deactivate api
 
 ...
 
-celery -> queue: dequeue **lookup_email** task
+celery -> lookup_vet360id_tasks: dequeue **lookup_vet360id** task
+deactivate lookup_vet360id_tasks
 activate celery
 
 celery -> database: get notification
-
 database -> celery: notification, with Participant ID
-
-box External services #f3f3f3
-
-participant "VA Profile" as vaprofile
-
-participant "Master Person Index" as mpi
 
 celery -> vaprofile: get Vet360ID for this Participant ID
 
@@ -49,20 +55,36 @@ mpi -> vaprofile: Vet360ID
 
 vaprofile -> celery: Vet360ID
 
+celery -> database: persist notification with Vet360ID
+
+celery -> lookup_email_tasks: enqueue **lookup_email** task
+deactivate celery
+activate lookup_email_tasks
+
+...
+
+celery -> lookup_email_tasks: dequeue **lookup_email** task
+deactivate lookup_email_tasks
+activate celery
+
+celery -> database: get notification
+database -> celery: notification, with Vet360ID
+
 celery -> vaprofile: get contact info for this Vet360ID
 
 vaprofile -> celery: contact info
-end box
 
 celery -> database: update notification to persist email address
 celery -> database: update notification status to indicate readiness
 
-celery -> queue: enqueue **deliver_email** task
+celery -> deliver_email_tasks: enqueue **deliver_email** task
 deactivate celery
+activate deliver_email_tasks
 
 ...
 
-celery -> queue: dequeue **deliver_email** task
+celery -> deliver_email_tasks: dequeue **deliver_email** task
+deactivate deliver_email_tasks
 activate celery
 
 celery -> celery
