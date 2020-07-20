@@ -5,11 +5,15 @@ participant "External system" as ext #99FF99
 participant api
 database database
 
-queue "lookup_vet360id\ntask queue" as lookup_vet360id_tasks
-queue "lookup_email\ntask queue" as lookup_email_tasks
-queue "deliver_email\ntask queue" as deliver_email_tasks
+queue "lookup_vet360id\ntask queue" as lookup_vet360id_queue
+participant "lookup_vet360id\ntask runner" as lookup_vet360id_runner
 
-participant celery
+queue "lookup_email\ntask queue" as lookup_email_queue
+participant "lookup_email\ntask runner" as lookup_email_runner
+
+queue "deliver_email\ntask queue" as deliver_email_queue
+participant "deliver_email\ntask runner" as deliver_email_runner
+
 
 box External services #f3f3f3
 participant "VA Profile" as vaprofile
@@ -27,8 +31,8 @@ end note
 
 api -> database: persist notification with blank email, Participant ID, and status "REQUIRES_LOOKUP"
 
-api -> lookup_vet360id_tasks: enqueue **lookup_vet360id** task
-activate lookup_vet360id_tasks
+api -> lookup_vet360id_queue: enqueue **lookup_vet360id** task
+activate lookup_vet360id_queue
 
 api -> ext: Partial response
 note right of ext
@@ -40,53 +44,53 @@ deactivate api
 
 ...
 
-celery -> lookup_vet360id_tasks: dequeue **lookup_vet360id** task
-deactivate lookup_vet360id_tasks
-activate celery
+lookup_vet360id_runner -> lookup_vet360id_queue: dequeue **lookup_vet360id** task
+deactivate lookup_vet360id_queue
+activate lookup_vet360id_runner
 
-celery -> database: get notification
-database -> celery: notification, with Participant ID
+lookup_vet360id_runner -> database: get notification
+database -> lookup_vet360id_runner: notification, with Participant ID
 
-celery -> vaprofile: get Vet360ID for this Participant ID
+lookup_vet360id_runner -> vaprofile: get Vet360ID for this Participant ID
 
 vaprofile -> mpi: get Vet360ID for this Participant ID
 
 mpi -> vaprofile: Vet360ID
 
-vaprofile -> celery: Vet360ID
+vaprofile -> lookup_vet360id_runner: Vet360ID
 
-celery -> database: persist notification with Vet360ID
+lookup_vet360id_runner -> database: update persisted notification with Vet360ID
 
-celery -> lookup_email_tasks: enqueue **lookup_email** task
-deactivate celery
-activate lookup_email_tasks
-
-...
-
-celery -> lookup_email_tasks: dequeue **lookup_email** task
-deactivate lookup_email_tasks
-activate celery
-
-celery -> database: get notification
-database -> celery: notification, with Vet360ID
-
-celery -> vaprofile: get contact info for this Vet360ID
-
-vaprofile -> celery: contact info
-
-celery -> database: update notification to persist email address
-celery -> database: update notification status to indicate readiness
-
-celery -> deliver_email_tasks: enqueue **deliver_email** task
-deactivate celery
-activate deliver_email_tasks
+lookup_vet360id_runner -> lookup_email_queue: enqueue **lookup_email** task
+deactivate lookup_vet360id_runner
+activate lookup_email_queue
 
 ...
 
-celery -> deliver_email_tasks: dequeue **deliver_email** task
-deactivate deliver_email_tasks
-activate celery
+lookup_email_runner -> lookup_email_queue: dequeue **lookup_email** task
+deactivate lookup_email_queue
+activate lookup_email_runner
 
-celery -> celery
+lookup_email_runner -> database: get notification
+database -> lookup_email_runner: notification, with Vet360ID
+
+lookup_email_runner -> vaprofile: get contact info for this Vet360ID
+
+vaprofile -> lookup_email_runner: contact info
+
+lookup_email_runner -> database: update notification to persist email address
+lookup_email_runner -> database: update notification status to indicate readiness
+
+lookup_email_runner -> deliver_email_queue: enqueue **deliver_email** task
+deactivate lookup_email_runner
+activate deliver_email_queue
+
+...
+
+deliver_email_runner -> deliver_email_queue: dequeue **deliver_email** task
+deactivate deliver_email_queue
+activate deliver_email_runner
+
+deliver_email_runner -> deliver_email_runner
 rnote right: Send email
 @enduml
