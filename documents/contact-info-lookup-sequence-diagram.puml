@@ -3,7 +3,8 @@ title Contact information lookup sequence diagram
 
 participant "External system" as ext #99FF99
 participant api
-database database
+database "Notifications\ntable" as notifications_table
+database "Identifiers\ntable" as identifiers_table
 
 queue "lookup_vet360id\ntask queue" as lookup_vet360id_queue
 participant "lookup_vet360id\ntask runner" as lookup_vet360id_runner
@@ -29,9 +30,10 @@ note right of ext
   ""}""
 end note
 
-api -> database: persist notification with blank email, Participant ID, and status "REQUIRES_LOOKUP"
+api -> notifications_table: persist notification with blank email
+api -> identifiers_table: persist Participant ID for this notification ID
 
-api -> lookup_vet360id_queue: enqueue **lookup_vet360id** task
+api -> lookup_vet360id_queue: enqueue **lookup_vet360id** task with notification ID
 activate lookup_vet360id_queue
 
 api -> ext: Partial response
@@ -48,8 +50,8 @@ lookup_vet360id_runner -> lookup_vet360id_queue: dequeue **lookup_vet360id** tas
 deactivate lookup_vet360id_queue
 activate lookup_vet360id_runner
 
-lookup_vet360id_runner -> database: get notification
-database -> lookup_vet360id_runner: notification, with Participant ID
+lookup_vet360id_runner -> identifiers_table: get Participant ID for this notification ID
+identifiers_table -> lookup_vet360id_runner: Participant ID
 
 lookup_vet360id_runner -> vaprofile: get Vet360ID for this Participant ID
 
@@ -59,9 +61,9 @@ mpi -> vaprofile: Vet360ID
 
 vaprofile -> lookup_vet360id_runner: Vet360ID
 
-lookup_vet360id_runner -> database: update persisted notification with Vet360ID
+lookup_vet360id_runner -> identifiers_table: persist Vet360ID for this notification ID
 
-lookup_vet360id_runner -> lookup_email_queue: enqueue **lookup_email** task
+lookup_vet360id_runner -> lookup_email_queue: enqueue **lookup_email** task with notification ID
 deactivate lookup_vet360id_runner
 activate lookup_email_queue
 
@@ -71,17 +73,16 @@ lookup_email_runner -> lookup_email_queue: dequeue **lookup_email** task
 deactivate lookup_email_queue
 activate lookup_email_runner
 
-lookup_email_runner -> database: get notification
-database -> lookup_email_runner: notification, with Vet360ID
+lookup_email_runner -> identifiers_table: get Vet360ID for this notification ID
+identifiers_table -> lookup_email_runner: Vet360ID
 
 lookup_email_runner -> vaprofile: get contact info for this Vet360ID
 
 vaprofile -> lookup_email_runner: contact info
 
-lookup_email_runner -> database: update notification to persist email address
-lookup_email_runner -> database: update notification status to indicate readiness
+lookup_email_runner -> notifications_table: update notification to persist email address
 
-lookup_email_runner -> deliver_email_queue: enqueue **deliver_email** task
+lookup_email_runner -> deliver_email_queue: enqueue **deliver_email** task with notification ID
 deactivate lookup_email_runner
 activate deliver_email_queue
 
