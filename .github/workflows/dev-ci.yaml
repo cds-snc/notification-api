@@ -24,6 +24,28 @@ jobs:
         run: |
           docker-compose -f ci/docker-compose-test.yml up --build --abort-on-container-exit --force-recreate
 
+  user-flows:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+      - uses: actions/setup-node@v2-beta
+        with:
+          node-version: '12'
+      - name: Get API URL
+        id: get-url
+        run: |
+          echo "::set-output name=notification-api::$(aws ssm get-parameter --name /dev/notification-api/api-host-name | jq '.Parameter.Value' -r)"
+      - name: Run User Flow
+        run: |
+          make user_flows
+
   build-and-push:
     runs-on: ubuntu-latest
     needs: [test]
@@ -299,28 +321,6 @@ jobs:
         run: |
           npm install -g newman
           newman run scripts/postman/notification-api.postman_collection.json --folder "smoke-test" --env-var "notification-api-url=${{ steps.get-url.outputs.notification-api }}" --env-var "expected-git-sha=${{ github.sha }}"
-
-  user-flows:
-    runs-on: ubuntu-latest
-    needs: smoke-test
-    steps:
-      - uses: actions/checkout@v2
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
-      - uses: actions/setup-node@v2-beta
-        with:
-          node-version: '12'
-      - name: Get API URL
-        id: get-url
-        run: |
-          echo "::set-output name=notification-api::$(aws ssm get-parameter --name /dev/notification-api/api-host-name | jq '.Parameter.Value' -r)"
-      - name: Run User Flow
-        run: |
-          make user_flows
 
   create-tag:
     runs-on: ubuntu-latest
