@@ -1,9 +1,10 @@
 import requests
 import jwt
-import time 
+import time
 import os
 
 staging_url = "http://dev-notification-alb-1026387505.us-east-2.elb.amazonaws.com/"
+
 
 def get_jwt():
     jwtSecret = os.environ['NOTIFICATION_SECRET']
@@ -11,10 +12,10 @@ def get_jwt():
     combo = {}
     currentTimestamp = int(time.time())
     data = {
-	'iss': "notify-admin",
-	'iat': currentTimestamp,
-	'exp': currentTimestamp + 30, # expiry time is 30 seconds from time of creation
-	'jti': 'jwt_nonce'
+        'iss': "notify-admin",
+        'iat': currentTimestamp,
+        'exp': currentTimestamp + 30,
+        'jti': 'jwt_nonce'
     }
     combo.update(data)
     combo.update(header)
