@@ -300,15 +300,17 @@ def test_that_when_exceed_rate_limit_request_fails(
         api_key = sample_api_key(notify_db, notify_db_session, service=service, key_type=api_key_type)
         with pytest.raises(RateLimitError) as e:
             check_service_over_api_rate_limit(service, api_key)
+        
+        test_rate_limit = 500 if key_type == "test" else service.rate_limit
 
         assert app.redis_store.exceeded_rate_limit.called_with(
             "{}-{}".format(str(service.id), api_key.key_type),
-            service.rate_limit,
+            test_rate_limit,
             60
         )
         assert e.value.status_code == 429
         assert e.value.message == 'Exceeded rate limit for key type {} of {} requests per {} seconds'.format(
-            key_type.upper(), service.rate_limit, 60
+            key_type.upper(), test_rate_limit, 60
         )
         assert e.value.fields == []
 
