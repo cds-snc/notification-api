@@ -300,7 +300,7 @@ def test_that_when_exceed_rate_limit_request_fails(
         api_key = sample_api_key(notify_db, notify_db_session, service=service, key_type=api_key_type)
         with pytest.raises(RateLimitError) as e:
             check_service_over_api_rate_limit(service, api_key)
-        
+
         test_rate_limit = 500 if key_type == "test" else service.rate_limit
 
         assert app.redis_store.exceeded_rate_limit.called_with(
