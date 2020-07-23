@@ -29,14 +29,6 @@ resource "aws_alb_listener" "notification_api_https" {
   }
 }
 
-resource "aws_ssm_parameter" "api_host_name" {
-  name        = "/${var.environment_prefix}/notification-api/api-host-name"
-  description = "The notification api URL"
-  type        = "String"
-  value       = format("http://%s", aws_alb.notification_api.dns_name)
-  tags        = local.default_tags
-}
-
 resource "aws_alb_target_group" "notification_api" {
   name        = "${var.environment_prefix}-notification-group"
   port        = 6011

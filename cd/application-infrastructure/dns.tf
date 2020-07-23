@@ -37,3 +37,11 @@ resource "aws_acm_certificate_validation" "cert" {
   certificate_arn         = aws_acm_certificate.cert.arn
   validation_record_fqdns = [aws_route53_record.cert_validation.fqdn]
 }
+
+resource "aws_ssm_parameter" "api_host_name" {
+  name        = "/${var.environment_prefix}/notification-api/api-host-name"
+  description = "The notification api URL"
+  type        = "String"
+  value       = format("https://%s", local.domain_name)
+  tags        = local.default_tags
+}
