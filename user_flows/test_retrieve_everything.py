@@ -1,13 +1,17 @@
+import boto3
 import requests
 import jwt
 import time
-import os
 
 staging_url = "http://dev-notification-alb-1026387505.us-east-2.elb.amazonaws.com/"
+client = boto3.client('ssm')
+ssm_client = boto3.client('ssm')
+response = ssm_client.get_parameter(Name='/dev/notification-api/admin-client-secret', WithDecryption=True)
+api_secret = response['Parameter']['Value']
 
 
 def get_jwt():
-    jwtSecret = os.environ['NOTIFICATION_SECRET']
+    jwtSecret = api_secret
     header = {'typ': 'JWT', 'alg': 'HS256'}
     combo = {}
     currentTimestamp = int(time.time())

@@ -38,14 +38,6 @@ jobs:
       - uses: actions/setup-node@v2-beta
         with:
           node-version: '12'
-      - name: Get API URL
-        id: get-url
-        run: |
-          echo "::set-output name=notification-api::$(aws ssm get-parameter --name /dev/notification-api/api-host-name | jq '.Parameter.Value' -r)"
-      - name: Get secret
-        id: secret
-        run: |
-          echo "::set-env name=NOTIFICATION_SECRET::$(aws ssm get-parameter --name /dev/notification-api/admin-client-secret | jq '.Parameter.Value' -r)"
       - name: Run User Flow
         run: |
           docker-compose -f ci/docker-compose-user-flow.yml up --build --abort-on-container-exit --force-recreate
