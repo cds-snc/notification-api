@@ -45,10 +45,10 @@ jobs:
       - name: Get secret
         id: secret
         run: |
-          echo "::set-output name=notification-secret::$(aws ssm get-parameter --name /dev/notification-api/api-host-name | jq '.Parameter.Value' -r)"
+          echo "::set-env name=NOTIFICATION_SECRET::$(aws ssm get-parameter --name /dev/notification-api/admin-client-secret | jq '.Parameter.Value' -r)"
       - name: Run User Flow
         run: |
-          NOTIFICATION_SECRET=${{ steps.user-flows.output.secret }} docker-compose -f ci/docker-compose-user-flow.yml up --build --abort-on-container-exit --force-recreate
+          docker-compose -f ci/docker-compose-user-flow.yml up --build --abort-on-container-exit --force-recreate
 
   build-and-push:
     runs-on: ubuntu-latest
