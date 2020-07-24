@@ -26,7 +26,7 @@ def get_safelist_objects(service_id, request_json):
     ]
 
 
-def service_allowed_to_send_to(recipient, service, key_type, allow_whitelisted_recipients=True):
+def service_allowed_to_send_to(recipient, service, key_type, allow_safelisted_recipients=True):
     if key_type == KEY_TYPE_TEST:
         return True
 
@@ -38,7 +38,7 @@ def service_allowed_to_send_to(recipient, service, key_type, allow_whitelisted_r
     )
     whitelist_members = [
         member.recipient for member in service.whitelist
-        if allow_whitelisted_recipients
+        if allow_safelisted_recipients
     ]
 
     if (
