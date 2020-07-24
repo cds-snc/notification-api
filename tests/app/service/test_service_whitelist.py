@@ -10,7 +10,7 @@ from app.models import (
 from app.dao.service_whitelist_dao import dao_add_and_commit_safelisted_contacts
 
 
-def test_get_whitelist_returns_data(client, sample_service_whitelist):
+def test_get_safelist_returns_data(client, sample_service_whitelist):
     service_id = sample_service_whitelist.service_id
 
     response = client.get('service/{}/whitelist'.format(service_id), headers=[create_authorization_header()])
@@ -21,7 +21,7 @@ def test_get_whitelist_returns_data(client, sample_service_whitelist):
     }
 
 
-def test_get_whitelist_separates_emails_and_phones(client, sample_service):
+def test_get_safelist_separates_emails_and_phones(client, sample_service):
     dao_add_and_commit_safelisted_contacts([
         ServiceSafelist.from_string(sample_service.id, EMAIL_TYPE, 'service@example.com'),
         ServiceSafelist.from_string(sample_service.id, MOBILE_TYPE, '6502532222'),
@@ -35,7 +35,7 @@ def test_get_whitelist_separates_emails_and_phones(client, sample_service):
     assert sorted(json_resp['phone_numbers']) == sorted(['+1800-234-1242', '6502532222'])
 
 
-def test_get_whitelist_404s_with_unknown_service_id(client):
+def test_get_safelist_404s_with_unknown_service_id(client):
     path = 'service/{}/whitelist'.format(uuid.uuid4())
 
     response = client.get(path, headers=[create_authorization_header()])
@@ -45,7 +45,7 @@ def test_get_whitelist_404s_with_unknown_service_id(client):
     assert json_resp['message'] == 'No result found'
 
 
-def test_get_whitelist_returns_no_data(client, sample_service):
+def test_get_safelist_returns_no_data(client, sample_service):
     path = 'service/{}/whitelist'.format(sample_service.id)
 
     response = client.get(path, headers=[create_authorization_header()])

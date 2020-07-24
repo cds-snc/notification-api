@@ -12,7 +12,7 @@ def get_recipients_from_request(request_json, key, type):
     return [(type, recipient) for recipient in request_json.get(key)]
 
 
-def get_whitelist_objects(service_id, request_json):
+def get_safelist_objects(service_id, request_json):
     return [
         ServiceSafelist.from_string(service_id, type, recipient)
         for type, recipient in (

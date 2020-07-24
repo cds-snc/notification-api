@@ -102,7 +102,7 @@ from app.service.service_senders_schema import (
     add_service_letter_contact_block_request,
     add_service_sms_sender_request
 )
-from app.service.utils import get_whitelist_objects
+from app.service.utils import get_safelist_objects
 from app.service.sender import send_notification_to_service_users
 from app.service.send_notification import send_one_off_notification, send_pdf_letter_notification
 from app.schemas import (
@@ -544,7 +544,7 @@ def get_detailed_services(start_date, end_date, only_active=False, include_from_
 
 
 @service_blueprint.route('/<uuid:service_id>/whitelist', methods=['GET'])
-def get_whitelist(service_id):
+def get_safelist(service_id):
     from app.models import (EMAIL_TYPE, MOBILE_TYPE)
     service = dao_fetch_service_by_id(service_id)
 
@@ -565,7 +565,7 @@ def update_whitelist(service_id):
     # doesn't commit so if there are any errors, we preserve old values in db
     dao_remove_service_safelist(service_id)
     try:
-        whitelist_objs = get_whitelist_objects(service_id, request.get_json())
+        whitelist_objs = get_safelist_objects(service_id, request.get_json())
     except ValueError as e:
         current_app.logger.exception(e)
         dao_rollback()
