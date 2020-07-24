@@ -42,7 +42,7 @@ from app.models import (
     ProviderDetailsHistory,
     ProviderRates,
     ScheduledNotification,
-    ServiceWhitelist,
+    ServiceSafelist,
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEST,
     KEY_TYPE_TEAM,
@@ -1114,11 +1114,11 @@ def sample_service_whitelist(notify_db, notify_db_session, service=None, email_a
         service = create_service(check_if_service_exists=True)
 
     if email_address:
-        whitelisted_user = ServiceWhitelist.from_string(service.id, EMAIL_TYPE, email_address)
+        whitelisted_user = ServiceSafelist.from_string(service.id, EMAIL_TYPE, email_address)
     elif mobile_number:
-        whitelisted_user = ServiceWhitelist.from_string(service.id, MOBILE_TYPE, mobile_number)
+        whitelisted_user = ServiceSafelist.from_string(service.id, MOBILE_TYPE, mobile_number)
     else:
-        whitelisted_user = ServiceWhitelist.from_string(service.id, EMAIL_TYPE, 'whitelisted_user@digital.gov.uk')
+        whitelisted_user = ServiceSafelist.from_string(service.id, EMAIL_TYPE, 'whitelisted_user@digital.gov.uk')
 
     notify_db.session.add(whitelisted_user)
     notify_db.session.commit()

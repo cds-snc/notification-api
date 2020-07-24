@@ -4,7 +4,7 @@ import json
 from tests import create_authorization_header
 
 from app.models import (
-    ServiceWhitelist,
+    ServiceSafelist,
     MOBILE_TYPE, EMAIL_TYPE)
 
 from app.dao.service_whitelist_dao import dao_add_and_commit_whitelisted_contacts
@@ -23,9 +23,9 @@ def test_get_whitelist_returns_data(client, sample_service_whitelist):
 
 def test_get_whitelist_separates_emails_and_phones(client, sample_service):
     dao_add_and_commit_whitelisted_contacts([
-        ServiceWhitelist.from_string(sample_service.id, EMAIL_TYPE, 'service@example.com'),
-        ServiceWhitelist.from_string(sample_service.id, MOBILE_TYPE, '6502532222'),
-        ServiceWhitelist.from_string(sample_service.id, MOBILE_TYPE, '+1800-234-1242'),
+        ServiceSafelist.from_string(sample_service.id, EMAIL_TYPE, 'service@example.com'),
+        ServiceSafelist.from_string(sample_service.id, MOBILE_TYPE, '6502532222'),
+        ServiceSafelist.from_string(sample_service.id, MOBILE_TYPE, '+1800-234-1242'),
     ])
 
     response = client.get('service/{}/whitelist'.format(sample_service.id), headers=[create_authorization_header()])
@@ -67,7 +67,7 @@ def test_update_whitelist_replaces_old_whitelist(client, sample_service_whitelis
     )
 
     assert response.status_code == 204
-    whitelist = ServiceWhitelist.query.order_by(ServiceWhitelist.recipient).all()
+    whitelist = ServiceSafelist.query.order_by(ServiceSafelist.recipient).all()
     assert len(whitelist) == 2
     assert whitelist[0].recipient == '6502532222'
     assert whitelist[1].recipient == 'foo@bar.com'
@@ -91,5 +91,5 @@ def test_update_whitelist_doesnt_remove_old_whitelist_if_error(client, sample_se
         'result': 'error',
         'message': 'Invalid whitelist: "" is not a valid email address or phone number'
     }
-    whitelist = ServiceWhitelist.query.one()
+    whitelist = ServiceSafelist.query.one()
     assert whitelist.id == sample_service_whitelist.id

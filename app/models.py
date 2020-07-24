@@ -669,7 +669,7 @@ WHITELIST_RECIPIENT_TYPE = [MOBILE_TYPE, EMAIL_TYPE]
 whitelist_recipient_types = db.Enum(*WHITELIST_RECIPIENT_TYPE, name='recipient_type')
 
 
-class ServiceWhitelist(db.Model):
+class ServiceSafelist(db.Model):
     __tablename__ = 'service_whitelist'
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

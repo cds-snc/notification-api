@@ -3,7 +3,7 @@ import itertools
 from notifications_utils.recipients import allowed_to_send_to
 
 from app.models import (
-    ServiceWhitelist,
+    ServiceSafelist,
     MOBILE_TYPE, EMAIL_TYPE,
     KEY_TYPE_TEST, KEY_TYPE_TEAM, KEY_TYPE_NORMAL)
 
@@ -14,7 +14,7 @@ def get_recipients_from_request(request_json, key, type):
 
 def get_whitelist_objects(service_id, request_json):
     return [
-        ServiceWhitelist.from_string(service_id, type, recipient)
+        ServiceSafelist.from_string(service_id, type, recipient)
         for type, recipient in (
             get_recipients_from_request(request_json,
                                         'phone_numbers',
