@@ -54,7 +54,7 @@ def test_get_safelist_returns_no_data(client, sample_service):
     assert json.loads(response.get_data(as_text=True)) == {'email_addresses': [], 'phone_numbers': []}
 
 
-def test_update_whitelist_replaces_old_whitelist(client, sample_service_safelist):
+def test_update_safelist_replaces_old_safelist(client, sample_service_safelist):
     data = {
         'email_addresses': ['foo@bar.com'],
         'phone_numbers': ['6502532222']
@@ -67,13 +67,13 @@ def test_update_whitelist_replaces_old_whitelist(client, sample_service_safelist
     )
 
     assert response.status_code == 204
-    whitelist = ServiceSafelist.query.order_by(ServiceSafelist.recipient).all()
-    assert len(whitelist) == 2
-    assert whitelist[0].recipient == '6502532222'
-    assert whitelist[1].recipient == 'foo@bar.com'
+    safelist = ServiceSafelist.query.order_by(ServiceSafelist.recipient).all()
+    assert len(safelist) == 2
+    assert safelist[0].recipient == '6502532222'
+    assert safelist[1].recipient == 'foo@bar.com'
 
 
-def test_update_whitelist_doesnt_remove_old_whitelist_if_error(client, sample_service_safelist):
+def test_update_safelist_doesnt_remove_old_safelist_if_error(client, sample_service_safelist):
 
     data = {
         'email_addresses': [''],
@@ -89,7 +89,7 @@ def test_update_whitelist_doesnt_remove_old_whitelist_if_error(client, sample_se
     assert response.status_code == 400
     assert json.loads(response.get_data(as_text=True)) == {
         'result': 'error',
-        'message': 'Invalid whitelist: "" is not a valid email address or phone number'
+        'message': 'Invalid safelist: "" is not a valid email address or phone number'
     }
-    whitelist = ServiceSafelist.query.one()
-    assert whitelist.id == sample_service_safelist.id
+    safelist = ServiceSafelist.query.one()
+    assert safelist.id == sample_service_safelist.id
