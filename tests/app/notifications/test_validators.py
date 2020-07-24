@@ -202,8 +202,8 @@ def test_service_can_send_to_recipient_passes_for_live_service_non_team_member(k
                                          live_service) is None
 
 
-def test_service_can_send_to_recipient_passes_for_whitelisted_recipient_passes(notify_db, notify_db_session,
-                                                                               sample_service):
+def test_service_can_send_to_recipient_passes_for_safelisted_recipient_passes(notify_db, notify_db_session,
+                                                                              sample_service):
     sample_service_safelist(notify_db, notify_db_session, email_address="some_other_email@test.com")
     assert service_can_send_to_recipient("some_other_email@test.com",
                                          'team',
@@ -218,7 +218,7 @@ def test_service_can_send_to_recipient_passes_for_whitelisted_recipient_passes(n
     {"email_address": "some_other_email@test.com"},
     {"mobile_number": "6502532223"},
 ])
-def test_service_can_send_to_recipient_fails_when_ignoring_whitelist(
+def test_service_can_send_to_recipient_fails_when_ignoring_safelist(
     notify_db,
     notify_db_session,
     sample_service,

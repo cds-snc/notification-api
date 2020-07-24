@@ -1114,15 +1114,15 @@ def sample_service_safelist(notify_db, notify_db_session, service=None, email_ad
         service = create_service(check_if_service_exists=True)
 
     if email_address:
-        whitelisted_user = ServiceSafelist.from_string(service.id, EMAIL_TYPE, email_address)
+        safelisted_user = ServiceSafelist.from_string(service.id, EMAIL_TYPE, email_address)
     elif mobile_number:
-        whitelisted_user = ServiceSafelist.from_string(service.id, MOBILE_TYPE, mobile_number)
+        safelisted_user = ServiceSafelist.from_string(service.id, MOBILE_TYPE, mobile_number)
     else:
-        whitelisted_user = ServiceSafelist.from_string(service.id, EMAIL_TYPE, 'whitelisted_user@digital.gov.uk')
+        safelisted_user = ServiceSafelist.from_string(service.id, EMAIL_TYPE, 'safelisted_user@digital.gov.uk')
 
-    notify_db.session.add(whitelisted_user)
+    notify_db.session.add(safelisted_user)
     notify_db.session.commit()
-    return whitelisted_user
+    return safelisted_user
 
 
 @pytest.fixture(scope='function')

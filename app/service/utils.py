@@ -36,7 +36,7 @@ def service_allowed_to_send_to(recipient, service, key_type, allow_safelisted_re
     team_members = itertools.chain.from_iterable(
         [user.mobile_number, user.email_address] for user in service.users
     )
-    whitelist_members = [
+    safelist_members = [
         member.recipient for member in service.whitelist
         if allow_safelisted_recipients
     ]
@@ -49,6 +49,6 @@ def service_allowed_to_send_to(recipient, service, key_type, allow_safelisted_re
             recipient,
             itertools.chain(
                 team_members,
-                whitelist_members
+                safelist_members
             )
         )

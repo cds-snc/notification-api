@@ -236,9 +236,9 @@ def test_send_one_off_notification_raises_if_invalid_recipient(notify_db_session
 
 
 @pytest.mark.parametrize('recipient', [
-    '6502532228',  # not in team or whitelist
-    '+16502532229',  # in whitelist
-    '6502532229',  # in whitelist in different format
+    '6502532228',  # not in team or safelist
+    '+16502532229',  # in safelist
+    '6502532229',  # in safelist in different format
 ])
 def test_send_one_off_notification_raises_if_cant_send_to_recipient(
     notify_db_session,
