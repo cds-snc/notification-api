@@ -551,28 +551,28 @@ def get_safelist(service_id):
     if not service:
         raise InvalidRequest("Service does not exist", status_code=404)
 
-    whitelist = dao_fetch_service_safelist(service.id)
+    safelist = dao_fetch_service_safelist(service.id)
     return jsonify(
-        email_addresses=[item.recipient for item in whitelist
+        email_addresses=[item.recipient for item in safelist
                          if item.recipient_type == EMAIL_TYPE],
-        phone_numbers=[item.recipient for item in whitelist
+        phone_numbers=[item.recipient for item in safelist
                        if item.recipient_type == MOBILE_TYPE]
     )
 
 
 @service_blueprint.route('/<uuid:service_id>/whitelist', methods=['PUT'])
-def update_whitelist(service_id):
+def update_safelist(service_id):
     # doesn't commit so if there are any errors, we preserve old values in db
     dao_remove_service_safelist(service_id)
     try:
-        whitelist_objs = get_safelist_objects(service_id, request.get_json())
+        safelist_objs = get_safelist_objects(service_id, request.get_json())
     except ValueError as e:
         current_app.logger.exception(e)
         dao_rollback()
         msg = '{} is not a valid email address or phone number'.format(str(e))
         raise InvalidRequest(msg, 400)
     else:
-        dao_add_and_commit_safelisted_contacts(whitelist_objs)
+        dao_add_and_commit_safelisted_contacts(safelist_objs)
         return '', 204
 
 
