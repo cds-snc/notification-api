@@ -27,7 +27,7 @@ from tests.app.conftest import (
     sample_service as create_sample_service,
     sample_email_template as create_sample_email_template,
     sample_template as create_sample_template,
-    sample_service_whitelist as create_sample_service_whitelist,
+    sample_service_safelist as create_sample_service_safelist,
     sample_api_key as create_sample_api_key,
     sample_service,
     sample_template_without_sms_permission,
@@ -866,7 +866,7 @@ def test_should_not_send_notification_to_non_whitelist_recipient_in_trial_mode(
     mocker
 ):
     service = create_sample_service(notify_db, notify_db_session, limit=2, restricted=True)
-    service_whitelist = create_sample_service_whitelist(notify_db, notify_db_session, service=service)
+    service_whitelist = create_sample_service_safelist(notify_db, notify_db_session, service=service)
 
     apply_async = mocker.patch('app.celery.provider_tasks.deliver_{}.apply_async'.format(notification_type))
     template = _create_sample_template(notify_db, notify_db_session, service=service)
@@ -925,10 +925,10 @@ def test_should_send_notification_to_whitelist_recipient(
     apply_async = mocker.patch('app.celery.provider_tasks.deliver_{}.apply_async'.format(notification_type))
     template = _create_sample_template(notify_db, notify_db_session, service=service)
     if notification_type == SMS_TYPE:
-        service_whitelist = create_sample_service_whitelist(notify_db, notify_db_session,
+        service_whitelist = create_sample_service_safelist(notify_db, notify_db_session,
                                                             service=service, mobile_number=to)
     elif notification_type == EMAIL_TYPE:
-        service_whitelist = create_sample_service_whitelist(notify_db, notify_db_session,
+        service_whitelist = create_sample_service_safelist(notify_db, notify_db_session,
                                                             service=service, email_address=to)
 
     assert service_whitelist.service_id == service.id

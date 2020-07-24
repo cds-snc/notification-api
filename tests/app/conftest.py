@@ -1109,7 +1109,7 @@ def notify_service(notify_db, notify_db_session):
 
 
 @pytest.fixture(scope='function')
-def sample_service_whitelist(notify_db, notify_db_session, service=None, email_address=None, mobile_number=None):
+def sample_service_safelist(notify_db, notify_db_session, service=None, email_address=None, mobile_number=None):
     if service is None:
         service = create_service(check_if_service_exists=True)
 

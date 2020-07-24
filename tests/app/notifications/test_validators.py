@@ -28,7 +28,7 @@ from tests.conftest import set_config
 from tests.app.conftest import (
     sample_notification as create_notification,
     sample_service as create_service,
-    sample_service_whitelist,
+    sample_service_safelist,
     sample_api_key)
 from tests.app.db import create_reply_to_email, create_service_sms_sender, create_letter_contact
 
@@ -204,11 +204,11 @@ def test_service_can_send_to_recipient_passes_for_live_service_non_team_member(k
 
 def test_service_can_send_to_recipient_passes_for_whitelisted_recipient_passes(notify_db, notify_db_session,
                                                                                sample_service):
-    sample_service_whitelist(notify_db, notify_db_session, email_address="some_other_email@test.com")
+    sample_service_safelist(notify_db, notify_db_session, email_address="some_other_email@test.com")
     assert service_can_send_to_recipient("some_other_email@test.com",
                                          'team',
                                          sample_service) is None
-    sample_service_whitelist(notify_db, notify_db_session, mobile_number='6502532222')
+    sample_service_safelist(notify_db, notify_db_session, mobile_number='6502532222')
     assert service_can_send_to_recipient('6502532222',
                                          'team',
                                          sample_service) is None
@@ -224,7 +224,7 @@ def test_service_can_send_to_recipient_fails_when_ignoring_whitelist(
     sample_service,
     recipient,
 ):
-    sample_service_whitelist(notify_db, notify_db_session, **recipient)
+    sample_service_safelist(notify_db, notify_db_session, **recipient)
     with pytest.raises(BadRequestError) as exec_info:
         service_can_send_to_recipient(
             next(iter(recipient.values())),

@@ -10,13 +10,13 @@ from app.models import (
 from app.dao.service_whitelist_dao import dao_add_and_commit_safelisted_contacts
 
 
-def test_get_safelist_returns_data(client, sample_service_whitelist):
-    service_id = sample_service_whitelist.service_id
+def test_get_safelist_returns_data(client, sample_service_safelist):
+    service_id = sample_service_safelist.service_id
 
     response = client.get('service/{}/whitelist'.format(service_id), headers=[create_authorization_header()])
     assert response.status_code == 200
     assert json.loads(response.get_data(as_text=True)) == {
-        'email_addresses': [sample_service_whitelist.recipient],
+        'email_addresses': [sample_service_safelist.recipient],
         'phone_numbers': []
     }
 
@@ -54,14 +54,14 @@ def test_get_safelist_returns_no_data(client, sample_service):
     assert json.loads(response.get_data(as_text=True)) == {'email_addresses': [], 'phone_numbers': []}
 
 
-def test_update_whitelist_replaces_old_whitelist(client, sample_service_whitelist):
+def test_update_whitelist_replaces_old_whitelist(client, sample_service_safelist):
     data = {
         'email_addresses': ['foo@bar.com'],
         'phone_numbers': ['6502532222']
     }
 
     response = client.put(
-        'service/{}/whitelist'.format(sample_service_whitelist.service_id),
+        'service/{}/whitelist'.format(sample_service_safelist.service_id),
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), create_authorization_header()]
     )
@@ -73,7 +73,7 @@ def test_update_whitelist_replaces_old_whitelist(client, sample_service_whitelis
     assert whitelist[1].recipient == 'foo@bar.com'
 
 
-def test_update_whitelist_doesnt_remove_old_whitelist_if_error(client, sample_service_whitelist):
+def test_update_whitelist_doesnt_remove_old_whitelist_if_error(client, sample_service_safelist):
 
     data = {
         'email_addresses': [''],
@@ -81,7 +81,7 @@ def test_update_whitelist_doesnt_remove_old_whitelist_if_error(client, sample_se
     }
 
     response = client.put(
-        'service/{}/whitelist'.format(sample_service_whitelist.service_id),
+        'service/{}/whitelist'.format(sample_service_safelist.service_id),
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), create_authorization_header()]
     )
@@ -92,4 +92,4 @@ def test_update_whitelist_doesnt_remove_old_whitelist_if_error(client, sample_se
         'message': 'Invalid whitelist: "" is not a valid email address or phone number'
     }
     whitelist = ServiceSafelist.query.one()
-    assert whitelist.id == sample_service_whitelist.id
+    assert whitelist.id == sample_service_safelist.id

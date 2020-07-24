@@ -14,13 +14,13 @@ from app.dao.service_whitelist_dao import (
 from tests.app.conftest import sample_service as create_service
 
 
-def test_fetch_service_whitelist_gets_whitelists(sample_service_whitelist):
-    whitelist = dao_fetch_service_safelist(sample_service_whitelist.service_id)
+def test_fetch_service_whitelist_gets_whitelists(sample_service_safelist):
+    whitelist = dao_fetch_service_safelist(sample_service_safelist.service_id)
     assert len(whitelist) == 1
-    assert whitelist[0].id == sample_service_whitelist.id
+    assert whitelist[0].id == sample_service_safelist.id
 
 
-def test_fetch_service_whitelist_ignores_other_service(sample_service_whitelist):
+def test_fetch_service_whitelist_ignores_other_service(sample_service_safelist):
     assert len(dao_fetch_service_safelist(uuid.uuid4())) == 0
 
 
@@ -48,8 +48,8 @@ def test_remove_service_whitelist_only_removes_for_my_service(notify_db, notify_
     assert len(service_2.whitelist) == 1
 
 
-def test_remove_service_whitelist_does_not_commit(notify_db, sample_service_whitelist):
-    dao_remove_service_safelist(sample_service_whitelist.service_id)
+def test_remove_service_whitelist_does_not_commit(notify_db, sample_service_safelist):
+    dao_remove_service_safelist(sample_service_safelist.service_id)
 
     # since dao_remove_service_safelist doesn't commit, we can still rollback its changes
     notify_db.session.rollback()
