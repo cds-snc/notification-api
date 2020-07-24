@@ -7,7 +7,7 @@ from notifications_utils.recipients import InvalidPhoneError
 
 from app.v2.errors import BadRequestError, TooManyRequestsError
 from app.config import QueueNames
-from app.dao.service_whitelist_dao import dao_add_and_commit_whitelisted_contacts
+from app.dao.service_whitelist_dao import dao_add_and_commit_safelisted_contacts
 from app.service.send_notification import send_one_off_notification
 from app.models import (
     EMAIL_TYPE,
@@ -246,7 +246,7 @@ def test_send_one_off_notification_raises_if_cant_send_to_recipient(
 ):
     service = create_service(restricted=True)
     template = create_template(service=service)
-    dao_add_and_commit_whitelisted_contacts([
+    dao_add_and_commit_safelisted_contacts([
         ServiceSafelist.from_string(service.id, MOBILE_TYPE, '+16502532229'),
     ])
 

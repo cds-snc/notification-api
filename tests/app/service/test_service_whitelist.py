@@ -7,7 +7,7 @@ from app.models import (
     ServiceSafelist,
     MOBILE_TYPE, EMAIL_TYPE)
 
-from app.dao.service_whitelist_dao import dao_add_and_commit_whitelisted_contacts
+from app.dao.service_whitelist_dao import dao_add_and_commit_safelisted_contacts
 
 
 def test_get_whitelist_returns_data(client, sample_service_whitelist):
@@ -22,7 +22,7 @@ def test_get_whitelist_returns_data(client, sample_service_whitelist):
 
 
 def test_get_whitelist_separates_emails_and_phones(client, sample_service):
-    dao_add_and_commit_whitelisted_contacts([
+    dao_add_and_commit_safelisted_contacts([
         ServiceSafelist.from_string(sample_service.id, EMAIL_TYPE, 'service@example.com'),
         ServiceSafelist.from_string(sample_service.id, MOBILE_TYPE, '6502532222'),
         ServiceSafelist.from_string(sample_service.id, MOBILE_TYPE, '+1800-234-1242'),
