@@ -5,7 +5,7 @@ from app.models import (
     EMAIL_TYPE,
 )
 
-from app.dao.service_whitelist_dao import (
+from app.dao.service_safelist_dao import (
     dao_fetch_service_safelist,
     dao_add_and_commit_safelisted_contacts,
     dao_remove_service_safelist
