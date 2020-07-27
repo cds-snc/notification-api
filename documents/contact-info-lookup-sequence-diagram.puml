@@ -1,7 +1,7 @@
 @startuml
 title Contact information lookup sequence diagram
 
-participant "External system" as ext #99FF99
+participant "Consumer service" as consumer #99FF99
 participant api
 database "Notifications\ntable" as notifications_table
 database "Identifiers\ntable" as identifiers_table
@@ -15,31 +15,31 @@ participant "lookup_email\ntask runner" as lookup_email_runner
 queue "deliver_email\ntask queue" as deliver_email_queue
 participant "deliver_email\ntask runner" as deliver_email_runner
 
-
 box External services #f3f3f3
-participant "VA Profile" as vaprofile
 participant "Master Person Index" as mpi
+participant "VA Profile" as vaprofile
 end box
 
-ext -> api : POST to send email with lookup: /v2/notifications/lookup/email
+consumer -> api : POST to send email with lookup: /v2/notifications/lookup/email
 activate api
-note right of ext
+note right of consumer
   ""{""
   ""  templated_id: abcd""
   ""  participant_id: 1234""
   ""}""
 end note
 
-api -> notifications_table: persist notification with blank email
+api -> notifications_table: persist notification with blank email address
 api -> identifiers_table: persist Participant ID for this notification ID
 
 api -> lookup_vet360id_queue: enqueue **lookup_vet360id** task with notification ID
 activate lookup_vet360id_queue
 
-api -> ext: Partial response
-note right of ext
+api -> consumer: Partial response
+note right of consumer
   ""{""
   ""  id: xyz""
+  ""  ...""
   ""}""
 end note
 deactivate api
@@ -53,13 +53,9 @@ activate lookup_vet360id_runner
 lookup_vet360id_runner -> identifiers_table: get Participant ID for this notification ID
 identifiers_table -> lookup_vet360id_runner: Participant ID
 
-lookup_vet360id_runner -> vaprofile: get Vet360ID for this Participant ID
+lookup_vet360id_runner -> mpi: get Vet360ID for this Participant ID
 
-vaprofile -> mpi: get Vet360ID for this Participant ID
-
-mpi -> vaprofile: Vet360ID
-
-vaprofile -> lookup_vet360id_runner: Vet360ID
+mpi -> lookup_vet360id_runner: Vet360ID
 
 lookup_vet360id_runner -> identifiers_table: persist Vet360ID for this notification ID
 
