@@ -27,6 +27,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
           role-to-assume: arn:aws:iam::437518843863:role/notification-deploy-role
+          role-skip-session-tagging: true
       - uses: actions/setup-node@v2-beta
         with:
           node-version: '12'
