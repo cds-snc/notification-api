@@ -16,26 +16,8 @@ paths:
           application/json:
             schema:
               oneOf:
-                - allOf:
-                  - $ref: '#/components/schemas/BasicSMSNotification'
-                  - type: object
-                    properties:
-                      phone_number:
-                        type: string
-                        format: phone_number
-                    required:
-                      - phone_number
-                - allOf:
-                    - $ref: '#/components/schemas/BasicSMSNotification'
-                    - type: object
-                      properties:
-                        identifier_type:
-                          type: string
-                        identifier_value:
-                          type: string
-                      required:
-                        - identifier_type
-                        - identifier_value
+                - $ref: '#/components/schemas/SMSNotificationRequestWithPhoneNumber'
+                - $ref: '#/components/schemas/SMSNotificationRequestWithVAIdentifiers'
       responses:
         '200':
           description: Details of queued SMS notification.
@@ -84,10 +66,73 @@ paths:
                   - content
                   - uri
                   - template
+  /v2/notifications/email:
+    post:
+      summary: Send an email notification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/EmailNotificationRequestWithEmailAddress'
+                - $ref: '#/components/schemas/EmailNotificationRequestWithVAIdentifiers'
+      responses:
+        '200':
+          description: Details of queued email notification.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  reference:
+                    type: string
+                  content:
+                    type: object
+                    properties:
+                      from_email:
+                        type: string
+                        format: email_address
+                      body:
+                        type: string
+                      subject:
+                        type: string
+                    required:
+                      - body
+                      - from_email
+                      - subject
+                  uri:
+                    type: string
+                    format: uri
+                  template:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      version:
+                        type: integer
+                      uri:
+                        type: string
+                        format: uri
+                    required:
+                      - id
+                      - version
+                      - uri
+                  scheduled_for:
+                    type: string
+                required:
+                  - id
+                  - content
+                  - uri
+                  - template
 
 components:
   schemas:
-    BasicSMSNotification:
+    NotificationRequest:
       type: object
       properties:
         reference:
@@ -100,8 +145,59 @@ components:
         scheduled_for:
           type: string
           format: datetime within next day
-        sms_sender_id:
-          type: string
-          format: uuid
       required:
         - template_id
+    VAIdentifiers:
+      type: object
+      properties:
+        identifier_type:
+          type: string
+        identifier_value:
+          type: string
+      required:
+        - identifier_type
+        - identifier_value
+    SMSNotificationRequest:
+      allOf:
+        - $ref: '#/components/schemas/NotificationRequest'
+        - type: object
+          properties:
+            sms_sender_id:
+              type: string
+              format: uuid
+    SMSNotificationRequestWithPhoneNumber:
+      allOf:
+        - $ref: '#/components/schemas/SMSNotificationRequest'
+        - type: object
+          properties:
+            phone_number:
+              type: string
+              format: phone_number
+          required:
+            - phone_number
+    SMSNotificationRequestWithVAIdentifiers:
+      allOf:
+        - $ref: '#/components/schemas/SMSNotificationRequest'
+        - $ref: '#/components/schemas/VAIdentifiers'
+    EmailNotificationRequest:
+      allOf:
+        - $ref: '#/components/schemas/NotificationRequest'
+        - type: object
+          properties:
+            email_reply_to_id:
+              type: string
+              format: uuid
+    EmailNotificationRequestWithEmailAddress:
+      allOf:
+        - $ref: '#/components/schemas/EmailNotificationRequest'
+        - type: object
+          properties:
+            email_address:
+              type: string
+              format: email_address
+          required:
+            - email_address
+    EmailNotificationRequestWithVAIdentifiers:
+      allOf:
+        - $ref: '#/components/schemas/EmailNotificationRequest'
+        - $ref: '#/components/schemas/VAIdentifiers'
