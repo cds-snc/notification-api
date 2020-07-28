@@ -31,7 +31,7 @@ jobs:
           node-version: '12'
       - name: Retrieve Notification Secret
         run: |
-          echo "::set-env name=NOTIFICATION_SECRET::$(aws ssm get-parameter --name /dev/notification-api/admin-client-secret | jq '.Parameter.Value' -r)"
+          echo "::set-env name=NOTIFICATION_SECRET::$(aws ssm get-parameter --with-decryption --name /dev/notification-api/admin-client-secret | jq '.Parameter.Value' -r)"
       - name: Run User Flow
         run: |
           docker-compose -f ci/docker-compose-user-flow.yml up --build --abort-on-container-exit --force-recreate
