@@ -19,6 +19,10 @@ generate-version-file: ## Generates the app version file
 test: generate-version-file ## Run tests
 	./scripts/run_tests.sh
 
+.PHONY: user_flows
+user_flows: generate-version-file ## Run tests
+	./scripts/run_user_flows.sh
+
 .PHONY: freeze-requirements
 freeze-requirements:
 	rm -rf venv-freeze
