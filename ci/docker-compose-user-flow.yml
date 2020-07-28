@@ -6,3 +6,4 @@ services:
       dockerfile: ci/Dockerfile.userflow
     environment: 
       - NOTIFICATION_SECRET
+      - notification_url
