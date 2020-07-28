@@ -1,0 +1,86 @@
+openapi: 3.0.0
+info:
+  title: Notification API
+  description: Planning for the contact info lookup integration with MPI/VA Profile.
+  version: 0.0.1
+servers:
+  - url: https://dev.api.twnotify.com
+  - url: https://staging.api.twnotify.com
+paths:
+  /v2/notifications/sms:
+    post:
+      summary: Send an SMS notification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reference:
+                  type: string
+                phone_number:
+                  type: string
+                  format: phone_number
+                template_id:
+                  type: string
+                  format: uuid
+                personalisation:
+                  type: object
+                scheduled_for:
+                  type: string
+                  format: datetime within next day
+                sms_sender_id:
+                  type: string
+                  format: uuid
+              required:
+                - phone_number
+                - template_id
+      responses:
+        '200':
+          description: Details of queued SMS notification.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  reference:
+                    type: string
+                  content:
+                    type: object
+                    properties:
+                      body:
+                        type: string
+                      from_number:
+                        type: string
+                    required:
+                      - body
+                      - from_number
+                  uri:
+                    type: string
+                    format: uri
+                  template:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      version:
+                        type: integer
+                      uri:
+                        type: string
+                        format: uri
+                    required:
+                      - id
+                      - version
+                      - uri
+                  scheduled_for:
+                    type: string
+                required:
+                  - id
+                  - content
+                  - uri
+                  - template
