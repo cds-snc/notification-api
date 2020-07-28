@@ -24,48 +24,22 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    type: string
-                    format: uuid
-                  reference:
-                    type: string
-                  content:
-                    type: object
+                allOf:
+                  - $ref: '#/components/schemas/NotificationResponse'
+                  - type: object
                     properties:
-                      body:
-                        type: string
-                      from_number:
-                        type: string
+                      content:
+                        type: object
+                        properties:
+                          body:
+                            type: string
+                          from_number:
+                            type: string
+                        required:
+                          - body
+                          - from_number
                     required:
-                      - body
-                      - from_number
-                  uri:
-                    type: string
-                    format: uri
-                  template:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                      version:
-                        type: integer
-                      uri:
-                        type: string
-                        format: uri
-                    required:
-                      - id
-                      - version
-                      - uri
-                  scheduled_for:
-                    type: string
-                required:
-                  - id
-                  - content
-                  - uri
-                  - template
+                      - content
   /v2/notifications/email:
     post:
       summary: Send an email notification.
@@ -83,53 +57,26 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    type: string
-                    format: uuid
-                  reference:
-                    type: string
-                  content:
-                    type: object
+                allOf:
+                  - $ref: '#/components/schemas/NotificationResponse'
+                  - type: object
                     properties:
-                      from_email:
-                        type: string
-                        format: email_address
-                      body:
-                        type: string
-                      subject:
-                        type: string
+                      content:
+                        type: object
+                        properties:
+                          from_email:
+                            type: string
+                            format: email_address
+                          body:
+                            type: string
+                          subject:
+                            type: string
+                        required:
+                          - body
+                          - from_email
+                          - subject
                     required:
-                      - body
-                      - from_email
-                      - subject
-                  uri:
-                    type: string
-                    format: uri
-                  template:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                      version:
-                        type: integer
-                      uri:
-                        type: string
-                        format: uri
-                    required:
-                      - id
-                      - version
-                      - uri
-                  scheduled_for:
-                    type: string
-                required:
-                  - id
-                  - content
-                  - uri
-                  - template
-
+                      - content
 components:
   schemas:
     NotificationRequest:
@@ -201,3 +148,35 @@ components:
       allOf:
         - $ref: '#/components/schemas/EmailNotificationRequest'
         - $ref: '#/components/schemas/VAIdentifiers'
+    NotificationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        reference:
+          type: string
+        uri:
+          type: string
+          format: uri
+        template:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            version:
+              type: integer
+            uri:
+              type: string
+              format: uri
+          required:
+            - id
+            - version
+            - uri
+        scheduled_for:
+          type: string
+      required:
+        - id
+        - uri
+        - template
