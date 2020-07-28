@@ -193,6 +193,8 @@ class Config(object):
         'visibility_timeout': 310,
         'queue_name_prefix': NOTIFICATION_QUEUE_PREFIX
     }
+
+    CELERY_ENABLE_REMOTE_CONTROL = False
     CELERY_ENABLE_UTC = True
     CELERY_TIMEZONE = os.getenv("TIMEZONE", "America/Toronto")
     CELERY_ACCEPT_CONTENT = ['json']
