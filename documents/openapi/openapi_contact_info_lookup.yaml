@@ -15,27 +15,27 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                reference:
-                  type: string
-                phone_number:
-                  type: string
-                  format: phone_number
-                template_id:
-                  type: string
-                  format: uuid
-                personalisation:
-                  type: object
-                scheduled_for:
-                  type: string
-                  format: datetime within next day
-                sms_sender_id:
-                  type: string
-                  format: uuid
-              required:
-                - phone_number
-                - template_id
+              oneOf:
+                - allOf:
+                  - $ref: '#/components/schemas/BasicSMSNotification'
+                  - type: object
+                    properties:
+                      phone_number:
+                        type: string
+                        format: phone_number
+                    required:
+                      - phone_number
+                - allOf:
+                    - $ref: '#/components/schemas/BasicSMSNotification'
+                    - type: object
+                      properties:
+                        identifier_type:
+                          type: string
+                        identifier_value:
+                          type: string
+                      required:
+                        - identifier_type
+                        - identifier_value
       responses:
         '200':
           description: Details of queued SMS notification.
@@ -84,3 +84,24 @@ paths:
                   - content
                   - uri
                   - template
+
+components:
+  schemas:
+    BasicSMSNotification:
+      type: object
+      properties:
+        reference:
+          type: string
+        template_id:
+          type: string
+          format: uuid
+        personalisation:
+          type: object
+        scheduled_for:
+          type: string
+          format: datetime within next day
+        sms_sender_id:
+          type: string
+          format: uuid
+      required:
+        - template_id
