@@ -28,7 +28,7 @@ jobs:
           aws-region: us-east-2
           role-to-assume: arn:aws:iam::437518843863:role/notification-deploy-role
           role-skip-session-tagging: true
-          role-duration-seconds: 300
+          role-duration-seconds: 900
       - uses: actions/setup-node@v2-beta
         with:
           node-version: '12'
