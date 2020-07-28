@@ -3,11 +3,12 @@ import jwt
 import time
 import os
 
-staging_url = "http://dev-notification-alb-1026387505.us-east-2.elb.amazonaws.com/"
+staging_url = os.getenv("notification_url")
 api_secret = os.getenv("NOTIFICATION_SECRET")
 
 if(not api_secret):
     raise ValueError("Missing secret environment variable")
+
 
 def get_jwt():
     jwtSecret = api_secret
