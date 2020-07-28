@@ -26,6 +26,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
+          aws-assume-role: arn:aws:iam::437518843863:role/notification-deploy-role
       - uses: actions/setup-node@v2-beta
         with:
           node-version: '12'
@@ -35,9 +36,10 @@ jobs:
       - name: Retrieve Notification Secret
         run: |
           echo "::set-env name=NOTIFICATION_SECRET::$(aws ssm get-parameter --with-decryption --name /dev/notification-api/admin-client-secret | jq '.Parameter.Value' -r)"
+          echo "::add-mask::$NOTIFICATION_SECRET"
       - name: Run User Flow
         run: |
-          echo $notication_url
+          echo $notification_url
           docker-compose -f ci/docker-compose-user-flow.yml up --build --abort-on-container-exit --force-recreate
 
   test:
