@@ -1,0 +1,475 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "VA Notify API Documentation",
+    "description": "This documents the API schemas for consumption by internal VA developers.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "VA Notify team"
+    }
+  },
+  "servers": [
+      {
+        "url": "<va-notify-environment-url>/v2/"
+      }
+    ],
+  "components": {
+    "schemas": {
+      "Success": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "Created": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "organisation": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "count_of_live_services": {
+            "type": "integer",
+            "format": "int32 need to verify"
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "organisation_type": {
+            "type": "string"
+          }
+        }
+      },
+      "user": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "agreement_signed":  {
+            "type": "boolean"
+          },
+          "agreement_signed_at":  {
+            "type": "string"
+          },
+          "agreement_signed_by_id": {
+            "type": "string"
+          },
+          "agreement_signed_on_behalf_of_email_address": {
+            "type": "string"
+          },
+          "agreement_signed_on_behalf_of_name": {
+            "type": "string"
+          },
+          "agreement_signed_version": {
+            "type": "string"
+          },
+          "count_of_live_services": {
+            "type": "integer"
+          },
+          "crown": {
+            "type": "boolean"
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "email_branding_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "letter_branding_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "organisation_type": {
+            "type": "string"
+          },
+          "request_to_go_live_notes": {
+            "type": "string"
+          }
+        }
+      },
+      "user_item": {
+        "type": "object",
+        "properties": {
+          "additional_information": {
+            "type": "object"
+          },
+          "auth_type": {
+            "type": "string"
+          },
+          "blocked": {
+            "type": "boolean"
+          },
+          "current_session_id": {
+            "type": "string"
+          },
+          "email_address": {
+            "type": "string"
+          },
+          "failed_login_count": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "logged_in_at": {
+            "type": "string"
+          },
+          "mobile_number":{
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "organisations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "password_changed_at": {
+            "type": "string"
+          },
+          "permissions": {
+            "type": "object"
+          },
+          "platform_admin": {
+            "type": "boolean"
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "state": {
+            "type": "boolean"
+          }
+        }
+      },
+      "user_data_list": {
+        "title": "data",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/user_item"
+        }
+      }
+    },
+    "responses": {
+      "Success": {
+        "description": "200 Ok",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Success"
+            }
+          }
+        }
+      },
+      "Created": {
+        "description": "201 Created",
+        "content": {
+          "application/json":  {
+            "schema": {
+              "$ref": "#/components/schemas/Created"
+            }
+          }
+        }
+      }
+    },
+    "examples": {
+      "user_item": {
+        "description": "Example user item",
+        "value": {
+          "data": {
+            "additional_information": {},
+            "auth_type": "sms_auth",
+            "blocked": false,
+            "current_session_id": null,
+            "email_address": "foo@bar.test",
+            "failed_login_count": 0,
+            "id": "40073d95-2659-45e4-8b63-063b5d56a4f2",
+            "logged_in_at": null,
+            "mobile_number": "+10123456789",
+            "name": "Test User",
+            "organisations": [],
+            "password_changed_at": "2020-07-29 07:05:56.109160",
+            "permissions": {},
+            "platform_admin": false,
+            "services": [],
+            "state": "active"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "api_key": {
+        "type": "apiKey",
+        "name": "api_key",
+        "in": "header"
+      }
+    }
+  },
+  "paths": {
+    "/organisations": {
+      "get": {
+        "tags": [
+          "organisation"
+        ],
+        "description": "GET all organisations",
+        "responses": {
+          "200": {
+            "description": "A list of organisations with available details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/organisation"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "organisation"
+        ],
+        "description": "POST organisation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "organisation_type": {
+                    "type": "string"
+                  },
+                  "crown": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "examples": {
+                "organisation": {
+                  "summary": "Example request body POST organisation",
+                  "value": {
+                    "name": "test org name",
+                    "active": true,
+                    "organisation_type": "other",
+                    "crown": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "POST organisation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "$ref": "#/components/responses/Created"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user": {
+      "post": {
+        "tags":[
+          "user"
+        ],
+        "description": "POST user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "email_address": {
+                    "type": "string"
+                  },
+                  "mobile_number": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  },
+                  "user_permissions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "auth_type": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "response POST user",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "user_item": {
+                    "type": "object",
+                    "$ref": "#/components/examples/user_item"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags":[
+          "user"
+        ],
+        "description": "GET users",
+        "responses": {
+          "200": {
+            "description": "response GET users",
+            "content": {
+              "application/json": {
+               "schema": {
+                 "type": "object",
+                 "title": "data",
+                 "$ref": "#/components/schemas/user_data_list",
+                 "wrapper": true
+               }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/service": {
+      "post": {
+        "tags": [
+          "service"
+        ],
+        "description": "POST service",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "organisation_id": {
+                    "type": "string"
+                  },
+                  "user_id": {
+                    "type": "string"
+                  },
+                  "message_limit": {
+                    "type": "integer"
+                  },
+                  "restricted": {
+                    "type": "boolean"
+                  },
+                  "email-from": {
+                    "type": "string"
+                  },
+                  "created_by": {
+                    "type": "string"
+                  }
+                }
+              },
+              "examples": {
+                "service": {
+                  "summary": "Example request body POST service",
+                  "value": {
+                    "name": "service for VA Notify",
+                    "user_id": "{{user-id}}",
+                    "organisation_id": "{{organization-id}}",
+                    "message_limit": 1000,
+                    "restricted": false,
+                    "active": true,
+                    "email-from": "permitted-local-part",
+                    "created_by": "{{user-id}}"
+                }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "POST esrvice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "$ref": "#/components/responses/Created"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
