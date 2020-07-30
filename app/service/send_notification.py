@@ -71,7 +71,7 @@ def send_one_off_notification(service_id, post_data):
         key_type=KEY_TYPE_NORMAL,
         service=service,
         notification_type=template.template_type,
-        allow_whitelisted_recipients=False,
+        allow_safelisted_recipients=False,
     )
 
     validate_created_by(service, post_data['created_by'])

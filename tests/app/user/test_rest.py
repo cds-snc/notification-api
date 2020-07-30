@@ -218,7 +218,7 @@ def test_create_user_with_known_bad_password(client, notify_db, notify_db_sessio
     assert resp.status_code == 400
     assert User.query.count() == 0
     json_resp = json.loads(resp.get_data(as_text=True))
-    assert {'password': ['Password is blacklisted.']} == json_resp['message']
+    assert {'password': ['Password is not allowed.']} == json_resp['message']
 
 
 def test_can_create_user_with_email_auth_and_no_mobile(admin_request, notify_db_session):

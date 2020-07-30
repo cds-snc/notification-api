@@ -3,7 +3,7 @@ import itertools
 from notifications_utils.recipients import allowed_to_send_to
 
 from app.models import (
-    ServiceWhitelist,
+    ServiceSafelist,
     MOBILE_TYPE, EMAIL_TYPE,
     KEY_TYPE_TEST, KEY_TYPE_TEAM, KEY_TYPE_NORMAL)
 
@@ -12,9 +12,9 @@ def get_recipients_from_request(request_json, key, type):
     return [(type, recipient) for recipient in request_json.get(key)]
 
 
-def get_whitelist_objects(service_id, request_json):
+def get_safelist_objects(service_id, request_json):
     return [
-        ServiceWhitelist.from_string(service_id, type, recipient)
+        ServiceSafelist.from_string(service_id, type, recipient)
         for type, recipient in (
             get_recipients_from_request(request_json,
                                         'phone_numbers',
@@ -26,7 +26,7 @@ def get_whitelist_objects(service_id, request_json):
     ]
 
 
-def service_allowed_to_send_to(recipient, service, key_type, allow_whitelisted_recipients=True):
+def service_allowed_to_send_to(recipient, service, key_type, allow_safelisted_recipients=True):
     if key_type == KEY_TYPE_TEST:
         return True
 
@@ -36,9 +36,9 @@ def service_allowed_to_send_to(recipient, service, key_type, allow_whitelisted_r
     team_members = itertools.chain.from_iterable(
         [user.mobile_number, user.email_address] for user in service.users
     )
-    whitelist_members = [
+    safelist_members = [
         member.recipient for member in service.safelist
-        if allow_whitelisted_recipients
+        if allow_safelisted_recipients
     ]
 
     if (
@@ -49,6 +49,6 @@ def service_allowed_to_send_to(recipient, service, key_type, allow_whitelisted_r
             recipient,
             itertools.chain(
                 team_members,
-                whitelist_members
+                safelist_members
             )
         )

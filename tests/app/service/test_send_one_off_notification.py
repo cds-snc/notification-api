@@ -7,7 +7,7 @@ from notifications_utils.recipients import InvalidPhoneError
 
 from app.v2.errors import BadRequestError, TooManyRequestsError
 from app.config import QueueNames
-from app.dao.service_whitelist_dao import dao_add_and_commit_whitelisted_contacts
+from app.dao.service_safelist_dao import dao_add_and_commit_safelisted_contacts
 from app.service.send_notification import send_one_off_notification
 from app.models import (
     EMAIL_TYPE,
@@ -17,7 +17,7 @@ from app.models import (
     PRIORITY,
     SMS_TYPE,
     Notification,
-    ServiceWhitelist,
+    ServiceSafelist,
 )
 
 from tests.app.db import (
@@ -236,9 +236,9 @@ def test_send_one_off_notification_raises_if_invalid_recipient(notify_db_session
 
 
 @pytest.mark.parametrize('recipient', [
-    '6502532228',  # not in team or whitelist
-    '+16502532229',  # in whitelist
-    '6502532229',  # in whitelist in different format
+    '6502532228',  # not in team or safelist
+    '+16502532229',  # in safelist
+    '6502532229',  # in safelist in different format
 ])
 def test_send_one_off_notification_raises_if_cant_send_to_recipient(
     notify_db_session,
@@ -246,8 +246,8 @@ def test_send_one_off_notification_raises_if_cant_send_to_recipient(
 ):
     service = create_service(restricted=True)
     template = create_template(service=service)
-    dao_add_and_commit_whitelisted_contacts([
-        ServiceWhitelist.from_string(service.id, MOBILE_TYPE, '+16502532229'),
+    dao_add_and_commit_safelisted_contacts([
+        ServiceSafelist.from_string(service.id, MOBILE_TYPE, '+16502532229'),
     ])
 
     post_data = {

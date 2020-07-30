@@ -111,7 +111,7 @@ def create_user():
     else:
         response = pwnedpasswords.check(password)
         if response > 0:
-            errors.update({'password': ['Password is blacklisted.']})
+            errors.update({'password': ['Password is not allowed.']})
             raise InvalidRequest(errors, status_code=400)
 
     save_model_user(user_to_create, pwd=req_json.get('password'))
@@ -601,7 +601,7 @@ def update_password(user_id):
 
     response = pwnedpasswords.check(pwd)
     if response > 0:
-        errors.update({'password': ['Password is blacklisted.']})
+        errors.update({'password': ['Password is not allowed.']})
         raise InvalidRequest(errors, status_code=400)
 
     update_user_password(user, pwd)
