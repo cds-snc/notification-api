@@ -532,6 +532,11 @@
         "tags": [
           "organisation"
         ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "description": "GET all organisations",
         "responses": {
           "200": {
@@ -583,6 +588,11 @@
       "post": {
         "tags": [
           "organisation"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ],
         "description": "POST organisations",
         "requestBody": {
