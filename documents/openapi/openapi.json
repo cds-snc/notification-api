@@ -10,10 +10,10 @@
   },
   "servers": [
       {
-        "url": "https://dev.api.twnotify.com/v2/notifications/"
+        "url": "https://dev.api.twnotify.com"
       },
       {
-        "url": "https://staging.api.twnotify.com/v2/notifications"
+        "url": "https://staging.api.twnotify.com"
       }
     ],
   "components": {
