@@ -491,31 +491,143 @@
             }
           }
         }
-      }
-    },
-    "examples": {
-      "UserResponseItem": {
-        "description": "Example response payload for single user",
-        "value": {
-          "data": {
-            "additional_information": {},
-            "auth_type": "sms_auth",
-            "blocked": false,
-            "current_session_id": null,
-            "email_address": "foo@bar.test",
-            "failed_login_count": 0,
-            "id": "40073d95-2659-45e4-8b63-063b5d56a4f2",
-            "logged_in_at": null,
-            "mobile_number": "+10123456789",
-            "name": "Test User",
-            "organisations": [],
-            "password_changed_at": "2020-07-29 07:05:56.109160",
-            "permissions": {},
-            "platform_admin": false,
-            "services": [],
-            "state": "active"
+      },
+      "NotificationRequest": {
+        "type": "object",
+        "properties": {
+          "reference": {
+            "type": "string"
+          },
+          "template_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "personalisation": {
+            "type": "object"
+          },
+          "scheduled_for": {
+            "type": "string",
+            "format": "datetime within next day"
           }
-        }
+        },
+        "required": [
+          "template_id"
+        ]
+      },
+      "SMSNotificationRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/NotificationRequest"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "sms_sender_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        ]
+      },
+      "SMSNotificationRequestWithPhoneNumber": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SMSNotificationRequest"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "phone_number": {
+                "type": "string",
+                "format": "phone_number"
+              }
+            },
+            "required": [
+              "phone_number"
+            ]
+          }
+        ]
+      },
+      "EmailNotificationRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/NotificationRequest"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "email_reply_to_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        ]
+      },
+      "EmailNotificationRequestWithEmailAddress": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/EmailNotificationRequest"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "email_address": {
+                "type": "string",
+                "format": "email_address"
+              }
+            },
+            "required": [
+              "email_address"
+            ]
+          }
+        ]
+      },
+      "NotificationResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri"
+          },
+          "template": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "version": {
+                "type": "integer"
+              },
+              "uri": {
+                "type": "string",
+                "format": "uri"
+              }
+            },
+            "required": [
+              "id",
+              "version",
+              "uri"
+            ]
+          },
+          "scheduled_for": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "uri",
+          "template"
+        ]
       }
     },
     "securitySchemes": {
@@ -537,10 +649,10 @@
             "bearerAuth": []
           }
         ],
-        "description": "GET all organisations",
+        "description": "Get all organisations",
         "responses": {
           "200": {
-            "description": "A list of organisations with available details",
+            "description": "Successful OK response of all organisations",
             "content": {
               "application/json": {
                 "schema": {
@@ -551,7 +663,7 @@
                 },
                 "examples": {
                   "organisations": {
-                    "summary": "Example response payoad for GET organisations",
+                    "summary": "Example succcessful OK response payload of all organisations",
                     "value": [
                       {
                         "active": true,
@@ -594,7 +706,7 @@
             "bearerAuth": []
           }
         ],
-        "description": "POST organisations",
+        "description": "Create an organisation",
         "requestBody": {
           "required": true,
           "content": {
@@ -644,7 +756,7 @@
         },
         "responses": {
           "201": {
-            "description": "POST organisation",
+            "description": "Successful CREATED response of an organisation",
             "content": {
               "application/json": {
                 "schema": {
@@ -652,7 +764,7 @@
                 },
                 "examples": {
                   "organisation": {
-                    "summary": "Example response payload for POST organisation",
+                    "summary": "Example successful CREATED response payload of an organisation",
                     "value": {
                       "active": true,
                       "agreement_signed": null,
@@ -684,7 +796,7 @@
         "tags":[
           "user"
         ],
-        "description": "POST user",
+        "description": "Create a user",
         "requestBody": {
           "required": true,
           "content": {
@@ -723,7 +835,7 @@
         },
         "responses": {
           "201": {
-            "description": "response POST user",
+            "description": "Successful CREATED response of a user",
             "content": {
               "application/json": {
                 "schema": {
@@ -735,6 +847,31 @@
                   ]
                 }
               }
+            },
+            "examples": {
+              "user": {
+                "description": "Example response payload for single user",
+                "value": {
+                  "data": {
+                    "additional_information": {},
+                    "auth_type": "sms_auth",
+                    "blocked": false,
+                    "current_session_id": null,
+                    "email_address": "foo@bar.test",
+                    "failed_login_count": 0,
+                    "id": "40073d95-2659-45e4-8b63-063b5d56a4f2",
+                    "logged_in_at": null,
+                    "mobile_number": "+10123456789",
+                    "name": "Test User",
+                    "organisations": [],
+                    "password_changed_at": "2020-07-29 07:05:56.109160",
+                    "permissions": {},
+                    "platform_admin": false,
+                    "services": [],
+                    "state": "active"
+                  }
+                }
+              }
             }
           }
         }
@@ -743,10 +880,10 @@
         "tags":[
           "user"
         ],
-        "description": "GET users",
+        "description": "Get all users",
         "responses": {
           "200": {
-            "description": "response GET users",
+            "description": "Sucessful OK response to get all users",
             "content": {
               "application/json": {
                "schema": {
@@ -768,7 +905,7 @@
         "tags": [
           "service"
         ],
-        "description": "POST service",
+        "description": "Create a service",
         "requestBody": {
           "required": true,
           "content": {
@@ -845,7 +982,7 @@
         },
         "responses": {
           "201": {
-            "description": "POST service",
+            "description": "Successful CREATED response of a service",
             "content": {
               "application/json": {
                 "schema": {
@@ -854,7 +991,7 @@
                 },
                 "examples": {
                   "service": {
-                    "summary": "example response POST service",
+                    "summary": "Example successful CREATED response of a service",
                     "value": {
                       "data": {
                         "active": true,
@@ -914,10 +1051,10 @@
         "tags": [
           "service"
         ],
-        "description": "GET service",
+        "description": "Get all services",
         "responses": {
           "200": {
-            "description": "GET service",
+            "description": "Successful OK get of all services",
             "content": {
               "application/json": {
                 "schema": {
@@ -935,7 +1072,7 @@
         "tags": [
           "service template"
         ],
-        "description": "GET templates for service",
+        "description": "Get all existing templates for a service",
         "parameters": [
           {
             "in": "path",
@@ -946,12 +1083,12 @@
             },
             "required": true,
             "allowEmptyValue": false,
-            "description": "service_id to create service template"
+            "description": "Identifier for service"
           }
         ],
         "responses": {
           "200": {
-            "description": "response for GET templates for service",
+            "description": "Successful OK response to get all templates for a service",
             "content": {
               "application/json": {
                 "schema": {
@@ -967,7 +1104,7 @@
         "tags": [
           "service template"
         ],
-        "description": "POST template",
+        "description": "Create a template for an existing service",
         "parameters":[
           {
             "in": "path",
@@ -978,7 +1115,7 @@
             },
             "required": true,
             "allowEmptyValue": false,
-            "description": "service_id to create service template"
+            "description": "Identifier for service"
           }
         ],
         "requestBody": {
@@ -988,12 +1125,12 @@
               "schema": {
                 "oneOf": [
                   { "$ref": "#/components/schemas/SMSTemplateRequest"},
-                  { "$ref": "#/components/schemas/EmailOrLetterTemplateRequest"},
+                  { "$ref": "#/components/schemas/EmailOrLetterTemplateRequest"}
                 ]
               },
               "examples": {
                 "template": {
-                  "summary": "request POST email template",
+                  "summary": "Example create request for a service email template",
                   "value": {
                     "name": "test template",
                     "subject": "test subject",
@@ -1009,7 +1146,7 @@
         },
         "responses": {
           "201": {
-            "description": "response for POST template",
+            "description": "Successful CREATED response for a service template",
             "content": {
               "application/json": {
                 "schema": {
@@ -1018,7 +1155,7 @@
                 },
                 "examples": {
                   "template": {
-                    "summary": "response POST email template",
+                    "summary": "Example successful CREATED response for a service email template",
                     "value": {
                       "data": {
                         "archived": false,
@@ -1056,7 +1193,7 @@
         "tags": [
           "service template"
         ],
-        "description": "POST update specific service template",
+        "description": "Update an existing service template",
         "parameters":[
           {
             "in": "path",
@@ -1093,7 +1230,7 @@
               },
               "examples": {
                 "template": {
-                  "summary": "request POST update service email template",
+                  "summary": "Example of an update request for an existing service email template",
                   "value": {
                     "name": "test update service template",
                     "subject": "test subject",
@@ -1109,7 +1246,7 @@
         },
         "responses": {
           "200": {
-            "description": "response for POST update service template",
+            "description": "Response for successful OK update of an existing service template",
             "content": {
               "application/json": {
                 "schema": {
@@ -1118,7 +1255,7 @@
                 },
                 "examples": {
                   "template": {
-                    "summary": "response POST update service email template",
+                    "summary": "Example sucessful OK response of update for an existing service email template",
                     "value": {
                       "data": {
                         "archived": false,
@@ -1144,6 +1281,133 @@
                       }
                     }
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/notifications/sms": {
+      "post": {
+        "tags": [
+          "notification"
+        ],
+        "summary": "Send an SMS notification.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SMSNotificationRequestWithPhoneNumber"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Details of queued SMS notification.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/NotificationResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "content": {
+                          "type": "object",
+                          "properties": {
+                            "body": {
+                              "type": "string"
+                            },
+                            "from_number": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "body",
+                            "from_number"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "content"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/notifications/email": {
+      "post": {
+        "tags": [
+          "notification"
+        ],
+        "summary": "Send an email notification.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/EmailNotificationRequestWithEmailAddress"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Details of queued email notification.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/NotificationResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "content": {
+                          "type": "object",
+                          "properties": {
+                            "from_email": {
+                              "type": "string",
+                              "format": "email_address"
+                            },
+                            "body": {
+                              "type": "string"
+                            },
+                            "subject": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "body",
+                            "from_email",
+                            "subject"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "content"
+                      ]
+                    }
+                  ]
                 }
               }
             }
