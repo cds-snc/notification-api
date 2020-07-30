@@ -18,6 +18,18 @@
     ],
   "components": {
     "schemas": {
+      "ErrorMessage": {
+        "title": "ErrorMessage",
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string"
+          }
+        }
+      },
       "OrganisationResponseCore": {
         "title": "OrganisationResponseCore",
         "type": "object",
@@ -111,104 +123,61 @@
         },
         "type": "object"
       },
-      "UserRequest": {
+      "User": {
         "type": "object",
         "properties": {
-          "name": {
-            "type": "string",
-            "nullable": false
+          "active": {
+            "type": "boolean"
           },
-          "password": {
-            "type": "string",
-            "nullable": false
+          "agreement_signed":  {
+            "type": "boolean"
           },
-          "email_address": {
-            "type": "string",
-            "nullable": false
+          "agreement_signed_at":  {
+            "type": "string"
           },
-          "mobile_number": {
-            "type": "string",
-            "nullable": false
+          "agreement_signed_by_id": {
+            "type": "string"
           },
-          "state": {
-            "type": "string",
-            "nullable": false
+          "agreement_signed_on_behalf_of_email_address": {
+            "type": "string"
           },
-          "user_permissions": {
+          "agreement_signed_on_behalf_of_name": {
+            "type": "string"
+          },
+          "agreement_signed_version": {
+            "type": "string"
+          },
+          "count_of_live_services": {
+            "type": "integer"
+          },
+          "crown": {
+            "type": "boolean"
+          },
+          "domains": {
             "type": "array",
-            "nullable": false,
             "items": {
               "type": "string"
             }
           },
-          "auth_type": {
-            "type": "string",
-            "format": "auth type",
-            "nullable": false,
-            "enum": [
-              "sms_auth",
-              "email_auth"
-            ]
+          "email_branding_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "letter_branding_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "organisation_type": {
+            "type": "string"
+          },
+          "request_to_go_live_notes": {
+            "type": "string"
           }
-        },
-        "required": [
-          "name",
-          "password",
-          "email_address",
-          "mobile_number",
-          "state",
-          "user_permissions"
-        ]
-      },
-      "SmsUserRequest": {
-        "type": "object",
-        "allOf": [
-          { "$ref": "#/components/schemas/UserRequest"}
-        ],
-        "properties": {
-          "auth_type": {
-            "type": "string",
-            "format": "auth type",
-            "nullable": false,
-            "enum": [
-              "sms_auth"
-            ]
-          }
-        },
-        "required": [
-          "name",
-          "password",
-          "email_address",
-          "mobile_number",
-          "state",
-          "user_permissions",
-          "auth_type"
-        ]
-      },
-      "EmailUserRequest": {
-        "type": "object",
-        "allOf": [
-          { "$ref": "#/components/schemas/UserRequest"}
-        ],
-        "properties": {
-          "auth_type": {
-            "type": "string",
-            "format": "auth type",
-            "nullable": false,
-            "enum": [
-              "email_auth"
-            ]
-          }
-        },
-        "required": [
-          "name",
-          "password",
-          "email_address",
-          "mobile_number",
-          "state",
-          "user_permissions",
-          "auth_type"
-        ]
+        }
       },
       "UserResponseItem": {
         "title": "UserResponseItem",
@@ -247,35 +216,14 @@
           "organisations": {
             "type": "array",
             "items": {
-              "type": "string",
-              "format": "uuid"
+              "type": "string"
             }
           },
           "password_changed_at": {
-            "type": "string",
-            "format": "datetime"
+            "type": "string"
           },
           "permissions": {
-            "type": "object",
-            "properties": {
-              "uuid": {
-                "type": "array",
-                "format": "uuid",
-                "items": {
-                  "type": "string",
-                  "enum": [
-                    "manage_users",
-                    "manage_templates",
-                    "manage_settings",
-                    "send_texts",
-                    "send_emails",
-                    "send_letters",
-                    "manage_api_keys",
-                    "view_activity"
-                  ]
-                }
-              }
-            }
+            "type": "object"
           },
           "platform_admin": {
             "type": "boolean"
@@ -283,8 +231,7 @@
           "services": {
             "type": "array",
             "items": {
-              "type": "string",
-              "format": "{{service-uuid}}"
+              "type": "string"
             }
           },
           "state": {
@@ -964,6 +911,11 @@
         "tags": [
           "service"
         ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "description": "Create a service",
         "requestBody": {
           "required": true,
@@ -976,17 +928,16 @@
                     "type": "boolean"
                   },
                   "created_by": {
-                    "format": "user uuid",
+                    "format": "uuid",
                     "nullable": false,
                     "type": "string"
                   },
                   "email-from": {
-                    "format": "local part of email address",
+                    "format": "email",
                     "nullable": false,
                     "type": "string"
                   },
                   "message_limit": {
-                    "format": "uuid",
                     "nullable": true,
                     "type": "integer"
                   },
@@ -1103,12 +1054,39 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            }
           }
         }
       },
       "get": {
         "tags": [
           "service"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ],
         "description": "Get all services",
         "responses": {
