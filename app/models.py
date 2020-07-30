@@ -665,17 +665,17 @@ class ServicePermission(db.Model):
 MOBILE_TYPE = 'mobile'
 EMAIL_TYPE = 'email'
 
-WHITELIST_RECIPIENT_TYPE = [MOBILE_TYPE, EMAIL_TYPE]
-whitelist_recipient_types = db.Enum(*WHITELIST_RECIPIENT_TYPE, name='recipient_type')
+SAFELIST_RECIPIENT_TYPE = [MOBILE_TYPE, EMAIL_TYPE]
+safelist_recipient_types = db.Enum(*SAFELIST_RECIPIENT_TYPE, name='recipient_type')
 
 
-class ServiceWhitelist(db.Model):
+class ServiceSafelist(db.Model):
     __tablename__ = 'service_whitelist'
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), index=True, nullable=False)
     service = db.relationship('Service', backref='whitelist')
-    recipient_type = db.Column(whitelist_recipient_types, nullable=False)
+    recipient_type = db.Column(safelist_recipient_types, nullable=False)
     recipient = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
@@ -693,9 +693,9 @@ class ServiceWhitelist(db.Model):
             else:
                 raise ValueError('Invalid recipient type')
         except InvalidPhoneError:
-            raise ValueError('Invalid whitelist: "{}"'.format(recipient))
+            raise ValueError('Invalid safelist: "{}"'.format(recipient))
         except InvalidEmailError:
-            raise ValueError('Invalid whitelist: "{}"'.format(recipient))
+            raise ValueError('Invalid safelist: "{}"'.format(recipient))
         else:
             return instance
 
