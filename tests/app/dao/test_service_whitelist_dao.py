@@ -44,8 +44,8 @@ def test_remove_service_safelist_only_removes_for_my_service(notify_db, notify_d
 
     dao_remove_service_safelist(service_1.id)
 
-    assert service_1.safelist == []
-    assert len(service_2.safelist) == 1
+    assert service_1.whitelist == []
+    assert len(service_2.whitelist) == 1
 
 
 def test_remove_service_safelist_does_not_commit(notify_db, sample_service_safelist):

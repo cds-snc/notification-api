@@ -37,7 +37,7 @@ def service_allowed_to_send_to(recipient, service, key_type, allow_safelisted_re
         [user.mobile_number, user.email_address] for user in service.users
     )
     safelist_members = [
-        member.recipient for member in service.safelist
+        member.recipient for member in service.whitelist
         if allow_safelisted_recipients
     ]
 
