@@ -11,11 +11,11 @@ servers:
 paths:
   /organisations:
     get:
+      summary: Get list of all organisations
       tags:
         - organisation
       security:
         - bearerAuth: []
-      description: Get all organisations
       responses:
         '200':
           description: Successful OK response of all organisations
@@ -25,34 +25,12 @@ paths:
                 type: array
                 items:
                   $ref: 'openapi_components.yaml#/components/schemas/OrganisationResponseCore'
-              examples:
-                organisations:
-                  summary: Example succcessful OK response payload of all organisations
-                  value:
-                    - active: true
-                      count_of_live_services: 0
-                      domains: []
-                      id: z097b97c-0f34-4509-bef4-54600c7dccef
-                      name: test org
-                      organisation_type: other
-                    - active: true
-                      count_of_live_services: 1
-                      domains: []
-                      id: z0230865-ee5b-4203-8873-5db7c1c0e55c
-                      name: va.gov
-                      organisation_type: other
-                    - active: true
-                      count_of_live_services: 0
-                      domains: []
-                      id: z023f598-dc49-410c-b97d-6388e8438fc4
-                      name: api test
-                      organisation_type: other
     post:
+      summary: Create an organisation
       tags:
         - organisation
       security:
         - bearerAuth: []
-      description: Create an organisation
       requestBody:
         required: true
         content:
@@ -78,14 +56,6 @@ paths:
                 - name
                 - organisation_type
               type: object
-            examples:
-              organisation:
-                summary: Example request body POST organisations
-                value:
-                  name: test org name
-                  active: true
-                  organisation_type: other
-                  crown: false
       responses:
         '201':
           description: Successful CREATED response of an organisation
@@ -93,28 +63,6 @@ paths:
             application/json:
               schema:
                 $ref: 'openapi_components.yaml#/components/schemas/OrganisationResponse'
-              examples:
-                organisation:
-                  summary: >-
-                    Example successful CREATED response payload of an
-                    organisation
-                  value:
-                    active: true
-                    agreement_signed: null
-                    agreement_signed_at: null
-                    agreement_signed_by_id: null
-                    agreement_signed_on_behalf_of_email_address: null
-                    agreement_signed_on_behalf_of_name: null
-                    agreement_signed_version: null
-                    count_of_live_services: 0
-                    crown: false
-                    domains: []
-                    email_branding_id: null
-                    id: zdbf392a7-04da-4a18-b6bf-2fcb3e4c94f9
-                    letter_branding_id: null
-                    name: test org name
-                    organisation_type: other
-                    request_to_go_live_notes: null
   /user:
     post:
       tags:
