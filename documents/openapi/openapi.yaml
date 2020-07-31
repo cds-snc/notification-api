@@ -89,7 +89,7 @@ paths:
         - user
       responses:
         '200':
-          description: Successful OK response to get all users
+          description: Successful response for getting all users
           content:
             application/json:
               schema:
@@ -98,122 +98,24 @@ paths:
                   $ref: '#/components/schemas/User'
   /service:
     post:
+      summary: Create a service
       tags:
         - service
       security:
         - bearerAuth: []
-      description: Create a service
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              properties:
-                active:
-                  nullable: true
-                  type: boolean
-                created_by:
-                  format: uuid
-                  nullable: false
-                  type: string
-                email-from:
-                  format: email
-                  nullable: false
-                  type: string
-                message_limit:
-                  nullable: true
-                  type: integer
-                name:
-                  nullable: false
-                  type: string
-                organisation_id:
-                  format: uuid
-                  nullable: true
-                  type: string
-                restricted:
-                  nullable: false
-                  type: boolean
-                user_id:
-                  format: uuid
-                  nullable: false
-                  type: string
-              required:
-                - active
-                - created_by
-                - email-from
-                - message_limit
-                - name
-                - organisation_id
-                - restricted
-                - user_id
-              type: object
-            examples:
-              service:
-                summary: Example request body POST service
-                value:
-                  name: service for VA Notify
-                  user_id: '{{user-id}}'
-                  organisation_id: '{{organization-id}}'
-                  message_limit: 1000
-                  restricted: false
-                  active: true
-                  email-from: permitted-local-part
-                  created_by: '{{user-id}}'
+              $ref: '#/components/schemas/CreateServiceRequest'
       responses:
         '201':
-          description: Successful CREATED response of a service
+          description: A service was successfully created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServiceResponseCore'
-              examples:
-                service:
-                  summary: Example successful CREATED response of a service
-                  value:
-                    data:
-                      active: true
-                      all_template_folders: []
-                      annual_billing: []
-                      consent_to_research: null
-                      contact_link: null
-                      count_as_live: true
-                      created_by: z1f2aa83-082c-4cdf-ac54-7d25b28058c1
-                      crown: null
-                      email_branding: null
-                      email_from: someemail1
-                      go_live_at: null
-                      go_live_user: null
-                      id: zdfd949a-729d-4de2-8888-fc5f97ca5996
-                      inbound_api: []
-                      inbound_number: null
-                      inbound_sms:
-                        - z58431fe-9186-4d60-b539-4207e4fe5524
-                      letter_branding: null
-                      letter_contact_block: null
-                      letter_logo_filename: null
-                      message_limit: 1000
-                      name: main service for Govdelivery
-                      organisation: ze97b97c-0f34-4509-bef4-54600c7dccef
-                      organisation_type: null
-                      permissions:
-                        - international_sms
-                        - email
-                        - sms
-                      prefix_sms: true
-                      rate_limit: 3000
-                      research_mode: false
-                      restricted: false
-                      sending_domain: null
-                      service_callback_api: []
-                      service_data_retention: []
-                      smtp_user: null
-                      users:
-                        - z1f2aa83-082c-4cdf-ac54-7d25b28058c1
-                      version: 1
-                      volume_email: null
-                      volume_letter: null
-                      volume_sms: null
-                      whitelist: []
+                $ref: '#/components/schemas/Service'
         '401':
           description: Unauthorized
           content:
@@ -227,20 +129,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorMessage'
     get:
+      summary: Get all services
       tags:
         - service
       security:
         - bearerAuth: []
-      description: Get all services
       responses:
         '200':
-          description: Successful OK get of all services
+          description: Successful response for getting all services
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ServiceResponseCore'
+                  $ref: '#/components/schemas/Service'
   '/service/{uuid:service_id}/template':
     get:
       tags:
@@ -648,7 +550,47 @@ components:
             format: '{{service-uuid}}'
         state:
           type: boolean
-    ServiceResponseCore:
+    CreateServiceRequest:
+      type: object
+      properties:
+        active:
+          type: boolean
+          nullable: true
+        created_by:
+          type: string
+          format: uuid
+          nullable: false
+        email-from:
+          type: string
+          format: email
+          nullable: false
+        message_limit:
+          type: integer
+          nullable: true
+        name:
+          type: string
+          nullable: false
+        organisation_id:
+          type: string
+          format: uuid
+          nullable: true
+        restricted:
+          type: boolean
+          nullable: false
+        user_id:
+          type: string
+          format: uuid
+          nullable: false
+      required:
+        - active
+        - created_by
+        - email-from
+        - message_limit
+        - name
+        - organisation_id
+        - restricted
+        - user_id
+    Service:
       type: object
       properties:
         active:
