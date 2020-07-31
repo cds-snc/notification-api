@@ -193,6 +193,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/Template'
   '/service/{service_id}/template/{template_id}':
+    get:
+      summary: Get an existing template for a service
+      tags:
+        - template
+      parameters:
+        - in: path
+          name: 'service_id'
+          schema:
+            type: integer
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: Service identifier
+        - in: path
+          name: 'template_id'
+          schema:
+            type: integer
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: Template identifier
+      responses:
+        '200':
+          description: Successful response for getting templates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
     post:
       summary: Update an existing template
       tags:
@@ -205,7 +233,7 @@ paths:
             format: uuid
           required: true
           allowEmptyValue: false
-          description: The service identifier associated with the template
+          description: Service identifier
         - in: path
           name: 'template_id'
           schema:
@@ -213,7 +241,7 @@ paths:
             format: uuid
           required: true
           allowEmptyValue: false
-          description: The template identifier to update
+          description: Template identifier to update
       requestBody:
         required: true
         content:
@@ -258,7 +286,7 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/NotificationResponse'
+                  - $ref: '#/components/schemas/Notification'
                   - type: object
                     properties:
                       content:
@@ -739,7 +767,7 @@ components:
               format: email_address
           required:
             - email_address
-    NotificationResponse:
+    Notification:
       type: object
       properties:
         id:
