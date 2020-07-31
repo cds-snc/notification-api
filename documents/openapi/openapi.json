@@ -123,61 +123,104 @@
         },
         "type": "object"
       },
-      "User": {
+      "UserRequest": {
         "type": "object",
         "properties": {
-          "active": {
-            "type": "boolean"
+          "name": {
+            "type": "string",
+            "nullable": false
           },
-          "agreement_signed":  {
-            "type": "boolean"
+          "password": {
+            "type": "string",
+            "nullable": false
           },
-          "agreement_signed_at":  {
-            "type": "string"
+          "email_address": {
+            "type": "string",
+            "nullable": false
           },
-          "agreement_signed_by_id": {
-            "type": "string"
+          "mobile_number": {
+            "type": "string",
+            "nullable": false
           },
-          "agreement_signed_on_behalf_of_email_address": {
-            "type": "string"
+          "state": {
+            "type": "string",
+            "nullable": false
           },
-          "agreement_signed_on_behalf_of_name": {
-            "type": "string"
-          },
-          "agreement_signed_version": {
-            "type": "string"
-          },
-          "count_of_live_services": {
-            "type": "integer"
-          },
-          "crown": {
-            "type": "boolean"
-          },
-          "domains": {
+          "user_permissions": {
             "type": "array",
+            "nullable": false,
             "items": {
               "type": "string"
             }
           },
-          "email_branding_id": {
-            "type": "string"
-          },
-          "id": {
-            "type": "string"
-          },
-          "letter_branding_id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "organisation_type": {
-            "type": "string"
-          },
-          "request_to_go_live_notes": {
-            "type": "string"
+          "auth_type": {
+            "type": "string",
+            "format": "auth type",
+            "nullable": false,
+            "enum": [
+              "sms_auth",
+              "email_auth"
+            ]
           }
-        }
+        },
+        "required": [
+          "name",
+          "password",
+          "email_address",
+          "mobile_number",
+          "state",
+          "user_permissions"
+        ]
+      },
+      "SmsUserRequest": {
+        "type": "object",
+        "allOf": [
+          { "$ref": "#/components/schemas/UserRequest"}
+        ],
+        "properties": {
+          "auth_type": {
+            "type": "string",
+            "format": "auth type",
+            "nullable": false,
+            "enum": [
+              "sms_auth"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "password",
+          "email_address",
+          "mobile_number",
+          "state",
+          "user_permissions",
+          "auth_type"
+        ]
+      },
+      "EmailUserRequest": {
+        "type": "object",
+        "allOf": [
+          { "$ref": "#/components/schemas/UserRequest"}
+        ],
+        "properties": {
+          "auth_type": {
+            "type": "string",
+            "format": "auth type",
+            "nullable": false,
+            "enum": [
+              "email_auth"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "password",
+          "email_address",
+          "mobile_number",
+          "state",
+          "user_permissions",
+          "auth_type"
+        ]
       },
       "UserResponseItem": {
         "title": "UserResponseItem",
@@ -216,14 +259,35 @@
           "organisations": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           },
           "password_changed_at": {
-            "type": "string"
+            "type": "string",
+            "format": "datetime"
           },
           "permissions": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+              "uuid": {
+                "type": "array",
+                "format": "uuid",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "manage_users",
+                    "manage_templates",
+                    "manage_settings",
+                    "send_texts",
+                    "send_emails",
+                    "send_letters",
+                    "manage_api_keys",
+                    "view_activity"
+                  ]
+                }
+              }
+            }
           },
           "platform_admin": {
             "type": "boolean"
@@ -231,7 +295,8 @@
           "services": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "{{service-uuid}}"
             }
           },
           "state": {
