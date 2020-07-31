@@ -263,19 +263,19 @@
           "created_by": {"type": "string", "format": "uuid"},
           "crown": {"type": "boolean"},
           "email_branding": {"type": "string", "format": "uuid"},
-          "email_from": {"type": "string", "format": "local part of email address"},
+          "email_from": {"type": "string", "format": "email"},
           "go_live_at": {"type": "string", "format": "datetime"},
-          "go_live_user": {"type": "string", "format": "user uuid"},
-          "id": {"type": "string", "format": "serivce uuid"},
+          "go_live_user": {"type": "string", "format": "uuid"},
+          "id": {"type": "string", "format": "uuid"},
           "inbound_api": {"type": "array", "items": {"type": "string", "format": "url"}},
-          "inbound_number": {"type": "number"},
+          "inbound_number": {"type": "string", "format": "uuid"},
           "inbound_sms": {"type": "array", "items": {"type": "string", "format": "uuid"}},
           "letter_branding": {"type": "string", "format": "uuid"},
           "letter_contact_block": {"type": "string"},
           "letter_logo_filename": {"type": "string"},
           "message_limit": {"type": "number"},
           "name": {"type": "string"},
-          "organisation": {"type": "string", "format": "organisation uuid"},
+          "organisation": {"type": "string", "format": "uuid"},
           "organisation_type": {
             "type": "string",
             "nullable": true,
@@ -285,7 +285,7 @@
             "type": "array", 
             "items": {
               "type": "string", 
-              "enum": ["international_sms","email","sms"]
+              "enum": ["international_sms","email","sms", "inbound_sms", "schedule_notifications"]
               }
           },
           "prefix_sms": {"type": "boolean"},
@@ -293,10 +293,10 @@
           "research_mode": {"type": "boolean"},
           "restricted": {"type": "boolean"},
           "sending_domain": {"type": "string", "nullable": true},
-          "service_callback_api": {"type": "array", "items": {"type": "string"}},
+          "service_callback_api": {"type": "array", "items": {"type": "string", "format": "uuid"}},
           "service_data_retention": {"type": "array", "items": {"type": "string"}},
           "smtp_user": {"type": "string"},
-          "users": {"type": "array", "items": {"type": "string", "format": "user uuid"}},
+          "users": {"type": "array", "items": {"type": "string", "format": "uuid"}},
           "version": {"type": "number"},
           "volume_email": {"type": "integer", "nullable": true},
           "volume_letter": {"type": "integer", "nullable": true},
@@ -308,7 +308,8 @@
                 "email_addresses": {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "email"
                   }
                 },
                 "phone_numbers": {
