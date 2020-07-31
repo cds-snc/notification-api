@@ -143,170 +143,90 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Service'
-  '/service/{uuid:service_id}/template':
+  '/service/{service_id}/template':
     get:
+      summary: Get all existing templates for a service
       tags:
-        - service template
-      description: Get all existing templates for a service
+        - template
       parameters:
         - in: path
-          name: 'uuid:service_id'
+          name: 'service_id'
           schema:
             type: integer
             format: uuid
           required: true
           allowEmptyValue: false
-          description: Identifier for service
+          description: Service identifier
       responses:
         '200':
-          description: Successful OK response to get all templates for a service
+          description: Successful response for getting all templates for a service
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/TemplateResponseCore'
+                  $ref: '#/components/schemas/Template'
     post:
+      summary: Create a template for an existing service
       tags:
-        - service template
-      description: Create a template for an existing service
+        - template
       parameters:
         - in: path
-          name: 'uuid:service_id'
+          name: 'service_id'
           schema:
             type: integer
             format: uuid
           required: true
           allowEmptyValue: false
-          description: Identifier for service
+          description: Service identifier
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              oneOf:
-                - $ref: '#/components/schemas/SMSTemplateRequest'
-                - $ref: '#/components/schemas/EmailOrLetterTemplateRequest'
-            examples:
-              template:
-                summary: Example create request for a service email template
-                value:
-                  name: test template
-                  subject: test subject
-                  template_type: email
-                  content: This is a test email
-                  service: '{{service-id}}'
-                  created_by: '{{user-id}}'
+                $ref: '#/components/schemas/CreateTemplateRequest'
       responses:
         '201':
-          description: Successful CREATED response for a service template
+          description: Successful response for creating a template
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TemplateResponseCore'
-              examples:
-                template:
-                  summary: >-
-                    Example successful CREATED response for a service email
-                    template
-                  value:
-                    data:
-                      archived: false
-                      content: Test email content
-                      created_at: '2020-07-29T19:34:00.236736+00:00'
-                      created_by: 40073d95-2659-45e4-8b63-063b5d56a4f2
-                      folder: null
-                      hidden: false
-                      id: b80d4d09-dd63-438c-9b35-2c4f6aa5def7
-                      name: test template
-                      postage: null
-                      process_type: normal
-                      redact_personalisation: false
-                      reply_to: null
-                      reply_to_text: null
-                      service: 1c8009cb-b067-4de5-ac31-ddf8df95d9b9
-                      service_letter_contact: null
-                      subject: test subject
-                      template_redacted: b80d4d09-dd63-438c-9b35-2c4f6aa5def7
-                      template_type: email
-                      updated_at: null
-                      version: 1
-  '/service/{uuid:service_id}/template/{uuid:template_id}':
+                $ref: '#/components/schemas/Template'
+  '/service/{service_id}/template/{template_id}':
     post:
+      summary: Update an existing template
       tags:
-        - service template
-      description: Update an existing service template
+        - template
       parameters:
         - in: path
-          name: 'uuid:service_id'
+          name: 'service_id'
           schema:
             type: integer
             format: uuid
           required: true
           allowEmptyValue: false
-          description: service_id to create service template
+          description: The service identifier associated with the template
         - in: path
-          name: 'uuid:template_id'
+          name: 'template_id'
           schema:
             type: integer
             format: uuid
           required: true
           allowEmptyValue: false
-          description: template_id to update specific service template
+          description: The template identifier to update
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              oneOf:
-                - $ref: '#/components/schemas/SMSTemplateRequest'
-                - $ref: '#/components/schemas/EmailOrLetterTemplateRequest'
-            examples:
-              template:
-                summary: >-
-                  Example of an update request for an existing service email
-                  template
-                value:
-                  name: test update service template
-                  subject: test subject
-                  template_type: email
-                  content: test update service template
-                  service: '{{service-id}}'
-                  created_by: '{{user-id}}'
+              $ref: '#/components/schemas/CreateTemplateRequest'
       responses:
         '200':
-          description: Response for successful OK update of an existing service template
+          description: Response for successful update of an existing template
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TemplateResponseCore'
-              examples:
-                template:
-                  summary: >-
-                    Example sucessful OK response of update for an existing
-                    service email template
-                  value:
-                    data:
-                      archived: false
-                      content: Test email content
-                      created_at: '2020-07-29T19:34:00.236736+00:00'
-                      created_by: 40073d95-2659-45e4-8b63-063b5d56a4f2
-                      folder: null
-                      hidden: false
-                      id: b80d4d09-dd63-438c-9b35-2c4f6aa5def7
-                      name: test update service template
-                      postage: null
-                      process_type: normal
-                      redact_personalisation: false
-                      reply_to: null
-                      reply_to_text: null
-                      service: 1c8009cb-b067-4de5-ac31-ddf8df95d9b9
-                      service_letter_contact: null
-                      subject: test subject
-                      template_redacted: b80d4d09-dd63-438c-9b35-2c4f6aa5def7
-                      template_type: email
-                      updated_at: null
-                      version: 2
+                $ref: '#/components/schemas/Template'
   /v2/notifications/sms:
     post:
       tags:
@@ -723,40 +643,39 @@ components:
                 type: array
                 items:
                   type: string
-    Template:
+    CreateTemplateRequest:
       type: object
-      description: 'payload for POST /service/<uuid:service_id>/template'
       nullable: false
       properties:
         content:
-          nullable: false
           type: string
+          nullable: false
         created_by:
+          type: string
           format: uuid
           nullable: false
-          type: string
         name:
-          nullable: false
           type: string
+          nullable: false
         parent_folder_id:
+          type: string
           format: uuid
           nullable: false
-          type: string
         postage:
-          nullable: false
           type: string
+          nullable: false
         process_type:
           type: string
           enum:
             - normal
             - priority
         service:
+          type: string
           format: uuid
           nullable: false
-          type: string
         subject:
-          nullable: false
           type: string
+          nullable: false
         template_type:
           type: string
           enum:
@@ -769,37 +688,14 @@ components:
         - content
         - service
         - created_by
-    SMSTemplateRequest:
-      type: object
-      description: 'POST /service/<uuid:service_id>/template'
-      nullable: false
-      allOf:
-        - $ref: '#/components/schemas/Template'
-      properties:
-        subject:
-          type: string
-    EmailOrLetterTemplateRequest:
-      type: object
-      description: 'payload for POST /service/<uuid:service_id>/template'
-      nullable: false
-      allOf:
-        - $ref: '#/components/schemas/Template'
-      required:
-        - subject
-      properties:
-        subject:
-          type: string
-    TemplateResponseCore:
+    Template:
       type: object
       allOf:
-        - $ref: '#/components/schemas/Template'
+        - $ref: '#/components/schemas/CreateTemplateRequest'
       properties:
         archived:
           type: boolean
         created_at:
-          type: string
-          format: datetime
-        created_by:
           type: string
           format: datetime
         folder:
@@ -810,8 +706,6 @@ components:
         id:
           type: string
           format: uuid
-        postage:
-          type: string
         redact_personalisation:
           type: boolean
         reply_to:
