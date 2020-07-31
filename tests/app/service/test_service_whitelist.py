@@ -13,7 +13,7 @@ from app.dao.service_safelist_dao import dao_add_and_commit_safelisted_contacts
 def test_get_safelist_returns_data(client, sample_service_safelist):
     service_id = sample_service_safelist.service_id
 
-    response = client.get('service/{}/whitelist'.format(service_id), headers=[create_authorization_header()])
+    response = client.get('service/{}/safelist'.format(service_id), headers=[create_authorization_header()])
     assert response.status_code == 200
     assert json.loads(response.get_data(as_text=True)) == {
         'email_addresses': [sample_service_safelist.recipient],
@@ -28,7 +28,7 @@ def test_get_safelist_separates_emails_and_phones(client, sample_service):
         ServiceSafelist.from_string(sample_service.id, MOBILE_TYPE, '+1800-234-1242'),
     ])
 
-    response = client.get('service/{}/whitelist'.format(sample_service.id), headers=[create_authorization_header()])
+    response = client.get('service/{}/safelist'.format(sample_service.id), headers=[create_authorization_header()])
     assert response.status_code == 200
     json_resp = json.loads(response.get_data(as_text=True))
     assert json_resp['email_addresses'] == ['service@example.com']
@@ -36,7 +36,7 @@ def test_get_safelist_separates_emails_and_phones(client, sample_service):
 
 
 def test_get_safelist_404s_with_unknown_service_id(client):
-    path = 'service/{}/whitelist'.format(uuid.uuid4())
+    path = 'service/{}/safelist'.format(uuid.uuid4())
 
     response = client.get(path, headers=[create_authorization_header()])
     assert response.status_code == 404
@@ -46,7 +46,7 @@ def test_get_safelist_404s_with_unknown_service_id(client):
 
 
 def test_get_safelist_returns_no_data(client, sample_service):
-    path = 'service/{}/whitelist'.format(sample_service.id)
+    path = 'service/{}/safelist'.format(sample_service.id)
 
     response = client.get(path, headers=[create_authorization_header()])
 
@@ -61,7 +61,7 @@ def test_update_safelist_replaces_old_safelist(client, sample_service_safelist):
     }
 
     response = client.put(
-        'service/{}/whitelist'.format(sample_service_safelist.service_id),
+        'service/{}/safelist'.format(sample_service_safelist.service_id),
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), create_authorization_header()]
     )
@@ -81,7 +81,7 @@ def test_update_safelist_doesnt_remove_old_safelist_if_error(client, sample_serv
     }
 
     response = client.put(
-        'service/{}/whitelist'.format(sample_service_safelist.service_id),
+        'service/{}/safelist'.format(sample_service_safelist.service_id),
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), create_authorization_header()]
     )

@@ -543,7 +543,7 @@ def get_detailed_services(start_date, end_date, only_active=False, include_from_
     return results
 
 
-@service_blueprint.route('/<uuid:service_id>/whitelist', methods=['GET'])
+@service_blueprint.route('/<uuid:service_id>/safelist', methods=['GET'])
 def get_safelist(service_id):
     from app.models import (EMAIL_TYPE, MOBILE_TYPE)
     service = dao_fetch_service_by_id(service_id)
@@ -560,7 +560,7 @@ def get_safelist(service_id):
     )
 
 
-@service_blueprint.route('/<uuid:service_id>/whitelist', methods=['PUT'])
+@service_blueprint.route('/<uuid:service_id>/safelist', methods=['PUT'])
 def update_safelist(service_id):
     # doesn't commit so if there are any errors, we preserve old values in db
     dao_remove_service_safelist(service_id)
