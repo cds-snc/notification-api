@@ -24,7 +24,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: 'openapi_components.yaml#/components/schemas/OrganisationResponseCore'
+                  $ref: '#/components/schemas/OrganisationResponseCore'
     post:
       summary: Create an organisation
       tags:
@@ -62,65 +62,40 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 'openapi_components.yaml#/components/schemas/OrganisationResponse'
+                $ref: '#/components/schemas/OrganisationResponse'
   /user:
     post:
+      summary: Create a user
       tags:
         - user
-      description: Create a user
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              oneOf:
-                - $ref: 'openapi_components.yaml#/components/schemas/UserRequest'
-                - $ref: 'openapi_components.yaml#/components/schemas/SmsUserRequest'
-                - $ref: 'openapi_components.yaml#/components/schemas/EmailUserRequest'
+              $ref: '#/components/schemas/CreateUserRequest'
       responses:
         '201':
-          description: Successful CREATED response of a user
+          description: A user was successfully created
           content:
             application/json:
               schema:
                 type: object
                 allOf:
-                  - $ref: 'openapi_components.yaml#/components/schemas/UserResponseItem'
-              examples:
-                user:
-                  description: Example response payload for single user
-                  value:
-                    data:
-                      additional_information: {}
-                      auth_type: sms_auth
-                      blocked: false
-                      current_session_id: null
-                      email_address: foo@bar.test
-                      failed_login_count: 0
-                      id: 40073d95-2659-45e4-8b63-063b5d56a4f2
-                      logged_in_at: null
-                      mobile_number: '+10123456789'
-                      name: Test User
-                      organisations: []
-                      password_changed_at: '2020-07-29 07:05:56.109160'
-                      permissions: {}
-                      platform_admin: false
-                      services: []
-                      state: active
+                  - $ref: '#/components/schemas/User'
     get:
+      summary: Get a list of all users
       tags:
         - user
-      description: Get all users
       responses:
         '200':
-          description: Sucessful OK response to get all users
+          description: Successful OK response to get all users
           content:
             application/json:
               schema:
-                type: object
-                allOf:
-                  - $ref: 'openapi_components.yaml#/components/schemas/UserResponseList'
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
   /service:
     post:
       tags:
@@ -190,7 +165,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 'openapi_components.yaml#/components/schemas/ServiceResponseItem'
+                $ref: '#/components/schemas/ServiceResponseCore'
               examples:
                 service:
                   summary: Example successful CREATED response of a service
@@ -244,13 +219,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 'openapi_components.yaml#/components/schemas/ErrorMessage'
+                $ref: '#/components/schemas/ErrorMessage'
         '403':
           description: Invalid token
           content:
             application/json:
               schema:
-                $ref: 'openapi_components.yaml#/components/schemas/ErrorMessage'
+                $ref: '#/components/schemas/ErrorMessage'
     get:
       tags:
         - service
@@ -263,7 +238,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 'openapi_components.yaml#/components/schemas/ServiceResponseList'
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceResponseCore'
   '/service/{uuid:service_id}/template':
     get:
       tags:
@@ -284,7 +261,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 'openapi_components.yaml#/components/schemas/TemplateResponseList'
+                type: array
+                items:
+                  $ref: '#/components/schemas/TemplateResponseCore'
     post:
       tags:
         - service template
@@ -304,8 +283,8 @@ paths:
           application/json:
             schema:
               oneOf:
-                - $ref: 'openapi_components.yaml#/components/schemas/SMSTemplateRequest'
-                - $ref: 'openapi_components.yaml#/components/schemas/EmailOrLetterTemplateRequest'
+                - $ref: '#/components/schemas/SMSTemplateRequest'
+                - $ref: '#/components/schemas/EmailOrLetterTemplateRequest'
             examples:
               template:
                 summary: Example create request for a service email template
@@ -322,7 +301,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 'openapi_components.yaml#/components/schemas/TemplateResponseItem'
+                $ref: '#/components/schemas/TemplateResponseCore'
               examples:
                 template:
                   summary: >-
@@ -378,8 +357,8 @@ paths:
           application/json:
             schema:
               oneOf:
-                - $ref: 'openapi_components.yaml#/components/schemas/SMSTemplateRequest'
-                - $ref: 'openapi_components.yaml#/components/schemas/EmailOrLetterTemplateRequest'
+                - $ref: '#/components/schemas/SMSTemplateRequest'
+                - $ref: '#/components/schemas/EmailOrLetterTemplateRequest'
             examples:
               template:
                 summary: >-
@@ -398,7 +377,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 'openapi_components.yaml#/components/schemas/TemplateResponseItem'
+                $ref: '#/components/schemas/TemplateResponseCore'
               examples:
                 template:
                   summary: >-
@@ -437,7 +416,7 @@ paths:
           application/json:
             schema:
               oneOf:
-                - $ref: 'openapi_components.yaml#/components/schemas/SMSNotificationRequestWithPhoneNumber'
+                - $ref: '#/components/schemas/SMSNotificationRequestWithPhoneNumber'
       responses:
         '200':
           description: Details of queued SMS notification.
@@ -445,7 +424,7 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: 'openapi_components.yaml#/components/schemas/NotificationResponse'
+                  - $ref: '#/components/schemas/NotificationResponse'
                   - type: object
                     properties:
                       content:
@@ -471,7 +450,7 @@ paths:
           application/json:
             schema:
               oneOf:
-                - $ref: 'openapi_components.yaml#/components/schemas/EmailNotificationRequestWithEmailAddress'
+                - $ref: '#/components/schemas/EmailNotificationRequestWithEmailAddress'
       responses:
         '200':
           description: Details of queued email notification.
@@ -479,7 +458,7 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: 'openapi_components.yaml#/components/schemas/NotificationResponse'
+                  - $ref: '#/components/schemas/NotificationResponse'
                   - type: object
                     properties:
                       content:
@@ -499,6 +478,499 @@ paths:
                     required:
                       - content
 components:
+  schemas:
+    ErrorMessage:
+      type: object
+      properties:
+        message:
+          type: string
+        result:
+          type: string
+    OrganisationResponseCore:
+      type: object
+      properties:
+        active:
+          nullable: true
+          type: boolean
+        count_of_live_services:
+          nullable: false
+          type: integer
+        domains:
+          items:
+            nullable: false
+            type: string
+          nullable: true
+          type: array
+        id:
+          type: string
+          nullable: false
+          format: uuid
+        name:
+          nullable: false
+          type: string
+        organisation_type:
+          enum:
+            - other
+          nullable: false
+          type: string
+    OrganisationResponse:
+      type: object
+      nullable: false
+      allOf:
+        - $ref: '#/components/schemas/OrganisationResponseCore'
+      properties:
+        agreement_signed:
+          format: datetime
+          nullable: true
+          type: string
+        agreement_signed_at:
+          format: datetime
+          nullable: true
+          type: string
+        agreement_signed_by_id:
+          format: uuid
+          nullable: true
+          type: string
+        agreement_signed_on_behalf_of_email_address:
+          nullable: true
+          type: string
+        agreement_signed_on_behalf_of_name:
+          nullable: true
+          type: string
+        agreement_signed_version:
+          nullable: false
+          type: number
+        crown:
+          nullable: false
+          type: boolean
+        email_branding_id:
+          format: uuid
+          nullable: true
+          type: string
+        letter_branding_id:
+          format: uuid
+          nullable: true
+          type: string
+        request_to_go_live_notes:
+          nullable: true
+          type: string
+    CreateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: false
+        password:
+          type: string
+          nullable: false
+        email_address:
+          type: string
+          nullable: false
+        mobile_number:
+          type: string
+          nullable: false
+        state:
+          type: string
+          nullable: false
+        user_permissions:
+          type: array
+          nullable: false
+          items:
+            type: string
+        auth_type:
+          type: string
+          format: auth type
+          nullable: false
+          enum:
+            - sms_auth
+            - email_auth
+      required:
+        - name
+        - password
+        - email_address
+        - mobile_number
+        - state
+        - user_permissions
+    User:
+      type: object
+      properties:
+        additional_information:
+          type: object
+        auth_type:
+          type: string
+        blocked:
+          type: boolean
+        current_session_id:
+          type: string
+        email_address:
+          type: string
+        failed_login_count:
+          type: integer
+        id:
+          type: string
+        logged_in_at:
+          type: string
+        mobile_number:
+          type: string
+        name:
+          type: string
+        organisations:
+          type: array
+          items:
+            type: string
+            format: uuid
+        password_changed_at:
+          type: string
+          format: datetime
+        permissions:
+          type: object
+          properties:
+            uuid:
+              type: array
+              format: uuid
+              items:
+                type: string
+                enum:
+                  - manage_users
+                  - manage_templates
+                  - manage_settings
+                  - send_texts
+                  - send_emails
+                  - send_letters
+                  - manage_api_keys
+                  - view_activity
+        platform_admin:
+          type: boolean
+        services:
+          type: array
+          items:
+            type: string
+            format: '{{service-uuid}}'
+        state:
+          type: boolean
+    ServiceResponseCore:
+      type: object
+      properties:
+        active:
+          type: boolean
+        all_template_folders:
+          type: array
+          items:
+            type: string
+        annual_billing:
+          type: array
+          items:
+            type: string
+            format: uuid
+        consent_to_research:
+          type: boolean
+        contact_link:
+          type: string
+        count_as_live:
+          type: boolean
+        created_by:
+          type: string
+          format: uuid
+        crown:
+          type: boolean
+        email_branding:
+          type: string
+          format: uuid
+        email_from:
+          type: string
+          format: email
+        go_live_at:
+          type: string
+          format: datetime
+        go_live_user:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        inbound_api:
+          type: array
+          items:
+            type: string
+            format: url
+        inbound_number:
+          type: string
+          format: uuid
+        inbound_sms:
+          type: array
+          items:
+            type: string
+            format: uuid
+        letter_branding:
+          type: string
+          format: uuid
+        letter_contact_block:
+          type: string
+        letter_logo_filename:
+          type: string
+        message_limit:
+          type: number
+        name:
+          type: string
+        organisation:
+          type: string
+          format: uuid
+        organisation_type:
+          type: string
+          nullable: true
+          enum:
+            - other
+        permissions:
+          type: array
+          items:
+            type: string
+            enum:
+              - international_sms
+              - email
+              - sms
+              - inbound_sms
+              - schedule_notifications
+        prefix_sms:
+          type: boolean
+        rate_limit:
+          type: number
+        research_mode:
+          type: boolean
+        restricted:
+          type: boolean
+        sending_domain:
+          type: string
+          nullable: true
+        service_callback_api:
+          type: array
+          items:
+            type: string
+            format: uuid
+        service_data_retention:
+          type: array
+          items:
+            type: string
+        smtp_user:
+          type: string
+        users:
+          type: array
+          items:
+            type: string
+            format: uuid
+        version:
+          type: number
+        volume_email:
+          type: integer
+          nullable: true
+        volume_letter:
+          type: integer
+          nullable: true
+        volume_sms:
+          type: integer
+          nullable: true
+        whitelist:
+          type: array
+          items:
+            properties:
+              email_addresses:
+                type: array
+                items:
+                  type: string
+                  format: email
+              phone_numbers:
+                type: array
+                items:
+                  type: string
+    Template:
+      type: object
+      description: 'payload for POST /service/<uuid:service_id>/template'
+      nullable: false
+      properties:
+        content:
+          nullable: false
+          type: string
+        created_by:
+          format: uuid
+          nullable: false
+          type: string
+        name:
+          nullable: false
+          type: string
+        parent_folder_id:
+          format: uuid
+          nullable: false
+          type: string
+        postage:
+          nullable: false
+          type: string
+        process_type:
+          type: string
+          enum:
+            - normal
+            - priority
+        service:
+          format: uuid
+          nullable: false
+          type: string
+        subject:
+          nullable: false
+          type: string
+        template_type:
+          type: string
+          enum:
+            - sms
+            - email
+            - letter
+      required:
+        - name
+        - template_type
+        - content
+        - service
+        - created_by
+    SMSTemplateRequest:
+      type: object
+      description: 'POST /service/<uuid:service_id>/template'
+      nullable: false
+      allOf:
+        - $ref: '#/components/schemas/Template'
+      properties:
+        subject:
+          type: string
+    EmailOrLetterTemplateRequest:
+      type: object
+      description: 'payload for POST /service/<uuid:service_id>/template'
+      nullable: false
+      allOf:
+        - $ref: '#/components/schemas/Template'
+      required:
+        - subject
+      properties:
+        subject:
+          type: string
+    TemplateResponseCore:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Template'
+      properties:
+        archived:
+          type: boolean
+        created_at:
+          type: string
+          format: datetime
+        created_by:
+          type: string
+          format: datetime
+        folder:
+          type: string
+          format: uuid
+        hidden:
+          type: boolean
+        id:
+          type: string
+          format: uuid
+        postage:
+          type: string
+        redact_personalisation:
+          type: boolean
+        reply_to:
+          type: string
+          format: uuid
+        reply_to_text:
+          type: string
+        service_letter_contact:
+          type: string
+          format: uuid
+        template_redacted:
+          type: string
+          format: uuid
+        updated_at:
+          type: string
+          format: datetime
+        version:
+          type: number
+    NotificationRequest:
+      type: object
+      properties:
+        reference:
+          type: string
+        template_id:
+          type: string
+          format: uuid
+        personalisation:
+          type: object
+        scheduled_for:
+          type: string
+          format: datetime within next day
+      required:
+        - template_id
+    SMSNotificationRequest:
+      allOf:
+        - $ref: '#/components/schemas/NotificationRequest'
+        - type: object
+          properties:
+            sms_sender_id:
+              type: string
+              format: uuid
+    SMSNotificationRequestWithPhoneNumber:
+      allOf:
+        - $ref: '#/components/schemas/SMSNotificationRequest'
+        - type: object
+          properties:
+            phone_number:
+              type: string
+              format: phone_number
+          required:
+            - phone_number
+    EmailNotificationRequest:
+      allOf:
+        - $ref: '#/components/schemas/NotificationRequest'
+        - type: object
+          properties:
+            email_reply_to_id:
+              type: string
+              format: uuid
+    EmailNotificationRequestWithEmailAddress:
+      allOf:
+        - $ref: '#/components/schemas/EmailNotificationRequest'
+        - type: object
+          properties:
+            email_address:
+              type: string
+              format: email_address
+          required:
+            - email_address
+    NotificationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        reference:
+          type: string
+        uri:
+          type: string
+          format: uri
+        template:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            version:
+              type: integer
+            uri:
+              type: string
+              format: uri
+          required:
+            - id
+            - version
+            - uri
+        scheduled_for:
+          type: string
+      required:
+        - id
+        - uri
+        - template
   securitySchemes:
     bearerAuth:
       type: http
