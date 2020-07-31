@@ -26,8 +26,7 @@ from app.dao.service_letter_contact_dao import dao_get_letter_contact_by_id
 def check_service_over_api_rate_limit(service, api_key):
     if current_app.config['API_RATE_LIMIT_ENABLED'] and current_app.config['REDIS_ENABLED']:
         cache_key = rate_limit_cache_key(service.id, api_key.key_type)
-
-        rate_limit = service.rate_limit if api_key.key_type != KEY_TYPE_TEST else 500
+        rate_limit = service.rate_limit
         interval = 60
         if redis_store.exceeded_rate_limit(cache_key, rate_limit, interval):
             current_app.logger.info("service {} has been rate limited for throughput".format(service.id))
