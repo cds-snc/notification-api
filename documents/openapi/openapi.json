@@ -985,7 +985,7 @@
                     "active": true,
                     "email-from": "permitted-local-part",
                     "created_by": "{{user-id}}"
-                }
+                  }
                 }
               }
             }
