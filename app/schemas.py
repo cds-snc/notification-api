@@ -288,7 +288,7 @@ class DetailedServiceSchema(BaseSchema):
             'message_limit',
             'email_from',
             'inbound_api',
-            'whitelist',
+            'safelist',
             'reply_to_email_address',
             'sms_sender',
             'permissions',
