@@ -111,61 +111,104 @@
         },
         "type": "object"
       },
-      "User": {
+      "UserRequest": {
         "type": "object",
         "properties": {
-          "active": {
-            "type": "boolean"
+          "name": {
+            "type": "string",
+            "nullable": false
           },
-          "agreement_signed":  {
-            "type": "boolean"
+          "password": {
+            "type": "string",
+            "nullable": false
           },
-          "agreement_signed_at":  {
-            "type": "string"
+          "email_address": {
+            "type": "string",
+            "nullable": false
           },
-          "agreement_signed_by_id": {
-            "type": "string"
+          "mobile_number": {
+            "type": "string",
+            "nullable": false
           },
-          "agreement_signed_on_behalf_of_email_address": {
-            "type": "string"
+          "state": {
+            "type": "string",
+            "nullable": false
           },
-          "agreement_signed_on_behalf_of_name": {
-            "type": "string"
-          },
-          "agreement_signed_version": {
-            "type": "string"
-          },
-          "count_of_live_services": {
-            "type": "integer"
-          },
-          "crown": {
-            "type": "boolean"
-          },
-          "domains": {
+          "user_permissions": {
             "type": "array",
+            "nullable": false,
             "items": {
               "type": "string"
             }
           },
-          "email_branding_id": {
-            "type": "string"
-          },
-          "id": {
-            "type": "string"
-          },
-          "letter_branding_id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "organisation_type": {
-            "type": "string"
-          },
-          "request_to_go_live_notes": {
-            "type": "string"
+          "auth_type": {
+            "type": "string",
+            "format": "auth type",
+            "nullable": false,
+            "enum": [
+              "sms_auth",
+              "email_auth"
+            ]
           }
-        }
+        },
+        "required": [
+          "name",
+          "password",
+          "email_address",
+          "mobile_number",
+          "state",
+          "user_permissions"
+        ]
+      },
+      "SmsUserRequest": {
+        "type": "object",
+        "allOf": [
+          { "$ref": "#/components/schemas/UserRequest"}
+        ],
+        "properties": {
+          "auth_type": {
+            "type": "string",
+            "format": "auth type",
+            "nullable": false,
+            "enum": [
+              "sms_auth"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "password",
+          "email_address",
+          "mobile_number",
+          "state",
+          "user_permissions",
+          "auth_type"
+        ]
+      },
+      "EmailUserRequest": {
+        "type": "object",
+        "allOf": [
+          { "$ref": "#/components/schemas/UserRequest"}
+        ],
+        "properties": {
+          "auth_type": {
+            "type": "string",
+            "format": "auth type",
+            "nullable": false,
+            "enum": [
+              "email_auth"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "password",
+          "email_address",
+          "mobile_number",
+          "state",
+          "user_permissions",
+          "auth_type"
+        ]
       },
       "UserResponseItem": {
         "title": "UserResponseItem",
@@ -204,14 +247,35 @@
           "organisations": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           },
           "password_changed_at": {
-            "type": "string"
+            "type": "string",
+            "format": "datetime"
           },
           "permissions": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+              "uuid": {
+                "type": "array",
+                "format": "uuid",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "manage_users",
+                    "manage_templates",
+                    "manage_settings",
+                    "send_texts",
+                    "send_emails",
+                    "send_letters",
+                    "manage_api_keys",
+                    "view_activity"
+                  ]
+                }
+              }
+            }
           },
           "platform_admin": {
             "type": "boolean"
@@ -219,7 +283,8 @@
           "services": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "{{service-uuid}}"
             }
           },
           "state": {
@@ -428,7 +493,9 @@
           {"$ref": "#/components/schemas/Template"}
         ],
         "properties": {
-          "archived": {"type": "boolean"},
+          "archived": {
+            "type": "boolean"
+          },
           "created_at": {
             "type": "string",
             "format": "datetime"
@@ -437,9 +504,17 @@
             "type": "string",
             "format": "datetime"
           },
-          "folder": {"type": "?"},
-          "hidden": {"type": "boolean"},
-          "id": {"type": "string", "format": "uuid"},
+          "folder": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
           "postage": {
             "type": "string"
           },
@@ -638,6 +713,11 @@
       }
     }
   },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
   "paths": {
     "/organisations": {
       "get": {
@@ -803,32 +883,11 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string"
-                  },
-                  "password": {
-                    "type": "string"
-                  },
-                  "email_address": {
-                    "type": "string"
-                  },
-                  "mobile_number": {
-                    "type": "string"
-                  },
-                  "state": {
-                    "type": "string"
-                  },
-                  "user_permissions": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "auth_type": {
-                    "type": "string"
-                  }
-                }
+               "oneOf": [
+                 { "$ref": "#/components/schemas/UserRequest"},
+                 { "$ref": "#/components/schemas/SmsUserRequest"},
+                 { "$ref": "#/components/schemas/EmailUserRequest"}
+               ]
               }
             }
           }
@@ -845,30 +904,30 @@
                       "$ref": "#/components/schemas/UserResponseItem"
                     }
                   ]
-                }
-              }
-            },
-            "examples": {
-              "user": {
-                "description": "Example response payload for single user",
-                "value": {
-                  "data": {
-                    "additional_information": {},
-                    "auth_type": "sms_auth",
-                    "blocked": false,
-                    "current_session_id": null,
-                    "email_address": "foo@bar.test",
-                    "failed_login_count": 0,
-                    "id": "40073d95-2659-45e4-8b63-063b5d56a4f2",
-                    "logged_in_at": null,
-                    "mobile_number": "+10123456789",
-                    "name": "Test User",
-                    "organisations": [],
-                    "password_changed_at": "2020-07-29 07:05:56.109160",
-                    "permissions": {},
-                    "platform_admin": false,
-                    "services": [],
-                    "state": "active"
+                },
+                "examples": {
+                  "user": {
+                    "description": "Example response payload for single user",
+                    "value": {
+                      "data": {
+                        "additional_information": {},
+                        "auth_type": "sms_auth",
+                        "blocked": false,
+                        "current_session_id": null,
+                        "email_address": "foo@bar.test",
+                        "failed_login_count": 0,
+                        "id": "40073d95-2659-45e4-8b63-063b5d56a4f2",
+                        "logged_in_at": null,
+                        "mobile_number": "+10123456789",
+                        "name": "Test User",
+                        "organisations": [],
+                        "password_changed_at": "2020-07-29 07:05:56.109160",
+                        "permissions": {},
+                        "platform_admin": false,
+                        "services": [],
+                        "state": "active"
+                      }
+                    }
                   }
                 }
               }
@@ -890,7 +949,7 @@
                  "type": "object",
                  "allOf": [
                    {
-                     "$ref": "#/components/schemas/UserResponseList",
+                     "$ref": "#/components/schemas/UserResponseList"
                    }
                  ]
                }
@@ -1415,10 +1474,5 @@
         }
       }
     }
-  },
-  "security": [
-    {
-      "bearerAuth": []
-    }
-  ]
+  }
 }
