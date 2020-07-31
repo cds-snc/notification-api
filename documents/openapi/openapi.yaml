@@ -1,0 +1,558 @@
+openapi: 3.0.0
+info:
+  title: VA Notify API Documentation
+  description: This documents the API schemas for consumption by internal VA developers.
+  version: 1.0.0
+  contact:
+    name: VA Notify team
+servers:
+  - url: 'https://dev.api.twnotify.com'
+  - url: 'https://staging.api.twnotify.com'
+paths:
+  /organisations:
+    get:
+      tags:
+        - organisation
+      security:
+        - bearerAuth: []
+      description: Get all organisations
+      responses:
+        '200':
+          description: Successful OK response of all organisations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: 'openapi_components.yaml#/components/schemas/OrganisationResponseCore'
+              examples:
+                organisations:
+                  summary: Example succcessful OK response payload of all organisations
+                  value:
+                    - active: true
+                      count_of_live_services: 0
+                      domains: []
+                      id: z097b97c-0f34-4509-bef4-54600c7dccef
+                      name: test org
+                      organisation_type: other
+                    - active: true
+                      count_of_live_services: 1
+                      domains: []
+                      id: z0230865-ee5b-4203-8873-5db7c1c0e55c
+                      name: va.gov
+                      organisation_type: other
+                    - active: true
+                      count_of_live_services: 0
+                      domains: []
+                      id: z023f598-dc49-410c-b97d-6388e8438fc4
+                      name: api test
+                      organisation_type: other
+    post:
+      tags:
+        - organisation
+      security:
+        - bearerAuth: []
+      description: Create an organisation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                active:
+                  nullable: true
+                  type: boolean
+                crown:
+                  nullable: false
+                  type: boolean
+                name:
+                  nullable: false
+                  type: string
+                organisation_type:
+                  type: string
+                  enum:
+                    - other
+              required:
+                - active
+                - crown
+                - name
+                - organisation_type
+              type: object
+            examples:
+              organisation:
+                summary: Example request body POST organisations
+                value:
+                  name: test org name
+                  active: true
+                  organisation_type: other
+                  crown: false
+      responses:
+        '201':
+          description: Successful CREATED response of an organisation
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi_components.yaml#/components/schemas/OrganisationResponse'
+              examples:
+                organisation:
+                  summary: >-
+                    Example successful CREATED response payload of an
+                    organisation
+                  value:
+                    active: true
+                    agreement_signed: null
+                    agreement_signed_at: null
+                    agreement_signed_by_id: null
+                    agreement_signed_on_behalf_of_email_address: null
+                    agreement_signed_on_behalf_of_name: null
+                    agreement_signed_version: null
+                    count_of_live_services: 0
+                    crown: false
+                    domains: []
+                    email_branding_id: null
+                    id: zdbf392a7-04da-4a18-b6bf-2fcb3e4c94f9
+                    letter_branding_id: null
+                    name: test org name
+                    organisation_type: other
+                    request_to_go_live_notes: null
+  /user:
+    post:
+      tags:
+        - user
+      description: Create a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              oneOf:
+                - $ref: 'openapi_components.yaml#/components/schemas/UserRequest'
+                - $ref: 'openapi_components.yaml#/components/schemas/SmsUserRequest'
+                - $ref: 'openapi_components.yaml#/components/schemas/EmailUserRequest'
+      responses:
+        '201':
+          description: Successful CREATED response of a user
+          content:
+            application/json:
+              schema:
+                type: object
+                allOf:
+                  - $ref: 'openapi_components.yaml#/components/schemas/UserResponseItem'
+              examples:
+                user:
+                  description: Example response payload for single user
+                  value:
+                    data:
+                      additional_information: {}
+                      auth_type: sms_auth
+                      blocked: false
+                      current_session_id: null
+                      email_address: foo@bar.test
+                      failed_login_count: 0
+                      id: 40073d95-2659-45e4-8b63-063b5d56a4f2
+                      logged_in_at: null
+                      mobile_number: '+10123456789'
+                      name: Test User
+                      organisations: []
+                      password_changed_at: '2020-07-29 07:05:56.109160'
+                      permissions: {}
+                      platform_admin: false
+                      services: []
+                      state: active
+    get:
+      tags:
+        - user
+      description: Get all users
+      responses:
+        '200':
+          description: Sucessful OK response to get all users
+          content:
+            application/json:
+              schema:
+                type: object
+                allOf:
+                  - $ref: 'openapi_components.yaml#/components/schemas/UserResponseList'
+  /service:
+    post:
+      tags:
+        - service
+      security:
+        - bearerAuth: []
+      description: Create a service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                active:
+                  nullable: true
+                  type: boolean
+                created_by:
+                  format: uuid
+                  nullable: false
+                  type: string
+                email-from:
+                  format: email
+                  nullable: false
+                  type: string
+                message_limit:
+                  nullable: true
+                  type: integer
+                name:
+                  nullable: false
+                  type: string
+                organisation_id:
+                  format: uuid
+                  nullable: true
+                  type: string
+                restricted:
+                  nullable: false
+                  type: boolean
+                user_id:
+                  format: uuid
+                  nullable: false
+                  type: string
+              required:
+                - active
+                - created_by
+                - email-from
+                - message_limit
+                - name
+                - organisation_id
+                - restricted
+                - user_id
+              type: object
+            examples:
+              service:
+                summary: Example request body POST service
+                value:
+                  name: service for VA Notify
+                  user_id: '{{user-id}}'
+                  organisation_id: '{{organization-id}}'
+                  message_limit: 1000
+                  restricted: false
+                  active: true
+                  email-from: permitted-local-part
+                  created_by: '{{user-id}}'
+      responses:
+        '201':
+          description: Successful CREATED response of a service
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi_components.yaml#/components/schemas/ServiceResponseItem'
+              examples:
+                service:
+                  summary: Example successful CREATED response of a service
+                  value:
+                    data:
+                      active: true
+                      all_template_folders: []
+                      annual_billing: []
+                      consent_to_research: null
+                      contact_link: null
+                      count_as_live: true
+                      created_by: z1f2aa83-082c-4cdf-ac54-7d25b28058c1
+                      crown: null
+                      email_branding: null
+                      email_from: someemail1
+                      go_live_at: null
+                      go_live_user: null
+                      id: zdfd949a-729d-4de2-8888-fc5f97ca5996
+                      inbound_api: []
+                      inbound_number: null
+                      inbound_sms:
+                        - z58431fe-9186-4d60-b539-4207e4fe5524
+                      letter_branding: null
+                      letter_contact_block: null
+                      letter_logo_filename: null
+                      message_limit: 1000
+                      name: main service for Govdelivery
+                      organisation: ze97b97c-0f34-4509-bef4-54600c7dccef
+                      organisation_type: null
+                      permissions:
+                        - international_sms
+                        - email
+                        - sms
+                      prefix_sms: true
+                      rate_limit: 3000
+                      research_mode: false
+                      restricted: false
+                      sending_domain: null
+                      service_callback_api: []
+                      service_data_retention: []
+                      smtp_user: null
+                      users:
+                        - z1f2aa83-082c-4cdf-ac54-7d25b28058c1
+                      version: 1
+                      volume_email: null
+                      volume_letter: null
+                      volume_sms: null
+                      whitelist: []
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi_components.yaml#/components/schemas/ErrorMessage'
+        '403':
+          description: Invalid token
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi_components.yaml#/components/schemas/ErrorMessage'
+    get:
+      tags:
+        - service
+      security:
+        - bearerAuth: []
+      description: Get all services
+      responses:
+        '200':
+          description: Successful OK get of all services
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi_components.yaml#/components/schemas/ServiceResponseList'
+  '/service/{uuid:service_id}/template':
+    get:
+      tags:
+        - service template
+      description: Get all existing templates for a service
+      parameters:
+        - in: path
+          name: 'uuid:service_id'
+          schema:
+            type: integer
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: Identifier for service
+      responses:
+        '200':
+          description: Successful OK response to get all templates for a service
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi_components.yaml#/components/schemas/TemplateResponseList'
+    post:
+      tags:
+        - service template
+      description: Create a template for an existing service
+      parameters:
+        - in: path
+          name: 'uuid:service_id'
+          schema:
+            type: integer
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: Identifier for service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: 'openapi_components.yaml#/components/schemas/SMSTemplateRequest'
+                - $ref: 'openapi_components.yaml#/components/schemas/EmailOrLetterTemplateRequest'
+            examples:
+              template:
+                summary: Example create request for a service email template
+                value:
+                  name: test template
+                  subject: test subject
+                  template_type: email
+                  content: This is a test email
+                  service: '{{service-id}}'
+                  created_by: '{{user-id}}'
+      responses:
+        '201':
+          description: Successful CREATED response for a service template
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi_components.yaml#/components/schemas/TemplateResponseItem'
+              examples:
+                template:
+                  summary: >-
+                    Example successful CREATED response for a service email
+                    template
+                  value:
+                    data:
+                      archived: false
+                      content: Test email content
+                      created_at: '2020-07-29T19:34:00.236736+00:00'
+                      created_by: 40073d95-2659-45e4-8b63-063b5d56a4f2
+                      folder: null
+                      hidden: false
+                      id: b80d4d09-dd63-438c-9b35-2c4f6aa5def7
+                      name: test template
+                      postage: null
+                      process_type: normal
+                      redact_personalisation: false
+                      reply_to: null
+                      reply_to_text: null
+                      service: 1c8009cb-b067-4de5-ac31-ddf8df95d9b9
+                      service_letter_contact: null
+                      subject: test subject
+                      template_redacted: b80d4d09-dd63-438c-9b35-2c4f6aa5def7
+                      template_type: email
+                      updated_at: null
+                      version: 1
+  '/service/{uuid:service_id}/template/{uuid:template_id}':
+    post:
+      tags:
+        - service template
+      description: Update an existing service template
+      parameters:
+        - in: path
+          name: 'uuid:service_id'
+          schema:
+            type: integer
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: service_id to create service template
+        - in: path
+          name: 'uuid:template_id'
+          schema:
+            type: integer
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: template_id to update specific service template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: 'openapi_components.yaml#/components/schemas/SMSTemplateRequest'
+                - $ref: 'openapi_components.yaml#/components/schemas/EmailOrLetterTemplateRequest'
+            examples:
+              template:
+                summary: >-
+                  Example of an update request for an existing service email
+                  template
+                value:
+                  name: test update service template
+                  subject: test subject
+                  template_type: email
+                  content: test update service template
+                  service: '{{service-id}}'
+                  created_by: '{{user-id}}'
+      responses:
+        '200':
+          description: Response for successful OK update of an existing service template
+          content:
+            application/json:
+              schema:
+                $ref: 'openapi_components.yaml#/components/schemas/TemplateResponseItem'
+              examples:
+                template:
+                  summary: >-
+                    Example sucessful OK response of update for an existing
+                    service email template
+                  value:
+                    data:
+                      archived: false
+                      content: Test email content
+                      created_at: '2020-07-29T19:34:00.236736+00:00'
+                      created_by: 40073d95-2659-45e4-8b63-063b5d56a4f2
+                      folder: null
+                      hidden: false
+                      id: b80d4d09-dd63-438c-9b35-2c4f6aa5def7
+                      name: test update service template
+                      postage: null
+                      process_type: normal
+                      redact_personalisation: false
+                      reply_to: null
+                      reply_to_text: null
+                      service: 1c8009cb-b067-4de5-ac31-ddf8df95d9b9
+                      service_letter_contact: null
+                      subject: test subject
+                      template_redacted: b80d4d09-dd63-438c-9b35-2c4f6aa5def7
+                      template_type: email
+                      updated_at: null
+                      version: 2
+  /v2/notifications/sms:
+    post:
+      tags:
+        - notification
+      summary: Send an SMS notification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: 'openapi_components.yaml#/components/schemas/SMSNotificationRequestWithPhoneNumber'
+      responses:
+        '200':
+          description: Details of queued SMS notification.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: 'openapi_components.yaml#/components/schemas/NotificationResponse'
+                  - type: object
+                    properties:
+                      content:
+                        type: object
+                        properties:
+                          body:
+                            type: string
+                          from_number:
+                            type: string
+                        required:
+                          - body
+                          - from_number
+                    required:
+                      - content
+  /v2/notifications/email:
+    post:
+      tags:
+        - notification
+      summary: Send an email notification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: 'openapi_components.yaml#/components/schemas/EmailNotificationRequestWithEmailAddress'
+      responses:
+        '200':
+          description: Details of queued email notification.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: 'openapi_components.yaml#/components/schemas/NotificationResponse'
+                  - type: object
+                    properties:
+                      content:
+                        type: object
+                        properties:
+                          from_email:
+                            type: string
+                            format: email_address
+                          body:
+                            type: string
+                          subject:
+                            type: string
+                        required:
+                          - body
+                          - from_email
+                          - subject
+                    required:
+                      - content
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
