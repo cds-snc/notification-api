@@ -227,21 +227,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Template'
-  /v2/notifications/sms:
+  /v2/notifications/{notification_type}:
     post:
+      summary: Send a notification
       tags:
         - notification
-      summary: Send an SMS notification.
+      parameters:
+        - in: path
+          name: 'notification_type'
+          schema:
+            type: string
+            enum:
+              - sms
+              - email
+          required: true
+          allowEmptyValue: false
+          description: Type of notification
       requestBody:
         required: true
         content:
           application/json:
             schema:
               oneOf:
-                - $ref: '#/components/schemas/SMSNotificationRequestWithPhoneNumber'
+                - $ref: '#/components/schemas/SMSNotificationRequest'
+                - $ref: '#/components/schemas/EmailNotificationRequest'
       responses:
         '200':
-          description: Details of queued SMS notification.
+          description: Details of queued notification.
           content:
             application/json:
               schema:
@@ -259,44 +271,6 @@ paths:
                         required:
                           - body
                           - from_number
-                    required:
-                      - content
-  /v2/notifications/email:
-    post:
-      tags:
-        - notification
-      summary: Send an email notification.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              oneOf:
-                - $ref: '#/components/schemas/EmailNotificationRequestWithEmailAddress'
-      responses:
-        '200':
-          description: Details of queued email notification.
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/NotificationResponse'
-                  - type: object
-                    properties:
-                      content:
-                        type: object
-                        properties:
-                          from_email:
-                            type: string
-                            format: email_address
-                          body:
-                            type: string
-                          subject:
-                            type: string
-                        required:
-                          - body
-                          - from_email
-                          - subject
                     required:
                       - content
 components:
@@ -747,11 +721,6 @@ components:
             sms_sender_id:
               type: string
               format: uuid
-    SMSNotificationRequestWithPhoneNumber:
-      allOf:
-        - $ref: '#/components/schemas/SMSNotificationRequest'
-        - type: object
-          properties:
             phone_number:
               type: string
               format: phone_number
@@ -765,11 +734,6 @@ components:
             email_reply_to_id:
               type: string
               format: uuid
-    EmailNotificationRequestWithEmailAddress:
-      allOf:
-        - $ref: '#/components/schemas/EmailNotificationRequest'
-        - type: object
-          properties:
             email_address:
               type: string
               format: email_address
