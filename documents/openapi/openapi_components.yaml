@@ -1,7 +1,6 @@
 components:
   schemas:
     ErrorMessage:
-      title: ErrorMessage
       type: object
       properties:
         message:
@@ -9,7 +8,6 @@ components:
         result:
           type: string
     OrganisationResponseCore:
-      title: OrganisationResponseCore
       type: object
       properties:
         active:
@@ -37,7 +35,7 @@ components:
           nullable: false
           type: string
     OrganisationResponse:
-      title: OrganisationResponse
+      type: object
       nullable: false
       allOf:
         - $ref: '#/components/schemas/OrganisationResponseCore'
@@ -77,7 +75,6 @@ components:
         request_to_go_live_notes:
           nullable: true
           type: string
-      type: object
     UserRequest:
       type: object
       properties:
@@ -154,7 +151,6 @@ components:
         - user_permissions
         - auth_type
     UserResponseItem:
-      title: UserResponseItem
       type: object
       properties:
         additional_information:
@@ -212,14 +208,12 @@ components:
         state:
           type: boolean
     UserResponseList:
-      title: UserResponseList
       properties:
         data:
           type: array
           items:
             $ref: '#/components/schemas/UserResponseItem'
     ServiceResponseCore:
-      title: ServiceResponseCore
       type: object
       properties:
         active:
@@ -353,13 +347,11 @@ components:
                 items:
                   type: string
     ServiceResponseItem:
-      title: ServiceResponseItem
       properties:
         data:
           type: object
           $ref: '#/components/schemas/ServiceResponseCore'
     ServiceResponseList:
-      title: ServiceResponseList
       properties:
         data:
           type: array
@@ -367,6 +359,7 @@ components:
             type: object
             $ref: '#/components/schemas/ServiceResponseCore'
     Template:
+      type: object
       description: 'payload for POST /service/<uuid:service_id>/template'
       nullable: false
       properties:
@@ -411,32 +404,27 @@ components:
         - content
         - service
         - created_by
-      title: Template
-      type: object
     SMSTemplateRequest:
-      title: SMSTemplateRequest
+      type: object
       description: 'POST /service/<uuid:service_id>/template'
       nullable: false
       allOf:
         - $ref: '#/components/schemas/Template'
-      type: object
       properties:
         subject:
           type: string
     EmailOrLetterTemplateRequest:
-      title: EmailOrLetterTemplateRequest
+      type: object
       description: 'payload for POST /service/<uuid:service_id>/template'
       nullable: false
       allOf:
         - $ref: '#/components/schemas/Template'
-      type: object
       required:
         - subject
       properties:
         subject:
           type: string
     TemplateResponseCore:
-      title: TemplateResponseCore
       type: object
       allOf:
         - $ref: '#/components/schemas/Template'
@@ -478,14 +466,12 @@ components:
         version:
           type: number
     TemplateResponseItem:
-      title: TemplateResponseItem
       type: object
       properties:
         data:
           type: object
           $ref: '#/components/schemas/TemplateResponseCore'
     TemplateResponseList:
-      title: TemplateResponseList
       type: object
       properties:
         data:
