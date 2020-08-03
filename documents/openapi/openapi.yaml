@@ -1,7 +1,30 @@
 openapi: 3.0.0
 info:
   title: VA Notify API Documentation
-  description: This documents the API schemas for consumption by internal VA developers.
+  description: "This documents the API schemas for consumption by internal VA developers.<br />
+  <h1>Authorisation header</h1>
+  You must include an authorisation header that is encoded using JSON Web Tokens.
+  JSON Web Tokens have a standard header and a payload. The header consists of:
+  <br /><code>
+  <br />&nbsp;&nbsp;{
+  <br />&nbsp;&nbsp;&nbsp;&nbsp;'type': 'JWT',
+  <br />&nbsp;&nbsp;&nbsp;&nbsp;'alg': 'HS256'
+  <br />&nbsp;&nbsp;}
+  </code>
+  <p>
+  The payload consists of:
+  <pre><code>
+  {
+    'iss': '26785a09-ab16-4eb0-8407-a37497a57506',
+    'iat': 1568818578
+  }
+  </code></pre>
+  </p>
+  <p>
+    Refer to the <a href='https://jwt.io/'>JSON Web Tokens website</a> for more information
+    on encoding your authorisation header.
+  </p>
+  "
   version: 1.0.0
   contact:
     name: VA Notify team
