@@ -126,14 +126,34 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/OrganisationResponseCore'
+              properties:
+                active:
+                  nullable: true
+                  type: boolean
+                crown:
+                  nullable: true
+                  type: boolean
+                name:
+                  nullable: true
+                  type: string
+                organisation_type:
+                  nullable: false
+                  type: string
+                  enum:
+                    - other
       responses:
-        200:
+        204:
           description: organization update was successful
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrganisationResponseCore'
+        404:
+          description: organization not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
   /user:
     post:
       summary: Create a user
