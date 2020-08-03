@@ -9,6 +9,12 @@ COPY requirements.txt /app/requirements.txt
 WORKDIR /app
 RUN pip install -r requirements.txt
 
+RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
+COPY ./certs/VA-Internal-S2-RCA1-v1.crt /usr/local/share/ca-certificates/VA-Internal-S2-RCA1-v1.crt
+RUN update-ca-certificates
+
+ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+
 COPY . /app
 RUN make generate-version-file
 ENV PORT=6011
