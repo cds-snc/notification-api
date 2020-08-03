@@ -89,7 +89,7 @@ paths:
                 $ref: '#/components/schemas/OrganisationResponse'
   /organisations/{organisation_id}/:
     get:
-      summary: find organization by id
+      summary: Find organisation by id
       tags:
         - organisation
       parameters:
@@ -100,16 +100,16 @@ paths:
             format: uuid
           required: true
           allowEmptyValue: false
-          description: Organization identifier
+          description: Organisation identifier
       responses:
         200:
-          description: OK indicates that organization was found
+          description: OK indicates that organisation was found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrganisationResponseCore'
     post:
-      summary: update an organization
+      summary: Update an organization
       tags:
         - organisation
       parameters:
@@ -122,6 +122,7 @@ paths:
           allowEmptyValue: false
           description: Organization identifier
       requestBody:
+        description: Include values in the request body to update them
         required: true
         content:
           application/json:
@@ -202,6 +203,7 @@ paths:
           allowEmptyValue: false
           description: User identifier
       requestBody:
+        description: Include values in the request body to update them
         required: true
         content:
           application/json:
@@ -279,6 +281,36 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Service'
+  /service/{service_id}:
+    post:
+      summary: Update a service
+      tags:
+        - service
+      parameters:
+        - in: path
+          name: 'service_id'
+          schema:
+            type: integer
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: Service identifier
+      security:
+        - bearerAuth: []
+      requestBody:
+        description: Include values in the request body to update them
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Service'
+      responses:
+        '201':
+          description: A service was successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
   '/service/{service_id}/template':
     get:
       summary: Get all existing templates for a service
@@ -661,6 +693,7 @@ components:
       properties:
         active:
           type: boolean
+          nullable: false
         all_template_folders:
           type: array
           items:
@@ -672,24 +705,30 @@ components:
             format: uuid
         consent_to_research:
           type: boolean
+          nullable: true
         contact_link:
           type: string
+          nullable: true
         count_as_live:
           type: boolean
+          nullable: false
         created_by:
           type: string
           format: uuid
         crown:
           type: boolean
+          nullable: true
         email_branding:
           type: string
           format: uuid
         email_from:
           type: string
           format: email
+          nullable: false
         go_live_at:
           type: string
           format: datetime
+          nullable: true
         go_live_user:
           type: string
           format: uuid
@@ -718,8 +757,10 @@ components:
           type: string
         message_limit:
           type: number
+          nullable: false
         name:
           type: string
+          nullable: false
         organisation:
           type: string
           format: uuid
@@ -740,12 +781,16 @@ components:
               - schedule_notifications
         prefix_sms:
           type: boolean
+          nullable:  false
         rate_limit:
           type: number
+          nullable: false
         research_mode:
           type: boolean
+          nullable: false
         restricted:
           type: boolean
+          nullable: false
         sending_domain:
           type: string
           nullable: true
@@ -760,6 +805,7 @@ components:
             type: string
         smtp_user:
           type: string
+          nullable: true
         users:
           type: array
           items:
