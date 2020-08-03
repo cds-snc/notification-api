@@ -444,8 +444,16 @@ components:
       properties:
         message:
           type: string
+          nullable: false
         result:
           type: string
+          nullable: false
+        status_code:
+          type: integer
+          nullable: true
+      required:
+        - message
+        - result
     OrganisationResponseCore:
       type: object
       properties:
