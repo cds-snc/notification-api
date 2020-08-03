@@ -92,6 +92,8 @@ paths:
       summary: Find organisation by id
       tags:
         - organisation
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: organisation_id
@@ -112,6 +114,8 @@ paths:
       summary: Update an organization
       tags:
         - organisation
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: organisation_id
@@ -160,6 +164,8 @@ paths:
       summary: Create a user
       tags:
         - user
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -179,6 +185,8 @@ paths:
       summary: Get a list of all users
       tags:
         - user
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: Successful response for getting all users
@@ -193,6 +201,8 @@ paths:
       summary: Update a user
       tags:
         - user
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: 'user_id'
@@ -316,6 +326,8 @@ paths:
       summary: Get all existing templates for a service
       tags:
         - template
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: 'service_id'
@@ -338,6 +350,8 @@ paths:
       summary: Create a template for an existing service
       tags:
         - template
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: 'service_id'
@@ -365,6 +379,8 @@ paths:
       summary: Get an existing template for a service
       tags:
         - template
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: 'service_id'
@@ -393,6 +409,8 @@ paths:
       summary: Update an existing template
       tags:
         - template
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: 'service_id'
@@ -428,6 +446,8 @@ paths:
       summary: Send a notification
       tags:
         - notification
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: 'notification_type'
