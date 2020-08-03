@@ -3,25 +3,26 @@ info:
   title: VA Notify API Documentation
   description: "This documents the API schemas for consumption by internal VA developers.<br />
   <h1>Authorisation header</h1>
-  You must include an authorisation header that is encoded using JSON Web Tokens.
+  <p>You must include an authorisation header that is encoded using JSON Web Tokens.
   JSON Web Tokens have a standard header and a payload. The header consists of:
-  <br /><code>
-  <br />&nbsp;&nbsp;{
-  <br />&nbsp;&nbsp;&nbsp;&nbsp;'type': 'JWT',
-  <br />&nbsp;&nbsp;&nbsp;&nbsp;'alg': 'HS256'
-  <br />&nbsp;&nbsp;}
-  </code>
-  <p>
-  The payload consists of:
   <pre><code>
-  {
-    'iss': '26785a09-ab16-4eb0-8407-a37497a57506',
-    'iat': 1568818578
-  }
+  {\n
+  &nbsp;&nbsp;&nbsp;&nbsp;&quot;type&quot;: &quot;JWT&quot;,\n
+  &nbsp;&nbsp;&nbsp;&nbsp;&quot;alg&quot;: &quot;HS256&quot;\n
+  &nbsp;}
   </code></pre>
   </p>
   <p>
-    Refer to the <a href='https://jwt.io/'>JSON Web Tokens website</a> for more information
+  The payload consists of:
+  <pre><code>
+  {\n
+  &nbsp;&nbsp;&nbsp;&nbsp;&quot;iss&quot;: &quot;26785a09-ab16-4eb0-8407-a37497a57506&quot;,\n
+  &nbsp;&nbsp;&nbsp;&nbsp;&quot;iat&quot;: 1568818578\n
+  &nbsp;}
+  </code></pre>
+  </p>
+  <p>
+    Refer to the <a href='https://jwt.io/' target='_blank'>JSON Web Tokens website</a> for more information
     on encoding your authorisation header.
   </p>
   "
