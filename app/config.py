@@ -383,8 +383,7 @@ class Config(object):
         verify_origin=lambda x: True)
 
     # Feature flags
-    GOVDELIVERY_EMAIL_CLIENT_ENABLED = False
-
+    GOVDELIVERY_EMAIL_CLIENT_ENABLED = True
     API_RATE_LIMIT_ENABLED = False
     API_MESSAGE_LIMIT_ENABLED = False
 
@@ -425,9 +424,6 @@ class Development(Config):
         Config.CELERY_QUEUES.append(
             Queue(queue, Exchange('default'), routing_key=queue)
         )
-
-    # Feature flags
-    GOVDELIVERY_EMAIL_CLIENT_ENABLED = True
 
 
 class Test(Development):
@@ -471,9 +467,6 @@ class Test(Development):
     TWILIO_INBOUND_SMS_USERNAMES = '["username"]'
     TWILIO_INBOUND_SMS_PASSWORDS = '["password"]'
 
-    # Feature flags
-    GOVDELIVERY_EMAIL_CLIENT_ENABLED = True
-
 
 class Production(Config):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "public.govdelivery.com")
@@ -489,9 +482,6 @@ class Production(Config):
     PERFORMANCE_PLATFORM_ENABLED = False
     CHECK_PROXY_HEADER = False
     CRONITOR_ENABLED = False
-
-    # Feature flags
-    GOVDELIVERY_EMAIL_CLIENT_ENABLED = False
 
 
 configs = {

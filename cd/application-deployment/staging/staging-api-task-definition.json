@@ -6,8 +6,6 @@
     {
       "name": "notification-api",
       "image": "{will-be-replaced-by-ci}",
-      "cpu": 512,
-      "memory": 1024,
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
@@ -54,8 +52,16 @@
           "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/staging/notification-api/twilio/from-number"
         },
         {
+          "name": "GRANICUS_TOKEN",
+          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/staging/notification-api/granicus/token"
+        },
+        {
           "name": "SQLALCHEMY_DATABASE_URI",
           "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/staging/notification-api/database/uri"
+        },
+        {
+          "name": "API_HOST_NAME",
+          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/staging/notification-api/api-host-name"
         },
         {
           "name": "AWS_ACCESS_KEY_ID",
