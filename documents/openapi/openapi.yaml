@@ -443,6 +443,8 @@ paths:
                 $ref: '#/components/schemas/Template'
   /service/{service_id}/api-key:
     post:
+      security:
+        - bearerAuth: []
       tags:
         - service
       summary: create API key for service
@@ -483,6 +485,95 @@ paths:
                 format: uuid
                 nullable: false
                 title: data
+
+  /service/{service_id}/api-key/revoke/{api_key_id}:
+    post:
+      security:
+        - bearerAuth: []
+      tags:
+        - service
+      summary: Revoke API key so no client can use it
+      parameters:
+        - in: path
+          name: service_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: service identifier
+        - in: path
+          name: api_key_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: API key identifier
+      responses:
+        202:
+          description: revoke the API key
+
+  /service/{service_id}/api-keys:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - service
+      summary: Get API keys for a service
+      parameters:
+        - in: path
+          name: service_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: service identifier
+      responses:
+        200:
+          description: array of API keys for the service
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/APIKey'
+  /service/{service_id}/api-keys/{key_id}:
+    get:
+      security:
+        - bearerAuth: []
+      tags:
+        - service
+      summary: Get API keys for a service
+      description: "Return api key that is not revoked, for the service using the API
+                    key identifier"
+      parameters:
+        - in: path
+          name: service_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: service identifier
+        - in: path
+          name: key_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: API key identifier
+      responses:
+        200:
+          description: array of API keys for the service
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/APIKey'
 
   /v2/notifications/{notification_type}:
     post:
@@ -1052,6 +1143,33 @@ components:
         - id
         - uri
         - template
+    APIKey:
+      type: object
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+          format: uuid
+        expiry_date:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        key_type:
+          type: string
+          enum:
+            - normal
+            - team
+        name:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+        version:
+          type: integer
   securitySchemes:
     bearerAuth:
       type: http
