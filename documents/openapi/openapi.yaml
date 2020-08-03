@@ -441,6 +441,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Template'
+  /service/{service_id}/api-key:
+    post:
+      tags:
+        - service
+      summary: create API key for service
+      parameters:
+        - in: path
+          name: service_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: service identifier
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                name:
+                  description: name of API key
+                  type: string
+                created_by:
+                  description: the user who creates this key
+                  type: string
+                  format: uuid
+                key_type:
+                  description: type of key
+                  type: string
+                  enum:
+                    - normal
+                    - team
+      responses:
+        201:
+          description: the secret key
+          content:
+            application/json:
+              schema:
+                type: string
+                format: uuid
+                nullable: false
+                title: data
+
   /v2/notifications/{notification_type}:
     post:
       summary: Send a notification
