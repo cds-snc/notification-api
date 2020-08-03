@@ -119,6 +119,51 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/User'
+  /{user_id}:
+    post:
+      summary: Update a user
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: 'user_id'
+          schema:
+            type: integer
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: User identifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                name:
+                  type: string
+                  nullable: false
+                email_address:
+                  type: string
+                  nullable: false
+                mobile_number:
+                  type: string
+                  nullable: false
+                auth_type:
+                  type: string
+                  format: auth type
+                  nullable: false
+                  enum:
+                    - sms_auth
+                    - email_auth
+      responses:
+        '201':
+          description: A user was successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+                allOf:
+                  - $ref: '#/components/schemas/User'
   /service:
     post:
       summary: Create a service
