@@ -87,6 +87,53 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrganisationResponse'
+  /organisations/{organisation_id}/:
+    get:
+      summary: find organization by id
+      tags:
+        - organisation
+      parameters:
+        - in: path
+          name: organisation_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: Organization identifier
+      responses:
+        200:
+          description: OK indicates that organization was found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganisationResponseCore'
+    post:
+      summary: update an organization
+      tags:
+        - organisation
+      parameters:
+        - in: path
+          name: organisation_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: Organization identifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganisationResponseCore'
+      responses:
+        200:
+          description: organization update was successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganisationResponseCore'
   /user:
     post:
       summary: Create a user
