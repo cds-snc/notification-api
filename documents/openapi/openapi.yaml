@@ -623,6 +623,28 @@ paths:
                           - from_number
                     required:
                       - content
+  /v2/notifications/{notification_id}:
+    get:
+      summary: Get notification
+      tags:
+        - notification
+      parameters:
+        - in: path
+          name: notification_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: notification identifier
+      responses:
+        200:
+          description: notification is found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationWithStatus'
+
 components:
   schemas:
     ErrorMessage:
@@ -1143,6 +1165,95 @@ components:
         - id
         - uri
         - template
+    NotificationWithStatus:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          nullable: false
+        body:
+          type: string
+          nullable: false
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: false
+        created_by_name:
+          description: the user who requested for this notification
+          type: string
+          nullable: false
+        email_address:
+          type: string
+          format: email
+          nullable: true
+        line_1:
+          type: string
+          nullable: true
+        line_2:
+          type: string
+          nullable: true
+        line_3:
+          type: string
+          nullable: true
+        line_4:
+          type: string
+          nullable: true
+        line_5:
+          type: string
+          nullable: true
+        line_6:
+          type: string
+          nullable: true
+        phone_number:
+          type: string
+          pattern: '^\+\d{9}$'
+          example:
+            '+16502532222'
+        postage:
+          type: string
+        postcode:
+          type: string
+        reference:
+          type: string
+        scheduled_for:
+          type: string
+          format: date-time
+          nullable: true
+        sent_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          nullable: false
+          enum:
+            - created
+        subject:
+          type: string
+          nullable: true
+        template:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              nullable: false
+            uri:
+              type: string
+              nullable: false
+            version:
+              type: integer
+              nullable: false
+            type:
+              type: string
+              enum:
+                - sms
+                - email
     APIKey:
       type: object
       properties:
