@@ -674,7 +674,7 @@ class ServiceSafelist(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), index=True, nullable=False)
-    service = db.relationship('Service', backref='whitelist')
+    service = db.relationship('Service', backref='safelist')
     recipient_type = db.Column(safelist_recipient_types, nullable=False)
     recipient = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)

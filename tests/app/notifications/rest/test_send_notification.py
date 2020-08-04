@@ -871,7 +871,7 @@ def test_should_not_send_notification_to_non_safelist_recipient_in_trial_mode(
     apply_async = mocker.patch('app.celery.provider_tasks.deliver_{}.apply_async'.format(notification_type))
     template = _create_sample_template(notify_db, notify_db_session, service=service)
     assert service_safelist.service_id == service.id
-    assert to not in [member.recipient for member in service.whitelist]
+    assert to not in [member.recipient for member in service.safelist]
 
     create_sample_notification(notify_db, notify_db_session, template=template, service=service)
 
@@ -932,7 +932,7 @@ def test_should_send_notification_to_safelist_recipient(
                                                           service=service, email_address=to)
 
     assert service_safelist.service_id == service.id
-    assert to in [member.recipient for member in service.whitelist]
+    assert to in [member.recipient for member in service.safelist]
 
     create_sample_notification(notify_db, notify_db_session, template=template, service=service)
 
