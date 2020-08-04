@@ -49,8 +49,6 @@ paths:
       summary: Get list of all organisations
       tags:
         - organisation
-      security:
-        - adminAuth: []
       responses:
         '200':
           description: OK
@@ -101,8 +99,6 @@ paths:
       summary: Find organisation by id
       tags:
         - organisation
-      security:
-        - adminAuth: []
       parameters:
         - in: path
           name: organisation_id
@@ -123,8 +119,6 @@ paths:
       summary: Update an organization
       tags:
         - organisation
-      security:
-        - adminAuth: []
       parameters:
         - in: path
           name: organisation_id
@@ -173,8 +167,6 @@ paths:
       summary: Create a user
       tags:
         - user
-      security:
-        - adminAuth: []
       requestBody:
         required: true
         content:
@@ -194,8 +186,6 @@ paths:
       summary: Get a list of all users
       tags:
         - user
-      security:
-        - adminAuth: []
       responses:
         '200':
           description: OK
@@ -210,8 +200,6 @@ paths:
       summary: Update a user
       tags:
         - user
-      security:
-        - adminAuth: []
       parameters:
         - in: path
           name: 'user_id'
@@ -258,8 +246,6 @@ paths:
       summary: Create a service
       tags:
         - service
-      security:
-        - adminAuth: []
       requestBody:
         required: true
         content:
@@ -289,8 +275,6 @@ paths:
       summary: Get all services
       tags:
         - service
-      security:
-        - adminAuth: []
       responses:
         '200':
           description: OK
@@ -314,8 +298,6 @@ paths:
           required: true
           allowEmptyValue: false
           description: Service identifier
-      security:
-        - adminAuth: []
       requestBody:
         description: Include values in the request body to update them
         required: true
@@ -335,8 +317,6 @@ paths:
       summary: Get all templates for a service
       tags:
         - template
-      security:
-        - adminAuth: []
       parameters:
         - in: path
           name: 'service_id'
@@ -359,8 +339,6 @@ paths:
       summary: Create a template for a service
       tags:
         - template
-      security:
-        - adminAuth: []
       parameters:
         - in: path
           name: 'service_id'
@@ -388,8 +366,6 @@ paths:
       summary: Get a template for a service
       tags:
         - template
-      security:
-        - adminAuth: []
       parameters:
         - in: path
           name: 'service_id'
@@ -418,8 +394,6 @@ paths:
       summary: Update a template
       tags:
         - template
-      security:
-        - adminAuth: []
       parameters:
         - in: path
           name: 'service_id'
@@ -452,8 +426,6 @@ paths:
                 $ref: '#/components/schemas/Template'
   /service/{service_id}/api-key:
     post:
-      security:
-        - adminAuth: []
       tags:
         - service
       summary: Create API key for service
@@ -494,8 +466,6 @@ paths:
                 nullable: false
   /service/{service_id}/api-key/revoke/{api_key_id}:
     post:
-      security:
-        - adminAuth: []
       tags:
         - service
       summary: Revoke API key
@@ -521,8 +491,6 @@ paths:
           description: OK
   /service/{service_id}/api-keys:
     get:
-      security:
-        - adminAuth: []
       tags:
         - service
       summary: Get API keys for a service
@@ -546,8 +514,6 @@ paths:
                   $ref: '#/components/schemas/APIKey'
   /service/{service_id}/api-keys/{key_id}:
     get:
-      security:
-        - adminAuth: []
       tags:
         - service
       summary: Get a specific API key for a service
@@ -582,8 +548,6 @@ paths:
       summary: Send a notification
       tags:
         - notification
-      security:
-        - adminAuth: []
       parameters:
         - in: path
           name: 'notification_type'
@@ -630,8 +594,6 @@ paths:
       summary: Get notification
       tags:
         - notification
-      security:
-        - adminAuth: []
       parameters:
         - in: path
           name: notification_id
