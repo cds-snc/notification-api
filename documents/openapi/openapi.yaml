@@ -546,6 +546,8 @@ paths:
   /v2/notifications/{notification_type}:
     post:
       summary: Send a notification
+      security:
+        - notifyAuth: []
       tags:
         - notification
       parameters:
@@ -592,6 +594,8 @@ paths:
   /v2/notifications/{notification_id}:
     get:
       summary: Get notification
+      security:
+        - notifyAuth: []
       tags:
         - notification
       parameters:
