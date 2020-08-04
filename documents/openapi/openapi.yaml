@@ -50,7 +50,7 @@ paths:
       tags:
         - organisation
       security:
-        - bearerAuth: []
+        - adminAuth: []
       responses:
         '200':
           description: Successful OK response of all organisations
@@ -65,7 +65,7 @@ paths:
       tags:
         - organisation
       security:
-        - bearerAuth: []
+        - adminAuth: []
       requestBody:
         required: true
         content:
@@ -104,7 +104,7 @@ paths:
       tags:
         - organisation
       security:
-        - bearerAuth: []
+        - adminAuth: []
       parameters:
         - in: path
           name: organisation_id
@@ -126,7 +126,7 @@ paths:
       tags:
         - organisation
       security:
-        - bearerAuth: []
+        - adminAuth: []
       parameters:
         - in: path
           name: organisation_id
@@ -176,7 +176,7 @@ paths:
       tags:
         - user
       security:
-        - bearerAuth: []
+        - adminAuth: []
       requestBody:
         required: true
         content:
@@ -197,7 +197,7 @@ paths:
       tags:
         - user
       security:
-        - bearerAuth: []
+        - adminAuth: []
       responses:
         '200':
           description: Successful response for getting all users
@@ -213,7 +213,7 @@ paths:
       tags:
         - user
       security:
-        - bearerAuth: []
+        - adminAuth: []
       parameters:
         - in: path
           name: 'user_id'
@@ -261,7 +261,7 @@ paths:
       tags:
         - service
       security:
-        - bearerAuth: []
+        - adminAuth: []
       requestBody:
         required: true
         content:
@@ -292,7 +292,7 @@ paths:
       tags:
         - service
       security:
-        - bearerAuth: []
+        - adminAuth: []
       responses:
         '200':
           description: Successful response for getting all services
@@ -317,7 +317,7 @@ paths:
           allowEmptyValue: false
           description: Service identifier
       security:
-        - bearerAuth: []
+        - adminAuth: []
       requestBody:
         description: Include values in the request body to update them
         required: true
@@ -338,7 +338,7 @@ paths:
       tags:
         - template
       security:
-        - bearerAuth: []
+        - adminAuth: []
       parameters:
         - in: path
           name: 'service_id'
@@ -362,7 +362,7 @@ paths:
       tags:
         - template
       security:
-        - bearerAuth: []
+        - adminAuth: []
       parameters:
         - in: path
           name: 'service_id'
@@ -391,7 +391,7 @@ paths:
       tags:
         - template
       security:
-        - bearerAuth: []
+        - adminAuth: []
       parameters:
         - in: path
           name: 'service_id'
@@ -421,7 +421,7 @@ paths:
       tags:
         - template
       security:
-        - bearerAuth: []
+        - adminAuth: []
       parameters:
         - in: path
           name: 'service_id'
@@ -455,7 +455,7 @@ paths:
   /service/{service_id}/api-key:
     post:
       security:
-        - bearerAuth: []
+        - adminAuth: []
       tags:
         - service
       summary: Create API key for service
@@ -497,7 +497,7 @@ paths:
   /service/{service_id}/api-key/revoke/{api_key_id}:
     post:
       security:
-        - bearerAuth: []
+        - adminAuth: []
       tags:
         - service
       summary: Revoke API key
@@ -524,7 +524,7 @@ paths:
   /service/{service_id}/api-keys:
     get:
       security:
-        - bearerAuth: []
+        - adminAuth: []
       tags:
         - service
       summary: Get API keys for a service
@@ -549,7 +549,7 @@ paths:
   /service/{service_id}/api-keys/{key_id}:
     get:
       security:
-        - bearerAuth: []
+        - adminAuth: []
       tags:
         - service
       summary: Get a specific API key for a service
@@ -585,7 +585,7 @@ paths:
       tags:
         - notification
       security:
-        - bearerAuth: []
+        - adminAuth: []
       parameters:
         - in: path
           name: 'notification_type'
@@ -1313,7 +1313,13 @@ components:
         version:
           type: integer
   securitySchemes:
-    bearerAuth:
+    adminAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    notifyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - adminAuth: []
