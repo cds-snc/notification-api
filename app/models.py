@@ -670,7 +670,7 @@ safelist_recipient_types = db.Enum(*SAFELIST_RECIPIENT_TYPE, name='recipient_typ
 
 
 class ServiceSafelist(db.Model):
-    __tablename__ = 'service_whitelist'
+    __tablename__ = 'service_safelist'
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), index=True, nullable=False)
