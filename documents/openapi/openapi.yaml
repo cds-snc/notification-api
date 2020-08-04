@@ -1186,7 +1186,7 @@ components:
         created_by_name:
           description: the user who requested for this notification
           type: string
-          nullable: false
+          nullable: true
         email_address:
           type: string
           format: email
@@ -1212,14 +1212,17 @@ components:
         phone_number:
           type: string
           pattern: '^\+\d{9}$'
+          nullable: true
           example:
             '+16502532222'
         postage:
           type: string
         postcode:
           type: string
+          nullable: true
         reference:
           type: string
+          nullable: true
         scheduled_for:
           type: string
           format: date-time
@@ -1254,6 +1257,29 @@ components:
               enum:
                 - sms
                 - email
+          nullable: false
+      required:
+        - body
+        - completed_at
+        - created_at
+        - created_by_name
+        - email_address
+        - id
+        - line_1
+        - line_2
+        - line_3
+        - line_4
+        - line_5
+        - line_6
+        - phone_number
+        - postage
+        - postcode
+        - reference
+        - scheduled_for
+        - sent_at
+        - status
+        - subject
+        - template
     APIKey:
       type: object
       properties:
