@@ -53,7 +53,7 @@ paths:
         - adminAuth: []
       responses:
         '200':
-          description: Successful OK response of all organisations
+          description: OK
           content:
             application/json:
               schema:
@@ -64,8 +64,6 @@ paths:
       summary: Create an organisation
       tags:
         - organisation
-      security:
-        - adminAuth: []
       requestBody:
         required: true
         content:
@@ -93,7 +91,7 @@ paths:
               type: object
       responses:
         '201':
-          description: Successful CREATED response of an organisation
+          description: OK
           content:
             application/json:
               schema:
@@ -116,7 +114,7 @@ paths:
           description: Organisation identifier
       responses:
         200:
-          description: OK indicates that organisation was found
+          description: OK
           content:
             application/json:
               schema:
@@ -159,13 +157,13 @@ paths:
                     - other
       responses:
         204:
-          description: organization update was successful
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Organisation'
         404:
-          description: organization not found
+          description: Organisation not found
           content:
             application/json:
               schema:
@@ -185,7 +183,7 @@ paths:
               $ref: '#/components/schemas/CreateUserRequest'
       responses:
         '201':
-          description: A user was successfully created
+          description: OK
           content:
             application/json:
               schema:
@@ -200,7 +198,7 @@ paths:
         - adminAuth: []
       responses:
         '200':
-          description: Successful response for getting all users
+          description: OK
           content:
             application/json:
               schema:
@@ -248,7 +246,7 @@ paths:
                     - email_auth
       responses:
         '201':
-          description: A user was successfully updated
+          description: OK
           content:
             application/json:
               schema:
@@ -270,7 +268,7 @@ paths:
               $ref: '#/components/schemas/CreateServiceRequest'
       responses:
         '201':
-          description: A service was successfully created
+          description: OK
           content:
             application/json:
               schema:
@@ -295,7 +293,7 @@ paths:
         - adminAuth: []
       responses:
         '200':
-          description: Successful response for getting all services
+          description: OK
           content:
             application/json:
               schema:
@@ -327,7 +325,7 @@ paths:
               $ref: '#/components/schemas/Service'
       responses:
         '201':
-          description: A service was successfully updated
+          description: OK
           content:
             application/json:
               schema:
@@ -350,7 +348,7 @@ paths:
           description: Service identifier
       responses:
         '200':
-          description: Successful response for getting all templates for a service
+          description: OK
           content:
             application/json:
               schema:
@@ -380,7 +378,7 @@ paths:
                 $ref: '#/components/schemas/CreateTemplateRequest'
       responses:
         '201':
-          description: Successful response for creating a template
+          description: OK
           content:
             application/json:
               schema:
@@ -411,7 +409,7 @@ paths:
           description: Template identifier
       responses:
         '200':
-          description: Successful response for getting templates
+          description: OK
           content:
             application/json:
               schema:
@@ -447,7 +445,7 @@ paths:
               $ref: '#/components/schemas/CreateTemplateRequest'
       responses:
         '200':
-          description: Response for successful update of a template
+          description: OK
           content:
             application/json:
               schema:
@@ -486,7 +484,7 @@ paths:
                     - team
       responses:
         201:
-          description: Successfully created an API Key
+          description: OK
           content:
             application/json:
               schema:
@@ -520,7 +518,7 @@ paths:
           description: API key identifier
       responses:
         202:
-          description: revoke the API key
+          description: OK
   /service/{service_id}/api-keys:
     get:
       security:
@@ -539,7 +537,7 @@ paths:
           description: service identifier
       responses:
         200:
-          description: array of API keys for the service
+          description: OK
           content:
             application/json:
               schema:
@@ -572,7 +570,7 @@ paths:
           description: API key identifier
       responses:
         200:
-          description: array of API keys for the service
+          description: OK
           content:
             application/json:
               schema:
@@ -607,7 +605,7 @@ paths:
                 - $ref: '#/components/schemas/EmailNotificationRequest'
       responses:
         '200':
-          description: Details of queued notification.
+          description: OK
           content:
             application/json:
               schema:
@@ -633,7 +631,7 @@ paths:
       tags:
         - notification
       security:
-        - bearerAuth: []
+        - adminAuth: []
       parameters:
         - in: path
           name: notification_id
@@ -645,7 +643,7 @@ paths:
           description: Notification identifier
       responses:
         200:
-          description: Successful response for getting notification
+          description: OK
           content:
             application/json:
               schema:
