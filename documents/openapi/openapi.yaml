@@ -59,7 +59,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/OrganisationResponseCore'
+                  $ref: '#/components/schemas/Organisation'
     post:
       summary: Create an organisation
       tags:
@@ -120,7 +120,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrganisationResponseCore'
+                $ref: '#/components/schemas/Organisation'
     post:
       summary: Update an organization
       tags:
@@ -163,7 +163,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrganisationResponseCore'
+                $ref: '#/components/schemas/Organisation'
         404:
           description: organization not found
           content:
@@ -334,7 +334,7 @@ paths:
                 $ref: '#/components/schemas/Service'
   '/service/{service_id}/template':
     get:
-      summary: Get all existing templates for a service
+      summary: Get all templates for a service
       tags:
         - template
       security:
@@ -358,7 +358,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/Template'
     post:
-      summary: Create a template for an existing service
+      summary: Create a template for a service
       tags:
         - template
       security:
@@ -387,7 +387,7 @@ paths:
                 $ref: '#/components/schemas/Template'
   '/service/{service_id}/template/{template_id}':
     get:
-      summary: Get an existing template for a service
+      summary: Get a template for a service
       tags:
         - template
       security:
@@ -417,7 +417,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Template'
     post:
-      summary: Update an existing template
+      summary: Update a template
       tags:
         - template
       security:
@@ -447,7 +447,7 @@ paths:
               $ref: '#/components/schemas/CreateTemplateRequest'
       responses:
         '200':
-          description: Response for successful update of an existing template
+          description: Response for successful update of a template
           content:
             application/json:
               schema:
@@ -458,7 +458,7 @@ paths:
         - bearerAuth: []
       tags:
         - service
-      summary: create API key for service
+      summary: Create API key for service
       parameters:
         - in: path
           name: service_id
@@ -467,43 +467,40 @@ paths:
             format: uuid
           required: true
           allowEmptyValue: false
-          description: service identifier
+          description: Service identifier
       requestBody:
         content:
           application/json:
             schema:
               properties:
                 name:
-                  description: name of API key
                   type: string
                 created_by:
-                  description: the user who creates this key
+                  description: User who creates this key
                   type: string
                   format: uuid
                 key_type:
-                  description: type of key
                   type: string
                   enum:
                     - normal
                     - team
       responses:
         201:
-          description: the secret key
+          description: Successfully created an API Key
           content:
             application/json:
               schema:
+                description: The API Key
                 type: string
                 format: uuid
                 nullable: false
-                title: data
-
   /service/{service_id}/api-key/revoke/{api_key_id}:
     post:
       security:
         - bearerAuth: []
       tags:
         - service
-      summary: Revoke API key so no client can use it
+      summary: Revoke API key
       parameters:
         - in: path
           name: service_id
@@ -524,7 +521,6 @@ paths:
       responses:
         202:
           description: revoke the API key
-
   /service/{service_id}/api-keys:
     get:
       security:
@@ -556,9 +552,7 @@ paths:
         - bearerAuth: []
       tags:
         - service
-      summary: Get API keys for a service
-      description: "Return api key that is not revoked, for the service using the API
-                    key identifier"
+      summary: Get a specific API key for a service
       parameters:
         - in: path
           name: service_id
@@ -567,7 +561,7 @@ paths:
             format: uuid
           required: true
           allowEmptyValue: false
-          description: service identifier
+          description: Service identifier
         - in: path
           name: key_id
           schema:
@@ -585,7 +579,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/APIKey'
-
   /v2/notifications/{notification_type}:
     post:
       summary: Send a notification
@@ -639,6 +632,8 @@ paths:
       summary: Get notification
       tags:
         - notification
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: notification_id
@@ -647,10 +642,10 @@ paths:
             format: uuid
           required: true
           allowEmptyValue: false
-          description: notification identifier
+          description: Notification identifier
       responses:
         200:
-          description: notification is found
+          description: Successful response for getting notification
           content:
             application/json:
               schema:
@@ -673,7 +668,7 @@ components:
       required:
         - message
         - result
-    OrganisationResponseCore:
+    Organisation:
       type: object
       properties:
         active:
@@ -702,9 +697,8 @@ components:
           type: string
     OrganisationResponse:
       type: object
-      nullable: false
       allOf:
-        - $ref: '#/components/schemas/OrganisationResponseCore'
+        - $ref: '#/components/schemas/Organisation'
       properties:
         agreement_signed:
           format: datetime
@@ -832,7 +826,7 @@ components:
           type: array
           items:
             type: string
-            format: '{{service-uuid}}'
+            format: uuid
         state:
           type: boolean
     CreateServiceRequest:
