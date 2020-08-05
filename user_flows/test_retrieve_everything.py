@@ -155,6 +155,16 @@ def send_email(jwt, template_id):
     return r
 
 
+def get_notification_id(notification_response):
+    return notification_response.json()['id']
+
+
+def get_notification_status(jwt, notification_id):
+    header = {"Authorization": "Bearer " + jwt.decode("utf-8"), 'Content-Type': 'application/json'}
+    r = requests.get(notification_url + "/v2/notifications/" + notification_id, headers=header)
+    return r
+
+
 def test_email():
     organizations = get_organizations()
     assert organizations.status_code == 200
@@ -177,3 +187,13 @@ def test_email():
     service_jwt = get_service_jwt(service_key.json()["data"], service_id)
     email_response = send_email(service_jwt, template_id)
     assert email_response.status_code == 201
+    notification_id = get_notification_id(email_response)
+    time_count = 0
+    notification_status = ""
+    while notification_status != "sending" and time_count < 30:
+      notification_status_response = get_notification_status(service_jwt, notification_id)
+      assert notification_status_response.status_code == 200
+      notification_status = notification_status_response.json()['status']
+      time.sleep(1)
+      time_count = time_count + 1
+    assert notification_status == 'sending'
