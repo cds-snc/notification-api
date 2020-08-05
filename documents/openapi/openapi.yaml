@@ -592,30 +592,23 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorMessage'
+                $ref: '#/components/schemas/V2ErrorMessage'
         403:
-          $ref: '#/components/responses/AuthError'
+          $ref: '#/components/responses/AuthErr'
         404:
           description: not found
           content:
             application/json:
               schema:
-                properties:
-                  message:
-                    type: string
-                    nullable: false
-                  result:
-                    type: string
-                    nullable: false
-                required:
-                  - result
-                  - message
+                $ref: '#/components/schemas/V2ErrorMessage'
         429:
           description: Exceeded rate or send limits
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorMessage'
+                $ref: '#/components/schemas/V2ErrorMessage'
+        500:
+          $ref: '#/components/responses/InternalServerErr'
 
   /v2/notifications/{notification_id}:
     get:
@@ -645,32 +638,49 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorMessage'
+                $ref: '#/components/schemas/V2ErrorMessage'
         403:
-          $ref: '#/components/responses/AuthError'
+          $ref: '#/components/responses/AuthErr'
+        500:
+          $ref: '#/components/responses/InternalServerErr'
 
 components:
   responses:
-    AuthError:
-      description: authentication error
+    RateLimitError:
+      description: Exceeded rate limit
       content:
         application/json:
           schema:
+            $ref: '#/components/schemas/V2ErrorMessage'
+    AuthErr:
+      description: general error schema
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2ErrorMessage'
+    InternalServerErr:
+      description: general server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2ErrorMessage'
+  schemas:
+    V2ErrorMessage:
+      description: generic error message schema for V2
+      type: object
+      properties:
+        status_code:
+          type: integer
+          nullable: false
+        errors:
+          type: array
+          items:
             type: object
             properties:
-              status_code:
-                type: integer
-                nullable: false
-              errors:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    error:
-                      type: string
-                    message:
-                      type: string
-  schemas:
+              error:
+                type: string
+              message:
+                type: string
     ErrorMessage:
       type: object
       properties:
