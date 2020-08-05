@@ -640,6 +640,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotificationWithStatus'
+        400:
+          description: na
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
         403:
           $ref: '#/components/responses/AuthError'
 
