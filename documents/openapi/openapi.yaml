@@ -152,10 +152,6 @@ paths:
       responses:
         204:
           description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Organisation'
         404:
           description: Organisation not found
           content:
