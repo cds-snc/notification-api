@@ -1278,10 +1278,17 @@ components:
           type: integer
   securitySchemes:
     adminAuth:
+      description: "The admin user and secret are used to generate this authentication.  They are both defined as
+                    configuration parameters"
       type: http
       scheme: bearer
       bearerFormat: JWT
     notifyAuth:
+      description: "The format of this token is {key_name}-{iss-uuid}-{secret-key-uuid}.  When you
+                    create API key you get the secret key in the response. This secret key should be used
+                    to generate a bearer token to send notifications and enquire notification status. You can find
+                    more at <a href='https://docs.notifications.service.gov.uk/rest-api.html#headers'>Authentication
+                    headers</a>."
       type: http
       scheme: bearer
       bearerFormat: JWT
