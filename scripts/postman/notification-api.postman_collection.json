@@ -634,7 +634,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"name\": \"main service for Govdelivery\",\n    \"user_id\": \"{{user-id}}\",\n    \"organisation_id\": \"{{organization-id}}\",\n    \"message_limit\": 1000,\n    \"restricted\": false,\n    \"active\": true,\n    \"email-from\": \"{{email-from}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
+					"raw": "{\n    \"name\": \"main service for Govdelivery\",\n    \"user_id\": \"{{user-id}}\",\n    \"organisation_id\": \"{{organization-id}}\",\n    \"message_limit\": 1000,\n    \"restricted\": false,\n    \"active\": true,\n    \"email_from\": \"{{email-from}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
 					"raw": "http://{{notification-api-url}}/service",
