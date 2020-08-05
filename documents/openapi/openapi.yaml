@@ -587,6 +587,36 @@ paths:
                           - from_number
                     required:
                       - content
+        400:
+          description: notification type is not supported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        403:
+          $ref: '#/components/responses/AuthError'
+        404:
+          description: not found
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                    nullable: false
+                  result:
+                    type: string
+                    nullable: false
+                required:
+                  - result
+                  - message
+        429:
+          description: Exceeded rate or send limits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+
   /v2/notifications/{notification_id}:
     get:
       summary: Get notification
@@ -610,8 +640,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotificationWithStatus'
+        403:
+          $ref: '#/components/responses/AuthError'
 
 components:
+  responses:
+    AuthError:
+      description: authentication error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status_code:
+                type: integer
+                nullable: false
+              errors:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    error:
+                      type: string
+                    message:
+                      type: string
   schemas:
     ErrorMessage:
       type: object
