@@ -588,11 +588,7 @@ paths:
                     required:
                       - content
         400:
-          description: Notification type is not supported
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/V2ErrorMessage'
+          $ref: '#/components/responses/BadRequest'
         403:
           $ref: '#/components/responses/AuthErr'
         404:
@@ -600,13 +596,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/V2ErrorMessage'
+                $ref: '#/components/schemas/ErrorMessage'
+              example:
+                result: 'error'
+                message: 'The requested URL was not found on the server. If you entered the URL manually please check
+                your spelling and try again.'
         429:
           description: Exceeded rate or send limits
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/V2ErrorMessage'
+              example:
+                errors:
+                    - error: 'RateLimitError'
+                      message: 'Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds'
+                status_code: 429
         500:
           $ref: '#/components/responses/InternalServerErr'
 
@@ -634,11 +639,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/NotificationWithStatus'
         400:
-          description: ValidationError or BadRequestError
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/V2ErrorMessage'
+          $ref: '#/components/responses/BadRequest'
         403:
           $ref: '#/components/responses/AuthErr'
         500:
@@ -646,24 +647,45 @@ paths:
 
 components:
   responses:
-    RateLimitError:
-      description: Exceeded rate limit
+    BadRequest:
+      description: Bad Request
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/V2ErrorMessage'
+          example:
+            errors:
+              - error: 'BadRequestError'
+                message: 'sms_sender_id e925b547-8195-4ed2-83c5-0633a74d780a does not exist in database
+                                  for service id 9ffb5212-e621-45df-820d-97ee65d392ab'
+            status_code: 400
     AuthErr:
       description: Authentication Error
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/V2ErrorMessage'
+          example:
+            errors:
+              - error: 'AuthError'
+                message: 'Invalid token: service id is not the right data type'
+            status_code: 403
+
     InternalServerErr:
       description: Internal server error
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/V2ErrorMessage'
+            properties:
+              result:
+                type: string
+                nullable: false
+              message:
+                type: string
+                nullable: false
+          example:
+            result: 'error'
+            message: 'Internal server error'
   schemas:
     V2ErrorMessage:
       description: Generic error message format for V2
@@ -672,8 +694,6 @@ components:
         status_code:
           type: integer
           nullable: false
-          example:
-            400
         errors:
           type: array
           items:
