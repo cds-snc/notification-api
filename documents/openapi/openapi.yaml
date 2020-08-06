@@ -588,7 +588,7 @@ paths:
                     required:
                       - content
         400:
-          description: notification type is not supported
+          description: Notification type is not supported
           content:
             application/json:
               schema:
@@ -596,7 +596,7 @@ paths:
         403:
           $ref: '#/components/responses/AuthErr'
         404:
-          description: not found
+          description: Not Found
           content:
             application/json:
               schema:
@@ -634,7 +634,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/NotificationWithStatus'
         400:
-          description: na
+          description: ValidationError or BadRequestError
           content:
             application/json:
               schema:
@@ -653,25 +653,27 @@ components:
           schema:
             $ref: '#/components/schemas/V2ErrorMessage'
     AuthErr:
-      description: general error schema
+      description: Authentication Error
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/V2ErrorMessage'
     InternalServerErr:
-      description: general server error
+      description: Internal server error
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/V2ErrorMessage'
   schemas:
     V2ErrorMessage:
-      description: generic error message schema for V2
+      description: Generic error message format for V2
       type: object
       properties:
         status_code:
           type: integer
           nullable: false
+          example:
+            400
         errors:
           type: array
           items:
@@ -681,6 +683,12 @@ components:
                 type: string
               message:
                 type: string
+            required:
+              - error
+              - message
+      required:
+        - status_code
+        - errors
     ErrorMessage:
       type: object
       properties:
