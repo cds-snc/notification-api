@@ -117,7 +117,43 @@ def create_api_key(service_id, user_id):
     return r
 
 
-def test_retrieval():
+def get_api_key(service_id):
+    return get_authenticated_request("/service/" + service_id + "/api-keys")
+
+
+def get_right_api_key(get_key_response):
+    right_key = get_key_response[-1]["id"]
+    for api_key in get_key_response:
+        if api_key["name"] == "userflows" and api_key["expiry_date"] == None:
+            right_key = api_key["id"]
+    return right_key
+
+
+def revoke_key(old_key_id, service_id):
+    jwt = get_jwt()
+    header = {"Authorization": "Bearer " + jwt.decode("utf-8"), 'Content-Type': 'application/json'}
+    r = requests.post(notification_url + "/service/" + service_id + "/api-key/revoke/" + old_key_id, headers=header, data={})
+    return r
+
+
+def send_email(jwt, template_id):
+    header = {"Authorization": "Bearer " + jwt.decode("utf-8"), 'Content-Type': 'application/json'}
+    payload = json.dumps({"template_id": template_id, "email_address": "shutchin@thoughtworks.com"})
+    r = requests.post(notification_url + "/v2/notifications/email", headers=header, data=payload)
+    return r
+
+
+def get_notification_id(notification_response):
+    return notification_response.json()['id']
+
+
+def get_notification_status(jwt, notification_id):
+    header = {"Authorization": "Bearer " + jwt.decode("utf-8"), 'Content-Type': 'application/json'}
+    r = requests.get(notification_url + "/v2/notifications/" + notification_id, headers=header)
+    return r
+
+
+def test_email():
     organizations = get_organizations()
     assert organizations.status_code == 200
     services = get_services()
@@ -125,5 +161,27 @@ def test_retrieval():
     service_id = get_services_id(services.json()['data'])
     users = get_users()
     assert users.status_code == 200
+    user_id = get_user_id(users.json()['data'], service_id)
     templates = get_templates(service_id)
+    template_id = get_template_id(templates.json()['data'], service_id)
     assert templates.status_code == 200
+    old_key = get_api_key(service_id)
+    assert old_key.status_code == 200
+    old_key_id = get_right_api_key(old_key.json()["apiKeys"])
+    response = revoke_key(old_key_id, service_id)
+    assert response.status_code == 202
+    service_key = create_api_key(service_id, user_id)
+    assert service_key.status_code == 201
+    service_jwt = get_service_jwt(service_key.json()["data"], service_id)
+    email_response = send_email(service_jwt, template_id)
+    assert email_response.status_code == 201
+    notification_id = get_notification_id(email_response)
+    time_count = 0
+    notification_status = ""
+    while notification_status != "sending" and time_count < 30:
+      notification_status_response = get_notification_status(service_jwt, notification_id)
+      assert notification_status_response.status_code == 200
+      notification_status = notification_status_response.json()['status']
+      time.sleep(1)
+      time_count = time_count + 1
+    assert notification_status == 'sending'

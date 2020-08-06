@@ -1,9 +1,18 @@
 version: "3"
 services:
-  test:
+  user-flow:
     build:
       context: ..
       dockerfile: ci/Dockerfile.userflow
     environment: 
       - NOTIFICATION_SECRET
       - notification_url
+
+  daily-check:
+    build:
+      context: ..
+      dockerfile: ci/Dockerfile.userflow
+    environment: 
+      - NOTIFICATION_SECRET
+      - notification_url
+    command: ["sh", "-c", "make daily_user_flows"]

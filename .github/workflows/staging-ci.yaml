@@ -274,3 +274,34 @@ jobs:
       - name: Tag Docker Image
         run: |
           bash ./scripts/tag_docker_image.sh ${{ env.STAGING_TAG }} ${{ env.TAG }}
+
+  daily-user-flow:
+    runs-on: ubuntu-latest
+    on:
+      schedule:
+        - cron: "0 8 * * *"
+    steps:
+       - uses: actions/checkout@v2
+       - name: Configure AWS Credentials
+         uses: aws-actions/configure-aws-credentials@v1
+         with:
+           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+           aws-region: us-east-2
+           role-to-assume: arn:aws:iam::437518843863:role/notification-deploy-role
+           role-skip-session-tagging: true
+           role-duration-seconds: 900
+       - uses: actions/setup-node@v2-beta
+         with:
+           node-version: '12'
+       - name: Retrieve URL
+         run: |
+           echo "::set-env name=notification_url::$(aws ssm get-parameter --name /dev/notification-api/api-host-name | jq '.Parameter.Value' -r)"
+       - name: Retrieve Notification Secret
+         run: |
+           echo "::set-env name=NOTIFICATION_SECRET::$(aws ssm get-parameter --with-decryption --name /dev/notification-api/admin-client-secret | jq '.Parameter.Value' -r)"
+           echo "::add-mask::$NOTIFICATION_SECRET"
+       - name: Run User Flow
+         run: |
+           docker-compose -f ci/docker-compose-user-flow.yml up --build --abort-on-container-exit --force-recreate daily-check
+      

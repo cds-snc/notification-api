@@ -326,7 +326,7 @@ jobs:
           echo "::add-mask::$NOTIFICATION_SECRET"
       - name: Run User Flow
         run: |
-          docker-compose -f ci/docker-compose-user-flow.yml up --build --abort-on-container-exit --force-recreate
+          docker-compose -f ci/docker-compose-user-flow.yml up --build --abort-on-container-exit --force-recreate user-flow
 
   create-tag:
     runs-on: ubuntu-latest

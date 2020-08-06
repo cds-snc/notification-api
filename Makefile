@@ -23,6 +23,10 @@ test: generate-version-file ## Run tests
 user_flows: generate-version-file ## Run tests
 	./scripts/run_user_flows.sh
 
+.PHONY: daily_user_flows
+daily_user_flows: generate-version-file ## Run tests
+	./scripts/run_daily_check.sh
+
 .PHONY: freeze-requirements
 freeze-requirements:
 	rm -rf venv-freeze
