@@ -16,7 +16,7 @@ from notifications_utils import logging, request_helper
 from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
 from werkzeug.local import LocalProxy
 
-from app.celery.celery import NotifyCelery
+from app.celery.celery import NotifyCelery, NotifyCelerySMS
 from app.clients import Clients
 from app.clients.document_download import DocumentDownloadClient
 from app.clients.email.aws_ses import AwsSesClient
@@ -52,6 +52,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 ma = Marshmallow()
 notify_celery = NotifyCelery()
+notify_celery_sms = NotifyCelerySMS()
 firetext_client = FiretextClient()
 loadtest_client = LoadtestingClient()
 mmg_client = MMGClient()

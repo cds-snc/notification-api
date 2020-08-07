@@ -47,3 +47,13 @@ class NotifyCelery(Celery):
         )
 
         self.conf.update(app.config)
+
+class NotifyCelerySMS(Celery):
+    def init_app(self, app):
+        super().__init__(
+            app.import_name,
+            broker=app.config['BROKER_URL'],
+            task_cls=make_task(app),
+        )
+
+        self.conf.update(app.config)
