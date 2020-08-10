@@ -20,6 +20,9 @@ Steps to reproduce the behavior:
 # Expected Behavior
 A clear and concise description of what you expected to happen.
 
+# Actual Behavior 
+Description of what happens for the purposes of reproducing the bug
+
 # Relevant Story
 If applicable, link the related story here.
 
