@@ -30,6 +30,7 @@ def get_jwt():
     encoded_jwt = jwt.encode(combo, jwtSecret, algorithm='HS256')
     return encoded_jwt
 
+
 def get_service_jwt(api_key_secret, service_id):
     jwtSecret = api_key_secret
     header = {'typ': 'JWT', 'alg': 'HS256'}
@@ -124,7 +125,7 @@ def get_api_key(service_id):
 def get_right_api_key(get_key_response):
     right_key = get_key_response[-1]["id"]
     for api_key in get_key_response:
-        if api_key["name"] == "userflows" and api_key["expiry_date"] == None:
+        if api_key["name"] == "userflows" and api_key["expiry_date"] is None:
             right_key = api_key["id"]
     return right_key
 
@@ -132,7 +133,8 @@ def get_right_api_key(get_key_response):
 def revoke_key(old_key_id, service_id):
     jwt = get_jwt()
     header = {"Authorization": "Bearer " + jwt.decode("utf-8"), 'Content-Type': 'application/json'}
-    r = requests.post(notification_url + "/service/" + service_id + "/api-key/revoke/" + old_key_id, headers=header, data={})
+    url = notification_url + "/service/" + service_id + "/api-key/revoke/" + old_key_id
+    r = requests.post(url, headers=header, data={})
     return r
 
 

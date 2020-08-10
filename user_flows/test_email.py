@@ -1,6 +1,3 @@
-import requests
-import json
-import jwt
 import time
 import os
 
@@ -56,9 +53,9 @@ def test_email():
     time_count = 0
     notification_status = ""
     while notification_status != "sending" and time_count < 30:
-      notification_status_response = get_notification_status(service_jwt, notification_id)
-      assert notification_status_response.status_code == 200
-      notification_status = notification_status_response.json()['status']
-      time.sleep(1)
-      time_count = time_count + 1
+        notification_status_response = get_notification_status(service_jwt, notification_id)
+        assert notification_status_response.status_code == 200
+        notification_status = notification_status_response.json()['status']
+        time.sleep(1)
+        time_count = time_count + 1
     assert notification_status == 'sending'
