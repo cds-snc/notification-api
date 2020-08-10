@@ -30,31 +30,38 @@ info:
   contact:
     name: VA Notify team
 servers:
-  - url: 'https://dev.api.twnotify.com'
-  - url: 'https://staging.api.twnotify.com'
+  - url: '{protocol}://{environment}.twnotify.com'
+    variables:
+      protocol:
+        enum:
+          - http
+          - https
+        default: https
+      environment:
+        enum:
+          - staging.api
+          - dev.api
+          - api
+        default: api
 paths:
   /organisations:
     get:
       summary: Get list of all organisations
       tags:
         - organisation
-      security:
-        - bearerAuth: []
       responses:
         '200':
-          description: Successful OK response of all organisations
+          description: OK
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/OrganisationResponseCore'
+                  $ref: '#/components/schemas/Organisation'
     post:
       summary: Create an organisation
       tags:
         - organisation
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -82,14 +89,14 @@ paths:
               type: object
       responses:
         '201':
-          description: Successful CREATED response of an organisation
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrganisationResponse'
   /organisations/{organisation_id}/:
     get:
-      summary: find organization by id
+      summary: Find organisation by id
       tags:
         - organisation
       parameters:
@@ -100,16 +107,16 @@ paths:
             format: uuid
           required: true
           allowEmptyValue: false
-          description: Organization identifier
+          description: Organisation identifier
       responses:
         200:
-          description: OK indicates that organization was found
+          description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrganisationResponseCore'
+                $ref: '#/components/schemas/Organisation'
     post:
-      summary: update an organization
+      summary: Update an organization
       tags:
         - organisation
       parameters:
@@ -122,6 +129,7 @@ paths:
           allowEmptyValue: false
           description: Organization identifier
       requestBody:
+        description: Include values in the request body to update them
         required: true
         content:
           application/json:
@@ -143,13 +151,9 @@ paths:
                     - other
       responses:
         204:
-          description: organization update was successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrganisationResponseCore'
+          description: OK
         404:
-          description: organization not found
+          description: Organisation not found
           content:
             application/json:
               schema:
@@ -167,7 +171,7 @@ paths:
               $ref: '#/components/schemas/CreateUserRequest'
       responses:
         '201':
-          description: A user was successfully created
+          description: OK
           content:
             application/json:
               schema:
@@ -180,7 +184,7 @@ paths:
         - user
       responses:
         '200':
-          description: Successful response for getting all users
+          description: OK
           content:
             application/json:
               schema:
@@ -202,6 +206,7 @@ paths:
           allowEmptyValue: false
           description: User identifier
       requestBody:
+        description: Include values in the request body to update them
         required: true
         content:
           application/json:
@@ -225,7 +230,7 @@ paths:
                     - email_auth
       responses:
         '201':
-          description: A user was successfully updated
+          description: OK
           content:
             application/json:
               schema:
@@ -237,8 +242,6 @@ paths:
       summary: Create a service
       tags:
         - service
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -247,7 +250,7 @@ paths:
               $ref: '#/components/schemas/CreateServiceRequest'
       responses:
         '201':
-          description: A service was successfully created
+          description: OK
           content:
             application/json:
               schema:
@@ -268,20 +271,46 @@ paths:
       summary: Get all services
       tags:
         - service
-      security:
-        - bearerAuth: []
       responses:
         '200':
-          description: Successful response for getting all services
+          description: OK
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Service'
+  /service/{service_id}:
+    post:
+      summary: Update a service
+      tags:
+        - service
+      parameters:
+        - in: path
+          name: 'service_id'
+          schema:
+            type: integer
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: Service identifier
+      requestBody:
+        description: Include values in the request body to update them
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Service'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
   '/service/{service_id}/template':
     get:
-      summary: Get all existing templates for a service
+      summary: Get all templates for a service
       tags:
         - template
       parameters:
@@ -295,7 +324,7 @@ paths:
           description: Service identifier
       responses:
         '200':
-          description: Successful response for getting all templates for a service
+          description: OK
           content:
             application/json:
               schema:
@@ -303,7 +332,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/Template'
     post:
-      summary: Create a template for an existing service
+      summary: Create a template for a service
       tags:
         - template
       parameters:
@@ -323,14 +352,14 @@ paths:
                 $ref: '#/components/schemas/CreateTemplateRequest'
       responses:
         '201':
-          description: Successful response for creating a template
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Template'
   '/service/{service_id}/template/{template_id}':
     get:
-      summary: Get an existing template for a service
+      summary: Get a template for a service
       tags:
         - template
       parameters:
@@ -352,13 +381,13 @@ paths:
           description: Template identifier
       responses:
         '200':
-          description: Successful response for getting templates
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Template'
     post:
-      summary: Update an existing template
+      summary: Update a template
       tags:
         - template
       parameters:
@@ -386,14 +415,135 @@ paths:
               $ref: '#/components/schemas/CreateTemplateRequest'
       responses:
         '200':
-          description: Response for successful update of an existing template
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Template'
+  /service/{service_id}/api-key:
+    post:
+      tags:
+        - service
+      summary: Create API key for service
+      parameters:
+        - in: path
+          name: service_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: Service identifier
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                name:
+                  type: string
+                created_by:
+                  description: User who creates this key
+                  type: string
+                  format: uuid
+                key_type:
+                  type: string
+                  enum:
+                    - normal
+                    - team
+      responses:
+        201:
+          description: OK
+          content:
+            application/json:
+              schema:
+                description: The API Key
+                type: string
+                format: uuid
+                nullable: false
+  /service/{service_id}/api-key/revoke/{api_key_id}:
+    post:
+      tags:
+        - service
+      summary: Revoke API key
+      parameters:
+        - in: path
+          name: service_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: service identifier
+        - in: path
+          name: api_key_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: API key identifier
+      responses:
+        202:
+          description: OK
+  /service/{service_id}/api-keys:
+    get:
+      tags:
+        - service
+      summary: Get API keys for a service
+      parameters:
+        - in: path
+          name: service_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: service identifier
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/APIKey'
+  /service/{service_id}/api-keys/{key_id}:
+    get:
+      tags:
+        - service
+      summary: Get a specific API key for a service
+      parameters:
+        - in: path
+          name: service_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: Service identifier
+        - in: path
+          name: key_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: API key identifier
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/APIKey'
   /v2/notifications/{notification_type}:
     post:
       summary: Send a notification
+      security:
+        - notifyAuth: []
       tags:
         - notification
       parameters:
@@ -417,7 +567,7 @@ paths:
                 - $ref: '#/components/schemas/EmailNotificationRequest'
       responses:
         '200':
-          description: Details of queued notification.
+          description: OK
           content:
             application/json:
               schema:
@@ -437,16 +587,144 @@ paths:
                           - from_number
                     required:
                       - content
+        400:
+          $ref: '#/components/responses/BadRequest'
+        403:
+          $ref: '#/components/responses/AuthErr'
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+              example:
+                result: 'error'
+                message: 'The requested URL was not found on the server. If you entered the URL manually please check
+                your spelling and try again.'
+        429:
+          description: Exceeded rate or send limits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2ErrorMessage'
+              example:
+                errors:
+                    - error: 'RateLimitError'
+                      message: 'Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds'
+                status_code: 429
+        500:
+          $ref: '#/components/responses/InternalServerErr'
+
+  /v2/notifications/{notification_id}:
+    get:
+      summary: Get notification
+      security:
+        - notifyAuth: []
+      tags:
+        - notification
+      parameters:
+        - in: path
+          name: notification_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          allowEmptyValue: false
+          description: Notification identifier
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationWithStatus'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        403:
+          $ref: '#/components/responses/AuthErr'
+        500:
+          $ref: '#/components/responses/InternalServerErr'
+
 components:
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2ErrorMessage'
+          example:
+            errors:
+              - error: 'BadRequestError'
+                message: 'sms_sender_id e925b547-8195-4ed2-83c5-0633a74d780a does not exist in database
+                                  for service id 9ffb5212-e621-45df-820d-97ee65d392ab'
+            status_code: 400
+    AuthErr:
+      description: Authentication Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2ErrorMessage'
+          example:
+            errors:
+              - error: 'AuthError'
+                message: 'Invalid token: service id is not the right data type'
+            status_code: 403
+
+    InternalServerErr:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            properties:
+              result:
+                type: string
+                nullable: false
+              message:
+                type: string
+                nullable: false
+          example:
+            result: 'error'
+            message: 'Internal server error'
   schemas:
+    V2ErrorMessage:
+      description: Generic error message format for V2
+      type: object
+      properties:
+        status_code:
+          type: integer
+          nullable: false
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+            required:
+              - error
+              - message
+      required:
+        - status_code
+        - errors
     ErrorMessage:
       type: object
       properties:
         message:
           type: string
+          nullable: false
         result:
           type: string
-    OrganisationResponseCore:
+          nullable: false
+        status_code:
+          type: integer
+          nullable: true
+      required:
+        - message
+        - result
+    Organisation:
       type: object
       properties:
         active:
@@ -475,9 +753,8 @@ components:
           type: string
     OrganisationResponse:
       type: object
-      nullable: false
       allOf:
-        - $ref: '#/components/schemas/OrganisationResponseCore'
+        - $ref: '#/components/schemas/Organisation'
       properties:
         agreement_signed:
           format: datetime
@@ -605,7 +882,7 @@ components:
           type: array
           items:
             type: string
-            format: '{{service-uuid}}'
+            format: uuid
         state:
           type: boolean
     CreateServiceRequest:
@@ -653,6 +930,7 @@ components:
       properties:
         active:
           type: boolean
+          nullable: false
         all_template_folders:
           type: array
           items:
@@ -664,24 +942,30 @@ components:
             format: uuid
         consent_to_research:
           type: boolean
+          nullable: true
         contact_link:
           type: string
+          nullable: true
         count_as_live:
           type: boolean
+          nullable: false
         created_by:
           type: string
           format: uuid
         crown:
           type: boolean
+          nullable: true
         email_branding:
           type: string
           format: uuid
         email_from:
           type: string
           format: email
+          nullable: false
         go_live_at:
           type: string
           format: datetime
+          nullable: true
         go_live_user:
           type: string
           format: uuid
@@ -710,8 +994,10 @@ components:
           type: string
         message_limit:
           type: number
+          nullable: false
         name:
           type: string
+          nullable: false
         organisation:
           type: string
           format: uuid
@@ -732,12 +1018,16 @@ components:
               - schedule_notifications
         prefix_sms:
           type: boolean
+          nullable:  false
         rate_limit:
           type: number
+          nullable: false
         research_mode:
           type: boolean
+          nullable: false
         restricted:
           type: boolean
+          nullable: false
         sending_domain:
           type: string
           nullable: true
@@ -752,6 +1042,7 @@ components:
             type: string
         smtp_user:
           type: string
+          nullable: true
         users:
           type: array
           items:
@@ -935,8 +1226,163 @@ components:
         - id
         - uri
         - template
+    NotificationWithStatus:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          nullable: false
+        body:
+          type: string
+          nullable: false
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: false
+        created_by_name:
+          description: the user who requested for this notification
+          type: string
+          nullable: true
+        email_address:
+          type: string
+          format: email
+          nullable: true
+        line_1:
+          type: string
+          nullable: true
+        line_2:
+          type: string
+          nullable: true
+        line_3:
+          type: string
+          nullable: true
+        line_4:
+          type: string
+          nullable: true
+        line_5:
+          type: string
+          nullable: true
+        line_6:
+          type: string
+          nullable: true
+        phone_number:
+          type: string
+          pattern: '^\+\d{9}$'
+          nullable: true
+          example:
+            '+16502532222'
+        postage:
+          type: string
+        postcode:
+          type: string
+          nullable: true
+        reference:
+          type: string
+          nullable: true
+        scheduled_for:
+          type: string
+          format: date-time
+          nullable: true
+        sent_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          nullable: false
+          enum:
+            - created
+        subject:
+          type: string
+          nullable: true
+        template:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              nullable: false
+            uri:
+              type: string
+              nullable: false
+            version:
+              type: integer
+              nullable: false
+            type:
+              type: string
+              enum:
+                - sms
+                - email
+          nullable: false
+      required:
+        - body
+        - completed_at
+        - created_at
+        - created_by_name
+        - email_address
+        - id
+        - line_1
+        - line_2
+        - line_3
+        - line_4
+        - line_5
+        - line_6
+        - phone_number
+        - postage
+        - postcode
+        - reference
+        - scheduled_for
+        - sent_at
+        - status
+        - subject
+        - template
+    APIKey:
+      type: object
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+          format: uuid
+        expiry_date:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        key_type:
+          type: string
+          enum:
+            - normal
+            - team
+        name:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+        version:
+          type: integer
   securitySchemes:
-    bearerAuth:
+    adminAuth:
+      description: "The admin user and secret are used to generate this authentication.  They are both defined as
+                    configuration parameters"
       type: http
       scheme: bearer
       bearerFormat: JWT
+    notifyAuth:
+      description: "The format of this token is {key_name}-{iss-uuid}-{secret-key-uuid}.  When you
+                    create API key you get the secret key in the response. This secret key should be used
+                    to generate a bearer token to send notifications and enquire notification status. You can find
+                    more at <a href='https://docs.notifications.service.gov.uk/rest-api.html#headers'>Authentication
+                    headers</a>."
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - adminAuth: []
