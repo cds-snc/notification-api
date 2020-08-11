@@ -3,7 +3,7 @@ from notifications_utils.recipients import InvalidEmailError
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import notify_celery, notify_celery_sms
+from app import notify_celery
 from app.config import QueueNames
 from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
@@ -12,7 +12,12 @@ from app.exceptions import NotificationTechnicalFailureException, MalwarePending
 from app.models import NOTIFICATION_TECHNICAL_FAILURE
 
 
-@notify_celery_sms.task(bind=True, name="deliver_sms", max_retries=48, default_retry_delay=300, rate_limit="1/s")
+@notify_celery.task(
+    bind=True,
+    name="send-sms-tasks:deliver_sms",
+    max_retries=48,
+    default_retry_delay=300,
+    rate_limit="1/s")
 @statsd(namespace="tasks")
 def deliver_sms(self, notification_id):
     try:
@@ -37,7 +42,7 @@ def deliver_sms(self, notification_id):
             raise NotificationTechnicalFailureException(message)
 
 
-@notify_celery.task(bind=True, name="deliver_email", max_retries=48, default_retry_delay=300)
+@notify_celery.task(bind=True, name="send-email-tasks:deliver_email", max_retries=48, default_retry_delay=300)
 @statsd(namespace="tasks")
 def deliver_email(self, notification_id):
     try:

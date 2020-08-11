@@ -181,7 +181,7 @@ def __sending_limits_for_job_exceeded(service, job, job_id):
     return False
 
 
-@notify_celery.task(bind=True, name="save-sms", max_retries=5, default_retry_delay=300)
+@notify_celery.task(bind=True, name="database-tasks:save-sms", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def save_sms(self,
              service_id,
@@ -236,7 +236,7 @@ def save_sms(self,
         handle_exception(self, notification, notification_id, e)
 
 
-@notify_celery.task(bind=True, name="save-email", max_retries=5, default_retry_delay=300)
+@notify_celery.task(bind=True, name="database-tasks:save-email", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def save_email(self,
                service_id,
@@ -284,7 +284,7 @@ def save_email(self,
         handle_exception(self, notification, notification_id, e)
 
 
-@notify_celery.task(bind=True, name="save-letter", max_retries=5, default_retry_delay=300)
+@notify_celery.task(bind=True, name="database-tasks:save-letter", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def save_letter(
         self,
@@ -422,7 +422,7 @@ def update_letter_notifications_statuses(self, filename):
         raise DVLAException(message)
 
 
-@notify_celery.task(bind=True, name="record-daily-sorted-counts")
+@notify_celery.task(bind=True, name="periodic-tasks:record-daily-sorted-counts")
 @statsd(namespace="tasks")
 def record_daily_sorted_counts(self, filename):
     sorted_letter_counts = defaultdict(int)
