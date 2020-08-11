@@ -218,7 +218,7 @@ def process_ses_results(self, response):
 
 @notify_celery.task(
     bind=True,
-    name="pservice-callbacks:rocess-ses-smtp-results",
+    name="service-callbacks:process-ses-smtp-results",
     max_retries=5,
     default_retry_delay=300)
 @statsd(namespace="tasks")
