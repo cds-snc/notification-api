@@ -11,9 +11,39 @@ Contains:
 - We currently do not support sending of letters
 - We currently do not receive a response if text messages were delivered or not
 
+---
+
+## Table of Contents
+
+* [Setting up](#setting-up)
+* [To run the queues](#to-run-the-queues)
+* [Running in Docker](#running-in-docker)
+* [AWS Configuration](#aws-configuration)
+* [Terraform](#terraform)
+* [To update application dependencies](#to-update-application-dependencies)
+* [Testing template changes](#testing-template-changes)
+* [Frequent problems](#frequent-problems)
+
+---
 
 ## Setting Up
+
+### Checklist
+
+* Local installation in [this section](#local-installation-instruction)
+  - PyEnv
+  - Python
+  - virtualenv
+  - Postgres
+  - project dependencies
+* Install pre-commit hooks in [this section](#pre-commit-hooks)
+  - pre-commit
+  - talisman
+
+
 ### Local installation instruction 
+
+<details>
 
 On OS X:
 
@@ -115,7 +145,11 @@ Note:
 
 `make test`
 
+</details>
+
 ### Pre-commit hooks
+
+<details>
 
 We're using [pre-commit](https://pre-commit.com/) and [talisman](https://github.com/thoughtworks/talisman)
 to scan changesets for suspicious items (eg keys and secrets).
@@ -134,6 +168,10 @@ pre-commit install
 
 Configuration is stored in `.pre-commit-config.yaml`.
 
+</details>
+
+---
+
 ##  To run the queues 
 ```
 scripts/run_celery.sh
@@ -142,6 +180,7 @@ scripts/run_celery.sh
 ```
 scripts/run_celery_beat.sh
 ```
+---
 
 ## Running in Docker
 To run all the tests
@@ -150,10 +189,15 @@ To run all the tests
 To run the application and it's associated postgres instance
 `docker-compose -f ci/docker-compose.yml up --build --abort-on-container-exit`
 
+---
+
 ## AWS Configuration
 At the moment, we have our own AWS account. In order to run the application you have to be authenticated with AWS because of this AWS infrastructure setup. So the following will need to be installed.
 
 ### Install tools
+
+<details>
+
 ```
 brew install awscli
 brew tap versent/homebrew-taps
@@ -162,7 +206,11 @@ brew install saml2aws
 
 Upon successful installation, grab a team member. They can walk you through specific configuration for our AWS account.
 
+</details>
+
 ### Useful commands
+
+<details>
 
 To export profile as env var locally, run the following. For local env persistance, can save this env var through other means (like using direnv):
 ```
@@ -174,6 +222,10 @@ To check currently assumed AWS role (i.e. AWS_PROFILE value), run:
 aws sts get-caller-identity
 ```
 
+</details>
+
+---
+
 ## Terraform
 In this repository, our Terraform infrastructure files are separated into several directories. The following directories dictate the order in which `terraform init` needs to be separately run. Order is important because each directory configures resources that the next one needs. Currently, the order is:
 
@@ -184,11 +236,19 @@ In this repository, our Terraform infrastructure files are separated into severa
 ```
 
 ### Install tools
+
+<details>
+
 ```
 brew install terraform
 ```
 
+</details>
+
 ### Useful commands
+
+<details>
+
 These might be commonly used Terraform cli commands used on this project. Check out [Terraform documentation](https://www.terraform.io/docs/cli-index.html) for more details.
 
 To initialize the project and create a Terraform directory with remote state, run this command separately in the directories listed above:
@@ -213,9 +273,14 @@ But if you caused some issues that require running this locally, to make all the
 terraform apply
 ```
 
+</details>
+
+
 ### Python version
 
 This codebase is Python 3 only. At the moment we run 3.6.9 in production. You will run into problems if you try to use Python 3.4 or older, or Python 3.7 or newer.
+
+---
 
 ## To update application dependencies
 
@@ -229,6 +294,8 @@ make freeze-requirements
 ```
 
 `requirements.txt` should be committed alongside `requirements-app.txt` changes.
+
+---
 
 ## Testing template changes
 
@@ -255,6 +322,8 @@ This will allow to easily revert local copy of notifications-utils in sites-pack
     ```commandline
     pip install -r requirements.txt
     ```
+
+---
 
 ## Frequent problems
 
