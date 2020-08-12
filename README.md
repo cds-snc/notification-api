@@ -36,9 +36,11 @@ Contains:
   - virtualenv
   - Postgres
   - project dependencies
+  - Docker
 * Install pre-commit hooks in [this section](#pre-commit-hooks)
   - pre-commit
   - talisman
+* Installation for local development in [this section](#installation-for-local-development)
 
 
 ### Local installation instruction 
@@ -145,6 +147,10 @@ Note:
 
 `make test`
 
+15. Install Docker
+
+Visit this page to get Docker set up: [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
+
 </details>
 
 ### Pre-commit hooks
@@ -169,6 +175,33 @@ pre-commit install
 Configuration is stored in `.pre-commit-config.yaml`.
 
 </details>
+
+---
+
+### Installation for local development
+
+Install [LocalStack](https://github.com/localstack/localstack), which is library that mocks AWS services, including SQS (which we use to send messages), run: 
+```
+pip3 install -r requirements_for_local.txt
+```
+
+Set environment variables required to run LocalStack:
+```
+export SERVICES=sqs,iam
+export HOSTNAME=localhost
+export EXTERNAL_HOSTNAME=localstack 
+```
+
+To get LocalStack started, which by default will spin up a Docker container, run:
+```
+localstack start
+```
+
+Upon starting up LocalStack, you can visit the provided port at https://localhost:4566/. You should get
+
+```
+{"status": "running"}
+```
 
 ---
 

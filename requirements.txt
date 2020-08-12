@@ -4,7 +4,7 @@
 # with package version changes made in requirements-app.txt
 
 cffi==1.14.0
-celery==3.1.26.post2 # pyup: <4
+celery==4.4.0
 docopt==0.6.2
 fido2==0.7.0
 Flask-Bcrypt==0.7.1
@@ -47,8 +47,6 @@ itsdangerous==0.24  # pyup: <1.0.0
 
 git+https://github.com/department-of-veterans-affairs/notification-utils.git@1.0.6#egg=notification-utils==1.0.6
 
-git+https://github.com/alphagov/boto.git@2.43.0-patch3#egg=boto==2.43.0-patch3
-
 # MLWR
 socketio-client==0.5.6
 requests
@@ -59,16 +57,16 @@ git+https://bitbucket.org/cse-assemblyline/assemblyline_client.git@v3.7.3#egg=as
 
 ## The following requirements were added by pip freeze:
 alembic==1.4.2
-amqp==1.4.9
+amqp==2.6.1
 anyjson==0.3.3
 asn1crypto==1.3.0
 attrs==19.3.0
 awscli==1.18.94
 bcrypt==3.1.7
-billiard==3.3.0.23
+billiard==3.6.3.0
 bleach==3.1.1
 blinker==1.4
-boto3==1.12.13
+boto3==1.14
 botocore==1.17.17
 certifi==2020.6.20
 chardet==3.0.4
@@ -84,7 +82,7 @@ idna==2.10
 importlib-metadata==1.7.0
 Jinja2==2.11.2
 jmespath==0.10.0
-kombu==3.0.37
+kombu==4.6.11
 Mako==1.1.3
 MarkupSafe==1.1.1
 mistune==0.8.4
