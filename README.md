@@ -98,6 +98,10 @@ scripts/run_celery.sh
 ```
 
 ```
+scripts/run_celery_sms.sh
+```
+
+```
 scripts/run_celery_beat.sh
 ```
 
