@@ -188,6 +188,7 @@ pip3 install -r requirements_for_local.txt
 Set environment variables required to run LocalStack:
 ```
 export SERVICES=sqs,iam
+export DEFAULT_REGION=us-east-2
 export HOSTNAME=localhost
 export EXTERNAL_HOSTNAME=localstack 
 ```
@@ -221,6 +222,9 @@ To run all the tests
 
 To run the application and it's associated postgres instance
 `docker-compose -f ci/docker-compose.yml up --build --abort-on-container-exit`
+
+To run the app locally, with celery using localstack
+`docker-compose -f ci/docker-compose-local.yml up --build --abort-on-container-exit`
 
 ---
 
