@@ -11,5 +11,7 @@ fileignoreconfig:
       checksum: eefb3681a957c536aec0bb70f218947657e6357738e04f35a4d59f08a0bf6ba8
     - filename: certs/VA-Internal-S2-RCA1-v1.crt
       checksum: b3cdaa6e2a9961ba935379fc4d21dcdd70478b027b9efadbd20a4ae9faaf13a0
+    - filename: .env.local.example
+      checksum: a7c7933ff437793580b334307a180ef0e587f2b811c1162b14ec1d403640605c
     - filename: ci/docker-compose-local.yml
-      checksum: f11c8e6c13fa8f502017437057efe4cee09ffcaca3da18043acb5fef785926c3
+      checksum: cdd8fc418af65b72fa3c770bd949aea93960432dbf423e91bd347d9dbfda4c55

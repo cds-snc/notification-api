@@ -6,15 +6,11 @@ services:
       dockerfile: ci/Dockerfile.local
     ports:
       - 6011:6011
-    environment:
-      - TWILIO_ACCOUNT_SID=
-      - TWILIO_AUTH_TOKEN=
-      - TWILIO_FROM_NUMBER=0123456789
-      - SQLALCHEMY_DATABASE_URI=postgresql://postgres:LocalPassword@db:5432/notification_api
-      - NOTIFY_ENVIRONMENT=development
-      - FLASK_APP=application.py
+    env_file:
+      - ../.env.local.example
     depends_on:
-      - db
+      - migrations
+      - localstack
   db:
     image: postgres:11.8
     restart: unless-stopped
@@ -27,13 +23,8 @@ services:
     build:
       context: ..
       dockerfile: migrations/Dockerfile
-    environment:
-      - TWILIO_ACCOUNT_SID=
-      - TWILIO_AUTH_TOKEN=
-      - TWILIO_FROM_NUMBER=0123456789
-      - SQLALCHEMY_DATABASE_URI=postgresql://postgres:LocalPassword@db:5432/notification_api
-      - NOTIFY_ENVIRONMENT=development
-      - FLASK_APP=application.py
+    env_file:
+      - ../.env.local.example
     depends_on:
       - db
   localstack:
@@ -46,3 +37,8 @@ services:
       - DEFAULT_REGION=us-east-2
       - DATA_DIR=/tmp/localstack/data
       - START_WEB=0
+    healthcheck:
+      test: "bash -c 'AWS_ACCESS_KEY_ID=fake AWS_SECRET_ACCESS_KEY=fake aws --endpoint-url=http://localhost:4566 sqs list-queues'"
+      interval: 3s
+      retries: 5
+      timeout: 15s
