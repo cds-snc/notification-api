@@ -35,7 +35,7 @@ from tests.app.db import (
     create_service_with_defined_sms_sender
 )
 
-from tests.conftest import set_config_values, notify_api
+from tests.conftest import set_config_values
 
 
 def test_should_return_highest_priority_active_provider(restore_provider_details):
