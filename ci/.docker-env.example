@@ -8,3 +8,5 @@ FLASK_APP=application.py
 
 AWS_ACCESS_KEY_ID=fake
 AWS_SECRET_ACCESS_KEY=fake
+
+BROKER_URL=sqs://localhost:4566

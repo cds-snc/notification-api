@@ -4,12 +4,15 @@ services:
     build:
       context: ..
       dockerfile: ci/Dockerfile.local
+    image: notification_api
     ports:
       - 6011:6011
     env_file:
       - .docker-env
     depends_on:
       - migrations
+      - localstack
+    links:
       - localstack
   db:
     image: postgres:11.8
@@ -33,12 +36,23 @@ services:
     ports:
       - "4566-4599:4566-4599"
     environment:
-      - SERVICES=iam,sqs
+      - SERVICES=sqs
       - DEFAULT_REGION=us-east-2
       - DATA_DIR=/tmp/localstack/data
       - START_WEB=0
+      - HOSTNAME=localhost
+      - EXTERNAL_HOSTNAME=localstack 
     healthcheck:
       test: "bash -c 'AWS_ACCESS_KEY_ID=fake AWS_SECRET_ACCESS_KEY=fake aws --endpoint-url=http://localhost:4566 sqs list-queues'"
       interval: 3s
       retries: 5
       timeout: 15s
+  celery-worker:
+    image: notification_api
+    env_file:
+      - .docker-env
+    command: ["sh", "-c", "./scripts/run_celery.sh"]
+    depends_on:
+      - db
+      - localstack
+      - migrations
