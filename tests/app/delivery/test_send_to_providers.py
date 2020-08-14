@@ -35,7 +35,7 @@ from tests.app.db import (
     create_service_with_defined_sms_sender
 )
 
-from tests.conftest import set_config_values
+from tests.conftest import set_config_values, notify_api
 
 
 def test_should_return_highest_priority_active_provider(restore_provider_details):
@@ -160,7 +160,7 @@ def test_should_not_send_email_message_when_service_is_inactive_notification_is_
     assert Notification.query.get(sample_notification.id).status == 'technical-failure'
 
 
-def test_should_respect_custom_sending_domains(
+def test_should_use_custom_sending_domain_and_email_from(
         sample_service,
         mock_email_client,
         sample_email_template_with_html
@@ -172,11 +172,45 @@ def test_should_respect_custom_sending_domains(
     )
 
     sample_service.sending_domain = "foo.bar"
+    sample_service.email_from = "custom-email-from"
 
     send_to_providers.send_email_to_provider(db_notification)
 
     mock_email_client.send_email.assert_called_once_with(
-        '"Sample service" <sample.service@foo.bar>',
+        '"Sample service" <custom-email-from@foo.bar>',
+        'jo.smith@example.com',
+        'Jo <em>some HTML</em>',
+        body='Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n',
+        html_body=ANY,
+        reply_to_address=None,
+        attachments=[]
+    )
+
+
+def test_should_use_default_sending_domain_and_email_from(
+        sample_service,
+        mock_email_client,
+        sample_email_template_with_html,
+        notify_api
+):
+
+    db_notification = create_notification(
+        template=sample_email_template_with_html,
+        to_field="jo.smith@example.com",
+        personalisation={'name': 'Jo'}
+    )
+
+    sample_service.sending_domain = None
+    sample_service.email_from = None
+
+    with set_config_values(notify_api, {
+        'NOTIFY_EMAIL_DOMAIN': 'default.email.domain',
+        'NOTIFY_EMAIL_FROM': 'default-email-from'
+    }):
+        send_to_providers.send_email_to_provider(db_notification)
+
+    mock_email_client.send_email.assert_called_once_with(
+        '"Sample service" <default-email-from@default.email.domain>',
         'jo.smith@example.com',
         'Jo <em>some HTML</em>',
         body='Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n',
