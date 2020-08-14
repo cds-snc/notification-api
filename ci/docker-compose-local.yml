@@ -7,7 +7,7 @@ services:
     ports:
       - 6011:6011
     env_file:
-      - ../.env.local.example
+      - .docker-env
     depends_on:
       - migrations
       - localstack
@@ -24,7 +24,7 @@ services:
       context: ..
       dockerfile: migrations/Dockerfile
     env_file:
-      - ../.env.local.example
+      - .docker-env
     depends_on:
       - db
   localstack:
