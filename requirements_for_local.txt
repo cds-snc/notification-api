@@ -1,3 +1,6 @@
 -r requirements.txt
 # Mocks AWS services to enable local development 
 localstack
+
+#celery/kombu dependency
+pycurl==7.43.0

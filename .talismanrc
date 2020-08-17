@@ -17,3 +17,5 @@ fileignoreconfig:
       checksum: cdd8fc418af65b72fa3c770bd949aea93960432dbf423e91bd347d9dbfda4c55
     - filename: ci/.docker-env.example
       checksum: d0eeb31921d596b0205f53aa30ceb98b8ea35cb07cb502e61d7162e5506777d7
+    - filename: .env.example
+      checksum: 5512142b488c312a1722a03fb3c1faf9b6374ac8aaaea082d99c2aa9d3eb48b3

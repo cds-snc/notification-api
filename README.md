@@ -187,7 +187,7 @@ pip3 install -r requirements_for_local.txt
 
 Set environment variables required to run LocalStack:
 ```
-export SERVICES=sqs,iam
+export SERVICES=sqs
 export DEFAULT_REGION=us-east-2
 export HOSTNAME=localhost
 export EXTERNAL_HOSTNAME=localstack 
