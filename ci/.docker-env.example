@@ -6,7 +6,9 @@ SQLALCHEMY_DATABASE_URI=postgresql://postgres:LocalPassword@db:5432/notification
 NOTIFY_ENVIRONMENT=development
 FLASK_APP=application.py
 
-AWS_ACCESS_KEY_ID=fake
-AWS_SECRET_ACCESS_KEY=fake
+AWS_ACCESS_KEY_ID=foo
+AWS_SECRET_ACCESS_KEY=bar
 
-BROKER_URL=sqs://localhost:4566
+BROKER_URL=sqs://foo:bar@localhost:4566
+
+GRANICUS_TOKEN=

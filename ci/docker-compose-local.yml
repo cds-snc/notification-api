@@ -12,8 +12,6 @@ services:
     depends_on:
       - migrations
       - localstack
-    links:
-      - localstack
   db:
     image: postgres:11.8
     restart: unless-stopped
@@ -41,18 +39,19 @@ services:
       - DATA_DIR=/tmp/localstack/data
       - START_WEB=0
       - HOSTNAME=localhost
-      - EXTERNAL_HOSTNAME=localstack 
+      - EXTERNAL_HOSTNAME=localstack
     healthcheck:
       test: "bash -c 'AWS_ACCESS_KEY_ID=fake AWS_SECRET_ACCESS_KEY=fake aws --endpoint-url=http://localhost:4566 sqs list-queues'"
       interval: 3s
       retries: 5
       timeout: 15s
-  celery-worker:
+  celery:
     image: notification_api
     env_file:
       - .docker-env
     command: ["sh", "-c", "./scripts/run_celery.sh"]
     depends_on:
+      - app
       - db
       - localstack
       - migrations
