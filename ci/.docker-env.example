@@ -9,6 +9,6 @@ FLASK_APP=application.py
 AWS_ACCESS_KEY_ID=foo
 AWS_SECRET_ACCESS_KEY=bar
 
-BROKER_URL=sqs://foo:bar@localhost:4566
+BROKER_URL=sqs://foo:bar@localstack:4566
 
 GRANICUS_TOKEN=
