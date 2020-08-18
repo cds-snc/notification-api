@@ -161,7 +161,7 @@ def test_cannot_create_two_services_with_same_name(notify_db_session):
     assert 'duplicate key value violates unique constraint "services_name_key"' in str(excinfo.value)
 
 
-def test_cannot_create_two_services_with_same_email_from(notify_db_session):
+def test_can_create_two_services_with_same_email_from(notify_db_session):
     user = create_user()
     assert Service.query.count() == 0
     service1 = Service(name="service_name1",
@@ -174,10 +174,11 @@ def test_cannot_create_two_services_with_same_email_from(notify_db_session):
                        message_limit=1000,
                        restricted=False,
                        created_by=user)
-    with pytest.raises(IntegrityError) as excinfo:
+    try:
         dao_create_service(service1, user)
         dao_create_service(service2, user)
-    assert 'duplicate key value violates unique constraint "services_email_from_key"' in str(excinfo.value)
+    except IntegrityError:
+        pytest.fail("Could not create two services with same email from")
 
 
 def test_cannot_create_service_with_no_user(notify_db_session):

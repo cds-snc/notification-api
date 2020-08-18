@@ -158,8 +158,12 @@ def send_email_to_provider(notification):
             else:
                 sending_domain = service.sending_domain
 
-            from_address = '"{}" <{}@{}>'.format(service.name, service.email_from,
-                                                 sending_domain)
+            if service.email_from is None or service.email_from.strip() == "":
+                email_from = current_app.config['NOTIFY_EMAIL_FROM']
+            else:
+                email_from = service.email_from
+
+            from_address = '"{}" <{}@{}>'.format(service.name, email_from, sending_domain)
 
             email_reply_to = notification.reply_to_text
 

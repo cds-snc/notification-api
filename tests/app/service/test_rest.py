@@ -565,33 +565,6 @@ def test_should_not_create_service_with_duplicate_name(notify_api,
             assert "Duplicate service name '{}'".format(sample_service.name) in json_resp['message']['name']
 
 
-def test_create_service_should_throw_duplicate_key_constraint_for_existing_email_from(notify_api,
-                                                                                      service_factory,
-                                                                                      sample_user):
-    first_service = service_factory.get('First service', email_from='first.service')
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            service_name = 'First SERVICE'
-            data = {
-                'name': service_name,
-                'user_id': str(first_service.users[0].id),
-                'message_limit': 1000,
-                'restricted': False,
-                'active': False,
-                'email_from': 'first.service',
-                'created_by': str(sample_user.id)
-            }
-            auth_header = create_authorization_header()
-            headers = [('Content-Type', 'application/json'), auth_header]
-            resp = client.post(
-                '/service',
-                data=json.dumps(data),
-                headers=headers)
-            json_resp = resp.json
-            assert json_resp['result'] == 'error'
-            assert "Duplicate service name '{}'".format(service_name) in json_resp['message']['name']
-
-
 def test_update_service(client, notify_db, sample_service):
     brand = EmailBranding(colour='#000000', logo='justice-league.png', name='Justice League')
     notify_db.session.add(brand)

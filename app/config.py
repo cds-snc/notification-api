@@ -416,6 +416,7 @@ class Development(Config):
     NOTIFY_ENVIRONMENT = 'development'
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-va")
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "public.govdelivery.com")
+    NOTIFY_EMAIL_FROM = os.getenv("NOTIFY_EMAIL_FROM", "solutions")
 
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", 'postgresql://postgres@localhost/notification_api')
     REDIS_URL = 'redis://localhost:6379/0'
@@ -430,6 +431,7 @@ class Development(Config):
 
 class Test(Development):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "public.govdelivery.com")
+    NOTIFY_EMAIL_FROM = os.getenv("NOTIFY_EMAIL_FROM", "solutions")
     FROM_NUMBER = 'testing'
     NOTIFY_ENVIRONMENT = 'test'
     TESTING = True
@@ -472,6 +474,7 @@ class Test(Development):
 
 class Production(Config):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "public.govdelivery.com")
+    NOTIFY_EMAIL_FROM = os.getenv("NOTIFY_EMAIL_FROM", "solutions")
     NOTIFY_ENVIRONMENT = 'production'
     # CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'production-test-letters'

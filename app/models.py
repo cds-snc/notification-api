@@ -457,7 +457,7 @@ class Service(db.Model, Versioned):
     message_limit = db.Column(db.BigInteger, index=False, unique=False, nullable=False)
     restricted = db.Column(db.Boolean, index=False, unique=False, nullable=False)
     research_mode = db.Column(db.Boolean, index=False, unique=False, nullable=False, default=False)
-    email_from = db.Column(db.Text, index=False, unique=True, nullable=False)
+    email_from = db.Column(db.Text, index=False, unique=False, nullable=True)
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), index=True, nullable=False)
     created_by = db.relationship('User', foreign_keys=[created_by_id])
     prefix_sms = db.Column(db.Boolean, nullable=False, default=True)
