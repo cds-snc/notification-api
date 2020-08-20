@@ -52,6 +52,4 @@ services:
     command: ["sh", "-c", "./scripts/run_celery.sh"]
     depends_on:
       - app
-      - db
       - localstack
-      - migrations

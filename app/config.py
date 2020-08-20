@@ -394,7 +394,6 @@ class Config(object):
 
 class Development(Config):
     BROKER_URL = os.getenv("BROKER_URL", "sqs://localhost:4566")
-    CELERY_ALWAYS_EAGER = True
     DEBUG = True
     SQLALCHEMY_ECHO = False
 
