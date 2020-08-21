@@ -29,7 +29,7 @@ services:
     depends_on:
       - db
   localstack:
-    image: localstack/localstack
+    image: localstack/localstack:0.11.2
     container_name: localstack
     ports:
       - "4566-4599:4566-4599"
@@ -38,13 +38,7 @@ services:
       - DEFAULT_REGION=us-east-2
       - DATA_DIR=/tmp/localstack/data
       - START_WEB=0
-      - HOSTNAME=localhost
-      - EXTERNAL_HOSTNAME=localstack
-    healthcheck:
-      test: "bash -c 'AWS_ACCESS_KEY_ID=foo AWS_SECRET_ACCESS_KEY=bar aws --endpoint-url=http://localhost:4566 sqs list-queues'"
-      interval: 3s
-      retries: 5
-      timeout: 15s
+      - HOSTNAME_EXTERNAL=localstack
   celery:
     image: notification_api
     env_file:

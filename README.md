@@ -189,8 +189,6 @@ Set environment variables required to run LocalStack:
 ```
 export SERVICES=sqs
 export DEFAULT_REGION=us-east-2
-export HOSTNAME=localhost
-export EXTERNAL_HOSTNAME=localstack 
 ```
 
 To get LocalStack started, which by default will spin up a Docker container, run:
@@ -202,6 +200,13 @@ Upon starting up LocalStack, you can visit the provided port at https://localhos
 
 ```
 {"status": "running"}
+```
+
+If you have issues with LocalStack, you can downgrade to 0.11.2, run:
+
+```
+docker pull localstack/localstack:0.11.2
+docker tag localstack/localstack:0.11.2 localstack/localstack:latest
 ```
 
 ---
