@@ -33,3 +33,5 @@ fileignoreconfig:
       checksum: 967705ddebb3e8378a81ee52f73c2477b9d6738b0c383622c3eabc69d08d43a8
     - filename: ci/.docker-env.example
       checksum: 8893b7f8ca92441758acb3e34ca17e856209a9c45b2e256433e3ded0e112cf7d
+    - filename: scripts/postman/notification-api.postman_collection.json
+      checksum: 67d1626b2fb7f10867753da6a1f7202f357bf0bd952ded77f827cc6e58d4aab9
