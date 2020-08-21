@@ -393,7 +393,7 @@ class Config(object):
 ######################
 
 class Development(Config):
-    BROKER_URL = os.getenv("BROKER_URL", "sqs://localhost:4566")
+    BROKER_URL = os.getenv("BROKER_URL", "sqs://foo:bar@localhost:4566")
     DEBUG = True
     SQLALCHEMY_ECHO = False
 
@@ -413,7 +413,7 @@ class Development(Config):
     MMG_INBOUND_SMS_USERNAME = ['username']
 
     NOTIFY_ENVIRONMENT = 'development'
-    NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-va")
+    NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "vanotify")
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "public.govdelivery.com")
     NOTIFY_EMAIL_FROM = os.getenv("NOTIFY_EMAIL_FROM", "solutions")
 
