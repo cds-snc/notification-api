@@ -233,7 +233,7 @@ paths:
                     - sms_auth
                     - email_auth
       responses:
-        '201':
+        '200':
           description: OK
           content:
             application/json:
@@ -309,7 +309,7 @@ paths:
             schema:
               $ref: '#/components/schemas/Service'
       responses:
-        '201':
+        '200':
           description: OK
           content:
             application/json:
@@ -361,7 +361,7 @@ paths:
             schema:
                 $ref: '#/components/schemas/CreateTemplateRequest'
       responses:
-        '201':
+        '200':
           description: OK
           content:
             application/json:
@@ -586,7 +586,7 @@ paths:
                 - $ref: '#/components/schemas/SMSNotificationRequest'
                 - $ref: '#/components/schemas/EmailNotificationRequest'
       responses:
-        '200':
+        '201':
           description: OK
           content:
             application/json:
