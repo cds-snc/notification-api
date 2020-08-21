@@ -433,7 +433,7 @@ paths:
   /service/{service_id}/api-key:
     post:
       tags:
-        - service
+        - api key
       summary: Create API key for service
       parameters:
         - in: path
@@ -477,7 +477,7 @@ paths:
   /service/{service_id}/api-key/revoke/{api_key_id}:
     post:
       tags:
-        - service
+        - api key
       summary: Revoke API key
       parameters:
         - in: path
@@ -502,7 +502,7 @@ paths:
   /service/{service_id}/api-keys:
     get:
       tags:
-        - service
+        - api key
       summary: Get API keys for a service
       parameters:
         - in: path
@@ -528,7 +528,7 @@ paths:
   /service/{service_id}/api-keys/{key_id}:
     get:
       tags:
-        - service
+        - api key
       summary: Get a specific API key for a service
       parameters:
         - in: path
@@ -634,7 +634,6 @@ paths:
                 status_code: 429
         500:
           $ref: '#/components/responses/InternalServerErr'
-
   /v2/notifications/{notification_id}:
     get:
       summary: Get notification
@@ -690,7 +689,6 @@ components:
               - error: 'AuthError'
                 message: 'Invalid token: service id is not the right data type'
             status_code: 403
-
     InternalServerErr:
       description: Internal server error
       content:
@@ -1331,11 +1329,11 @@ components:
             version:
               type: integer
               nullable: false
-            type:
-              type: string
-              enum:
-                - sms
-                - email
+        type:
+          type: string
+          enum:
+            - sms
+            - email
           nullable: false
       required:
         - body
