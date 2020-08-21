@@ -123,7 +123,7 @@ def firetext_callback(notification_id, to):
 
 @notify_celery.task(
     bind=True,
-    name="research-mode-tasks:create-fake-letter-response-file",
+    name="create-fake-letter-response-file",
     max_retries=5,
     default_retry_delay=300)
 def create_fake_letter_response_file(self, reference):
