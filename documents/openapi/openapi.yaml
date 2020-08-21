@@ -194,7 +194,7 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/User'
-  /{user_id}:
+  /user/{user_id}:
     post:
       summary: Update a user
       tags:
@@ -224,6 +224,7 @@ paths:
                 mobile_number:
                   type: string
                   nullable: false
+                  example: "+19876543210"
                 auth_type:
                   type: string
                   format: auth type
@@ -818,6 +819,7 @@ components:
         mobile_number:
           type: string
           nullable: false
+          example: "+19876543210"
         state:
           type: string
           nullable: false
@@ -861,6 +863,7 @@ components:
           type: string
         mobile_number:
           type: string
+          example: "+19876543210"
         name:
           type: string
         organisations:
