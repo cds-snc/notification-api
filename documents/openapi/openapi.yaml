@@ -452,7 +452,7 @@ paths:
                 name:
                   type: string
                 created_by:
-                  description: User who creates this key
+                  description: User id who creates this key
                   type: string
                   format: uuid
                 key_type:
@@ -460,6 +460,10 @@ paths:
                   enum:
                     - normal
                     - team
+              required:
+                - name
+                - created_by
+                - key_type
       responses:
         201:
           description: OK
@@ -549,9 +553,12 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/APIKey'
+                type: object
+                properties:
+                  apiKeys:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/APIKey'
   /v2/notifications/{notification_type}:
     post:
       summary: Send a notification
@@ -910,7 +917,7 @@ components:
           type: string
           format: uuid
           nullable: false
-        email-from:
+        email_from:
           type: string
           format: email
           nullable: false
@@ -934,7 +941,7 @@ components:
       required:
         - active
         - created_by
-        - email-from
+        - email_from
         - message_limit
         - name
         - organisation_id
@@ -1100,10 +1107,6 @@ components:
           nullable: false
         name:
           type: string
-          nullable: false
-        parent_folder_id:
-          type: string
-          format: uuid
           nullable: false
         postage:
           type: string
