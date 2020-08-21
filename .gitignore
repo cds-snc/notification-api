@@ -72,6 +72,9 @@ environment.sh
 .envrc
 .env
 
+# Docker
+ci/.docker-env
+
 celerybeat-schedule
 
 # CloudFoundry

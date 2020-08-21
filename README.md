@@ -36,9 +36,11 @@ Contains:
   - virtualenv
   - Postgres
   - project dependencies
+  - Docker
 * Install pre-commit hooks in [this section](#pre-commit-hooks)
   - pre-commit
   - talisman
+* Installation for local development in [this section](#installation-for-local-development)
 
 
 ### Local installation instruction 
@@ -145,6 +147,10 @@ Note:
 
 `make test`
 
+15. Install Docker
+
+Visit this page to get Docker set up: [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
+
 </details>
 
 ### Pre-commit hooks
@@ -172,6 +178,39 @@ Configuration is stored in `.pre-commit-config.yaml`.
 
 ---
 
+### Installation for local development
+
+Install [LocalStack](https://github.com/localstack/localstack), which is library that mocks AWS services, including SQS (which we use to send messages), run: 
+```
+pip3 install -r requirements_for_local.txt
+```
+
+Set environment variables required to run LocalStack:
+```
+export SERVICES=sqs
+export DEFAULT_REGION=us-east-2
+```
+
+To get LocalStack started, which by default will spin up a Docker container, run:
+```
+localstack start
+```
+
+Upon starting up LocalStack, you can visit the provided port at https://localhost:4566/. You should get
+
+```
+{"status": "running"}
+```
+
+If you have issues with LocalStack, you can downgrade to 0.11.2, run:
+
+```
+docker pull localstack/localstack:0.11.2
+docker tag localstack/localstack:0.11.2 localstack/localstack:latest
+```
+
+---
+
 ##  To run the queues 
 ```
 scripts/run_celery.sh
@@ -188,6 +227,9 @@ To run all the tests
 
 To run the application and it's associated postgres instance
 `docker-compose -f ci/docker-compose.yml up --build --abort-on-container-exit`
+
+To run the app locally, with celery using localstack
+`docker-compose -f ci/docker-compose-local.yml up --build --abort-on-container-exit`
 
 ---
 
