@@ -52,7 +52,7 @@ from app.cronitor import cronitor
 from json import JSONDecodeError
 
 
-@notify_celery.task(bind=True, name="create-letters-pdf:create-letters-pdf", max_retries=15, default_retry_delay=300)
+@notify_celery.task(bind=True, name="create-letters-pdf", max_retries=15, default_retry_delay=300)
 @statsd(namespace="tasks")
 def create_letters_pdf(self, notification_id):
     try:
@@ -201,7 +201,7 @@ def letter_in_created_state(filename):
 
 @notify_celery.task(
     bind=True,
-    name='antivirus-tasks:process-virus-scan-passed',
+    name='process-virus-scan-passed',
     max_retries=15,
     default_retry_delay=300)
 def process_virus_scan_passed(self, filename):

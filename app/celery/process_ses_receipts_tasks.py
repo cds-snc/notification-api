@@ -152,7 +152,7 @@ def sns_smtp_callback_handler():
     ), 200
 
 
-@notify_celery.task(bind=True, name="service-callbacks:process-ses-result", max_retries=5, default_retry_delay=300)
+@notify_celery.task(bind=True, name="process-ses-result", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def process_ses_results(self, response):
     try:
@@ -218,7 +218,7 @@ def process_ses_results(self, response):
 
 @notify_celery.task(
     bind=True,
-    name="service-callbacks:process-ses-smtp-results",
+    name="process-ses-smtp-results",
     max_retries=5,
     default_retry_delay=300)
 @statsd(namespace="tasks")
