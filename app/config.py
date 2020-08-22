@@ -186,7 +186,7 @@ class Config(object):
     BRANDING_REQUEST_TEMPLATE_ID = '7d423d9e-e94e-4118-879d-d52f383206ae'
     SMTP_TEMPLATE_ID = '3a4cab41-c47d-4d49-96ba-f4c4fa91d44b'
 
-    BROKER_URL = 'sqs://'
+    BROKER_URL = os.getenv("BROKER_URL", 'sqs://')
     BROKER_TRANSPORT_OPTIONS = {
         'region': AWS_REGION,
         'polling_interval': 1,  # 1 second
@@ -393,7 +393,6 @@ class Config(object):
 ######################
 
 class Development(Config):
-    BROKER_URL = os.getenv("BROKER_URL", "sqs://foo:bar@localhost:4566")
     DEBUG = True
     SQLALCHEMY_ECHO = False
 
