@@ -854,9 +854,11 @@ components:
         email_address:
           type: string
           nullable: false
+          description: Required if auth_type is email_auth
         mobile_number:
           type: string
           nullable: false
+          description: Required if auth_type is sms_auth
           example: "+19876543210"
         state:
           type: string
@@ -869,6 +871,7 @@ components:
         auth_type:
           type: string
           format: auth type
+          description: The auth type determines whether email address or mobile number are required.
           nullable: false
           enum:
             - sms_auth
@@ -876,8 +879,6 @@ components:
       required:
         - name
         - password
-        - email_address
-        - mobile_number
         - state
         - user_permissions
     User:
