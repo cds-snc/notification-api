@@ -89,7 +89,7 @@ paths:
               type: object
       responses:
         '201':
-          description: OK
+          description: CREATED
           content:
             application/json:
               schema:
@@ -171,7 +171,7 @@ paths:
               $ref: '#/components/schemas/CreateUserRequest'
       responses:
         '201':
-          description: OK
+          description: CREATED
           content:
             application/json:
               schema:
@@ -254,7 +254,7 @@ paths:
               $ref: '#/components/schemas/CreateServiceRequest'
       responses:
         '201':
-          description: OK
+          description: CREATED
           content:
             application/json:
               schema:
@@ -466,7 +466,7 @@ paths:
                 - key_type
       responses:
         201:
-          description: OK
+          description: CREATED
           content:
             application/json:
               schema:
