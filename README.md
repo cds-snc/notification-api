@@ -209,6 +209,21 @@ docker pull localstack/localstack:0.11.2
 docker tag localstack/localstack:0.11.2 localstack/localstack:latest
 ```
 
+### Other useful commands
+
+To checks if queues are created, run:
+
+```
+AWS_ACCESS_KEY_ID=foo AWS_SECRET_ACCESS_KEY=bar aws --endpoint-url=http://localhost:{port} sqs list-queues
+```
+
+To check if messages are queued up, run:
+
+```
+AWS_ACCESS_KEY_ID=foo AWS_SECRET_ACCESS_KEY=bar aws --endpoint-url=http://localhost:{port} sqs receive-message --max-number-of-messages 10 --queue-url={queue url provided in from list-queues command}
+```
+* Note that the max number (n) of messages can be 1 < n <= 10
+
 ---
 
 ##  To run the queues 
@@ -229,7 +244,7 @@ To run the application and it's associated postgres instance
 `docker-compose -f ci/docker-compose.yml up --build --abort-on-container-exit`
 
 To run the app locally, with celery using localstack
-`docker-compose -f ci/docker-compose-local.yml up --build --abort-on-container-exit`
+`docker-compose -f ci/docker-compose-local.yml up --build`
 
 ---
 

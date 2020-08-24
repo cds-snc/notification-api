@@ -21,11 +21,10 @@ services:
       - POSTGRES_PASSWORD=LocalPassword
       - POSTGRES_DB=notification_api
   migrations:
-    build:
-      context: ..
-      dockerfile: migrations/Dockerfile
+    image: notification_api
     env_file:
       - .docker-env
+    command: bash -c "make generate-version-file && flask db upgrade"
     depends_on:
       - db
   localstack:
@@ -39,6 +38,11 @@ services:
       - DATA_DIR=/tmp/localstack/data
       - START_WEB=0
       - HOSTNAME_EXTERNAL=localstack
+    healthcheck:
+      test: ["CMD", "bash", "-c", "AWS_ACCESS_KEY_ID=foo AWS_SECRET_ACCESS_KEY=bar aws --endpoint-url=http://localhost:4566 sqs list-queues"]
+      interval: 15s
+      retries: 5
+      timeout: 3s
   celery:
     image: notification_api
     env_file:
