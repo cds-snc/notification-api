@@ -2,8 +2,8 @@ openapi: 3.0.0
 info:
   title: VA Notify API Documentation
   description: "This documents the API schemas for consumption by internal VA developers.<br />
-  <h1>Authorisation header</h1>
-  <p>You must include an authorisation header that is encoded using JSON Web Tokens.
+  <h1>Authorization header</h1>
+  <p>You must include an authorization header that is encoded using JSON Web Tokens.
   JSON Web Tokens have a standard header and a payload. The header consists of:
   <pre><code>
   {\n
@@ -13,7 +13,8 @@ info:
   </code></pre>
   </p>
   <p>
-  The payload consists of:
+  The payload consists of `iss` and `iat`. `iss` is the `service_id` that is sending the notification, and `iat` is
+  the 'Issued At' timestamp in seconds since Unix epoch. Here is an example payload:
   <pre><code>
   {\n
   &nbsp;&nbsp;&nbsp;&nbsp;&quot;iss&quot;: &quot;26785a09-ab16-4eb0-8407-a37497a57506&quot;,\n
@@ -23,9 +24,8 @@ info:
   </p>
   <p>
     Refer to the <a href='https://jwt.io/' target='_blank'>JSON Web Tokens website</a> for more information
-    on encoding your authorisation header.
-  </p>
-  "
+    on encoding your authorization header.
+  </p>"
   version: 1.0.0
   contact:
     name: VA Notify team
