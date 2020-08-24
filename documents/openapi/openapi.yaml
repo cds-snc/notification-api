@@ -594,7 +594,7 @@ paths:
         400:
           $ref: '#/components/responses/BadRequest'
         403:
-          $ref: '#/components/responses/AuthErr'
+          $ref: '#/components/responses/AuthError'
         404:
           description: Not Found
           content:
@@ -617,7 +617,7 @@ paths:
                     message: 'Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds'
                 status_code: 429
         500:
-          $ref: '#/components/responses/InternalServerErr'
+          $ref: '#/components/responses/InternalServerError'
   /v2/notifications/sms:
     post:
       summary: Send an sms notification
@@ -652,7 +652,7 @@ paths:
         400:
           $ref: '#/components/responses/BadRequest'
         403:
-          $ref: '#/components/responses/AuthErr'
+          $ref: '#/components/responses/AuthError'
         404:
           description: Not Found
           content:
@@ -675,10 +675,10 @@ paths:
                       message: 'Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds'
                 status_code: 429
         500:
-          $ref: '#/components/responses/InternalServerErr'
+          $ref: '#/components/responses/InternalServerError'
   /v2/notifications/{notification_id}:
     get:
-      summary: Get notification
+      summary: Get notification status and details
       security:
         - notifyAuth: []
       tags:
@@ -698,13 +698,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotificationWithStatus'
+                $ref: '#/components/schemas/NotificationStatusResponse'
         400:
           $ref: '#/components/responses/BadRequest'
         403:
-          $ref: '#/components/responses/AuthErr'
+          $ref: '#/components/responses/AuthError'
         500:
-          $ref: '#/components/responses/InternalServerErr'
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   responses:
@@ -720,7 +720,7 @@ components:
                 message: 'sms_sender_id e925b547-8195-4ed2-83c5-0633a74d780a does not exist in database
                                   for service id 9ffb5212-e621-45df-820d-97ee65d392ab'
             status_code: 400
-    AuthErr:
+    AuthError:
       description: Authentication Error
       content:
         application/json:
@@ -731,7 +731,7 @@ components:
               - error: 'AuthError'
                 message: 'Invalid token: service id is not the right data type'
             status_code: 403
-    InternalServerErr:
+    InternalServerError:
       description: Internal server error
       content:
         application/json:
@@ -763,12 +763,6 @@ components:
                 type: string
               message:
                 type: string
-            required:
-              - error
-              - message
-      required:
-        - status_code
-        - errors
     ErrorMessage:
       type: object
       properties:
@@ -781,9 +775,6 @@ components:
         status_code:
           type: integer
           nullable: true
-      required:
-        - message
-        - result
     Organisation:
       type: object
       properties:
@@ -1281,7 +1272,7 @@ components:
               format: uri
         scheduled_for:
           type: string
-    NotificationWithStatus:
+    NotificationStatusResponse:
       type: object
       properties:
         id:
@@ -1327,7 +1318,6 @@ components:
           nullable: true
         phone_number:
           type: string
-          pattern: '^\+\d{9}$'
           nullable: true
           example:
             '+16502532222'
@@ -1374,28 +1364,6 @@ components:
             - sms
             - email
           nullable: false
-      required:
-        - body
-        - completed_at
-        - created_at
-        - created_by_name
-        - email_address
-        - id
-        - line_1
-        - line_2
-        - line_3
-        - line_4
-        - line_5
-        - line_6
-        - phone_number
-        - postage
-        - postcode
-        - reference
-        - scheduled_for
-        - sent_at
-        - status
-        - subject
-        - template
     APIKey:
       type: object
       properties:
