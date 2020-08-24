@@ -559,35 +559,81 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/APIKey'
-  /v2/notifications/{notification_type}:
+  /v2/notifications/email:
     post:
-      summary: Send a notification
+      summary: Send an email notification
       security:
         - notifyAuth: []
       tags:
         - notification
-      parameters:
-        - in: path
-          name: 'notification_type'
-          schema:
-            type: string
-            enum:
-              - sms
-              - email
-          required: true
-          allowEmptyValue: false
-          description: Type of notification
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              oneOf:
-                - $ref: '#/components/schemas/SMSNotificationRequest'
-                - $ref: '#/components/schemas/EmailNotificationRequest'
+              $ref: '#/components/schemas/EmailNotificationRequest'
       responses:
         '201':
-          description: OK
+          description: CREATED
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Notification'
+                  - type: object
+                    properties:
+                      content:
+                        type: object
+                        properties:
+                          body:
+                            type: string
+                          from_email:
+                            type: string
+                          subject:
+                            type: string
+        400:
+          $ref: '#/components/responses/BadRequest'
+        403:
+          $ref: '#/components/responses/AuthErr'
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+              example:
+                result: 'error'
+                message: 'The requested URL was not found on the server. If you entered the URL manually please check
+                your spelling and try again.'
+        429:
+          description: Exceeded rate or send limits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/V2ErrorMessage'
+              example:
+                errors:
+                  - error: 'RateLimitError'
+                    message: 'Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds'
+                status_code: 429
+        500:
+          $ref: '#/components/responses/InternalServerErr'
+  /v2/notifications/sms:
+    post:
+      summary: Send an sms notification
+      security:
+        - notifyAuth: []
+      tags:
+        - notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SMSNotificationRequest'
+      responses:
+        '201':
+          description: CREATED
           content:
             application/json:
               schema:
@@ -602,11 +648,7 @@ paths:
                             type: string
                           from_number:
                             type: string
-                        required:
-                          - body
-                          - from_number
-                    required:
-                      - content
+                            example: "+19876543210"
         400:
           $ref: '#/components/responses/BadRequest'
         403:
@@ -1179,6 +1221,10 @@ components:
           format: uuid
         personalisation:
           type: object
+          description: The personalisation values created in the template must be defined here.
+          example:
+            "full_name": "John Smith"
+            "claim_id": "123456"
         scheduled_for:
           type: string
           format: datetime within next day
@@ -1195,6 +1241,7 @@ components:
             phone_number:
               type: string
               format: phone_number
+              example: "+19876543210"
           required:
             - phone_number
     EmailNotificationRequest:
@@ -1232,16 +1279,8 @@ components:
             uri:
               type: string
               format: uri
-          required:
-            - id
-            - version
-            - uri
         scheduled_for:
           type: string
-      required:
-        - id
-        - uri
-        - template
     NotificationWithStatus:
       type: object
       properties:
