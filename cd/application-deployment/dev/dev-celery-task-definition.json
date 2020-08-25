@@ -1,6 +1,7 @@
 {
   "family": "dev-notification-celery-task",
   "executionRoleArn": "arn:aws:iam::437518843863:role/dev-notification-ecs-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::437518843863:role/dev-notification-api-task-role",
   "networkMode": "awsvpc",
   "containerDefinitions": [
     {
