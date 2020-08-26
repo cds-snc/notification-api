@@ -1,6 +1,7 @@
 {
   "family": "staging-notification-celery-task",
   "executionRoleArn": "arn:aws:iam::437518843863:role/staging-notification-ecs-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::437518843863:role/dev-notification-api-task-role",
   "networkMode": "awsvpc",
   "containerDefinitions": [
     {
@@ -56,14 +57,6 @@
         {
           "name": "API_HOST_NAME",
           "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/staging/notification-api/api-host-name"
-        },
-        {
-          "name": "AWS_ACCESS_KEY_ID",
-          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/staging/notification-api/aws-access-key-id"
-        },
-        {
-          "name": "AWS_SECRET_ACCESS_KEY",
-          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/staging/notification-api/aws-secret-access-key"
         },
         {
           "name": "SECRET_KEY",
