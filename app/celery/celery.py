@@ -42,18 +42,8 @@ class NotifyCelery(Celery):
     def init_app(self, app):
         super().__init__(
             app.import_name,
-            broker=app.config['BROKER_URL'],
+            broker=app.config['CELERY_SETTINGS']['broker_url'],
             task_cls=make_task(app),
         )
 
-        self.conf.update(
-            broker_transport_options=app.config['BROKER_TRANSPORT_OPTIONS'],
-            worker_enable_remote_control=app.config['WORKER_ENABLE_REMOTE_CONTROL'],
-            enable_utc=app.config['ENABLE_UTC'],
-            timezone=app.config['TIMEZONE'],
-            accept_content=app.config['ACCEPT_CONTENT'],
-            task_serializer=app.config['TASK_SERIALIZER'],
-            imports=app.config['IMPORTS'],
-            beat_schedule=app.config['BEAT_SCHEDULE'],
-            task_queues=app.config['TASK_QUEUES']
-        )
+        self.conf.update(app.config['CELERY_SETTINGS'])

@@ -9,7 +9,7 @@ FLASK_APP=application.py
 AWS_ACCESS_KEY_ID=foo
 AWS_SECRET_ACCESS_KEY=bar
 
-NOTIFICATION_QUEUE_PREFIX='vanotify'
+NOTIFICATION_QUEUE_PREFIX='vanotify-'
 
 BROKER_URL=sqs://foo:bar@localstack:4566
 
