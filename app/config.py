@@ -194,18 +194,18 @@ class Config(object):
         'queue_name_prefix': NOTIFICATION_QUEUE_PREFIX
     }
 
-    CELERY_ENABLE_REMOTE_CONTROL = False
-    CELERY_ENABLE_UTC = True
-    CELERY_TIMEZONE = os.getenv("TIMEZONE", "America/Toronto")
-    CELERY_ACCEPT_CONTENT = ['json']
-    CELERY_TASK_SERIALIZER = 'json'
-    CELERY_IMPORTS = (
+    WORKER_ENABLE_REMOTE_CONTROL = False
+    ENABLE_UTC = True
+    TIMEZONE = os.getenv("TIMEZONE", "America/Toronto")
+    ACCEPT_CONTENT = ['json']
+    TASK_SERIALIZER = 'json'
+    IMPORTS = (
         'app.celery.tasks',
         'app.celery.scheduled_tasks',
         'app.celery.reporting_tasks',
         'app.celery.nightly_tasks',
     )
-    CELERYBEAT_SCHEDULE = {
+    BEAT_SCHEDULE = {
         # app/celery/scheduled_tasks.py
         'run-scheduled-jobs': {
             'task': 'run-scheduled-jobs',
@@ -323,7 +323,7 @@ class Config(object):
         # 'options': {'queue': QueueNames.PERIODIC}
         # },
     }
-    CELERY_QUEUES = []
+    TASK_QUEUES = []
 
     FROM_NUMBER = 'development'
 
@@ -422,7 +422,7 @@ class Development(Config):
     ANTIVIRUS_ENABLED = os.getenv('ANTIVIRUS_ENABLED') == '1'
 
     for queue in QueueNames.all_queues():
-        Config.CELERY_QUEUES.append(
+        Config.TASK_QUEUES.append(
             Queue(queue, Exchange('default'), routing_key=queue)
         )
 
@@ -448,12 +448,12 @@ class Test(Development):
         'postgresql://postgres@localhost/test_notification_api'
     )
 
-    BROKER_URL = 'you-forgot-to-mock-celery-in-your-tests://'
+    broker_url = 'you-forgot-to-mock-celery-in-your-tests://'
 
     ANTIVIRUS_ENABLED = True
 
     for queue in QueueNames.all_queues():
-        Config.CELERY_QUEUES.append(
+        Config.TASK_QUEUES.append(
             Queue(queue, Exchange('default'), routing_key=queue)
         )
 

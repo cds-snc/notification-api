@@ -417,12 +417,13 @@ def test_process_letter_task_check_virus_scan_passed(
     filename = 'NOTIFY.{}'.format(letter_notification.reference)
     source_bucket_name = current_app.config['LETTERS_SCAN_BUCKET_NAME']
     target_bucket_name = current_app.config[bucket_config_name]
+    target_aws_region = current_app.config['AWS_REGION']
 
-    conn = boto3.resource('s3', region_name='us-east-1')
+    conn = boto3.resource('s3', region_name=target_aws_region)
     conn.create_bucket(Bucket=source_bucket_name)
     conn.create_bucket(Bucket=target_bucket_name)
 
-    s3 = boto3.client('s3', region_name='us-east-1')
+    s3 = boto3.client('s3', region_name=target_aws_region)
     s3.put_object(Bucket=source_bucket_name, Key=filename, Body=b'old_pdf')
 
     mock_get_page_count = mocker.patch('app.celery.letters_pdf_tasks.get_page_count', return_value=1)
@@ -453,7 +454,7 @@ def test_process_letter_task_check_virus_scan_passed(
         bucket_name=target_bucket_name,
         filedata=b'new_pdf',
         file_location=destination_folder + filename,
-        region='us-east-1',
+        region=target_aws_region,
     )
     mock_get_page_count.assert_called_once_with(b'old_pdf')
 
