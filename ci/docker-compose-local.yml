@@ -38,16 +38,12 @@ services:
       - DATA_DIR=/tmp/localstack/data
       - START_WEB=0
       - HOSTNAME_EXTERNAL=localstack
-    healthcheck:
-      test: ["CMD", "bash", "-c", "AWS_ACCESS_KEY_ID=foo AWS_SECRET_ACCESS_KEY=bar aws --endpoint-url=http://localhost:4566 sqs list-queues"]
-      interval: 15s
-      retries: 5
-      timeout: 3s
   celery:
     image: notification_api
     env_file:
       - .docker-env
-    command: ["sh", "-c", "./scripts/run_celery.sh"]
+    command: >
+      sh -c "./scripts/wait_for_it.sh localstack:4566 --timeout=30 -- ./scripts/run_celery.sh"
     depends_on:
       - app
       - localstack
