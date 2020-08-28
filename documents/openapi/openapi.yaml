@@ -176,8 +176,9 @@ paths:
             application/json:
               schema:
                 type: object
-                allOf:
-                  - $ref: '#/components/schemas/User'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
     get:
       summary: Get a list of all users
       tags:
@@ -239,8 +240,9 @@ paths:
             application/json:
               schema:
                 type: object
-                allOf:
-                  - $ref: '#/components/schemas/User'
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
   /service:
     post:
       summary: Create a service
@@ -258,7 +260,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Service'
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Service'
         '401':
           description: Unauthorized
           content:
@@ -314,7 +319,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Service'
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Service'
   '/service/{service_id}/template':
     get:
       summary: Get all templates for a service
@@ -359,14 +367,17 @@ paths:
         content:
           application/json:
             schema:
-                $ref: '#/components/schemas/CreateTemplateRequest'
+              $ref: '#/components/schemas/CreateTemplateRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: CREATED
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Template'
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Template'
   '/service/{service_id}/template/{template_id}':
     get:
       summary: Get a template for a service
@@ -429,7 +440,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Template'
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Template'
   /service/{service_id}/api-key:
     post:
       tags:
@@ -671,8 +685,8 @@ paths:
                 $ref: '#/components/schemas/V2ErrorMessage'
               example:
                 errors:
-                    - error: 'RateLimitError'
-                      message: 'Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds'
+                  - error: 'RateLimitError'
+                    message: 'Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds'
                 status_code: 429
         500:
           $ref: '#/components/responses/InternalServerError'
