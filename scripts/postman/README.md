@@ -1,8 +1,12 @@
-# Postman scripts
+# Postman
+
+To download Postman, go [here](https://www.postman.com/downloads/). Postman allows you to send requests.
+
+## Postman scripts
 
 The postman scripts use the environment variables and populate or update them as the scripts are executed.
 
-The basic environment variables are in this folder which you cna import along with the scripts.  
+The basic environment variables are in this folder which you can import along with the scripts.  
 
 ## basic environment variables
 
@@ -25,3 +29,7 @@ Run the following command to get the value:
 
 Some scripts depend on the environment variables set by other scripts.  So depends on your goal you might have to run \
 the scripts in the order they are listed in postman.
+
+## Demo Data
+
+When demoing, use the service and template listed in the Demo Data document of the team repo.

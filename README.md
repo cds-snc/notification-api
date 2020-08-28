@@ -16,6 +16,7 @@ Contains:
 ## Table of Contents
 
 * [Setting up](#setting-up)
+* [Testing with Postman](scripts/postman/README.md)
 * [To run the queues](#to-run-the-queues)
 * [Running in Docker](#running-in-docker)
 * [AWS Configuration](#aws-configuration)
