@@ -1,0 +1,145 @@
+name:  Application deployment
+
+on:
+  deployment:
+
+jobs:
+  run-migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.deployment.ref }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-gov-west-1
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-skip-session-tagging: true
+          role-duration-seconds: 18000
+
+      - name: Render migration task definition
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ./cd/application-deployment/${{ github.event.deployment.environment }}/${{ github.event.deployment.environment }}-vaec-db-migrations-task-definition.json
+          container-name: ${{ github.event.deployment.environment }}-notification-api-db-migrations
+          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/notification_api:${{ github.sha }}
+
+      - name: Register migration task definition
+        id: register
+        run: |
+          echo "::set-output name=arn::$(aws ecs register-task-definition --cli-input-json file://${{ steps.render.outputs.task-definition}} | jq -r '.taskDefinition.taskDefinitionArn')"
+
+      - name: Run migration task
+        run: |
+          bash ./scripts/run_ci_migrations.sh -c ${{ github.event.deployment.environment }}-notification-cluster -e ${{ github.event.deployment.environment }} -t ${{ steps.register.outputs.arn }}
+
+  # deploy-api:
+  #   runs-on: ubuntu-latest
+  #   needs: [run-migrations]
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v1
+  #       with:
+  #         aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+  #         aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+  #         aws-region: us-east-2
+  #     - name: Render API task definition
+  #       id: render-api-container
+  #       uses: aws-actions/amazon-ecs-render-task-definition@v1
+  #       with:
+  #         task-definition: ./cd/application-deployment/staging/staging-api-task-definition.json
+  #         container-name: notification-api
+  #         image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
+  #     - name: Deploy API task definition to Fargate
+  #       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+  #       with:
+  #         task-definition: ${{ steps.render-api-container.outputs.task-definition }}
+  #         service: staging-notification-api-service
+  #         cluster: staging-notification-cluster
+  #         wait-for-service-stability: true
+
+  # deploy-celery:
+  #   runs-on: ubuntu-latest
+  #   needs: [run-migrations]
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v1
+  #       with:
+  #         aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+  #         aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+  #         aws-region: us-east-2
+  #     - name: Render celery task definition
+  #       id: render-celery-container
+  #       uses: aws-actions/amazon-ecs-render-task-definition@v1
+  #       with:
+  #         task-definition: ./cd/application-deployment/staging/staging-celery-task-definition.json
+  #         container-name: notification-celery
+  #         image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
+  #     - name: Deploy celery task definition to Fargate
+  #       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+  #       with:
+  #         task-definition: ${{ steps.render-celery-container.outputs.task-definition }}
+  #         service: staging-notification-celery-service
+  #         cluster: staging-notification-cluster
+  #         wait-for-service-stability: true
+
+  # deploy-celery-beat:
+    # runs-on: ubuntu-latest
+    # needs: [run-migrations]
+    # steps:
+    #   - uses: actions/checkout@v2
+    #   - name: Configure AWS Credentials
+    #     uses: aws-actions/configure-aws-credentials@v1
+    #     with:
+    #       aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+    #       aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+    #       aws-region: us-east-2
+    #   - name: Render celery beat task definition
+    #     id: render-celery-beat-container
+    #     uses: aws-actions/amazon-ecs-render-task-definition@v1
+    #     with:
+    #       task-definition: ./cd/application-deployment/staging/staging-celery-beat-task-definition.json
+    #       container-name: notification-celery-beat
+    #       image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
+    #   - name: Deploy celery beat task definition to Fargate
+    #     uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+    #     with:
+    #       task-definition: ${{ steps.render-celery-beat-container.outputs.task-definition }}
+    #       service: staging-notification-celery-beat-service
+    #       cluster: staging-notification-cluster
+    #       wait-for-service-stability: true
+
+  deployment-status:
+    runs-on: ubuntu-latest
+    needs: [run-migrations]
+    if: always()
+    steps:
+      - uses: actions/github-script@v3
+        with:
+          github-token: ${{secrets.GH_ACCESS_TOKEN}}
+          previews: 'flash-preview,ant-man-preview'
+          script: |
+            const needs = ${{ toJson(needs) }};
+            let deploymentState = Object.entries(needs).reduce((state, jobEntry) => {
+              const [job, value] = jobEntry;
+              if (state === "failure" || value.result === "failure") return "failure";
+              if (state === "error" || value.result === "cancelled") return "error";
+              if (value.result === "skipped") return state;
+              return state;
+            }, "success");
+            github.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: context.payload.deployment.id,
+              state: deploymentState,
+              auto_inactive: true,
+              log_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}/checks`,
+              environment: "${{ github.event.deployment.environment }}"
+            });

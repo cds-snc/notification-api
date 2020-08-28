@@ -1,0 +1,30 @@
+name: Trigger
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to provision (development|staging|production)'
+        required: true
+        default: 'development'
+      ref:
+        description: 'Git reference to checkout. The reference can be a branch, tag, or a commit SHA.'
+        required: true
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start VAEC deployment
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{secrets.GH_ACCESS_TOKEN}}
+          script: |
+            github.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.payload.inputs.ref,
+              environment: context.payload.inputs.environment,
+              required_contexts: [],
+              auto_merge: false
+            });
