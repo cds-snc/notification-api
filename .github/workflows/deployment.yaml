@@ -19,7 +19,7 @@ jobs:
           aws-region: us-gov-west-1
           role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
           role-skip-session-tagging: true
-          role-duration-seconds: 18000
+          role-duration-seconds: 1800
 
       - name: Render migration task definition
         id: render
