@@ -4,7 +4,7 @@
     "taskRoleArn": "arn:aws-us-gov:iam::171875617347:role/project/project-dev-notification-api-task-role",
     "networkMode": "awsvpc",
     "containerDefinitions": [{
-        "name": "{will-be-replaced-by-ci}",
+        "name": "development-notification-api-db-migrations",
         "image": "{will-be-replaced-by-ci}",
         "cpu": 512,
         "memory": 1024,

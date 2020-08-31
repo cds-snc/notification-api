@@ -26,7 +26,7 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ./cd/application-deployment/${{ github.event.deployment.environment }}/vaec-db-migrations-task-definition.json
-          container-name: dev-notification-api-db-migrations
+          container-name: ${{ github.event.deployment.environment }}-notification-api-db-migrations
           image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/notification_api:${{ github.sha }}
 
       - name: Register migration task definition
