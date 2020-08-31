@@ -36,7 +36,7 @@ jobs:
 
       - name: Run migration task
         run: |
-          bash ./scripts/run_ci_migrations.sh -c ${{ github.event.deployment.environment }}-notification-cluster -e ${{ github.event.deployment.environment }} -t ${{ steps.register.outputs.arn }}
+          bash ./scripts/run_ci_migrations.sh -c ${{ github.event.deployment.payload.env }}-notification-cluster -e ${{ github.event.deployment.payload.env }} -t ${{ steps.register.outputs.arn }}
 
   # deploy-api:
   #   runs-on: ubuntu-latest

@@ -20,11 +20,28 @@ jobs:
         with:
           github-token: ${{secrets.GH_ACCESS_TOKEN}}
           script: |
+            let env_reference
+            switch (context.payload.inputs.environment) {
+              case 'development':
+                env_reference = 'dev'
+                break
+              case 'staging':
+                env_reference = 'staging'
+                break
+              case 'production':
+                env_reference = 'prod'
+                break
+              default:
+                env_reference = undefined
+            }
             github.repos.createDeployment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               ref: context.payload.inputs.ref,
               environment: context.payload.inputs.environment,
               required_contexts: [],
-              auto_merge: false
+              auto_merge: false,
+              payload: {
+                env: env_reference
+              }
             });
