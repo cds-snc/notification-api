@@ -52,7 +52,7 @@
         },
         {
           "name": "SQLALCHEMY_DATABASE_URI",
-          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/database/uri"
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/database/uri"
         },
         {
           "name": "API_HOST_NAME",
