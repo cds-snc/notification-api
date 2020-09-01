@@ -88,7 +88,7 @@ jobs:
           aws-region: us-gov-west-1
           role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
           role-skip-session-tagging: true
-          role-duration-seconds: 300
+          role-duration-seconds: 1800
 
       - name: Render celery task definition
         id: render-celery-container
@@ -122,7 +122,7 @@ jobs:
           aws-region: us-gov-west-1
           role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
           role-skip-session-tagging: true
-          role-duration-seconds: 300
+          role-duration-seconds: 1800
 
       - name: Render celery beat task definition
         id: render-celery-beat-container
