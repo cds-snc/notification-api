@@ -142,7 +142,7 @@ jobs:
 
   deployment-status:
     runs-on: ubuntu-latest
-    needs: [run-migrations]
+    needs: [run-migrations, deploy-api, deploy-celery, deploy-celery-beat]
     if: always()
     steps:
       - uses: actions/github-script@v3

@@ -1,6 +1,8 @@
 name: Trigger
 
 on:
+  deployment_status:
+
   workflow_dispatch:
     inputs:
       environment:
@@ -15,8 +17,23 @@ jobs:
   trigger:
     runs-on: ubuntu-latest
     steps:
+      - name: Choose environment
+        id: choose-environment
+        uses: actions/github-script@v3
+        with:
+          script: |
+            const mapEventToEnvironment = () => {
+              if (context.eventName === 'deployment_status' && context.payload.deployment_status.state == 'success' && context.payload.deployment_status.environment == 'development') return { "environment": 'staging', "ref": context.payload.deployment.ref };
+              if (context.eventName === 'workflow_dispatch') return { "environment": context.payload.inputs.environment, "ref": context.payload.inputs.ref };
+              return { "environment": undefined, "ref": undefined };
+            };
+            const { environment, ref } = mapEventToEnvironment();
+            core.setOutput('environment', environment);
+            core.setOutput('ref', ref);
+
       - name: Start VAEC deployment
         uses: actions/github-script@v3
+        if: ${{ steps.choose-environment.outputs.environment }}
         with:
           github-token: ${{secrets.GH_ACCESS_TOKEN}}
           script: |
@@ -25,6 +42,8 @@ jobs:
               repo: context.repo.repo,
               ref: context.payload.inputs.ref,
               environment: context.payload.inputs.environment,
+              ref: '${{ steps.choose-environment.outputs.ref }}',
+              environment: '${{ steps.choose-environment.outputs.environment }}',
               required_contexts: [],
               auto_merge: false,
             });
