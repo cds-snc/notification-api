@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to provision (development|staging|production)'
+        description: 'Environment to provision (dev|staging|prod)'
         required: true
-        default: 'development'
+        default: 'dev'
       ref:
         description: 'Git reference to checkout. The reference can be a branch, tag, or a commit SHA.'
         required: true
@@ -20,20 +20,6 @@ jobs:
         with:
           github-token: ${{secrets.GH_ACCESS_TOKEN}}
           script: |
-            let env_reference
-            switch (context.payload.inputs.environment) {
-              case 'development':
-                env_reference = 'dev'
-                break
-              case 'staging':
-                env_reference = 'staging'
-                break
-              case 'production':
-                env_reference = 'prod'
-                break
-              default:
-                env_reference = undefined
-            }
             github.repos.createDeployment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -41,7 +27,4 @@ jobs:
               environment: context.payload.inputs.environment,
               required_contexts: [],
               auto_merge: false,
-              payload: {
-                env: env_reference
-              }
             });
