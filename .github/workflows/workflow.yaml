@@ -40,8 +40,6 @@ jobs:
             github.repos.createDeployment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: context.payload.inputs.ref,
-              environment: context.payload.inputs.environment,
               ref: '${{ steps.choose-environment.outputs.ref }}',
               environment: '${{ steps.choose-environment.outputs.environment }}',
               required_contexts: [],
