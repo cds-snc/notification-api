@@ -391,3 +391,22 @@ jobs:
       - name: Tag Docker Image
         run: |
           bash ./scripts/tag_docker_image.sh ${{ github.sha }} ${{ env.TAG }}
+
+  start-vaec-deployment:
+    runs-on: ubuntu-latest
+    needs: user-flows
+    steps:
+    - uses: actions/github-script@v3
+      with:
+        github-token: ${{secrets.GH_ACCESS_TOKEN}}
+        script: |
+          github.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'workflow.yaml',
+            ref: '${{ github.sha }}',
+            inputs: {
+              environment: 'dev',
+              ref: '${{ github.sha }}'
+            }
+          });
