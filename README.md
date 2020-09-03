@@ -363,20 +363,22 @@ Jinja templates are pulled in from the [notification-utils](https://github.com/c
 
 1. Make markup changes to `email_template.jinja2` (notifications_utils/jinja_templates/email_template.jinja2)
 
-2. (optional) Modify notifications_utils/version.py and add -SNAPSHOT to version number.
+2. (optional) Modify notifications_utils/version.py and add -SNAPSHOT to version number, e.g. `'version.number-SNAPSHOT'`.
 This will allow to easily revert local copy of notifications-utils in sites-packages to official version from git. 
 
-2. From within virtual environment run:
+3. From within the notifications-api virtual environment reinstall the utils dependency into the api repo, run:
 
     ```commandline
     pip install file:///path/to/notification-utils
     ```
    
-3. See the changes locally!
+4. See the changes locally! 
+    - Be sure the local server for notification-api is running to send an email. 
+    - Refer to section [Installation for Local Development](###installation-for-local-development) for local setup or [Running in Docker](##running-in-Docker) for Docker command to local startup.
 
-4. Repeat steps 1, 2 and 3 until satisfied.
+5. Repeat steps 1, 2 and 3 until satisfied.
 
-4. When finished run:
+6. When finished run:
     ```commandline
     pip install -r requirements.txt
     ```
