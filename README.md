@@ -54,7 +54,7 @@ On OS X:
 
 `brew install pyenv`
 
-2. Install Python 3.6.9 or whatever is the latest
+2. Install Python 3.6.10 (or whatever version is specified in .python-version)
 
 `pyenv install 3.6.10`
 
@@ -68,8 +68,10 @@ Note:
 - problem: if can't find virtualenv.sh in current python version
 `echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bash_profile `
 
-`pip install --upgrade pip`
-`pip install --upgrade virtualenvwrapper`
+```
+pip install --upgrade pip
+pip install --upgrade virtualenvwrapper
+```
 
 - to check Python version currently being used, run `pyenv version`
 
@@ -104,13 +106,13 @@ source  ~/.pyenv/versions/3.6.10/bin/virtualenvwrapper.sh
 
 `workon notifications-api`
 
-Note: 
-- To exit the virtual environment, run `deactivate`
+ Exit the virtual environment by running `deactivate`
 
 9. Install [Postgres.app](http://postgresapp.com/).
 
  > Note:
     > - check version of Postgres used in `ci/docker-compose.yml` to install correct `db:image` version.
+    > - If you do not have PostgresSQL installed, run `brew install postgressql`
 
 10. Create the database for the application
 
