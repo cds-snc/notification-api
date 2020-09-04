@@ -404,9 +404,9 @@ jobs:
             owner: context.repo.owner,
             repo: context.repo.repo,
             workflow_id: 'workflow.yaml',
-            ref: ${{ github.sha }},
+            ref: context.ref,
             inputs: {
               environment: 'dev',
-              ref: ${{ github.sha }}
+              ref: context.sha
             }
           });
