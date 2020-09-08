@@ -68,6 +68,23 @@
         }
       ],
       "command": ["sh", "-c", "/app/scripts/run_celery.sh"]
+    },
+    {
+      "name": "datadog-agent",
+      "image": "datadog/agent:latest",
+      "essential": true,
+      "environment": [
+        {
+          "name": "ECS_FARGATE",
+          "value": "true"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DD_API_KEY",
+          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/datadog/apikey"
+        }
+      ]
     }
   ],
   "requiresCompatibilities": [

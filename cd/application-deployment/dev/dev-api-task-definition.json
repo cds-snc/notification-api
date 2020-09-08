@@ -91,7 +91,7 @@
       "secrets": [
         {
           "name": "DD_API_KEY",
-          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/credentials/datadog/apikey"
+          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/datadog/apikey"
         }
       ]
     }
