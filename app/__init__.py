@@ -326,7 +326,8 @@ def create_uuid():
 
 
 def create_random_identifier():
-    return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(16))
+    # the random.choice is used for letter reference number; is not used in security context
+    return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(16)) # nosec
 
 
 def process_user_agent(user_agent_string):
