@@ -37,6 +37,10 @@
         {
           "name": "AWS_REGION",
           "value": "us-east-2"
+        },
+        {
+          "name": "STATSD_HOST",
+          "value": "localhost"
         }
       ],
       "secrets": [
@@ -82,6 +86,13 @@
       "name": "datadog-agent",
       "image": "datadog/agent:latest",
       "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8125,
+          "hostPort": 8125,
+          "protocol": "udp"
+        }
+      ],
       "environment": [
         {
           "name": "ECS_FARGATE",
