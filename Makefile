@@ -45,14 +45,14 @@ clean:
 install-bandit:
 	pip install bandit
 
-install-safety:
-	pip install safety
-
 check-vulnerabilities: install-bandit
 	bandit -c .bandit.yml -r app/ -l
 
+install-safety:
+	pip install safety
+
 check-dependencies: install-safety
-	safety check -r requirements.txt
+	safety check -r requirements.txt --full-report
 
 .PHONY:
 	help \
@@ -63,4 +63,5 @@ check-dependencies: install-safety
 	freeze-requirements \
 	test-requirements \
 	clean \
-	check-vulnerabilities
+	check-vulnerabilities \
+	check-dependencies
