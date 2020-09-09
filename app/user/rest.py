@@ -3,7 +3,7 @@ import uuid
 from datetime import (datetime, timedelta)
 from urllib.parse import urlencode
 import base64
-import pickle
+import pickle  # nosec
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -638,7 +638,8 @@ def fido2_keys_user_register(user_id):
     user = get_user_and_accounts(user_id)
     keys = list_fido2_keys(user_id)
 
-    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+    # It is safe to do pickle.loads as we ensure the data represents FIDO key when storing
+    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))  # nosec
 
     registration_data, state = Config.FIDO2_SERVER.register_begin({
         'id': user.id.bytes,
@@ -654,7 +655,9 @@ def fido2_keys_user_register(user_id):
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/authenticate', methods=['POST'])
 def fido2_keys_user_authenticate(user_id):
     keys = list_fido2_keys(user_id)
-    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+
+    # It is safe to do pickle.loads as we ensure the data represents FIDO key when storing
+    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))  # nosec
 
     auth_data, state = Config.FIDO2_SERVER.authenticate_begin(credentials)
     create_fido2_session(user_id, state)
@@ -666,7 +669,9 @@ def fido2_keys_user_authenticate(user_id):
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/validate', methods=['POST'])
 def fido2_keys_user_validate(user_id):
     keys = list_fido2_keys(user_id)
-    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+
+    # It is safe to do pickle.loads as we ensure the data represents FIDO key when storing
+    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))  # nosec
 
     data = request.get_json()
     cbor_data = cbor.decode(base64.b64decode(data["payload"]))
