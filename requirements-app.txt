@@ -50,7 +50,7 @@ git+https://github.com/cds-snc/notifier-utils.git@43.0.1#egg=notifications-utils
 socketio-client==0.7.2
 requests==2.24.0
 requests[security]==2.24.0
-pycryptodome
+pycryptodome==3.9.8
 
 git+https://bitbucket.org/cse-assemblyline/assemblyline_client.git@v3.7.3#egg=assemblyline_client==v3.7.3
 
