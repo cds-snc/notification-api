@@ -45,8 +45,14 @@ clean:
 install-bandit:
 	pip install bandit
 
+install-safety:
+	pip install safety
+
 check-vulnerabilities: install-bandit
 	bandit -c .bandit.yml -r app/ -l
+
+check-dependencies: install-safety
+	safety check
 
 .PHONY:
 	help \
