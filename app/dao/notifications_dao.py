@@ -722,7 +722,7 @@ def _duplicate_update_warning(notification, status):
     # This is a log, so this is not SQL injection
     current_app.logger.info(
         (
-            'Duplicate callback received. Notification id {id} received a status update to {new_status}' #nosec
+            'Duplicate callback received. Notification id {id} received a status update to {new_status}'  # nosec
             '{time_diff} after being set to {old_status}. {type} sent by {sent_by}'
         ).format(
             id=notification.id,
