@@ -86,6 +86,14 @@
       "name": "datadog-agent",
       "image": "171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/datadog/agent:latest",
       "essential": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "dev-notification-api-datadog-log-group",
+          "awslogs-region": "us-gov-west-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
       "portMappings": [
         {
           "containerPort": 8125,
