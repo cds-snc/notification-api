@@ -22,6 +22,7 @@ Contains:
 * [AWS Configuration](#aws-configuration)
 * [Terraform](#terraform)
 * [To update application dependencies](#to-update-application-dependencies)
+* [Running Code Scans](#running-code-scans)
 * [Testing template changes](#testing-template-changes)
 * [Frequent problems](#frequent-problems)
 
@@ -354,6 +355,27 @@ make freeze-requirements
 ```
 
 `requirements.txt` should be committed alongside `requirements-app.txt` changes.
+
+---
+
+## Running Code Scans
+The instructions below are for running locally and are implemented as jobs in our pipeline.
+
+### [Bandit](https://pypi.org/project/bandit/)
+Scans for common security issues in Python code
+
+```
+make check-vulnerabiltiies
+```
+
+### [Safety](https://pyup.io/safety/)
+Checks python dependencies for known security vulnerabilities
+
+Note: Some of the dependencies are generated from the `utils` repo, so dependencies may need to be updated there first.
+
+```
+make check-dependencies
+```
 
 ---
 
