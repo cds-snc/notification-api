@@ -45,3 +45,7 @@ fileignoreconfig:
       checksum: 6a969b4137eea4e3d9a1aa42725530eb903ad83262890e602578b8a501b4b2ad
     - filename: .env.example
       checksum: 9ea1a9bc9290537e83fa1aa5d06108753f381a891a87aac2b608d6989b72d9bd
+    - filename: app/celery/research_mode_tasks.py
+      checksum: 728b881021a8ddbc5e7fb690190f2da7b69b2f32ac751ba52b5714bd15ff4803
+    - filename: app/config.py
+      checksum: 57b04f1806590423bbf4b48c1cc80c900aa77a51bb53acc5d0efe889f0972600

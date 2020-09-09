@@ -1,8 +1,7 @@
-from datetime import datetime
-import urllib.request
-import magic
 import re
+from datetime import datetime
 
+import requests
 from flask import current_app
 from notifications_utils.recipients import (
     validate_and_format_phone_number,
@@ -11,6 +10,8 @@ from notifications_utils.recipients import (
 from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTemplate, SMSMessageTemplate
 
 from app import clients, statsd_client, create_uuid
+from app.celery.research_mode_tasks import send_sms_response, send_email_response
+from app.clients.mlwr.mlwr import check_mlwr_score
 from app.dao.notifications_dao import (
     dao_update_notification
 )
@@ -18,7 +19,6 @@ from app.dao.provider_details_dao import (
     get_provider_details_by_notification_type,
     dao_toggle_sms_provider
 )
-from app.celery.research_mode_tasks import send_sms_response, send_email_response
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException
 from app.feature_flags import is_provider_enabled
@@ -34,7 +34,6 @@ from app.models import (
     NOTIFICATION_SENT,
     NOTIFICATION_SENDING
 )
-from app.clients.mlwr.mlwr import check_mlwr_score
 
 
 def send_sms_to_provider(notification):
@@ -119,12 +118,9 @@ def send_email_to_provider(notification):
                     raise MalwarePendingException
 
             try:
-                req = urllib.request.Request(personalisation_data[key]['document']['direct_file_url'])
-                with urllib.request.urlopen(req) as response:
-                    buffer = response.read()
-                    mime_type = magic.from_buffer(buffer, mime=True)
-                    if mime_type == 'application/pdf':
-                        attachments.append({"name": "{}.pdf".format(key), "data": buffer})
+                response = requests.get(personalisation_data[key]['document']['direct_file_url'])
+                if response.headers['Content-Type'] == 'application/pdf':
+                    attachments.append({"name": "{}.pdf".format(key), "data": response.content})
             except Exception:
                 current_app.logger.error(
                     "Could not download and attach {}".format(personalisation_data[key]['document']['direct_file_url'])

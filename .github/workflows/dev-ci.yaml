@@ -25,10 +25,25 @@ jobs:
       - name: Run tests with docker-compose-test
         run: |
           docker-compose -f ci/docker-compose-test.yml up --build --abort-on-container-exit --force-recreate
-
+  code-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.6'
+      - run: make check-vulnerabilities
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.6'
+      - run: make check-dependencies
   build-and-push:
     runs-on: ubuntu-latest
-    needs: [test]
+    needs: [test, code-scan, dependency-scan]
     if: github.ref == 'refs/heads/master'
     env:
       IMAGE_REPOSITORY: "notification_api"

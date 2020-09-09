@@ -7,27 +7,21 @@ APP_VERSION_FILE = app/version.py
 GIT_BRANCH ?= $(shell git symbolic-ref --short HEAD 2> /dev/null || echo "detached")
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
-.PHONY: help
 help:
 	@cat $(MAKEFILE_LIST) | grep -E '^[a-zA-Z_-]+:.*?## .*$$' | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: generate-version-file
 generate-version-file: ## Generates the app version file
 	@printf "__travis_commit__ = \"${GIT_COMMIT}\"\n__time__ = \"${DATE}\"\n__travis_job_number__ = \"0\"\n__travis_job_url__ = \"\"\n" > ${APP_VERSION_FILE}
 
-.PHONY: test
 test: generate-version-file ## Run tests
 	./scripts/run_tests.sh
 
-.PHONY: user_flows
 user_flows: generate-version-file ## Run tests
 	./scripts/run_user_flows.sh
 
-.PHONY: daily_user_flows
 daily_user_flows: generate-version-file ## Run tests
 	./scripts/run_daily_check.sh
 
-.PHONY: freeze-requirements
 freeze-requirements:
 	rm -rf venv-freeze
 	virtualenv -p python3 venv-freeze
@@ -39,17 +33,35 @@ freeze-requirements:
 	$$(pwd)/venv-freeze/bin/pip freeze -r <(sed '/^--/d' requirements-app.txt) | sed -n '/The following requirements were added by pip freeze/,$$p' >> requirements.txt
 	rm -rf venv-freeze
 
-.PHONY: test-requirements
 test-requirements:
 	@diff requirements-app.txt requirements.txt | grep '<' \
 	    && { echo "requirements.txt doesn't match requirements-app.txt."; \
 	         echo "Run 'make freeze-requirements' to update."; exit 1; } \
 || { echo "requirements.txt is up to date"; exit 0; }
 
-.PHONY: coverage
-coverage: venv ## Create coverage report
-	. venv/bin/activate && coveralls
-
-.PHONY: clean
 clean:
 	rm -rf node_modules cache target venv .coverage build tests/.cache
+
+install-bandit:
+	pip install bandit
+
+check-vulnerabilities: install-bandit
+	bandit -c .bandit.yml -r app/ -l
+
+install-safety:
+	pip install safety
+
+check-dependencies: install-safety
+	safety check -r requirements.txt --full-report
+
+.PHONY:
+	help \
+	generate-version-file \
+	test \
+	user_flows \
+	daily_user_flows \
+	freeze-requirements \
+	test-requirements \
+	clean \
+	check-vulnerabilities \
+	check-dependencies

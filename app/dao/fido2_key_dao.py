@@ -11,7 +11,7 @@ from sqlalchemy import and_
 from fido2.client import ClientData
 from fido2.ctap2 import AttestationObject
 import json
-import pickle
+import pickle  # nosec
 import base64
 
 
