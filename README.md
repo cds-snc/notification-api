@@ -56,6 +56,7 @@ On OS X:
 `brew install pyenv`
 
 2. Install Python 3.6.10 (or whatever version is specified in .python-version)
+Then follow from instructions for rest of pyenv setup, [see step 3 here](https://github.com/pyenv/pyenv#basic-github-checkout)
 
 `pyenv install 3.6.10`
 
@@ -381,9 +382,7 @@ make check-dependencies
 
 ## Testing template changes
 
-Jinja templates used in this repo: `email_template.jinja2`
-
-Jinja templates are pulled in from the [notification-utils](https://github.com/cds-snc/notification-utils) repo. To test jinja changes locally without needing to push changes to notification-utils, follow this procedure:
+Jinja templates are pulled in from the [notification-utils](https://github.com/department-of-veterans-affairs/notification-utils) repo. Jinja templates used in this repo: `email_template.jinja2`. To test jinja changes locally without needing to push changes to notification-utils, follow this procedure:
 
 1. Make markup changes to `email_template.jinja2` (notifications_utils/jinja_templates/email_template.jinja2)
 
