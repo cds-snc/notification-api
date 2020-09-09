@@ -37,6 +37,10 @@
         {
           "name": "AWS_REGION",
           "value": "us-gov-west-1"
+        },
+        {
+          "name": "STATSD_HOST",
+          "value": "localhost"
         }
       ],
       "secrets": [
@@ -75,6 +79,30 @@
         {
           "name": "DANGEROUS_SALT",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/dangerous-salt"
+        }
+      ]
+    },
+    {
+      "name": "datadog-agent",
+      "image": "datadog/agent:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8125,
+          "hostPort": 8125,
+          "protocol": "udp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "ECS_FARGATE",
+          "value": "true"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DD_API_KEY",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/datadog/apikey"
         }
       ]
     }
