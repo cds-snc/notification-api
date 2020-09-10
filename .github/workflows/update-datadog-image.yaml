@@ -28,6 +28,6 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-vaec.outputs.registry }}
         run: |
-          docker pull $IMAGE_REPOSITORY:$IMAGE_TAG
+          docker build -t $IMAGE_REPOSITORY:$IMAGE_TAG -f ci/Dockerfile.datadog .
           docker tag $IMAGE_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$IMAGE_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$IMAGE_REPOSITORY:$IMAGE_TAG
