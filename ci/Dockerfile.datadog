@@ -3,10 +3,8 @@ FROM datadog/agent:latest
 RUN \
   DEBIAN_FRONTEND=noninteractive apt-get update \
   && mkdir -p /usr/share/man/man1 \
-  && apt-get -y purge openssl \
-  && apt-get install -y --no-install-recommends \
+  && apt-get install -y --no-install-recommends -o Dpkg::Options::="--force-confnew" \
       build-essential \
-      openssl \
       ca-certificates \
       curl \
       git \
