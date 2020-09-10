@@ -1,0 +1,65 @@
+@startuml
+hide footbox
+skinparam ParticipantPadding 10
+skinparam BoxPadding 20
+
+skinparam sequence {
+ActorBackgroundColor purple
+ActorFontColor purple
+ActorFontSize 17
+ActorFontName Arial
+}
+
+title build and deployment flow
+actor Developer #purple
+participant Github #lightgreen
+Developer -> Github: Commit changes
+activate Github
+Github -> CI: push
+destroy Github
+
+participant CI
+activate CI
+CI -> CI: run unit tests
+CI -> "Github": build notification container image\n and tag with git sha
+CI -> Github: broadcast status
+activate Github
+Github -> Github: handle deployment status
+Github -> "deployment": deploy dev
+deactivate Github
+deactivate CI
+
+box "Deployment" #lightblue
+participant "deployment"
+activate "deployment" #lightgray
+"deployment" -> "AWS dev": run migrations
+"deployment" -> "AWS dev": deploy API
+"deployment" -> "AWS dev": deploy celery
+"deployment" -> "AWS dev": deploy celery beat
+"deployment" -> "AWS dev": smoke tests
+"deployment" -> "AWS dev": run user flows
+activate Github
+"deployment" -> Github: tag container image with staging version
+"deployment" -> Github: broadcast status
+deactivate "deployment"
+end box
+
+Github -> Github: handle deployment status
+Github -> "Staging flow": deploy Staging
+deactivate Github
+
+box "deployment" #lightblue
+participant "Staging flow"
+activate "Staging flow" #lightgray
+"Staging flow" -> "AWS staging": run migrations
+"Staging flow" -> "AWS staging": deploy API
+"Staging flow" -> "AWS staging": deploy celery
+"Staging flow" -> "AWS staging": deploy celery beat
+"Staging flow" -> "AWS staging": smoke tests
+"Staging flow" -> "AWS staging": run user flows
+"Staging flow" -> Github: tag container image with version
+"Staging flow" -> Github: broadcast status
+deactivate "Staging flow"
+end box
+
+@enduml
