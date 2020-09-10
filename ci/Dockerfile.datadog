@@ -1,7 +1,22 @@
-FROM 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/datadog/agent:latest
+FROM datadog/agent:latest
 
-RUN apk update && apk add --no-cache ca-certificates && rm -rf /var/cache/apk/*
+RUN \
+  DEBIAN_FRONTEND=noninteractive apt-get update \
+  && mkdir -p /usr/share/man/man1 \
+  && apt-get -y purge openssl \
+  && apt-get install -y --no-install-recommends \
+      build-essential \
+      openssl \
+      ca-certificates \
+      curl \
+      git \
+      jq \
+      patch \
+      wget \
+      zlib1g-dev \
+    && apt-get clean
+
 COPY ./certs/VA-Internal-S2-RCA1-v1.crt /usr/local/share/ca-certificates/VA-Internal-S2-RCA1-v1.crt
-RUN update-ca-certificates
+RUN /usr/sbin/update-ca-certificates
 
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
