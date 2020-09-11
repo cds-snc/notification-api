@@ -49,3 +49,5 @@ fileignoreconfig:
       checksum: 728b881021a8ddbc5e7fb690190f2da7b69b2f32ac751ba52b5714bd15ff4803
     - filename: app/config.py
       checksum: 57b04f1806590423bbf4b48c1cc80c900aa77a51bb53acc5d0efe889f0972600
+    - filename: Brewfile.lock.json
+      checksum: a7a52a240fe957c16eff861e45b975704f05c3eb4b1299d568615ba5bef95350
