@@ -2,13 +2,10 @@ FROM datadog/agent:latest
 
 RUN \
   DEBIAN_FRONTEND=noninteractive apt-get update \
-  && mkdir -p /usr/share/man/man1 \
   && apt-get install -y --no-install-recommends -o Dpkg::Options::="--force-confnew" \
-      build-essential \
       ca-certificates \
     && apt-get clean
 
 COPY ./certs/VA-Internal-S2-RCA1-v1.crt /usr/local/share/ca-certificates/VA-Internal-S2-RCA1-v1.crt
 RUN /usr/sbin/update-ca-certificates
 
-ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
