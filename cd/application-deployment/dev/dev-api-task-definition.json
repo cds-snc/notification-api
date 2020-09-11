@@ -81,38 +81,6 @@
           "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/dangerous-salt"
         }
       ]
-    },
-    {
-      "name": "datadog-agent",
-      "image": "datadog/agent:latest",
-      "essential": true,
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-group": "dev-notification-api-datadog-log-group",
-          "awslogs-region": "us-east-2",
-          "awslogs-stream-prefix": "ecs"
-        }
-      },
-      "portMappings": [
-        {
-          "containerPort": 8125,
-          "hostPort": 8125,
-          "protocol": "udp"
-        }
-      ],
-      "environment": [
-        {
-          "name": "ECS_FARGATE",
-          "value": "true"
-        }
-      ],
-      "secrets": [
-        {
-          "name": "DD_API_KEY",
-          "valueFrom": "arn:aws:ssm:us-east-2:437518843863:parameter/dev/notification-api/datadog/apikey"
-        }
-      ]
     }
   ],
   "requiresCompatibilities": [
