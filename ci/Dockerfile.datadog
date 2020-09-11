@@ -6,12 +6,6 @@ RUN \
   && apt-get install -y --no-install-recommends -o Dpkg::Options::="--force-confnew" \
       build-essential \
       ca-certificates \
-      curl \
-      git \
-      jq \
-      patch \
-      wget \
-      zlib1g-dev \
     && apt-get clean
 
 COPY ./certs/VA-Internal-S2-RCA1-v1.crt /usr/local/share/ca-certificates/VA-Internal-S2-RCA1-v1.crt
