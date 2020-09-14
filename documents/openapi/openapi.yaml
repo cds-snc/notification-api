@@ -952,21 +952,19 @@ components:
           format: datetime
         permissions:
           type: object
-          properties:
-            uuid:
-              type: array
-              format: uuid
-              items:
-                type: string
-                enum:
-                  - manage_users
-                  - manage_templates
-                  - manage_settings
-                  - send_texts
-                  - send_emails
-                  - send_letters
-                  - manage_api_keys
-                  - view_activity
+          additionalProperties:
+            type: array
+            items:
+              type: string
+              enum:
+                - manage_users
+                - manage_templates
+                - manage_settings
+                - send_texts
+                - send_emails
+                - send_letters
+                - manage_api_keys
+                - view_activity
         platform_admin:
           type: boolean
         services:
