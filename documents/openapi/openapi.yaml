@@ -188,6 +188,27 @@ paths:
                     items:
                       $ref: '#/components/schemas/User'
   /user/{user_id}:
+    get:
+      summary: Get a user
+      tags:
+        - user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+        403:
+          $ref: '#/components/responses/AdminAuthError'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
     post:
       summary: Update a user
       tags:
