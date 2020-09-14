@@ -72,10 +72,8 @@ paths:
                   nullable: true
                   type: boolean
                 crown:
-                  nullable: false
                   type: boolean
                 name:
-                  nullable: false
                   type: string
                 organisation_type:
                   type: string
@@ -152,7 +150,6 @@ paths:
                   nullable: true
                   type: string
                 organisation_type:
-                  nullable: false
                   type: string
                   enum:
                     - other
@@ -227,18 +224,14 @@ paths:
               properties:
                 name:
                   type: string
-                  nullable: false
                 email_address:
                   type: string
-                  nullable: false
                 mobile_number:
                   type: string
-                  nullable: false
                   example: "+19876543210"
                 auth_type:
                   type: string
                   format: auth type
-                  nullable: false
                   enum:
                     - sms_auth
                     - email_auth
@@ -504,7 +497,6 @@ paths:
                 description: The API Key
                 type: string
                 format: uuid
-                nullable: false
   /service/{service_id}/api-key/revoke/{api_key_id}:
     post:
       tags:
@@ -776,7 +768,6 @@ components:
       properties:
         status_code:
           type: integer
-          nullable: false
         errors:
           type: array
           items:
@@ -792,12 +783,10 @@ components:
         message:
           oneOf:
             - type: string
-              nullable: false
             - type: object
               properties:
                 token:
                   type: array
-                  nullable: false
                   items:
                     type: string
               example:
@@ -805,7 +794,6 @@ components:
                   - 'Invalid token: signature, api token is not valid'
         result:
           type: string
-          nullable: false
           example: error
     OrganisationSummary:
       type: object
@@ -814,25 +802,20 @@ components:
           nullable: true
           type: boolean
         count_of_live_services:
-          nullable: false
           type: integer
         domains:
           items:
-            nullable: false
             type: string
           nullable: true
           type: array
         id:
           type: string
-          nullable: false
           format: uuid
         name:
-          nullable: false
           type: string
         organisation_type:
           enum:
             - other
-          nullable: false
           type: string
     OrganisationDetails:
       type: object
@@ -858,10 +841,8 @@ components:
           nullable: true
           type: string
         agreement_signed_version:
-          nullable: false
           type: number
         crown:
-          nullable: false
           type: boolean
         email_branding_id:
           format: uuid
@@ -879,31 +860,24 @@ components:
       properties:
         name:
           type: string
-          nullable: false
         password:
           type: string
-          nullable: false
         email_address:
           type: string
-          nullable: false
         mobile_number:
           type: string
-          nullable: false
           description: Required if auth_type is sms_auth
           example: "+19876543210"
         state:
           type: string
-          nullable: false
         user_permissions:
           type: array
-          nullable: false
           items:
             type: string
         auth_type:
           type: string
           format: auth type
           description: The auth type determines whether email address or mobile number are required.
-          nullable: false
           enum:
             - sms_auth
             - email_auth
@@ -979,28 +953,23 @@ components:
         created_by:
           type: string
           format: uuid
-          nullable: false
         email_from:
           type: string
           format: email
-          nullable: false
         message_limit:
           type: integer
           nullable: true
         name:
           type: string
-          nullable: false
         organisation_id:
           type: string
           format: uuid
           nullable: true
         restricted:
           type: boolean
-          nullable: false
         user_id:
           type: string
           format: uuid
-          nullable: false
       required:
         - active
         - created_by
@@ -1015,7 +984,6 @@ components:
       properties:
         active:
           type: boolean
-          nullable: false
         all_template_folders:
           type: array
           items:
@@ -1033,7 +1001,6 @@ components:
           nullable: true
         count_as_live:
           type: boolean
-          nullable: false
         created_by:
           type: string
           format: uuid
@@ -1046,7 +1013,6 @@ components:
         email_from:
           type: string
           format: email
-          nullable: false
         go_live_at:
           type: string
           format: datetime
@@ -1079,10 +1045,8 @@ components:
           type: string
         message_limit:
           type: number
-          nullable: false
         name:
           type: string
-          nullable: false
         organisation:
           type: string
           format: uuid
@@ -1106,13 +1070,10 @@ components:
           nullable:  false
         rate_limit:
           type: number
-          nullable: false
         research_mode:
           type: boolean
-          nullable: false
         restricted:
           type: boolean
-          nullable: false
         sending_domain:
           type: string
           nullable: true
@@ -1159,21 +1120,16 @@ components:
                   type: string
     CreateTemplateRequest:
       type: object
-      nullable: false
       properties:
         content:
           type: string
-          nullable: false
         created_by:
           type: string
           format: uuid
-          nullable: false
         name:
           type: string
-          nullable: false
         postage:
           type: string
-          nullable: false
         process_type:
           type: string
           enum:
@@ -1182,10 +1138,8 @@ components:
         service:
           type: string
           format: uuid
-          nullable: false
         subject:
           type: string
-          nullable: false
         template_type:
           type: string
           enum:
@@ -1310,10 +1264,8 @@ components:
         id:
           type: string
           format: uuid
-          nullable: false
         body:
           type: string
-          nullable: false
         completed_at:
           type: string
           format: date-time
@@ -1321,7 +1273,6 @@ components:
         created_at:
           type: string
           format: date-time
-          nullable: false
         created_by_name:
           description: the user who requested for this notification
           type: string
@@ -1371,7 +1322,6 @@ components:
           nullable: true
         status:
           type: string
-          nullable: false
           enum:
             - created
         subject:
@@ -1383,19 +1333,15 @@ components:
             id:
               type: string
               format: uuid
-              nullable: false
             uri:
               type: string
-              nullable: false
             version:
               type: integer
-              nullable: false
         type:
           type: string
           enum:
             - sms
             - email
-          nullable: false
     APIKey:
       type: object
       properties:
