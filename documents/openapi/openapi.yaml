@@ -1048,8 +1048,7 @@ components:
         inbound_api:
           type: array
           items:
-            type: string
-            format: url
+            $ref: '#/components/schemas/Id'
         inbound_number:
           $ref: '#/components/schemas/Id'
         inbound_sms:
@@ -1124,16 +1123,7 @@ components:
         whitelist:
           type: array
           items:
-            properties:
-              email_addresses:
-                type: array
-                items:
-                  type: string
-                  format: email
-              phone_numbers:
-                type: array
-                items:
-                  type: string
+            $ref: '#/components/schemas/Id'
     CreateTemplateRequest:
       type: object
       properties:
