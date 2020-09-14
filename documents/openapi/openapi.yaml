@@ -615,16 +615,7 @@ paths:
         404:
           $ref: '#/components/responses/NotFound'
         429:
-          description: Exceeded rate or send limits
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/V2ErrorMessage'
-              example:
-                errors:
-                  - error: 'RateLimitError'
-                    message: 'Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds'
-                status_code: 429
+          $ref: '#/components/responses/RateLimitError'
         500:
           $ref: '#/components/responses/InternalServerError'
   /v2/notifications/sms:
@@ -665,16 +656,7 @@ paths:
         404:
           $ref: '#/components/responses/NotFound'
         429:
-          description: Exceeded rate or send limits
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/V2ErrorMessage'
-              example:
-                errors:
-                  - error: 'RateLimitError'
-                    message: 'Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds'
-                status_code: 429
+          $ref: '#/components/responses/RateLimitError'
         500:
           $ref: '#/components/responses/InternalServerError'
   /v2/notifications/{notification_id}:
@@ -757,6 +739,17 @@ components:
             result: 'error'
             message: 'The requested URL was not found on the server. If you entered the URL manually please check
                     your spelling and try again.'
+    RateLimitError:
+      description: Exceeded rate or send limits
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/V2ErrorMessage'
+          example:
+            errors:
+              - error: 'RateLimitError'
+                message: 'Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds'
+            status_code: 429
   schemas:
     V2ErrorMessage:
       description: Generic error message format for V2
