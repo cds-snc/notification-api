@@ -103,14 +103,7 @@ paths:
       tags:
         - organisation
       parameters:
-        - in: path
-          name: organisation_id
-          schema:
-            type: string
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: Organisation identifier
+        - $ref: '#/components/parameters/OrganisationId'
       responses:
         200:
           description: OK
@@ -125,14 +118,7 @@ paths:
       tags:
         - organisation
       parameters:
-        - in: path
-          name: organisation_id
-          schema:
-            type: string
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: Organization identifier
+        - $ref: '#/components/parameters/OrganisationId'
       requestBody:
         description: Include values in the request body to update them
         required: true
@@ -207,14 +193,7 @@ paths:
       tags:
         - user
       parameters:
-        - in: path
-          name: 'user_id'
-          schema:
-            type: integer
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: User identifier
+        - $ref: '#/components/parameters/UserId'
       requestBody:
         description: Include values in the request body to update them
         required: true
@@ -308,14 +287,7 @@ paths:
       tags:
         - service
       parameters:
-        - in: path
-          name: 'service_id'
-          schema:
-            type: integer
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: Service identifier
+        - $ref: '#/components/parameters/ServiceId'
       requestBody:
         description: Include values in the request body to update them
         required: true
@@ -339,14 +311,7 @@ paths:
       tags:
         - template
       parameters:
-        - in: path
-          name: 'service_id'
-          schema:
-            type: integer
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: Service identifier
+        - $ref: '#/components/parameters/ServiceId'
       responses:
         '200':
           description: OK
@@ -364,14 +329,7 @@ paths:
       tags:
         - template
       parameters:
-        - in: path
-          name: 'service_id'
-          schema:
-            type: integer
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: Service identifier
+        - $ref: '#/components/parameters/ServiceId'
       requestBody:
         required: true
         content:
@@ -394,22 +352,8 @@ paths:
       tags:
         - template
       parameters:
-        - in: path
-          name: 'service_id'
-          schema:
-            type: integer
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: Service identifier
-        - in: path
-          name: 'template_id'
-          schema:
-            type: integer
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: Template identifier
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/TemplateId'
       responses:
         '200':
           description: OK
@@ -422,22 +366,8 @@ paths:
       tags:
         - template
       parameters:
-        - in: path
-          name: 'service_id'
-          schema:
-            type: integer
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: Service identifier
-        - in: path
-          name: 'template_id'
-          schema:
-            type: integer
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: Template identifier to update
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/TemplateId'
       requestBody:
         required: true
         content:
@@ -460,14 +390,7 @@ paths:
         - api key
       summary: Create API key for service
       parameters:
-        - in: path
-          name: service_id
-          schema:
-            type: string
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: Service identifier
+        - $ref: '#/components/parameters/ServiceId'
       requestBody:
         content:
           application/json:
@@ -503,22 +426,8 @@ paths:
         - api key
       summary: Revoke API key
       parameters:
-        - in: path
-          name: service_id
-          schema:
-            type: string
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: service identifier
-        - in: path
-          name: api_key_id
-          schema:
-            type: string
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: API key identifier
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/ApiKeyId'
       responses:
         202:
           description: OK
@@ -528,14 +437,7 @@ paths:
         - api key
       summary: Get API keys for a service
       parameters:
-        - in: path
-          name: service_id
-          schema:
-            type: string
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: service identifier
+        - $ref: '#/components/parameters/ServiceId'
       responses:
         200:
           description: OK
@@ -548,28 +450,14 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/APIKey'
-  /service/{service_id}/api-keys/{key_id}:
+  /service/{service_id}/api-keys/{api_key_id}:
     get:
       tags:
         - api key
       summary: Get a specific API key for a service
       parameters:
-        - in: path
-          name: service_id
-          schema:
-            type: string
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: Service identifier
-        - in: path
-          name: key_id
-          schema:
-            type: string
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: API key identifier
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/ApiKeyId'
       responses:
         200:
           description: OK
@@ -673,14 +561,7 @@ paths:
       tags:
         - notification
       parameters:
-        - in: path
-          name: notification_id
-          schema:
-            type: string
-            format: uuid
-          required: true
-          allowEmptyValue: false
-          description: Notification identifier
+        - $ref: '#/components/parameters/NotificationId'
       responses:
         200:
           description: OK
@@ -696,6 +577,61 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
 components:
+  parameters:
+    OrganisationId:
+      name: organisation_id
+      in: path
+      schema:
+        type: string
+        format: uuid
+      required: true
+      allowEmptyValue: false
+      description: Organisation identifier
+    UserId:
+      name: user_id
+      in: path
+      schema:
+        type: string
+        format: uuid
+      required: true
+      allowEmptyValue: false
+      description: User identifier
+    ServiceId:
+      name: service_id
+      in: path
+      schema:
+        type: string
+        format: uuid
+      required: true
+      allowEmptyValue: false
+      description: Service identifier
+    TemplateId:
+      name: template_id
+      in: path
+      schema:
+        type: string
+        format: uuid
+      required: true
+      allowEmptyValue: false
+      description: Template identifier
+    ApiKeyId:
+      name: api_key_id
+      in: path
+      schema:
+        type: string
+        format: uuid
+      required: true
+      allowEmptyValue: false
+      description: API Key identifier
+    NotificationId:
+      name: notification_id
+      in: path
+      schema:
+        type: string
+        format: uuid
+      required: true
+      allowEmptyValue: false
+      description: Notification identifier
   responses:
     BadRequest:
       description: Bad Request
