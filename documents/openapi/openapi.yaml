@@ -96,7 +96,7 @@ paths:
         400:
           $ref: '#/components/responses/BadRequest'
         403:
-          $ref: '#/components/responses/AuthError'
+          $ref: '#/components/responses/AdminAuthError'
         500:
           $ref: '#/components/responses/InternalServerError'
   /organisations/{organisation_id}/:
@@ -173,7 +173,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateUserRequest'
       responses:
-        '201':
+        201:
           description: CREATED
           content:
             application/json:
@@ -182,6 +182,12 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/User'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        403:
+          $ref: '#/components/responses/AdminAuthError'
+        500:
+          $ref: '#/components/responses/InternalServerError'
     get:
       summary: Get a list of all users
       tags:
@@ -237,7 +243,7 @@ paths:
                     - sms_auth
                     - email_auth
       responses:
-        '200':
+        200:
           description: OK
           content:
             application/json:
@@ -246,6 +252,14 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/User'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        403:
+          $ref: '#/components/responses/AdminAuthError'
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'
   /service:
     post:
       summary: Create a service
@@ -611,7 +625,7 @@ paths:
         400:
           $ref: '#/components/responses/BadRequest'
         403:
-          $ref: '#/components/responses/AuthError'
+          $ref: '#/components/responses/ServiceAuthError'
         404:
           $ref: '#/components/responses/NotFound'
         429:
@@ -652,7 +666,7 @@ paths:
         400:
           $ref: '#/components/responses/BadRequest'
         403:
-          $ref: '#/components/responses/AuthError'
+          $ref: '#/components/responses/ServiceAuthError'
         404:
           $ref: '#/components/responses/NotFound'
         429:
@@ -685,7 +699,7 @@ paths:
         400:
           $ref: '#/components/responses/BadRequest'
         403:
-          $ref: '#/components/responses/AuthError'
+          $ref: '#/components/responses/ServiceAuthError'
         500:
           $ref: '#/components/responses/InternalServerError'
 
@@ -703,8 +717,19 @@ components:
                 message: 'sms_sender_id e925b547-8195-4ed2-83c5-0633a74d780a does not exist in database
                                   for service id 9ffb5212-e621-45df-820d-97ee65d392ab'
             status_code: 400
-    AuthError:
-      description: Authentication Error
+    AdminAuthError:
+      description: Authentication Error for Admin endpoints
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorMessage'
+          example:
+            result: 'error'
+            message:
+              token:
+                - 'Invalid token: signature, api token is not valid'
+    ServiceAuthError:
+      description: Authentication Error for endpoints called by services
       content:
         application/json:
           schema:
@@ -719,13 +744,7 @@ components:
       content:
         application/json:
           schema:
-            properties:
-              result:
-                type: string
-                nullable: false
-              message:
-                type: string
-                nullable: false
+            $ref: '#/components/schemas/ErrorMessage'
           example:
             result: 'error'
             message: 'Internal server error'
@@ -771,14 +790,23 @@ components:
       type: object
       properties:
         message:
-          type: string
-          nullable: false
+          oneOf:
+            - type: string
+              nullable: false
+            - type: object
+              properties:
+                token:
+                  type: array
+                  nullable: false
+                  items:
+                    type: string
+              example:
+                token:
+                  - 'Invalid token: signature, api token is not valid'
         result:
           type: string
           nullable: false
-        status_code:
-          type: integer
-          nullable: true
+          example: error
     OrganisationSummary:
       type: object
       properties:
