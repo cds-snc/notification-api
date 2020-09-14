@@ -121,11 +121,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrganisationDetails'
         404:
-          description: Organisation not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
+          $ref: '#/components/responses/NotFound'
     post:
       summary: Update an organization
       tags:
@@ -164,11 +160,7 @@ paths:
         204:
           description: OK
         404:
-          description: Organisation not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
+          $ref: '#/components/responses/NotFound'
   /user:
     post:
       summary: Create a user
@@ -621,15 +613,7 @@ paths:
         403:
           $ref: '#/components/responses/AuthError'
         404:
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-              example:
-                result: 'error'
-                message: 'The requested URL was not found on the server. If you entered the URL manually please check
-                your spelling and try again.'
+          $ref: '#/components/responses/NotFound'
         429:
           description: Exceeded rate or send limits
           content:
@@ -679,15 +663,7 @@ paths:
         403:
           $ref: '#/components/responses/AuthError'
         404:
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-              example:
-                result: 'error'
-                message: 'The requested URL was not found on the server. If you entered the URL manually please check
-                your spelling and try again.'
+          $ref: '#/components/responses/NotFound'
         429:
           description: Exceeded rate or send limits
           content:
@@ -771,6 +747,16 @@ components:
           example:
             result: 'error'
             message: 'Internal server error'
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorMessage'
+          example:
+            result: 'error'
+            message: 'The requested URL was not found on the server. If you entered the URL manually please check
+                    your spelling and try again.'
   schemas:
     V2ErrorMessage:
       description: Generic error message format for V2
