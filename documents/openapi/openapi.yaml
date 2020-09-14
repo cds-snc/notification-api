@@ -585,7 +585,6 @@ components:
         type: string
         format: uuid
       required: true
-      allowEmptyValue: false
       description: Organisation identifier
     UserId:
       name: user_id
@@ -594,7 +593,6 @@ components:
         type: string
         format: uuid
       required: true
-      allowEmptyValue: false
       description: User identifier
     ServiceId:
       name: service_id
@@ -603,7 +601,6 @@ components:
         type: string
         format: uuid
       required: true
-      allowEmptyValue: false
       description: Service identifier
     TemplateId:
       name: template_id
@@ -612,7 +609,6 @@ components:
         type: string
         format: uuid
       required: true
-      allowEmptyValue: false
       description: Template identifier
     ApiKeyId:
       name: api_key_id
@@ -621,7 +617,6 @@ components:
         type: string
         format: uuid
       required: true
-      allowEmptyValue: false
       description: API Key identifier
     NotificationId:
       name: notification_id
@@ -630,7 +625,6 @@ components:
         type: string
         format: uuid
       required: true
-      allowEmptyValue: false
       description: Notification identifier
   responses:
     BadRequest:
