@@ -483,8 +483,7 @@ paths:
                   type: string
                 created_by:
                   description: User id who creates this key
-                  type: string
-                  format: uuid
+                  $ref: '#/components/schemas/Id'
                 key_type:
                   type: string
                   enum:
@@ -501,8 +500,7 @@ paths:
             application/json:
               schema:
                 description: The API Key
-                type: string
-                format: uuid
+                $ref: '#/components/schemas/Id'
         '400':
           $ref: '#/components/responses/NotFound'
         '403':
@@ -691,48 +689,42 @@ components:
       name: organisation_id
       in: path
       schema:
-        type: string
-        format: uuid
+        $ref: '#/components/schemas/Id'
       required: true
       description: Organisation identifier
     UserId:
       name: user_id
       in: path
       schema:
-        type: string
-        format: uuid
+        $ref: '#/components/schemas/Id'
       required: true
       description: User identifier
     ServiceId:
       name: service_id
       in: path
       schema:
-        type: string
-        format: uuid
+        $ref: '#/components/schemas/Id'
       required: true
       description: Service identifier
     TemplateId:
       name: template_id
       in: path
       schema:
-        type: string
-        format: uuid
+        $ref: '#/components/schemas/Id'
       required: true
       description: Template identifier
     ApiKeyId:
       name: api_key_id
       in: path
       schema:
-        type: string
-        format: uuid
+        $ref: '#/components/schemas/Id'
       required: true
       description: API Key identifier
     NotificationId:
       name: notification_id
       in: path
       schema:
-        type: string
-        format: uuid
+        $ref: '#/components/schemas/Id'
       required: true
       description: Notification identifier
   responses:
@@ -801,6 +793,9 @@ components:
                 message: 'Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds'
             status_code: 429
   schemas:
+    Id:
+      type: string
+      format: uuid
     V2ErrorMessage:
       description: Generic error message format for V2
       type: object
@@ -848,8 +843,7 @@ components:
           nullable: true
           type: array
         id:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         name:
           type: string
         organisation_type:
@@ -941,7 +935,7 @@ components:
         failed_login_count:
           type: integer
         id:
-          type: string
+          $ref: '#/components/schemas/Id'
         logged_in_at:
           type: string
         mobile_number:
@@ -952,8 +946,7 @@ components:
         organisations:
           type: array
           items:
-            type: string
-            format: uuid
+            $ref: '#/components/schemas/Id'
         password_changed_at:
           type: string
           format: datetime
@@ -979,8 +972,7 @@ components:
         services:
           type: array
           items:
-            type: string
-            format: uuid
+            $ref: '#/components/schemas/Id'
         state:
           type: string
     CreateServiceRequest:
@@ -990,8 +982,7 @@ components:
           type: boolean
           nullable: true
         created_by:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         email_from:
           type: string
           format: email
@@ -1007,8 +998,7 @@ components:
         restricted:
           type: boolean
         user_id:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
       required:
         - active
         - created_by
@@ -1030,8 +1020,7 @@ components:
         annual_billing:
           type: array
           items:
-            type: string
-            format: uuid
+            $ref: '#/components/schemas/Id'
         consent_to_research:
           type: boolean
           nullable: true
@@ -1041,14 +1030,12 @@ components:
         count_as_live:
           type: boolean
         created_by:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         crown:
           type: boolean
           nullable: true
         email_branding:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         email_from:
           type: string
           format: email
@@ -1057,27 +1044,22 @@ components:
           format: datetime
           nullable: true
         go_live_user:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         id:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         inbound_api:
           type: array
           items:
             type: string
             format: url
         inbound_number:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         inbound_sms:
           type: array
           items:
-            type: string
-            format: uuid
+            $ref: '#/components/schemas/Id'
         letter_branding:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         letter_contact_block:
           type: string
         letter_logo_filename:
@@ -1087,8 +1069,7 @@ components:
         name:
           type: string
         organisation:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         organisation_type:
           type: string
           nullable: true
@@ -1119,8 +1100,7 @@ components:
         service_callback_api:
           type: array
           items:
-            type: string
-            format: uuid
+            $ref: '#/components/schemas/Id'
         service_data_retention:
           type: array
           items:
@@ -1131,8 +1111,7 @@ components:
         users:
           type: array
           items:
-            type: string
-            format: uuid
+            $ref: '#/components/schemas/Id'
         version:
           type: number
         volume_email:
@@ -1163,8 +1142,7 @@ components:
         content:
           type: string
         created_by:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         name:
           type: string
         postage:
@@ -1175,8 +1153,7 @@ components:
             - normal
             - priority
         service:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         subject:
           type: string
         template_type:
@@ -1202,26 +1179,21 @@ components:
           type: string
           format: datetime
         folder:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         hidden:
           type: boolean
         id:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         redact_personalisation:
           type: boolean
         reply_to:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         reply_to_text:
           type: string
         service_letter_contact:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         template_redacted:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         updated_at:
           type: string
           format: datetime
@@ -1233,8 +1205,7 @@ components:
         reference:
           type: string
         template_id:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         personalisation:
           type: object
           description: The personalisation values created in the template must be defined here.
@@ -1252,8 +1223,7 @@ components:
         - type: object
           properties:
             sms_sender_id:
-              type: string
-              format: uuid
+              $ref: '#/components/schemas/Id'
             phone_number:
               type: string
               format: phone_number
@@ -1266,8 +1236,7 @@ components:
         - type: object
           properties:
             email_reply_to_id:
-              type: string
-              format: uuid
+              $ref: '#/components/schemas/Id'
             email_address:
               type: string
               format: email_address
@@ -1277,8 +1246,7 @@ components:
       type: object
       properties:
         id:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         reference:
           type: string
         uri:
@@ -1288,8 +1256,7 @@ components:
           type: object
           properties:
             id:
-              type: string
-              format: uuid
+              $ref: '#/components/schemas/Id'
             version:
               type: integer
             uri:
@@ -1301,8 +1268,7 @@ components:
       type: object
       properties:
         id:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         body:
           type: string
         completed_at:
@@ -1370,8 +1336,7 @@ components:
           type: object
           properties:
             id:
-              type: string
-              format: uuid
+              $ref: '#/components/schemas/Id'
             uri:
               type: string
             version:
@@ -1388,14 +1353,12 @@ components:
           type: string
           format: date-time
         created_by:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         expiry_date:
           type: string
           format: date-time
         id:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
         key_type:
           type: string
           enum:
