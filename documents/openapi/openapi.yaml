@@ -583,7 +583,7 @@ paths:
     post:
       summary: Send an email notification
       security:
-        - notifyAuth: []
+        - serviceAuth: []
       tags:
         - notification
       requestBody:
@@ -625,7 +625,7 @@ paths:
     post:
       summary: Send an sms notification
       security:
-        - notifyAuth: []
+        - serviceAuth: []
       tags:
         - notification
       requestBody:
@@ -666,7 +666,7 @@ paths:
     get:
       summary: Get notification status and details
       security:
-        - notifyAuth: []
+        - serviceAuth: []
       tags:
         - notification
       parameters:
@@ -1415,7 +1415,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-    notifyAuth:
+    serviceAuth:
       description: "The format of this token is {key_name}-{iss-uuid}-{secret-key-uuid}.  When you
                     create API key you get the secret key in the response. This secret key should be used
                     to generate a bearer token to send notifications and enquire notification status. You can find
