@@ -24,7 +24,7 @@ jobs:
          role-to-assume: arn:aws:iam::437518843863:role/notification-deploy-role
          role-skip-session-tagging: true
          role-duration-seconds: 900
-     - uses: actions/setup-node@v2-beta
+     - uses: actions/setup-node@v2.1.1
        with:
          node-version: '12'
      - name: Retrieve URL
