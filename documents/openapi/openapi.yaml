@@ -85,17 +85,17 @@ paths:
                 - organisation_type
               type: object
       responses:
-        201:
+        '201':
           description: CREATED
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrganisationDetails'
-        400:
+        '400':
           $ref: '#/components/responses/BadRequest'
-        403:
+        '403':
           $ref: '#/components/responses/AdminAuthError'
-        500:
+        '500':
           $ref: '#/components/responses/InternalServerError'
   /organisations/{organisation_id}/:
     get:
@@ -105,13 +105,13 @@ paths:
       parameters:
         - $ref: '#/components/parameters/OrganisationId'
       responses:
-        200:
+        '200':
           description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrganisationDetails'
-        404:
+        '404':
           $ref: '#/components/responses/NotFound'
     post:
       summary: Update an organization
@@ -140,9 +140,9 @@ paths:
                   enum:
                     - other
       responses:
-        204:
+        '204':
           description: OK
-        404:
+        '404':
           $ref: '#/components/responses/NotFound'
   /user:
     post:
@@ -156,7 +156,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateUserRequest'
       responses:
-        201:
+        '201':
           description: CREATED
           content:
             application/json:
@@ -165,11 +165,11 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/User'
-        400:
+        '400':
           $ref: '#/components/responses/BadRequest'
-        403:
+        '403':
           $ref: '#/components/responses/AdminAuthError'
-        500:
+        '500':
           $ref: '#/components/responses/InternalServerError'
     get:
       summary: Get a list of all users
@@ -195,7 +195,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/UserId'
       responses:
-        200:
+        '200':
           description: OK
           content:
             application/json:
@@ -204,9 +204,9 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/User'
-        403:
+        '403':
           $ref: '#/components/responses/AdminAuthError'
-        500:
+        '500':
           $ref: '#/components/responses/InternalServerError'
 
     post:
@@ -236,7 +236,7 @@ paths:
                     - sms_auth
                     - email_auth
       responses:
-        200:
+        '200':
           description: OK
           content:
             application/json:
@@ -245,13 +245,13 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/User'
-        400:
+        '400':
           $ref: '#/components/responses/BadRequest'
-        403:
+        '403':
           $ref: '#/components/responses/AdminAuthError'
-        404:
+        '404':
           $ref: '#/components/responses/NotFound'
-        500:
+        '500':
           $ref: '#/components/responses/InternalServerError'
   /service:
     post:
@@ -433,7 +433,7 @@ paths:
                 - created_by
                 - key_type
       responses:
-        201:
+        '201':
           description: CREATED
           content:
             application/json:
@@ -450,7 +450,7 @@ paths:
         - $ref: '#/components/parameters/ServiceId'
         - $ref: '#/components/parameters/ApiKeyId'
       responses:
-        202:
+        '202':
           description: OK
   /service/{service_id}/api-keys:
     get:
@@ -460,7 +460,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/ServiceId'
       responses:
-        200:
+        '200':
           description: OK
           content:
             application/json:
@@ -480,7 +480,7 @@ paths:
         - $ref: '#/components/parameters/ServiceId'
         - $ref: '#/components/parameters/ApiKeyId'
       responses:
-        200:
+        '200':
           description: OK
           content:
             application/json:
@@ -523,15 +523,15 @@ paths:
                             type: string
                           subject:
                             type: string
-        400:
+        '400':
           $ref: '#/components/responses/BadRequest'
-        403:
+        '403':
           $ref: '#/components/responses/ServiceAuthError'
-        404:
+        '404':
           $ref: '#/components/responses/NotFound'
-        429:
+        '429':
           $ref: '#/components/responses/RateLimitError'
-        500:
+        '500':
           $ref: '#/components/responses/InternalServerError'
   /v2/notifications/sms:
     post:
@@ -564,15 +564,15 @@ paths:
                           from_number:
                             type: string
                             example: "+19876543210"
-        400:
+        '400':
           $ref: '#/components/responses/BadRequest'
-        403:
+        '403':
           $ref: '#/components/responses/ServiceAuthError'
-        404:
+        '404':
           $ref: '#/components/responses/NotFound'
-        429:
+        '429':
           $ref: '#/components/responses/RateLimitError'
-        500:
+        '500':
           $ref: '#/components/responses/InternalServerError'
   /v2/notifications/{notification_id}:
     get:
@@ -584,17 +584,17 @@ paths:
       parameters:
         - $ref: '#/components/parameters/NotificationId'
       responses:
-        200:
+        '200':
           description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotificationStatusResponse'
-        400:
+        '400':
           $ref: '#/components/responses/BadRequest'
-        403:
+        '403':
           $ref: '#/components/responses/ServiceAuthError'
-        500:
+        '500':
           $ref: '#/components/responses/InternalServerError'
 
 components:
