@@ -82,18 +82,23 @@ paths:
                   enum:
                     - other
               required:
-                - active
                 - crown
                 - name
                 - organisation_type
               type: object
       responses:
-        '201':
+        201:
           description: CREATED
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrganisationResponse'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        403:
+          $ref: '#/components/responses/AuthError'
+        500:
+          $ref: '#/components/responses/InternalServerError'
   /organisations/{organisation_id}/:
     get:
       summary: Find organisation by id
@@ -114,7 +119,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Organisation'
+                $ref: '#/components/schemas/OrganisationResponse'
+        404:
+          description: Organisation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
     post:
       summary: Update an organization
       tags:
