@@ -58,6 +58,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/OrganisationSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminAuthError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
       summary: Create an organisation
       tags:
@@ -93,6 +99,8 @@ paths:
                 $ref: '#/components/schemas/OrganisationDetails'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
         '500':
@@ -111,8 +119,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrganisationDetails'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminAuthError'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
       summary: Update an organization
       tags:
@@ -142,8 +156,16 @@ paths:
       responses:
         '204':
           description: OK
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminAuthError'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /user:
     post:
       summary: Create a user
@@ -167,6 +189,8 @@ paths:
                     $ref: '#/components/schemas/User'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
         '500':
@@ -204,8 +228,12 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -247,6 +275,8 @@ paths:
                     $ref: '#/components/schemas/User'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
         '404':
@@ -277,11 +307,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
         '500':
@@ -302,6 +328,8 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Service'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
         '500':
@@ -323,6 +351,8 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/Service'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
         '404':
@@ -354,6 +384,8 @@ paths:
                     $ref: '#/components/schemas/Service'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
         '404':
@@ -379,6 +411,8 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Template'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
         '404':
@@ -408,7 +442,9 @@ paths:
                   data:
                     $ref: '#/components/schemas/Template'
         '400':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
         '404':
@@ -430,6 +466,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Template'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
         '404':
@@ -460,7 +498,9 @@ paths:
                   data:
                     $ref: '#/components/schemas/Template'
         '400':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
         '404':
@@ -502,7 +542,9 @@ paths:
                 description: The API Key
                 $ref: '#/components/schemas/Id'
         '400':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
         '404':
@@ -520,6 +562,8 @@ paths:
       responses:
         '202':
           description: OK
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
         '404':
@@ -545,6 +589,8 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/APIKey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
         '404':
@@ -571,6 +617,8 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/APIKey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
         '404':
@@ -611,6 +659,8 @@ paths:
                             type: string
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/ServiceAuthError'
         '404':
@@ -652,6 +702,8 @@ paths:
                             example: "+19876543210"
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/ServiceAuthError'
         '404':
@@ -676,10 +728,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotificationStatusResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/ServiceAuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -740,6 +794,17 @@ components:
                 message: 'sms_sender_id e925b547-8195-4ed2-83c5-0633a74d780a does not exist in database
                                   for service id 9ffb5212-e621-45df-820d-97ee65d392ab'
             status_code: 400
+    Unauthorized:
+      description: No Bearer authentication provided
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorMessage'
+          example:
+            result: 'error'
+            message:
+              token:
+                - 'Unauthorized, authentication token must be provided'
     AdminAuthError:
       description: Authentication Error for Admin endpoints
       content:
