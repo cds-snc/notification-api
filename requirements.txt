@@ -74,7 +74,7 @@ click==7.1.2
 colorama==0.4.3
 cryptography==3.1
 dnspython==1.16.0   #version 2.0.0 breaks eventlet (as described here https://github.com/eventlet/eventlet/issues/371)
-docutils==0.15.2
+docutils==0.16
 flask-redis==0.4.0
 future==0.18.2
 greenlet==0.4.16
