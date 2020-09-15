@@ -9,6 +9,6 @@
     schedule:
       interval: "weekly"
   - package-ecosystem: "docker"
-    directory: "/"
+    directory: "/ci"
     schedule:
       interval: "weekly"
