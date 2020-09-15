@@ -540,7 +540,10 @@ paths:
             application/json:
               schema:
                 description: The API Key
-                $ref: '#/components/schemas/Id'
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Id'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -562,6 +565,10 @@ paths:
       responses:
         '202':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1410,6 +1417,7 @@ components:
         expiry_date:
           type: string
           format: date-time
+          nullable: true
         id:
           $ref: '#/components/schemas/Id'
         key_type:
@@ -1422,6 +1430,7 @@ components:
         updated_at:
           type: string
           format: date-time
+          nullable: true
         version:
           type: integer
   securitySchemes:
