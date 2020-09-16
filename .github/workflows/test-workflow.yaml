@@ -1,0 +1,19 @@
+name: Test workflow
+
+on:
+  workflow_run:
+    workflows: 
+      - Development CI
+      - dev-ci.yaml
+    branches: [master, deployments-with-tags]
+    types: 
+      - completed
+      - requested
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print event
+        run: |
+          echo ${{ toJson(github.event) }}
