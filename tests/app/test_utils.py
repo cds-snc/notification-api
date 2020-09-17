@@ -70,11 +70,19 @@ def test_midnight_n_days_ago(current_time, arg, expected_datetime):
 def test_update_dct_to_str():
     test_dict = {
         "email_address": "test@test.com",
-        "auth_type": "sms"
+        "auth_type": "sms",
+        "dummy_key": "nope",
     }
-    result = update_dct_to_str(test_dict)
+    result = update_dct_to_str(test_dict, 'EN')
     result = ' '.join(result.split())
-    expected = ["- email address", "- auth type"]
-    expected = ' '.join(expected).strip()
+    expected = ["- email address", "- auth type", "- dummy key"]
+    expected = ' '.join(expected)
+
+    assert result == expected
+
+    result = update_dct_to_str(test_dict, 'FR')
+    result = ' '.join(result.split())
+    expected = ["- adresse courriel", "- méthode d'authentification", "- dummy key"]
+    expected = ' '.join(expected)
 
     assert result == expected

@@ -140,8 +140,8 @@ def update_user_attribute(user_id):
     user_alert_dct = update_dct.copy()
     user_alert_dct.pop('blocked', None)
     user_alert_dct.pop('current_session_id', None)
-    if user_alert_dct:
-        _update_alert(user_to_update, update_dct_to_str(user_alert_dct))
+    if not updated_by and user_alert_dct:
+        _update_alert(user_to_update, user_alert_dct)
 
     # Alert that team member edit user
     if updated_by:
@@ -164,8 +164,7 @@ def update_user_attribute(user_id):
             personalisation={
                 'name': user_to_update.name,
                 'servicemanagername': updated_by.name,
-                'email address': user_to_update.email_address,
-                'change_type': update_dct_to_str(update_dct)
+                'email address': user_to_update.email_address
             },
             notification_type=template.template_type,
             api_key_id=None,
@@ -522,7 +521,7 @@ def set_permissions(user_id, service_id):
     change_dict = {service_key: service_id, "permissions": permission_list}
 
     try:
-        _update_alert(user, update_dct_to_str(change_dict))
+        _update_alert(user, change_dict)
     except Exception as e:
         current_app.logger.error(e)
 
@@ -605,10 +604,10 @@ def update_password(user_id):
         raise InvalidRequest(errors, status_code=400)
 
     update_user_password(user, pwd)
-    change_type = update_dct_to_str({'password': "password updated"})
+    changes = {'password': "password updated"}
 
     try:
-        _update_alert(user, change_type)
+        _update_alert(user, changes)
     except Exception as e:
         current_app.logger.error(e)
 
@@ -638,7 +637,7 @@ def create_fido2_keys_user(user_id):
     id = uuid.uuid4()
     key = decode_and_register(cbor_data, get_fido2_session(user_id))
     save_fido2_key(Fido2Key(id=id, user_id=user_id, name=cbor_data["name"], key=key))
-    _update_alert(user)
+    _update_alert(user, changes={'security_key_created': None})
     return jsonify({"id": id})
 
 
@@ -707,7 +706,7 @@ def fido2_keys_user_validate(user_id):
 def delete_fido2_keys_user(user_id, key_id):
     user = get_user_and_accounts(user_id)
     delete_fido2_key(user_id, key_id)
-    _update_alert(user)
+    _update_alert(user, changes={'security_key_deleted': None})
     return jsonify({"id": key_id})
 
 
@@ -757,11 +756,17 @@ def get_orgs_and_services(user):
     }
 
 
-def _update_alert(user_to_update, change_type=""):
+def _update_alert(user_to_update, changes=None):
     service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
     template = dao_get_template_by_id(current_app.config['ACCOUNT_CHANGE_TEMPLATE_ID'])
     recipient = user_to_update.email_address
     reply_to = template.service.get_default_reply_to_email_address()
+
+    change_type_en = ""
+    change_type_fr = ""
+    if changes:
+        change_type_en = update_dct_to_str(changes, 'EN')
+        change_type_fr = update_dct_to_str(changes, 'FR')
 
     saved_notification = persist_notification(
         template_id=template.id,
@@ -771,7 +776,8 @@ def _update_alert(user_to_update, change_type=""):
         personalisation={
             'base_url': Config.ADMIN_BASE_URL,
             'contact_us_url': f'{Config.ADMIN_BASE_URL}/support/ask-question-give-feedback',
-            'change_type': change_type
+            'change_type_en': change_type_en,
+            'change_type_fr': change_type_fr,
         },
         notification_type=template.template_type,
         api_key_id=None,

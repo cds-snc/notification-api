@@ -127,12 +127,40 @@ def email_address_is_nhs(email_address):
     ))
 
 
-def update_dct_to_str(update_dct):
-    str = "\n"
+def update_dct_to_str(update_dct, lang):
+    if lang not in ['EN', 'FR']:
+        raise NotImplementedError
+
+    values = {
+        'EN': {
+            'password': 'password',
+            'name': 'name',
+            'email_address': 'email address',
+            'mobile_number': 'mobile number',
+            'auth_type': 'auth type',
+            'security_key_created': 'security key added',
+            'security_key_deleted': 'security key removed',
+        },
+        'FR': {
+            'password': 'mot de passe',
+            'name': 'nom complet',
+            'email_address': 'adresse courriel',
+            'mobile_number': 'téléphone cellulaire',
+            'auth_type': "méthode d'authentification",
+            'security_key_created': 'clé de sécurité ajoutée',
+            'security_key_deleted': 'clé de sécurité retirée',
+        }
+    }
+
+    content = "\n"
     for key in update_dct:
-        str += "- {}".format(key.replace("_", " "))
-        str += "\n"
-    return str
+        try:
+            key_name = values[lang][key]
+        except KeyError:
+            key_name = key.replace("_", " ")
+        content += "- {}".format(key_name)
+        content += "\n"
+    return content
 
 
 def get_csv_max_rows(service_id):
