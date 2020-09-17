@@ -430,7 +430,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateTemplateRequest'
+              oneOf:
+                - $ref: '#/components/schemas/CreateTemplateRequestSms'
+                - $ref: '#/components/schemas/CreateTemplateRequestEmail'
       responses:
         '201':
           description: CREATED
@@ -1227,6 +1229,26 @@ components:
         - content
         - service
         - created_by
+    CreateTemplateRequestSms:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/CreateTemplateRequest'
+      properties:
+        template_type:
+          type: string
+          enum:
+            - sms
+    CreateTemplateRequestEmail:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/CreateTemplateRequestSms'
+      properties:
+        template_type:
+          type: string
+          enum:
+            - email
+      required:
+        - subject
     Template:
       type: object
       allOf:
