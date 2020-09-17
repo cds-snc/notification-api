@@ -140,7 +140,7 @@ def update_user_attribute(user_id):
     user_alert_dct = update_dct.copy()
     user_alert_dct.pop('blocked', None)
     user_alert_dct.pop('current_session_id', None)
-    if user_alert_dct:
+    if not updated_by and user_alert_dct:
         _update_alert(user_to_update, user_alert_dct)
 
     # Alert that team member edit user

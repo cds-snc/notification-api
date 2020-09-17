@@ -372,6 +372,7 @@ def test_post_user_attribute_with_updated_by(
     assert json_resp['data'][user_attribute] == user_value
 
     if arguments:
+        assert mock_persist_notification.call_count == 1
         mock_persist_notification.assert_any_call(**arguments)
 
 
