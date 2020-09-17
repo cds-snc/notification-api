@@ -23,7 +23,7 @@ template = {
         '',
         '___',
         '',
-        "Les informations de votre compte d''utilisateur ont été modifiées : ((base_url)).",
+        "Les informations de votre compte d''utilisateur ont été modifiées sur ((base_url)).",
         '',
         "Informations mises à jour : ((change_type_fr))",
         '',
