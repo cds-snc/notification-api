@@ -637,7 +637,7 @@ def create_fido2_keys_user(user_id):
     id = uuid.uuid4()
     key = decode_and_register(cbor_data, get_fido2_session(user_id))
     save_fido2_key(Fido2Key(id=id, user_id=user_id, name=cbor_data["name"], key=key))
-    _update_alert(user)
+    _update_alert(user, changes={'security_key_created': None})
     return jsonify({"id": id})
 
 
@@ -706,7 +706,7 @@ def fido2_keys_user_validate(user_id):
 def delete_fido2_keys_user(user_id, key_id):
     user = get_user_and_accounts(user_id)
     delete_fido2_key(user_id, key_id)
-    _update_alert(user)
+    _update_alert(user, changes={'security_key_deleted': None})
     return jsonify({"id": key_id})
 
 

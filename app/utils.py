@@ -138,6 +138,8 @@ def update_dct_to_str(update_dct, lang):
             'email_address': 'email address',
             'mobile_number': 'mobile number',
             'auth_type': 'auth type',
+            'security_key_created': 'security key added',
+            'security_key_deleted': 'security key removed',
         },
         'FR': {
             'password': 'mot de passe',
@@ -145,6 +147,8 @@ def update_dct_to_str(update_dct, lang):
             'email_address': 'adresse courriel',
             'mobile_number': 'téléphone cellulaire',
             'auth_type': "méthode d'authentification",
+            'security_key_created': 'clé de sécurité ajoutée',
+            'security_key_deleted': 'clé de sécurité retirée',
         }
     }
 
