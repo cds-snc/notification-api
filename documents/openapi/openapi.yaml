@@ -1221,7 +1221,6 @@ components:
           enum:
             - sms
             - email
-            - letter
       required:
         - name
         - template_type
