@@ -405,7 +405,7 @@ jobs:
           aws-region: us-gov-west-1
           role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
           role-skip-session-tagging: true
-          role-duration-seconds: 300
+          role-duration-seconds: 900
       - name: Tag Docker Image in VAEC
         run: |
           bash ./scripts/tag_docker_image.sh ${{ github.sha }} ${{ steps.tag-git-commit.outputs.TAG }} us-gov-west-1
@@ -421,7 +421,7 @@ jobs:
           github.repos.createDeployment({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            ref: 'contex.sha',
+            ref: context.sha,
             environment: 'dev',
             required_contexts: [],
             auto_merge: false,
