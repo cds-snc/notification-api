@@ -10,5 +10,5 @@ create_git_tag () {
 
 create_git_tag "$1"
 
-echo "::set-env name=STAGING_TAG::$removed_refs"
-echo "::set-env name=TAG::$version"
+echo "::set-output name=STAGING_TAG::$removed_refs"
+echo "::set-output name=TAG::$version"

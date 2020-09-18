@@ -1,8 +1,6 @@
 name: Trigger
 
 on:
-  deployment_status:
-
   workflow_dispatch:
     inputs:
       environment:
@@ -10,7 +8,7 @@ on:
         required: true
         default: 'dev'
       ref:
-        description: 'Git reference to checkout. The reference can be a branch, tag, or a commit SHA.'
+        description: 'Git and docker tag (can be a commit SHA).'
         required: true
 
 jobs:
