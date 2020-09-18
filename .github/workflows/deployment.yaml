@@ -27,7 +27,7 @@ jobs:
         with:
           task-definition: ./cd/application-deployment/${{ github.event.deployment.environment }}/vaec-db-migrations-task-definition.json
           container-name: ${{ github.event.deployment.environment }}-notification-api-db-migrations
-          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/notification_api:${{ github.sha }}
+          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/notification_api:${{ github.event.deployment.ref }}
 
       - name: Register migration task definition
         id: register
@@ -62,7 +62,7 @@ jobs:
         with:
           task-definition: ./cd/application-deployment/${{ github.event.deployment.environment }}/vaec-api-task-definition.json
           container-name: notification-api
-          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/notification_api:${{ github.sha }}
+          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/notification_api:${{ github.event.deployment.ref }}
 
       - name: Deploy API task definition to Fargate
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
@@ -96,7 +96,7 @@ jobs:
         with:
           task-definition: ./cd/application-deployment/${{ github.event.deployment.environment }}/vaec-celery-task-definition.json
           container-name: notification-celery
-          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/notification_api:${{ github.sha }}
+          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/notification_api:${{ github.event.deployment.ref }}
 
       - name: Deploy celery task definition to Fargate
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
@@ -130,7 +130,7 @@ jobs:
         with:
           task-definition: ./cd/application-deployment/${{ github.event.deployment.environment }}/vaec-celery-beat-task-definition.json
           container-name: notification-celery-beat
-          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/notification_api:${{ github.sha }}
+          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/notification_api:${{ github.event.deployment.ref }}
 
       - name: Deploy celery beat task definition to Fargate
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
