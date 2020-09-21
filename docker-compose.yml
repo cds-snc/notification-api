@@ -1,0 +1,29 @@
+version: '2'
+
+services:
+  postgres:
+    image: postgres:11.2
+    volumes:
+      - ./data:/docker-entrypoint-initdb.d
+    environment:
+      - POSTGRES_PASSWORD=postgres
+  redis:
+    image: redis:latest
+  web:
+    restart: on-failure
+    build:
+      context: ./
+      dockerfile: ci/Dockerfile
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SQLALCHEMY_DATABASE_URI=postgres://postgres:postgres@postgres:5432/postgres
+    command: >
+        bash -c "flask db upgrade &&
+                 flask run -p 6011 --host=0.0.0.0"
+    volumes:
+      - .:/code
+    ports:
+        - "6011:6011"
+    depends_on:
+      - postgres
+      - redis
