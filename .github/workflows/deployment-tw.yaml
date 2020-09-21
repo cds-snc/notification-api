@@ -167,7 +167,7 @@ jobs:
         id: render
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ./cd/application-deployment/${{ needs.check-environment.outputs.environment }}/${{ needs.check-environment.outputs.full-environment }}-db-migrations-task-definition.json
+          task-definition: ./cd/application-deployment/${{ needs.check-environment.outputs.environment }}/${{ needs.check-environment.outputs.environment }}-db-migrations-task-definition.json
           container-name: notification-api-db-migrations
           image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.event.deployment.ref }}
 
