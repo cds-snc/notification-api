@@ -6,7 +6,7 @@ on:
 jobs:
   run-migrations:
     runs-on: ubuntu-latest
-    if: ${{ contains(['dev', 'staging', 'prod'], github.event.deployment.environment) }}
+    if: ${{ 'dev' == github.event.deployment.environment || 'staging' == github.event.deployment.environment || 'prod' == github.event.deployment.environment }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -144,7 +144,7 @@ jobs:
   deployment-status:
     runs-on: ubuntu-latest
     needs: [run-migrations, deploy-api, deploy-celery, deploy-celery-beat]
-    if: ${{ contains(['dev', 'staging', 'prod'], github.event.deployment.environment) }}
+    if: ${{ 'dev' == github.event.deployment.environment || 'staging' == github.event.deployment.environment || 'prod' == github.event.deployment.environment }}
     steps:
       - uses: actions/github-script@v3
         with:
