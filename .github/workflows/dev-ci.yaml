@@ -93,265 +93,265 @@ jobs:
           docker tag $IMAGE_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$IMAGE_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$IMAGE_REPOSITORY:$IMAGE_TAG
 
-  create-base-infrastructure:
-    runs-on: ubuntu-latest
-    needs: [build-and-push]
-    env:
-      tf_working_dir: './cd/base-infrastructure'
-    if: github.ref == 'refs/heads/master'
-    steps:
-      - uses: actions/checkout@v2
-      - name: 'Terraform Init'
-        uses: hashicorp/terraform-github-actions@master
-        with:
-          tf_actions_version: ${{ env.tf_version }}
-          tf_actions_subcommand: 'init'
-          tf_actions_working_dir: ${{ env.tf_working_dir }}
-          tf_actions_comment: false
-          args: '-backend-config="../development-backend.hcl"'
-      - name: 'Terraform Validate'
-        uses: hashicorp/terraform-github-actions@master
-        with:
-          tf_actions_version: ${{ env.tf_version }}
-          tf_actions_subcommand: 'validate'
-          tf_actions_working_dir: ${{ env.tf_working_dir }}
-          tf_actions_comment: false
-      - name: 'Terraform Plan'
-        uses: hashicorp/terraform-github-actions@master
-        with:
-          tf_actions_version: ${{ env.tf_version }}
-          tf_actions_subcommand: 'plan'
-          tf_actions_working_dir: ${{ env.tf_working_dir }}
-          tf_actions_comment: false
-        env:
-          TF_CLI_ARGS: '-out=base-${{ github.sha }}.tfplan -var-file="development.tfvars"'
-      - name: 'Terraform Apply'
-        uses: hashicorp/terraform-github-actions@master
-        with:
-          tf_actions_version: ${{ env.tf_version }}
-          tf_actions_subcommand: 'apply'
-          tf_actions_working_dir: ${{ env.tf_working_dir }}
-          tf_actions_comment: false
-          args: '"base-${{ github.sha }}.tfplan"'
+  # create-base-infrastructure:
+  #   runs-on: ubuntu-latest
+  #   needs: [build-and-push]
+  #   env:
+  #     tf_working_dir: './cd/base-infrastructure'
+  #   if: github.ref == 'refs/heads/master'
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: 'Terraform Init'
+  #       uses: hashicorp/terraform-github-actions@master
+  #       with:
+  #         tf_actions_version: ${{ env.tf_version }}
+  #         tf_actions_subcommand: 'init'
+  #         tf_actions_working_dir: ${{ env.tf_working_dir }}
+  #         tf_actions_comment: false
+  #         args: '-backend-config="../development-backend.hcl"'
+  #     - name: 'Terraform Validate'
+  #       uses: hashicorp/terraform-github-actions@master
+  #       with:
+  #         tf_actions_version: ${{ env.tf_version }}
+  #         tf_actions_subcommand: 'validate'
+  #         tf_actions_working_dir: ${{ env.tf_working_dir }}
+  #         tf_actions_comment: false
+  #     - name: 'Terraform Plan'
+  #       uses: hashicorp/terraform-github-actions@master
+  #       with:
+  #         tf_actions_version: ${{ env.tf_version }}
+  #         tf_actions_subcommand: 'plan'
+  #         tf_actions_working_dir: ${{ env.tf_working_dir }}
+  #         tf_actions_comment: false
+  #       env:
+  #         TF_CLI_ARGS: '-out=base-${{ github.sha }}.tfplan -var-file="development.tfvars"'
+  #     - name: 'Terraform Apply'
+  #       uses: hashicorp/terraform-github-actions@master
+  #       with:
+  #         tf_actions_version: ${{ env.tf_version }}
+  #         tf_actions_subcommand: 'apply'
+  #         tf_actions_working_dir: ${{ env.tf_working_dir }}
+  #         tf_actions_comment: false
+  #         args: '"base-${{ github.sha }}.tfplan"'
 
-  create-database:
-    runs-on: ubuntu-latest
-    needs: [create-base-infrastructure]
-    env:
-      tf_working_dir: './cd/application-database'
-    if: github.ref == 'refs/heads/master'
-    steps:
-      - uses: actions/checkout@v2
-      - name: 'Terraform Init'
-        uses: hashicorp/terraform-github-actions@master
-        with:
-          tf_actions_version: ${{ env.tf_version }}
-          tf_actions_subcommand: 'init'
-          tf_actions_working_dir: ${{ env.tf_working_dir }}
-          tf_actions_comment: false
-          args: '-backend-config="../development-backend.hcl"'
-      - name: 'Terraform Validate'
-        uses: hashicorp/terraform-github-actions@master
-        with:
-          tf_actions_version: ${{ env.tf_version }}
-          tf_actions_subcommand: 'validate'
-          tf_actions_working_dir: ${{ env.tf_working_dir }}
-          tf_actions_comment: false
-      - name: 'Terraform Plan'
-        uses: hashicorp/terraform-github-actions@master
-        with:
-          tf_actions_version: ${{ env.tf_version }}
-          tf_actions_subcommand: 'plan'
-          tf_actions_working_dir: ${{ env.tf_working_dir }}
-          tf_actions_comment: false
-        env:
-          TF_CLI_ARGS: '-out=database-${{ github.sha }}.tfplan -var-file="development.tfvars"'
-      - name: 'Terraform Apply'
-        uses: hashicorp/terraform-github-actions@master
-        with:
-          tf_actions_version: ${{ env.tf_version }}
-          tf_actions_subcommand: 'apply'
-          tf_actions_working_dir: ${{ env.tf_working_dir }}
-          tf_actions_comment: false
-          args: '"database-${{ github.sha }}.tfplan"'
+  # create-database:
+  #   runs-on: ubuntu-latest
+  #   needs: [create-base-infrastructure]
+  #   env:
+  #     tf_working_dir: './cd/application-database'
+  #   if: github.ref == 'refs/heads/master'
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: 'Terraform Init'
+  #       uses: hashicorp/terraform-github-actions@master
+  #       with:
+  #         tf_actions_version: ${{ env.tf_version }}
+  #         tf_actions_subcommand: 'init'
+  #         tf_actions_working_dir: ${{ env.tf_working_dir }}
+  #         tf_actions_comment: false
+  #         args: '-backend-config="../development-backend.hcl"'
+  #     - name: 'Terraform Validate'
+  #       uses: hashicorp/terraform-github-actions@master
+  #       with:
+  #         tf_actions_version: ${{ env.tf_version }}
+  #         tf_actions_subcommand: 'validate'
+  #         tf_actions_working_dir: ${{ env.tf_working_dir }}
+  #         tf_actions_comment: false
+  #     - name: 'Terraform Plan'
+  #       uses: hashicorp/terraform-github-actions@master
+  #       with:
+  #         tf_actions_version: ${{ env.tf_version }}
+  #         tf_actions_subcommand: 'plan'
+  #         tf_actions_working_dir: ${{ env.tf_working_dir }}
+  #         tf_actions_comment: false
+  #       env:
+  #         TF_CLI_ARGS: '-out=database-${{ github.sha }}.tfplan -var-file="development.tfvars"'
+  #     - name: 'Terraform Apply'
+  #       uses: hashicorp/terraform-github-actions@master
+  #       with:
+  #         tf_actions_version: ${{ env.tf_version }}
+  #         tf_actions_subcommand: 'apply'
+  #         tf_actions_working_dir: ${{ env.tf_working_dir }}
+  #         tf_actions_comment: false
+  #         args: '"database-${{ github.sha }}.tfplan"'
 
-  create-app-infrastructure:
-    runs-on: ubuntu-latest
-    needs: create-database
-    env:
-      tf_working_dir: './cd/application-infrastructure'
-    if: github.ref == 'refs/heads/master'
-    steps:
-      - uses: actions/checkout@v2
-      - name: 'Terraform Init'
-        uses: hashicorp/terraform-github-actions@master
-        with:
-          tf_actions_version: ${{ env.tf_version }}
-          tf_actions_subcommand: 'init'
-          tf_actions_working_dir: ${{ env.tf_working_dir }}
-          tf_actions_comment: false
-          args: '-backend-config="../development-backend.hcl"'
-      - name: 'Terraform Validate'
-        uses: hashicorp/terraform-github-actions@master
-        with:
-          tf_actions_version: ${{ env.tf_version }}
-          tf_actions_subcommand: 'validate'
-          tf_actions_working_dir: ${{ env.tf_working_dir }}
-          tf_actions_comment: false
-      - name: 'Terraform Plan'
-        uses: hashicorp/terraform-github-actions@master
-        with:
-          tf_actions_version: ${{ env.tf_version }}
-          tf_actions_subcommand: 'plan'
-          tf_actions_working_dir: ${{ env.tf_working_dir }}
-          tf_actions_comment: false
-        env:
-          TF_CLI_ARGS: '-out=application-${{ github.sha }}.tfplan -var-file="development.tfvars"'
-      - name: 'Terraform Apply'
-        uses: hashicorp/terraform-github-actions@master
-        with:
-          tf_actions_version: ${{ env.tf_version }}
-          tf_actions_subcommand: 'apply'
-          tf_actions_working_dir: ${{ env.tf_working_dir }}
-          tf_actions_comment: false
-          args: '"application-${{ github.sha }}.tfplan"'
+  # create-app-infrastructure:
+  #   runs-on: ubuntu-latest
+  #   needs: create-database
+  #   env:
+  #     tf_working_dir: './cd/application-infrastructure'
+  #   if: github.ref == 'refs/heads/master'
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: 'Terraform Init'
+  #       uses: hashicorp/terraform-github-actions@master
+  #       with:
+  #         tf_actions_version: ${{ env.tf_version }}
+  #         tf_actions_subcommand: 'init'
+  #         tf_actions_working_dir: ${{ env.tf_working_dir }}
+  #         tf_actions_comment: false
+  #         args: '-backend-config="../development-backend.hcl"'
+  #     - name: 'Terraform Validate'
+  #       uses: hashicorp/terraform-github-actions@master
+  #       with:
+  #         tf_actions_version: ${{ env.tf_version }}
+  #         tf_actions_subcommand: 'validate'
+  #         tf_actions_working_dir: ${{ env.tf_working_dir }}
+  #         tf_actions_comment: false
+  #     - name: 'Terraform Plan'
+  #       uses: hashicorp/terraform-github-actions@master
+  #       with:
+  #         tf_actions_version: ${{ env.tf_version }}
+  #         tf_actions_subcommand: 'plan'
+  #         tf_actions_working_dir: ${{ env.tf_working_dir }}
+  #         tf_actions_comment: false
+  #       env:
+  #         TF_CLI_ARGS: '-out=application-${{ github.sha }}.tfplan -var-file="development.tfvars"'
+  #     - name: 'Terraform Apply'
+  #       uses: hashicorp/terraform-github-actions@master
+  #       with:
+  #         tf_actions_version: ${{ env.tf_version }}
+  #         tf_actions_subcommand: 'apply'
+  #         tf_actions_working_dir: ${{ env.tf_working_dir }}
+  #         tf_actions_comment: false
+  #         args: '"application-${{ github.sha }}.tfplan"'
 
-  run-migrations:
-    runs-on: ubuntu-latest
-    needs: [create-database, create-app-infrastructure]
-    if: github.ref == 'refs/heads/master'
-    steps:
-      - uses: actions/checkout@v2
+  # run-migrations:
+  #   runs-on: ubuntu-latest
+  #   needs: [create-database, create-app-infrastructure]
+  #   if: github.ref == 'refs/heads/master'
+  #   steps:
+  #     - uses: actions/checkout@v2
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v1
+  #       with:
+  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #         aws-region: us-east-2
 
-      - name: Render migration task definition
-        id: render
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ./cd/application-deployment/dev/dev-db-migrations-task-definition.json
-          container-name: notification-api-db-migrations
-          image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
+  #     - name: Render migration task definition
+  #       id: render
+  #       uses: aws-actions/amazon-ecs-render-task-definition@v1
+  #       with:
+  #         task-definition: ./cd/application-deployment/dev/dev-db-migrations-task-definition.json
+  #         container-name: notification-api-db-migrations
+  #         image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
 
-      - name: Register migration task definition
-        id: register
-        run: |
-          echo "::set-output name=arn::$(aws ecs register-task-definition --cli-input-json file://${{ steps.render.outputs.task-definition}} | jq -r '.taskDefinition.taskDefinitionArn')"
+  #     - name: Register migration task definition
+  #       id: register
+  #       run: |
+  #         echo "::set-output name=arn::$(aws ecs register-task-definition --cli-input-json file://${{ steps.render.outputs.task-definition}} | jq -r '.taskDefinition.taskDefinitionArn')"
 
-      - name: Run migration task
-        run: |
-          bash ./scripts/run_ci_migrations.sh -c dev-notification-cluster -e dev -t ${{ steps.register.outputs.arn }}
+  #     - name: Run migration task
+  #       run: |
+  #         bash ./scripts/run_ci_migrations.sh -c dev-notification-cluster -e dev -t ${{ steps.register.outputs.arn }}
 
-  deploy-api:
-    runs-on: ubuntu-latest
-    needs: [create-app-infrastructure, run-migrations]
-    if: github.ref == 'refs/heads/master'
-    steps:
-      - uses: actions/checkout@v2
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
-      - name: Render API task definition
-        id: render-api-container
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ./cd/application-deployment/dev/dev-api-task-definition.json
-          container-name: notification-api
-          image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
-      - name: Deploy API task definition to Fargate
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.render-api-container.outputs.task-definition }}
-          service: dev-notification-api-service
-          cluster: dev-notification-cluster
-          wait-for-service-stability: true
+  # deploy-api:
+  #   runs-on: ubuntu-latest
+  #   needs: [create-app-infrastructure, run-migrations]
+  #   if: github.ref == 'refs/heads/master'
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v1
+  #       with:
+  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #         aws-region: us-east-2
+  #     - name: Render API task definition
+  #       id: render-api-container
+  #       uses: aws-actions/amazon-ecs-render-task-definition@v1
+  #       with:
+  #         task-definition: ./cd/application-deployment/dev/dev-api-task-definition.json
+  #         container-name: notification-api
+  #         image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
+  #     - name: Deploy API task definition to Fargate
+  #       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+  #       with:
+  #         task-definition: ${{ steps.render-api-container.outputs.task-definition }}
+  #         service: dev-notification-api-service
+  #         cluster: dev-notification-cluster
+  #         wait-for-service-stability: true
 
-  deploy-celery:
-    runs-on: ubuntu-latest
-    needs: [create-app-infrastructure, run-migrations]
-    if: github.ref == 'refs/heads/master'
-    steps:
-      - uses: actions/checkout@v2
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
-      - name: Render celery task definition
-        id: render-celery-container
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ./cd/application-deployment/dev/dev-celery-task-definition.json
-          container-name: notification-celery
-          image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
-      - name: Deploy celery task definition to Fargate
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.render-celery-container.outputs.task-definition }}
-          service: dev-notification-celery-service
-          cluster: dev-notification-cluster
-          wait-for-service-stability: true
+  # deploy-celery:
+  #   runs-on: ubuntu-latest
+  #   needs: [create-app-infrastructure, run-migrations]
+  #   if: github.ref == 'refs/heads/master'
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v1
+  #       with:
+  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #         aws-region: us-east-2
+  #     - name: Render celery task definition
+  #       id: render-celery-container
+  #       uses: aws-actions/amazon-ecs-render-task-definition@v1
+  #       with:
+  #         task-definition: ./cd/application-deployment/dev/dev-celery-task-definition.json
+  #         container-name: notification-celery
+  #         image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
+  #     - name: Deploy celery task definition to Fargate
+  #       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+  #       with:
+  #         task-definition: ${{ steps.render-celery-container.outputs.task-definition }}
+  #         service: dev-notification-celery-service
+  #         cluster: dev-notification-cluster
+  #         wait-for-service-stability: true
 
-  deploy-celery-beat:
-    runs-on: ubuntu-latest
-    needs: [create-app-infrastructure, run-migrations]
-    if: github.ref == 'refs/heads/master'
-    steps:
-      - uses: actions/checkout@v2
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
-      - name: Render celery beat task definition
-        id: render-celery-beat-container
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ./cd/application-deployment/dev/dev-celery-beat-task-definition.json
-          container-name: notification-celery-beat
-          image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
-      - name: Deploy celery beat task definition to Fargate
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.render-celery-beat-container.outputs.task-definition }}
-          service: dev-notification-celery-beat-service
-          cluster: dev-notification-cluster
-          wait-for-service-stability: true
+  # deploy-celery-beat:
+  #   runs-on: ubuntu-latest
+  #   needs: [create-app-infrastructure, run-migrations]
+  #   if: github.ref == 'refs/heads/master'
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v1
+  #       with:
+  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #         aws-region: us-east-2
+  #     - name: Render celery beat task definition
+  #       id: render-celery-beat-container
+  #       uses: aws-actions/amazon-ecs-render-task-definition@v1
+  #       with:
+  #         task-definition: ./cd/application-deployment/dev/dev-celery-beat-task-definition.json
+  #         container-name: notification-celery-beat
+  #         image: 437518843863.dkr.ecr.us-east-2.amazonaws.com/notification_api:${{ github.sha }}
+  #     - name: Deploy celery beat task definition to Fargate
+  #       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+  #       with:
+  #         task-definition: ${{ steps.render-celery-beat-container.outputs.task-definition }}
+  #         service: dev-notification-celery-beat-service
+  #         cluster: dev-notification-cluster
+  #         wait-for-service-stability: true
 
-  smoke-test:
-    runs-on: ubuntu-latest
-    needs: [deploy-api, deploy-celery, deploy-celery-beat]
-    steps:
-      - uses: actions/checkout@v2
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
-      - uses: actions/setup-node@v2.1.1
-        with:
-          node-version: '12'
-      - name: Get API URL
-        id: get-url
-        run: |
-          echo "::set-output name=notification-api::$(aws ssm get-parameter --name /dev/notification-api/api-host-name | jq '.Parameter.Value' -r)"
-      - name: Run Smoke Test
-        run: |
-          npm install -g newman
-          newman run scripts/postman/notification-api.postman_collection.json --folder "smoke-test" --env-var "notification-api-url=${{ steps.get-url.outputs.notification-api }}" --env-var "expected-git-sha=${{ github.sha }}"
+  # smoke-test:
+  #   runs-on: ubuntu-latest
+  #   needs: [deploy-api, deploy-celery, deploy-celery-beat]
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v1
+  #       with:
+  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #         aws-region: us-east-2
+  #     - uses: actions/setup-node@v2.1.1
+  #       with:
+  #         node-version: '12'
+  #     - name: Get API URL
+  #       id: get-url
+  #       run: |
+  #         echo "::set-output name=notification-api::$(aws ssm get-parameter --name /dev/notification-api/api-host-name | jq '.Parameter.Value' -r)"
+  #     - name: Run Smoke Test
+  #       run: |
+  #         npm install -g newman
+  #         newman run scripts/postman/notification-api.postman_collection.json --folder "smoke-test" --env-var "notification-api-url=${{ steps.get-url.outputs.notification-api }}" --env-var "expected-git-sha=${{ github.sha }}"
 
-  user-flows:
+  # user-flows:
     runs-on: ubuntu-latest
     needs: smoke-test
     steps:
@@ -379,36 +379,52 @@ jobs:
         run: |
           docker-compose -f ci/docker-compose-user-flow.yml up --build --abort-on-container-exit --force-recreate user-flow
 
-  create-tag:
+  # create-tag:
+  #   runs-on: ubuntu-latest
+  #   needs: user-flows
+  #   if: github.ref == 'refs/heads/master'
+  #   outputs:
+  #     tag: ${{ steps.tag-git-commit.outputs.TAG }}
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       with:
+  #         ssh-key: ${{ secrets.CD_KEY }}
+  #     - name: Tag Git Commit
+  #       id: tag-git-commit
+  #       run: |
+  #         git fetch --prune --unshallow
+  #         bash ./scripts/tag_git_dev.sh ${{ github.sha }}
+  #     - name: Tag Docker Image
+  #       run: |
+  #         bash ./scripts/tag_docker_image.sh ${{ github.sha }} ${{ steps.tag-git-commit.outputs.TAG }} us-east-2
+  #     - name: Configure VAEC AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v1
+  #       with:
+  #         aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+  #         aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+  #         aws-region: us-gov-west-1
+  #         role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+  #         role-skip-session-tagging: true
+  #         role-duration-seconds: 900
+  #     - name: Tag Docker Image in VAEC
+  #       run: |
+  #         bash ./scripts/tag_docker_image.sh ${{ github.sha }} ${{ steps.tag-git-commit.outputs.TAG }} us-gov-west-1
+  start-tw-dev-deployment:
     runs-on: ubuntu-latest
-    needs: user-flows
-    if: github.ref == 'refs/heads/master'
-    outputs:
-      tag: ${{ steps.tag-git-commit.outputs.TAG }}
+    needs: build-and-push
     steps:
-      - uses: actions/checkout@v2
-        with:
-          ssh-key: ${{ secrets.CD_KEY }}
-      - name: Tag Git Commit
-        id: tag-git-commit
-        run: |
-          git fetch --prune --unshallow
-          bash ./scripts/tag_git_dev.sh ${{ github.sha }}
-      - name: Tag Docker Image
-        run: |
-          bash ./scripts/tag_docker_image.sh ${{ github.sha }} ${{ steps.tag-git-commit.outputs.TAG }} us-east-2
-      - name: Configure VAEC AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-gov-west-1
-          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
-          role-skip-session-tagging: true
-          role-duration-seconds: 900
-      - name: Tag Docker Image in VAEC
-        run: |
-          bash ./scripts/tag_docker_image.sh ${{ github.sha }} ${{ steps.tag-git-commit.outputs.TAG }} us-gov-west-1
+    - uses: actions/github-script@v3
+      with:
+        github-token: ${{secrets.GH_ACCESS_TOKEN}}
+        script: |
+          github.repos.createDeployment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: context.sha,
+            environment: 'tw-dev',
+            required_contexts: [],
+            auto_merge: false,
+          });
 
   start-vaec-dev-deployment:
     runs-on: ubuntu-latest

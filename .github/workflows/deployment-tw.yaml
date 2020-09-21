@@ -73,7 +73,6 @@ jobs:
     needs: [check-environment, create-base-infrastructure]
     env:
       tf_working_dir: './cd/application-database'
-    if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v2
       - name: 'Terraform Init'
@@ -114,7 +113,6 @@ jobs:
     needs: [check-environment, create-database]
     env:
       tf_working_dir: './cd/application-infrastructure'
-    if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v2
       - name: 'Terraform Init'
