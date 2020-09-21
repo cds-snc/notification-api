@@ -443,19 +443,19 @@ jobs:
             auto_merge: false,
           });
 
-  start-vaec-staging-deployment:
-    runs-on: ubuntu-latest
-    needs: [user-flows, create-tag]
-    steps:
-    - uses: actions/github-script@v3
-      with:
-        github-token: ${{secrets.GH_ACCESS_TOKEN}}
-        script: |
-          github.repos.createDeployment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            ref: '${{needs.create-tag.outputs.tag}}',
-            environment: 'staging',
-            required_contexts: [],
-            auto_merge: false,
-          });
+  # start-vaec-staging-deployment:
+  #   runs-on: ubuntu-latest
+  #   needs: [user-flows, create-tag]
+  #   steps:
+  #   - uses: actions/github-script@v3
+  #     with:
+  #       github-token: ${{secrets.GH_ACCESS_TOKEN}}
+  #       script: |
+  #         github.repos.createDeployment({
+  #           owner: context.repo.owner,
+  #           repo: context.repo.repo,
+  #           ref: '${{needs.create-tag.outputs.tag}}',
+  #           environment: 'staging',
+  #           required_contexts: [],
+  #           auto_merge: false,
+  #         });
