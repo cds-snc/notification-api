@@ -347,7 +347,7 @@ jobs:
               if (value.result === "skipped") return state;
               return state;
             }, "success");
-            if (['tw-dev', 'tw-staging']).includes(github.event.deployment.environment) {
+            if (['tw-dev', 'tw-staging'].includes(context.payload.deployment.environment)) {
               github.repos.createDeploymentStatus({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
