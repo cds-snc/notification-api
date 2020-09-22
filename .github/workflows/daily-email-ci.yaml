@@ -32,8 +32,9 @@ jobs:
          echo "::set-env name=notification_url::$(aws ssm get-parameter --name /staging/notification-api/api-host-name | jq '.Parameter.Value' -r)"
      - name: Retrieve Notification Secret
        run: |
-         echo "::set-env name=NOTIFICATION_SECRET::$(aws ssm get-parameter --with-decryption --name /staging/notification-api/admin-client-secret | jq '.Parameter.Value' -r)"
+         NOTIFICATION_SECRET=$(aws ssm get-parameter --with-decryption --name /staging/notification-api/admin-client-secret | jq '.Parameter.Value' -r)
          echo "::add-mask::$NOTIFICATION_SECRET"
+         echo "::set-env name=NOTIFICATION_SECRET::$NOTIFICATION_SECRET"
      - name: Run User Flow
        run: |
          docker-compose -f ci/docker-compose-user-flow.yml up --build --abort-on-container-exit --force-recreate daily-check
