@@ -56,17 +56,17 @@ source  ~/.pyenv/versions/3.6.9/bin/virtualenvwrapper.sh
 
 `workon notifications-api`
 
-9. Install [Postgres.app](http://postgresapp.com/).
-
-10. Create the database for the application
-
-`createdb --user=postgres notification_api`
-
-11. Decrypt our existing set of environment variables
-
-`gcloud kms decrypt --project=[PROJECT_NAME] --plaintext-file=.env --ciphertext-file=.env.enc --location=global --keyring=[KEY_RING] --key=[KEY_NAME]`
+9. Find the appropriate env variables and copy them into the `.env` file. A sane set of defaults exists in `.env.example` in the root folder or you can use the ones in the LastPass folder. If using from lastPass and running the API locally, change API_HOST_NAME to point to your local machine
 
 A sane set of defaults exists in `.env.example`
+
+10. Install [Postgres.app](http://postgresapp.com/).
+
+9.a If using Ubuntu, install postgres, create a password for the postgres user and add SQLALCHEMY_DATABASE_URI="postgresql://postgres:password@localhost:5432/notification_api" to your .env file
+
+11. Create the database for the application
+
+`createdb --user=postgres notification_api`
 
 12. Install all dependencies
 
@@ -80,7 +80,7 @@ A sane set of defaults exists in `.env.example`
 
 `flask db upgrade`
 
-15. Run the service
+15. Run the service, if also running the Admin locally you may want to default to another port such as 6013
 
 `flask run -p 6011 --host=0.0.0.0`
 
