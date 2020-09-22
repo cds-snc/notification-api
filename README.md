@@ -62,7 +62,7 @@ A sane set of defaults exists in `.env.example`
 
 10. Install [Postgres.app](http://postgresapp.com/).
 
-9.a If using Ubuntu, install postgres, create a password for the postgres user and add SQLALCHEMY_DATABASE_URI="postgresql://postgres:password@localhost:5432/notification_api" to your .env file
+10.a If using Ubuntu, install postgres, create a password for the postgres user and add SQLALCHEMY_DATABASE_URI="postgresql://postgres:password@localhost:5432/notification_api" to your .env file
 
 11. Create the database for the application
 
