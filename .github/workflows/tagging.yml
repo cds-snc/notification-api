@@ -6,7 +6,7 @@ on:
 jobs:
   create-staging-tags:
     runs-on: ubuntu-latest
-    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'tw-dev')
+    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'tw-dev'
     outputs:
       tag: ${{ steps.tag-git-commit.outputs.TAG }}
     steps:
