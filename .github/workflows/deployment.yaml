@@ -144,7 +144,7 @@ jobs:
   deployment-status:
     runs-on: ubuntu-latest
     needs: [run-migrations, deploy-api, deploy-celery, deploy-celery-beat]
-    if: ${{ 'dev' == github.event.deployment.environment || 'staging' == github.event.deployment.environment || 'prod' == github.event.deployment.environment }}
+    if: always()
     steps:
       - uses: actions/github-script@v3
         with:
@@ -159,12 +159,14 @@ jobs:
               if (value.result === "skipped") return state;
               return state;
             }, "success");
-            github.repos.createDeploymentStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              deployment_id: context.payload.deployment.id,
-              state: deploymentState,
-              auto_inactive: true,
-              log_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}/checks`,
-              environment: "${{ github.event.deployment.environment }}"
-            });
+            if (['dev', 'staging', 'prod'].includes(github.event.deployment.environment)) {
+              github.repos.createDeploymentStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: context.payload.deployment.id,
+                state: deploymentState,
+                auto_inactive: true,
+                log_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}/checks`,
+                environment: "${{ github.event.deployment.environment }}"
+              });
+            }
