@@ -37,7 +37,7 @@ jobs:
 
   create-production-tags:
     runs-on: ubuntu-latest
-    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'tw-staging')
+    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'tw-staging'
     steps:
       - uses: actions/checkout@v2
         with:
