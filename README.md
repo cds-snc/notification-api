@@ -78,7 +78,7 @@ source  ~/.pyenv/versions/3.6.9/bin/virtualenvwrapper.sh
 
 `flask db upgrade`
 
-15. Run the service, if also running the Admin locally you may want to default to another port such as 6013
+15. Run the service
 
 `flask run -p 6011 --host=0.0.0.0`
 
