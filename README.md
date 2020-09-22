@@ -56,9 +56,7 @@ source  ~/.pyenv/versions/3.6.9/bin/virtualenvwrapper.sh
 
 `workon notifications-api`
 
-9. Find the appropriate env variables and copy them into the `.env` file. A sane set of defaults exists in `.env.example` in the root folder or you can use the ones in the LastPass folder. If using from lastPass and running the API locally, change API_HOST_NAME to point to your local machine
-
-A sane set of defaults exists in `.env.example`
+9. Find the appropriate env variables and copy them into the .env file. A sane set of defaults exists in `.env.example` in the root folder. If you are working for CDS you should use the ones in the LastPass folder. If using from lastPass and running the API locally, change API_HOST_NAME to point to your local machine
 
 10. Install [Postgres.app](http://postgresapp.com/).
 
