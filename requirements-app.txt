@@ -49,7 +49,7 @@ git+https://github.com/cds-snc/notifier-utils.git@43.0.2#egg=notifications-utils
 # MLWR
 socketio-client==0.7.2
 requests==2.24.0
-requests[security]
+requests[security]==2.24.0
 pycryptodome
 
 git+https://bitbucket.org/cse-assemblyline/assemblyline_client.git@v3.7.3#egg=assemblyline_client==v3.7.3
