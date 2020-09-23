@@ -26,7 +26,7 @@ sentry-sdk[flask]==0.17.7
 validatesns==0.1.1
 cachelib==0.1
 
-newrelic==5.12.1.141
+newrelic==5.20.0.149
 notifications-python-client==5.5.1
 python-dotenv==0.10.3
 pwnedpasswords==2.0.0
