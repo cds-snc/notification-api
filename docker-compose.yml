@@ -10,6 +10,7 @@ services:
   redis:
     image: redis:latest
   web:
+    image: notification-api
     restart: on-failure
     build:
       context: ./
@@ -18,12 +19,62 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - SQLALCHEMY_DATABASE_URI=postgres://postgres:postgres@postgres:5432/postgres
     command: >
-        bash -c "flask db upgrade &&
-                 flask run -p 6011 --host=0.0.0.0"
+      bash -c "make generate-version-file && flask run -p 6011 --host=0.0.0.0"
     volumes:
-      - .:/code
+      - .:/app
     ports:
         - "6011:6011"
     depends_on:
       - postgres
       - redis
+  beat:
+    image: notification-api
+    restart: on-failure
+    build:
+      context: ./
+      dockerfile: ci/Dockerfile
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SQLALCHEMY_DATABASE_URI=postgres://postgres:postgres@postgres:5432/postgres
+    command: >
+      bash -c "sh scripts/run_celery_beat.sh"
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+      - redis
+      - web
+  worker:
+    image: notification-api
+    restart: on-failure
+    build:
+      context: ./
+      dockerfile: ci/Dockerfile
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SQLALCHEMY_DATABASE_URI=postgres://postgres:postgres@postgres:5432/postgres
+    command: >
+      bash -c "rm /tmp/celery.pid; sh scripts/run_celery.sh"
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+      - redis
+      - web
+  worker_sms:
+    image: notification-api
+    restart: on-failure
+    build:
+      context: ./
+      dockerfile: ci/Dockerfile
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SQLALCHEMY_DATABASE_URI=postgres://postgres:postgres@postgres:5432/postgres
+    command: >
+      bash -c "sh scripts/run_celery_sms.sh"
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+      - redis
+      - web
