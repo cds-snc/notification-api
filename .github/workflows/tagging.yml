@@ -12,7 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ssh-key: ${{ secrets.CD_KEY }}
           ref: ${{ github.event.deployment.ref }}
       - name: Tag Git Commit
         id: tag-git-commit
@@ -47,7 +46,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ssh-key: ${{ secrets.CD_KEY }}
           ref: ${{ github.event.deployment.ref }}
       - name: Tag Git Commit
         id:  tag-git-commit
