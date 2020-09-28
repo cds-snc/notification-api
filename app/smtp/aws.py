@@ -41,7 +41,7 @@ def smtp_add(name):
     add_record(
         r53_client,
         "_dmarc." + name,
-        "\"v=DMARC1; p=none; sp=none; rua=mailto:dmarc@cyber.gc.ca; ruf=mailto:dmarc@cyber.gc.ca\"",
+        "\"v=DMARC1; p=none; sp=none; rua=mailto:dmarc@cyber.gc.ca\"",
         "TXT")
 
     credentials = add_user(iam_client, name)
