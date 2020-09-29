@@ -5,6 +5,8 @@ services:
     image: postgres:11.2
     volumes:
       - ./data:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
   redis:
     image: redis:latest
   web:
@@ -76,3 +78,19 @@ services:
       - postgres
       - redis
       - web
+  tests:
+    image: notification-api-tests
+    restart: "no"
+    build:
+      context: ./
+      dockerfile: ci/Dockerfile.test
+    environment:
+      - REDIS_URL=redis://redis:6379/1
+      - SQLALCHEMY_DATABASE_URI=postgres://postgres:postgres@postgres:5432/test_notification_api
+    command: >
+      bash -c "./scripts/run_tests.sh"
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+      - redis
