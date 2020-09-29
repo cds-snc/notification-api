@@ -72,6 +72,7 @@ environment.sh
 .env
 
 celerybeat-schedule
+celerybeat.pid
 
 # CloudFoundry
 .cf
