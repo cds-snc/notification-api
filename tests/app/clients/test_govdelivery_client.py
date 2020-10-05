@@ -16,7 +16,7 @@ def client(notify_api, mocker):
     with notify_api.app_context():
         govdelivery_client = GovdeliveryClient()
         statsd_client = mocker.Mock()
-        govdelivery_client.init_app("some-token", statsd_client)
+        govdelivery_client.init_app("some-token", "https://govdelivery-url", statsd_client)
         return govdelivery_client
 
 
@@ -40,7 +40,7 @@ def test_send_email_posts_to_correct_url(client, respond_successfully):
     with respond_successfully:
         client.send_email("source", "address", "subject", "body", "html body")
 
-    expected_govdelivery_url = "https://tms.govdelivery.com/messages/email"
+    expected_govdelivery_url = "https://govdelivery-url/messages/email"
 
     assert respond_successfully.request_history[0].url == expected_govdelivery_url
 

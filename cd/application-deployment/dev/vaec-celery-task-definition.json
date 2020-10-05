@@ -1,144 +1,138 @@
 {
-  "family": "dev-notification-celery-task",
-  "executionRoleArn": "arn:aws-us-gov:iam::171875617347:role/project/project-dev-notification-api-task-execution-role",
-  "taskRoleArn": "arn:aws-us-gov:iam::171875617347:role/project/project-dev-notification-api-task-role",
-  "networkMode": "awsvpc",
-  "containerDefinitions": [
-    {
-      "name": "notification-celery",
-      "image": "{will-be-replaced-by-ci}",
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-group": "dev-notification-api-log-group",
-          "awslogs-region": "us-gov-west-1",
-          "awslogs-stream-prefix": "ecs"
+    "family": "dev-notification-celery-task",
+    "executionRoleArn": "arn:aws-us-gov:iam::171875617347:role/project/project-dev-notification-api-task-execution-role",
+    "taskRoleArn": "arn:aws-us-gov:iam::171875617347:role/project/project-dev-notification-api-task-role",
+    "networkMode": "awsvpc",
+    "containerDefinitions": [{
+            "name": "notification-celery",
+            "image": "{will-be-replaced-by-ci}",
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "dev-notification-api-log-group",
+                    "awslogs-region": "us-gov-west-1",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "environment": [{
+                    "name": "NOTIFY_ENVIRONMENT",
+                    "value": "development"
+                },
+                {
+                    "name": "FLASK_APP",
+                    "value": "run_celery.py"
+                },
+                {
+                    "name": "NOTIFICATION_QUEUE_PREFIX",
+                    "value": "dev-notification-"
+                },
+                {
+                    "name": "AWS_REGION",
+                    "value": "us-gov-west-1"
+                },
+                {
+                    "name": "STATSD_HOST",
+                    "value": "localhost"
+                },
+                {
+                    "name": "GRANICUS_URL",
+                    "value": "https://stage-tms.govdelivery.com"
+                }
+            ],
+            "secrets": [{
+                    "name": "TWILIO_ACCOUNT_SID",
+                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/twilio/account-sid"
+                },
+                {
+                    "name": "TWILIO_AUTH_TOKEN",
+                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/twilio/auth-token"
+                },
+                {
+                    "name": "TWILIO_FROM_NUMBER",
+                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/twilio/from-number"
+                },
+                {
+                    "name": "GRANICUS_TOKEN",
+                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/granicus/token"
+                },
+                {
+                    "name": "SQLALCHEMY_DATABASE_URI",
+                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/database/uri"
+                },
+                {
+                    "name": "API_HOST_NAME",
+                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/api-host-name"
+                },
+                {
+                    "name": "SECRET_KEY",
+                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/secret-key"
+                },
+                {
+                    "name": "DANGEROUS_SALT",
+                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/dangerous-salt"
+                }
+            ],
+            "command": ["sh", "-c", "/app/scripts/run_celery.sh"]
+        },
+        {
+            "name": "datadog-agent",
+            "image": "171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/datadog/agent:latest",
+            "essential": true,
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "dev-notification-api-datadog-log-group",
+                    "awslogs-region": "us-gov-west-1",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "portMappings": [{
+                "containerPort": 8125,
+                "hostPort": 8125,
+                "protocol": "udp"
+            }],
+            "environment": [{
+                "name": "ECS_FARGATE",
+                "value": "true"
+            }],
+            "secrets": [{
+                "name": "DD_API_KEY",
+                "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/datadog/apikey"
+            }]
         }
-      },
-      "environment": [
-        {
-          "name": "NOTIFY_ENVIRONMENT",
-          "value": "development"
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "512",
+    "memory": "1024",
+    "tags": [{
+            "key": "Stack",
+            "value": "application-deployment"
         },
         {
-          "name": "FLASK_APP",
-          "value": "run_celery.py"
+            "key": "Environment",
+            "value": "dev"
         },
         {
-          "name": "NOTIFICATION_QUEUE_PREFIX",
-          "value": "dev-notification-"
+            "key": "Team",
+            "value": "vanotify"
         },
         {
-          "name": "AWS_REGION",
-          "value": "us-gov-west-1"
+            "key": "ManagedBy",
+            "value": "CI"
         },
         {
-          "name": "STATSD_HOST",
-          "value": "localhost"
+            "key": "VAECID",
+            "value": "AWG20200714002"
+        },
+        {
+            "key": "ProjectName",
+            "value": "VA Notify"
+        },
+        {
+            "key": "ProjectShort",
+            "value": "NOTIFY"
         }
-      ],
-      "secrets": [
-        {
-          "name": "TWILIO_ACCOUNT_SID",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/twilio/account-sid"
-        },
-        {
-          "name": "TWILIO_AUTH_TOKEN",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/twilio/auth-token"
-        },
-        {
-          "name": "TWILIO_FROM_NUMBER",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/twilio/from-number"
-        },
-        {
-          "name": "GRANICUS_TOKEN",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/granicus/token"
-        },
-        {
-          "name": "SQLALCHEMY_DATABASE_URI",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/database/uri"
-        },
-        {
-          "name": "API_HOST_NAME",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/api-host-name"
-        },
-        {
-          "name": "SECRET_KEY",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/secret-key"
-        },
-        {
-          "name": "DANGEROUS_SALT",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/dangerous-salt"
-        }
-      ],
-      "command": ["sh", "-c", "/app/scripts/run_celery.sh"]
-    },
-    {
-      "name": "datadog-agent",
-      "image": "171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/datadog/agent:latest",
-      "essential": true,
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-group": "dev-notification-api-datadog-log-group",
-          "awslogs-region": "us-gov-west-1",
-          "awslogs-stream-prefix": "ecs"
-        }
-      },
-      "portMappings": [
-        {
-          "containerPort": 8125,
-          "hostPort": 8125,
-          "protocol": "udp"
-        }
-      ],
-      "environment": [
-        {
-          "name": "ECS_FARGATE",
-          "value": "true"
-        }
-      ],
-      "secrets": [
-        {
-          "name": "DD_API_KEY",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/datadog/apikey"
-        }
-      ]
-    }
-  ],
-  "requiresCompatibilities": [
-    "FARGATE"
-  ],
-  "cpu": "512",
-  "memory": "1024",
-  "tags": [
-    {
-      "key": "Stack",
-      "value": "application-deployment"
-    },
-    {
-      "key": "Environment",
-      "value": "dev"
-    },
-    {
-      "key": "Team",
-      "value": "vanotify"
-    },
-    {
-      "key": "ManagedBy",
-      "value": "CI"
-    },
-    {
-      "key": "VAECID",
-      "value": "AWG20200714002"
-    },
-    {
-      "key": "ProjectName",
-      "value": "VA Notify"
-    },
-    {
-      "key": "ProjectShort",
-      "value": "NOTIFY"
-    }
-  ]
+    ]
 }

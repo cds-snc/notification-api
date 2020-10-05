@@ -30,11 +30,11 @@ class GovdeliveryClient(EmailClient):
     Govdelivery email client.
     '''
 
-    def init_app(self, token, statsd_client, *args, **kwargs):
+    def init_app(self, token, url, statsd_client, *args, **kwargs):
         self.name = 'govdelivery'
         self.token = token
         self.statsd_client = statsd_client
-        self.govdelivery_url = "https://tms.govdelivery.com/messages/email"
+        self.govdelivery_url = "{}/messages/email".format(url)
 
     def get_name(self):
         return self.name

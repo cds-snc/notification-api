@@ -99,7 +99,7 @@ def create_app(application):
     aws_sns_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config['AWS_REGION'], statsd_client=statsd_client)
     send_grid_client.init_app(application.config['SENDGRID_API_KEY'], statsd_client=statsd_client)
-    govdelivery_client.init_app(application.config['GRANICUS_TOKEN'], statsd_client)
+    govdelivery_client.init_app(application.config['GRANICUS_TOKEN'], application.config['GRANICUS_URL'], statsd_client)
     twilio_sms_client.init_app(
         logger=application.logger,
         callback_notify_url_host=application.config["API_HOST_NAME"]

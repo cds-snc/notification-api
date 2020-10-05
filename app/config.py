@@ -359,6 +359,10 @@ class Config(object):
     MMG_INBOUND_SMS_AUTH = json.loads(os.getenv('MMG_INBOUND_SMS_AUTH', '[]'))
     MMG_INBOUND_SMS_USERNAME = json.loads(os.getenv('MMG_INBOUND_SMS_USERNAME', '[]'))
     GRANICUS_TOKEN = os.environ.get('GRANICUS_TOKEN', '')
+    GRANICUS_URL = os.environ.get('GRANICUS_URL', 'https://tms.govdelivery.com')
+
+    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "messages.va.gov")
+    NOTIFY_EMAIL_FROM = os.getenv("NOTIFY_EMAIL_FROM", "notifications")
 
     ROUTE_SECRET_KEY_1 = os.getenv('ROUTE_SECRET_KEY_1', '')
     ROUTE_SECRET_KEY_2 = os.getenv('ROUTE_SECRET_KEY_2', '')
@@ -414,8 +418,6 @@ class Development(Config):
 
     NOTIFY_ENVIRONMENT = 'development'
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "vanotify-")
-    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "public.govdelivery.com")
-    NOTIFY_EMAIL_FROM = os.getenv("NOTIFY_EMAIL_FROM", "solutions")
 
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", 'postgresql://postgres@localhost/notification_api')
     REDIS_URL = 'redis://localhost:6379/0'
@@ -429,8 +431,6 @@ class Development(Config):
 
 
 class Test(Development):
-    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "public.govdelivery.com")
-    NOTIFY_EMAIL_FROM = os.getenv("NOTIFY_EMAIL_FROM", "solutions")
     FROM_NUMBER = 'testing'
     NOTIFY_ENVIRONMENT = 'test'
     TESTING = True
@@ -474,8 +474,6 @@ class Test(Development):
 
 
 class Production(Config):
-    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "public.govdelivery.com")
-    NOTIFY_EMAIL_FROM = os.getenv("NOTIFY_EMAIL_FROM", "solutions")
     NOTIFY_ENVIRONMENT = 'production'
     # CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'production-test-letters'

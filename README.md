@@ -15,16 +15,30 @@ Contains:
 
 ## Table of Contents
 
-* [Setting up](#setting-up)
-* [Testing with Postman](scripts/postman/README.md)
-* [To run the queues](#to-run-the-queues)
-* [Running in Docker](#running-in-docker)
-* [AWS Configuration](#aws-configuration)
-* [Terraform](#terraform)
-* [To update application dependencies](#to-update-application-dependencies)
-* [Running Code Scans](#running-code-scans)
-* [Testing template changes](#testing-template-changes)
-* [Frequent problems](#frequent-problems)
+- [Notification API](#notification-api)
+  - [Functional constraints](#functional-constraints)
+  - [Table of Contents](#table-of-contents)
+  - [Setting Up](#setting-up)
+    - [Checklist](#checklist)
+    - [Local installation instruction](#local-installation-instruction)
+    - [Pre-commit hooks](#pre-commit-hooks)
+    - [Installation for local development](#installation-for-local-development)
+    - [Other useful commands](#other-useful-commands)
+  - [To run the queues](#to-run-the-queues)
+  - [Running in Docker](#running-in-docker)
+  - [AWS Configuration](#aws-configuration)
+    - [Install tools](#install-tools)
+    - [Useful commands](#useful-commands)
+  - [Terraform](#terraform)
+    - [Install tools](#install-tools-1)
+    - [Useful commands](#useful-commands-1)
+    - [Python version](#python-version)
+  - [To update application dependencies](#to-update-application-dependencies)
+  - [Running Code Scans](#running-code-scans)
+    - [Bandit](#bandit)
+    - [Safety](#safety)
+  - [Testing template changes](#testing-template-changes)
+  - [Frequent problems](#frequent-problems)
 
 ---
 
@@ -68,7 +82,7 @@ Note:
 - if md5 hash issue, may be related to openssl version. `brew upgrade openssl && brew switch openssl`
 
 - problem: if can't find virtualenv.sh in current python version
-`echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bash_profile `
+`echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bash_profile`
 
 ```
 pip install --upgrade pip
