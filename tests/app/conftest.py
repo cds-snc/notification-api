@@ -10,7 +10,6 @@ from sqlalchemy import asc
 from sqlalchemy.orm.session import make_transient
 
 from app import db
-from app.clients.sms.firetext import FiretextClient
 from app.dao.api_key_dao import save_model_api_key
 from app.dao.invited_user_dao import save_invited_user
 from app.dao.jobs_dao import dao_create_job
@@ -802,29 +801,6 @@ def ses_provider():
 
 
 @pytest.fixture(scope='function')
-def firetext_provider():
-    return ProviderDetails.query.filter_by(identifier='firetext').one()
-
-
-@pytest.fixture(scope='function')
-def mmg_provider():
-    return ProviderDetails.query.filter_by(identifier='mmg').one()
-
-
-@pytest.fixture(scope='function')
-def mock_firetext_client(mocker, statsd_client=None):
-    client = FiretextClient()
-    statsd_client = statsd_client or mocker.Mock()
-    current_app = mocker.Mock(config={
-        'FIRETEXT_URL': 'https://example.com/firetext',
-        'FIRETEXT_API_KEY': 'foo',
-        'FROM_NUMBER': 'bar'
-    })
-    client.init_app(current_app, statsd_client)
-    return client
-
-
-@pytest.fixture(scope='function')
 def sms_code_template(notify_db,
                       notify_db_session):
     service, user = notify_service(notify_db, notify_db_session)
@@ -1128,7 +1104,7 @@ def sample_service_safelist(notify_db, notify_db_session, service=None, email_ad
 @pytest.fixture(scope='function')
 def sample_provider_rate(notify_db, notify_db_session, valid_from=None, rate=None, provider_identifier=None):
     create_provider_rates(
-        provider_identifier=provider_identifier if provider_identifier is not None else 'mmg',
+        provider_identifier=provider_identifier if provider_identifier is not None else 'sns',
         valid_from=valid_from if valid_from is not None else datetime.utcnow(),
         rate=rate if rate is not None else 1,
     )
@@ -1138,9 +1114,9 @@ def sample_provider_rate(notify_db, notify_db_session, valid_from=None, rate=Non
 def sample_inbound_numbers(notify_db, notify_db_session, sample_service):
     service = create_service(service_name='sample service 2', check_if_service_exists=True)
     inbound_numbers = list()
-    inbound_numbers.append(create_inbound_number(number='1', provider='mmg'))
-    inbound_numbers.append(create_inbound_number(number='2', provider='mmg', active=False, service_id=service.id))
-    inbound_numbers.append(create_inbound_number(number='3', provider='firetext', service_id=sample_service.id))
+    inbound_numbers.append(create_inbound_number(number='1', provider='sns'))
+    inbound_numbers.append(create_inbound_number(number='2', provider='sns', active=False, service_id=service.id))
+    inbound_numbers.append(create_inbound_number(number='3', provider='sns', service_id=sample_service.id))
     return inbound_numbers
 
 

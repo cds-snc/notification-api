@@ -122,7 +122,7 @@ def test_get_current_sms_provider_returns_correct_provider(restore_provider_deta
     assert provider.identifier == 'sns'
 
 
-@pytest.mark.parametrize('provider_identifier', ['mmg', 'sns'])
+@pytest.mark.parametrize('provider_identifier', ['sns', ])
 def test_get_alternative_sms_provider_returns_expected_provider(notify_db, provider_identifier):
     provider = get_alternative_sms_provider(provider_identifier)
     assert provider.identifier != provider

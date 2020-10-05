@@ -83,7 +83,7 @@ def test_create_nightly_billing_for_day_sms_rate_multiplier(
         created_at=yesterday,
         template=sample_template,
         status='delivered',
-        sent_by='mmg',
+        sent_by='sns',
         international=False,
         rate_multiplier=1.0,
         billable_units=1,
@@ -92,7 +92,7 @@ def test_create_nightly_billing_for_day_sms_rate_multiplier(
         created_at=yesterday,
         template=sample_template,
         status='delivered',
-        sent_by='mmg',
+        sent_by='sns',
         international=False,
         rate_multiplier=second_rate,
         billable_units=1,
@@ -126,7 +126,7 @@ def test_create_nightly_billing_for_day_different_templates(
         created_at=yesterday,
         template=sample_template,
         status='delivered',
-        sent_by='mmg',
+        sent_by='sns',
         international=False,
         rate_multiplier=1.0,
         billable_units=1,
@@ -173,16 +173,7 @@ def test_create_nightly_billing_for_day_different_sent_by(
         created_at=yesterday,
         template=sample_template,
         status='delivered',
-        sent_by='mmg',
-        international=False,
-        rate_multiplier=1.0,
-        billable_units=1,
-    )
-    create_notification(
-        created_at=yesterday,
-        template=sample_template,
-        status='delivered',
-        sent_by='firetext',
+        sent_by='sns',
         international=False,
         rate_multiplier=1.0,
         billable_units=1,
@@ -196,7 +187,7 @@ def test_create_nightly_billing_for_day_different_sent_by(
     create_nightly_billing_for_day(yesterday_str)
     records = FactBilling.query.order_by('rate_multiplier').all()
 
-    assert len(records) == 2
+    assert len(records) == 1
     for i, record in enumerate(records):
         assert record.bst_date == datetime.date(yesterday)
         assert record.rate == Decimal(1.33)
