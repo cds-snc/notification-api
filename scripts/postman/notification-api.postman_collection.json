@@ -162,8 +162,8 @@
 					"raw": "{\n    \"name\": \"test organization 2\",\n    \"active\": true,\n    \"organisation_type\": \"other\",\n    \"crown\": false\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api-url}}/organisations",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/organisations",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -267,8 +267,8 @@
 					}
 				],
 				"url": {
-					"raw": "http://{{notification-api-url}}/organisations",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/organisations",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -354,7 +354,7 @@
 							"    var jsonData = pm.response.json(); ",
 							"    pm.environment.set(\"user-id\", jsonData.id);",
 							"} else {",
-							"    var url = \"http://\" + pm.environment.get(\"notification-api-url\") + \"/user/email?email=saman.moshafi@thoughtworks.com\";",
+							"    var url = \"https://\" + pm.environment.get(\"notification-api-url\") + \"/user/email?email=saman.moshafi@thoughtworks.com\";",
 							"    pm.sendRequest({",
 							"        url: url,",
 							"        method: 'GET',",
@@ -397,8 +397,8 @@
 					"raw": "{\n    \"name\": \"Test User\",\n    \"password\": \"JDJiJDEwJDRFSXJaTVhXdzQ2UjRlVlJBU0ZMdXVtWXlXbXlRWXl3YlpnVllSbDNsMTZ4bE40NzdZYnE2\",\n    \"email_address\": \"saman.moshafi@thoughtworks.com\",\n    \"mobile_number\": \"+17035017710\",\n    \"state\": \"active\",\n    \"user_permissions\": [\n        \"manage_templates\",\n        \"send_texts\",\n        \"manage_settings\",\n        \"send_emails\",\n        \"manage_api_keys\"\n    ],\n    \"auth_type\": \"sms_auth\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api-url}}/user",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/user",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -484,7 +484,7 @@
 							"    var jsonData = pm.response.json(); ",
 							"    pm.environment.set(\"user-id\", jsonData.id);",
 							"} else {",
-							"    var url = \"http://\" + pm.environment.get(\"notification-api-url\") + \"/user/email?email=saman.moshafi@thoughtworks.com\";",
+							"    var url = \"https://\" + pm.environment.get(\"notification-api-url\") + \"/user/email?email=saman.moshafi@thoughtworks.com\";",
 							"    pm.sendRequest({",
 							"        url: url,",
 							"        method: 'GET',",
@@ -527,8 +527,8 @@
 					"raw": "{\n    \"name\": \"Test User\",\n    \"password\": \"JDJiJDEwJDRFSXJaTVhXdzQ2UjRlVlJBU0ZMdXVtWXlXbXlRWXl3YlpnVllSbDNsMTZ4bE40NzdZYnE2\",\n    \"email_address\": \"saman.moshafi@thoughtworks.com\",\n    \"mobile_number\": \"+17035017710\",\n    \"state\": \"active\",\n    \"user_permissions\": [\n        \"manage_templates\",\n        \"send_texts\",\n        \"manage_settings\",\n        \"send_emails\",\n        \"manage_api_keys\"\n    ],\n    \"auth_type\": \"sms_auth\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api-url}}/user",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/user",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -644,8 +644,8 @@
 					}
 				],
 				"url": {
-					"raw": "http://{{notification-api-url}}/user",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/user",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -731,7 +731,7 @@
 							"    var jsonData = pm.response.json(); ",
 							"    pm.environment.set(\"service-id\", jsonData.id);",
 							"} else {",
-							"    var url = \"http://\" + pm.environment.get(\"notification-api-url\") + \"/service/find-services-by-name?service_name=main service\";",
+							"    var url = \"https://\" + pm.environment.get(\"notification-api-url\") + \"/service/find-services-by-name?service_name=main service\";",
 							"    pm.sendRequest({",
 							"        url: url,",
 							"        method: 'GET',",
@@ -767,11 +767,11 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"name\": \"main service for Govdelivery\",\n    \"user_id\": \"{{user-id}}\",\n    \"organisation_id\": \"{{organization-id}}\",\n    \"message_limit\": 1000,\n    \"restricted\": false,\n    \"active\": true,\n    \"email_from\": \"{{email-from}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
+					"raw": "{\n    \"name\": \"main service for Govdelivery\",\n    \"user_id\": \"{{user-id}}\",\n    \"organisation_id\": \"{{organization-id}}\",\n    \"message_limit\": 1000,\n    \"restricted\": false,\n    \"active\": true,\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api-url}}/service",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/service",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -857,7 +857,7 @@
 							"    var jsonData = pm.response.json(); ",
 							"    pm.environment.set(\"service-id\", jsonData.id);",
 							"} else {",
-							"    var url = \"http://\" + pm.environment.get(\"notification-api-url\") + \"/service/find-services-by-name?service_name=main service\";",
+							"    var url = \"https://\" + pm.environment.get(\"notification-api-url\") + \"/service/find-services-by-name?service_name=main service\";",
 							"    pm.sendRequest({",
 							"        url: url,",
 							"        method: 'GET',",
@@ -896,8 +896,8 @@
 					"raw": "{\n    \"name\": \"main service for Govdelivery\",\n    \"user_id\": \"{{user-id}}\",\n    \"organisation_id\": \"{{organization-id}}\",\n    \"message_limit\": 1000,\n    \"restricted\": false,\n    \"active\": true,\n    \"email-from\": \"{{email-from}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api-url}}/service",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/service/{{service-id}}",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -995,8 +995,8 @@
 					}
 				],
 				"url": {
-					"raw": "http://{{notification-api-url}}/service",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/service",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -1111,8 +1111,8 @@
 					"raw": "{\n    \"name\": \"test template\",\n    \"subject\": \"test subject\",\n    \"template_type\": \"sms\",\n    \"content\": \"This is a test SMS message\",\n    \"service\": \"{{service-id}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api-url}}/service/{{service-id}}/template",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/service/{{service-id}}/template",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -1225,8 +1225,8 @@
 					"raw": "{\n    \"name\": \"test template\",\n    \"subject\": \"test subject\",\n    \"template_type\": \"email\",\n    \"content\": \"This is a test email\",\n    \"service\": \"{{service-id}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api-url}}/service/{{service-id}}/template",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/service/{{service-id}}/template",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -1339,8 +1339,8 @@
 					"raw": "{\n    \"name\": \"some name\",\n    \"subject\": \"some subject\",\n    \"template_type\": \"email\",\n    \"content\": \"some content\",\n    \"service\": \"{{service-id}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api-url}}/service/{{service-id}}/template/{{template-id}}",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/service/{{service-id}}/template/{{template-id}}",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -1455,8 +1455,8 @@
 					}
 				],
 				"url": {
-					"raw": "http://{{notification-api-url}}/service/{{service-id}}/template",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/service/{{service-id}}/template",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -1574,8 +1574,8 @@
 					"raw": "{\n    \"created_by\": \"{{user-id}}\",\n    \"key_type\": \"normal\",\n    \"name\": \"postmantestapikey\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api-url}}/service/{{service-id}}/api-key",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/service/{{service-id}}/api-key",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -1679,8 +1679,8 @@
 					"raw": ""
 				},
 				"url": {
-					"raw": "http://{{notification-api-url}}/service/{{service-id}}/api-key/revoke/{{api-key-id}}",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/service/{{service-id}}/api-key/revoke/{{api-key-id}}",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -1790,8 +1790,8 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://{{notification-api-url}}/service/{{service-id}}/api-keys",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/service/{{service-id}}/api-keys",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -1890,8 +1890,8 @@
 					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"phone_number\": \"+17035017710\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api-url}}/v2/notifications/sms",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/v2/notifications/sms",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -2003,8 +2003,8 @@
 					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"email_address\": \"marisa.hoenig@thoughtworks.com\"\n}"
 				},
 				"url": {
-					"raw": "http://{{notification-api-url}}/v2/notifications/email",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/v2/notifications/email",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
@@ -2095,8 +2095,8 @@
 					}
 				],
 				"url": {
-					"raw": "http://{{notification-api-url}}/v2/notifications/{{notification-id}}",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/v2/notifications/{{notification-id}}",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
