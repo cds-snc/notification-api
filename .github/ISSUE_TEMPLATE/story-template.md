@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-# Value Statement:
+# Value Statement
 **As** 
 **I want to** 
 **So that**
@@ -17,17 +17,17 @@ assignees: ''
 **WHEN** 
 **THEN**
 
-# Checklist:
+# Checklist
 - [ ] Checklist item here
 
-# Assumptions:
+# Assumptions
 -
 
-# Additional Info/Resources:
+# Additional Info/Resources
 -
 
-# Out of Scope:
+# Out of Scope
 -
 
-# Open Questions:
+# Open Questions
 -
