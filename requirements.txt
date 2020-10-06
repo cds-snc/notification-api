@@ -3,37 +3,37 @@
 # Run `make freeze-requirements` to update requirements.txt
 # with package version changes made in requirements-app.txt
 
-cffi==1.14.0
+cffi==1.14.3
 celery[sqs]==3.1.26.post2 # pyup: <4
 docopt==0.6.2
-fido2==0.7.0
+fido2==0.8.1
 Flask-Bcrypt==0.7.1
-flask-marshmallow==0.11.0
-Flask-Migrate==2.5.2
+flask-marshmallow==0.14.0
+Flask-Migrate==2.5.3
 git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd1a20a21e682262#egg=Flask-SQLAlchemy==2.3.2.dev20190108
-Flask==1.1.1
+Flask==1.1.2
 click-datetime==0.2
-eventlet==0.25.1
+eventlet==0.28.0
 gunicorn==20.0.4  # pyup: ignore, >19.8 breaks eventlet patching
-iso8601==0.1.12
+iso8601==0.1.13
 jsonschema==3.2.0
-marshmallow-sqlalchemy==0.22.2
-marshmallow==2.20.5
-python-magic==0.4.15
-psycopg2-binary==2.8.4
+marshmallow-sqlalchemy==0.23.1
+marshmallow==2.21.0
+python-magic==0.4.18
+psycopg2-binary==2.8.6
 PyJWT==1.7.1
 PyYAML==5.3.1
-SQLAlchemy==1.3.13
-sentry-sdk[flask]==0.14.3
+SQLAlchemy==1.3.19
+sentry-sdk[flask]==0.18.0
 validatesns==0.1.1
-cachelib==0.1
+cachelib==0.1.1
 
-newrelic==5.12.1.141
-notifications-python-client==5.5.1
-python-dotenv==0.10.3
+newrelic==5.20.0.149
+notifications-python-client==5.7.0
+python-dotenv==0.14.0
 pwnedpasswords==2.0.0
-sendgrid==6.1.0
-tldextract==2.2.1
+sendgrid==6.4.7
+tldextract==2.2.3
 twilio==6.16
 nanoid==2.0.0
 unidecode==1.1.1
@@ -46,7 +46,7 @@ awscli-cwlogs>=1.4,<1.5
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
 itsdangerous==0.24  # pyup: <1.0.0
 
-git+https://github.com/cds-snc/notifier-utils.git@43.0.2#egg=notifications-utils==43.0.2
+git+https://github.com/cds-snc/notifier-utils.git@43.0.5#egg=notifications-utils
 
 # MLWR
 socketio-client==0.5.6
@@ -59,31 +59,31 @@ git+https://bitbucket.org/cse-assemblyline/assemblyline_client.git@v3.7.3#egg=as
 rsa>=4.1 # not directly required, pinned by Snyk to avoid a vulnerability
 
 ## The following requirements were added by pip freeze:
-alembic==1.4.2
+alembic==1.4.3
 amqp==1.4.9
 anyjson==0.3.3
 asn1crypto==1.4.0
-attrs==19.3.0
-awscli==1.18.107
-bcrypt==3.1.7
+attrs==20.2.0
+awscli==1.18.153
+bcrypt==3.2.0
 billiard==3.3.0.23
 bleach==3.1.4
 blinker==1.4
 boto==2.49.0
 boto3==1.12.13
-botocore==1.17.30
+botocore==1.18.12
 certifi==2020.6.20
 chardet==3.0.4
 click==7.1.2
 colorama==0.4.3
-cryptography==3.0
+cryptography==3.1.1
 dnspython==1.16.0
 docutils==0.15.2
 flask-redis==0.4.0
 future==0.18.2
-greenlet==0.4.16
+greenlet==0.4.17
 idna==2.10
-importlib-metadata==1.7.0
+importlib-metadata==2.0.0
 Jinja2==2.11.2
 jmespath==0.10.0
 kombu==3.0.37
@@ -97,11 +97,11 @@ phonenumbers==8.10.13
 pyasn1==0.4.8
 pycparser==2.20
 PyPDF2==1.26.0
-pyrsistent==0.16.0
+pyrsistent==0.17.3
 PySocks==1.7.1
 python-dateutil==2.8.1
 python-editor==1.0.4
-python-http-client==3.2.7
+python-http-client==3.3.1
 python-json-logger==0.1.11
 pytz==2020.1
 redis==3.5.3
@@ -109,9 +109,10 @@ requests-file==1.5.1
 s3transfer==0.3.3
 six==1.15.0
 smartypants==2.0.1
+starkbank-ecdsa==1.1.0
 statsd==3.3.0
 urllib3==1.25.10
 webencodings==0.5.1
 websocket-client==0.57.0
 Werkzeug==1.0.1
-zipp==3.1.0
+zipp==3.3.0
