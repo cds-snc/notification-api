@@ -10,22 +10,22 @@ assignees: ''
 # Goal
 Explain the purpose of the spike. E.g. tool selection, research, understanding future state/feasibility
 
-# Checklist:
+# Checklist
 - [ ] <item here>
 - [ ] Discuss and document with team
 - [ ] Create recommendations
 
-# Timebox:
-Estimate how long this should take, in days.
+# Timebox
+Estimate how long this should take, in days. Typically 3.
 
-# Assumptions:
+# Assumptions
 - 
 
-# Additional Info/Resources:
+# Additional Info/Resources
 -
 
-# Out of Scope:
+# Out of Scope
 -
 
-# Open Questions:
+# Open Questions
 - Is implementation out of scope?
