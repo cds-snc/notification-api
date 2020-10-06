@@ -134,12 +134,24 @@ post_sms_request = {
     "properties": {
         "reference": {"type": "string"},
         "phone_number": {"type": "string", "format": "phone_number"},
+        "va_identifier": {"type": "object", "properties": {
+            "type": {
+                "type": "string"
+            },
+            "value": {
+                "type": "string"
+            }
+        }},
         "template_id": uuid,
         "personalisation": personalisation,
         "scheduled_for": {"type": ["string", "null"], "format": "datetime_within_next_day"},
         "sms_sender_id": uuid
     },
-    "required": ["phone_number", "template_id"],
+    "required": ["template_id"],
+    "anyOf": [
+        {"required": ["phone_number"]},
+        {"required": ["va_identifier"]}
+    ],
     "additionalProperties": False
 }
 

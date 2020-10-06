@@ -99,7 +99,7 @@ def test_validation_error(app_for_test):
             assert error['status_code'] == 400
             assert len(error['errors']) == 2
             assert {'error': 'ValidationError',
-                    'message': "phone_number is a required property"} in error['errors']
+                    'message': "{template_id: bad_uuid} is not valid under any of the given schemas"} in error['errors']
             assert {'error': 'ValidationError',
                     'message': "template_id is not a valid UUID"} in error['errors']
 

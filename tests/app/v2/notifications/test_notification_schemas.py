@@ -102,9 +102,25 @@ def test_get_notifications_request_invalid_statuses_and_template_types():
             .format(invalid_template_type) in error_messages
 
 
-valid_json = {"phone_number": "6502532222",
-              "template_id": str(uuid.uuid4())
-              }
+valid_phone_number_json = {
+    "phone_number": "6502532222",
+    "template_id": str(uuid.uuid4())
+}
+valid_va_identifier_json = {
+    "va_identifier": {
+        "type": "foo",
+        "value": "bar"
+    },
+    "template_id": str(uuid.uuid4())
+}
+valid_phone_number_and_va_identifier_json = {
+    "phone_number": "6502532222",
+    "va_identifier": {
+        "type": "foo",
+        "value": "bar"
+    },
+    "template_id": str(uuid.uuid4())
+}
 valid_json_with_optionals = {
     "phone_number": "6502532222",
     "template_id": str(uuid.uuid4()),
@@ -113,7 +129,8 @@ valid_json_with_optionals = {
 }
 
 
-@pytest.mark.parametrize("input", [valid_json, valid_json_with_optionals])
+@pytest.mark.parametrize("input", [valid_phone_number_json, valid_va_identifier_json,
+                                   valid_phone_number_and_va_identifier_json, valid_json_with_optionals])
 def test_post_sms_schema_is_valid(input):
     assert validate(input, post_sms_request_schema) == input
 
@@ -142,7 +159,7 @@ def test_post_sms_json_schema_bad_uuid(template_id):
             'message': "template_id is not a valid UUID"} in error['errors']
 
 
-def test_post_sms_json_schema_bad_uuid_and_missing_phone_number():
+def test_post_sms_json_schema_bad_uuid_and_missing_phone_number_and_va_identifier():
     j = {"template_id": "notUUID"}
     with pytest.raises(ValidationError) as e:
         validate(j, post_sms_request_schema)
@@ -151,7 +168,7 @@ def test_post_sms_json_schema_bad_uuid_and_missing_phone_number():
     assert error.get('status_code') == 400
     assert len(error.get('errors')) == 2
     assert {'error': 'ValidationError',
-            'message': "phone_number is a required property"} in error['errors']
+            'message': "{template_id: notUUID} is not valid under any of the given schemas"} in error['errors']
     assert {'error': 'ValidationError',
             'message': "template_id is not a valid UUID"} in error['errors']
 
