@@ -3,7 +3,7 @@ name:  Build Lambda Functions
 on:
   push:
     paths:
-    - './user_flows/**.py'
+    - 'user_flows/**.py'
 
 jobs:
   build-user-flows-test-function:
