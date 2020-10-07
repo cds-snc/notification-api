@@ -159,6 +159,32 @@ def test_post_sms_json_schema_bad_uuid(template_id):
             'message': "template_id is not a valid UUID"} in error['errors']
 
 
+missing_id_type_json = {"value": "bar"}
+missing_value_json = {"id_type": "foo"}
+missing_id_type_and_value_json = {"invalid_param": "invalid"}
+
+
+@pytest.mark.parametrize('va_identifier, missing_key_name', [
+    (missing_id_type_json, ["id_type"]),
+    (missing_value_json, ["value"]),
+    (missing_id_type_and_value_json, ["id_type", "value"])
+])
+def test_post_sms_json_schema_bad_va_identifier(va_identifier, missing_key_name):
+    j = {
+        "va_identifier": va_identifier,
+        "template_id": str(uuid.uuid4())
+    }
+    with pytest.raises(ValidationError) as e:
+        validate(j, post_sms_request_schema)
+    error = json.loads(str(e.value))
+    assert len(error.keys()) == 2
+    assert error.get('status_code') == 400
+    assert len(error.get('errors')) == len(missing_key_name)
+    for key_name in missing_key_name:
+        assert {'error': 'ValidationError',
+                'message': "va_identifier " + key_name + " is a required property"} in error['errors']
+
+
 def test_post_sms_json_schema_bad_uuid_and_missing_phone_number_and_va_identifier():
     j = {"template_id": "notUUID"}
     with pytest.raises(ValidationError) as e:
