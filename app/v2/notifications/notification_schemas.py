@@ -135,13 +135,13 @@ post_sms_request = {
         "reference": {"type": "string"},
         "phone_number": {"type": "string", "format": "phone_number"},
         "va_identifier": {"type": "object", "properties": {
-            "type": {
+            "id_type": {
                 "type": "string"
             },
             "value": {
                 "type": "string"
             }
-        }},
+        }, "required": ["id_type", "value"]},
         "template_id": uuid,
         "personalisation": personalisation,
         "scheduled_for": {"type": ["string", "null"], "format": "datetime_within_next_day"},

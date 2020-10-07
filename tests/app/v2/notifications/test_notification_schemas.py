@@ -108,7 +108,7 @@ valid_phone_number_json = {
 }
 valid_va_identifier_json = {
     "va_identifier": {
-        "type": "foo",
+        "id_type": "foo",
         "value": "bar"
     },
     "template_id": str(uuid.uuid4())
@@ -116,7 +116,7 @@ valid_va_identifier_json = {
 valid_phone_number_and_va_identifier_json = {
     "phone_number": "6502532222",
     "va_identifier": {
-        "type": "foo",
+        "id_type": "foo",
         "value": "bar"
     },
     "template_id": str(uuid.uuid4())
