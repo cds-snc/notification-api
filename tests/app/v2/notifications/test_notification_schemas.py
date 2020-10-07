@@ -169,7 +169,7 @@ missing_id_type_and_value_json = {"invalid_param": "invalid"}
     (missing_value_json, ["value"]),
     (missing_id_type_and_value_json, ["id_type", "value"])
 ])
-def test_post_sms_json_schema_bad_va_identifier(va_identifier, missing_key_name):
+def test_post_sms_json_schema_invalid_va_identifier(va_identifier, missing_key_name):
     j = {
         "va_identifier": va_identifier,
         "template_id": str(uuid.uuid4())
@@ -250,6 +250,21 @@ def test_post_sms_request_schema_invalid_phone_number_and_missing_template():
 valid_post_email_json = {"email_address": "test@example.gov.uk",
                          "template_id": str(uuid.uuid4())
                          }
+valid_va_identifier_json = {
+    "va_identifier": {
+        "id_type": "foo",
+        "value": "bar"
+    },
+    "template_id": str(uuid.uuid4())
+}
+valid_email_and_va_identifier_json = {
+    "email_address": "test@example.gov.uk",
+    "va_identifier": {
+        "id_type": "foo",
+        "value": "bar"
+    },
+    "template_id": str(uuid.uuid4())
+}
 valid_post_email_json_with_optionals = {
     "email_address": "test@example.gov.uk",
     "template_id": str(uuid.uuid4()),
@@ -258,7 +273,10 @@ valid_post_email_json_with_optionals = {
 }
 
 
-@pytest.mark.parametrize("input", [valid_post_email_json, valid_post_email_json_with_optionals])
+@pytest.mark.parametrize("input", [valid_post_email_json,
+                                   valid_va_identifier_json,
+                                   valid_email_and_va_identifier_json,
+                                   valid_post_email_json_with_optionals])
 def test_post_email_schema_is_valid(input):
     assert validate(input, post_email_request_schema) == input
 
@@ -285,6 +303,32 @@ def test_post_email_schema_invalid_email_address(email_address, err_msg):
     errors = json.loads(str(e.value)).get('errors')
     assert len(errors) == 1
     assert {"error": "ValidationError", "message": err_msg} == errors[0]
+
+
+missing_id_type_json = {"value": "bar"}
+missing_value_json = {"id_type": "foo"}
+missing_id_type_and_value_json = {"invalid_param": "invalid"}
+
+
+@pytest.mark.parametrize('va_identifier, missing_key_name', [
+    (missing_id_type_json, ["id_type"]),
+    (missing_value_json, ["value"]),
+    (missing_id_type_and_value_json, ["id_type", "value"])
+])
+def test_post_email_json_schema_invalid_va_identifier(va_identifier, missing_key_name):
+    j = {
+        "va_identifier": va_identifier,
+        "template_id": str(uuid.uuid4())
+    }
+    with pytest.raises(ValidationError) as e:
+        validate(j, post_email_request_schema)
+    error = json.loads(str(e.value))
+    assert len(error.keys()) == 2
+    assert error.get('status_code') == 400
+    assert len(error.get('errors')) == len(missing_key_name)
+    for key_name in missing_key_name:
+        assert {'error': 'ValidationError',
+                'message': "va_identifier " + key_name + " is a required property"} in error['errors']
 
 
 def valid_email_response():

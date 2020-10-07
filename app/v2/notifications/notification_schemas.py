@@ -192,12 +192,24 @@ post_email_request = {
     "properties": {
         "reference": {"type": "string"},
         "email_address": {"type": "string", "format": "email_address"},
+        "va_identifier": {"type": "object", "properties": {
+            "id_type": {
+                "type": "string"
+            },
+            "value": {
+                "type": "string"
+            }
+        }, "required": ["id_type", "value"]},
         "template_id": uuid,
         "personalisation": personalisation,
         "scheduled_for": {"type": ["string", "null"], "format": "datetime_within_next_day"},
         "email_reply_to_id": uuid
     },
-    "required": ["email_address", "template_id"],
+    "required": ["template_id"],
+    "anyOf": [
+        {"required": ["email_address"]},
+        {"required": ["va_identifier"]}
+    ],
     "additionalProperties": False
 }
 
