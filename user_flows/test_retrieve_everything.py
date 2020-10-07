@@ -17,6 +17,7 @@ if(not notification_url):
 
 
 def test_retrieval():
+    print('testing change')
     organizations = get_organizations()
     assert organizations.status_code == 200
     users = get_users()
