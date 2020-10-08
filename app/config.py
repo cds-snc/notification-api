@@ -416,7 +416,6 @@ class Development(Config):
     MMG_INBOUND_SMS_AUTH = ['testkey']
     MMG_INBOUND_SMS_USERNAME = ['username']
 
-    NOTIFY_ENVIRONMENT = 'development'
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "vanotify-")
 
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", 'postgresql://postgres@localhost/notification_api')
@@ -474,7 +473,6 @@ class Test(Development):
 
 
 class Production(Config):
-    NOTIFY_ENVIRONMENT = 'production'
     # CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'production-test-letters'
     DVLA_RESPONSE_BUCKET_NAME = 'notifications.service.gov.uk-ftp'
@@ -488,17 +486,8 @@ class Production(Config):
     CRONITOR_ENABLED = False
 
 
-class Staging(Config):
-    NOTIFY_ENVIRONMENT = 'staging'
-    FROM_NUMBER = 'VA.GOV'
-    PERFORMANCE_PLATFORM_ENABLED = False
-    CHECK_PROXY_HEADER = False
-    CRONITOR_ENABLED = False
-
-
 configs = {
     'development': Development,
     'test': Test,
-    'staging': Staging,
     'production': Production
 }
