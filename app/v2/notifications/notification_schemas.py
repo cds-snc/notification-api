@@ -195,7 +195,8 @@ post_email_request = {
         "email_address": {"type": "string", "format": "email_address"},
         "va_identifier": {"type": "object", "properties": {
             "id_type": {
-                "type": "string"
+                "type": "string",
+                "enum": VA_IDENTIFIER_TYPES
             },
             "value": {
                 "type": "string"

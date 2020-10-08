@@ -282,7 +282,7 @@ valid_post_email_json = {"email_address": "test@example.gov.uk",
                          }
 valid_va_identifier_json = {
     "va_identifier": {
-        "id_type": "foo",
+        "id_type": VA_PROFILE_ID,
         "value": "bar"
     },
     "template_id": str(uuid.uuid4())
@@ -290,7 +290,7 @@ valid_va_identifier_json = {
 valid_email_and_va_identifier_json = {
     "email_address": "test@example.gov.uk",
     "va_identifier": {
-        "id_type": "foo",
+        "id_type": VA_PROFILE_ID,
         "value": "bar"
     },
     "template_id": str(uuid.uuid4())
@@ -336,7 +336,7 @@ def test_post_email_schema_invalid_email_address(email_address, err_msg):
 
 
 missing_id_type_json = {"value": "bar"}
-missing_value_json = {"id_type": "foo"}
+missing_value_json = {"id_type": VA_PROFILE_ID}
 missing_id_type_and_value_json = {"invalid_param": "invalid"}
 
 
@@ -345,7 +345,7 @@ missing_id_type_and_value_json = {"invalid_param": "invalid"}
     (missing_value_json, ["value"]),
     (missing_id_type_and_value_json, ["id_type", "value"])
 ])
-def test_post_email_json_schema_invalid_va_identifier(va_identifier, missing_key_name):
+def test_post_email_json_schema_missing_va_identifier_required_fields(va_identifier, missing_key_name):
     j = {
         "va_identifier": va_identifier,
         "template_id": str(uuid.uuid4())
@@ -359,6 +359,36 @@ def test_post_email_json_schema_invalid_va_identifier(va_identifier, missing_key
     for key_name in missing_key_name:
         assert {'error': 'ValidationError',
                 'message': "va_identifier " + key_name + " is a required property"} in error['errors']
+
+
+def test_post_email_json_schema_invalid_va_identifier_id_type():
+    id_type_not_an_accepted_va_identifier_json = {
+        "va_identifier": {
+            "id_type": "foo",
+            "value": "bar",
+        },
+        "template_id": str(uuid.uuid4())
+    }
+    with pytest.raises(ValidationError) as e:
+        validate(id_type_not_an_accepted_va_identifier_json, post_email_request_schema)
+    error = json.loads(str(e.value))
+    assert len(error.keys()) == 2
+    assert error.get('status_code') == 400
+    assert len(error.get('errors')) == 1
+    assert {'error': 'ValidationError',
+            'message': "va_identifier foo is not one of [va_profile_id, pid, icn]"} in error['errors']
+
+
+@pytest.mark.parametrize("va_identifier_type", VA_IDENTIFIER_TYPES)
+def test_post_email_schema_id_type_should_only_use_enum_values(va_identifier_type):
+    id_type_as_enum_json = {
+        "va_identifier": {
+            "id_type": va_identifier_type,
+            "value": "bar"
+        },
+        "template_id": str(uuid.uuid4())
+    }
+    assert validate(id_type_as_enum_json, post_email_request_schema) == id_type_as_enum_json
 
 
 def valid_email_response():
