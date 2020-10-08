@@ -489,5 +489,6 @@ class Production(Config):
 configs = {
     'development': Development,
     'test': Test,
+    'staging': Production,
     'production': Production
 }
