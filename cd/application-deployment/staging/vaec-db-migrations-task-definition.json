@@ -19,7 +19,7 @@
         "command": ["sh", "-c", "flask db upgrade"],
         "environment": [{
                 "name": "NOTIFY_ENVIRONMENT",
-                "value": "production"
+                "value": "staging"
             },
             {
                 "name": "FLASK_APP",

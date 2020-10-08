@@ -488,8 +488,17 @@ class Production(Config):
     CRONITOR_ENABLED = False
 
 
+class Staging(Config):
+    NOTIFY_ENVIRONMENT = 'staging'
+    FROM_NUMBER = 'VA.GOV'
+    PERFORMANCE_PLATFORM_ENABLED = False
+    CHECK_PROXY_HEADER = False
+    CRONITOR_ENABLED = False
+
+
 configs = {
     'development': Development,
     'test': Test,
-    'production': Production,
+    'staging': Staging,
+    'production': Production
 }

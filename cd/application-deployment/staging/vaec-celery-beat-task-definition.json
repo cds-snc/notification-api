@@ -16,7 +16,7 @@
             },
             "environment": [{
                     "name": "NOTIFY_ENVIRONMENT",
-                    "value": "production"
+                    "value": "staging"
                 },
                 {
                     "name": "FLASK_APP",
