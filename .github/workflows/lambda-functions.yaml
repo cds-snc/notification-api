@@ -4,23 +4,66 @@ on:
   push:
     paths:
     - 'user_flows/**.py'
+    - 'cd/utility/'
+    - '.github/workflows/lambda-functions.yaml'
+
+env:
+  tf_version: 0.12.29
+  AWS_ACCESS_KEY_ID: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
 
 jobs:
-  build-user-flows-test-function:
+  build-user-flows-lambda-function:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: './cd/utility'
     steps:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.deployment.ref }}
-      - name: Configure VAEC AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+
+      - uses: hashicorp/setup-terraform@v1
         with:
-          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-gov-west-1
-          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
-          role-skip-session-tagging: true
-          role-duration-seconds: 900
-      - name: Hello World
-        run: |
-          bash ./scripts/run_lambda_build.sh
+          terraform_version: ${{ env.tf_version }}
+
+      - name: Terraform Format
+        run: terraform fmt -check
+
+      - name: 'Terraform Init'
+        run: terraform init
+
+      - name: 'Terraform Validate'
+        run: terraform validate
+
+      - name: 'Terraform Plan'
+        run: terraform plan -out=utility-${{ github.sha }}.tfplan -var-file="variables.tfvars"
+
+      - name: 'Terraform Apply'
+        run: terraform apply "utility-${{ github.sha }}.tfplan"
+
+    
+    deploy-user-flows-lambda:
+      runs-on: ubuntu-latest
+      defaults:
+        run:
+          working-directory: './lambda_functions'
+      steps:
+        - uses: actions/checkout@v2
+          with:
+            ref: ${{ github.event.deployment.ref }}
+        - name: Configure VAEC AWS Credentials
+          uses: aws-actions/configure-aws-credentials@v1
+          with:
+            aws-region: us-gov-west-1
+            role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+            role-skip-session-tagging: true
+            role-duration-seconds: 900
+        - name: Package lambda function file
+          run: |
+            zip -r user_flows_lambda.zip
+            aws lambda update-function-code --function-name user_flows_lambda --zip-file fileb://user_flows_lambda.zip
+
+        - name: Hello World lambda test
+          run: |
+            aws lambda get-function --function-name user_flows_lambda --region us-west-1
