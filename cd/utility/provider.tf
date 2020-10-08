@@ -1,3 +1,7 @@
+variable "assume_role_arn" {
+  description = "IAM role to be assumed by AWS provider"
+}
+
 provider "aws" {
   description = "VAEC AWS region to use"
   version     = "~> 2.70"
