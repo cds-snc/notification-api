@@ -2,8 +2,8 @@ from app.models import (
     NOTIFICATION_STATUS_TYPES,
     NOTIFICATION_STATUS_LETTER_ACCEPTED,
     NOTIFICATION_STATUS_LETTER_RECEIVED,
-    TEMPLATE_TYPES
-)
+    TEMPLATE_TYPES,
+    VA_IDENTIFIER_TYPES)
 from app.schema_validation.definitions import (uuid, personalisation, letter_personalisation)
 
 
@@ -136,7 +136,8 @@ post_sms_request = {
         "phone_number": {"type": "string", "format": "phone_number"},
         "va_identifier": {"type": "object", "properties": {
             "id_type": {
-                "type": "string"
+                "type": "string",
+                "enum": VA_IDENTIFIER_TYPES
             },
             "value": {
                 "type": "string"
