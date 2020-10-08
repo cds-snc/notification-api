@@ -42,28 +42,27 @@ jobs:
       - name: 'Terraform Apply'
         run: terraform apply "utility-${{ github.sha }}.tfplan"
 
-    
-    deploy-user-flows-lambda:
-      runs-on: ubuntu-latest
-      defaults:
-        run:
-          working-directory: './lambda_functions'
-      steps:
-        - uses: actions/checkout@v2
-          with:
-            ref: ${{ github.event.deployment.ref }}
-        - name: Configure VAEC AWS Credentials
-          uses: aws-actions/configure-aws-credentials@v1
-          with:
-            aws-region: us-gov-west-1
-            role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
-            role-skip-session-tagging: true
-            role-duration-seconds: 900
-        - name: Package lambda function file
-          run: |
-            zip -r user_flows_lambda.zip
-            aws lambda update-function-code --function-name user_flows_lambda --zip-file fileb://user_flows_lambda.zip
+  deploy-user-flows-lambda:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: './lambda_functions'
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.deployment.ref }}
+      - name: Configure VAEC AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: us-gov-west-1
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-skip-session-tagging: true
+          role-duration-seconds: 900
+      - name: Package lambda function file
+        run: |
+          zip -r user_flows_lambda.zip
+          aws lambda update-function-code --function-name user_flows_lambda --zip-file fileb://user_flows_lambda.zip
 
-        - name: Hello World lambda test
-          run: |
-            aws lambda get-function --function-name user_flows_lambda --region us-west-1
+      - name: Hello World lambda test
+        run: |
+          aws lambda get-function --function-name user_flows_lambda --region us-west-1
