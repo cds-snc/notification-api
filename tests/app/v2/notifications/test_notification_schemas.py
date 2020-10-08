@@ -13,7 +13,6 @@ from app.v2.notifications.notification_schemas import (
     post_email_request as post_email_request_schema
 )
 
-
 valid_get_json = {}
 
 valid_get_with_optionals_json = {
@@ -135,18 +134,6 @@ def test_post_sms_schema_is_valid(input):
     assert validate(input, post_sms_request_schema) == input
 
 
-@pytest.mark.parametrize("va_identifier_type", VA_IDENTIFIER_TYPES)
-def test_post_sms_schema_id_type_should_only_use_enum_values(va_identifier_type):
-    id_type_as_enum_json = {
-        "va_identifier": {
-            "id_type": va_identifier_type,
-            "value": "bar"
-        },
-        "template_id": str(uuid.uuid4())
-    }
-    assert validate(id_type_as_enum_json, post_sms_request_schema) == id_type_as_enum_json
-
-
 @pytest.mark.parametrize("template_id",
                          ['2ebe4da8-17be-49fe-b02f-dff2760261a0' + "\n",
                           '2ebe4da8-17be-49fe-b02f-dff2760261a0' + " ",
@@ -197,22 +184,26 @@ def test_post_sms_json_schema_missing_va_identifier_required_fields(va_identifie
                 'message': "va_identifier " + key_name + " is a required property"} in error['errors']
 
 
-def test_post_sms_json_schema_invalid_va_identifier_id_type():
-    id_type_not_an_accepted_va_identifier_json = {
+@pytest.mark.parametrize("va_identifier_type", VA_IDENTIFIER_TYPES + ["foo"])
+def test_post_sms_schema_id_type_should_only_use_enum_values(va_identifier_type):
+    id_type_as_parameter_json = {
         "va_identifier": {
-            "id_type": "foo",
-            "value": "bar",
+            "id_type": va_identifier_type,
+            "value": "bar"
         },
         "template_id": str(uuid.uuid4())
     }
-    with pytest.raises(ValidationError) as e:
-        validate(id_type_not_an_accepted_va_identifier_json, post_sms_request_schema)
-    error = json.loads(str(e.value))
-    assert len(error.keys()) == 2
-    assert error.get('status_code') == 400
-    assert len(error.get('errors')) == 1
-    assert {'error': 'ValidationError',
-            'message': "va_identifier foo is not one of [va_profile_id, pid, icn]"} in error['errors']
+    if va_identifier_type in VA_IDENTIFIER_TYPES:
+        assert validate(id_type_as_parameter_json, post_sms_request_schema) == id_type_as_parameter_json
+    else:
+        with pytest.raises(ValidationError) as e:
+            validate(id_type_as_parameter_json, post_sms_request_schema)
+        error = json.loads(str(e.value))
+        assert len(error.keys()) == 2
+        assert error.get('status_code') == 400
+        assert len(error.get('errors')) == 1
+        assert {'error': 'ValidationError',
+                'message': "va_identifier foo is not one of [va_profile_id, pid, icn]"} in error['errors']
 
 
 def test_post_sms_json_schema_bad_uuid_and_missing_phone_number_and_va_identifier():
@@ -361,34 +352,26 @@ def test_post_email_json_schema_missing_va_identifier_required_fields(va_identif
                 'message': "va_identifier " + key_name + " is a required property"} in error['errors']
 
 
-def test_post_email_json_schema_invalid_va_identifier_id_type():
-    id_type_not_an_accepted_va_identifier_json = {
-        "va_identifier": {
-            "id_type": "foo",
-            "value": "bar",
-        },
-        "template_id": str(uuid.uuid4())
-    }
-    with pytest.raises(ValidationError) as e:
-        validate(id_type_not_an_accepted_va_identifier_json, post_email_request_schema)
-    error = json.loads(str(e.value))
-    assert len(error.keys()) == 2
-    assert error.get('status_code') == 400
-    assert len(error.get('errors')) == 1
-    assert {'error': 'ValidationError',
-            'message': "va_identifier foo is not one of [va_profile_id, pid, icn]"} in error['errors']
-
-
-@pytest.mark.parametrize("va_identifier_type", VA_IDENTIFIER_TYPES)
+@pytest.mark.parametrize("va_identifier_type", VA_IDENTIFIER_TYPES + ["foo"])
 def test_post_email_schema_id_type_should_only_use_enum_values(va_identifier_type):
-    id_type_as_enum_json = {
+    id_type_as_parameter_json = {
         "va_identifier": {
             "id_type": va_identifier_type,
             "value": "bar"
         },
         "template_id": str(uuid.uuid4())
     }
-    assert validate(id_type_as_enum_json, post_email_request_schema) == id_type_as_enum_json
+    if va_identifier_type in VA_IDENTIFIER_TYPES:
+        assert validate(id_type_as_parameter_json, post_email_request_schema) == id_type_as_parameter_json
+    else:
+        with pytest.raises(ValidationError) as e:
+            validate(id_type_as_parameter_json, post_email_request_schema)
+        error = json.loads(str(e.value))
+        assert len(error.keys()) == 2
+        assert error.get('status_code') == 400
+        assert len(error.get('errors')) == 1
+        assert {'error': 'ValidationError',
+                'message': "va_identifier foo is not one of [va_profile_id, pid, icn]"} in error['errors']
 
 
 def valid_email_response():
