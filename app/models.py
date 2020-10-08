@@ -1347,6 +1347,16 @@ RESOLVE_POSTAGE_FOR_FILE_NAME = {
     SECOND_CLASS: 2
 }
 
+VA_PROFILE_ID = 'va_profile_id'
+PID = 'pid'
+ICN = 'icn'
+
+VA_IDENTIFIER_TYPES = [
+    VA_PROFILE_ID,
+    PID,
+    ICN
+]
+
 
 class NotificationStatusTypes(db.Model):
     __tablename__ = 'notification_status_types'
