@@ -43,6 +43,7 @@ jobs:
         run: terraform apply "utility-${{ github.sha }}.tfplan"
 
   deploy-user-flows-lambda:
+    needs: [build-user-flows-lambda-function]
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -60,7 +61,7 @@ jobs:
           role-duration-seconds: 900
       - name: Package lambda function file
         run: |
-          zip -r user_flows_lambda.zip
+          zip -r user_flows_lambda.zip .
           aws lambda update-function-code --function-name user_flows_lambda --zip-file fileb://user_flows_lambda.zip
 
       - name: Hello World lambda test
