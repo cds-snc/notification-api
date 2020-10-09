@@ -15,10 +15,17 @@ data "aws_iam_policy_document" "lambda_task_assume_role" {
   }
 }
 
+variable "permissions_boundary" {
+  description = "The ARN of the policy that is used to set the permissions boundary for IAM roles"
+  type        = string
+  default     = "arn:aws-us-gov:iam::171875617347:policy/vaec/project-admin"
+}
+
 resource "aws_iam_role" "lambda_task_execution" {
-  name        = "project-user-flows-lambda-task-execution-role"
-  path        = "/project/"
-  description = "Allows Lambda Function to call AWS services on app's behalf."
+  name                 = "project-user-flows-lambda-task-execution-role"
+  path                 = "/project/"
+  description          = "Allows Lambda Function to call AWS services on app's behalf."
+  permissions_boundary = var.permissions_boundary
 
   assume_role_policy = data.aws_iam_policy_document.lambda_task_assume_role.json
 }
