@@ -97,14 +97,14 @@ def persist_notification(
         billable_units=billable_units
     )
 
-    if notification_type == SMS_TYPE:
+    if notification_type == SMS_TYPE and notification.to:
         formatted_recipient = validate_and_format_phone_number(recipient, international=True)
         recipient_info = get_international_phone_info(formatted_recipient)
         notification.normalised_to = formatted_recipient
         notification.international = recipient_info.international
         notification.phone_prefix = recipient_info.country_prefix
         notification.rate_multiplier = recipient_info.billable_units
-    elif notification_type == EMAIL_TYPE:
+    elif notification_type == EMAIL_TYPE and notification.to:
         notification.normalised_to = format_email_address(notification.to)
     elif notification_type == LETTER_TYPE:
         notification.postage = postage or template_postage

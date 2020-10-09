@@ -11,8 +11,8 @@ from app.models import (
     SCHEDULE_NOTIFICATIONS,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
-    INTERNATIONAL_SMS_TYPE
-)
+    INTERNATIONAL_SMS_TYPE,
+    VA_PROFILE_ID)
 from flask import json, current_app
 
 from app.models import Notification
@@ -366,6 +366,39 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
     apply_async.assert_not_called()
     assert json.loads(response.get_data(as_text=True))["id"]
     assert Notification.query.count() == 0
+
+
+@pytest.mark.parametrize('notification_type', [
+    (EMAIL_TYPE),
+    (SMS_TYPE),
+])
+def test_should_persist_notification_without_recipient(
+        client,
+        sample_template,
+        sample_email_template,
+        notification_type,
+        sample_email_template_with_placeholders,
+        mocker):
+    apply_async = mocker.patch('app.celery.provider_tasks.deliver_{}.apply_async'.format(notification_type))
+    data = {
+        "va_identifier": {
+            "id_type": VA_PROFILE_ID,
+            "value": "foo"
+        },
+        "template_id": sample_template.id if notification_type == SMS_TYPE else sample_email_template.id,
+        "personalisation": {"name": "Bob"}
+    }
+
+    auth_header = create_authorization_header(service_id=sample_email_template_with_placeholders.service_id)
+    response = client.post(
+        path='/v2/notifications/{}'.format(notification_type),
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header])
+
+    assert response.status_code == 201
+    assert json.loads(response.get_data(as_text=True))["id"]
+    assert Notification.query.count() == 1
+    apply_async.assert_called()
 
 
 @pytest.mark.parametrize("notification_type, key_send_to, send_to",

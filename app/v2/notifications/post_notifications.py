@@ -186,15 +186,19 @@ def post_notification(notification_type):
 
 
 def process_sms_or_email_notification(*, form, notification_type, api_key, template, service, reply_to_text=None):
-    form_send_to = form['email_address'] if notification_type == EMAIL_TYPE else form['phone_number']
 
-    send_to = validate_and_format_recipient(send_to=form_send_to,
-                                            key_type=api_key.key_type,
-                                            service=service,
-                                            notification_type=notification_type)
-
-    # Do not persist or send notification to the queue if it is a simulated recipient
-    simulated = simulated_recipient(send_to, notification_type)
+    if 'email_address' in form or 'phone_number' in form:
+        form_send_to = form['email_address'] if notification_type == EMAIL_TYPE else form['phone_number']
+        send_to = validate_and_format_recipient(send_to=form_send_to,
+                                                key_type=api_key.key_type,
+                                                service=service,
+                                                notification_type=notification_type)
+        # Do not persist or send notification to the queue if it is a simulated recipient
+        simulated = simulated_recipient(send_to, notification_type)
+    else:
+        form_send_to = None
+        # assumption - if we are not passing in contact info then we aren't simulating the recipient - need to verify
+        simulated = None
 
     personalisation = process_document_uploads(form.get('personalisation'), service, simulated=simulated)
 
