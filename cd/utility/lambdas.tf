@@ -36,6 +36,6 @@ resource "aws_lambda_function" "user_flows_lambda" {
   handler          = "lambda_functions.user_flows_handler"
   runtime          = "python3.6"
   filename         = var.user_flows_lambda_filename
-  function_name    = "user_flows_lambda"
+  function_name    = "project-user-flows-lambda"
   source_code_hash = base64sha256(var.user_flows_lambda_filename)
 }
