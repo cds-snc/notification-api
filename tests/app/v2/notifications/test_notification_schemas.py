@@ -184,7 +184,7 @@ def test_post_sms_json_schema_missing_va_identifier_required_fields(va_identifie
                 'message': "va_identifier " + key_name + " is a required property"} in error['errors']
 
 
-@pytest.mark.parametrize("va_identifier_type", VA_IDENTIFIER_TYPES + ["invalid_id_type"])
+@pytest.mark.parametrize("va_identifier_type", VA_IDENTIFIER_TYPES + ["INVALID"])
 def test_post_sms_schema_id_type_should_only_use_enum_values(va_identifier_type):
     id_type_as_parameter_json = {
         "va_identifier": {
@@ -203,7 +203,7 @@ def test_post_sms_schema_id_type_should_only_use_enum_values(va_identifier_type)
         assert error.get('status_code') == 400
         assert len(error.get('errors')) == 1
         assert {'error': 'ValidationError',
-                'message': "va_identifier invalid_id_type is not one of [va_profile_id, pid, icn]"} in error['errors']
+                'message': "va_identifier INVALID is not one of [VAPROFILEID, PID, ICN]"} in error['errors']
 
 
 def test_post_sms_json_schema_bad_uuid_and_missing_phone_number_and_va_identifier():
@@ -352,7 +352,7 @@ def test_post_email_json_schema_missing_va_identifier_required_fields(va_identif
                 'message': "va_identifier " + key_name + " is a required property"} in error['errors']
 
 
-@pytest.mark.parametrize("va_identifier_type", VA_IDENTIFIER_TYPES + ["invalid_id_type"])
+@pytest.mark.parametrize("va_identifier_type", VA_IDENTIFIER_TYPES + ["INVALID"])
 def test_post_email_schema_id_type_should_only_use_enum_values(va_identifier_type):
     id_type_as_parameter_json = {
         "va_identifier": {
@@ -371,7 +371,7 @@ def test_post_email_schema_id_type_should_only_use_enum_values(va_identifier_typ
         assert error.get('status_code') == 400
         assert len(error.get('errors')) == 1
         assert {'error': 'ValidationError',
-                'message': "va_identifier invalid_id_type is not one of [va_profile_id, pid, icn]"} in error['errors']
+                'message': "va_identifier INVALID is not one of [VAPROFILEID, PID, ICN]"} in error['errors']
 
 
 def valid_email_response():
