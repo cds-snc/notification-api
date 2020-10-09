@@ -62,8 +62,8 @@ jobs:
       - name: Package lambda function file
         run: |
           zip -r user_flows_lambda.zip .
-          aws lambda update-function-code --function-name user_flows_lambda --zip-file fileb://user_flows_lambda.zip
+          aws lambda update-function-code --function-name project-user-flows-lambda --zip-file fileb://user_flows_lambda.zip
 
       - name: Hello World lambda test
         run: |
-          aws lambda get-function --function-name user_flows_lambda --region us-west-1
+          aws lambda get-function --function-name project-user-flows-lambda --region us-west-1
