@@ -68,4 +68,4 @@ jobs:
 
       - name: Invoke Hello World lambda
         run: |
-          aws lambda invoke --invocation-type RequestResponse --function-name project-user-flows-lambda --payload '{ "name": "Bob" } response.json
+          aws lambda invoke --invocation-type RequestResponse --function-name project-user-flows-lambda --payload '{ "name": "Bob" }' response.json
