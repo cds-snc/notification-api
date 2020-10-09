@@ -33,7 +33,7 @@ resource "aws_iam_role" "lambda_task_execution" {
 # need policy document aws_iam_policy_document.ssm_parameter_access -- api key and notification url
 resource "aws_lambda_function" "user_flows_lambda" {
   role             = aws_iam_role.lambda_task_execution.arn
-  handler          = "lambda_functions.user_flows_handler"
+  handler          = "user_flows_lambda.user_flows_handler"
   runtime          = "python3.6"
   filename         = var.user_flows_lambda_filename
   function_name    = "project-user-flows-lambda"
