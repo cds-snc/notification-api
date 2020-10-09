@@ -3,8 +3,8 @@ variable "assume_role_arn" {
 }
 
 provider "aws" {
-  version     = "~> 2.70"
-  region      = "us-gov-west-1"
+  version = "~> 2.70"
+  region  = "us-gov-west-1"
 
   assume_role {
     role_arn = var.assume_role_arn
