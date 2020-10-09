@@ -3,7 +3,6 @@ variable "assume_role_arn" {
 }
 
 provider "aws" {
-  description = "VAEC AWS region to use"
   version     = "~> 2.70"
   region      = "us-gov-west-1"
 
