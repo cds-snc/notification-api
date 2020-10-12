@@ -15,37 +15,7 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
 
 jobs:
-  build-user-flows-lambda-function:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: './cd/utility'
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.deployment.ref }}
-
-      - uses: hashicorp/setup-terraform@v1
-        with:
-          terraform_version: ${{ env.tf_version }}
-
-      - name: Terraform Format
-        run: terraform fmt -check
-
-      - name: 'Terraform Init'
-        run: terraform init
-
-      - name: 'Terraform Validate'
-        run: terraform validate
-
-      - name: 'Terraform Plan'
-        run: terraform plan -out=utility-${{ github.sha }}.tfplan -var-file="variables.tfvars"
-
-      - name: 'Terraform Apply'
-        run: terraform apply "utility-${{ github.sha }}.tfplan"
-
   deploy-user-flows-lambda:
-    needs: [build-user-flows-lambda-function]
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -63,7 +33,7 @@ jobs:
           role-skip-session-tagging: true
           role-duration-seconds: 900
 
-      - name: Package lambda function file
+      - name: Package and deploy lambda function
         run: |
           zip -r user_flows_lambda.zip user_flows_lambda.py
           aws lambda update-function-code --function-name project-user-flows-lambda --zip-file fileb://user_flows_lambda.zip
