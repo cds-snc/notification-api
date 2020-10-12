@@ -2,8 +2,6 @@ name:  Build Lambda Functions
 
 on:
   push:
-    tags-ignore:
-      - '**'
     paths:
     - 'user_flows/**.py'
     - 'cd/utility/*'
