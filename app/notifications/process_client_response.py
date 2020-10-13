@@ -1,5 +1,4 @@
 from datetime import datetime
-from flask import current_app
 from notifications_utils.template import SMSMessageTemplate
 
 from app import statsd_client
@@ -22,17 +21,6 @@ def validate_callback_data(data, fields, client_name):
             error = "{} callback failed: {} missing".format(client_name, f)
             errors.append(error)
     return errors if len(errors) > 0 else None
-
-
-def process_sms_client_response(status, provider_reference, client_name):
-    success = None
-    errors = None
-    # validate reference
-    if provider_reference == 'send-sms-code':
-        success = "{} callback succeeded: send-sms-code".format(client_name)
-        return success, errors
-
-    current_app.logger.debug('app.notifications.process_sms_client_response is deprecated.')
 
 
 def _process_for_status(notification_status, client_name, provider_reference):
