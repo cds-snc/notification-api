@@ -38,7 +38,7 @@ jobs:
           zip -g user_flows_lambda.zip user_flows_lambda.py
           aws lambda update-function-code --function-name project-user-flows-lambda --zip-file fileb://user_flows_lambda.zip
 
-      - name: Invoke lambda
+      - name: Invoke lambda function
         run: |
           aws lambda invoke --invocation-type RequestResponse --function-name project-user-flows-lambda --payload '1' response.txt
       
