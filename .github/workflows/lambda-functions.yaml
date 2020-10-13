@@ -6,6 +6,7 @@ on:
       - '**'
     paths:
       - 'user_flows/**.py'
+      - lambda_functions/user_flows/user_flows_lambda.py
       - '.github/workflows/lambda-functions.yaml'
 
 env:
