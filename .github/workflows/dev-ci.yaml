@@ -8,7 +8,6 @@ on:
       - 'dependabot/**'
     paths-ignore:
       - 'user_flows/**.py'
-      - 'cd/utility/*'
       - '.github/workflows/lambda-functions.yaml'
   pull_request:
     branches:

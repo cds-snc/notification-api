@@ -6,6 +6,7 @@ __pycache__/
 
 venv/
 venv-freeze/
+v-env/
 
 # C extensions
 *.so
