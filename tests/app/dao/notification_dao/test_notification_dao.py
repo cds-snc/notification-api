@@ -423,7 +423,6 @@ def test_save_notification_and_increment_correct_job(notify_db, notify_db_sessio
     assert Notification.query.count() == 1
     notification_from_db = Notification.query.all()[0]
     assert notification_from_db.i
-    d
     assert data['to'] == notification_from_db.to
     assert data['job_id'] == notification_from_db.job_id
     assert data['service'] == notification_from_db.service
