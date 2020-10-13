@@ -33,12 +33,12 @@ jobs:
 
       - name: Package and deploy lambda function
         run: |
-          zip -g user_flows_lambda.zip user_flows_lambda.py
+          zip -ug user_flows_lambda.zip user_flows_lambda.py steps.py test_retrieve_everything.py
           aws lambda update-function-code --function-name project-user-flows-lambda --zip-file fileb://user_flows_lambda.zip
 
       - name: Invoke lambda function
         run: |
-          aws lambda invoke --invocation-type RequestResponse --function-name project-user-flows-lambda --payload '1' response.txt
+          aws lambda invoke --invocation-type RequestResponse --function-name project-user-flows-lambda --payload "dev" response.txt
       
       - name: Get lambda output
         run: |
