@@ -478,7 +478,7 @@ def send_branding_request(user_id):
         recipient=to['email'],
         service=service,
         personalisation={
-            'email': to['email'],
+            'email': get_user_by_id(user_id=user_id).email_address,
             'serviceID': to['serviceID'],
             'service_name': to['service_name'],
             'filename': to['filename']
