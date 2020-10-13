@@ -27,6 +27,7 @@ from notifications_utils.template import (
     LetterPrintTemplate,
 )
 from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
+from sqlalchemy.orm.collections import attribute_mapped_collection
 
 from app.encryption import (
     hashpw,
@@ -1347,16 +1348,6 @@ RESOLVE_POSTAGE_FOR_FILE_NAME = {
     SECOND_CLASS: 2
 }
 
-VA_PROFILE_ID = 'VAPROFILEID'
-PID = 'PID'
-ICN = 'ICN'
-
-VA_IDENTIFIER_TYPES = [
-    VA_PROFILE_ID,
-    PID,
-    ICN
-]
-
 
 class NotificationStatusTypes(db.Model):
     __tablename__ = 'notification_status_types'
@@ -1434,6 +1425,10 @@ class Notification(db.Model):
             postage is null
         END
     """)
+
+    recipient_identifiers = db.relationship('RecipientIdentifiers',
+                                            collection_class=attribute_mapped_collection('va_identifier_type'),
+                                            cascade='all, delete-orphan')
 
     __table_args__ = (
         db.ForeignKeyConstraint(
@@ -1647,9 +1642,9 @@ class Notification(db.Model):
             serialized['line_6'] = col.get('address_line_6')
             serialized['postcode'] = col.get('postcode')
             serialized['estimated_delivery'] = \
-                get_letter_timings(serialized['created_at'], postage=self.postage)\
-                .earliest_delivery\
-                .strftime(DATETIME_FORMAT)
+                get_letter_timings(serialized['created_at'], postage=self.postage) \
+                    .earliest_delivery \
+                    .strftime(DATETIME_FORMAT)
 
         return serialized
 
@@ -1728,6 +1723,32 @@ class ScheduledNotification(db.Model):
     notification = db.relationship('Notification', uselist=False)
     scheduled_for = db.Column(db.DateTime, index=False, nullable=False)
     pending = db.Column(db.Boolean, nullable=False, default=True)
+
+
+VA_PROFILE_ID = 'VAPROFILEID'
+PID = 'PID'
+ICN = 'ICN'
+
+VA_IDENTIFIER_TYPES = [
+    VA_PROFILE_ID,
+    PID,
+    ICN
+]
+
+
+class RecipientIdentifiers(db.Model):
+    __tablename__ = 'recipient_identifiers'
+    notification_id = db.Column(UUID(as_uuid=True), db.ForeignKey('notifications.id'), primary_key=True, nullable=False)
+    va_identifier_type = db.Column(
+        db.Enum(*VA_IDENTIFIER_TYPES, name='va_identifier_types'),
+        primary_key=True,
+        nullable=False,
+        default=VA_PROFILE_ID)
+    va_identifier_value = db.Column(db.String, primary_key=True, nullable=False)
+
+    def __init__(self, va_identifier_type, va_identifier_value):
+        self.va_identifier_type = va_identifier_type
+        self.va_identifier_value = va_identifier_value
 
 
 INVITE_PENDING = 'pending'
