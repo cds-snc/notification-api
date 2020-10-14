@@ -403,6 +403,40 @@ def test_should_persist_notification_without_recipient(
     assert RecipientIdentifiers.query.count() == 1
 
 
+@pytest.mark.parametrize('notification_type, id_type', [
+    (EMAIL_TYPE, VA_PROFILE_ID),
+    (SMS_TYPE, VA_PROFILE_ID)
+])
+def test_send_notification_to_correct_queue_when_no_recipient(
+        client,
+        mocker,
+        notification_type,
+        id_type,
+        sample_template,
+        sample_email_template):
+    mocked = mocker.patch('app.celery.provider_tasks.deliver_{}.apply_async'.format(notification_type))
+
+    data = {
+        "template_id": sample_template.id if notification_type == SMS_TYPE else sample_email_template.id,
+        "va_identifier": {
+            "id_type": id_type,
+            "value": "foo"
+        }
+    }
+
+    auth_header = create_authorization_header(service_id=sample_email_template.service_id)
+
+    response = client.post(
+        path='/v2/notifications/{}'.format(notification_type),
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header])
+
+    notification_id = json.loads(response.data)['id']
+
+    assert response.status_code == 201
+    mocked.assert_called_once_with([notification_id], queue='lookup-contact-info-tasks')
+
+
 @pytest.mark.parametrize("notification_type, key_send_to, send_to",
                          [("sms", "phone_number", "6502532222"),
                           ("email", "email_address", "sample@email.com")])

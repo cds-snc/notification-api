@@ -34,6 +34,7 @@ class QueueNames(object):
     CALLBACKS = 'service-callbacks'
     LETTERS = 'letter-tasks'
     ANTIVIRUS = 'antivirus-tasks'
+    LOOKUP_CONTACT_INFO = 'lookup-contact-info-tasks'
 
     @staticmethod
     def all_queues():
@@ -51,6 +52,7 @@ class QueueNames(object):
             # QueueNames.CREATE_LETTERS_PDF,
             QueueNames.CALLBACKS,
             # QueueNames.LETTERS,
+            QueueNames.LOOKUP_CONTACT_INFO,
         ]
 
 

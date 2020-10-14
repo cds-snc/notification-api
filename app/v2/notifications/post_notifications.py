@@ -218,7 +218,8 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
     )
 
     if 'va_identifier' in form:
-        persist_recipient_identifiers(notification.id, form['va_identifier']['id_type'], form['va_identifier']['value'])
+        va_identifier_type = form['va_identifier']['id_type']
+        persist_recipient_identifiers(notification.id, va_identifier_type, form['va_identifier']['value'])
 
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:
@@ -229,13 +230,14 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         else:
             if notification.to:
                 queue_name = QueueNames.PRIORITY if template.process_type == PRIORITY else None
-                send_notification_to_queue(
-                    notification=notification,
-                    research_mode=service.research_mode,
-                    queue=queue_name
-                )
             else:
+                queue_name = QueueNames.LOOKUP_CONTACT_INFO
                 current_app.logger.info('No recipient. Must get contact info from a VA system.')
+            send_notification_to_queue(
+                notification=notification,
+                research_mode=service.research_mode,
+                queue=queue_name
+            )
 
     return notification
 
