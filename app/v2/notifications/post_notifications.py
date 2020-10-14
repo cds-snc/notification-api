@@ -26,7 +26,7 @@ from app.models import (
     NOTIFICATION_SENDING,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PENDING_VIRUS_CHECK,
-)
+    VA_PROFILE_ID)
 from app.notifications.process_letter_notifications import (
     create_letter_notification
 )
@@ -231,8 +231,8 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             if notification.to:
                 queue_name = QueueNames.PRIORITY if template.process_type == PRIORITY else None
             else:
-                queue_name = QueueNames.LOOKUP_CONTACT_INFO
-                current_app.logger.info('No recipient. Must get contact info from a VA system.')
+                queue_name = QueueNames.LOOKUP_CONTACT_INFO if va_identifier_type == VA_PROFILE_ID \
+                    else QueueNames.LOOKUP_VA_PROFILE_ID
             send_notification_to_queue(
                 notification=notification,
                 research_mode=service.research_mode,

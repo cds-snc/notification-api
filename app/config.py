@@ -35,6 +35,7 @@ class QueueNames(object):
     LETTERS = 'letter-tasks'
     ANTIVIRUS = 'antivirus-tasks'
     LOOKUP_CONTACT_INFO = 'lookup-contact-info-tasks'
+    LOOKUP_VA_PROFILE_ID = 'lookup-va-profile-id-tasks'
 
     @staticmethod
     def all_queues():
@@ -53,6 +54,7 @@ class QueueNames(object):
             QueueNames.CALLBACKS,
             # QueueNames.LETTERS,
             QueueNames.LOOKUP_CONTACT_INFO,
+            QueueNames.LOOKUP_VA_PROFILE_ID
         ]
 
 

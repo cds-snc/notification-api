@@ -58,7 +58,7 @@ def test_load_config_if_cloudfoundry_not_available(monkeypatch, reload_config):
 def test_queue_names_all_queues_correct():
     # Need to ensure that all_queues() only returns queue names used in API
     queues = QueueNames.all_queues()
-    assert len(queues) == 11
+    assert len(queues) == 13
     assert set([
         QueueNames.PRIORITY,
         QueueNames.PERIODIC,
@@ -73,4 +73,6 @@ def test_queue_names_all_queues_correct():
         # QueueNames.CREATE_LETTERS_PDF,
         QueueNames.CALLBACKS,
         # QueueNames.LETTERS,
+        QueueNames.LOOKUP_CONTACT_INFO,
+        QueueNames.LOOKUP_VA_PROFILE_ID
     ]) == set(queues)

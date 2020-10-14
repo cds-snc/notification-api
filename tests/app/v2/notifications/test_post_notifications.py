@@ -13,7 +13,7 @@ from app.models import (
     UPLOAD_DOCUMENT,
     INTERNATIONAL_SMS_TYPE,
     VA_PROFILE_ID,
-    RecipientIdentifiers)
+    RecipientIdentifiers, ICN)
 from flask import json, current_app
 
 from app.models import Notification
@@ -405,7 +405,9 @@ def test_should_persist_notification_without_recipient(
 
 @pytest.mark.parametrize('notification_type, id_type', [
     (EMAIL_TYPE, VA_PROFILE_ID),
-    (SMS_TYPE, VA_PROFILE_ID)
+    (SMS_TYPE, VA_PROFILE_ID),
+    (EMAIL_TYPE, ICN),
+    (SMS_TYPE, ICN),
 ])
 def test_send_notification_to_correct_queue_when_no_recipient(
         client,
@@ -434,7 +436,10 @@ def test_send_notification_to_correct_queue_when_no_recipient(
     notification_id = json.loads(response.data)['id']
 
     assert response.status_code == 201
-    mocked.assert_called_once_with([notification_id], queue='lookup-contact-info-tasks')
+    if id_type == VA_PROFILE_ID:
+        mocked.assert_called_once_with([notification_id], queue='lookup-contact-info-tasks')
+    else:
+        mocked.assert_called_once_with([notification_id], queue='lookup-va-profile-id-tasks')
 
 
 @pytest.mark.parametrize("notification_type, key_send_to, send_to",
