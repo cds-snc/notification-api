@@ -18,6 +18,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1     
+    - uses: actions/cache@v2
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements_for_test.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    - uses: actions/cache@v2
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
     - run: /bin/bash -c "pip3 install -r requirements_for_test.txt && make test"
       env:
         SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@postgres:5432/test_notification_api
