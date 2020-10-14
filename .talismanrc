@@ -57,3 +57,5 @@ fileignoreconfig:
       checksum: ab41a92d6ae05984ff8692e66488d595301bc5bf0f762070066b969424091d6d
     - filename: .github/workflows/twistlock.yaml
       checksum: 8e7b87af52ee4407add0b8f2f09ea5a2bb8f84744e2ee518ff4502803639d4ce
+    - filename: .github/workflows/dev-ci.yaml
+      checksum: 58e37dd99eb0a98b268bbd8c45f4d2816d6c6453e60fd4502e7e209a5580b1b4
