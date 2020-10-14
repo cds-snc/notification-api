@@ -12,7 +12,8 @@ from app.models import (
     SMS_TYPE,
     UPLOAD_DOCUMENT,
     INTERNATIONAL_SMS_TYPE,
-    VA_PROFILE_ID)
+    VA_PROFILE_ID,
+    RecipientIdentifiers)
 from flask import json, current_app
 
 from app.models import Notification
@@ -366,6 +367,7 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
     apply_async.assert_not_called()
     assert json.loads(response.get_data(as_text=True))["id"]
     assert Notification.query.count() == 0
+    assert RecipientIdentifiers.query.count() == 0
 
 
 @pytest.mark.parametrize('notification_type', [
@@ -379,7 +381,7 @@ def test_should_persist_notification_without_recipient(
         notification_type,
         sample_email_template_with_placeholders,
         mocker):
-    apply_async = mocker.patch('app.celery.provider_tasks.deliver_{}.apply_async'.format(notification_type))
+    mocker.patch('app.celery.provider_tasks.deliver_{}.apply_async'.format(notification_type))
     data = {
         "va_identifier": {
             "id_type": VA_PROFILE_ID,
@@ -398,7 +400,7 @@ def test_should_persist_notification_without_recipient(
     assert response.status_code == 201
     assert json.loads(response.get_data(as_text=True))["id"]
     assert Notification.query.count() == 1
-    apply_async.assert_called()
+    assert RecipientIdentifiers.query.count() == 1
 
 
 @pytest.mark.parametrize("notification_type, key_send_to, send_to",

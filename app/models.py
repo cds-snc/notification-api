@@ -1746,10 +1746,6 @@ class RecipientIdentifiers(db.Model):
         default=VA_PROFILE_ID)
     va_identifier_value = db.Column(db.String, primary_key=True, nullable=False)
 
-    def __init__(self, va_identifier_type, va_identifier_value):
-        self.va_identifier_type = va_identifier_type
-        self.va_identifier_value = va_identifier_value
-
 
 INVITE_PENDING = 'pending'
 INVITE_ACCEPTED = 'accepted'

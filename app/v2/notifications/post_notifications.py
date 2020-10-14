@@ -11,6 +11,7 @@ from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.notifications_dao import update_notification_status_by_reference
+from app.dao.recipient_identifiers_dao import persist_recipient_identifiers
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.letters.utils import upload_letter_pdf
 from app.models import (
@@ -216,19 +217,25 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         reply_to_text=reply_to_text
     )
 
+    if 'va_identifier' in form:
+        persist_recipient_identifiers(notification.id, form['va_identifier']['id_type'], form['va_identifier']['value'])
+
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:
         persist_scheduled_notification(notification.id, form["scheduled_for"])
     else:
-        if not simulated:
-            queue_name = QueueNames.PRIORITY if template.process_type == PRIORITY else None
-            send_notification_to_queue(
-                notification=notification,
-                research_mode=service.research_mode,
-                queue=queue_name
-            )
-        else:
+        if simulated:
             current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
+        else:
+            if notification.to:
+                queue_name = QueueNames.PRIORITY if template.process_type == PRIORITY else None
+                send_notification_to_queue(
+                    notification=notification,
+                    research_mode=service.research_mode,
+                    queue=queue_name
+                )
+            else:
+                current_app.logger.info('No recipient. Must get contact info from a VA system.')
 
     return notification
 
