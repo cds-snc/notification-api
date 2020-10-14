@@ -55,3 +55,5 @@ fileignoreconfig:
       checksum: a7a52a240fe957c16eff861e45b975704f05c3eb4b1299d568615ba5bef95350
     - filename: .github/workflows/lambda-functions.yaml
       checksum: ab41a92d6ae05984ff8692e66488d595301bc5bf0f762070066b969424091d6d
+    - filename: .github/workflows/twistlock.yaml
+      checksum: 8e7b87af52ee4407add0b8f2f09ea5a2bb8f84744e2ee518ff4502803639d4ce
