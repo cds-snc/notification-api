@@ -13,6 +13,7 @@ def test_should_add_recipient_identifiers_to_recipient_identifiers_table(notify_
     va_identifier_value = "foo"
 
     persist_recipient_identifiers(notification_id, va_identifier_type, va_identifier_value)
+
     assert RecipientIdentifiers.query.count() == 1
     assert RecipientIdentifiers.query.get((notification_id, va_identifier_type, va_identifier_value))\
         .notification_id == notification_id
@@ -21,7 +22,8 @@ def test_should_add_recipient_identifiers_to_recipient_identifiers_table(notify_
     assert RecipientIdentifiers.query.get((notification_id, va_identifier_type, va_identifier_value)) \
         .va_identifier_value == va_identifier_value
 
+    assert notification.recipient_identifiers[va_identifier_type].va_identifier_value == va_identifier_value
+    assert notification.recipient_identifiers[va_identifier_type].va_identifier_type == va_identifier_type
+
 
 # def test_should_add_recipient_identifiers_to_recipient_identifiers_history():
-
-# def test_should_have_access_to_recipient_identifiers_dict_from_notification():
