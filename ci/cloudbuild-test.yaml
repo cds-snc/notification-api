@@ -1,0 +1,22 @@
+steps:
+- name: gcr.io/cloud-builders/docker
+  args: ['run', '-d', '--name=postgres', '-e', 'POSTGRES_DB=test_notification_api', '--network=cloudbuild', 'postgres']
+- name: jwilder/dockerize:0.6.1
+  args: ['dockerize', '-timeout=60s', '-wait=tcp://postgres:5432']
+- name: "gcr.io/cloud-builders/gcloud"
+  args:
+    - kms
+    - decrypt
+    - --ciphertext-file=.env.enc
+    - --plaintext-file=.env
+    - --location=global
+    - --project=$PROJECT_ID
+    - --keyring=deploy
+    - --key=env
+- name: "gcr.io/$PROJECT_ID/testing-env:latest"
+  entrypoint: /bin/sh
+  args: ["-c", "sh /workspace/scripts/bootstrap.sh && make test"]
+  env:
+    - 'SQLALCHEMY_DATABASE_URI=postgresql://postgres@postgres/test_notification_api'
+options:
+  machineType: 'N1_HIGHCPU_32'

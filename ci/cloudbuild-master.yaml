@@ -1,0 +1,64 @@
+steps:
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "decrypt env"
+    args:
+      - kms
+      - decrypt
+      - --ciphertext-file=.env.enc
+      - --plaintext-file=.env
+      - --location=global
+      - --project=$PROJECT_ID
+      - --keyring=deploy
+      - --key=env
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      [
+        'build',
+        '-t',
+        'gcr.io/$PROJECT_ID/api:$SHORT_SHA',
+        '-t',
+        'gcr.io/$PROJECT_ID/api:latest',
+        '-f',
+        'ci/Dockerfile',
+        '.',
+      ]
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/api:$SHORT_SHA']
+  - name: 'gcr.io/cloud-builders/kubectl'
+    args:
+    - set
+    - image
+    - deployment.apps/api
+    - api=gcr.io/$PROJECT_ID/api:$SHORT_SHA
+    - --namespace=notification-canada-ca
+    env:
+    - 'CLOUDSDK_COMPUTE_ZONE=northamerica-northeast1-a'
+    - 'CLOUDSDK_CONTAINER_CLUSTER=notification'
+  - name: 'gcr.io/cloud-builders/kubectl'
+    args:
+    - set
+    - image
+    - deployment.apps/celery
+    - celery=gcr.io/$PROJECT_ID/api:$SHORT_SHA
+    - --namespace=notification-canada-ca
+    env:
+    - 'CLOUDSDK_COMPUTE_ZONE=northamerica-northeast1-a'
+    - 'CLOUDSDK_CONTAINER_CLUSTER=notification'
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+    - beta
+    - run
+    - deploy
+    - api
+    - --image
+    - gcr.io/$PROJECT_ID/api:$SHORT_SHA
+    - --region
+    - us-central1
+    - --allow-unauthenticated
+    - --platform
+    - managed
+images:
+  - 'gcr.io/$PROJECT_ID/api:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/api:latest'
+options:
+  machineType: 'N1_HIGHCPU_32'
