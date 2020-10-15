@@ -343,7 +343,6 @@ class Config(object):
 
     FREE_SMS_TIER_FRAGMENT_COUNT = 250000
 
-    SMS_INBOUND_WHITELIST = json.loads(os.getenv('SMS_INBOUND_WHITELIST', '[]'))
     FIRETEXT_INBOUND_SMS_AUTH = json.loads(os.getenv('FIRETEXT_INBOUND_SMS_AUTH', '[]'))
     MMG_INBOUND_SMS_AUTH = json.loads(os.getenv('MMG_INBOUND_SMS_AUTH', '[]'))
     MMG_INBOUND_SMS_USERNAME = json.loads(os.getenv('MMG_INBOUND_SMS_USERNAME', '[]'))
@@ -451,7 +450,6 @@ class Test(Development):
     API_RATE_LIMIT_ENABLED = True
     API_HOST_NAME = "http://localhost:6011"
 
-    SMS_INBOUND_WHITELIST = ['203.0.113.195']
     FIRETEXT_INBOUND_SMS_AUTH = ['testkey']
     TEMPLATE_PREVIEW_API_HOST = 'http://localhost:9999'
 
