@@ -40,7 +40,6 @@ from tests.conftest import set_config_values
 
 
 def test_should_return_highest_priority_active_provider(restore_provider_details):
-    # @TODO PP as we have only one provider for SMS now, this test is failing
     providers = provider_details_dao.get_provider_details_by_notification_type('sms')
 
     first = providers[0]
@@ -54,7 +53,7 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
     provider_details_dao.dao_update_provider_details(first)
     provider_details_dao.dao_update_provider_details(second)
 
-    assert send_to_providers.provider_to_use('sms', '1234').name == second.identifier
+    assert send_to_providers.provider_to_use('sms', '1234').identifier == second.identifier
 
     first.priority = 10
     first.active = False
@@ -63,12 +62,12 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
     provider_details_dao.dao_update_provider_details(first)
     provider_details_dao.dao_update_provider_details(second)
 
-    assert send_to_providers.provider_to_use('sms', '1234').name == second.identifier
+    assert send_to_providers.provider_to_use('sms', '1234').identifier == second.identifier
 
     first.active = True
     provider_details_dao.dao_update_provider_details(first)
 
-    assert send_to_providers.provider_to_use('sms', '1234').name == first.identifier
+    assert send_to_providers.provider_to_use('sms', '1234').identifier == first.identifier
 
 
 def test_provider_to_use(restore_provider_details):
