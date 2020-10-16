@@ -1,26 +1,31 @@
 import boto3
 import os
 
-from steps import set_environment
 from steps import get_organizations
 from steps import get_services
 from steps import get_services_id
 from steps import get_users
 from steps import get_templates
 
+
 client = boto3.client('ssm')
-# factor in environment for correct key path
+
+
 def get_secret(key):
-  	resp = client.get_parameter(
-		Name=key,
-		WithDecryption=True
-	)
-	return resp['Parameter']['Value']
+    resp = client.get_parameter(
+        Name=key,
+        WithDecryption=True
+    )
+    return resp['Parameter']['Value']
 
 
 def set_environment(environment):
-    notification_url = "https://{env}.api.notifications.va.gov".format(env = environment)
-    api_secret = get_secret("/{env}/notification-api/admin-client-secret".format(env = environment))
+    notification_url = "https://{env}.api.notifications.va.gov".format(env=environment)
+    api_secret = get_secret("/{env}/notification-api/admin-client-secret".format(env=environment))
+
+    if(not api_secret):
+        raise ValueError("Could not retrieve secret environment variable")
+
     os.environ['notification_url'] = notification_url
     os.environ['ADMIN_CLIENT_SECRET'] = api_secret
 

@@ -48,7 +48,7 @@ jobs:
 
       - name: Invoke lambda function
         run: |
-          aws lambda invoke --invocation-type RequestResponse --function-name project-user-flows-lambda --payload "dev" response.txt
+          aws lambda invoke --invocation-type RequestResponse --function-name project-user-flows-lambda --payload '{"environment": "dev"}' response.txt
       
       - name: Get lambda output
         run: |

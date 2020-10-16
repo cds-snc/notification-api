@@ -14,6 +14,7 @@ if(not api_secret):
 if(not notification_url):
     raise ValueError("Missing url")
 
+
 def get_jwt():
     jwtSecret = api_secret
     header = {'typ': 'JWT', 'alg': 'HS256'}
