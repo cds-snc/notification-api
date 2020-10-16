@@ -23,10 +23,10 @@ def get_provider_details_by_identifier(identifier):
 
 def get_alternative_sms_provider(identifier):
     alternate_provider = None
-    if identifier == 'mmg':
+    if identifier == 'sns':
+        alternate_provider = 'pinpoint'
+    elif identifier == 'pinpoint':
         alternate_provider = 'sns'
-    elif identifier == 'sns':
-        alternate_provider = 'mmg'
 
     return ProviderDetails.query.filter_by(identifier=alternate_provider).one()
 

@@ -327,13 +327,15 @@ def test_dao_get_provider_stats(notify_db_session):
     assert result[2].identifier == 'mmg'
     assert result[2].notification_type == 'sms'
     assert result[2].supports_international is True
-    assert result[2].active is True
+    assert result[2].active is False
     assert result[2].current_month_billable_sms == 5
 
     assert result[3].identifier == 'firetext'
+    assert result[3].active is False
     assert result[3].current_month_billable_sms == 0
 
     assert result[4].identifier == 'loadtesting'
+    assert result[4].active is False
     assert result[4].current_month_billable_sms == 0
     assert result[4].supports_international is False
 
