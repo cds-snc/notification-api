@@ -6,7 +6,6 @@ Create Date: 2020-10-13 20:33:50.214680
 
 """
 from alembic import op
-import sqlalchemy as sa
 
 
 revision = '0311_disable_old_providers'
