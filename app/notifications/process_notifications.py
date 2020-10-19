@@ -52,7 +52,7 @@ def persist_notification(
     *,
     template_id,
     template_version,
-    recipient,
+    recipient=None,
     service,
     personalisation,
     notification_type,
