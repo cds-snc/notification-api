@@ -13,6 +13,7 @@ from app.config import QueueNames, TaskNames
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.recipient_identifiers_dao import persist_recipient_identifiers
 from app.dao.templates_dao import get_precompiled_letter_template
+from app.feature_flags import accept_recipient_identifiers_enabled
 from app.letters.utils import upload_letter_pdf
 from app.models import (
     SMS_TYPE,
@@ -25,8 +26,8 @@ from app.models import (
     NOTIFICATION_CREATED,
     NOTIFICATION_SENDING,
     NOTIFICATION_DELIVERED,
-    NOTIFICATION_PENDING_VIRUS_CHECK,
-    VA_PROFILE_ID)
+    NOTIFICATION_PENDING_VIRUS_CHECK
+)
 from app.notifications.process_letter_notifications import (
     create_letter_notification
 )
@@ -140,14 +141,35 @@ def post_notification(notification_type):
             reply_to_text=reply_to
         )
     else:
-        notification = process_sms_or_email_notification(
-            form=form,
-            notification_type=notification_type,
-            api_key=api_user,
-            template=template,
-            service=authenticated_service,
-            reply_to_text=reply_to
-        )
+        if 'email_address' in form or 'phone_number' in form:
+            notification = process_sms_or_email_notification(
+                form=form,
+                notification_type=notification_type,
+                api_key=api_user,
+                template=template,
+                service=authenticated_service,
+                reply_to_text=reply_to
+            )
+            if 'va_identifier' in form:
+                persist_recipient_identifiers(
+                    notification.id,
+                    form['va_identifier']['id_type'],
+                    form['va_identifier']['value']
+                    # TODO: remove individ params; if pass none, nothing persisted; remove if here
+                )
+        else:
+            if accept_recipient_identifiers_enabled(current_app):
+                notification = lookup_contact_information(
+                    form=form,
+                    notification_type=notification_type,
+                    api_key=api_user,
+                    template=template,
+                    service=authenticated_service,
+                    reply_to_text=reply_to
+                )
+            else:
+                current_app.logger.debug("Sending a notification without contact information is not implemented.")
+                return jsonify(result='error', message="Not Implemented"), 501
 
         template_with_content.values = notification.personalisation
 
@@ -187,19 +209,13 @@ def post_notification(notification_type):
 
 
 def process_sms_or_email_notification(*, form, notification_type, api_key, template, service, reply_to_text=None):
-
-    if 'email_address' in form or 'phone_number' in form:
-        form_send_to = form['email_address'] if notification_type == EMAIL_TYPE else form['phone_number']
-        send_to = validate_and_format_recipient(send_to=form_send_to,
-                                                key_type=api_key.key_type,
-                                                service=service,
-                                                notification_type=notification_type)
-        # Do not persist or send notification to the queue if it is a simulated recipient
-        simulated = simulated_recipient(send_to, notification_type)
-    else:
-        form_send_to = None
-        # assumption - if we are not passing in contact info then we aren't simulating the recipient - need to verify
-        simulated = None
+    form_send_to = form['email_address'] if notification_type == EMAIL_TYPE else form['phone_number']
+    send_to = validate_and_format_recipient(send_to=form_send_to,
+                                            key_type=api_key.key_type,
+                                            service=service,
+                                            notification_type=notification_type)
+    # Do not persist or send notification to the queue if it is a simulated recipient
+    simulated = simulated_recipient(send_to, notification_type)
 
     personalisation = process_document_uploads(form.get('personalisation'), service, simulated=simulated)
 
@@ -217,10 +233,6 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         reply_to_text=reply_to_text
     )
 
-    if 'va_identifier' in form:
-        va_identifier_type = form['va_identifier']['id_type']
-        persist_recipient_identifiers(notification.id, va_identifier_type, form['va_identifier']['value'])
-
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:
         persist_scheduled_notification(notification.id, form["scheduled_for"])
@@ -228,16 +240,48 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         if simulated:
             current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
         else:
-            if notification.to:
-                queue_name = QueueNames.PRIORITY if template.process_type == PRIORITY else None
-            else:
-                queue_name = QueueNames.LOOKUP_CONTACT_INFO if va_identifier_type == VA_PROFILE_ID \
-                    else QueueNames.LOOKUP_VA_PROFILE_ID
+            queue_name = QueueNames.PRIORITY if template.process_type == PRIORITY else None
             send_notification_to_queue(
                 notification=notification,
                 research_mode=service.research_mode,
                 queue=queue_name
             )
+
+    return notification
+
+
+def lookup_contact_information(*, form, notification_type, api_key, template, service, reply_to_text=None):
+    personalisation = process_document_uploads(form.get('personalisation'), service)
+
+    notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        service=service,
+        personalisation=personalisation,
+        notification_type=notification_type,
+        api_key_id=api_key.id,
+        key_type=api_key.key_type,
+        client_reference=form.get('reference', None),
+        reply_to_text=reply_to_text
+    )
+
+    va_identifier_type = form['va_identifier']['id_type']
+    persist_recipient_identifiers(notification.id, va_identifier_type, form['va_identifier']['value'])
+
+    # scheduled_for = form.get("scheduled_for", None)
+    # if scheduled_for:
+    #     persist_scheduled_notification(notification.id, form["scheduled_for"])
+
+    # if va_identifier_type != VA_PROFILE_ID:
+    #     queue_name = QueueNames.LOOKUP_VA_PROFILE_ID
+    # elif va_identifier_type == VA_PROFILE_ID:
+    #     queue_name = QueueNames.LOOKUP_CONTACT_INFO
+
+    # some sort of send_to_queue(
+    #     notification=notification,
+    #     research_mode=service.research_mode,
+    #     queue=queue_name
+    # )
 
     return notification
 
