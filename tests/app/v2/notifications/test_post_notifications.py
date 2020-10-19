@@ -440,6 +440,10 @@ def test_should_send_notification_to_recipient_when_both_recipient_and_va_identi
     assert Notification.query.count() == 1
     assert RecipientIdentifiers.query.count() == 1
 
+    mocked_lookup_contact_info = mocker.patch(
+        'app.celery.lookup_contact_info_tasks.lookup_contact_info.apply_async')
+    mocked_lookup_contact_info.assert_not_called()
+
 
 @pytest.mark.parametrize('notification_type, id_type', [
     (EMAIL_TYPE, VA_PROFILE_ID),
