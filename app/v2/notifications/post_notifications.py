@@ -26,8 +26,7 @@ from app.models import (
     NOTIFICATION_CREATED,
     NOTIFICATION_SENDING,
     NOTIFICATION_DELIVERED,
-    NOTIFICATION_PENDING_VIRUS_CHECK
-)
+    NOTIFICATION_PENDING_VIRUS_CHECK)
 from app.notifications.process_letter_notifications import (
     create_letter_notification
 )
@@ -35,8 +34,8 @@ from app.notifications.process_notifications import (
     persist_notification,
     persist_scheduled_notification,
     send_notification_to_queue,
-    simulated_recipient
-)
+    simulated_recipient,
+    send_to_lookup_contact_information_queue)
 from app.notifications.validators import (
     validate_and_format_recipient,
     check_rate_limiting,
@@ -261,20 +260,10 @@ def lookup_contact_information(*, form, notification_type, api_key, template, se
 
     persist_recipient_identifiers(notification.id, form)
 
-    # scheduled_for = form.get("scheduled_for", None)
-    # if scheduled_for:
-    #     persist_scheduled_notification(notification.id, form["scheduled_for"])
-
-    # if va_identifier_type != VA_PROFILE_ID:
-    #     queue_name = QueueNames.LOOKUP_VA_PROFILE_ID
-    # elif va_identifier_type == VA_PROFILE_ID:
-    #     queue_name = QueueNames.LOOKUP_CONTACT_INFO
-
-    # some sort of send_to_queue(
-    #     notification=notification,
-    #     research_mode=service.research_mode,
-    #     queue=queue_name
-    # )
+    send_to_lookup_contact_information_queue(
+        notification=notification,
+        va_identifier_type=form['va_identifier']['id_type']
+    )
 
     return notification
 

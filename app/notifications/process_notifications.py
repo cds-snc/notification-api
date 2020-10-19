@@ -12,7 +12,7 @@ from notifications_utils.recipients import (
 from notifications_utils.timezones import convert_local_timezone_to_utc
 
 from app import redis_store
-from app.celery import provider_tasks
+from app.celery import provider_tasks, lookup_contact_info_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
 
@@ -23,8 +23,8 @@ from app.models import (
     LETTER_TYPE,
     NOTIFICATION_CREATED,
     Notification,
-    ScheduledNotification
-)
+    ScheduledNotification,
+    VA_PROFILE_ID)
 from app.dao.notifications_dao import (
     dao_create_notification,
     dao_delete_notifications_by_id,
@@ -149,6 +149,28 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         "{} {} sent to the {} queue for delivery".format(notification.notification_type,
                                                          notification.id,
                                                          queue))
+
+
+def send_to_lookup_contact_information_queue(notification, va_identifier_type):
+    if va_identifier_type != VA_PROFILE_ID:
+        queue = QueueNames.LOOKUP_VA_PROFILE_ID
+        task = lookup_contact_info_tasks.lookup_va_profile_id
+    elif va_identifier_type == VA_PROFILE_ID:
+        queue = QueueNames.LOOKUP_CONTACT_INFO
+        task = lookup_contact_info_tasks.lookup_contact_info
+
+    try:
+        task.apply_async([str(notification.id)], queue=queue)
+    except Exception:
+        # should the notification and recipient identifier be deleted?
+        raise
+    current_app.logger.debug(
+        "{} {} sent to the {} queue".format(
+            notification.notification_type,
+            notification.id,
+            queue
+        )
+    )
 
 
 def simulated_recipient(to_address, notification_type):
