@@ -406,6 +406,37 @@ def test_should_persist_notification_without_recipient(
     assert RecipientIdentifiers.query.count() == 1
 
 
+def test_should_send_notification_to_recipient_when_both_recipient_and_va_identifier_present(
+        client,
+        sample_template,
+        sample_email_template,
+        sample_email_template_with_placeholders,
+        mocker):
+    mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
+    data = {
+        "email_address": "test@email.com",
+        "va_identifier": {
+            "id_type": VA_PROFILE_ID,
+            "value": "foo"
+        },
+        "template_id": sample_email_template.id,
+        "personalisation": {"name": "Bob"}
+    }
+
+    auth_header = create_authorization_header(service_id=sample_email_template_with_placeholders.service_id)
+    response = client.post(
+        path='/v2/notifications/email',
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header])
+
+    assert response.status_code == 201
+    notification = Notification.query.one()
+    assert notification.status == NOTIFICATION_CREATED
+    assert json.loads(response.get_data(as_text=True))["id"]
+    assert Notification.query.count() == 1
+    assert RecipientIdentifiers.query.count() == 1
+
+
 # @pytest.mark.parametrize('notification_type, id_type', [
 #     (EMAIL_TYPE, VA_PROFILE_ID),
 #     (SMS_TYPE, VA_PROFILE_ID),
