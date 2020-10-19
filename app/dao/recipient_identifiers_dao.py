@@ -7,11 +7,13 @@ from app.models import RecipientIdentifiers
 
 @statsd(namespace="dao")
 @transactional
-def persist_recipient_identifiers(notification_id, va_identifier_type, va_identifier_value):
-    recipient_identifiers = RecipientIdentifiers(
-        notification_id=notification_id,
-        va_identifier_type=va_identifier_type,
-        va_identifier_value=va_identifier_value
-    )
-    db.session.add(recipient_identifiers)
-    db.session.commit()
+def persist_recipient_identifiers(notification_id, form):
+    if 'va_identifier' in form:
+        va_identifier = form['va_identifier']
+        recipient_identifiers = RecipientIdentifiers(
+            notification_id=notification_id,
+            va_identifier_type=va_identifier['id_type'],
+            va_identifier_value=va_identifier['value']
+        )
+        db.session.add(recipient_identifiers)
+        db.session.commit()

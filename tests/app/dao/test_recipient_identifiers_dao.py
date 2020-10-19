@@ -9,21 +9,33 @@ from tests.app.db import (
 def test_should_add_recipient_identifiers_to_recipient_identifiers_table(notify_api, sample_job, sample_email_template):
     notification = create_notification(to_field=None, job=sample_job, template=sample_email_template)
     notification_id = notification.id
-    va_identifier_type = VA_PROFILE_ID
-    va_identifier_value = "foo"
+    va_identifier = {'id_type': VA_PROFILE_ID,
+                     'value': 'foo'}
+    form = {
+        'va_identifier': va_identifier
+    }
 
-    persist_recipient_identifiers(notification_id, va_identifier_type, va_identifier_value)
+    persist_recipient_identifiers(notification_id, form)
 
     assert RecipientIdentifiers.query.count() == 1
-    assert RecipientIdentifiers.query.get((notification_id, va_identifier_type, va_identifier_value))\
+    assert RecipientIdentifiers.query.get((notification_id, va_identifier['id_type'], va_identifier['value']))\
         .notification_id == notification_id
-    assert RecipientIdentifiers.query.get((notification_id, va_identifier_type, va_identifier_value))\
-        .va_identifier_type == va_identifier_type
-    assert RecipientIdentifiers.query.get((notification_id, va_identifier_type, va_identifier_value)) \
-        .va_identifier_value == va_identifier_value
+    assert RecipientIdentifiers.query.get((notification_id, va_identifier['id_type'], va_identifier['value']))\
+        .va_identifier_type == va_identifier['id_type']
+    assert RecipientIdentifiers.query.get((notification_id, va_identifier['id_type'], va_identifier['value'])) \
+        .va_identifier_value == va_identifier['value']
 
-    assert notification.recipient_identifiers[va_identifier_type].va_identifier_value == va_identifier_value
-    assert notification.recipient_identifiers[va_identifier_type].va_identifier_type == va_identifier_type
+    assert notification.recipient_identifiers[va_identifier['id_type']].va_identifier_value == va_identifier['value']
+    assert notification.recipient_identifiers[va_identifier['id_type']].va_identifier_type == va_identifier['id_type']
 
+
+def test_should_not_persist_data_if_no_va_identifier_passed_in(notify_api, sample_job, sample_email_template):
+    notification = create_notification(to_field=None, job=sample_job, template=sample_email_template)
+    form = {
+        'email_address': 'test@email.com'
+    }
+
+    persist_recipient_identifiers(notification.id, form)
+    assert RecipientIdentifiers.query.count() == 0
 
 # def test_should_add_recipient_identifiers_to_recipient_identifiers_history():

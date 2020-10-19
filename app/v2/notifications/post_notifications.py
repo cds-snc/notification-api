@@ -150,13 +150,7 @@ def post_notification(notification_type):
                 service=authenticated_service,
                 reply_to_text=reply_to
             )
-            if 'va_identifier' in form:
-                persist_recipient_identifiers(
-                    notification.id,
-                    form['va_identifier']['id_type'],
-                    form['va_identifier']['value']
-                    # TODO: remove individ params; if pass none, nothing persisted; remove if here
-                )
+            persist_recipient_identifiers(notification.id, form)
         else:
             if accept_recipient_identifiers_enabled(current_app):
                 notification = lookup_contact_information(
@@ -265,8 +259,7 @@ def lookup_contact_information(*, form, notification_type, api_key, template, se
         reply_to_text=reply_to_text
     )
 
-    va_identifier_type = form['va_identifier']['id_type']
-    persist_recipient_identifiers(notification.id, va_identifier_type, form['va_identifier']['value'])
+    persist_recipient_identifiers(notification.id, form)
 
     # scheduled_for = form.get("scheduled_for", None)
     # if scheduled_for:
