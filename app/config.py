@@ -405,7 +405,7 @@ class Development(Config):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.alpha.canada.ca")
 
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", 'postgresql://postgres@localhost/notification_api')
-    REDIS_URL = 'redis://localhost:6379/0'
+    REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
     ANTIVIRUS_ENABLED = os.getenv('ANTIVIRUS_ENABLED') == '1'
 
