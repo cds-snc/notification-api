@@ -54,11 +54,9 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - SQLALCHEMY_DATABASE_URI=postgres://postgres:postgres@postgres:5432/postgres
     command: >
-      bash -c "sh scripts/run_celery.sh"
+      bash -c "rm /tmp/celery.pid; sh scripts/run_celery.sh"
     volumes:
       - .:/app
-    tmpfs:
-      - /tmp
     depends_on:
       - postgres
       - redis
