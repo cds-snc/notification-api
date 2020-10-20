@@ -12,15 +12,18 @@ from app.models import (
     NotificationHistory,
     ScheduledNotification,
     Template,
-    LETTER_TYPE
-)
+    LETTER_TYPE,
+    EMAIL_TYPE,
+    VA_PROFILE_ID,
+    SMS_TYPE,
+    ICN)
 from app.notifications.process_notifications import (
     create_content_for_notification,
     persist_notification,
     persist_scheduled_notification,
     send_notification_to_queue,
-    simulated_recipient
-)
+    simulated_recipient,
+    send_to_lookup_contact_information_queue)
 from notifications_utils.recipients import validate_and_format_phone_number, validate_and_format_email_address
 from app.v2.errors import BadRequestError
 from tests.app.conftest import sample_api_key as create_api_key
@@ -512,3 +515,33 @@ def test_persist_notification_with_billable_units_stores_correct_info(
     persisted_notification = Notification.query.all()[0]
 
     assert persisted_notification.billable_units == 3
+
+
+@pytest.mark.parametrize('notification_type, id_type, expected_queue, expected_task', [
+    (EMAIL_TYPE, VA_PROFILE_ID, 'lookup-contact-info-tasks', 'lookup_contact_info'),
+    (SMS_TYPE, VA_PROFILE_ID, 'lookup-contact-info-tasks', 'lookup_contact_info'),
+    (EMAIL_TYPE, ICN, 'lookup-va-profile-id-tasks', 'lookup_va_profile_id'),
+    (SMS_TYPE, ICN, 'lookup-va-profile-id-tasks', 'lookup_va_profile_id'),
+])
+def test_send_notification_to_correct_queue_to_lookup_contact_info(
+        client,
+        mocker,
+        notification_type,
+        id_type,
+        expected_queue,
+        expected_task,
+        sample_template,
+        sample_email_template):
+    mocker.patch(
+        'app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled',
+        return_value=True
+    )
+    mocked = mocker.patch(
+        'app.celery.contact_information_tasks.{}.apply_async'.format(expected_task))
+    notification = Notification(
+        id=str(uuid.uuid4()),
+        notification_type=notification_type
+    )
+
+    send_to_lookup_contact_information_queue(notification, id_type)
+    mocked.assert_called_once_with([notification.id], queue=expected_queue)

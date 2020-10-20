@@ -13,7 +13,7 @@ from app.models import (
     UPLOAD_DOCUMENT,
     INTERNATIONAL_SMS_TYPE,
     VA_PROFILE_ID,
-    RecipientIdentifiers, ICN)
+    RecipientIdentifiers)
 from flask import json, current_app
 
 from app.models import Notification
@@ -386,7 +386,7 @@ def test_should_persist_notification_without_recipient(
         return_value=True
     )
     mocked_lookup_contact_info = mocker.patch(
-        'app.celery.lookup_contact_info_tasks.lookup_contact_info.apply_async')
+        'app.celery.contact_information_tasks.lookup_contact_info.apply_async')
     data = {
         "va_identifier": {
             "id_type": VA_PROFILE_ID,
@@ -441,52 +441,8 @@ def test_should_send_notification_to_recipient_when_both_recipient_and_va_identi
     assert RecipientIdentifiers.query.count() == 1
 
     mocked_lookup_contact_info = mocker.patch(
-        'app.celery.lookup_contact_info_tasks.lookup_contact_info.apply_async')
+        'app.celery.contact_information_tasks.lookup_contact_info.apply_async')
     mocked_lookup_contact_info.assert_not_called()
-
-
-@pytest.mark.parametrize('notification_type, id_type', [
-    (EMAIL_TYPE, VA_PROFILE_ID),
-    (SMS_TYPE, VA_PROFILE_ID),
-    (EMAIL_TYPE, ICN),
-    (SMS_TYPE, ICN),
-])
-def test_send_notification_to_correct_queue_to_lookup_contact_info(
-        client,
-        mocker,
-        notification_type,
-        id_type,
-        sample_template,
-        sample_email_template):
-    mocker.patch(
-        'app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled',
-        return_value=True
-    )
-    mocked_lookup_contact_info = mocker.patch(
-        'app.celery.lookup_contact_info_tasks.lookup_contact_info.apply_async')
-    mocked_lookup_va_profile_id = mocker.patch('app.celery.lookup_contact_info_tasks.lookup_va_profile_id.apply_async')
-    data = {
-        "template_id": sample_template.id if notification_type == SMS_TYPE else sample_email_template.id,
-        "va_identifier": {
-            "id_type": id_type,
-            "value": "foo"
-        }
-    }
-
-    auth_header = create_authorization_header(service_id=sample_email_template.service_id)
-
-    response = client.post(
-        path='/v2/notifications/{}'.format(notification_type),
-        data=json.dumps(data),
-        headers=[('Content-Type', 'application/json'), auth_header])
-
-    notification_id = json.loads(response.data)['id']
-
-    assert response.status_code == 201
-    if id_type == VA_PROFILE_ID:
-        mocked_lookup_contact_info.assert_called_once_with([notification_id], queue='lookup-contact-info-tasks')
-    else:
-        mocked_lookup_va_profile_id.assert_called_once_with([notification_id], queue='lookup-va-profile-id-tasks')
 
 
 @pytest.mark.parametrize("notification_type, key_send_to, send_to",

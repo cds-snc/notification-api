@@ -12,7 +12,7 @@ from notifications_utils.recipients import (
 from notifications_utils.timezones import convert_local_timezone_to_utc
 
 from app import redis_store
-from app.celery import provider_tasks, lookup_contact_info_tasks
+from app.celery import provider_tasks, contact_information_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
 
@@ -154,10 +154,10 @@ def send_notification_to_queue(notification, research_mode, queue=None):
 def send_to_lookup_contact_information_queue(notification, va_identifier_type):
     if va_identifier_type != VA_PROFILE_ID:
         queue = QueueNames.LOOKUP_VA_PROFILE_ID
-        task = lookup_contact_info_tasks.lookup_va_profile_id
+        task = contact_information_tasks.lookup_va_profile_id
     elif va_identifier_type == VA_PROFILE_ID:
         queue = QueueNames.LOOKUP_CONTACT_INFO
-        task = lookup_contact_info_tasks.lookup_contact_info
+        task = contact_information_tasks.lookup_contact_info
 
     try:
         task.apply_async([str(notification.id)], queue=queue)
