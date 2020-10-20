@@ -28,8 +28,8 @@ from app.models import (
 from app.dao.notifications_dao import (
     dao_create_notification,
     dao_delete_notifications_by_id,
-    dao_created_scheduled_notification
-)
+    dao_created_scheduled_notification,
+    dao_delete_notification_with_recipient_identifier_by_id)
 
 from app.v2.errors import BadRequestError
 from app.utils import get_template_instance
@@ -162,7 +162,7 @@ def send_to_lookup_contact_information_queue(notification, va_identifier_type):
     try:
         task.apply_async([str(notification.id)], queue=queue)
     except Exception:
-        # should the notification and recipient identifier be deleted?
+        dao_delete_notification_with_recipient_identifier_by_id(notification.id)
         raise
     current_app.logger.debug(
         "{} {} sent to the {} queue".format(

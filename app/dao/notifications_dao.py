@@ -431,6 +431,15 @@ def dao_delete_notifications_by_id(notification_id):
     ).delete(synchronize_session='fetch')
 
 
+@statsd(namespace="dao")
+@transactional
+def dao_delete_notification_with_recipient_identifier_by_id(notification_id):
+    notification = db.session.query(Notification).filter(
+        Notification.id == notification_id
+    ).first()
+    db.session.delete(notification)
+
+
 def _timeout_notifications(current_statuses, new_status, timeout_start, updated_at):
     notifications = Notification.query.filter(
         Notification.created_at < timeout_start,

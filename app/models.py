@@ -1738,7 +1738,8 @@ VA_IDENTIFIER_TYPES = [
 
 class RecipientIdentifiers(db.Model):
     __tablename__ = 'recipient_identifiers'
-    notification_id = db.Column(UUID(as_uuid=True), db.ForeignKey('notifications.id'), primary_key=True, nullable=False)
+    notification_id = db.Column(UUID(as_uuid=True), db.ForeignKey('notifications.id', ondelete="cascade"),
+                                primary_key=True, nullable=False)
     va_identifier_type = db.Column(
         db.Enum(*VA_IDENTIFIER_TYPES, name='va_identifier_types'),
         primary_key=True,
