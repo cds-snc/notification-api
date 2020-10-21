@@ -54,4 +54,4 @@ jobs:
             --details \
             --query "CommandInvocations[].CommandPlugins[].{Status:Status,StatusDetails:StatusDetails,ResponseCode:ResponseCode,Output:Output}")
           echo $RESULT
-          jq -e '.[].ResponseCode' <<< $RESULT
+          exit `jq '.[].ResponseCode' <<< $RESULT`
