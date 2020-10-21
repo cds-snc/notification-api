@@ -104,11 +104,13 @@ jobs:
             --parameters '{"commands":[
                 "#!/bin/bash",
                 "aws --region us-gov-west-1 ecr get-login-password | docker login --username AWS --password-stdin '"$ECR_REGISTRY"' 2>/dev/null",
-                "docker pull '"$ECR_REGISTRY"'/'"$IMAGE_REPOSITORY"':'"$IMAGE_TAG"'",
+                "docker pull '"$ECR_REGISTRY"'/'"$IMAGE_REPOSITORY"':'"$IMAGE_TAG"' 1>/dev/null",
                 "docker logout '"$ECR_REGISTRY"'",
                 "export TWISTLOCK_PASSWORD=$(aws --region us-gov-west-1 ssm get-parameter --name /utility/twistlock/vanotify-ci-user-password --with-decryption | jq '.Parameter.Value' -r)",
                 "twistcli images scan --project VaNotify --address https://twistlock.devops.va.gov --user vanotify-ci-user '"$ECR_REGISTRY"'/'"$IMAGE_REPOSITORY"':'"$IMAGE_TAG"'",
-                "docker image prune -a -f"
+                "STATUS_CODE=$?",
+                "docker image prune -a -f 1>/dev/null",
+                "exit $STATUS_CODE"
               ]}' \
             --output text --query "Command.CommandId")
           aws ssm wait command-executed --command-id $COMMAND_ID --instance-id $INSTANCE_ID ; \
@@ -117,7 +119,7 @@ jobs:
             --details \
             --query "CommandInvocations[].CommandPlugins[].{Status:Status,StatusDetails:StatusDetails,ResponseCode:ResponseCode,Output:Output}")
           echo $RESULT
-          jq -e '.[].ResponseCode' <<< $RESULT
+          exit `jq '.[].ResponseCode' <<< $RESULT`
 
   start-tw-dev-deployment:
     runs-on: ubuntu-latest
