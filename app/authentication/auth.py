@@ -77,7 +77,8 @@ def requires_auth():
 
     auth_type, auth_token = get_auth_token(request)
     if auth_type == 'api_key_v1':
-        return _auth_by_api_key(auth_token)
+        _auth_by_api_key(auth_token)
+        return
     client = __get_token_issuer(auth_token)
 
     try:
