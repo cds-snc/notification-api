@@ -1,4 +1,4 @@
-from app.dao.notifications_dao import dao_delete_notification_with_recipient_identifier_by_id
+from app.dao.notifications_dao import dao_delete_notification_by_id
 from app.dao.recipient_identifiers_dao import persist_recipient_identifiers
 from app.models import RecipientIdentifiers, VA_PROFILE_ID, Notification
 
@@ -53,7 +53,7 @@ def test_should_delete_recipient_identifiers_if_notification_deleted(notify_api,
     assert RecipientIdentifiers.query.get((notification_id, va_identifier['id_type'], va_identifier['value'])) \
         .notification_id == notification_id
 
-    dao_delete_notification_with_recipient_identifier_by_id(notification_id)
+    dao_delete_notification_by_id(notification_id)
 
     assert Notification.query.get(notification.id) is None
     assert RecipientIdentifiers.query.get((notification_id, va_identifier['id_type'], va_identifier['value'])) is None

@@ -28,8 +28,7 @@ from app.models import (
 from app.dao.notifications_dao import (
     dao_create_notification,
     dao_delete_notification_by_id,
-    dao_created_scheduled_notification,
-    dao_delete_notification_with_recipient_identifier_by_id)
+    dao_created_scheduled_notification)
 
 from app.v2.errors import BadRequestError
 from app.utils import get_template_instance
@@ -162,7 +161,7 @@ def send_to_lookup_contact_information_queue(notification, va_identifier_type):
     try:
         task.apply_async([str(notification.id)], queue=queue)
     except Exception:
-        dao_delete_notification_with_recipient_identifier_by_id(notification.id)
+        dao_delete_notification_by_id(notification.id)
         raise
     current_app.logger.debug(
         "{} {} sent to the {} queue".format(
