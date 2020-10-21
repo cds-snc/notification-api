@@ -11,7 +11,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from app.dao.notifications_dao import (
     dao_create_notification,
     dao_created_scheduled_notification,
-    dao_delete_notifications_by_id,
+    dao_delete_notification_by_id,
     dao_get_last_notification_added_for_job_id,
     dao_get_last_template_usage,
     dao_get_notifications_by_to_field,
@@ -72,7 +72,7 @@ def test_should_have_decorated_notifications_dao_functions():
     assert get_notifications_for_service.__wrapped__.__name__ == 'get_notifications_for_service'  # noqa
     assert get_notification_by_id.__wrapped__.__name__ == 'get_notification_by_id'  # noqa
     assert delete_notifications_older_than_retention_by_type.__wrapped__.__name__ == 'delete_notifications_older_than_retention_by_type'  # noqa
-    assert dao_delete_notifications_by_id.__wrapped__.__name__ == 'dao_delete_notifications_by_id'  # noqa
+    assert dao_delete_notification_by_id.__wrapped__.__name__ == 'dao_delete_notification_by_id'  # noqa
 
 
 def test_should_by_able_to_update_status_by_reference(sample_email_template, ses_provider):
@@ -595,7 +595,7 @@ def test_should_delete_notification_for_id(sample_template):
     assert Notification.query.count() == 1
     assert NotificationHistory.query.count() == 0
 
-    dao_delete_notifications_by_id(notification.id)
+    dao_delete_notification_by_id(notification.id)
 
     assert Notification.query.count() == 0
 
@@ -607,7 +607,7 @@ def test_should_delete_notification_and_ignore_history_for_research_mode(sample_
 
     assert Notification.query.count() == 1
 
-    dao_delete_notifications_by_id(notification.id)
+    dao_delete_notification_by_id(notification.id)
 
     assert Notification.query.count() == 0
 
@@ -617,7 +617,7 @@ def test_should_delete_only_notification_with_id(sample_template):
     notification_2 = create_notification(template=sample_template)
     assert Notification.query.count() == 2
 
-    dao_delete_notifications_by_id(notification_1.id)
+    dao_delete_notification_by_id(notification_1.id)
 
     assert Notification.query.count() == 1
     assert Notification.query.first().id == notification_2.id
@@ -629,7 +629,7 @@ def test_should_delete_no_notifications_if_no_matching_ids(
     create_notification(template=sample_template)
     assert Notification.query.count() == 1
 
-    dao_delete_notifications_by_id(uuid.uuid4())
+    dao_delete_notification_by_id(uuid.uuid4())
 
     assert Notification.query.count() == 1
 

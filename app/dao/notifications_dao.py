@@ -425,10 +425,10 @@ def _delete_letters_from_s3(
 
 @statsd(namespace="dao")
 @transactional
-def dao_delete_notifications_by_id(notification_id):
-    db.session.query(Notification).filter(
-        Notification.id == notification_id
-    ).delete(synchronize_session='fetch')
+def dao_delete_notification_by_id(notification_id):
+    notification = db.session.query(Notification).get(notification_id)
+    if notification:
+        db.session.delete(notification)
 
 
 @statsd(namespace="dao")
