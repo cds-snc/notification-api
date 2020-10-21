@@ -5,7 +5,13 @@ from notifications_utils import request_helper
 from sqlalchemy.exc import DataError
 from sqlalchemy.orm.exc import NoResultFound
 
+from app.dao.api_key_dao import get_api_key_by_secret
 from app.dao.services_dao import dao_fetch_service_by_id_with_api_keys
+
+AUTH_TYPES = [
+    ('Bearer', 'jwt'),
+    ('ApiKey-v1', 'api_key_v1'),  # TODO decide if ApiKey-v1 scheme is a good scheme name
+]
 
 
 class AuthError(Exception):
@@ -36,12 +42,15 @@ def get_auth_token(req):
     if not auth_header:
         raise AuthError('Unauthorized, authentication token must be provided', 401)
 
-    auth_scheme = auth_header[:7].title()
+    for el in AUTH_TYPES:
+        scheme, auth_type = el
+        if auth_header.lower().startswith(scheme.lower()):
+            token = auth_header[len(scheme) + 1:]
+            return auth_type, token
 
-    if auth_scheme != 'Bearer ':
-        raise AuthError('Unauthorized, authentication bearer scheme must be used', 401)
-
-    return auth_header[7:]
+    # TODO: decide if error message stays the same.
+    # In fact we support another auth method than Bearer
+    raise AuthError('Unauthorized, authentication bearer scheme must be used', 401)
 
 
 def requires_no_auth():
@@ -51,7 +60,9 @@ def requires_no_auth():
 def requires_admin_auth():
     request_helper.check_proxy_header_before_request()
 
-    auth_token = get_auth_token(request)
+    auth_type, auth_token = get_auth_token(request)
+    if auth_type != 'jwt':
+        raise AuthError("Invalid scheme: can only use JWT for admin authentication", 401)
     client = __get_token_issuer(auth_token)
 
     if client == current_app.config.get('ADMIN_CLIENT_USER_NAME'):
@@ -64,7 +75,9 @@ def requires_admin_auth():
 def requires_auth():
     request_helper.check_proxy_header_before_request()
 
-    auth_token = get_auth_token(request)
+    auth_type, auth_token = get_auth_token(request)
+    if auth_type == 'api_key_v1':
+        return _auth_by_api_key(auth_token)
     client = __get_token_issuer(auth_token)
 
     try:
@@ -91,21 +104,32 @@ def requires_auth():
             )
             raise AuthError(err_msg, 403, service_id=service.id, api_key_id=api_key.id)
 
-        if api_key.expiry_date:
-            raise AuthError("Invalid token: API key revoked", 403, service_id=service.id, api_key_id=api_key.id)
-
-        g.service_id = api_key.service_id
-        _request_ctx_stack.top.authenticated_service = service
-        _request_ctx_stack.top.api_user = api_key
-        current_app.logger.info('API authorised for service {} with api key {}, using client {}'.format(
-            service.id,
-            api_key.id,
-            request.headers.get('User-Agent')
-        ))
+        _auth_with_api_key(api_key, service)
         return
     else:
         # service has API keys, but none matching the one the user provided
         raise AuthError("Invalid token: signature, api token not found", 403, service_id=service.id)
+
+
+def _auth_by_api_key(auth_token):
+    try:
+        api_key = get_api_key_by_secret(auth_token)
+    except NoResultFound:
+        raise AuthError("Invalid token: API key not found", 403)
+    _auth_with_api_key(api_key, api_key.service)
+
+
+def _auth_with_api_key(api_key, service):
+    if api_key.expiry_date:
+        raise AuthError("Invalid token: API key revoked", 403, service_id=service.id, api_key_id=api_key.id)
+    g.service_id = api_key.service_id
+    _request_ctx_stack.top.authenticated_service = service
+    _request_ctx_stack.top.api_user = api_key
+    current_app.logger.info('API authorised for service {} with api key {}, using client {}'.format(
+        service.id,
+        api_key.id,
+        request.headers.get('User-Agent')
+    ))
 
 
 def __get_token_issuer(auth_token):
