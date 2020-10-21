@@ -434,9 +434,7 @@ def dao_delete_notifications_by_id(notification_id):
 @statsd(namespace="dao")
 @transactional
 def dao_delete_notification_with_recipient_identifier_by_id(notification_id):
-    notification = db.session.query(Notification).filter(
-        Notification.id == notification_id
-    ).first()
+    notification = db.session.query(Notification).get(notification_id)
     db.session.delete(notification)
 
 
