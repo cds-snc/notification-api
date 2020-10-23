@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "b41ecae9-37d5-461b-9df3-9fa27a6b4e75",
+		"_postman_id": "f4a97520-3e8b-48dd-ac89-08fd4d57cef6",
 		"name": "notification-api",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -14,7 +14,7 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "a95ba018-43ec-41db-8329-66aa2a0b3b74",
+								"id": "edc337c1-dda4-43ba-8f77-5d4c0743cb25",
 								"exec": [
 									"pm.test(\"Check if status is ok\", function() {",
 									"    var jsonData = pm.response.json();",
@@ -32,7 +32,7 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "03314ede-b59c-4c21-b923-cd46d110ac96",
+								"id": "e8ad90ab-f1bb-4e27-8835-1557ea299027",
 								"exec": [
 									""
 								],
@@ -64,7 +64,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "66107ed3-7c5d-4df7-aba5-6772a68cced5",
+						"id": "dc87f753-a7f7-428b-adf7-d0047e978ebe",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -127,7 +127,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "4c136604-3504-42be-bf9d-9cd69f4cbe05",
+						"id": "edd50baf-47d4-483d-b29c-23d1935b7dc1",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -180,7 +180,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "1cfeae27-c3e8-424f-a667-d608c61288fc",
+						"id": "873711db-ba25-4a74-aaf6-8ddb3b269e51",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -243,7 +243,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "da58db95-c2cb-463b-bcf6-4c9147a458ff",
+						"id": "46987d4b-8f87-41fc-9c3e-8bccad0fde6b",
 						"exec": [
 							"if (pm.response.code == 200) {",
 							"    var jsonData = pm.response.json(); ",
@@ -285,7 +285,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "59787bbd-3329-4355-b69f-4f1b8cdd1b3f",
+						"id": "7dbd5c10-96f8-48c7-9350-b1f98c1d2f36",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -348,7 +348,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "6206be02-54f6-472a-9df0-8301afd97e61",
+						"id": "cbc0edef-3c02-4968-b97c-d04b5b060e9f",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -415,7 +415,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "0444e8cf-8797-44d5-a18b-88126df04e00",
+						"id": "6765b7d7-7551-4ba1-9c2f-e75512ebd2a4",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -478,7 +478,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "587f5b3f-3189-491e-ba3f-8357366dc7c5",
+						"id": "6736db40-ca2f-4fba-b081-1a58dc8c3c17",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -545,7 +545,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "f1126ae0-375f-43ad-9076-7abae04e0f84",
+						"id": "2c1a7405-9aea-440c-8003-6494fa852d91",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -608,7 +608,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "0badad61-d3b0-45db-a48b-57dd328d1e8f",
+						"id": "bbe583b1-ad47-4b2e-ab37-71245962c2f9",
 						"exec": [
 							"if (pm.response.code == 200) {",
 							"    var jsonData = pm.response.json(); ",
@@ -662,7 +662,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "b53e8089-c6b6-4a67-9a2e-19f7f43f3348",
+						"id": "5f861c8d-2c75-404f-81e8-828b338bbcab",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -725,7 +725,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "d3cfbfef-c75c-4265-b840-839de044bdeb",
+						"id": "3660d5c8-d47a-4eee-b7e3-9392d463a240",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -788,7 +788,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "3a021a98-548e-4202-ae68-c036e9fb6546",
+						"id": "bdda4fc8-9adf-4e7e-a11d-86d9c9cc87d7",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -851,7 +851,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "28f4dafb-fe9a-4cb2-950e-e057a52e9fc5",
+						"id": "d9d44d39-a1b4-4832-9dcf-0ded9c12240b",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -896,7 +896,7 @@
 					"raw": "{\n    \"name\": \"main service for Govdelivery\",\n    \"user_id\": \"{{user-id}}\",\n    \"organisation_id\": \"{{organization-id}}\",\n    \"message_limit\": 1000,\n    \"restricted\": false,\n    \"active\": true,\n    \"email-from\": \"{{email-from}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
-					"raw": "https://{{notification-api-url}}/service/{{service-id}}",
+					"raw": "https://{{notification-api-url}}/service",
 					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
@@ -914,7 +914,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "8741d86b-98d9-4a61-a7b6-fe37d21e6415",
+						"id": "d0d78fb5-539c-4ca4-bcb2-2ae6db8c8185",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -1013,7 +1013,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "54c388b6-56c1-4412-af1c-b23e1172ded4",
+						"id": "45387f36-bc89-49b5-8547-849711485df6",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -1076,7 +1076,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "5074eee4-cc3d-4445-b269-4faab6d815cc",
+						"id": "70354567-9ee7-4218-8318-12826de5b836",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -1131,7 +1131,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "f23d980a-ee18-4b95-be76-3a2feeec212f",
+						"id": "1471a031-bfec-4d0d-b51c-bd9673ca014b",
 						"exec": [
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
@@ -1191,7 +1191,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "b3874194-6516-4bf5-aef4-62c0e937d19b",
+						"id": "05c30269-6d48-48ab-8d0e-de8db11c34f5",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -1245,7 +1245,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "0ac1ae60-eb82-4910-b13d-a1f2ca2f2792",
+						"id": "d8f4bb7f-1228-4d28-a03d-4999e6b974e1",
 						"type": "text/javascript",
 						"exec": [
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
@@ -1305,7 +1305,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "18cd6d1b-93e1-4b7f-bed4-ab59641ab7b4",
+						"id": "5a5ffed3-9c80-4629-89b2-f1818af77563",
 						"type": "text/javascript",
 						"exec": [
 							"if (pm.response.code == 201) {",
@@ -1360,7 +1360,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "1bc6e52c-842a-4ba1-84bb-f46bcd7b8059",
+						"id": "1790b9c7-dc03-4162-808f-1c464f958269",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -1423,7 +1423,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "a1b971e0-fdb2-4fab-9ea3-90b9473dfde6",
+						"id": "d7506688-c466-4b98-86f4-13a261d8f328",
 						"exec": [
 							"if (pm.response.code == 200) {",
 							"    var jsonData = pm.response.json(); ",
@@ -1475,7 +1475,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "6df5f23a-c709-4b22-92a1-1435766590c1",
+						"id": "c7b439de-a666-49a0-becc-f3b91566f7d5",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -1538,7 +1538,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "48183f56-8cf7-4961-8a9f-5455a7572f1c",
+						"id": "a2bff6a3-245d-452a-be1b-9dc5119656e6",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -1594,7 +1594,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "52b86899-5b54-4ca5-8d64-10b94074b045",
+						"id": "7ac5bc3c-2c8e-4272-8c43-9d79d8466ca3",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -1701,7 +1701,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "749f6dc9-d97a-456d-8ffe-38955e15b961",
+						"id": "25a30340-a178-4872-930d-979d2ae7c741",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -1764,7 +1764,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "05cb255b-ccc7-435b-90a4-87aedca714f5",
+						"id": "ab6486e7-61f6-43f0-92fe-fdf90064ff00",
 						"exec": [
 							"if (pm.response.code == 200) {",
 							"    var jsonData = pm.response.json();",
@@ -1805,12 +1805,12 @@
 			"response": []
 		},
 		{
-			"name": "send sms",
+			"name": "send sms with phone_number",
 			"event": [
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "fb437111-b32b-4ccd-b15a-e47c984ce4b3",
+						"id": "b4ef904b-1e04-4dfb-b0f7-fb021c6abeb5",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -1863,6 +1863,19 @@
 							"var signedToken = `${token}.${signature}`",
 							"",
 							"pm.environment.set('jwt_signed', signedToken)"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"id": "ff667e08-9628-473b-a520-26cd485ad8bc",
+						"exec": [
+							"if (pm.response.code == 201) {",
+							"    var jsonData = pm.response.json(); ",
+							"    pm.environment.set(\"notification-id\", jsonData.id);",
+							"}"
 						],
 						"type": "text/javascript"
 					}
@@ -1906,13 +1919,12 @@
 			"response": []
 		},
 		{
-			"name": "send email",
+			"name": "send sms with va_identifier",
 			"event": [
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "93109517-b505-4743-876b-15e3941e330b",
-						"type": "text/javascript",
+						"id": "772b79fb-9129-4ad5-b04e-7b8690f26407",
 						"exec": [
 							"// JWT generation script adapted from",
 							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
@@ -1965,21 +1977,136 @@
 							"var signedToken = `${token}.${signature}`",
 							"",
 							"pm.environment.set('jwt_signed', signedToken)"
-						]
+						],
+						"type": "text/javascript"
 					}
 				},
 				{
 					"listen": "test",
 					"script": {
-						"id": "28e005fa-2617-4000-a58f-d711d4793bcc",
-						"type": "text/javascript",
+						"id": "4904ddc2-f74e-4ce1-b47c-4ef5625f3da2",
+						"exec": [
+							"if (pm.response.code == 201) {",
+							"    var jsonData = pm.response.json(); ",
+							"    pm.environment.set(\"notification-id\", jsonData.id);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"type": "text",
+						"value": "Bearer {{jwt_signed}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"va_identifier\": {\n        \"id_type\": \"VAPROFILEID\",\n        \"value\": \"example\"\n    }\n}"
+				},
+				"url": {
+					"raw": "https://{{notification-api-url}}/v2/notifications/sms",
+					"protocol": "https",
+					"host": [
+						"{{notification-api-url}}"
+					],
+					"path": [
+						"v2",
+						"notifications",
+						"sms"
+					]
+				},
+				"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-key to generate the JWT bearer token"
+			},
+			"response": []
+		},
+		{
+			"name": "send email with email_address",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"id": "74d0b9b4-60b9-4168-83bc-84840802c1c8",
+						"exec": [
+							"// JWT generation script adapted from",
+							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"",
+							"var jwtSecret = pm.environment.get(\"service-api-key\");",
+							"",
+							"// Set headers for JWT",
+							"var header = {",
+							"\t'typ': 'JWT',",
+							"\t'alg': 'HS256'",
+							"};",
+							"",
+							"// Prepare timestamp in seconds",
+							"var currentTimestamp = Math.floor(Date.now() / 1000)",
+							"",
+							"var data = {",
+							"\t'iss': pm.environment.get(\"service-id\"),",
+							"\t'iat': currentTimestamp",
+							"}",
+							"",
+							"",
+							"function base64url(source) {",
+							"    // Encode in classical base64",
+							"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+							"    ",
+							"    // Remove padding equal characters",
+							"    encodedSource = encodedSource.replace(/=+$/, '')",
+							"    ",
+							"    // Replace characters according to base64url specifications",
+							"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+							"    encodedSource = encodedSource.replace(/\\//g, '_')",
+							"    ",
+							"    return encodedSource",
+							"}",
+							"",
+							"// encode header",
+							"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+							"var encodedHeader = base64url(stringifiedHeader)",
+							"",
+							"// encode data",
+							"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+							"var encodedData = base64url(stringifiedData)",
+							"",
+							"// build token",
+							"var token = `${encodedHeader}.${encodedData}`",
+							"",
+							"// sign token",
+							"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+							"signature = base64url(signature)",
+							"var signedToken = `${token}.${signature}`",
+							"",
+							"pm.environment.set('jwt_signed', signedToken)"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"id": "213b5ba9-3a4c-42fc-819e-2975548222e6",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
 							"    pm.environment.set(\"notification-id\", jsonData.id);",
 							"}",
 							""
-						]
+						],
+						"type": "text/javascript"
 					}
 				}
 			],
@@ -2000,7 +2127,120 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"email_address\": \"marisa.hoenig@thoughtworks.com\"\n}"
+					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"email_address\": \"test@email.com\"\n}"
+				},
+				"url": {
+					"raw": "https://{{notification-api-url}}/v2/notifications/email",
+					"protocol": "https",
+					"host": [
+						"{{notification-api-url}}"
+					],
+					"path": [
+						"v2",
+						"notifications",
+						"email"
+					]
+				},
+				"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-key to generate the JWT bearer token"
+			},
+			"response": []
+		},
+		{
+			"name": "send email with va_identifier",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"id": "6c0e1695-f8b5-47fd-a751-d4534d4f7f49",
+						"exec": [
+							"// JWT generation script adapted from",
+							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"",
+							"var jwtSecret = pm.environment.get(\"service-api-key\");",
+							"",
+							"// Set headers for JWT",
+							"var header = {",
+							"\t'typ': 'JWT',",
+							"\t'alg': 'HS256'",
+							"};",
+							"",
+							"// Prepare timestamp in seconds",
+							"var currentTimestamp = Math.floor(Date.now() / 1000)",
+							"",
+							"var data = {",
+							"\t'iss': pm.environment.get(\"service-id\"),",
+							"\t'iat': currentTimestamp",
+							"}",
+							"",
+							"",
+							"function base64url(source) {",
+							"    // Encode in classical base64",
+							"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+							"    ",
+							"    // Remove padding equal characters",
+							"    encodedSource = encodedSource.replace(/=+$/, '')",
+							"    ",
+							"    // Replace characters according to base64url specifications",
+							"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+							"    encodedSource = encodedSource.replace(/\\//g, '_')",
+							"    ",
+							"    return encodedSource",
+							"}",
+							"",
+							"// encode header",
+							"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+							"var encodedHeader = base64url(stringifiedHeader)",
+							"",
+							"// encode data",
+							"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+							"var encodedData = base64url(stringifiedData)",
+							"",
+							"// build token",
+							"var token = `${encodedHeader}.${encodedData}`",
+							"",
+							"// sign token",
+							"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+							"signature = base64url(signature)",
+							"var signedToken = `${token}.${signature}`",
+							"",
+							"pm.environment.set('jwt_signed', signedToken)"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"id": "b34ec56c-2704-41b5-96aa-b11c24342d5b",
+						"exec": [
+							"if (pm.response.code == 201) {",
+							"    var jsonData = pm.response.json(); ",
+							"    pm.environment.set(\"notification-id\", jsonData.id);",
+							"}",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_signed}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"va_identifier\": {\n        \"id_type\": \"VAPROFILEID\",\n        \"value\": \"example\"\n    }\n}"
 				},
 				"url": {
 					"raw": "https://{{notification-api-url}}/v2/notifications/email",
@@ -2024,7 +2264,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "4b5c4c14-9246-4fe2-b650-d3207782e9be",
+						"id": "fd9a561b-8d6c-4164-8792-dc14c1a56129",
 						"type": "text/javascript",
 						"exec": [
 							"// JWT generation script adapted from",

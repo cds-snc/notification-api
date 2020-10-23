@@ -36,7 +36,7 @@ fileignoreconfig:
     - filename: ci/.docker-env.example
       checksum: 8893b7f8ca92441758acb3e34ca17e856209a9c45b2e256433e3ded0e112cf7d
     - filename: scripts/postman/notification-api.postman_collection.json
-      checksum: 67d1626b2fb7f10867753da6a1f7202f357bf0bd952ded77f827cc6e58d4aab9
+      checksum: 32ab98203b010a45ced5b99588795ed1f542bb350c2a90fb8eee4c4bd2b11535
     - filename: README.md
       checksum: 32935f617721f8cf06be7cd4f36d35cc303ba19dd6b6e025bf0660f628e4a55a
     - filename: ci/docker-compose-local.yml
