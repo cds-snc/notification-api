@@ -1,6 +1,6 @@
 from app.dao.notifications_dao import dao_delete_notification_by_id
 from app.dao.recipient_identifiers_dao import persist_recipient_identifiers
-from app.models import RecipientIdentifiers, VA_PROFILE_ID, Notification
+from app.models import RecipientIdentifiers, VA_PROFILE_ID, Notification, ICN
 
 from tests.app.db import (
     create_notification
@@ -30,6 +30,32 @@ def test_should_add_recipient_identifiers_to_recipient_identifiers_table(notify_
     assert notification.recipient_identifiers[va_identifier['id_type']].va_identifier_type == va_identifier['id_type']
 
 
+def test_should_persist_identifiers_with_the_same_notification_id(notify_api, sample_job, sample_email_template):
+    notification = create_notification(to_field=None, job=sample_job, template=sample_email_template)
+    notification_id = notification.id
+    icn_form = {
+        'va_identifier': {
+            'id_type': ICN,
+            'value': 'some icn'
+        }
+    }
+    va_profile_id_form = {
+        'va_identifier': {
+            'id_type': VA_PROFILE_ID,
+            'value': 'some va profile id'
+        }
+    }
+
+    persist_recipient_identifiers(notification_id, icn_form)
+    persist_recipient_identifiers(notification_id, va_profile_id_form)
+    assert RecipientIdentifiers.query.count() == 2
+
+    assert RecipientIdentifiers.query.get(
+        (notification_id, icn_form['va_identifier']['id_type'], icn_form['va_identifier']['value']))
+    assert RecipientIdentifiers.query.get(
+        (notification_id, va_profile_id_form['va_identifier']['id_type'], va_profile_id_form['va_identifier']['value']))
+
+
 def test_should_not_persist_data_if_no_va_identifier_passed_in(notify_api, sample_job, sample_email_template):
     notification = create_notification(to_field=None, job=sample_job, template=sample_email_template)
     form = {
@@ -57,6 +83,3 @@ def test_should_delete_recipient_identifiers_if_notification_deleted(notify_api,
 
     assert Notification.query.get(notification.id) is None
     assert RecipientIdentifiers.query.get((notification_id, va_identifier['id_type'], va_identifier['value'])) is None
-
-
-# def test_should_add_recipient_identifiers_to_recipient_identifiers_history():
