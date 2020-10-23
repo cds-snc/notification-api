@@ -1305,12 +1305,30 @@ components:
           properties:
             sms_sender_id:
               $ref: '#/components/schemas/Id'
-            phone_number:
-              type: string
-              format: phone_number
-              example: "+19876543210"
-          required:
-            - phone_number
+
+          anyOf:
+            - properties:
+                phone_number:
+                  type: string
+                  format: phone_number
+                  example: "+19876543210"
+              required: [phone_number]
+            - properties:
+                va_identifier:
+                  type: object
+                  properties:
+                    id_type:
+                      type: string
+                      enum:
+                        - VAPROFILEID
+                        - PID
+                        - ICN
+                    value:
+                      type: string
+                  required:
+                    - id_type
+                    - value
+              required: [va_identifier]
     EmailNotificationRequest:
       allOf:
         - $ref: '#/components/schemas/NotificationRequest'
@@ -1318,11 +1336,28 @@ components:
           properties:
             email_reply_to_id:
               $ref: '#/components/schemas/Id'
-            email_address:
-              type: string
-              format: email_address
-          required:
-            - email_address
+          anyOf:
+            - properties:
+                email_address:
+                  type: string
+                  format: email_address
+              required: [email_address]
+            - properties:
+                va_identifier:
+                  type: object
+                  properties:
+                    id_type:
+                      type: string
+                      enum:
+                        - VAPROFILEID
+                        - PID
+                        - ICN
+                    value:
+                      type: string
+                  required:
+                    - id_type
+                    - value
+              required: [va_identifier]
     Notification:
       type: object
       properties:
