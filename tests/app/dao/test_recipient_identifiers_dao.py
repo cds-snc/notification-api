@@ -1,33 +1,44 @@
+import pytest
+
 from app.dao.notifications_dao import dao_delete_notification_by_id
 from app.dao.recipient_identifiers_dao import persist_recipient_identifiers
-from app.models import RecipientIdentifiers, VA_PROFILE_ID, Notification, ICN
+from app.models import RecipientIdentifiers, VA_PROFILE_ID, Notification, ICN, PID
 
 from tests.app.db import (
     create_notification
 )
 
 
-def test_should_add_recipient_identifiers_to_recipient_identifiers_table(notify_api, sample_job, sample_email_template):
+@pytest.mark.parametrize('id_type, value',
+                         [(VA_PROFILE_ID, 'some va profile id'),
+                          (PID, 'some pid'),
+                          (ICN, 'some icn')])
+def test_should_add_recipient_identifiers_to_recipient_identifiers_table(
+        notify_api,
+        sample_job,
+        sample_email_template,
+        id_type,
+        value
+):
     notification = create_notification(to_field=None, job=sample_job, template=sample_email_template)
     notification_id = notification.id
-    va_identifier = {'id_type': VA_PROFILE_ID,
-                     'value': 'foo'}
     form = {
-        'va_identifier': va_identifier
+        'va_identifier': {'id_type': id_type,
+                          'value': value}
     }
 
     persist_recipient_identifiers(notification_id, form)
 
     assert RecipientIdentifiers.query.count() == 1
-    assert RecipientIdentifiers.query.get((notification_id, va_identifier['id_type'], va_identifier['value']))\
+    assert RecipientIdentifiers.query.get((notification_id, id_type, value)) \
         .notification_id == notification_id
-    assert RecipientIdentifiers.query.get((notification_id, va_identifier['id_type'], va_identifier['value']))\
-        .va_identifier_type == va_identifier['id_type']
-    assert RecipientIdentifiers.query.get((notification_id, va_identifier['id_type'], va_identifier['value'])) \
-        .va_identifier_value == va_identifier['value']
+    assert RecipientIdentifiers.query.get((notification_id, id_type, value)) \
+        .va_identifier_type == id_type
+    assert RecipientIdentifiers.query.get((notification_id, id_type, value)) \
+        .va_identifier_value == value
 
-    assert notification.recipient_identifiers[va_identifier['id_type']].va_identifier_value == va_identifier['value']
-    assert notification.recipient_identifiers[va_identifier['id_type']].va_identifier_type == va_identifier['id_type']
+    assert notification.recipient_identifiers[id_type].va_identifier_value == value
+    assert notification.recipient_identifiers[id_type].va_identifier_type == id_type
 
 
 def test_should_persist_identifiers_with_the_same_notification_id(notify_api, sample_job, sample_email_template):

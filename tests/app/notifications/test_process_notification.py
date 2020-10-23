@@ -517,11 +517,10 @@ def test_persist_notification_with_billable_units_stores_correct_info(
     assert persisted_notification.billable_units == 3
 
 
-@pytest.mark.parametrize('notification_type, id_type, expected_queue, expected_task', [
-    (EMAIL_TYPE, VA_PROFILE_ID, 'lookup-contact-info-tasks', 'lookup_contact_info'),
-    (SMS_TYPE, VA_PROFILE_ID, 'lookup-contact-info-tasks', 'lookup_contact_info'),
-    (EMAIL_TYPE, ICN, 'lookup-va-profile-id-tasks', 'lookup_va_profile_id'),
-    (SMS_TYPE, ICN, 'lookup-va-profile-id-tasks', 'lookup_va_profile_id'),
+@pytest.mark.parametrize('notification_type', [EMAIL_TYPE, SMS_TYPE])
+@pytest.mark.parametrize('id_type, expected_queue, expected_task', [
+    (VA_PROFILE_ID, 'lookup-contact-info-tasks', 'lookup_contact_info'),
+    (ICN, 'lookup-va-profile-id-tasks', 'lookup_va_profile_id'),
 ])
 def test_send_notification_to_correct_queue_to_lookup_contact_info(
         client,
