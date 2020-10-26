@@ -8,9 +8,11 @@ from sqlalchemy.orm.exc import NoResultFound
 from app.dao.api_key_dao import get_api_key_by_secret
 from app.dao.services_dao import dao_fetch_service_by_id_with_api_keys
 
+JWT_AUTH_TYPE = 'jwt'
+API_KEY_V1_AUTH_TYPE = 'api_key_v1'
 AUTH_TYPES = [
-    ('Bearer', 'jwt'),
-    ('ApiKey-v1', 'api_key_v1'),  # TODO decide if ApiKey-v1 scheme is a good scheme name
+    ('Bearer', JWT_AUTH_TYPE),
+    ('ApiKey-v1', API_KEY_V1_AUTH_TYPE),
 ]
 
 
@@ -61,7 +63,7 @@ def requires_admin_auth():
     request_helper.check_proxy_header_before_request()
 
     auth_type, auth_token = get_auth_token(request)
-    if auth_type != 'jwt':
+    if auth_type != JWT_AUTH_TYPE:
         raise AuthError("Invalid scheme: can only use JWT for admin authentication", 401)
     client = __get_token_issuer(auth_token)
 
@@ -76,7 +78,7 @@ def requires_auth():
     request_helper.check_proxy_header_before_request()
 
     auth_type, auth_token = get_auth_token(request)
-    if auth_type == 'api_key_v1':
+    if auth_type == API_KEY_V1_AUTH_TYPE:
         _auth_by_api_key(auth_token)
         return
     client = __get_token_issuer(auth_token)
