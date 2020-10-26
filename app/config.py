@@ -391,6 +391,7 @@ class Config(object):
     GOVDELIVERY_EMAIL_CLIENT_ENABLED = True
     API_RATE_LIMIT_ENABLED = False
     API_MESSAGE_LIMIT_ENABLED = False
+    SWITCH_SLOW_SMS_PROVIDER_ENABLED = False
 
 
 ######################
