@@ -9,7 +9,8 @@ from app.dao.api_key_dao import (
     get_model_api_keys,
     get_unsigned_secrets,
     get_unsigned_secret,
-    expire_api_key
+    expire_api_key,
+    get_api_key_by_secret
 )
 from app.models import ApiKey, KEY_TYPE_NORMAL
 
@@ -72,6 +73,14 @@ def test_get_unsigned_secret_returns_key(sample_api_key):
     unsigned_api_key = get_unsigned_secret(sample_api_key.id)
     assert sample_api_key._secret != unsigned_api_key
     assert unsigned_api_key == sample_api_key.secret
+
+
+def test_get_api_key_by_secret(sample_api_key):
+    unsigned_secret = get_unsigned_secret(sample_api_key.id)
+    assert get_api_key_by_secret(unsigned_secret).id == sample_api_key.id
+
+    with pytest.raises(NoResultFound):
+        get_api_key_by_secret("nope")
 
 
 def test_should_not_allow_duplicate_key_names_per_service(sample_api_key, fake_uuid):
