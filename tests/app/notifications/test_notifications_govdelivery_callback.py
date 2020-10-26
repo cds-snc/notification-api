@@ -1,4 +1,6 @@
 import pytest
+from datetime import datetime
+
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 from app.models import Notification
@@ -78,6 +80,7 @@ def test_should_update_notification_status(
         mock_update_notification_status
 ):
     notification = mocker.Mock(Notification)
+    notification.sent_at = datetime.utcnow()
     mock_dao_get_notification_by_reference.return_value = notification
 
     notify_status = "sent"
