@@ -34,7 +34,7 @@ from app.notifications.process_notifications import (
     persist_scheduled_notification,
     send_notification_to_queue,
     simulated_recipient,
-    send_to_lookup_contact_information_queue)
+    send_to_queue_for_recipient_info_based_on_recipient_identifier)
 from app.notifications.validators import (
     validate_and_format_recipient,
     check_rate_limiting,
@@ -150,7 +150,7 @@ def post_notification(notification_type):
             )
         else:
             if accept_recipient_identifiers_enabled(current_app):
-                notification = lookup_contact_information(
+                notification = process_notification_with_recipient_identifier(
                     form=form,
                     notification_type=notification_type,
                     api_key=api_user,
@@ -242,7 +242,8 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
     return notification
 
 
-def lookup_contact_information(*, form, notification_type, api_key, template, service, reply_to_text=None):
+def process_notification_with_recipient_identifier(*, form, notification_type, api_key, template, service,
+                                                   reply_to_text=None):
     personalisation = process_document_uploads(form.get('personalisation'), service)
 
     notification = persist_notification(
@@ -258,7 +259,7 @@ def lookup_contact_information(*, form, notification_type, api_key, template, se
         recipient_identifier=form.get('va_identifier', None)
     )
 
-    send_to_lookup_contact_information_queue(
+    send_to_queue_for_recipient_info_based_on_recipient_identifier(
         notification=notification,
         va_identifier_type=form['va_identifier']['id_type']
     )

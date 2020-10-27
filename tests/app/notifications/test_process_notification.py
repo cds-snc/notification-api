@@ -25,7 +25,7 @@ from app.notifications.process_notifications import (
     persist_scheduled_notification,
     send_notification_to_queue,
     simulated_recipient,
-    send_to_lookup_contact_information_queue)
+    send_to_queue_for_recipient_info_based_on_recipient_identifier)
 from notifications_utils.recipients import validate_and_format_phone_number, validate_and_format_email_address
 from app.v2.errors import BadRequestError
 from tests.app.conftest import sample_api_key as create_api_key
@@ -624,5 +624,5 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
         notification_type=notification_type
     )
 
-    send_to_lookup_contact_information_queue(notification, id_type)
+    send_to_queue_for_recipient_info_based_on_recipient_identifier(notification, id_type)
     mocked.assert_called_once_with([notification.id], queue=expected_queue)

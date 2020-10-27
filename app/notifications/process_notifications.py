@@ -160,13 +160,13 @@ def send_notification_to_queue(notification, research_mode, queue=None):
                                                          queue))
 
 
-def send_to_lookup_contact_information_queue(notification, va_identifier_type):
-    if va_identifier_type != VA_PROFILE_ID:
-        queue = QueueNames.LOOKUP_VA_PROFILE_ID
-        task = contact_information_tasks.lookup_va_profile_id
-    elif va_identifier_type == VA_PROFILE_ID:
+def send_to_queue_for_recipient_info_based_on_recipient_identifier(notification, va_identifier_type):
+    if va_identifier_type == VA_PROFILE_ID:
         queue = QueueNames.LOOKUP_CONTACT_INFO
         task = contact_information_tasks.lookup_contact_info
+    else:
+        queue = QueueNames.LOOKUP_VA_PROFILE_ID
+        task = contact_information_tasks.lookup_va_profile_id
 
     try:
         task.apply_async([str(notification.id)], queue=queue)
