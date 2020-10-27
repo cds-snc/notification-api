@@ -59,3 +59,5 @@ fileignoreconfig:
       checksum: 8e7b87af52ee4407add0b8f2f09ea5a2bb8f84744e2ee518ff4502803639d4ce
     - filename: .github/workflows/dev-ci.yaml
       checksum: 58e37dd99eb0a98b268bbd8c45f4d2816d6c6453e60fd4502e7e209a5580b1b4
+    - filename: lambda_functions/user_flows/va-internal-cert-chain.pem
+      checksum: b275bb504d07e20888d222c31f12246b79aa554bea84c4d3028f110b0f9d473c

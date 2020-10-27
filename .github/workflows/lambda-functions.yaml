@@ -37,13 +37,15 @@ jobs:
           source venv/bin/activate
           pip install -r ../../requirements_for_user_flows.txt
           deactivate
-          cd venv/lib/python3.6/site-packages
+          cd venv/lib/python3.6/site-packages/certifi
+          cat ../../../../../va-internal-cert-chain.pem >> cacert.pem
+          cd ..
           zip -r9 ../../../../user_flows_lambda.zip .
           cd ../../../..
 
       - name: Package and deploy lambda function
         run: |
-          zip -ug user_flows_lambda.zip user_flows_lambda.py steps.py test_retrieve_everything.py
+          zip -ug user_flows_lambda.zip user_flows_lambda.py steps.py test_retrieve_everything.py conftest.py
           aws lambda update-function-code --function-name project-user-flows-lambda --zip-file fileb://user_flows_lambda.zip
 
       - name: Invoke lambda function

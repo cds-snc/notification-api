@@ -1,13 +1,14 @@
-import test_retrieve_everything
+import pytest
 
 
 def user_flows_handler(event, context):
     environment = event['environment']
-    results = test_retrieve_everything.test_retrieval(environment)
 
-    return {
-        'results': "Tests were run for {environment}.\n RESULTS: {content}\n".format(
-            environment=environment,
-            content=results
-        )
-    }
+    return pytest.main([
+        "--exitfirst",
+        "-p", "no:cacheprovider",
+        "-s",
+        "--verbose",
+        "--environment", environment,
+        "./test_retrieve_everything.py"
+    ])

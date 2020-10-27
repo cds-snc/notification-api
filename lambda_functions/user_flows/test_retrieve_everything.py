@@ -1,43 +1,38 @@
-import boto3
-import os
-
-from steps import get_organizations
-from steps import get_services
+import pytest
+from steps import get_authenticated_request
 from steps import get_services_id
-from steps import get_users
-from steps import get_templates
+from steps import get_api_health_status
 
 
-client = boto3.client('ssm')
+@pytest.fixture(scope="function")
+def environment(pytestconfig):
+    return pytestconfig.getoption("environment")
 
 
-def get_secret(key):
-    resp = client.get_parameter(
-        Name=key,
-        WithDecryption=True
-    )
-    return resp['Parameter']['Value']
+@pytest.fixture(scope="function")
+def services(environment):
+    return get_authenticated_request(environment, "/service")
 
 
-def set_environment(environment):
-    notification_url = "https://{env}.api.notifications.va.gov".format(env=environment)
-    api_secret = get_secret("/{env}/notification-api/admin-client-secret".format(env=environment))
-
-    if(not api_secret):
-        raise ValueError("Could not retrieve secret environment variable")
-
-    os.environ['notification_url'] = notification_url
-    os.environ['ADMIN_CLIENT_SECRET'] = api_secret
-
-
-def test_retrieval(environment):
-    set_environment(environment)
-    organizations = get_organizations()
+def test_get_organizations(environment):
+    organizations = get_authenticated_request(environment, "/organisations")
     assert organizations.status_code == 200
-    users = get_users()
+
+
+def test_get_users(environment):
+    users = get_authenticated_request(environment, "/user")
     assert users.status_code == 200
-    services = get_services()
+
+
+def test_get_services(services, environment):
     assert services.status_code == 200
+
+
+def test_get_templates(services, environment):
     service_id = get_services_id(services.json()['data'])
-    templates = get_templates(service_id)
+    templates = get_authenticated_request(environment, "/service/" + service_id + "/template")
     assert templates.status_code == 200
+
+
+def test_api_healthy(environment):
+    assert get_api_health_status(environment).status_code == 200
