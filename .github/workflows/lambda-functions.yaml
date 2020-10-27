@@ -37,9 +37,8 @@ jobs:
           source venv/bin/activate
           pip install -r ../../requirements_for_user_flows.txt
           deactivate
-          cd venv/lib/python3.6/site-packages/certifi
-          cat ../../../../../va-internal-cert-chain.pem >> cacert.pem
-          cd ..
+          cat va-internal-cert-chain.pem >> ./venv/lib/python3.6/site-packages/certifi/cacert.pem
+          cd venv/lib/python3.6/site-packages
           zip -r9 ../../../../user_flows_lambda.zip .
           cd ../../../..
 
