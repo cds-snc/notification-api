@@ -40,7 +40,6 @@ jobs:
           cat va-internal-cert-chain.pem >> ./venv/lib/python3.6/site-packages/certifi/cacert.pem
           cd venv/lib/python3.6/site-packages
           zip -r9 ../../../../user_flows_lambda.zip .
-          cd ../../../..
 
       - name: Package and deploy lambda function
         run: |
