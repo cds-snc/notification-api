@@ -105,6 +105,48 @@ def test_admin_auth_should_not_allow_request_with_no_iat(client, sample_api_key)
     assert exc.value.short_message == 'Invalid token: signature, api token is not valid'
 
 
+def test_admin_auth_should_not_allow_api_key_scheme(client, sample_api_key):
+    request.headers = {'Authorization': 'ApiKey-v1 {}'.format(sample_api_key.secret)}
+    with pytest.raises(AuthError) as exc:
+        requires_admin_auth()
+    assert exc.value.short_message == 'Invalid scheme: can only use JWT for admin authentication'
+
+
+@pytest.mark.parametrize('scheme', ['ApiKey-v1', 'apikey-v1', 'APIKEY-V1'])
+def test_should_allow_auth_with_api_key_scheme(client, sample_api_key, scheme):
+    api_key_secret = get_unsigned_secret(sample_api_key.id)
+
+    response = client.get('/notifications', headers={
+        'Authorization': f'{scheme} {api_key_secret}'
+    })
+
+    assert response.status_code == 200
+
+
+def test_should_not_allow_invalid_api_key(client, sample_api_key):
+    response = client.get('/notifications', headers={
+        'Authorization': f'ApiKey-v1 nope'
+    })
+
+    assert response.status_code == 403
+    error_message = json.loads(response.get_data())
+    assert error_message['message'] == {"token": ["Invalid token: API key not found"]}
+
+
+def test_should_not_allow_expired_api_key(client, sample_api_key):
+    api_key_secret = get_unsigned_secret(sample_api_key.id)
+
+    expire_api_key(service_id=sample_api_key.service_id, api_key_id=sample_api_key.id)
+
+    response = client.get('/notifications', headers={
+        'Authorization': f'ApiKey-v1 {api_key_secret}'
+    })
+
+    assert response.status_code == 403
+    error_message = json.loads(response.get_data())
+    assert error_message['message'] == {"token": ["Invalid token: API key revoked"]}
+
+
 def test_should_not_allow_invalid_secret(client, sample_api_key):
     token = create_jwt_token(
         secret="not-so-secret",

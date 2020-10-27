@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timedelta
 
-from app import db
+from app import db, encryption
 from app.models import ApiKey
 
 from app.dao.dao_utils import (
@@ -10,6 +10,7 @@ from app.dao.dao_utils import (
 )
 
 from sqlalchemy import or_, func
+from sqlalchemy.orm import joinedload
 
 
 @transactional
@@ -27,6 +28,12 @@ def expire_api_key(service_id, api_key_id):
     api_key = ApiKey.query.filter_by(id=api_key_id, service_id=service_id).one()
     api_key.expiry_date = datetime.utcnow()
     db.session.add(api_key)
+
+
+def get_api_key_by_secret(secret):
+    return ApiKey.query.filter_by(
+        _secret=encryption.encrypt(str(secret))
+    ).options(joinedload('service')).one()
 
 
 def get_model_api_keys(service_id, id=None):
