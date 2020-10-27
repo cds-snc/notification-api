@@ -4,7 +4,7 @@ title Contact information lookup sequence diagram
 participant "Consumer service" as consumer #99FF99
 participant api
 database "Notifications\ntable" as notifications_table
-database "RecipientIdentifiers\ntable" as identifiers_table
+database "RecipientIdentifier\ntable" as identifiers_table
 
 queue "lookup_va_profile_id\ntask queue" as lookup_va_profile_id_queue
 participant "lookup_va_profile_id\ntask runner" as lookup_va_profile_id_runner
@@ -20,7 +20,7 @@ participant "Master Person Index" as mpi
 participant "VA Profile" as vaprofile
 end box
 
-consumer -> api : POST to send email with lookup: /v2/notifications/lookup/email
+consumer -> api : POST to send email with lookup: /v2/notifications/email
 activate api
 note right of consumer
   ""{""

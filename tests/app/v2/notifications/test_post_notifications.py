@@ -13,7 +13,7 @@ from app.models import (
     UPLOAD_DOCUMENT,
     INTERNATIONAL_SMS_TYPE,
     VA_PROFILE_ID,
-    RecipientIdentifiers)
+    RecipientIdentifier)
 from flask import json, current_app
 
 from app.models import Notification
@@ -367,7 +367,7 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
     apply_async.assert_not_called()
     assert json.loads(response.get_data(as_text=True))["id"]
     assert Notification.query.count() == 0
-    assert RecipientIdentifiers.query.count() == 0
+    assert RecipientIdentifier.query.count() == 0
 
 
 @pytest.mark.parametrize('notification_type', [
@@ -406,7 +406,7 @@ def test_should_persist_notification_without_recipient(
     assert json.loads(response.get_data(as_text=True))["id"]
     notification_id = json.loads(response.data)['id']
     assert Notification.query.count() == 1
-    assert RecipientIdentifiers.query.count() == 1
+    assert RecipientIdentifier.query.count() == 1
     mocked_lookup_contact_info.assert_called_once_with([notification_id], queue='lookup-contact-info-tasks')
 
 
@@ -438,7 +438,7 @@ def test_should_send_notification_to_recipient_when_both_recipient_and_va_identi
     assert notification.status == NOTIFICATION_CREATED
     assert json.loads(response.get_data(as_text=True))["id"]
     assert Notification.query.count() == 1
-    assert RecipientIdentifiers.query.count() == 1
+    assert RecipientIdentifier.query.count() == 1
 
     mocked_lookup_contact_info = mocker.patch(
         'app.celery.contact_information_tasks.lookup_contact_info.apply_async')

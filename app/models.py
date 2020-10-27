@@ -1426,7 +1426,7 @@ class Notification(db.Model):
         END
     """)
 
-    recipient_identifiers = db.relationship('RecipientIdentifiers',
+    recipient_identifiers = db.relationship('RecipientIdentifier',
                                             collection_class=attribute_mapped_collection('va_identifier_type'),
                                             cascade='all, delete-orphan')
 
@@ -1736,7 +1736,7 @@ VA_IDENTIFIER_TYPES = [
 ]
 
 
-class RecipientIdentifiers(db.Model):
+class RecipientIdentifier(db.Model):
     __tablename__ = 'recipient_identifiers'
     notification_id = db.Column(UUID(as_uuid=True), db.ForeignKey('notifications.id', ondelete="cascade"),
                                 primary_key=True, nullable=False)

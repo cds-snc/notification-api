@@ -12,7 +12,7 @@ from app.dao.notifications_dao import (
     insert_update_notification_history
 )
 from app.dao.recipient_identifiers_dao import persist_recipient_identifiers
-from app.models import Notification, NotificationHistory, VA_PROFILE_ID, RecipientIdentifiers
+from app.models import Notification, NotificationHistory, VA_PROFILE_ID, RecipientIdentifier
 from tests.app.db import (
     create_template,
     create_notification,
@@ -132,7 +132,7 @@ def test_should_delete_notification_and_recipient_identifiers_when_bulk_deleting
             persist_recipient_identifiers(notification.id, form)
 
     assert Notification.query.count() == 20
-    assert RecipientIdentifiers.query.count() == 20
+    assert RecipientIdentifier.query.count() == 20
 
     # Records from before 3rd should be deleted
     with freeze_time(delete_run_time):
@@ -143,7 +143,7 @@ def test_should_delete_notification_and_recipient_identifiers_when_bulk_deleting
     assert len(remaining_sms_notifications) == expected_sms_count
     assert len(remaining_email_notifications) == expected_email_count
 
-    remaining_recipient_identifiers = len(RecipientIdentifiers.query.all())
+    remaining_recipient_identifiers = len(RecipientIdentifier.query.all())
     assert remaining_recipient_identifiers == expected_email_count + expected_sms_count
 
 
