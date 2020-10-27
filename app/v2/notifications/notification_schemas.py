@@ -126,6 +126,16 @@ get_notifications_response = {
 
 }
 
+va_identifier = {"type": "object", "properties": {
+    "id_type": {
+        "type": "string",
+        "enum": VA_IDENTIFIER_TYPES
+    },
+    "value": {
+        "type": "string"
+    }
+}, "required": ["id_type", "value"]}
+
 post_sms_request = {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "description": "POST sms notification schema",
@@ -134,15 +144,7 @@ post_sms_request = {
     "properties": {
         "reference": {"type": "string"},
         "phone_number": {"type": "string", "format": "phone_number"},
-        "va_identifier": {"type": "object", "properties": {
-            "id_type": {
-                "type": "string",
-                "enum": VA_IDENTIFIER_TYPES
-            },
-            "value": {
-                "type": "string"
-            }
-        }, "required": ["id_type", "value"]},
+        "va_identifier": va_identifier,
         "template_id": uuid,
         "personalisation": personalisation,
         "scheduled_for": {"type": ["string", "null"], "format": "datetime_within_next_day"},
@@ -193,15 +195,7 @@ post_email_request = {
     "properties": {
         "reference": {"type": "string"},
         "email_address": {"type": "string", "format": "email_address"},
-        "va_identifier": {"type": "object", "properties": {
-            "id_type": {
-                "type": "string",
-                "enum": VA_IDENTIFIER_TYPES
-            },
-            "value": {
-                "type": "string"
-            }
-        }, "required": ["id_type", "value"]},
+        "va_identifier": va_identifier,
         "template_id": uuid,
         "personalisation": personalisation,
         "scheduled_for": {"type": ["string", "null"], "format": "datetime_within_next_day"},
