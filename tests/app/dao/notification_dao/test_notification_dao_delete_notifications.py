@@ -128,7 +128,7 @@ def test_should_delete_notification_and_recipient_identifiers_when_bulk_deleting
     for i in range(1, 11):
         past_date = '2016-0{0}-{1:02d}  {1:02d}:00:00.000000'.format(month, i)
         with freeze_time(past_date):
-            recipient_identifier = {"id_type": VA_PROFILE_ID, "value": "foo"}
+            recipient_identifier = {"id_type": VA_PROFILE_ID, "id_value": "foo"}
             persist_notification(
                 template_id=sample_job.template.id,
                 template_version=sample_job.template.version,
