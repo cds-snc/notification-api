@@ -3,7 +3,7 @@ from app.models import (
     NOTIFICATION_STATUS_LETTER_ACCEPTED,
     NOTIFICATION_STATUS_LETTER_RECEIVED,
     TEMPLATE_TYPES,
-    VA_IDENTIFIER_TYPES)
+    RECIPIENT_IDENTIFIER_TYPES)
 from app.schema_validation.definitions import (uuid, personalisation, letter_personalisation)
 
 
@@ -126,15 +126,15 @@ get_notifications_response = {
 
 }
 
-va_identifier = {"type": "object", "properties": {
+recipient_identifier = {"type": "object", "properties": {
     "id_type": {
         "type": "string",
-        "enum": VA_IDENTIFIER_TYPES
+        "enum": RECIPIENT_IDENTIFIER_TYPES
     },
-    "value": {
+    "id_value": {
         "type": "string"
     }
-}, "required": ["id_type", "value"]}
+}, "required": ["id_type", "id_value"]}
 
 post_sms_request = {
     "$schema": "http://json-schema.org/draft-04/schema#",
@@ -144,7 +144,7 @@ post_sms_request = {
     "properties": {
         "reference": {"type": "string"},
         "phone_number": {"type": "string", "format": "phone_number"},
-        "va_identifier": va_identifier,
+        "recipient_identifier": recipient_identifier,
         "template_id": uuid,
         "personalisation": personalisation,
         "scheduled_for": {"type": ["string", "null"], "format": "datetime_within_next_day"},
@@ -153,7 +153,7 @@ post_sms_request = {
     "required": ["template_id"],
     "anyOf": [
         {"required": ["phone_number"]},
-        {"required": ["va_identifier"]}
+        {"required": ["recipient_identifier"]}
     ],
     "additionalProperties": False
 }
@@ -195,7 +195,7 @@ post_email_request = {
     "properties": {
         "reference": {"type": "string"},
         "email_address": {"type": "string", "format": "email_address"},
-        "va_identifier": va_identifier,
+        "recipient_identifier": recipient_identifier,
         "template_id": uuid,
         "personalisation": personalisation,
         "scheduled_for": {"type": ["string", "null"], "format": "datetime_within_next_day"},
@@ -204,7 +204,7 @@ post_email_request = {
     "required": ["template_id"],
     "anyOf": [
         {"required": ["email_address"]},
-        {"required": ["va_identifier"]}
+        {"required": ["recipient_identifier"]}
     ],
     "additionalProperties": False
 }

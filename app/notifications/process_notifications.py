@@ -101,8 +101,8 @@ def persist_notification(
     if accept_recipient_identifiers_enabled(current_app) and recipient_identifier:
         _recipient_identifier = RecipientIdentifier(
             notification_id=notification_id,
-            va_identifier_type=recipient_identifier['id_type'],
-            va_identifier_value=recipient_identifier['value']
+            id_type=recipient_identifier['id_type'],
+            id_value=recipient_identifier['value']
         )
         notification.recipient_identifiers.set(_recipient_identifier)
 
@@ -160,8 +160,8 @@ def send_notification_to_queue(notification, research_mode, queue=None):
                                                          queue))
 
 
-def send_to_queue_for_recipient_info_based_on_recipient_identifier(notification, va_identifier_type):
-    if va_identifier_type == VA_PROFILE_ID:
+def send_to_queue_for_recipient_info_based_on_recipient_identifier(notification, id_type):
+    if id_type == VA_PROFILE_ID:
         queue = QueueNames.LOOKUP_CONTACT_INFO
         task = contact_information_tasks.lookup_contact_info
     else:

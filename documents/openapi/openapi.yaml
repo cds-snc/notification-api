@@ -1314,7 +1314,7 @@ components:
                   example: "+19876543210"
               required: [phone_number]
             - properties:
-                va_identifier:
+                recipient_identifier:
                   type: object
                   properties:
                     id_type:
@@ -1323,12 +1323,12 @@ components:
                         - VAPROFILEID
                         - PID
                         - ICN
-                    value:
+                    id_value:
                       type: string
                   required:
                     - id_type
-                    - value
-              required: [va_identifier]
+                    - id_value
+              required: [recipient_identifier]
     EmailNotificationRequest:
       allOf:
         - $ref: '#/components/schemas/NotificationRequest'
@@ -1343,7 +1343,7 @@ components:
                   format: email_address
               required: [email_address]
             - properties:
-                va_identifier:
+                recipient_identifier:
                   type: object
                   properties:
                     id_type:
@@ -1352,12 +1352,12 @@ components:
                         - VAPROFILEID
                         - PID
                         - ICN
-                    value:
+                    id_value:
                       type: string
                   required:
                     - id_type
-                    - value
-              required: [va_identifier]
+                    - id_value
+              required: [recipient_identifier]
     Notification:
       type: object
       properties:

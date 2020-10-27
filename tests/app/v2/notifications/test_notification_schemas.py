@@ -5,7 +5,7 @@ from flask import json
 from freezegun import freeze_time
 from jsonschema import ValidationError
 
-from app.models import NOTIFICATION_CREATED, EMAIL_TYPE, VA_IDENTIFIER_TYPES, VA_PROFILE_ID
+from app.models import NOTIFICATION_CREATED, EMAIL_TYPE, RECIPIENT_IDENTIFIER_TYPES, VA_PROFILE_ID
 from app.schema_validation import validate
 from app.v2.notifications.notification_schemas import (
     get_notifications_request,
@@ -105,18 +105,18 @@ valid_phone_number_json = {
     "phone_number": "6502532222",
     "template_id": str(uuid.uuid4())
 }
-valid_va_identifier_json = {
-    "va_identifier": {
+valid_recipient_identifier_json = {
+    "recipient_identifier": {
         "id_type": VA_PROFILE_ID,
-        "value": "bar"
+        "id_value": "bar"
     },
     "template_id": str(uuid.uuid4())
 }
-valid_phone_number_and_va_identifier_json = {
+valid_phone_number_and_recipient_identifier_json = {
     "phone_number": "6502532222",
-    "va_identifier": {
+    "recipient_identifier": {
         "id_type": VA_PROFILE_ID,
-        "value": "bar"
+        "id_value": "bar"
     },
     "template_id": str(uuid.uuid4())
 }
@@ -128,8 +128,8 @@ valid_json_with_optionals = {
 }
 
 
-@pytest.mark.parametrize("input", [valid_phone_number_json, valid_va_identifier_json,
-                                   valid_phone_number_and_va_identifier_json, valid_json_with_optionals])
+@pytest.mark.parametrize("input", [valid_phone_number_json, valid_recipient_identifier_json,
+                                   valid_phone_number_and_recipient_identifier_json, valid_json_with_optionals])
 def test_post_sms_schema_is_valid(input):
     assert validate(input, post_sms_request_schema) == input
 
@@ -158,19 +158,19 @@ def test_post_sms_json_schema_bad_uuid(template_id):
             'message': "template_id is not a valid UUID"} in error['errors']
 
 
-missing_id_type_json = {"value": "bar"}
+missing_id_type_json = {"id_value": "bar"}
 missing_value_json = {"id_type": VA_PROFILE_ID}
 missing_id_type_and_value_json = {}
 
 
-@pytest.mark.parametrize('va_identifier, missing_key_name', [
+@pytest.mark.parametrize('recipient_identifier, missing_key_name', [
     (missing_id_type_json, ["id_type"]),
-    (missing_value_json, ["value"]),
-    (missing_id_type_and_value_json, ["id_type", "value"])
+    (missing_value_json, ["id_value"]),
+    (missing_id_type_and_value_json, ["id_type", "id_value"])
 ])
-def test_post_sms_json_schema_missing_va_identifier_required_fields(va_identifier, missing_key_name):
+def test_post_sms_json_schema_missing_recipient_identifier_required_fields(recipient_identifier, missing_key_name):
     j = {
-        "va_identifier": va_identifier,
+        "recipient_identifier": recipient_identifier,
         "template_id": str(uuid.uuid4())
     }
     with pytest.raises(ValidationError) as e:
@@ -181,19 +181,19 @@ def test_post_sms_json_schema_missing_va_identifier_required_fields(va_identifie
     assert len(error.get('errors')) == len(missing_key_name)
     for key_name in missing_key_name:
         assert {'error': 'ValidationError',
-                'message': "va_identifier " + key_name + " is a required property"} in error['errors']
+                'message': "recipient_identifier " + key_name + " is a required property"} in error['errors']
 
 
-@pytest.mark.parametrize("va_identifier_type", VA_IDENTIFIER_TYPES + ["INVALID"])
-def test_post_sms_schema_id_type_should_only_use_enum_values(va_identifier_type):
+@pytest.mark.parametrize("id_type", RECIPIENT_IDENTIFIER_TYPES + ["INVALID"])
+def test_post_sms_schema_id_type_should_only_use_enum_values(id_type):
     id_type_as_parameter_json = {
-        "va_identifier": {
-            "id_type": va_identifier_type,
-            "value": "bar"
+        "recipient_identifier": {
+            "id_type": id_type,
+            "id_value": "bar"
         },
         "template_id": str(uuid.uuid4())
     }
-    if va_identifier_type in VA_IDENTIFIER_TYPES:
+    if id_type in RECIPIENT_IDENTIFIER_TYPES:
         assert validate(id_type_as_parameter_json, post_sms_request_schema) == id_type_as_parameter_json
     else:
         with pytest.raises(ValidationError) as e:
@@ -203,10 +203,10 @@ def test_post_sms_schema_id_type_should_only_use_enum_values(va_identifier_type)
         assert error.get('status_code') == 400
         assert len(error.get('errors')) == 1
         assert {'error': 'ValidationError',
-                'message': "va_identifier INVALID is not one of [VAPROFILEID, PID, ICN]"} in error['errors']
+                'message': "recipient_identifier INVALID is not one of [VAPROFILEID, PID, ICN]"} in error['errors']
 
 
-def test_post_sms_json_schema_bad_uuid_and_missing_phone_number_and_va_identifier():
+def test_post_sms_json_schema_bad_uuid_and_missing_phone_number_and_recipient_identifier():
     j = {"template_id": "notUUID"}
     with pytest.raises(ValidationError) as e:
         validate(j, post_sms_request_schema)
@@ -271,18 +271,18 @@ def test_post_sms_request_schema_invalid_phone_number_and_missing_template():
 valid_post_email_json = {"email_address": "test@example.gov.uk",
                          "template_id": str(uuid.uuid4())
                          }
-valid_va_identifier_json = {
-    "va_identifier": {
+valid_recipient_identifier_json = {
+    "recipient_identifier": {
         "id_type": VA_PROFILE_ID,
-        "value": "bar"
+        "id_value": "bar"
     },
     "template_id": str(uuid.uuid4())
 }
-valid_email_and_va_identifier_json = {
+valid_email_and_recipient_identifier_json = {
     "email_address": "test@example.gov.uk",
-    "va_identifier": {
+    "recipient_identifier": {
         "id_type": VA_PROFILE_ID,
-        "value": "bar"
+        "id_value": "bar"
     },
     "template_id": str(uuid.uuid4())
 }
@@ -295,8 +295,8 @@ valid_post_email_json_with_optionals = {
 
 
 @pytest.mark.parametrize("input", [valid_post_email_json,
-                                   valid_va_identifier_json,
-                                   valid_email_and_va_identifier_json,
+                                   valid_recipient_identifier_json,
+                                   valid_email_and_recipient_identifier_json,
                                    valid_post_email_json_with_optionals])
 def test_post_email_schema_is_valid(input):
     assert validate(input, post_email_request_schema) == input
@@ -326,19 +326,19 @@ def test_post_email_schema_invalid_email_address(email_address, err_msg):
     assert {"error": "ValidationError", "message": err_msg} == errors[0]
 
 
-missing_id_type_json = {"value": "bar"}
+missing_id_type_json = {"id_value": "bar"}
 missing_value_json = {"id_type": VA_PROFILE_ID}
 missing_id_type_and_value_json = {}
 
 
-@pytest.mark.parametrize('va_identifier, missing_key_name', [
+@pytest.mark.parametrize('recipient_identifier, missing_key_name', [
     (missing_id_type_json, ["id_type"]),
-    (missing_value_json, ["value"]),
-    (missing_id_type_and_value_json, ["id_type", "value"])
+    (missing_value_json, ["id_value"]),
+    (missing_id_type_and_value_json, ["id_type", "id_value"])
 ])
-def test_post_email_json_schema_missing_va_identifier_required_fields(va_identifier, missing_key_name):
+def test_post_email_json_schema_missing_recipient_identifier_required_fields(recipient_identifier, missing_key_name):
     j = {
-        "va_identifier": va_identifier,
+        "recipient_identifier": recipient_identifier,
         "template_id": str(uuid.uuid4())
     }
     with pytest.raises(ValidationError) as e:
@@ -349,19 +349,19 @@ def test_post_email_json_schema_missing_va_identifier_required_fields(va_identif
     assert len(error.get('errors')) == len(missing_key_name)
     for key_name in missing_key_name:
         assert {'error': 'ValidationError',
-                'message': "va_identifier " + key_name + " is a required property"} in error['errors']
+                'message': "recipient_identifier " + key_name + " is a required property"} in error['errors']
 
 
-@pytest.mark.parametrize("va_identifier_type", VA_IDENTIFIER_TYPES + ["INVALID"])
-def test_post_email_schema_id_type_should_only_use_enum_values(va_identifier_type):
+@pytest.mark.parametrize("id_type", RECIPIENT_IDENTIFIER_TYPES + ["INVALID"])
+def test_post_email_schema_id_type_should_only_use_enum_values(id_type):
     id_type_as_parameter_json = {
-        "va_identifier": {
-            "id_type": va_identifier_type,
-            "value": "bar"
+        "recipient_identifier": {
+            "id_type": id_type,
+            "id_value": "bar"
         },
         "template_id": str(uuid.uuid4())
     }
-    if va_identifier_type in VA_IDENTIFIER_TYPES:
+    if id_type in RECIPIENT_IDENTIFIER_TYPES:
         assert validate(id_type_as_parameter_json, post_email_request_schema) == id_type_as_parameter_json
     else:
         with pytest.raises(ValidationError) as e:
@@ -371,7 +371,7 @@ def test_post_email_schema_id_type_should_only_use_enum_values(va_identifier_typ
         assert error.get('status_code') == 400
         assert len(error.get('errors')) == 1
         assert {'error': 'ValidationError',
-                'message': "va_identifier INVALID is not one of [VAPROFILEID, PID, ICN]"} in error['errors']
+                'message': "recipient_identifier INVALID is not one of [VAPROFILEID, PID, ICN]"} in error['errors']
 
 
 def valid_email_response():

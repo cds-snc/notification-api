@@ -17,11 +17,11 @@ def upgrade():
     op.create_table(
         'recipient_identifiers',
         sa.Column('notification_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('va_identifier_type', sa.Enum('VAPROFILEID', 'PID', 'ICN', name='va_identifier_types'),
+        sa.Column('id_type', sa.Enum('VAPROFILEID', 'PID', 'ICN', name='id_types'),
                   nullable=False),
-        sa.Column('va_identifier_value', sa.String(), nullable=False),
+        sa.Column('id_value', sa.String(), nullable=False),
         sa.ForeignKeyConstraint(['notification_id'], ['notifications.id'], ondelete='CASCADE'),
-        sa.PrimaryKeyConstraint('notification_id', 'va_identifier_type', 'va_identifier_value')
+        sa.PrimaryKeyConstraint('notification_id', 'id_type', 'id_value')
     )
 
 

@@ -222,7 +222,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         client_reference=form.get('reference', None),
         simulated=simulated,
         reply_to_text=reply_to_text,
-        recipient_identifier=form.get('va_identifier', None)
+        recipient_identifier=form.get('recipient_identifier', None)
     )
 
     scheduled_for = form.get("scheduled_for", None)
@@ -256,12 +256,12 @@ def process_notification_with_recipient_identifier(*, form, notification_type, a
         key_type=api_key.key_type,
         client_reference=form.get('reference', None),
         reply_to_text=reply_to_text,
-        recipient_identifier=form.get('va_identifier', None)
+        recipient_identifier=form.get('recipient_identifier', None)
     )
 
     send_to_queue_for_recipient_info_based_on_recipient_identifier(
         notification=notification,
-        va_identifier_type=form['va_identifier']['id_type']
+        id_type=form['recipient_identifier']['id_type']
     )
 
     return notification

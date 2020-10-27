@@ -1919,7 +1919,7 @@
 			"response": []
 		},
 		{
-			"name": "send sms with va_identifier",
+			"name": "send sms with recipient_identifier",
 			"event": [
 				{
 					"listen": "prerequest",
@@ -2014,7 +2014,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"va_identifier\": {\n        \"id_type\": \"VAPROFILEID\",\n        \"value\": \"example\"\n    }\n}"
+					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"recipient_identifier\": {\n        \"id_type\": \"VAPROFILEID\",\n        \"id_value\": \"example\"\n    }\n}"
 				},
 				"url": {
 					"raw": "https://{{notification-api-url}}/v2/notifications/sms",
@@ -2146,7 +2146,7 @@
 			"response": []
 		},
 		{
-			"name": "send email with va_identifier",
+			"name": "send email with recipient_identifier",
 			"event": [
 				{
 					"listen": "prerequest",
@@ -2240,7 +2240,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"va_identifier\": {\n        \"id_type\": \"VAPROFILEID\",\n        \"value\": \"example\"\n    }\n}"
+					"raw": "{\n    \"template_id\": \"{{template-id}}\",\n    \"recipient_identifier\": {\n        \"id_type\": \"VAPROFILEID\",\n        \"id_value\": \"example\"\n    }\n}"
 				},
 				"url": {
 					"raw": "https://{{notification-api-url}}/v2/notifications/email",

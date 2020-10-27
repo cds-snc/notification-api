@@ -557,12 +557,12 @@ def test_persist_notification_persists_recipient_identifiers(
     assert RecipientIdentifier.query.get((notification.id, id_type, id_value)) \
         .notification_id == notification.id
     assert RecipientIdentifier.query.get((notification.id, id_type, id_value)) \
-        .va_identifier_type == id_type
+        .id_type == id_type
     assert RecipientIdentifier.query.get((notification.id, id_type, id_value)) \
-        .va_identifier_value == id_value
+        .id_value == id_value
 
-    assert notification.recipient_identifiers[id_type].va_identifier_value == id_value
-    assert notification.recipient_identifiers[id_type].va_identifier_type == id_type
+    assert notification.recipient_identifiers[id_type].id_value == id_value
+    assert notification.recipient_identifiers[id_type].id_type == id_type
 
 
 @pytest.mark.parametrize('recipient_identifiers_enabled, recipient_identifier', [

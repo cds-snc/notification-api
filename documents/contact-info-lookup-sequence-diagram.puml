@@ -25,7 +25,7 @@ activate api
 note right of consumer
   ""{""
   ""  templated_id: abcd""
-  ""  va_identifier: {""
+  ""  recipient_identifier: {""
   ""    id_type: ICN""
   ""    value: efgh""
   ""  }""

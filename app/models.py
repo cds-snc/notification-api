@@ -1427,7 +1427,7 @@ class Notification(db.Model):
     """)
 
     recipient_identifiers = db.relationship('RecipientIdentifier',
-                                            collection_class=attribute_mapped_collection('va_identifier_type'),
+                                            collection_class=attribute_mapped_collection('id_type'),
                                             cascade='all, delete-orphan')
 
     __table_args__ = (
@@ -1729,7 +1729,7 @@ VA_PROFILE_ID = 'VAPROFILEID'
 PID = 'PID'
 ICN = 'ICN'
 
-VA_IDENTIFIER_TYPES = [
+RECIPIENT_IDENTIFIER_TYPES = [
     VA_PROFILE_ID,
     PID,
     ICN
@@ -1740,12 +1740,12 @@ class RecipientIdentifier(db.Model):
     __tablename__ = 'recipient_identifiers'
     notification_id = db.Column(UUID(as_uuid=True), db.ForeignKey('notifications.id', ondelete="cascade"),
                                 primary_key=True, nullable=False)
-    va_identifier_type = db.Column(
-        db.Enum(*VA_IDENTIFIER_TYPES, name='va_identifier_types'),
+    id_type = db.Column(
+        db.Enum(*RECIPIENT_IDENTIFIER_TYPES, name='id_types'),
         primary_key=True,
         nullable=False,
         default=VA_PROFILE_ID)
-    va_identifier_value = db.Column(db.String, primary_key=True, nullable=False)
+    id_value = db.Column(db.String, primary_key=True, nullable=False)
 
 
 INVITE_PENDING = 'pending'
