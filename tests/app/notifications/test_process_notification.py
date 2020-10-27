@@ -540,7 +540,7 @@ def test_persist_notification_persists_recipient_identifiers(
         'app.notifications.process_notifications.accept_recipient_identifiers_enabled',
         return_value=True
     )
-    recipient_identifier = {'id_type': id_type, 'value': id_value}
+    recipient_identifier = {'id_type': id_type, 'id_value': id_value}
     notification = persist_notification(
         template_id=sample_job.template.id,
         template_version=sample_job.template.version,

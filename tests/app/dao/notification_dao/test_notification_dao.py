@@ -612,7 +612,7 @@ def test_should_delete_recipient_identifiers_if_notification_deleted(
         'app.notifications.process_notifications.accept_recipient_identifiers_enabled',
         return_value=True
     )
-    recipient_identifier = {'id_type': VA_PROFILE_ID, 'value': 'foo'}
+    recipient_identifier = {'id_type': VA_PROFILE_ID, 'id_value': 'foo'}
     notification = persist_notification(
         template_id=sample_job.template.id,
         template_version=sample_job.template.version,
@@ -625,14 +625,14 @@ def test_should_delete_recipient_identifiers_if_notification_deleted(
         recipient_identifier=recipient_identifier
     )
     assert RecipientIdentifier.query.get(
-        (notification.id, recipient_identifier['id_type'], recipient_identifier['value'])) \
+        (notification.id, recipient_identifier['id_type'], recipient_identifier['id_value'])) \
         .notification_id == notification.id
 
     dao_delete_notification_by_id(notification.id)
 
     assert Notification.query.get(notification.id) is None
     assert RecipientIdentifier.query.get(
-        (notification.id, recipient_identifier['id_type'], recipient_identifier['value'])) is None
+        (notification.id, recipient_identifier['id_type'], recipient_identifier['id_value'])) is None
 
 
 def test_should_delete_notification_and_ignore_history_for_research_mode(sample_template):

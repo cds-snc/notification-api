@@ -102,7 +102,7 @@ def persist_notification(
         _recipient_identifier = RecipientIdentifier(
             notification_id=notification_id,
             id_type=recipient_identifier['id_type'],
-            id_value=recipient_identifier['value']
+            id_value=recipient_identifier['id_value']
         )
         notification.recipient_identifiers.set(_recipient_identifier)
 
