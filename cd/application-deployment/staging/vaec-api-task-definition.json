@@ -37,6 +37,10 @@
                 {
                     "name": "GRANICUS_URL",
                     "value": "https://stage-tms.govdelivery.com"
+                },
+                {
+                    "name": "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED",
+                    "value": "False"
                 }
             ],
             "secrets": [{

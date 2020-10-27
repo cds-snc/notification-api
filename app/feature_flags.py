@@ -11,4 +11,4 @@ def is_provider_enabled(current_app, provider_identifier):
 
 
 def accept_recipient_identifiers_enabled(current_app):
-    return current_app.config.get('ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED')
+    return current_app.config.get('ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED', False)

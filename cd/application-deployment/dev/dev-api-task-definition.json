@@ -43,6 +43,10 @@
                 "value": "https://tms.govdelivery.com"
             },
             {
+                "name": "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED",
+                "value": "True"
+            },
+            {
                 "name": "NOTIFY_EMAIL_DOMAIN",
                 "value": "public.govdelivery.com"
             },

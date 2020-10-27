@@ -37,6 +37,10 @@
         {
           "name": "AWS_REGION",
           "value": "us-gov-west-1"
+        },
+        {
+          "name": "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED",
+          "value": "False"
         }
       ],
       "secrets": [
