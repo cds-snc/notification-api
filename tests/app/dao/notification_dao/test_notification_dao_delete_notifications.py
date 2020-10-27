@@ -11,8 +11,8 @@ from app.dao.notifications_dao import (
     delete_notifications_older_than_retention_by_type,
     insert_update_notification_history
 )
-from app.dao.recipient_identifiers_dao import persist_recipient_identifiers
-from app.models import Notification, NotificationHistory, VA_PROFILE_ID, RecipientIdentifier
+from app.models import Notification, NotificationHistory, VA_PROFILE_ID, RecipientIdentifier, SMS_TYPE, EMAIL_TYPE
+from app.notifications.process_notifications import persist_notification
 from tests.app.db import (
     create_template,
     create_notification,
@@ -107,44 +107,52 @@ def test_should_delete_notifications_by_type_after_seven_days(
 @pytest.mark.parametrize('month, delete_run_time',
                          [(4, '2016-04-10 23:40'), (1, '2016-01-11 00:40')])
 @pytest.mark.parametrize(
-    'notification_type, expected_sms_count, expected_email_count',
-    [('sms', 7, 10),
-     ('email', 10, 7)]
+    'notification_type, expected_count',
+    [(SMS_TYPE, 7),
+     (EMAIL_TYPE, 7)]
 )
 def test_should_delete_notification_and_recipient_identifiers_when_bulk_deleting(
-        sample_service,
         month,
         delete_run_time,
         notification_type,
-        expected_sms_count,
-        expected_email_count,
+        expected_count,
+        sample_job,
+        sample_api_key,
+        mocker
 ):
-    email_template, letter_template, sms_template = _create_templates(sample_service)
-    form = {"va_identifier": {"id_type": VA_PROFILE_ID, "value": "foo"}}
+    mocker.patch(
+        'app.notifications.process_notifications.accept_recipient_identifiers_enabled',
+        return_value=True
+    )
     # create one notification a day between 1st and 10th from 11:00 to 19:00 of each type
     for i in range(1, 11):
         past_date = '2016-0{0}-{1:02d}  {1:02d}:00:00.000000'.format(month, i)
         with freeze_time(past_date):
-            notification = create_notification(template=email_template, created_at=datetime.utcnow(),
-                                               status="permanent-failure")
-            persist_recipient_identifiers(notification.id, form)
-            notification = create_notification(template=sms_template, created_at=datetime.utcnow(), status="delivered")
-            persist_recipient_identifiers(notification.id, form)
+            recipient_identifier = {"id_type": VA_PROFILE_ID, "value": "foo"}
+            persist_notification(
+                template_id=sample_job.template.id,
+                template_version=sample_job.template.version,
+                service=sample_job.service,
+                personalisation=None,
+                notification_type=notification_type,
+                api_key_id=sample_api_key.id,
+                key_type=sample_api_key.key_type,
+                recipient_identifier=recipient_identifier,
+                created_at=datetime.utcnow()
+            )
 
-    assert Notification.query.count() == 20
-    assert RecipientIdentifier.query.count() == 20
+    assert Notification.query.count() == 10
+    assert RecipientIdentifier.query.count() == 10
 
     # Records from before 3rd should be deleted
     with freeze_time(delete_run_time):
         delete_notifications_older_than_retention_by_type(notification_type)
 
-    remaining_sms_notifications = Notification.query.filter_by(notification_type='sms').all()
-    remaining_email_notifications = Notification.query.filter_by(notification_type='email').all()
-    assert len(remaining_sms_notifications) == expected_sms_count
-    assert len(remaining_email_notifications) == expected_email_count
+    remaining_notifications = Notification.query.filter_by(notification_type=notification_type).all()
+    assert len(remaining_notifications) == expected_count
 
     remaining_recipient_identifiers = len(RecipientIdentifier.query.all())
-    assert remaining_recipient_identifiers == expected_email_count + expected_sms_count
+    assert remaining_recipient_identifiers == expected_count
 
 
 @freeze_time("2016-01-10 12:00:00.000000")

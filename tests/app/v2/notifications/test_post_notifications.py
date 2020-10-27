@@ -11,9 +11,7 @@ from app.models import (
     SCHEDULE_NOTIFICATIONS,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
-    INTERNATIONAL_SMS_TYPE,
-    VA_PROFILE_ID,
-    RecipientIdentifier)
+    INTERNATIONAL_SMS_TYPE)
 from flask import json, current_app
 
 from app.models import Notification
@@ -367,82 +365,6 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
     apply_async.assert_not_called()
     assert json.loads(response.get_data(as_text=True))["id"]
     assert Notification.query.count() == 0
-    assert RecipientIdentifier.query.count() == 0
-
-
-@pytest.mark.parametrize('notification_type', [
-    (EMAIL_TYPE),
-    (SMS_TYPE),
-])
-def test_should_persist_notification_without_recipient(
-        client,
-        sample_template,
-        sample_email_template,
-        notification_type,
-        sample_email_template_with_placeholders,
-        mocker):
-    mocker.patch(
-        'app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled',
-        return_value=True
-    )
-    mocked_lookup_contact_info = mocker.patch(
-        'app.celery.contact_information_tasks.lookup_contact_info.apply_async')
-    data = {
-        "va_identifier": {
-            "id_type": VA_PROFILE_ID,
-            "value": "foo"
-        },
-        "template_id": sample_template.id if notification_type == SMS_TYPE else sample_email_template.id,
-        "personalisation": {"name": "Bob"}
-    }
-
-    auth_header = create_authorization_header(service_id=sample_email_template_with_placeholders.service_id)
-    response = client.post(
-        path='/v2/notifications/{}'.format(notification_type),
-        data=json.dumps(data),
-        headers=[('Content-Type', 'application/json'), auth_header])
-
-    assert response.status_code == 201
-    assert json.loads(response.get_data(as_text=True))["id"]
-    notification_id = json.loads(response.data)['id']
-    assert Notification.query.count() == 1
-    assert RecipientIdentifier.query.count() == 1
-    mocked_lookup_contact_info.assert_called_once_with([notification_id], queue='lookup-contact-info-tasks')
-
-
-def test_should_send_notification_to_recipient_when_both_recipient_and_va_identifier_present(
-        client,
-        sample_template,
-        sample_email_template,
-        sample_email_template_with_placeholders,
-        mocker):
-    mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
-    data = {
-        "email_address": "test@email.com",
-        "va_identifier": {
-            "id_type": VA_PROFILE_ID,
-            "value": "foo"
-        },
-        "template_id": sample_email_template.id,
-        "personalisation": {"name": "Bob"}
-    }
-
-    auth_header = create_authorization_header(service_id=sample_email_template_with_placeholders.service_id)
-    response = client.post(
-        path='/v2/notifications/email',
-        data=json.dumps(data),
-        headers=[('Content-Type', 'application/json'), auth_header])
-
-    assert response.status_code == 201
-    notification = Notification.query.one()
-    assert notification.status == NOTIFICATION_CREATED
-    assert json.loads(response.get_data(as_text=True))["id"]
-    assert Notification.query.count() == 1
-    assert RecipientIdentifier.query.count() == 1
-
-    mocked_lookup_contact_info = mocker.patch(
-        'app.celery.contact_information_tasks.lookup_contact_info.apply_async')
-    mocked_lookup_contact_info.assert_not_called()
 
 
 @pytest.mark.parametrize("notification_type, key_send_to, send_to",

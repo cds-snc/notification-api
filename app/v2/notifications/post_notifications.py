@@ -11,7 +11,6 @@ from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.notifications_dao import update_notification_status_by_reference
-from app.dao.recipient_identifiers_dao import persist_recipient_identifiers
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.feature_flags import accept_recipient_identifiers_enabled
 from app.letters.utils import upload_letter_pdf
@@ -149,7 +148,6 @@ def post_notification(notification_type):
                 service=authenticated_service,
                 reply_to_text=reply_to
             )
-            persist_recipient_identifiers(notification.id, form)
         else:
             if accept_recipient_identifiers_enabled(current_app):
                 notification = lookup_contact_information(
@@ -223,7 +221,8 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         key_type=api_key.key_type,
         client_reference=form.get('reference', None),
         simulated=simulated,
-        reply_to_text=reply_to_text
+        reply_to_text=reply_to_text,
+        recipient_identifier=form.get('va_identifier', None)
     )
 
     scheduled_for = form.get("scheduled_for", None)
@@ -255,10 +254,9 @@ def lookup_contact_information(*, form, notification_type, api_key, template, se
         api_key_id=api_key.id,
         key_type=api_key.key_type,
         client_reference=form.get('reference', None),
-        reply_to_text=reply_to_text
+        reply_to_text=reply_to_text,
+        recipient_identifier=form.get('va_identifier', None)
     )
-
-    persist_recipient_identifiers(notification.id, form)
 
     send_to_lookup_contact_information_queue(
         notification=notification,

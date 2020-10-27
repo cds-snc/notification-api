@@ -49,8 +49,10 @@ from app.models import (
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
-    JOB_STATUS_IN_PROGRESS
-)
+    JOB_STATUS_IN_PROGRESS,
+    VA_PROFILE_ID,
+    RecipientIdentifier)
+from app.notifications.process_notifications import persist_notification
 from tests.app.db import (
     create_job,
     create_notification,
@@ -598,6 +600,39 @@ def test_should_delete_notification_for_id(sample_template):
     dao_delete_notification_by_id(notification.id)
 
     assert Notification.query.count() == 0
+
+
+def test_should_delete_recipient_identifiers_if_notification_deleted(
+        notify_db,
+        sample_job,
+        sample_api_key,
+        mocker
+):
+    mocker.patch(
+        'app.notifications.process_notifications.accept_recipient_identifiers_enabled',
+        return_value=True
+    )
+    recipient_identifier = {'id_type': VA_PROFILE_ID, 'value': 'foo'}
+    notification = persist_notification(
+        template_id=sample_job.template.id,
+        template_version=sample_job.template.version,
+        service=sample_job.service,
+        personalisation=None,
+        notification_type='email',
+        api_key_id=sample_api_key.id,
+        key_type=sample_api_key.key_type,
+        job_id=sample_job.id,
+        recipient_identifier=recipient_identifier
+    )
+    assert RecipientIdentifier.query.get(
+        (notification.id, recipient_identifier['id_type'], recipient_identifier['value'])) \
+        .notification_id == notification.id
+
+    dao_delete_notification_by_id(notification.id)
+
+    assert Notification.query.get(notification.id) is None
+    assert RecipientIdentifier.query.get(
+        (notification.id, recipient_identifier['id_type'], recipient_identifier['value'])) is None
 
 
 def test_should_delete_notification_and_ignore_history_for_research_mode(sample_template):

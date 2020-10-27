@@ -16,7 +16,9 @@ from app.models import (
     EMAIL_TYPE,
     VA_PROFILE_ID,
     SMS_TYPE,
-    ICN)
+    ICN,
+    PID,
+    RecipientIdentifier)
 from app.notifications.process_notifications import (
     create_content_for_notification,
     persist_notification,
@@ -515,6 +517,86 @@ def test_persist_notification_with_billable_units_stores_correct_info(
     persisted_notification = Notification.query.all()[0]
 
     assert persisted_notification.billable_units == 3
+
+
+@pytest.mark.parametrize('notification_type', [
+    EMAIL_TYPE,
+    SMS_TYPE,
+])
+@pytest.mark.parametrize('id_type, id_value',
+                         [(VA_PROFILE_ID, 'some va profile id'),
+                          (PID, 'some pid'),
+                          (ICN, 'some icn')])
+def test_persist_notification_persists_recipient_identifiers(
+        notify_db,
+        notification_type,
+        id_type,
+        id_value,
+        sample_job,
+        sample_api_key,
+        mocker
+):
+    mocker.patch(
+        'app.notifications.process_notifications.accept_recipient_identifiers_enabled',
+        return_value=True
+    )
+    recipient_identifier = {'id_type': id_type, 'value': id_value}
+    notification = persist_notification(
+        template_id=sample_job.template.id,
+        template_version=sample_job.template.version,
+        service=sample_job.service,
+        personalisation=None,
+        notification_type=notification_type,
+        api_key_id=sample_api_key.id,
+        key_type=sample_api_key.key_type,
+        job_id=sample_job.id,
+        recipient_identifier=recipient_identifier
+    )
+
+    assert RecipientIdentifier.query.count() == 1
+    assert RecipientIdentifier.query.get((notification.id, id_type, id_value)) \
+        .notification_id == notification.id
+    assert RecipientIdentifier.query.get((notification.id, id_type, id_value)) \
+        .va_identifier_type == id_type
+    assert RecipientIdentifier.query.get((notification.id, id_type, id_value)) \
+        .va_identifier_value == id_value
+
+    assert notification.recipient_identifiers[id_type].va_identifier_value == id_value
+    assert notification.recipient_identifiers[id_type].va_identifier_type == id_type
+
+
+@pytest.mark.parametrize('recipient_identifiers_enabled, recipient_identifier', [
+    (True, None),
+    (False, {'id_type': VA_PROFILE_ID, 'id_value': 'foo'}),
+    (False, None)
+])
+def test_persist_notification_should_not_persist_recipient_identifier_if_none_present_or_toggle_off(
+        notify_db,
+        recipient_identifiers_enabled,
+        recipient_identifier,
+        sample_job,
+        sample_api_key,
+        mocker
+):
+    mocker.patch(
+        'app.notifications.process_notifications.accept_recipient_identifiers_enabled',
+        return_value=recipient_identifiers_enabled
+    )
+
+    notification = persist_notification(
+        template_id=sample_job.template.id,
+        template_version=sample_job.template.version,
+        service=sample_job.service,
+        personalisation=None,
+        notification_type='email',
+        api_key_id=sample_api_key.id,
+        key_type=sample_api_key.key_type,
+        job_id=sample_job.id,
+        recipient_identifier=recipient_identifier
+    )
+
+    assert RecipientIdentifier.query.count() == 0
+    assert notification.recipient_identifiers == {}
 
 
 @pytest.mark.parametrize('notification_type', [EMAIL_TYPE, SMS_TYPE])

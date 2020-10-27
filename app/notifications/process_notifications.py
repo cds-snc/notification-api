@@ -15,6 +15,7 @@ from app import redis_store
 from app.celery import provider_tasks, contact_information_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
+from app.feature_flags import accept_recipient_identifiers_enabled
 
 from app.models import (
     EMAIL_TYPE,
@@ -24,7 +25,8 @@ from app.models import (
     NOTIFICATION_CREATED,
     Notification,
     ScheduledNotification,
-    VA_PROFILE_ID)
+    VA_PROFILE_ID,
+    RecipientIdentifier)
 from app.dao.notifications_dao import (
     dao_create_notification,
     dao_delete_notification_by_id,
@@ -69,7 +71,8 @@ def persist_notification(
     reply_to_text=None,
     billable_units=None,
     postage=None,
-    template_postage=None
+    template_postage=None,
+    recipient_identifier=None
 ):
     notification_created_at = created_at or datetime.utcnow()
     if not notification_id:
@@ -95,6 +98,13 @@ def persist_notification(
         reply_to_text=reply_to_text,
         billable_units=billable_units
     )
+    if accept_recipient_identifiers_enabled(current_app) and recipient_identifier:
+        _recipient_identifier = RecipientIdentifier(
+            notification_id=notification_id,
+            va_identifier_type=recipient_identifier['id_type'],
+            va_identifier_value=recipient_identifier['value']
+        )
+        notification.recipient_identifiers.set(_recipient_identifier)
 
     if notification_type == SMS_TYPE and notification.to:
         formatted_recipient = validate_and_format_phone_number(recipient, international=True)
