@@ -169,7 +169,7 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(notification,
         task = contact_information_tasks.lookup_va_profile_id
 
     try:
-        task.apply_async([str(notification.id)], queue=queue)
+        task.apply_async([notification.id], queue=queue)
     except Exception:
         dao_delete_notification_by_id(notification.id)
         raise
