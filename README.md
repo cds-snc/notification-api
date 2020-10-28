@@ -160,6 +160,10 @@ Note:
 
 `flask run -p 6011 --host=0.0.0.0`
 
+Note: When running locally, you can block all tasks from executing locally by blocking until the task returns. 
+To use this, you need to set celery to always eager by setting `'task_always_eager': True` in `config.py` 
+`CELERY_SETTINGS`. Do not commit this change.
+
 14a. To test
 
 `pip3 install -r requirements_for_test.txt`
