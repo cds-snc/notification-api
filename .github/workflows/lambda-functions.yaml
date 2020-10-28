@@ -2,8 +2,8 @@ name:  Build Lambda Functions
 
 on:
   push:
-    branches-ignore:
-      - '**'
+    branches:
+      - master
     paths:
       - 'user_flows/**.py'
       - 'lambda_functions/user_flows/*'
