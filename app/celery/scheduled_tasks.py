@@ -102,7 +102,12 @@ def switch_current_sms_provider_on_slow_delivery():
     Switch providers if at least 30% of notifications took more than four minutes to be delivered
     in the last ten minutes. Search from the time we last switched to the current provider.
     """
+    if not current_app.config['SWITCH_SLOW_SMS_PROVIDER_ENABLED']:
+        current_app.logger.info("Feature SWITCH_SLOW_SMS_PROVIDER is Diabled.")
+        return
     current_provider = get_current_provider('sms')
+    # TODO: If no provider changes the below lines throws error:
+    #   TypeError: '>' not supported between instances of 'NoneType' and 'datetime.datetime'
     if current_provider.updated_at > datetime.utcnow() - timedelta(minutes=10):
         current_app.logger.info("Slow delivery notifications provider switched less than 10 minutes ago.")
         return

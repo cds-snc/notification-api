@@ -20,7 +20,7 @@
             }],
             "environment": [{
                     "name": "NOTIFY_ENVIRONMENT",
-                    "value": "production"
+                    "value": "staging"
                 },
                 {
                     "name": "FLASK_APP",
@@ -35,8 +35,16 @@
                     "value": "us-gov-west-1"
                 },
                 {
+                    "name": "STATSD_HOST",
+                    "value": "localhost"
+                },
+                {
                     "name": "GRANICUS_URL",
                     "value": "https://stage-tms.govdelivery.com"
+                },
+                {
+                    "name": "NOTIFY_EMAIL_FROM",
+                    "value": "stage-notifications"
                 },
                 {
                     "name": "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED",

@@ -53,3 +53,11 @@ fileignoreconfig:
       checksum: 57b04f1806590423bbf4b48c1cc80c900aa77a51bb53acc5d0efe889f0972600
     - filename: Brewfile.lock.json
       checksum: a7a52a240fe957c16eff861e45b975704f05c3eb4b1299d568615ba5bef95350
+    - filename: .github/workflows/dev-ci.yaml
+      checksum: 3d8287c7d3bcd51024b2a3011e3d29a3cbc74753723a0ec86ef2827b24b99ba7
+    - filename: .github/workflows/lambda-functions.yaml
+      checksum: 98e291f97aaf0057998260270ff95649713fa35c718bb51f3042cc9ca59afd25
+    - filename: .github/workflows/twistlock.yaml
+      checksum: b36d728f5bd34baec7e0447d14d17db4a84cfa886eee5b6c739c9f4865b9446b
+    - filename: lambda_functions/user_flows/va-internal-cert-chain.pem
+      checksum: b275bb504d07e20888d222c31f12246b79aa554bea84c4d3028f110b0f9d473c

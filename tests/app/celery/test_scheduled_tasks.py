@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from tests.conftest import set_config_values
 from unittest.mock import call
 
 import pytest
@@ -39,6 +40,10 @@ from tests.app.db import (
     create_job,
 )
 from tests.app.conftest import sample_job as create_sample_job
+
+SEND_TASK_MOCK_PATH = 'app.celery.tasks.notify_celery.send_task'
+LOGGER_EXCEPTION_MOCK_PATH = 'app.celery.tasks.current_app.logger.exception'
+ZENDEKS_CLIENT_CRREATE_TICKET_MOCK_PATH = 'app.celery.nightly_tasks.zendesk_client.create_ticket'
 
 
 def _create_slow_delivery_notification(template, provider='sns'):
@@ -138,18 +143,43 @@ def test_switch_providers_on_slow_delivery_switches_once_then_does_not_switch_if
     _create_slow_delivery_notification(sample_template, starting_provider.identifier)
     _create_slow_delivery_notification(sample_template, starting_provider.identifier)
 
-    switch_current_sms_provider_on_slow_delivery()
+    with set_config_values(notify_api, {
+        'SWITCH_SLOW_SMS_PROVIDER_ENABLED': True
+    }):
+        switch_current_sms_provider_on_slow_delivery()
 
-    new_provider = get_current_provider('sms')
-    _create_slow_delivery_notification(sample_template, new_provider.identifier)
-    _create_slow_delivery_notification(sample_template, new_provider.identifier)
-    switch_current_sms_provider_on_slow_delivery()
+        new_provider = get_current_provider('sms')
+        _create_slow_delivery_notification(sample_template, new_provider.identifier)
+        _create_slow_delivery_notification(sample_template, new_provider.identifier)
+        switch_current_sms_provider_on_slow_delivery()
 
     final_provider = get_current_provider('sms')
 
     assert new_provider.identifier != starting_provider.identifier
     assert new_provider.priority < starting_provider.priority
     assert final_provider.identifier == new_provider.identifier
+
+
+def test_switch_providers_on_slow_delivery_does_nothing_if_toggle_is_off(
+    notify_api,
+    mocker,
+    prepare_current_provider,
+    sample_user,
+    sample_template
+):
+    mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user)
+    starting_provider = get_current_provider('sms')
+
+    _create_slow_delivery_notification(sample_template, starting_provider.identifier)
+    _create_slow_delivery_notification(sample_template, starting_provider.identifier)
+
+    with set_config_values(notify_api, {
+        'SWITCH_SLOW_SMS_PROVIDER_ENABLED': False
+    }):
+        switch_current_sms_provider_on_slow_delivery()
+
+    new_provider = get_current_provider('sms')
+    assert new_provider.identifier == starting_provider.identifier
 
 
 @freeze_time("2017-05-01 14:00:00")
@@ -171,7 +201,7 @@ def test_should_send_all_scheduled_notifications_to_deliver_queue(sample_templat
 
 
 def test_check_job_status_task_raises_job_incomplete_error(mocker, sample_template):
-    mock_celery = mocker.patch('app.celery.tasks.notify_celery.send_task')
+    mock_celery = mocker.patch(SEND_TASK_MOCK_PATH)
     job = create_job(template=sample_template, notification_count=3,
                      created_at=datetime.utcnow() - timedelta(minutes=31),
                      processing_started=datetime.utcnow() - timedelta(minutes=31),
@@ -189,7 +219,7 @@ def test_check_job_status_task_raises_job_incomplete_error(mocker, sample_templa
 
 
 def test_check_job_status_task_raises_job_incomplete_error_when_scheduled_job_is_not_complete(mocker, sample_template):
-    mock_celery = mocker.patch('app.celery.tasks.notify_celery.send_task')
+    mock_celery = mocker.patch(SEND_TASK_MOCK_PATH)
     job = create_job(template=sample_template, notification_count=3,
                      created_at=datetime.utcnow() - timedelta(hours=2),
                      scheduled_for=datetime.utcnow() - timedelta(minutes=31),
@@ -207,7 +237,7 @@ def test_check_job_status_task_raises_job_incomplete_error_when_scheduled_job_is
 
 
 def test_check_job_status_task_raises_job_incomplete_error_for_multiple_jobs(mocker, sample_template):
-    mock_celery = mocker.patch('app.celery.tasks.notify_celery.send_task')
+    mock_celery = mocker.patch(SEND_TASK_MOCK_PATH)
     job = create_job(template=sample_template, notification_count=3,
                      created_at=datetime.utcnow() - timedelta(hours=2),
                      scheduled_for=datetime.utcnow() - timedelta(minutes=31),
@@ -231,7 +261,7 @@ def test_check_job_status_task_raises_job_incomplete_error_for_multiple_jobs(moc
 
 
 def test_check_job_status_task_only_sends_old_tasks(mocker, sample_template):
-    mock_celery = mocker.patch('app.celery.tasks.notify_celery.send_task')
+    mock_celery = mocker.patch(SEND_TASK_MOCK_PATH)
     job = create_job(
         template=sample_template,
         notification_count=3,
@@ -261,7 +291,7 @@ def test_check_job_status_task_only_sends_old_tasks(mocker, sample_template):
 
 
 def test_check_job_status_task_sets_jobs_to_error(mocker, sample_template):
-    mock_celery = mocker.patch('app.celery.tasks.notify_celery.send_task')
+    mock_celery = mocker.patch(SEND_TASK_MOCK_PATH)
     job = create_job(
         template=sample_template,
         notification_count=3,
@@ -342,8 +372,8 @@ def test_check_job_status_task_does_not_raise_error(sample_template):
 
 @freeze_time("2019-05-30 14:00:00")
 def test_check_precompiled_letter_state(mocker, sample_letter_template):
-    mock_logger = mocker.patch('app.celery.tasks.current_app.logger.exception')
-    mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
+    mock_logger = mocker.patch(LOGGER_EXCEPTION_MOCK_PATH)
+    mock_create_ticket = mocker.patch(ZENDEKS_CLIENT_CRREATE_TICKET_MOCK_PATH)
 
     create_notification(template=sample_letter_template,
                         status=NOTIFICATION_PENDING_VIRUS_CHECK,
@@ -374,8 +404,8 @@ def test_check_precompiled_letter_state(mocker, sample_letter_template):
 @freeze_time("2019-05-30 14:00:00")
 @pytest.mark.skip(reason="Letter feature")
 def test_check_templated_letter_state_during_bst(mocker, sample_letter_template):
-    mock_logger = mocker.patch('app.celery.tasks.current_app.logger.exception')
-    mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
+    mock_logger = mocker.patch(LOGGER_EXCEPTION_MOCK_PATH)
+    mock_create_ticket = mocker.patch(ZENDEKS_CLIENT_CRREATE_TICKET_MOCK_PATH)
 
     noti_1 = create_notification(template=sample_letter_template, updated_at=datetime(2019, 5, 1, 12, 0))
     noti_2 = create_notification(template=sample_letter_template, updated_at=datetime(2019, 5, 29, 16, 29))
@@ -400,8 +430,8 @@ def test_check_templated_letter_state_during_bst(mocker, sample_letter_template)
 @freeze_time("2019-01-30 14:00:00")
 @pytest.mark.skip(reason="Letter feature")
 def test_check_templated_letter_state_during_utc(mocker, sample_letter_template):
-    mock_logger = mocker.patch('app.celery.tasks.current_app.logger.exception')
-    mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
+    mock_logger = mocker.patch(LOGGER_EXCEPTION_MOCK_PATH)
+    mock_create_ticket = mocker.patch(ZENDEKS_CLIENT_CRREATE_TICKET_MOCK_PATH)
 
     noti_1 = create_notification(template=sample_letter_template, updated_at=datetime(2018, 12, 1, 12, 0))
     noti_2 = create_notification(template=sample_letter_template, updated_at=datetime(2019, 1, 29, 17, 29))

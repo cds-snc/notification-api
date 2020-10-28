@@ -39,6 +39,10 @@
           "value": "us-gov-west-1"
         },
         {
+            "name": "STATSD_HOST",
+            "value": "localhost"
+        },
+        {
           "name": "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED",
           "value": "False"
         }

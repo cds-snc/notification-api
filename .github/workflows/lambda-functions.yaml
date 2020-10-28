@@ -1,0 +1,47 @@
+name:  Build Lambda Functions
+
+on:
+  push:
+    paths:
+      - 'user_flows/**.py'
+      - 'lambda_functions/user_flows/*'
+      - '.github/workflows/lambda-functions.yaml'
+
+env:
+  tf_version: 0.12.29
+  AWS_ACCESS_KEY_ID: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+
+jobs:
+  deploy-user-flows-lambda:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: './lambda_functions/user_flows'
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.deployment.ref }}
+
+      - name: Configure VAEC AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: us-gov-west-1
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-skip-session-tagging: true
+          role-duration-seconds: 900
+
+      - name: Install and package dependencies
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install -r ../../requirements_for_user_flows.txt
+          deactivate
+          cat va-internal-cert-chain.pem >> ./venv/lib/python3.6/site-packages/certifi/cacert.pem
+          cd venv/lib/python3.6/site-packages
+          zip -r9 ../../../../user_flows_lambda.zip .
+
+      - name: Package and deploy lambda function
+        run: |
+          zip -ug user_flows_lambda.zip user_flows_lambda.py steps.py test_retrieve_everything.py conftest.py
+          aws lambda update-function-code --function-name project-user-flows-lambda --zip-file fileb://user_flows_lambda.zip

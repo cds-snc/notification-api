@@ -395,6 +395,7 @@ class Config(object):
     GOVDELIVERY_EMAIL_CLIENT_ENABLED = True
     API_RATE_LIMIT_ENABLED = False
     API_MESSAGE_LIMIT_ENABLED = False
+    SWITCH_SLOW_SMS_PROVIDER_ENABLED = False
     ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED = os.getenv('ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED', False)
 
 
@@ -421,7 +422,6 @@ class Development(Config):
     MMG_INBOUND_SMS_AUTH = ['testkey']
     MMG_INBOUND_SMS_USERNAME = ['username']
 
-    NOTIFY_ENVIRONMENT = 'development'
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "vanotify-")
 
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", 'postgresql://postgres@localhost/notification_api')
@@ -479,7 +479,6 @@ class Test(Development):
 
 
 class Production(Config):
-    NOTIFY_ENVIRONMENT = 'production'
     # CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'production-test-letters'
     DVLA_RESPONSE_BUCKET_NAME = 'notifications.service.gov.uk-ftp'
@@ -496,5 +495,6 @@ class Production(Config):
 configs = {
     'development': Development,
     'test': Test,
-    'production': Production,
+    'staging': Production,
+    'production': Production
 }
