@@ -12,7 +12,10 @@ from app.models import (
     SMS_TYPE,
     UPLOAD_DOCUMENT,
     INTERNATIONAL_SMS_TYPE,
-    VA_PROFILE_ID)
+    VA_PROFILE_ID,
+    RecipientIdentifier,
+    PID,
+    ICN)
 from flask import json, current_app
 
 from app.models import Notification
@@ -871,6 +874,49 @@ def test_post_notification_returns_400_when_get_json_throws_exception(client, sa
         data="[",
         headers=[('Content-Type', 'application/json'), auth_header])
     assert response.status_code == 400
+
+
+@pytest.mark.parametrize('expected_type, expected_value, task',
+                         [(VA_PROFILE_ID, 'some va profile id', 'lookup_contact_info'),
+                          (PID, 'some pid', 'lookup_va_profile_id'),
+                          (ICN, 'some icn', 'lookup_va_profile_id')])
+def test_should_process_notification_successfully_with_recipient_identifiers(
+        client,
+        mocker,
+        expected_type,
+        expected_value,
+        task,
+        sample_email_template
+):
+    mocker.patch(
+        'app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled',
+        return_value=True
+    )
+    mocker.patch(
+        'app.notifications.process_notifications.accept_recipient_identifiers_enabled',
+        return_value=True
+    )
+    mocked_task = mocker.patch(
+        'app.celery.contact_information_tasks.{}.apply_async'.format(task))
+    data = {
+        "template_id": sample_email_template.id,
+        "recipient_identifier": {'id_type': expected_type, 'id_value': expected_value}
+    }
+    auth_header = create_authorization_header(service_id=sample_email_template.service_id)
+    response = client.post(
+        path="v2/notifications/email",
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header])
+
+    assert response.status_code == 201
+    assert Notification.query.count() == 1
+    assert RecipientIdentifier.query.count() == 1
+    notification = Notification.query.one()
+    assert notification.status == NOTIFICATION_CREATED
+    assert notification.recipient_identifiers[expected_type].id_type == expected_type
+    assert notification.recipient_identifiers[expected_type].id_value == expected_value
+
+    mocked_task.assert_called_once()
 
 
 def test_post_notification_returns_501_when_recipient_identifiers_present_and_feature_flag_disabled(
