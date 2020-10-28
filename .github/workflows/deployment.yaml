@@ -166,8 +166,8 @@ jobs:
       
       - name: Get user flows test result exit code
         run: |
-          EXIT_CODE = $(cat user_flows_exit_code.txt)
-          exit $EXIT_CODE
+          cat user_flows_exit_code.txt
+          exit $?
 
   deployment-status:
     runs-on: ubuntu-latest
