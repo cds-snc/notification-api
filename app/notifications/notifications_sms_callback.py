@@ -9,13 +9,19 @@ register_errors(sms_callback_blueprint)
 
 @sms_callback_blueprint.route('/sns', methods=['POST'])
 def process_sns_response():
-    # setting provider_reference = 'send-sms-code' mocks a successful response
-    success = "{} callback succeeded: send-sms-code".format('sns')
+    # We don't valid callbacks for this provider yet, mock a reponse
+    # This would be required to record if a text is delivered or
+    # for billing purposes
+    # Look at process_client_response._process_for_status later
+    success = "sns callback succeeded: send-sms-code"
     return jsonify(result='success', message=success), 200
 
 
 @sms_callback_blueprint.route('/pinpoint', methods=['POST'])
 def process_pinpoint_response():
-    # setting provider_reference = 'send-sms-code' mocks a successful response
-    success = "{} callback succeeded: send-sms-code".format('pinpoint')
+    # We don't valid callbacks for this provider yet, mock a reponse
+    # This would be required to record if a text is delivered or
+    # for billing purposes
+    # Look at process_client_response._process_for_status later
+    success = "pinpoint callback succeeded: send-sms-code"
     return jsonify(result='success', message=success), 200

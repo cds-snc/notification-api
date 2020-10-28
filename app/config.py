@@ -334,8 +334,6 @@ class Config(object):
 
     FREE_SMS_TIER_FRAGMENT_COUNT = 250000
 
-    SMS_INBOUND_WHITELIST = json.loads(os.getenv('SMS_INBOUND_WHITELIST', '[]'))
-
     ROUTE_SECRET_KEY_1 = os.getenv('ROUTE_SECRET_KEY_1', '')
     ROUTE_SECRET_KEY_2 = os.getenv('ROUTE_SECRET_KEY_2', '')
 
@@ -433,7 +431,6 @@ class Test(Development):
     API_RATE_LIMIT_ENABLED = True
     API_HOST_NAME = "http://localhost:6011"
 
-    SMS_INBOUND_WHITELIST = ['203.0.113.195']
     TEMPLATE_PREVIEW_API_HOST = 'http://localhost:9999'
 
 

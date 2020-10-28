@@ -14,15 +14,6 @@ from app.dao.templates_dao import dao_get_template_by_id
 from app.models import NOTIFICATION_PENDING
 
 
-def validate_callback_data(data, fields, client_name):
-    errors = []
-    for f in fields:
-        if not str(data.get(f, '')):
-            error = "{} callback failed: {} missing".format(client_name, f)
-            errors.append(error)
-    return errors if len(errors) > 0 else None
-
-
 def _process_for_status(notification_status, client_name, provider_reference):
     # record stats
     notification = notifications_dao.update_notification_status_by_id(

@@ -189,7 +189,7 @@ def test_should_respect_custom_sending_domains(
     )
 
 
-@pytest.mark.parametrize("client_send", ["app.aws_sns_client.send_sms", ])
+@pytest.mark.parametrize("client_send", ["app.aws_sns_client.send_sms"])
 def test_should_not_send_sms_message_when_service_is_inactive_notifcation_is_in_tech_failure(
         sample_service, sample_notification, mocker, client_send):
     sample_service.active = False
