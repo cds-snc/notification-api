@@ -11,7 +11,10 @@ class AwsPinpointClient(SmsClient):
     '''
 
     def init_app(self, current_app, statsd_client, *args, **kwargs):
-        self._client = boto3.client('pinpoint', region_name="us-west-2")
+        self._client = boto3.client(
+            'pinpoint',
+            region_name=current_app.config['AWS_REGION']
+        )
         super(SmsClient, self).__init__(*args, **kwargs)
         self.current_app = current_app
         self.name = 'pinpoint'
