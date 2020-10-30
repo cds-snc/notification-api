@@ -98,7 +98,7 @@ def persist_notification(
         reply_to_text=reply_to_text,
         billable_units=billable_units
     )
-    if accept_recipient_identifiers_enabled(current_app) and recipient_identifier:
+    if accept_recipient_identifiers_enabled() and recipient_identifier:
         _recipient_identifier = RecipientIdentifier(
             notification_id=notification_id,
             id_type=recipient_identifier['id_type'],

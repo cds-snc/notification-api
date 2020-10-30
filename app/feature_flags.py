@@ -1,3 +1,5 @@
+import os
+
 PROVIDER_FEATURE_FLAGS = {
     'govdelivery': 'GOVDELIVERY_EMAIL_CLIENT_ENABLED'
 }
@@ -10,5 +12,8 @@ def is_provider_enabled(current_app, provider_identifier):
         return True
 
 
-def accept_recipient_identifiers_enabled(current_app):
-    return current_app.config.get('ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED', False)
+def accept_recipient_identifiers_enabled():
+    if os.getenv('ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED', 'False') == 'True':
+        return True
+    else:
+        return False

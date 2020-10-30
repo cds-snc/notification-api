@@ -149,7 +149,7 @@ def post_notification(notification_type):
                 reply_to_text=reply_to
             )
         else:
-            if accept_recipient_identifiers_enabled(current_app):
+            if accept_recipient_identifiers_enabled():
                 notification = process_notification_with_recipient_identifier(
                     form=form,
                     notification_type=notification_type,
