@@ -96,6 +96,7 @@ jobs:
       - name: Perform twistlock scan
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-vaec.outputs.registry }}
+        shell: bash {0}
         run: |
           INSTANCE_ID=$(aws ssm get-parameter --name /utility/twistlock/instance | jq '.Parameter.Value' -r)
           COMMAND_ID=$(aws ssm send-command \
