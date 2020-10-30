@@ -49,7 +49,7 @@ def test_email():
     service_jwt = get_service_jwt(service_key.json()["data"], service_id)
     email_response = send_email(service_jwt, template_id)
     if(email_response.status_code != 201):
-        print ("\n*** EMAIL REPONSE CONTENT: {response} **\n".format(response=email_response.content))
+        print("\n*** EMAIL REPONSE CONTENT: {response} **\n".format(response=email_response.content))
     assert email_response.status_code == 201
     notification_id = get_notification_id(email_response)
     time_count = 0
