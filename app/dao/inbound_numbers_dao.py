@@ -49,6 +49,11 @@ def dao_allocate_number_for_service(service_id, inbound_number_id):
 
 
 def dao_add_inbound_number(inbound_number):
-    sql = "insert into inbound_numbers values('{}', '{}', 'pinpoint', null, True, now(), null);"
-    db.session.execute(sql.format(uuid.uuid4(), inbound_number))
+    obj = InboundNumber(
+        id=uuid.uuid4(),
+        number=inbound_number,
+        provider='pinpoint',
+        active=True,
+    )
+    db.session.add(obj)
     db.session.commit()
