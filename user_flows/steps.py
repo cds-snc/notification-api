@@ -140,7 +140,7 @@ def revoke_key(old_key_id, service_id):
 
 def send_email(jwt, template_id):
     header = {"Authorization": "Bearer " + jwt.decode("utf-8"), 'Content-Type': 'application/json'}
-    payload = json.dumps({"template_id": template_id, "email_address": "test@sink.govdelivery.com"})
+    payload = json.dumps({"template_id": template_id, "email_address": "test@sink.govdelivery.com", "personalisation": {"claim_id": "600191990", "date_submitted": "October 30, 2020", "full_name": "Test Subject"}})
     r = requests.post(notification_url + "/v2/notifications/email", headers=header, data=payload)
     return r
 
