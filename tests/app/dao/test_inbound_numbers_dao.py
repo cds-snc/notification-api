@@ -116,3 +116,4 @@ def test_dao_add_inbound_number(notify_db_session):
 
     assert len(res) == 1
     assert res[0].number == inbound_number
+    assert res[0].provider == 'pinpoint'
