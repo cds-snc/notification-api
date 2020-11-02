@@ -44,7 +44,7 @@
                 },
                 {
                     "name": "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED",
-                    "value": "False"
+                    "value": "True"
                 }
             ],
             "secrets": [{
