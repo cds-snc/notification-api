@@ -9,7 +9,15 @@ from app.provider_details.switch_providers import (
     provider_is_primary,
     switch_providers
 )
-from app.models import FactBilling, ProviderDetails, ProviderDetailsHistory, SMS_TYPE, User
+from app.models import (
+    FactBilling,
+    ProviderDetails,
+    ProviderDetailsHistory,
+    SMS_TYPE,
+    User,
+    PINPOINT_PROVIDER,
+    SNS_PROVIDER,
+)
 from app import db
 
 
@@ -23,10 +31,10 @@ def get_provider_details_by_identifier(identifier):
 
 def get_alternative_sms_provider(identifier):
     alternate_provider = None
-    if identifier == 'mmg':
-        alternate_provider = 'sns'
-    elif identifier == 'sns':
-        alternate_provider = 'mmg'
+    if identifier == SNS_PROVIDER:
+        alternate_provider = PINPOINT_PROVIDER
+    elif identifier == PINPOINT_PROVIDER:
+        alternate_provider = SNS_PROVIDER
 
     return ProviderDetails.query.filter_by(identifier=alternate_provider).one()
 

@@ -78,15 +78,6 @@ class Config(object):
     # DB conection string
     SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI')
 
-    # MMG API Key
-    MMG_API_KEY = os.getenv('MMG_API_KEY')
-
-    # Firetext API Key
-    FIRETEXT_API_KEY = os.getenv("FIRETEXT_API_KEY")
-
-    # Firetext simluation key
-    LOADTESTING_API_KEY = os.getenv("LOADTESTING_API_KEY")
-
     # Hosted graphite statsd prefix
     STATSD_PREFIX = os.getenv('STATSD_PREFIX')
 
@@ -344,10 +335,6 @@ class Config(object):
 
     FREE_SMS_TIER_FRAGMENT_COUNT = 250000
 
-    FIRETEXT_INBOUND_SMS_AUTH = json.loads(os.getenv('FIRETEXT_INBOUND_SMS_AUTH', '[]'))
-    MMG_INBOUND_SMS_AUTH = json.loads(os.getenv('MMG_INBOUND_SMS_AUTH', '[]'))
-    MMG_INBOUND_SMS_USERNAME = json.loads(os.getenv('MMG_INBOUND_SMS_USERNAME', '[]'))
-
     ROUTE_SECRET_KEY_1 = os.getenv('ROUTE_SECRET_KEY_1', '')
     ROUTE_SECRET_KEY_2 = os.getenv('ROUTE_SECRET_KEY_2', '')
 
@@ -360,9 +347,6 @@ class Config(object):
 
     DOCUMENT_DOWNLOAD_API_HOST = os.getenv('DOCUMENT_DOWNLOAD_API_HOST', 'http://localhost:7000')
     DOCUMENT_DOWNLOAD_API_KEY = os.getenv('DOCUMENT_DOWNLOAD_API_KEY', 'auth-token')
-
-    MMG_URL = os.getenv("MMG_URL", "https://api.mmg.co.uk/json/api.php")
-    FIRETEXT_URL = os.getenv("FIRETEXT_URL", "https://www.firetext.co.uk/api/sendsms/json")
 
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
     NOTIFY_LOG_PATH = ''
@@ -397,9 +381,6 @@ class Development(Config):
     ADMIN_CLIENT_SECRET = os.getenv('ADMIN_CLIENT_SECRET', 'dev-notify-secret-key')
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-notify-secret-key')
     DANGEROUS_SALT = os.getenv('DANGEROUS_SALT', 'dev-notify-salt ')
-
-    MMG_INBOUND_SMS_AUTH = ['testkey']
-    MMG_INBOUND_SMS_USERNAME = ['username']
 
     NOTIFY_ENVIRONMENT = 'development'
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-canada-ca")
@@ -451,11 +432,7 @@ class Test(Development):
     API_RATE_LIMIT_ENABLED = True
     API_HOST_NAME = "http://localhost:6011"
 
-    FIRETEXT_INBOUND_SMS_AUTH = ['testkey']
     TEMPLATE_PREVIEW_API_HOST = 'http://localhost:9999'
-
-    MMG_URL = 'https://example.com/mmg'
-    FIRETEXT_URL = 'https://example.com/firetext'
 
 
 class Production(Config):

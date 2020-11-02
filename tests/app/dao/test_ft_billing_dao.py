@@ -153,8 +153,8 @@ def test_fetch_billing_data_for_day_is_grouped_by_service(notify_db_session):
 def test_fetch_billing_data_for_day_is_grouped_by_provider(notify_db_session):
     service = create_service()
     template = create_template(service=service)
-    create_notification(template=template, status='delivered', sent_by='mmg')
-    create_notification(template=template, status='delivered', sent_by='firetext')
+    create_notification(template=template, status='delivered', sent_by='sns')
+    create_notification(template=template, status='delivered', sent_by='pinpoint')
 
     today = convert_utc_to_local_timezone(datetime.utcnow())
     results = fetch_billing_data_for_day(today)

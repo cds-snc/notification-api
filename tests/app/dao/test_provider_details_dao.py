@@ -122,7 +122,7 @@ def test_get_current_sms_provider_returns_correct_provider(restore_provider_deta
     assert provider.identifier == 'sns'
 
 
-@pytest.mark.parametrize('provider_identifier', ['mmg', 'sns'])
+@pytest.mark.parametrize('provider_identifier', ['sns', 'pinpoint'])
 def test_get_alternative_sms_provider_returns_expected_provider(notify_db, provider_identifier):
     provider = get_alternative_sms_provider(provider_identifier)
     assert provider.identifier != provider
@@ -327,13 +327,15 @@ def test_dao_get_provider_stats(notify_db_session):
     assert result[2].identifier == 'mmg'
     assert result[2].notification_type == 'sms'
     assert result[2].supports_international is True
-    assert result[2].active is True
+    assert result[2].active is False
     assert result[2].current_month_billable_sms == 5
 
     assert result[3].identifier == 'firetext'
+    assert result[3].active is False
     assert result[3].current_month_billable_sms == 0
 
     assert result[4].identifier == 'loadtesting'
+    assert result[4].active is False
     assert result[4].current_month_billable_sms == 0
     assert result[4].supports_international is False
 

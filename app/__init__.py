@@ -21,12 +21,8 @@ from app.clients import Clients
 from app.clients.document_download import DocumentDownloadClient
 from app.clients.email.aws_ses import AwsSesClient
 from app.clients.email.sendgrid_client import SendGridClient
-from app.clients.sms.firetext import FiretextClient
-from app.clients.sms.loadtesting import LoadtestingClient
-from app.clients.sms.mmg import MMGClient
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.clients.sms.aws_pinpoint import AwsPinpointClient
-from app.clients.sms.twilio import TwilioSMSClient
 from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
 from app.encryption import Encryption
 
@@ -52,18 +48,10 @@ db = SQLAlchemy()
 migrate = Migrate()
 ma = Marshmallow()
 notify_celery = NotifyCelery()
-firetext_client = FiretextClient()
-loadtest_client = LoadtestingClient()
-mmg_client = MMGClient()
 aws_ses_client = AwsSesClient()
 send_grid_client = SendGridClient()
 aws_sns_client = AwsSnsClient()
 aws_pinpoint_client = AwsPinpointClient()
-twilio_sms_client = TwilioSMSClient(
-    account_sid=os.getenv('TWILIO_ACCOUNT_SID'),
-    auth_token=os.getenv('TWILIO_AUTH_TOKEN'),
-    from_number=os.getenv('TWILIO_FROM_NUMBER'),
-)
 encryption = Encryption()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
@@ -93,17 +81,10 @@ def create_app(application):
     zendesk_client.init_app(application)
     statsd_client.init_app(application)
     logging.init_app(application, statsd_client)
-    firetext_client.init_app(application, statsd_client=statsd_client)
-    loadtest_client.init_app(application, statsd_client=statsd_client)
-    mmg_client.init_app(application, statsd_client=statsd_client)
     aws_sns_client.init_app(application, statsd_client=statsd_client)
     aws_pinpoint_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config['AWS_REGION'], statsd_client=statsd_client)
     send_grid_client.init_app(application.config['SENDGRID_API_KEY'], statsd_client=statsd_client)
-    twilio_sms_client.init_app(
-        logger=application.logger,
-        callback_notify_url_host=application.config["API_HOST_NAME"]
-    )
     notify_celery.init_app(application)
     encryption.init_app(application)
     redis_store.init_app(application)
@@ -111,12 +92,8 @@ def create_app(application):
     document_download_client.init_app(application)
     clients.init_app(
         sms_clients=[
-            firetext_client,
-            mmg_client,
             aws_sns_client,
             aws_pinpoint_client,
-            loadtest_client,
-            twilio_sms_client,
         ],
         email_clients=[aws_ses_client, send_grid_client]
     )
@@ -148,7 +125,6 @@ def register_blueprint(application):
     from app.api_key.rest import api_key_blueprint
     from app.inbound_number.rest import inbound_number_blueprint
     from app.inbound_sms.rest import inbound_sms as inbound_sms_blueprint
-    from app.notifications.receive_notifications import receive_notifications_blueprint
     from app.celery.process_ses_receipts_tasks import ses_callback_blueprint, ses_smtp_callback_blueprint
     from app.notifications.notifications_sms_callback import sms_callback_blueprint
     from app.notifications.notifications_letter_callback import letter_callback_blueprint
@@ -188,10 +164,6 @@ def register_blueprint(application):
 
     email_callback_blueprint.before_request(requires_no_auth)
     application.register_blueprint(email_callback_blueprint)
-
-    # inbound sms
-    receive_notifications_blueprint.before_request(requires_no_auth)
-    application.register_blueprint(receive_notifications_blueprint)
 
     notifications_blueprint.before_request(requires_auth)
     application.register_blueprint(notifications_blueprint)

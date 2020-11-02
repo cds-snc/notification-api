@@ -10,7 +10,7 @@ from requests import HTTPError
 
 
 import app
-from app import aws_sns_client, mmg_client
+from app import aws_sns_client
 from app.dao import (provider_details_dao, notifications_dao)
 from app.dao.provider_details_dao import dao_switch_sms_provider_to_provider_with_identifier
 from app.delivery import send_to_providers
@@ -41,6 +41,7 @@ from tests.conftest import set_config_values
 
 def test_should_return_highest_priority_active_provider(restore_provider_details):
     providers = provider_details_dao.get_provider_details_by_notification_type('sms')
+    providers = [provider for provider in providers if provider.active]
 
     first = providers[0]
     second = providers[1]
@@ -188,7 +189,7 @@ def test_should_respect_custom_sending_domains(
     )
 
 
-@pytest.mark.parametrize("client_send", ["app.aws_sns_client.send_sms", "app.mmg_client.send_sms"])
+@pytest.mark.parametrize("client_send", ["app.aws_sns_client.send_sms"])
 def test_should_not_send_sms_message_when_service_is_inactive_notifcation_is_in_tech_failure(
         sample_service, sample_notification, mocker, client_send):
     sample_service.active = False
@@ -644,17 +645,9 @@ def test_should_send_sms_to_international_providers(
     )
 
     mocker.patch('app.aws_sns_client.send_sms')
-    mocker.patch('app.mmg_client.send_sms')
 
     send_to_providers.send_sms_to_provider(
         db_notification_uk
-    )
-
-    mmg_client.send_sms.assert_called_once_with(
-        to="16135555555",
-        content=ANY,
-        reference=str(db_notification_uk.id),
-        sender=current_app.config['FROM_NUMBER']
     )
 
     send_to_providers.send_sms_to_provider(
@@ -674,7 +667,6 @@ def test_should_send_sms_to_international_providers(
     assert notification_uk.status == 'sending'
     assert notification_uk.sent_by == 'firetext'
     assert notification_int.status == 'sent'
-    assert notification_int.sent_by == 'mmg'
 
 
 @pytest.mark.parametrize('sms_sender, expected_sender, prefix_sms, expected_content', [
