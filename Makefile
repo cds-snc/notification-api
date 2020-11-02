@@ -22,7 +22,7 @@ user_flows: generate-version-file ## Run tests
 daily_user_flows: generate-version-file ## Run tests
 	./scripts/run_daily_check.sh
 
-freeze-requirements:
+freeze-requirements: ## Generate requirements file
 	rm -rf venv-freeze
 	virtualenv -p python3 venv-freeze
 	$$(pwd)/venv-freeze/bin/pip install -r requirements-app.txt
@@ -39,19 +39,19 @@ test-requirements:
 	         echo "Run 'make freeze-requirements' to update."; exit 1; } \
 || { echo "requirements.txt is up to date"; exit 0; }
 
-clean:
+clean: ## Remove virtualenv directory and build articacts
 	rm -rf node_modules cache target venv .coverage build tests/.cache
 
 install-bandit:
 	pip install bandit
 
-check-vulnerabilities: install-bandit
+check-vulnerabilities: install-bandit ## Scan code for vulnerabilities and issues
 	bandit -c .bandit.yml -r app/ -l
 
 install-safety:
 	pip install safety
 
-check-dependencies: install-safety
+check-dependencies: install-safety ## Scan dependencies for security vulnerabilities
 	safety check -r requirements.txt --full-report
 
 .PHONY:
