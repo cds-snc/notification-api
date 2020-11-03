@@ -25,7 +25,9 @@ from app.dao.fact_notification_status_dao import (
     fetch_notification_status_for_service_by_month,
     fetch_notification_status_for_service_for_day,
     fetch_notification_status_for_service_for_today_and_7_previous_days,
-    fetch_stats_for_all_services_by_date_range, fetch_monthly_template_usage_for_service
+    fetch_stats_for_all_services_by_date_range,
+    fetch_monthly_template_usage_for_service,
+    fetch_delivered_notification_stats_by_month,
 )
 from app.dao.inbound_numbers_dao import dao_allocate_number_for_service
 from app.dao.organisation_dao import dao_get_organisation_by_service_id
@@ -185,6 +187,11 @@ def find_services_by_name():
 def get_live_services_data():
     data = dao_fetch_live_services_data()
     return jsonify(data=data)
+
+
+@service_blueprint.route('/delivered-notifications-stats-by-month-data', methods=['GET'])
+def get_delivered_notification_stats_by_month_data():
+    return jsonify(data=fetch_delivered_notification_stats_by_month())
 
 
 @service_blueprint.route('/<uuid:service_id>', methods=['GET'])

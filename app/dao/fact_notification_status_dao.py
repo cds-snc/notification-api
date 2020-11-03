@@ -139,6 +139,24 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
     ).all()
 
 
+def fetch_delivered_notification_stats_by_month():
+    return db.session.query(
+        func.date_trunc('month', FactNotificationStatus.bst_date).cast(db.Text).label('month'),
+        FactNotificationStatus.notification_type,
+        func.sum(FactNotificationStatus.notification_count).label('count')
+    ).filter(
+        FactNotificationStatus.key_type != KEY_TYPE_TEST,
+        FactNotificationStatus.notification_status.in_([NOTIFICATION_DELIVERED, NOTIFICATION_SENT]),
+        FactNotificationStatus.bst_date >= '2019-11-01',  # GC Notify start date
+    ).group_by(
+        func.date_trunc('month', FactNotificationStatus.bst_date),
+        FactNotificationStatus.notification_type,
+    ).order_by(
+        func.date_trunc('month', FactNotificationStatus.bst_date).desc(),
+        FactNotificationStatus.notification_type,
+    ).all()
+
+
 def fetch_notification_status_for_service_for_day(bst_day, service_id):
     return db.session.query(
         # return current month as a datetime so the data has the same shape as the ft_notification_status query
