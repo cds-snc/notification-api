@@ -125,7 +125,7 @@ def test_should_allow_auth_with_api_key_scheme(client, sample_api_key, scheme):
 
 def test_should_not_allow_invalid_api_key(client, sample_api_key):
     response = client.get('/notifications', headers={
-        'Authorization': f'ApiKey-v1 nope'
+        'Authorization': 'ApiKey-v1 nope'
     })
 
     assert response.status_code == 403
@@ -201,8 +201,9 @@ def test_should_allow_valid_token_when_service_has_multiple_keys(client, sample_
     save_model_api_key(api_key)
     token = __create_token(sample_api_key.service_id)
     response = client.get(
-        '/notifications'.format(str(sample_api_key.service_id)),
-        headers={'Authorization': 'Bearer {}'.format(token)})
+        '/notifications',
+        headers={'Authorization': 'Bearer {}'.format(token)}
+    )
     assert response.status_code == 200
 
 
