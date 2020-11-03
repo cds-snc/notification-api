@@ -162,12 +162,13 @@ jobs:
 
       - name: Invoke user flows lambda function
         run: |
-          aws lambda invoke --invocation-type RequestResponse --function-name project-user-flows-lambda --payload '{"environment": "${{github.event.deployment.environment}}" }' user_flows_exit_code.txt
+          aws lambda invoke --invocation-type RequestResponse --function-name project-user-flows-lambda --payload '{"environment": "${{github.event.deployment.environment}}" }' \
+           --log-type Tail user_flows_exit_code.txt | jq '.LogResult' -r | base64 --decode
       
       - name: Get user flows test result exit code
         run: |
           cat user_flows_exit_code.txt
-          if [ $? -ne 0]; then exit $?; else exit 0; fi
+          if [ $? -ne 0]; then echo -e "Tests exit code: $?" && exit 1; else exit 0; fi
 
   deployment-status:
     runs-on: ubuntu-latest
