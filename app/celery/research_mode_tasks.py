@@ -24,9 +24,14 @@ temp_fail_email = "temp-fail@simulator.notify"
 
 # TODO: Add support for other providers - Twilio / Granicus
 def send_sms_response(provider, reference, to):
+    path = None
     if provider == "mmg":
         body = mmg_callback(reference, to)
         headers = {"Content-type": "application/json"}
+    elif provider == 'twilio':
+        body = twilio_callback(reference, to)
+        headers = {"Content-type": "application/x-www-form-urlencoded"}
+        path = reference
     else:
         headers = {"Content-type": "application/x-www-form-urlencoded"}
         body = firetext_callback(reference, to)
@@ -41,7 +46,7 @@ def send_sms_response(provider, reference, to):
                     'reference': reference
                     }
 
-    make_request(SMS_TYPE, provider, body, headers)
+    make_request(SMS_TYPE, provider, body, headers, path)
 
 
 def send_email_response(reference, to):
@@ -55,13 +60,15 @@ def send_email_response(reference, to):
     process_ses_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
 
 
-def make_request(notification_type, provider, data, headers):
-    api_call = "{}/notifications/{}/{}".format(current_app.config["API_HOST_NAME"], notification_type, provider)
+def make_request(notification_type, provider, data, headers, path = None):
+    callback_url = f"{current_app.config['API_HOST_NAME']}/notifications/{notification_type}/{provider}"
+    if path:
+        callback_url += f"/{path}"
 
     try:
         response = request(
             "POST",
-            api_call,
+            callback_url,
             headers=headers,
             data=data,
             timeout=60
@@ -72,7 +79,7 @@ def make_request(notification_type, provider, data, headers):
         current_app.logger.error(
             "API {} request on {} failed with {}".format(
                 "POST",
-                api_call,
+                callback_url,
                 api_error.response
             )
         )
@@ -119,6 +126,21 @@ def firetext_callback(notification_id, to):
         'status': status,
         'time': '2016-03-10 14:17:00',
         'reference': notification_id
+    }
+
+
+def twilio_callback(notification_id, to):
+    if to.strip().endswith(temp_fail):
+        status = "failed"
+    elif to.strip().endswith(perm_fail):
+        status = "undelivered"
+    else:
+        status = "delivered"
+
+    return {
+        "To": to,
+        "MessageStatus": status,
+        "MessageSid": str(notification_id),
     }
 
 

@@ -1,11 +1,9 @@
 import uuid
-from unittest.mock import ANY, call
-
-from flask import current_app, json
-from freezegun import freeze_time
 import pytest
 import requests_mock
-
+from unittest.mock import ANY, call
+from flask import current_app, json
+from freezegun import freeze_time
 from app.config import QueueNames
 from app.celery.research_mode_tasks import (
     send_sms_response,
@@ -13,7 +11,7 @@ from app.celery.research_mode_tasks import (
     mmg_callback,
     firetext_callback,
     ses_notification_callback,
-    create_fake_letter_response_file,
+    create_fake_letter_response_file, twilio_callback,
 )
 from tests.conftest import set_config_values, Matcher
 
@@ -58,6 +56,24 @@ def test_make_firetext_callback(notify_api, rmock, phone_number):
 def test_make_ses_callback(notify_api, mocker):
     mock_task = mocker.patch('app.celery.research_mode_tasks.process_ses_results')
     some_ref = str(uuid.uuid4())
+@pytest.mark.parametrize("phone_number",
+                         ["07700900001", "07700900002", "07700900003",
+                          "07700900236"])
+def test_make_twilio_callback(notify_api, rmock, phone_number):
+    notification_id = "1234"
+    endpoint = f"http://localhost:6011/notifications/sms/twilio/{notification_id}"
+    rmock.request(
+        "POST",
+        endpoint,
+        json="some data",
+        status_code=200)
+    send_sms_response("twilio", notification_id, phone_number)
+
+    assert rmock.called
+    assert rmock.request_history[0].url == endpoint
+    assert f'To={phone_number}' in rmock.request_history[0].text
+
+
 
     send_email_response(reference=some_ref, to="test@test.com")
 
@@ -112,6 +128,21 @@ def test_failure_firetext_callback(phone_number):
         'time': '2016-03-10 14:17:00',
         'reference': '1234'
     }
+
+
+@pytest.mark.parametrize('phone_number, status', [
+    ('+17700900003', 'failed'),
+    ('+17700900002', 'undelivered'),
+    ('+17700900001', 'delivered')
+])
+def test_twilio_callback(phone_number, status):
+    actual = twilio_callback('1234', phone_number)
+    expected = {
+        'To': phone_number,
+        'MessageStatus': status,
+        'MessageSid': '1234',
+    }
+    assert actual == expected
 
 
 @freeze_time("2018-01-25 14:00:30")
