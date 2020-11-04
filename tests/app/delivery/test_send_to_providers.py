@@ -284,6 +284,7 @@ def test_should_call_send_sms_response_task_if_research_mode(
         notify_db.session.commit()
 
     sample_notification.key_type = key_type
+    sample_notification.reference = None
 
     send_to_providers.send_sms_to_provider(
         sample_notification
@@ -300,6 +301,7 @@ def test_should_call_send_sms_response_task_if_research_mode(
     assert persisted_notification.status == 'sent'
     assert persisted_notification.sent_at <= datetime.utcnow()
     assert persisted_notification.sent_by == mock_sms_client.get_name()
+    assert persisted_notification.reference
     assert not persisted_notification.personalisation
 
 
