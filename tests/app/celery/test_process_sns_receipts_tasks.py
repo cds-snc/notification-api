@@ -47,7 +47,10 @@ def test_process_sns_results_failed(sample_template, notify_db, notify_db_sessio
     assert process_sns_results(sns_failed_callback(reference='ref'))
     assert get_notification_by_id(notification.id).status == 'failed'
 
-    mock_logger.assert_called_once_with(f'SNS delivery failed: notification id {notification.id} and reference ref has error found. Provider response: Unknown error attempting to reach phone')
+    mock_logger.assert_called_once_with((
+        f'SNS delivery failed: notification id {notification.id} and reference ref has error found. '
+        'Provider response: Unknown error attempting to reach phone'
+    ))
 
 
 def test_sns_callback_should_retry_if_notification_is_new(mocker):

@@ -58,11 +58,10 @@ def process_sns_results(self, response):
         )
 
         if notification_status == NOTIFICATION_FAILED:
-            current_app.logger.info(
-                "SNS delivery failed: notification id {} and reference {} has error found. Provider response: {}".format(
-                    notification.id, reference, sns_message['delivery']['providerResponse']
-                )
-            )
+            current_app.logger.info((
+                f"SNS delivery failed: notification id {notification.id} and reference {reference} has error found. "
+                f"Provider response: {sns_message['delivery']['providerResponse']}"
+            ))
         else:
             current_app.logger.info(
                 f'SNS callback return status of {notification_status} for notification: {notification.id}'
@@ -82,5 +81,5 @@ def process_sns_results(self, response):
         raise
 
     except Exception as e:
-        current_app.logger.exception('Error processing SNS results: {}'.format(type(e)))
+        current_app.logger.exception(f'Error processing SNS results: {str(e)}')
         self.retry(queue=QueueNames.RETRY)

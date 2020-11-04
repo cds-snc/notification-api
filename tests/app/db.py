@@ -952,7 +952,7 @@ def _sns_callback(body):
 
 
 def sns_success_callback(reference=None, timestamp="2016-06-28 00:40:34.558"):
-     # Payload details: https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html
+    # Payload details: https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html
     body = {
         "notification": {
             "messageId": reference,
@@ -976,7 +976,7 @@ def sns_success_callback(reference=None, timestamp="2016-06-28 00:40:34.558"):
 
 
 def sns_failed_callback(reference=None, timestamp="2016-06-28 00:40:34.558"):
-     # Payload details: https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html
+    # Payload details: https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html
     body = {
         "notification": {
             "messageId": reference,
