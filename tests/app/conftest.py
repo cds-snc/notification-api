@@ -1247,7 +1247,7 @@ def admin_request(client):
 @pytest.fixture(scope='function')
 def mock_sms_client(mocker):
     mocked_client = SmsClient()
-    mocker.patch.object(mocked_client, 'send_sms')
+    mocker.patch.object(mocked_client, 'send_sms', return_value='some-reference')
     mocker.patch.object(mocked_client, 'get_name', return_value='Fake SMS Client')
     mocker.patch('app.delivery.send_to_providers.provider_to_use', return_value=mocked_client)
     return mocked_client
@@ -1275,7 +1275,7 @@ def mocked_provider_stats(sample_user, mocker):
             'updated_at': datetime.utcnow(),
             'supports_international': False,
             'created_by_name': sample_user.name,
-            'current_month_billable_sms': randrange(100)
+            'current_month_billable_sms': randrange(100)  # nosec
         }),
         mocker.Mock(**{
             'id': uuid.uuid4(),
@@ -1287,7 +1287,7 @@ def mocked_provider_stats(sample_user, mocker):
             'updated_at': datetime.utcnow(),
             'supports_international': False,
             'created_by_name': sample_user.name,
-            'current_month_billable_sms': randrange(100)
+            'current_month_billable_sms': randrange(100)  # nosec
         })
     ]
 

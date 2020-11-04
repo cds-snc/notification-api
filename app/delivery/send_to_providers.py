@@ -61,7 +61,7 @@ def send_sms_to_provider(notification):
 
         else:
             try:
-                provider.send_sms(
+                reference = provider.send_sms(
                     to=validate_and_format_phone_number(notification.to, international=notification.international),
                     content=str(template),
                     reference=str(notification.id),
@@ -74,6 +74,7 @@ def send_sms_to_provider(notification):
                 raise e
             else:
                 notification.billable_units = template.fragment_count
+                notification.reference = reference
                 update_notification_to_sending(notification, provider)
 
         delta_milliseconds = (datetime.utcnow() - notification.created_at).total_seconds() * 1000

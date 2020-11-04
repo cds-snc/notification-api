@@ -60,7 +60,7 @@ def send_email_response(reference, to):
     process_ses_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
 
 
-def make_request(notification_type, provider, data, headers, path = None):
+def make_request(notification_type, provider, data, headers, path=None):
     callback_url = f"{current_app.config['API_HOST_NAME']}/notifications/{notification_type}/{provider}"
     if path:
         callback_url += f"/{path}"

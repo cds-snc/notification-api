@@ -110,6 +110,7 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
     assert notification.sent_by == mock_sms_client.get_name()
     assert notification.billable_units == 1
     assert notification.personalisation == {"name": "Jo"}
+    assert notification.reference == "some-reference"
 
 
 def test_should_send_personalised_template_to_correct_email_provider_and_persist(

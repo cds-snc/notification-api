@@ -121,6 +121,16 @@ def _process_for_status(notification_status, client_name, provider_reference):
     return success
 
 
+def process_service_callback(notification):
+    if notification.status != NOTIFICATION_PENDING:
+        service_callback_api = get_service_delivery_status_callback_api_for_service(service_id=notification.service_id)
+        # queue callback task only if the service_callback_api exists
+        if service_callback_api:
+            encrypted_notification = create_delivery_status_callback_data(notification, service_callback_api)
+            send_delivery_status_to_service.apply_async([notification.id, encrypted_notification],
+                                                        queue=QueueNames.CALLBACKS)
+
+
 def set_notification_sent_by(notification, client_name):
     notification.sent_by = client_name
     dao_update_notification(notification)

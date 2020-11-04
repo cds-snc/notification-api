@@ -6,6 +6,7 @@ from twilio.twiml.messaging_response import MessagingResponse
 
 from app.errors import InvalidRequest, register_errors
 from app.notifications.process_client_response import validate_callback_data, process_sms_client_response
+from app.notifications.aws_sns_status_callback import process_sns_delivery_status
 
 sms_callback_blueprint = Blueprint("sms_callback", __name__, url_prefix="/notifications/sms")
 register_errors(sms_callback_blueprint)
@@ -111,3 +112,6 @@ def process_twilio_reply():
     else:
         response.message('notification test got it')
         return str(response)
+
+
+sms_callback_blueprint.route('/sns', methods=['POST'])(process_sns_delivery_status)
