@@ -93,7 +93,7 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
                                           status='created',
                                           reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender())
 
-    mocker.patch('app.aws_sns_client.send_sms')
+    mocker.patch('app.aws_sns_client.send_sms', return_value='message_id_from_sns')
 
     send_to_providers.send_sms_to_provider(
         db_notification
@@ -113,6 +113,7 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
     assert notification.sent_by == 'sns'
     assert notification.billable_units == 1
     assert notification.personalisation == {"name": "Jo"}
+    assert notification.reference == 'message_id_from_sns'
 
 
 def test_should_send_personalised_template_to_correct_email_provider_and_persist(
@@ -208,7 +209,7 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(
     db_notification = create_notification(template=sample_template, to_field='+16502532222', status='created',
                                           reply_to_text=sample_template.service.get_default_sms_sender())
 
-    mocker.patch('app.aws_sns_client.send_sms')
+    mocker.patch('app.aws_sns_client.send_sms', return_value='message_id_from_sns')
 
     version_on_notification = sample_template.version
 
@@ -236,6 +237,7 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(
     assert persisted_notification.template_version == version_on_notification
     assert persisted_notification.template_version != sample_template.version
     assert persisted_notification.status == 'sent'
+    assert persisted_notification.reference == 'message_id_from_sns'
     assert not persisted_notification.personalisation
 
 
@@ -271,6 +273,7 @@ def test_should_call_send_sms_response_task_if_research_mode(
     assert persisted_notification.status == 'sent'
     assert persisted_notification.sent_at <= datetime.utcnow()
     assert persisted_notification.sent_by == 'sns'
+    assert persisted_notification.reference is None
     assert not persisted_notification.personalisation
 
 
@@ -316,7 +319,7 @@ def test_should_send_sms_with_downgraded_content(notify_db_session, mocker):
         personalisation={'misc': placeholder}
     )
 
-    mocker.patch('app.aws_sns_client.send_sms')
+    mocker.patch('app.aws_sns_client.send_sms', return_value='message_id_from_sns')
 
     send_to_providers.send_sms_to_provider(db_notification)
 
@@ -332,7 +335,7 @@ def test_send_sms_should_use_service_sms_sender(
         sample_service,
         sample_template,
         mocker):
-    mocker.patch('app.aws_sns_client.send_sms')
+    mocker.patch('app.aws_sns_client.send_sms', return_value='message_id_from_sns')
 
     sms_sender = create_service_sms_sender(service=sample_service, sms_sender='123456', is_default=False)
     db_notification = create_notification(template=sample_template, reply_to_text=sms_sender.sms_sender)
@@ -584,7 +587,7 @@ def test_should_update_billable_units_and_status_according_to_research_mode_and_
     expected_status
 ):
     notification = create_notification(template=sample_template, billable_units=0, status='created', key_type=key_type)
-    mocker.patch('app.aws_sns_client.send_sms')
+    mocker.patch('app.aws_sns_client.send_sms', return_value='message_id_from_sns')
     mocker.patch('app.delivery.send_to_providers.send_sms_response',
                  side_effect=__update_notification(notification, research_mode, expected_status))
 
@@ -686,7 +689,7 @@ def test_should_handle_sms_sender_and_prefix_message(
     expected_content,
     notify_db_session
 ):
-    mocker.patch('app.aws_sns_client.send_sms')
+    mocker.patch('app.aws_sns_client.send_sms', return_value='message_id_from_sns')
     service = create_service_with_defined_sms_sender(sms_sender_value=sms_sender, prefix_sms=prefix_sms)
     template = create_template(service, content='bar')
     notification = create_notification(template, reply_to_text=sms_sender)
@@ -747,7 +750,7 @@ def test_send_email_to_provider_should_format_reply_to_email_address(
 
 def test_send_sms_to_provider_should_format_phone_number(sample_notification, mocker):
     sample_notification.to = '+1 650 253 2222'
-    send_mock = mocker.patch('app.aws_sns_client.send_sms')
+    send_mock = mocker.patch('app.aws_sns_client.send_sms', return_value='message_id_from_sns')
 
     send_to_providers.send_sms_to_provider(sample_notification)
 

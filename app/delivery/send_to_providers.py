@@ -68,7 +68,7 @@ def send_sms_to_provider(notification):
 
         else:
             try:
-                provider.send_sms(
+                reference = provider.send_sms(
                     to=validate_and_format_phone_number(notification.to, international=notification.international),
                     content=str(template),
                     reference=str(notification.id),
@@ -80,6 +80,7 @@ def send_sms_to_provider(notification):
                 dao_toggle_sms_provider(provider.name)
                 raise e
             else:
+                notification.reference = reference
                 notification.billable_units = template.fragment_count
                 update_notification_to_sending(notification, provider)
 
@@ -192,8 +193,8 @@ def send_email_to_provider(notification):
 def update_notification_to_sending(notification, provider):
     notification.sent_at = datetime.utcnow()
     notification.sent_by = provider.get_name()
-    # We currently have no callback method for SNS
-    # notification.status = NOTIFICATION_SENT if notification.international else NOTIFICATION_SENDING
+    # We currently have no callback method for SMS (SNS and Pinpoint)
+    # notification.status = NOTIFICATION_SENT if it's a text else NOTIFICATION_SENDING
     notification.status = NOTIFICATION_SENT if notification.notification_type == "sms" else NOTIFICATION_SENDING
     dao_update_notification(notification)
 
