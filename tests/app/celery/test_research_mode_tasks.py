@@ -11,8 +11,9 @@ from app.celery.research_mode_tasks import (
     mmg_callback,
     firetext_callback,
     ses_notification_callback,
-    create_fake_letter_response_file, twilio_callback,
+    create_fake_letter_response_file, sns_callback, twilio_callback,
 )
+from app.notifications.aws_sns_status_callback import SNS_STATUS_FAILURE, SNS_STATUS_SUCCESS
 from tests.conftest import set_config_values, Matcher
 
 
@@ -53,9 +54,6 @@ def test_make_firetext_callback(notify_api, rmock, phone_number):
     assert 'mobile={}'.format(phone_number) in rmock.request_history[0].text
 
 
-def test_make_ses_callback(notify_api, mocker):
-    mock_task = mocker.patch('app.celery.research_mode_tasks.process_ses_results')
-    some_ref = str(uuid.uuid4())
 @pytest.mark.parametrize("phone_number",
                          ["07700900001", "07700900002", "07700900003",
                           "07700900236"])
@@ -74,7 +72,24 @@ def test_make_twilio_callback(notify_api, rmock, phone_number):
     assert f'To={phone_number}' in rmock.request_history[0].text
 
 
+def test_make_sns_callback(notify_api, rmock):
+    notification_id = "1234"
+    reference = "5678"
+    endpoint = f"http://localhost:6011/notifications/sms/sns"
+    rmock.post(
+        endpoint,
+        json={},
+        status_code=204)
+    send_sms_response("sns", notification_id, "+16665554444", reference)
 
+    assert rmock.called
+    assert rmock.request_history[0].url == endpoint
+    assert json.loads(rmock.request_history[0].text)['notification']['messageId'] == reference
+
+
+def test_make_ses_callback(notify_api, mocker):
+    mock_task = mocker.patch('app.celery.research_mode_tasks.process_ses_results')
+    some_ref = str(uuid.uuid4())
     send_email_response(reference=some_ref, to="test@test.com")
 
     mock_task.apply_async.assert_called_once_with(ANY, queue=QueueNames.RESEARCH_MODE)
@@ -143,6 +158,17 @@ def test_twilio_callback(phone_number, status):
         'MessageSid': '1234',
     }
     assert actual == expected
+
+
+@pytest.mark.parametrize('phone_number, status', [
+    ('+17700900003', SNS_STATUS_FAILURE),
+    ('+17700900002', SNS_STATUS_FAILURE),
+    ('+17700900001', SNS_STATUS_SUCCESS)
+])
+def test_sns_callback(phone_number, status):
+    actual = json.loads(sns_callback('1234', phone_number))
+    assert actual['notification']['messageId'] == '1234'
+    assert actual['status'] == status
 
 
 @freeze_time("2018-01-25 14:00:30")

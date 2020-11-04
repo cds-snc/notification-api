@@ -292,7 +292,7 @@ def test_should_call_send_sms_response_task_if_research_mode(
     assert not mock_sms_client.send_sms.called
 
     app.delivery.send_to_providers.send_sms_response.assert_called_once_with(
-        mock_sms_client.get_name(), str(sample_notification.id), sample_notification.to
+        mock_sms_client.get_name(), str(sample_notification.id), sample_notification.to, sample_notification.reference
     )
 
     persisted_notification = notifications_dao.get_notification_by_id(sample_notification.id)

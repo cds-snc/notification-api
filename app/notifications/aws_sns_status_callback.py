@@ -66,4 +66,4 @@ def process_sns_delivery_status():
 
         process_service_callback(notification)
 
-    return jsonify(''), HTTPStatus.NO_CONTENT
+    return jsonify({}), HTTPStatus.NO_CONTENT

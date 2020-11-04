@@ -1,3 +1,4 @@
+from app.notifications.aws_sns_status_callback import SNS_STATUS_FAILURE, SNS_STATUS_SUCCESS
 import random
 from datetime import datetime, timedelta
 import json
@@ -23,18 +24,21 @@ temp_fail_email = "temp-fail@simulator.notify"
 
 
 # TODO: Add support for other providers - Twilio / Granicus
-def send_sms_response(provider, reference, to):
+def send_sms_response(provider, notification_id, to, reference=None):
     path = None
     if provider == "mmg":
-        body = mmg_callback(reference, to)
+        body = mmg_callback(notification_id, to)
         headers = {"Content-type": "application/json"}
     elif provider == 'twilio':
-        body = twilio_callback(reference, to)
+        body = twilio_callback(notification_id, to)
         headers = {"Content-type": "application/x-www-form-urlencoded"}
-        path = reference
+        path = notification_id
+    elif provider == 'sns':
+        body = sns_callback(reference, to)
+        headers = {"Content-type": "application/json"}
     else:
         headers = {"Content-type": "application/x-www-form-urlencoded"}
-        body = firetext_callback(reference, to)
+        body = firetext_callback(notification_id, to)
         # to simulate getting a temporary_failure from firetext
         # we need to send a pending status updated then a permanent-failure
         if body['status'] == '2':  # pending status
@@ -43,7 +47,7 @@ def send_sms_response(provider, reference, to):
             body = {'mobile': to,
                     'status': "1",
                     'time': '2016-03-10 14:17:00',
-                    'reference': reference
+                    'reference': notification_id
                     }
 
     make_request(SMS_TYPE, provider, body, headers, path)
@@ -142,6 +146,32 @@ def twilio_callback(notification_id, to):
         "MessageStatus": status,
         "MessageSid": str(notification_id),
     }
+
+
+def sns_callback(reference, to):
+    if to.strip().endswith(temp_fail) or to.strip().endswith(perm_fail):
+        status = SNS_STATUS_FAILURE
+    else:
+        status = SNS_STATUS_SUCCESS
+
+    return json.dumps({
+        "notification": {
+            "messageId": reference,
+            "timestamp": f"{datetime.utcnow()}"
+        },
+        "delivery": {
+            "phoneCarrier": "My Phone Carrier",
+            "mnc": 270,
+            "destination": to,
+            "priceInUSD": 0.00645,
+            "smsType": "Transactional",
+            "mcc": 310,
+            "providerResponse": "Message has been accepted by phone carrier",
+            "dwellTimeMs": 599,
+            "dwellTimeMsUntilDeviceAck": 1344
+        },
+        "status": status
+    })
 
 
 @notify_celery.task(bind=True, name="create-fake-letter-response-file", max_retries=5, default_retry_delay=300)
