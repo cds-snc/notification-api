@@ -935,6 +935,69 @@ def _ses_bounce_callback(reference, bounce_type):
     }
 
 
+def _sns_callback(body):
+    return {
+        'Type': 'Notification',
+        'MessageId': '8e83c020-1234-1234-1234-92a8ee9baa0a',
+        'TopicArn': 'arn:aws:sns:ca-central-1:12341234:ses_notifications',
+        'Subject': None,
+        'Message': json.dumps(body),
+        'Timestamp': '2017-11-17T12:14:03.710Z',
+        'SignatureVersion': '1',
+        'Signature': '[REDACTED]',
+        'SigningCertUrl': 'https://sns.ca-central-1.amazonaws.com/SimpleNotificationService-[REDACTED].pem',
+        'UnsubscribeUrl': 'https://sns.ca-central-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=[REACTED]',
+        'MessageAttributes': {}
+    }
+
+
+def sns_success_callback(reference=None, timestamp="2016-06-28 00:40:34.558"):
+     # Payload details: https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html
+    body = {
+        "notification": {
+            "messageId": reference,
+            "timestamp": timestamp
+        },
+        "delivery": {
+            "phoneCarrier": "My Phone Carrier",
+            "mnc": 270,
+            "destination": "+1XXX5550100",
+            "priceInUSD": 0.00645,
+            "smsType": "Transactional",
+            "mcc": 310,
+            "providerResponse": "Message has been accepted by phone carrier",
+            "dwellTimeMs": 599,
+            "dwellTimeMsUntilDeviceAck": 1344
+        },
+        "status": "SUCCESS"
+    }
+
+    return _sns_callback(body)
+
+
+def sns_failed_callback(reference=None, timestamp="2016-06-28 00:40:34.558"):
+     # Payload details: https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html
+    body = {
+        "notification": {
+            "messageId": reference,
+            "timestamp": timestamp,
+        },
+        "delivery": {
+            "mnc": 0,
+            "destination": "+1XXX5550100",
+            "priceInUSD": 0.00645,
+            "smsType": "Transactional",
+            "mcc": 0,
+            "providerResponse": "Unknown error attempting to reach phone",
+            "dwellTimeMs": 1420,
+            "dwellTimeMsUntilDeviceAck": 1692
+        },
+        "status": "FAILURE"
+    }
+
+    return _sns_callback(body)
+
+
 def create_service_data_retention(
         service,
         notification_type='sms',
