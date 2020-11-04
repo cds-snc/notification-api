@@ -90,7 +90,6 @@ def make_request(notification_type, provider, data, headers, path=None):
         raise api_error
     finally:
         current_app.logger.info("Mocked provider callback request finished")
-    return response.json()
 
 
 def mmg_callback(notification_id, to):
