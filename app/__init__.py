@@ -96,7 +96,7 @@ def create_app(application):
     firetext_client.init_app(application, statsd_client=statsd_client)
     loadtest_client.init_app(application, statsd_client=statsd_client)
     mmg_client.init_app(application, statsd_client=statsd_client)
-    aws_sns_client.init_app(application, statsd_client=statsd_client)
+    aws_sns_client.init_app(aws_region=application.config['AWS_REGION'], statsd_client=statsd_client, logger=application.logger)
     aws_ses_client.init_app(application.config['AWS_REGION'], statsd_client=statsd_client)
     send_grid_client.init_app(application.config['SENDGRID_API_KEY'], statsd_client=statsd_client)
     govdelivery_client.init_app(application.config['GRANICUS_TOKEN'], application.config['GRANICUS_URL'], statsd_client)

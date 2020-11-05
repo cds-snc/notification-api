@@ -2,18 +2,21 @@ import boto3
 import botocore
 import phonenumbers
 from time import monotonic
-from app.clients.sms import SmsClient
+from app.clients.sms import SmsClient, SmsClientResponseException
 
+
+class SnsClientException(SmsClientResponseException):
+    pass
 
 class AwsSnsClient(SmsClient):
     '''
     AwsSns sms client
     '''
 
-    def init_app(self, current_app, statsd_client, *args, **kwargs):
-        self._client = boto3.client('sns', region_name="us-east-1")
+    def init_app(self, aws_region, statsd_client, logger, *args, **kwargs):
+        self._client = boto3.client('sns', region_name=aws_region)
         super(SmsClient, self).__init__(*args, **kwargs)
-        self.current_app = current_app
+        self.logger = logger
         self.name = 'sns'
         self.statsd_client = statsd_client
 
@@ -39,21 +42,17 @@ class AwsSnsClient(SmsClient):
                         }
                     }
                 )
-            except botocore.exceptions.ClientError as e:
+            except (botocore.exceptions.ClientError, Exception) as e:
                 self.statsd_client.incr("clients.sns.error")
-                raise str(e)
-            except Exception as e:
-                self.statsd_client.incr("clients.sns.error")
-                raise str(e)
-            finally:
+                raise SnsClientException(str(e))
+            else:
                 elapsed_time = monotonic() - start_time
-                self.current_app.logger.info("AWS SNS request finished in {}".format(elapsed_time))
+                self.logger.info(f"AWS SNS request finished in {elapsed_time}")
                 self.statsd_client.timing("clients.sns.request-time", elapsed_time)
                 self.statsd_client.incr("clients.sns.success")
-
-            return response['MessageId']
+                return response['MessageId']
 
         if not matched:
             self.statsd_client.incr("clients.sns.error")
-            self.current_app.logger.error("No valid numbers found in {}".format(to))
+            self.logger.error(f"No valid numbers found in {to}")
             raise ValueError("No valid numbers found for SMS delivery")
