@@ -27,10 +27,6 @@
                     "value": "staging-notification-"
                 },
                 {
-                    "name": "AWS_REGION",
-                    "value": "us-gov-west-1"
-                },
-                {
                     "name": "STATSD_HOST",
                     "value": "localhost"
                 },
