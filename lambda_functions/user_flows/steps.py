@@ -108,7 +108,15 @@ def send_email(environment, service_id, template_id):
     notification_url = get_notification_url(environment)
     service_jwt = get_service_jwt(environment, service_id)
     header = {"Authorization": "Bearer " + service_jwt.decode("utf-8"), 'Content-Type': 'application/json'}
-    payload = json.dumps({"template_id": template_id, "email_address": "test@sink.govdelivery.com"})
+    payload = json.dumps({
+        "template_id": template_id,
+        "email_address": "test@sink.govdelivery.com",
+        "personalisation": {
+            "claim_id": "600191990",
+            "date_submitted": "October 30, 2020",
+            "full_name": "Test Subject"
+        }
+    })
     r = requests.post(notification_url + "/v2/notifications/email", headers=header, data=payload)
     return r
 

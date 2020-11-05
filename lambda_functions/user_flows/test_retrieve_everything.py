@@ -53,6 +53,7 @@ def test_get_templates(environment, service_id, templates):
     assert templates.status_code == 200
 
 
+@pytest.mark.skip(reason="temporarily skipping, wip. initially used to test updated job in deployment")
 def test_send_email(environment, service_id, template_id):
     email_response = send_email(environment, service_id, template_id)
     assert email_response.status_code == 201
