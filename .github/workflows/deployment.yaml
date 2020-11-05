@@ -171,7 +171,8 @@ jobs:
       - name: Get user flows test result exit code
         run: |
           EXIT_CODE=$(cat user_flows_exit_code.txt)
-          if [ $EXIT_CODE -ne 0 ]; then echo -e "Tests exit code: $EXIT_CODE" && exit 1; else exit 0; fi
+          echo -e "Tests exit code: $EXIT_CODE"
+          if [ $EXIT_CODE -ne 0 ]; then exit 1; else exit $EXIT_CODE; fi
 
   deployment-status:
     runs-on: ubuntu-latest
