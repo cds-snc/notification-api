@@ -3,9 +3,9 @@ from notifications_utils.template import SMSMessageTemplate
 
 from app import statsd_client
 from app.dao import notifications_dao
+from app.notifications.callbacks import create_delivery_status_callback_data
 from app.celery.service_callback_tasks import (
     send_delivery_status_to_service,
-    create_delivery_status_callback_data,
 )
 from app.config import QueueNames
 from app.dao.notifications_dao import dao_update_notification

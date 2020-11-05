@@ -8,7 +8,7 @@ from freezegun import freeze_time
 from app import statsd_client, encryption
 from app.celery.process_ses_receipts_tasks import process_ses_results, process_ses_smtp_results
 from app.celery.research_mode_tasks import ses_hard_bounce_callback, ses_soft_bounce_callback, ses_notification_callback
-from app.celery.service_callback_tasks import create_delivery_status_callback_data
+from app.notifications.callbacks import create_delivery_status_callback_data
 from app.dao.notifications_dao import get_notification_by_id
 from app.models import Complaint, Notification
 from app.notifications.notifications_ses_callback import remove_emails_from_complaint, remove_emails_from_bounce

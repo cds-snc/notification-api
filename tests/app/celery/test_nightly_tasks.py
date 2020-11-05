@@ -25,7 +25,7 @@ from app.celery.nightly_tasks import (
     timeout_notifications,
     letter_raise_alert_if_no_ack_file_for_zip,
 )
-from app.celery.service_callback_tasks import create_delivery_status_callback_data
+from app.notifications.callbacks import create_delivery_status_callback_data
 from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
