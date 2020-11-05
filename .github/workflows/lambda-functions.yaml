@@ -54,5 +54,5 @@ jobs:
           RESULT=$(aws lambda invoke --invocation-type RequestResponse --function-name project-user-flows-lambda --payload '{"environment": "dev" }' --log-type Tail user_flows_exit_code.txt)
           echo -e "Handler response: $RESULT"
           echo $RESULT | jq '.LogResult' -r | base64 --decode
-          if [ `jq '.StatusCode' <<< $RESULT` $EXIT_CODE -ne 200 ]; then exit 1; else exit 0; fi
+          if [ `jq '.StatusCode' <<< $RESULT` -ne 200 ]; then exit 1; else exit 0; fi
         
