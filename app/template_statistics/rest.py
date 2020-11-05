@@ -41,7 +41,7 @@ def get_template_statistics_for_service_by_day(service_id):
         for row in data
     ])
 
-
+# TODO: Rename method (and endpoint?)
 @template_statistics.route('/<template_id>')
 def get_template_statistics_for_template_id(service_id, template_id):
     template = dao_get_template_by_id_and_service_id(template_id, service_id)

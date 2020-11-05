@@ -55,6 +55,7 @@ def validate_date_range_is_within_a_financial_year(start_date, end_date):
 
 @platform_stats_blueprint.route('usage-for-all-services')
 def get_usage_for_all_services():
+    # TODO: Add defeaults or request validation
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
 
@@ -69,6 +70,7 @@ def get_usage_for_all_services():
         for lb in letter_breakdown
     ]
     combined = {}
+    # TODO: Add email costs?
     for s in sms_costs:
         entry = {
             "organisation_id": str(s.organisation_id) if s.organisation_id else "",
