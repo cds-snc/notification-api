@@ -11,9 +11,9 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app import notify_celery, performance_platform_client, zendesk_client
 from app.aws import s3
+from app.notifications.callbacks import create_delivery_status_callback_data
 from app.celery.service_callback_tasks import (
     send_delivery_status_to_service,
-    create_delivery_status_callback_data,
 )
 from app.config import QueueNames
 from app.dao.inbound_sms_dao import delete_inbound_sms_older_than_retention

@@ -9,6 +9,7 @@ from app import notify_celery, statsd_client
 from app.config import QueueNames
 from app.dao import notifications_dao
 from app.models import NOTIFICATION_SENT, NOTIFICATION_DELIVERED, NOTIFICATION_FAILED
+from app.notifications.callbacks import _check_and_queue_callback_task
 
 
 @notify_celery.task(
@@ -72,8 +73,7 @@ def process_sns_results(self, response):
         if notification.sent_at:
             statsd_client.timing_with_dates('callback.sns.elapsed-time', datetime.utcnow(), notification.sent_at)
 
-        # TODO process callback
-        # _check_and_queue_callback_task(notification)
+        _check_and_queue_callback_task(notification)
 
         return True
 

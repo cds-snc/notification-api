@@ -2,9 +2,12 @@ from datetime import datetime
 
 from freezegun import freeze_time
 
+from app import statsd_client
 from app.celery.process_sns_receipts_tasks import process_sns_results
+from app.notifications.callbacks import create_delivery_status_callback_data
 from app.dao.notifications_dao import get_notification_by_id
 from tests.app.db import (
+    create_service_callback_api,
     sns_success_callback,
     sns_failed_callback,
     create_notification,
@@ -112,3 +115,44 @@ def test_process_sns_results_does_not_process_other_providers(sample_template, m
     process_sns_results(response=sns_success_callback(reference='ref1')) is None
     assert mock_logger.called_once_with('')
     assert not mock_dao.called
+
+
+def test_process_sns_results_calls_service_callback(
+    sample_template,
+    notify_db_session,
+    notify_db,
+    mocker
+):
+    with freeze_time('2021-01-01T12:00:00'):
+        mocker.patch('app.statsd_client.incr')
+        mocker.patch('app.statsd_client.timing_with_dates')
+        send_mock = mocker.patch(
+            'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
+        )
+        notification = create_sample_notification(
+            notify_db,
+            notify_db_session,
+            template=sample_template,
+            reference='ref',
+            status='sent',
+            sent_by='sns',
+            sent_at=datetime.utcnow()
+        )
+        callback_api = create_service_callback_api(
+            service=sample_template.service,
+            url="https://example.com"
+        )
+        assert get_notification_by_id(notification.id).status == 'sent'
+
+        assert process_sns_results(sns_success_callback(reference='ref'))
+        assert get_notification_by_id(notification.id).status == 'delivered'
+        statsd_client.timing_with_dates.assert_any_call(
+            "callback.sns.elapsed-time", datetime.utcnow(), notification.sent_at
+        )
+        statsd_client.incr.assert_any_call("callback.sns.delivered")
+        updated_notification = get_notification_by_id(notification.id)
+        encrypted_data = create_delivery_status_callback_data(updated_notification, callback_api)
+        send_mock.assert_called_once_with(
+            [str(notification.id), encrypted_data],
+            queue="service-callbacks"
+        )

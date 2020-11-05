@@ -20,12 +20,12 @@ from app.dao import notifications_dao, services_dao, templates_dao
 from app.models import NOTIFICATION_SENDING, NOTIFICATION_PENDING, EMAIL_TYPE, KEY_TYPE_NORMAL
 from json import decoder
 from app.notifications import process_notifications
+from app.notifications.callbacks import _check_and_queue_callback_task
 from app.notifications.notifications_ses_callback import (
     determine_notification_bounce_type,
     handle_complaint,
     handle_smtp_complaint,
     _check_and_queue_complaint_callback_task,
-    _check_and_queue_callback_task,
 )
 
 from app.errors import (
