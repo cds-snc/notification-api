@@ -51,8 +51,8 @@ jobs:
       - name: Test invocation
         shell: bash {0}
         run: |
-        RESULT=$(aws lambda invoke --invocation-type RequestResponse --function-name project-user-flows-lambda --payload '{"environment": "${{github.event.deployment.environment}}" }' \ 
-          --log-type Tail user_flows_exit_code.txt)
-        echo $RESULT | jq '.LogResult' -r | base64 --decode
-        exit `jq '.StatusCode' <<< $RESULT`
+          RESULT=$(aws lambda invoke --invocation-type RequestResponse --function-name project-user-flows-lambda --payload '{"environment": "${{github.event.deployment.environment}}" }' \ 
+            --log-type Tail user_flows_exit_code.txt)
+          echo $RESULT | jq '.LogResult' -r | base64 --decode
+          exit `jq '.StatusCode' <<< $RESULT`
         
