@@ -1,5 +1,5 @@
 import requests
-# import json
+import json
 import jwt
 import time
 import boto3
@@ -65,7 +65,7 @@ def get_organization_id(data):
     return id
 
 
-def get_services_id(data):
+def get_service_id(data):
     service_id = data[-1]['id']
     for service in data:
         if service['email_from'] == "solutions":
@@ -89,19 +89,28 @@ def get_template_id(templates, service_id):
     return template_id
 
 
-# def get_service_jwt(api_key_secret, service_id):
-#     jwtSecret = api_key_secret
-#     header = {'typ': 'JWT', 'alg': 'HS256'}
-#     combo = {}
-#     currentTimestamp = int(time.time())
-#     data = {
-#         'iss': service_id,
-#         'iat': currentTimestamp,
-#     }
-#     combo.update(data)
-#     combo.update(header)
-#     encoded_jwt = jwt.encode(combo, jwtSecret, algorithm='HS256')
-#     return encoded_jwt
+def get_service_jwt(api_key_secret, service_id):
+    jwtSecret = api_key_secret
+    header = {'typ': 'JWT', 'alg': 'HS256'}
+    combo = {}
+    currentTimestamp = int(time.time())
+    data = {
+        'iss': service_id,
+        'iat': currentTimestamp,
+    }
+    combo.update(data)
+    combo.update(header)
+    encoded_jwt = jwt.encode(combo, jwtSecret, algorithm='HS256')
+    return encoded_jwt
+
+
+def send_email(environment, service_id, template_id):
+    notification_url = get_notification_url(environment)
+    service_jwt = get_service_jwt(environment, service_id)
+    header = {"Authorization": "Bearer " + service_jwt.decode("utf-8"), 'Content-Type': 'application/json'}
+    payload = json.dumps({"template_id": template_id, "email_address": "test@sink.govdelivery.com"})
+    r = requests.post(notification_url + "/v2/notifications/email", headers=header, data=payload)
+    return r
 
 
 # def create_api_key(service_id, user_id):
@@ -129,13 +138,6 @@ def get_template_id(templates, service_id):
 #     header = {"Authorization": "Bearer " + jwt.decode("utf-8"), 'Content-Type': 'application/json'}
 #     url = notification_url + "/service/" + service_id + "/api-key/revoke/" + old_key_id
 #     r = requests.post(url, headers=header, data={})
-#     return r
-
-
-# def send_email(jwt, template_id):
-#     header = {"Authorization": "Bearer " + jwt.decode("utf-8"), 'Content-Type': 'application/json'}
-#     payload = json.dumps({"template_id": template_id, "email_address": "test@sink.govdelivery.com"})
-#     r = requests.post(notification_url + "/v2/notifications/email", headers=header, data=payload)
 #     return r
 
 
