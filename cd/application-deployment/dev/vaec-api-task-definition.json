@@ -27,6 +27,10 @@
                     "value": "application.py"
                 },
                 {
+                    "name": "API_HOST_NAME",
+                    "value": "https://dev.api.notifications.va.gov"
+                },
+                {
                     "name": "NOTIFICATION_QUEUE_PREFIX",
                     "value": "dev-notification-"
                 },
@@ -66,10 +70,6 @@
                 {
                     "name": "SQLALCHEMY_DATABASE_URI",
                     "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/database/uri"
-                },
-                {
-                    "name": "API_HOST_NAME",
-                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/api-host-name"
                 },
                 {
                     "name": "ADMIN_CLIENT_SECRET",
