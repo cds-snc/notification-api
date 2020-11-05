@@ -27,7 +27,12 @@ from app import (
     notify_celery,
 )
 from app.aws import s3
-from app.celery import provider_tasks, letters_pdf_tasks, research_mode_tasks
+from app.celery import (  # noqa: F401
+    letters_pdf_tasks,
+    process_sns_receipts_tasks,
+    provider_tasks,
+    research_mode_tasks,
+)
 from app.config import QueueNames
 from app.dao.daily_sorted_letter_dao import dao_create_or_update_daily_sorted_letter
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
