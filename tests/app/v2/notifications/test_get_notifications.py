@@ -8,6 +8,9 @@ from tests.app.db import (
     create_notification,
     create_template,
 )
+from app.models import (
+    VA_PROFILE_ID,
+)
 
 
 @pytest.mark.parametrize('billable_units, provider', [
@@ -73,17 +76,23 @@ def test_get_notification_by_id_returns_200(
         'completed_at': sample_notification.completed_at(),
         'scheduled_for': '2017-05-12T19:15:00.000000Z',
         'postage': None,
+        'recipient_identifiers': []
     }
 
     assert json_response == expected_response
 
 
-def test_get_notification_by_id_with_placeholders_returns_200(
-        client, sample_email_template_with_placeholders
+@pytest.mark.parametrize('recipient_identifiers', [
+    None,
+    [{"id_type": VA_PROFILE_ID, "id_value": "some vaprofileid"}]
+])
+def test_get_notification_by_id_with_placeholders_and_recipient_identifiers_returns_200(
+        client, sample_email_template_with_placeholders, recipient_identifiers
 ):
     sample_notification = create_notification(
         template=sample_email_template_with_placeholders,
-        personalisation={"name": "Bob"}
+        personalisation={"name": "Bob"},
+        recipient_identifiers=recipient_identifiers
     )
 
     auth_header = create_authorization_header(service_id=sample_notification.service_id)
@@ -125,6 +134,7 @@ def test_get_notification_by_id_with_placeholders_returns_200(
         'completed_at': sample_notification.completed_at(),
         'scheduled_for': None,
         'postage': None,
+        'recipient_identifiers': recipient_identifiers if recipient_identifiers else []
     }
 
     assert json_response == expected_response

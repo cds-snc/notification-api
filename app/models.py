@@ -1629,7 +1629,14 @@ class Notification(db.Model):
                 if self.scheduled_notification
                 else None
             ),
-            "postage": self.postage
+            "postage": self.postage,
+            "recipient_identifiers": [
+                {
+                    "id_type": recipient_identifier.id_type,
+                    "id_value": recipient_identifier.id_value
+                }
+                for recipient_identifier in self.recipient_identifiers.values()
+            ]
         }
 
         if self.notification_type == LETTER_TYPE:
