@@ -43,18 +43,15 @@ def get_notification_url(environment):
     return "https://{env}.api.notifications.va.gov".format(env=environment)
 
 
-def get_authenticated_request(environment, endpoint):
-    notification_url = get_notification_url(environment)
+def get_authenticated_request(environment, url):
     jwt = get_jwt(environment)
-    header = {"Authorization": "Bearer " + jwt.decode("utf-8")}
-    r = requests.get(notification_url + endpoint, headers=header)
+    header = {"Authorization": F"Bearer {jwt.decode('utf-8')}"}
+    r = requests.get(url, headers=header)
     return r
 
 
-def get_api_health_status(environment):
-    notification_url = get_notification_url(environment)
-    r = requests.get(notification_url + "/_status")
-    return r
+def get_api_health_status(environment, url):
+    return requests.get(url)
 
 
 def get_organization_id(data):
@@ -73,7 +70,7 @@ def get_service_id(data):
     return service_id
 
 
-def get_user_id(users, service_id):
+def get_user_id(service_id, users):
     user_id = users[-1]['id']
     for user in users:
         if service_id in user['services']:
@@ -87,6 +84,41 @@ def get_template_id(templates, service_id):
         if template["service"] == service_id and template["template_type"] == "email":
             template_id = template["id"]
     return template_id
+
+
+def get_right_api_key(old_key_response):
+    right_key = old_key_response[-1]["id"]
+    for api_key in old_key_response:
+        if api_key["name"] == "userflows" and api_key["expiry_date"] is None:
+            right_key = api_key["id"]
+    return right_key
+
+
+def revoke_service_api_key(environment, notification_url, service_id):
+    jwt = get_jwt(environment)
+    header = {"Authorization": F"Bearer {jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
+    old_key = get_authenticated_request(environment, F"{notification_url}/service/{service_id}/api-keys")
+    old_key_id = get_right_api_key(old_key.json()['apiKeys'])
+    revoke_url = F"{notification_url}/service/{service_id}/api-key/revoke/{old_key_id}"
+    return requests.post(revoke_url, headers=header, data={})
+
+
+def create_service_api_key(environment, notification_url, service_id, user_id):
+    jwt = get_jwt(environment)
+    header = {"Authorization": F"Bearer {jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
+    post_api_key_payload = json.dumps({
+        "created_by": user_id,
+        "key_type": "normal",
+        "name": "userflows"
+    })
+    post_api_key_url = F"{notification_url}/service/{service_id}/api-key"
+    new_key = requests.post(post_api_key_url, headers=header, data=post_api_key_payload)
+    return new_key
+
+
+def get_new_service_api_key(environment, notification_url, service_id, user_id):
+    revoke_service_api_key(environment, notification_url, service_id)
+    return create_service_api_key(environment, notification_url, service_id, user_id)
 
 
 def get_service_jwt(api_key_secret, service_id):
@@ -104,10 +136,9 @@ def get_service_jwt(api_key_secret, service_id):
     return encoded_jwt
 
 
-def send_email(environment, service_id, template_id):
-    notification_url = get_notification_url(environment)
-    service_jwt = get_service_jwt(environment, service_id)
-    header = {"Authorization": "Bearer " + service_jwt.decode("utf-8"), 'Content-Type': 'application/json'}
+def send_email(notification_url, service_id, service_key, template_id):
+    service_jwt = get_service_jwt(service_key, service_id)
+    header = {"Authorization": F"Bearer {service_jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
     payload = json.dumps({
         "template_id": template_id,
         "email_address": "test@sink.govdelivery.com",
@@ -117,36 +148,8 @@ def send_email(environment, service_id, template_id):
             "full_name": "Test Subject"
         }
     })
-    r = requests.post(notification_url + "/v2/notifications/email", headers=header, data=payload)
-    return r
-
-
-# def create_api_key(service_id, user_id):
-#     jwt = get_jwt()
-#     header = {"Authorization": "Bearer " + jwt.decode("utf-8"), 'Content-Type': 'application/json'}
-#     payload = json.dumps({"created_by": user_id, "key_type": "normal", "name": "userflows"})
-#     r = requests.post(notification_url + "/service/" + service_id + "/api-key", headers=header, data=payload)
-#     return r
-
-
-# def get_api_key(service_id):
-#     return get_authenticated_request("/service/" + service_id + "/api-keys")
-
-
-# def get_right_api_key(get_key_response):
-#     right_key = get_key_response[-1]["id"]
-#     for api_key in get_key_response:
-#         if api_key["name"] == "userflows" and api_key["expiry_date"] is None:
-#             right_key = api_key["id"]
-#     return right_key
-
-
-# def revoke_key(old_key_id, service_id):
-#     jwt = get_jwt()
-#     header = {"Authorization": "Bearer " + jwt.decode("utf-8"), 'Content-Type': 'application/json'}
-#     url = notification_url + "/service/" + service_id + "/api-key/revoke/" + old_key_id
-#     r = requests.post(url, headers=header, data={})
-#     return r
+    post_url = F"{notification_url}/v2/notifications/email"
+    return requests.post(post_url, headers=header, data=payload)
 
 
 # def get_notification_id(notification_response):
