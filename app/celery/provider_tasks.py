@@ -21,6 +21,7 @@ def deliver_sms(self, notification_id):
         if not notification:
             raise NoResultFound()
         send_to_providers.send_sms_to_provider(notification)
+        current_app.logger.info(f"Successfully sent sms for notification id: {notification_id}")
     except Exception:
         try:
             current_app.logger.exception(
@@ -46,6 +47,7 @@ def deliver_email(self, notification_id):
         if not notification:
             raise NoResultFound()
         send_to_providers.send_email_to_provider(notification)
+        current_app.logger.info(f"Successfully sent email for notification id: {notification_id}")
     except InvalidEmailError as e:
         current_app.logger.exception(e)
         update_notification_status_by_id(notification_id, 'technical-failure')
