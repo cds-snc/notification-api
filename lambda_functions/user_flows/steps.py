@@ -50,6 +50,12 @@ def get_authenticated_request(environment, url):
     return r
 
 
+def post_authenticated_request(environment, url, payload={}):
+    jwt = get_jwt(environment)
+    header = {"Authorization": F"Bearer {jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
+    return requests.post(url, headers=header, data=payload)
+
+
 def get_api_health_status(environment, url):
     return requests.get(url)
 
@@ -95,12 +101,10 @@ def get_right_api_key(old_key_response):
 
 
 def revoke_service_api_key(environment, notification_url, service_id):
-    jwt = get_jwt(environment)
-    header = {"Authorization": F"Bearer {jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
     old_key = get_authenticated_request(environment, F"{notification_url}/service/{service_id}/api-keys")
     old_key_id = get_right_api_key(old_key.json()['apiKeys'])
     revoke_url = F"{notification_url}/service/{service_id}/api-key/revoke/{old_key_id}"
-    return requests.post(revoke_url, headers=header, data={})
+    return post_authenticated_request(environment, revoke_url)
 
 
 def create_service_api_key(environment, notification_url, service_id, user_id):
@@ -136,8 +140,7 @@ def get_service_jwt(api_key_secret, service_id):
     return encoded_jwt
 
 
-def send_email(notification_url, service_id, service_key, template_id):
-    service_jwt = get_service_jwt(service_key, service_id)
+def send_email(notification_url, service_jwt, template_id):
     header = {"Authorization": F"Bearer {service_jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
     payload = json.dumps({
         "template_id": template_id,
@@ -152,11 +155,11 @@ def send_email(notification_url, service_id, service_key, template_id):
     return requests.post(post_url, headers=header, data=payload)
 
 
-# def get_notification_id(notification_response):
-#     return notification_response.json()['id']
+def get_notification_id(notification_response):
+    return notification_response.json()['id']
 
 
-# def get_notification_status(jwt, notification_id):
-#     header = {"Authorization": "Bearer " + jwt.decode("utf-8"), 'Content-Type': 'application/json'}
-#     r = requests.get(notification_url + "/v2/notifications/" + notification_id, headers=header)
-#     return r
+def get_notification_status(service_jwt, notification_id, notification_url):
+    header = {"Authorization": "Bearer " + service_jwt.decode("utf-8"), 'Content-Type': 'application/json'}
+    url = F"{notification_url}/v2/notifications/{notification_id}"
+    return requests.get(url, headers=header)
