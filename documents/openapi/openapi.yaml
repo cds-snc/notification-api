@@ -1073,7 +1073,6 @@ components:
           format: email
         message_limit:
           type: integer
-          nullable: true
         name:
           type: string
         organisation_id:
