@@ -307,7 +307,7 @@ aws sts get-caller-identity
 ---
 
 ## AWS Lambda Functions
-[//]: #:TODO
+[//]: #:TODO:"Add notes with useful commands and other development details"
 
 ---
 
