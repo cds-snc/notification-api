@@ -1,0 +1,47 @@
+# Content example stolen from 
+# https://hub.docker.com/_/django
+# but adjust based on current Python base image.
+
+# look into other potential base images:
+# https://hub.docker.com/r/circleci/python
+
+FROM python:3.6
+
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update \
+    && apt-get -y install --no-install-recommends apt-utils 2>&1 \
+    && apt-get -y install git openssh-client less iproute2 procps lsb-release libsodium-dev \
+    && groupadd --gid $USER_GID $USERNAME \
+    && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && apt-get install -y sudo \
+    && apt-get -y install curl unzip \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
+    && chmod 0440 /etc/sudoers.d/$USERNAME \
+    && apt-get autoremove -y \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -O -J -L https://github.com/ryanoasis/nerd-fonts/releases/download/v2.1.0/DroidSansMono.zip \
+    && unzip DroidSansMono.zip -d ~/.fonts \
+    && fc-cache -fv
+
+RUN curl -fsSL https://starship.rs/install.sh | bash -s -- -y
+
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
+COPY . /workspace
+WORKDIR /workspace
+
+# RUN echo "export PATH=${GOROOT}/bin:${PATH}" >> /root/.bashrc
+RUN echo "eval '$(starship init bash)'" >> /root/.bashrc
+
+EXPOSE 8000
+# CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

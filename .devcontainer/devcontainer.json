@@ -1,11 +1,11 @@
 {
 	"name": "Python 3.6 & PostgreSQL",
-	"dockerComposeFile": "../docker-compose.yml",
-	"service": "app",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "dev",
 	"workspaceFolder": "/workspace",
 
 	"settings": { 
-		"terminal.integrated.shell.linux": "/bin/sh",
+		"terminal.integrated.shell.linux": "/bin/bash",
 		"python.pythonPath": "/usr/local/bin/python",
 		"python.linting.enabled": true,
 		"python.linting.pylintEnabled": true,
@@ -13,6 +13,14 @@
 	},
 
 	"extensions": [
-		"ms-python.python"
+		"donjayamanne.python-extension-pack",
+		"ms-python.vscode-pylance",
+		"eamodio.gitlens",
+		"wholroyd.jinja",
+		"pmbenjamin.vscode-snyk",
+		"visualstudioexptteam.vscodeintellicode",
+		"yzhang.markdown-all-in-one",
+		"ms-ossdata.vscode-postgresql",
+		"googlecloudtools.cloudcode"
 	]
 }
