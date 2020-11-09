@@ -29,6 +29,7 @@ from app.models import (
     Service,
     SMS_TYPE,
     Template,
+    User,
 )
 from app.utils import (
     get_local_timezone_midnight_in_utc,
@@ -154,6 +155,34 @@ def fetch_delivered_notification_stats_by_month():
     ).order_by(
         func.date_trunc('month', FactNotificationStatus.bst_date).desc(),
         FactNotificationStatus.notification_type,
+    ).all()
+
+
+def fetch_notification_stats_for_trial_services():
+    return db.session.query(
+        Service.id.label('service_id'),
+        Service.name.label('service_name'),
+        func.date_trunc('day', Service.created_at).cast(db.Text).label('creation_date'),
+        User.name.label('user_name'),
+        User.email_address.label('user_email'),
+        FactNotificationStatus.notification_type.label('notification_type'),
+        func.sum(FactNotificationStatus.notification_count).label('notification_sum')
+    ).join(
+        Service, FactNotificationStatus.service_id == Service.id,
+    ).join(
+        User, User.id == Service.created_by_id,
+    ).filter(
+        Service.restricted,
+        FactNotificationStatus.notification_status.in_([NOTIFICATION_DELIVERED, NOTIFICATION_SENT]),
+    ).group_by(
+        Service.id,
+        Service.name,
+        Service.created_at,
+        User.name,
+        User.email_address,
+        FactNotificationStatus.notification_type,
+    ).order_by(
+        func.sum(FactNotificationStatus.notification_count).desc(),
     ).all()
 
 

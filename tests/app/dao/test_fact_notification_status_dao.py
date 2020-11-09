@@ -15,6 +15,7 @@ from app.dao.fact_notification_status_dao import (
     fetch_notification_status_totals_for_all_services,
     fetch_notification_statuses_for_job,
     fetch_stats_for_all_services_by_date_range,
+    fetch_notification_stats_for_trial_services,
     get_api_key_ranked_by_notifications_created,
     get_last_send_for_api_key,
     get_total_notifications_sent_for_api_key,
@@ -671,6 +672,74 @@ def test_fetch_delivered_notification_stats_by_month(sample_service):
 
 def test_fetch_delivered_notification_stats_by_month_empty():
     assert fetch_delivered_notification_stats_by_month() == []
+
+
+@freeze_time('2020-11-02 14:00')
+def test_fetch_notification_stats_for_trial_services(sample_service):
+    trial_service = create_service(service_name='restricted', restricted=True)
+    trial_service_2 = create_service(service_name='restricted_2', restricted=True)
+
+    sms_template = create_template(
+        service=trial_service_2,
+        template_type='sms',
+        template_name='a'
+    )
+    email_template = create_template(
+        service=trial_service,
+        template_type='email',
+        template_name='b'
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2019, 10, 10),
+        service=trial_service,
+        template=email_template,
+        count=3
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2019, 10, 10),
+        service=trial_service_2,
+        template=sms_template,
+        count=5
+    )
+
+    # Not counted: failed notifications
+    create_ft_notification_status(
+        utc_date=date(2020, 1, 1),
+        service=trial_service,
+        template=sms_template,
+        notification_status=NOTIFICATION_FAILED,
+        count=10
+    )
+
+    # Not counted: live service
+    create_ft_notification_status(
+        utc_date=date(2020, 1, 1),
+        service=sample_service,
+        template=create_template(sample_service),
+        count=10
+    )
+
+    results = fetch_notification_stats_for_trial_services()
+
+    assert len(results) == 2
+
+    assert results[0].service_id == trial_service_2.id
+    assert results[0].service_name == trial_service_2.name
+    assert results[0].creation_date == '2020-11-02 00:00:00'
+    assert results[0].user_name == trial_service_2.created_by.name
+    assert results[0].user_email == trial_service_2.created_by.email_address
+    assert results[0].notification_type == 'sms'
+    assert results[0].notification_sum == 5
+
+    assert results[1].service_id == trial_service.id
+    assert results[1].service_name == trial_service.name
+    assert results[1].creation_date == '2020-11-02 00:00:00'
+    assert results[1].user_name == trial_service.created_by.name
+    assert results[1].user_email == trial_service.created_by.email_address
+    assert results[1].notification_type == 'email'
+    assert results[1].notification_sum == 3
 
 
 @freeze_time('2018-03-30 14:00')
