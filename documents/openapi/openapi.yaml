@@ -1327,19 +1327,7 @@ components:
               required: [phone_number]
             - properties:
                 recipient_identifier:
-                  type: object
-                  properties:
-                    id_type:
-                      type: string
-                      enum:
-                        - VAPROFILEID
-                        - PID
-                        - ICN
-                    id_value:
-                      type: string
-                  required:
-                    - id_type
-                    - id_value
+                  $ref: '#/components/schemas/RecipientIdentifier'
               required: [recipient_identifier]
     EmailNotificationRequest:
       allOf:
@@ -1442,6 +1430,10 @@ components:
         postcode:
           type: string
           nullable: true
+        recipient_identifiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecipientIdentifier'
         reference:
           type: string
           nullable: true
@@ -1501,6 +1493,20 @@ components:
           nullable: true
         version:
           type: integer
+    RecipientIdentifier:
+      type: object
+      properties:
+        id_type:
+          type: string
+          enum:
+            - VAPROFILEID
+            - PID
+            - ICN
+        id_value:
+          type: string
+      required:
+        - id_type
+        - id_value
   securitySchemes:
     adminAuth:
       description: "The admin user and secret are used to generate this authentication.  They are both defined as
