@@ -159,7 +159,7 @@ def get_notification_id(notification_response):
     return notification_response.json()['id']
 
 
-def get_notification_status(service_jwt, notification_id, notification_url):
+def get_notification_status(notification_id, notification_url, service_jwt):
     header = {"Authorization": "Bearer " + service_jwt.decode("utf-8"), 'Content-Type': 'application/json'}
     url = F"{notification_url}/v2/notifications/{notification_id}"
     return requests.get(url, headers=header)
