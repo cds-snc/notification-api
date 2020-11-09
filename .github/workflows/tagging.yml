@@ -6,7 +6,7 @@ on:
 jobs:
   create-staging-tags:
     runs-on: ubuntu-latest
-    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'tw-dev'
+    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'dev'
     outputs:
       tag: ${{ steps.tag-git-commit.outputs.TAG }}
     steps:
@@ -42,7 +42,7 @@ jobs:
 
   create-production-tags:
     runs-on: ubuntu-latest
-    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'tw-staging'
+    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'staging'
     steps:
       - uses: actions/checkout@v2
         with:
