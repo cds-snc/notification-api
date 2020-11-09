@@ -43,8 +43,6 @@ if it did not, take a look here: https://github.com/pyenv/pyenv/issues/660
 6. Add the following to your shell rc file. ex: `.bashrc` or `.zshrc`
 
 ```
-export WORKON_HOME=$HOME/.virtualenvs
-export PROJECT_HOME=$HOME/Devel
 source  ~/.pyenv/versions/3.6.9/bin/virtualenvwrapper.sh
 ```
 
@@ -61,6 +59,11 @@ source  ~/.pyenv/versions/3.6.9/bin/virtualenvwrapper.sh
 10. Create the database for the application
 
 `createdb --user=postgres notification_api`
+
+If the command complains you don't have a *postgres* role existing,
+execute the following command and retry the above afterward:
+
+`createuser -l -s postgres`
 
 11. Decrypt our existing set of environment variables
 
