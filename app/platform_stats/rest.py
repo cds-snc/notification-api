@@ -58,7 +58,7 @@ def validate_date_range_is_within_a_financial_year(start_date, end_date):
 
 @platform_stats_blueprint.route('usage-for-trial-services')
 def get_usage_for_trial_services():
-    return jsonify(fetch_notification_stats_for_trial_services)
+    return jsonify(fetch_notification_stats_for_trial_services())
 
 
 @platform_stats_blueprint.route('usage-for-all-services')
