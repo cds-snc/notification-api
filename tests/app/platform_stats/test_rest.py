@@ -154,3 +154,11 @@ def test_get_usage_for_all_services(notify_db_session, admin_request):
     assert response[3]["sms_fragments"] == 0
     assert response[3]["letter_cost"] == 8.25
     assert response[3]["letter_breakdown"] == "15 second class letters at 55p\n"
+
+
+def test_get_usage_for_trial_services(mocker, notify_db, admin_request):
+    # The DAO method is already covered by tests
+    mocker.patch('app.dao.fact_notification_status_dao.fetch_notification_stats_for_trial_services', return_value=[])
+    response = admin_request.get('platform_stats.get_usage_for_trial_services')
+
+    assert len(response) == 0
