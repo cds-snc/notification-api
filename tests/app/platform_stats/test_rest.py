@@ -156,9 +156,33 @@ def test_get_usage_for_all_services(notify_db_session, admin_request):
     assert response[3]["letter_breakdown"] == "15 second class letters at 55p\n"
 
 
-def test_get_usage_for_trial_services(mocker, notify_db, admin_request):
+def test_get_usage_for_trial_services(mocker, admin_request):
     # The DAO method is already covered by tests
-    mocker.patch('app.dao.fact_notification_status_dao.fetch_notification_stats_for_trial_services', return_value=[])
+    mock = mocker.patch(
+        'app.platform_stats.rest.fetch_notification_stats_for_trial_services',
+        return_value=[]
+    )
     response = admin_request.get('platform_stats.get_usage_for_trial_services')
 
     assert len(response) == 0
+    mock.assert_called_once()
+
+
+def test_get_send_methods_stats_by_service(mocker, admin_request):
+    # The DAO method is already covered by tests
+    mock = mocker.patch(
+        'app.platform_stats.rest.send_method_stats_by_service',
+        return_value=[]
+    )
+    response = admin_request.get(
+        'platform_stats.get_send_methods_stats_by_service',
+        start_date='2020-12-01',
+        end_date='2020-12-07',
+    )
+
+    assert len(response) == 0
+
+    mock.assert_called_once_with(
+        date(2020, 12, 1),
+        date(2020, 12, 7),
+    )
