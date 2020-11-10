@@ -674,10 +674,12 @@ def test_fetch_delivered_notification_stats_by_month_empty():
     assert fetch_delivered_notification_stats_by_month() == []
 
 
-@freeze_time('2020-11-02 14:00')
 def test_fetch_notification_stats_for_trial_services(sample_service):
-    trial_service = create_service(service_name='restricted', restricted=True)
-    trial_service_2 = create_service(service_name='restricted_2', restricted=True)
+    with freeze_time('2020-11-02 14:00'):
+        trial_service = create_service(service_name='restricted', restricted=True)
+
+    with freeze_time('2020-11-01 14:00'):
+        trial_service_2 = create_service(service_name='restricted_2', restricted=True)
 
     sms_template = create_template(
         service=trial_service_2,
@@ -727,7 +729,7 @@ def test_fetch_notification_stats_for_trial_services(sample_service):
 
     assert results[0].service_id == trial_service_2.id
     assert results[0].service_name == trial_service_2.name
-    assert results[0].creation_date == '2020-11-02 00:00:00'
+    assert results[0].creation_date == '2020-11-01 00:00:00'
     assert results[0].user_name == trial_service_2.created_by.name
     assert results[0].user_email == trial_service_2.created_by.email_address
     assert results[0].notification_type == 'sms'
