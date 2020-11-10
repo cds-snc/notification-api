@@ -182,7 +182,7 @@ def fetch_notification_stats_for_trial_services():
         User.email_address,
         FactNotificationStatus.notification_type,
     ).order_by(
-        func.sum(FactNotificationStatus.notification_count).desc(),
+        Service.created_at,
     ).all()
 
 
