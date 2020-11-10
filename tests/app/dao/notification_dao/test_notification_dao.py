@@ -33,6 +33,10 @@ from app.dao.notifications_dao import (
     dao_get_notifications_by_references,
     dao_get_notification_history_by_reference,
     notifications_not_yet_sent,
+    send_method_stats_by_service,
+)
+from app.dao.organisation_dao import (
+    dao_add_service_to_organisation,
 )
 from app.models import (
     Job,
@@ -56,7 +60,8 @@ from tests.app.db import (
     create_notification,
     create_service,
     create_template,
-    create_notification_history
+    create_notification_history,
+    create_api_key,
 )
 
 
@@ -1538,3 +1543,55 @@ def test_notifications_not_yet_sent_return_no_rows(sample_service, notification_
 
     results = notifications_not_yet_sent(older_than, notification_type)
     assert len(results) == 0
+
+
+@freeze_time('2020-11-01 12:00:00')
+def test_send_method_stats_by_service(sample_service, sample_organisation):
+    dao_add_service_to_organisation(sample_service, sample_organisation.id)
+    template = create_template(service=sample_service)
+    api_key = create_api_key(sample_service)
+
+    create_notification_history(
+        template=template,
+        status='delivered',
+        created_at=datetime.utcnow() - timedelta(days=3)
+    )
+    create_notification_history(
+        template=template,
+        status='delivered',
+        api_key=api_key,
+        created_at=datetime.utcnow() - timedelta(days=5)
+    )
+    create_notification_history(
+        template=template,
+        status='delivered',
+        api_key=api_key,
+        created_at=datetime.utcnow() - timedelta(days=6)
+    )
+    # Not in the results: too old
+    create_notification_history(
+        template=template,
+        status='delivered',
+        created_at=datetime.utcnow() - timedelta(days=30)
+    )
+    # Not in the results: status is `created`
+    create_notification_history(
+        template=template,
+        status='created',
+        created_at=datetime.utcnow() - timedelta(days=2)
+    )
+
+    assert NotificationHistory.query.count() == 5
+
+    assert send_method_stats_by_service(
+        datetime.utcnow() - timedelta(days=7),
+        datetime.utcnow(),
+    ) == [
+        (sample_service.id, sample_service.name, sample_organisation.name, template.template_type, 'admin', 1),
+        (sample_service.id, sample_service.name, sample_organisation.name, template.template_type, 'api', 2),
+    ]
+
+    assert send_method_stats_by_service(
+        datetime.utcnow() - timedelta(days=1),
+        datetime.utcnow(),
+    ) == []
