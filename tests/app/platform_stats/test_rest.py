@@ -156,7 +156,7 @@ def test_get_usage_for_all_services(notify_db_session, admin_request):
     assert response[3]["letter_breakdown"] == "15 second class letters at 55p\n"
 
 
-def test_get_usage_for_trial_services(mocker, notify_db, admin_request):
+def test_get_usage_for_trial_services(mocker, admin_request):
     # The DAO method is already covered by tests
     mock = mocker.patch(
         'app.platform_stats.rest.fetch_notification_stats_for_trial_services',
@@ -168,7 +168,7 @@ def test_get_usage_for_trial_services(mocker, notify_db, admin_request):
     mock.assert_called_once()
 
 
-def test_get_send_methods_stats_by_service(mocker, notify_db, admin_request):
+def test_get_send_methods_stats_by_service(mocker, admin_request):
     # The DAO method is already covered by tests
     mock = mocker.patch(
         'app.platform_stats.rest.send_method_stats_by_service',
