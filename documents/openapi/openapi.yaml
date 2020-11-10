@@ -30,13 +30,8 @@ info:
   contact:
     name: VA Notify team
 servers:
-  - url: '{protocol}://{environment}.twnotify.com'
+  - url: 'https://{environment}.notifications.va.gov'
     variables:
-      protocol:
-        enum:
-          - http
-          - https
-        default: https
       environment:
         enum:
           - staging.api
