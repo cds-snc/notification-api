@@ -3,13 +3,12 @@ from app.clients.sms.aws_sns import AwsSnsClient
 
 
 @pytest.fixture(scope='function')
-def aws_sns_client(notify_api, mocker):
-    with notify_api.app_context():
-        aws_sns_client = AwsSnsClient()
-        statsd_client = mocker.Mock()
-        logger = mocker.Mock()
-        aws_sns_client.init_app("some-aws-region", statsd_client, logger)
-        return aws_sns_client
+def aws_sns_client(mocker):
+    aws_sns_client = AwsSnsClient()
+    statsd_client = mocker.Mock()
+    logger = mocker.Mock()
+    aws_sns_client.init_app("some-aws-region", statsd_client, logger)
+    return aws_sns_client
 
 
 @pytest.fixture(scope='function')
