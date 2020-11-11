@@ -17,3 +17,7 @@ def accept_recipient_identifiers_enabled():
         return True
     else:
         return False
+
+
+def is_gapixel_enabled(current_app):
+    return current_app.config.get('GOOGLE_ANALYTICS_ENABLED')

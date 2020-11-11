@@ -2,6 +2,7 @@ import re
 from datetime import datetime
 
 import requests
+import app.googleanalytics.pixels as gapixels
 from flask import current_app
 from notifications_utils.recipients import (
     validate_and_format_phone_number,
@@ -21,7 +22,7 @@ from app.dao.provider_details_dao import (
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException
-from app.feature_flags import is_provider_enabled
+from app.feature_flags import is_provider_enabled, is_gapixel_enabled
 from app.models import (
     SMS_TYPE,
     KEY_TYPE_TEST,
@@ -136,7 +137,7 @@ def send_email_to_provider(notification):
         html_email = HTMLEmailTemplate(
             template_dict,
             values=personalisation_data,
-            **get_html_email_options(service)
+            **get_html_email_options(notification, provider)
         )
 
         plain_text_email = PlainTextEmailTemplate(
@@ -216,27 +217,37 @@ def get_logo_url(base_url, logo_file):
     return "https://{}.{}/{}".format(bucket, domain, logo_file)
 
 
-def get_html_email_options(service):
+def get_html_email_options(notification, provider):
+    options_dict = {}
+    if is_gapixel_enabled(current_app):
+        options_dict['ga_pixel_url'] = gapixels.build_ga_pixel_url(notification, provider)
 
+    service = notification.service
     if service.email_branding is None:
-        return {
-            'default_banner': True,
-            'brand_banner': False,
-        }
+        options_dict.update(
+            {
+                'default_banner': True,
+                'brand_banner': False
+            }
+        )
+    else:
+        logo_url = get_logo_url(
+            current_app.config['ADMIN_BASE_URL'],
+            service.email_branding.logo
+        ) if service.email_branding.logo else None
 
-    logo_url = get_logo_url(
-        current_app.config['ADMIN_BASE_URL'],
-        service.email_branding.logo
-    ) if service.email_branding.logo else None
+        options_dict.update(
+            {
+                'default_banner': service.email_branding.brand_type == BRANDING_BOTH,
+                'brand_banner': service.email_branding.brand_type == BRANDING_ORG_BANNER,
+                'brand_colour': service.email_branding.colour,
+                'brand_logo': logo_url,
+                'brand_text': service.email_branding.text,
+                'brand_name': service.email_branding.name
+            }
+        )
 
-    return {
-        'default_banner': service.email_branding.brand_type == BRANDING_BOTH,
-        'brand_banner': service.email_branding.brand_type == BRANDING_ORG_BANNER,
-        'brand_colour': service.email_branding.colour,
-        'brand_logo': logo_url,
-        'brand_text': service.email_branding.text,
-        'brand_name': service.email_branding.name,
-    }
+    return options_dict
 
 
 def technical_failure(notification):

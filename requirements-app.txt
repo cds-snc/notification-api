@@ -44,7 +44,7 @@ awscli-cwlogs==1.4.6
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
 itsdangerous==0.24
 
-git+https://github.com/department-of-veterans-affairs/notification-utils.git@1.0.13#egg=notification-utils==1.0.13
+git+https://github.com/department-of-veterans-affairs/notification-utils.git@1.0.14#egg=notification-utils==1.0.14
 
 # MLWR
 socketio-client==0.5.6

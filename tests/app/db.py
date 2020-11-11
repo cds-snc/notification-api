@@ -646,13 +646,18 @@ def create_domain(domain, organisation_id):
 
 
 def create_organisation(name='test_org_1', active=True, organisation_type=None, domains=None):
-    data = {
-        'name': name,
-        'active': active,
-        'organisation_type': organisation_type,
-    }
-    organisation = Organisation(**data)
-    dao_create_organisation(organisation)
+    organisation = Organisation.query.filter_by(name=name).first()
+    if organisation:
+        organisation.active = active
+        organisation.organisation_type = organisation_type
+    else:
+        data = {
+            'name': name,
+            'active': active,
+            'organisation_type': organisation_type,
+        }
+        organisation = Organisation(**data)
+        dao_create_organisation(organisation)
 
     for domain in domains or []:
         create_domain(domain, organisation.id)

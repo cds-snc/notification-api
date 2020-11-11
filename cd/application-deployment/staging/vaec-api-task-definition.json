@@ -49,6 +49,10 @@
                 {
                     "name": "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED",
                     "value": "True"
+                },
+                {
+                    "name": "GOOGLE_ANALYTICS_ENABLED",
+                    "value": "True"
                 }
             ],
             "secrets": [{

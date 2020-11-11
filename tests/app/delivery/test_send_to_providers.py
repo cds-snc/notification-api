@@ -1,5 +1,4 @@
 import uuid
-from collections import namedtuple
 from datetime import datetime
 from unittest.mock import ANY
 
@@ -7,7 +6,6 @@ import pytest
 from flask import current_app
 from notifications_utils.recipients import validate_and_format_phone_number
 from requests import HTTPError
-
 
 import app
 from app import aws_sns_client, mmg_client
@@ -26,6 +24,7 @@ from app.models import (
     BRANDING_BOTH,
     BRANDING_ORG_BANNER
 )
+
 from tests.app.db import (
     create_service,
     create_template,
@@ -115,7 +114,8 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
 
 def test_should_send_personalised_template_to_correct_email_provider_and_persist(
     sample_email_template_with_html,
-    mock_email_client
+    mock_email_client,
+    mocked_build_ga_pixel_url
 ):
     db_notification = create_notification(
         template=sample_email_template_with_html,
@@ -150,7 +150,8 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
 def test_should_not_send_email_message_when_service_is_inactive_notification_is_in_tech_failure(
         sample_service,
         sample_notification,
-        mock_email_client
+        mock_email_client,
+        mocked_build_ga_pixel_url
 ):
     sample_service.active = False
 
@@ -164,6 +165,7 @@ def test_should_not_send_email_message_when_service_is_inactive_notification_is_
 def test_should_use_custom_sending_domain_and_email_from(
         sample_service,
         mock_email_client,
+        mocked_build_ga_pixel_url,
         sample_email_template_with_html
 ):
     db_notification = create_notification(
@@ -191,6 +193,7 @@ def test_should_use_custom_sending_domain_and_email_from(
 def test_should_use_default_sending_domain_and_email_from(
         sample_service,
         mock_email_client,
+        mocked_build_ga_pixel_url,
         sample_email_template_with_html,
         notify_api
 ):
@@ -385,6 +388,7 @@ def test_send_email_to_provider_should_call_research_mode_task_response_task_if_
         sample_email_template,
         mocker,
         mock_email_client,
+        mocked_build_ga_pixel_url,
         research_mode,
         key_type):
     notification = create_notification(
@@ -434,7 +438,9 @@ def test_send_email_to_provider_should_not_send_to_provider_when_status_is_not_c
 def test_send_email_should_use_service_reply_to_email(
         sample_service,
         sample_email_template,
-        mock_email_client):
+        mock_email_client,
+        mocked_build_ga_pixel_url
+):
     db_notification = create_notification(template=sample_email_template, reply_to_text='foo@bar.com')
     create_reply_to_email(service=sample_service, email_address='foo@bar.com')
 
@@ -453,13 +459,19 @@ def test_send_email_should_use_service_reply_to_email(
     )
 
 
-def test_get_html_email_renderer_should_return_for_normal_service(sample_service):
-    options = send_to_providers.get_html_email_options(sample_service)
+def test_get_html_email_renderer_should_return_for_normal_service(
+        sample_notification_model_with_organization,
+        mock_email_client
+):
+    options = send_to_providers.get_html_email_options(
+        sample_notification_model_with_organization,
+        mock_email_client)
     assert options['default_banner'] is True
     assert 'brand_colour' not in options.keys()
     assert 'brand_logo' not in options.keys()
     assert 'brand_text' not in options.keys()
     assert 'brand_name' not in options.keys()
+    assert 'ga_pixel_url' in options.keys()
 
 
 @pytest.mark.parametrize('branding_type, default_banner', [
@@ -467,7 +479,12 @@ def test_get_html_email_renderer_should_return_for_normal_service(sample_service
     (BRANDING_BOTH, True),
     (BRANDING_ORG_BANNER, False)
 ])
-def test_get_html_email_renderer_with_branding_details(branding_type, default_banner, notify_db, sample_service):
+def test_get_html_email_renderer_with_branding_details(
+        branding_type,
+        default_banner,
+        sample_notification_model_with_organization,
+        mock_email_client
+):
 
     email_branding = EmailBranding(
         brand_type=branding_type,
@@ -476,11 +493,12 @@ def test_get_html_email_renderer_with_branding_details(branding_type, default_ba
         name='Justice League',
         text='League of Justice',
     )
-    sample_service.email_branding = email_branding
-    notify_db.session.add_all([sample_service, email_branding])
-    notify_db.session.commit()
+    sample_notification_model_with_organization.service.email_branding = email_branding
 
-    options = send_to_providers.get_html_email_options(sample_service)
+    options = send_to_providers.get_html_email_options(
+        sample_notification_model_with_organization,
+        mock_email_client
+    )
 
     assert options['default_banner'] == default_banner
     assert options['brand_colour'] == '#000000'
@@ -493,20 +511,25 @@ def test_get_html_email_renderer_with_branding_details(branding_type, default_ba
         assert options['brand_banner'] is False
 
 
-def test_get_html_email_renderer_with_branding_details_and_render_default_banner_only(notify_db, sample_service):
-    sample_service.email_branding = None
-    notify_db.session.add_all([sample_service])
-    notify_db.session.commit()
+def test_get_html_email_renderer_with_branding_details_and_render_default_banner_only(
+        sample_notification_model_with_organization,
+        mock_email_client
+):
+    sample_notification_model_with_organization.service.email_branding = None
 
-    options = send_to_providers.get_html_email_options(sample_service)
+    options = send_to_providers.get_html_email_options(
+        sample_notification_model_with_organization,
+        mock_email_client
+    )
 
-    assert options == {'default_banner': True, 'brand_banner': False}
+    assert {'default_banner': True, 'brand_banner': False}.items() <= options.items()
 
 
-def test_get_html_email_renderer_prepends_logo_path(notify_api):
-    Service = namedtuple('Service', ['email_branding'])
-    EmailBranding = namedtuple('EmailBranding', ['brand_type', 'colour', 'name', 'logo', 'text'])
-
+def test_get_html_email_renderer_prepends_logo_path(
+        notify_api,
+        sample_notification_model_with_organization,
+        mock_email_client
+):
     email_branding = EmailBranding(
         brand_type=BRANDING_ORG,
         colour='#000000',
@@ -514,19 +537,18 @@ def test_get_html_email_renderer_prepends_logo_path(notify_api):
         name='Justice League',
         text='League of Justice',
     )
-    service = Service(
-        email_branding=email_branding,
-    )
+    sample_notification_model_with_organization.service.email_branding = email_branding
 
-    renderer = send_to_providers.get_html_email_options(service)
+    renderer = send_to_providers.get_html_email_options(sample_notification_model_with_organization, mock_email_client)
     domain = "https://dev-notifications-va-gov-assets.s3.amazonaws.com"
     assert renderer['brand_logo'] == "{}{}".format(domain, '/justice-league.png')
 
 
-def test_get_html_email_renderer_handles_email_branding_without_logo(notify_api):
-    Service = namedtuple('Service', ['email_branding'])
-    EmailBranding = namedtuple('EmailBranding', ['brand_type', 'colour', 'name', 'logo', 'text'])
-
+def test_get_html_email_renderer_handles_email_branding_without_logo(
+        notify_api,
+        sample_notification_model_with_organization,
+        mock_email_client
+):
     email_branding = EmailBranding(
         brand_type=BRANDING_ORG_BANNER,
         colour='#000000',
@@ -534,11 +556,10 @@ def test_get_html_email_renderer_handles_email_branding_without_logo(notify_api)
         name='Justice League',
         text='League of Justice',
     )
-    service = Service(
-        email_branding=email_branding,
-    )
 
-    renderer = send_to_providers.get_html_email_options(service)
+    sample_notification_model_with_organization.service.email_branding = email_branding
+
+    renderer = send_to_providers.get_html_email_options(sample_notification_model_with_organization, mock_email_client)
 
     assert renderer['default_banner'] is False
     assert renderer['brand_banner'] is True
@@ -728,7 +749,8 @@ def test_should_handle_sms_sender_and_prefix_message(
 
 def test_send_email_to_provider_uses_reply_to_from_notification(
         sample_email_template,
-        mock_email_client
+        mock_email_client,
+        mocked_build_ga_pixel_url
 ):
     db_notification = create_notification(template=sample_email_template, reply_to_text="test@test.com")
 
@@ -749,7 +771,8 @@ def test_send_email_to_provider_uses_reply_to_from_notification(
 
 def test_send_email_to_provider_should_format_reply_to_email_address(
         sample_email_template,
-        mock_email_client
+        mock_email_client,
+        mocked_build_ga_pixel_url
 ):
     db_notification = create_notification(template=sample_email_template, reply_to_text="test@test.com\t")
 
@@ -778,7 +801,11 @@ def test_send_sms_to_provider_should_format_phone_number(sample_notification, mo
     assert mock_sms_client.send_sms.call_args[1]['to'] == '+16502532222'
 
 
-def test_send_email_to_provider_should_format_email_address(sample_email_notification, mock_email_client):
+def test_send_email_to_provider_should_format_email_address(
+        sample_email_notification,
+        mock_email_client,
+        mocked_build_ga_pixel_url
+):
     sample_email_notification.to = 'test@example.com\t'
 
     send_to_providers.send_email_to_provider(sample_email_notification)
@@ -799,7 +826,8 @@ def test_send_email_to_provider_should_format_email_address(sample_email_notific
 def test_notification_can_have_document_attachment_without_mlwr_sid(
         sample_email_template,
         mocker,
-        mock_email_client
+        mock_email_client,
+        mocked_build_ga_pixel_url
 ):
     mlwr_mock = mocker.patch('app.delivery.send_to_providers.check_mlwr')
     personalisation = {
@@ -818,7 +846,8 @@ def test_notification_can_have_document_attachment_without_mlwr_sid(
 def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(
         sample_email_template,
         mocker,
-        mock_email_client
+        mock_email_client,
+        mocked_build_ga_pixel_url
 ):
     mlwr_mock = mocker.patch('app.delivery.send_to_providers.check_mlwr')
     personalisation = {
@@ -838,6 +867,7 @@ def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(
 
 def test_notification_raises_a_retry_exception_if_mlwr_state_is_missing(sample_email_template, mocker):
     mocker.patch('app.aws_ses_client.send_email', return_value='reference')
+    mocker.patch('app.googleanalytics.pixels.build_ga_pixel_url', return_value='url')
     mocker.patch('app.delivery.send_to_providers.check_mlwr', return_value={})
     personalisation = {
         "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
@@ -852,6 +882,7 @@ def test_notification_raises_a_retry_exception_if_mlwr_state_is_missing(sample_e
 
 def test_notification_raises_a_retry_exception_if_mlwr_state_is_not_complete(sample_email_template, mocker):
     mocker.patch('app.aws_ses_client.send_email', return_value='reference')
+    mocker.patch('app.googleanalytics.pixels.build_ga_pixel_url', return_value='url')
     mocker.patch(
         'app.delivery.send_to_providers.check_mlwr',
         return_value={"state": "foo"})
@@ -868,6 +899,7 @@ def test_notification_raises_a_retry_exception_if_mlwr_state_is_not_complete(sam
 
 def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_is_500(sample_email_template, mocker):
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
+    mocker.patch('app.googleanalytics.pixels.build_ga_pixel_url', return_value='url')
     mocker.patch(
         'app.delivery.send_to_providers.check_mlwr',
         return_value={"state": "completed", "submission": {"max_score": 500}})
@@ -886,6 +918,7 @@ def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_is_5
 
 def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_above_500(sample_email_template, mocker):
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
+    mocker.patch('app.googleanalytics.pixels.build_ga_pixel_url', return_value='url')
     mocker.patch(
         'app.delivery.send_to_providers.check_mlwr',
         return_value={"state": "completed", "submission": {"max_score": 501}})
@@ -907,6 +940,7 @@ def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
         mocker,
         notify_api):
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
+    mocker.patch('app.googleanalytics.pixels.build_ga_pixel_url', return_value='url')
 
     db_notification = create_notification(
         template=sample_email_template_with_html,
@@ -928,7 +962,8 @@ def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
 
 def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(
         sample_email_template_with_html,
-        mock_email_client
+        mock_email_client,
+        mocked_build_ga_pixel_url
 ):
     db_notification = create_notification(
         template=sample_email_template_with_html,
@@ -943,7 +978,11 @@ def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(
     assert Notification.query.get(db_notification.id).status == 'sending'
 
 
-def test_notification_passes_if_message_contains_phone_number(sample_email_template_with_html, mock_email_client):
+def test_notification_passes_if_message_contains_phone_number(
+        sample_email_template_with_html,
+        mock_email_client,
+        mocked_build_ga_pixel_url
+):
 
     db_notification = create_notification(
         template=sample_email_template_with_html,
