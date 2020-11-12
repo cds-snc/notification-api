@@ -17,6 +17,15 @@ services:
   db:
     image: postgres:13.0
     restart: always
+    command:
+      - "postgres"
+      - "-c"
+      - "listen_addresses=*"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: chummy@@
+      POSTGRES_HOST_AUTH_METHOD: trust
+    expose:
+      - "5432" 
+    ports:
+      - "5432:5432"

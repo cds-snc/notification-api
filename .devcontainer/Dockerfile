@@ -22,7 +22,7 @@ RUN apt-get update \
     && groupadd --gid $USER_GID $USERNAME \
     && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
     && apt-get install -y sudo \
-    && apt-get -y install curl unzip \
+    && apt-get -y install curl unzip net-tools \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
     && chmod 0440 /etc/sudoers.d/$USERNAME \
     && apt-get autoremove -y \
@@ -33,13 +33,18 @@ RUN curl -O -J -L https://github.com/ryanoasis/nerd-fonts/releases/download/v2.1
     && unzip DroidSansMono.zip -d ~/.fonts \
     && fc-cache -fv
 
+RUN curl -O -J -L https://github.com/ryanoasis/nerd-fonts/releases/download/v2.1.0/FiraMono.zip \
+    && unzip FiraMono.zip -d ~/.fonts \
+    && fc-cache -fv
+
 RUN curl -fsSL https://starship.rs/install.sh | bash -s -- -y
 
 COPY requirements.txt ./
-RUN pip install -r requirements.txt
 WORKDIR /workspace
 
 # RUN echo "export PATH=${GOROOT}/bin:${PATH}" >> /root/.bashrc
 RUN echo "eval '$(starship init bash)'" >> /root/.bashrc
 
 EXPOSE 8000
+
+CMD ["pip", "install", "-r", "requirements.txt"]
