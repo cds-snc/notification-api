@@ -3,7 +3,12 @@ from datetime import datetime
 
 from notifications_utils.timezones import convert_utc_to_local_timezone
 
-from app.models import NOTIFICATION_STATUS_TYPES, TEMPLATE_TYPES
+from app.models import (
+    NOTIFICATION_STATUS_TYPES,
+    TEMPLATE_TYPES,
+    NOTIFICATION_STATUS_SUCCESS,
+    NOTIFICATION_STATUS_TYPES_FAILED,
+)
 from app.dao.date_util import get_months_for_financial_year
 
 
@@ -86,11 +91,9 @@ def create_zeroed_stats_dicts():
 def _update_statuses_from_row(update_dict, row):
     if row.status != 'cancelled':
         update_dict['requested'] += row.count
-    if row.status in ('delivered', 'sent'):
+    if row.status in NOTIFICATION_STATUS_SUCCESS:
         update_dict['delivered'] += row.count
-    elif row.status in (
-            'failed', 'technical-failure', 'temporary-failure',
-            'permanent-failure', 'validation-failed', 'virus-scan-failed'):
+    elif row.status in NOTIFICATION_STATUS_TYPES_FAILED:
         update_dict['failed'] += row.count
 
 
