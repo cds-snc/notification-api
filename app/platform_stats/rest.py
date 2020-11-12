@@ -7,7 +7,11 @@ from app.dao.fact_billing_dao import (
     fetch_sms_billing_for_all_services, fetch_letter_costs_for_all_services,
     fetch_letter_line_items_for_all_services
 )
-from app.dao.fact_notification_status_dao import fetch_notification_status_totals_for_all_services
+from app.dao.fact_notification_status_dao import (
+    fetch_notification_stats_for_trial_services,
+    fetch_notification_status_totals_for_all_services,
+)
+from app.dao.notifications_dao import send_method_stats_by_service
 from app.errors import register_errors, InvalidRequest
 from app.platform_stats.platform_stats_schema import platform_stats_request
 from app.service.statistics import format_admin_stats
@@ -51,6 +55,11 @@ def validate_date_range_is_within_a_financial_year(start_date, end_date):
         raise InvalidRequest(message="Date must be in a single financial year.", status_code=400)
 
     return start_date, end_date
+
+
+@platform_stats_blueprint.route('usage-for-trial-services')
+def get_usage_for_trial_services():
+    return jsonify(fetch_notification_stats_for_trial_services())
 
 
 @platform_stats_blueprint.route('usage-for-all-services')
@@ -106,3 +115,11 @@ def get_usage_for_all_services():
         x['organisation_name'],
         x['service_name']
     )))
+
+
+@platform_stats_blueprint.route('send-method-stats-by-service')
+def get_send_methods_stats_by_service():
+    start_date = datetime.strptime(request.args.get('start_date'), '%Y-%m-%d').date()
+    end_date = datetime.strptime(request.args.get('end_date'), '%Y-%m-%d').date()
+
+    return jsonify(send_method_stats_by_service(start_date, end_date))

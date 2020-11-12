@@ -46,7 +46,8 @@ from app.models import (
     SMS_TYPE,
     EMAIL_TYPE,
     ServiceDataRetention,
-    Service
+    Service,
+    Organisation,
 )
 from app.utils import get_local_timezone_midnight_in_utc
 from app.utils import midnight_n_days_ago, escape_special_characters
@@ -732,3 +733,35 @@ def _duplicate_update_warning(notification, status):
             sent_by=notification.sent_by
         )
     )
+
+
+def send_method_stats_by_service(start_time, end_time):
+    return db.session.query(
+        Service.id,
+        Service.name,
+        Organisation.name,
+        NotificationHistory.notification_type,
+        case(
+            [(NotificationHistory.api_key_id.isnot(None), 'api')],
+            else_='admin'
+        ).label('send_method'),
+        func.count().label('nb_notifications')
+    ).join(
+        Service, Service.id == NotificationHistory.service_id
+    ).join(
+        Organisation, Organisation.id == Service.organisation_id
+    ).filter(
+        NotificationHistory.status.in_([NOTIFICATION_DELIVERED, NOTIFICATION_SENT]),
+        NotificationHistory.key_type != KEY_TYPE_TEST,
+        NotificationHistory.created_at >= start_time,
+        NotificationHistory.created_at <= end_time,
+    ).group_by(
+        Service.id,
+        Service.name,
+        Organisation.name,
+        NotificationHistory.notification_type,
+        case(
+            [(NotificationHistory.api_key_id.isnot(None), 'api')],
+            else_='admin'
+        ),
+    ).all()
