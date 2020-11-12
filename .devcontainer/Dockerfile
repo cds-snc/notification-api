@@ -37,11 +37,9 @@ RUN curl -fsSL https://starship.rs/install.sh | bash -s -- -y
 
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
-COPY . /workspace
 WORKDIR /workspace
 
 # RUN echo "export PATH=${GOROOT}/bin:${PATH}" >> /root/.bashrc
 RUN echo "eval '$(starship init bash)'" >> /root/.bashrc
 
 EXPOSE 8000
-# CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
