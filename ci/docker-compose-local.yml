@@ -47,3 +47,13 @@ services:
     depends_on:
       - app
       - localstack
+  mountebank:
+    container_name: mountebank
+    image: bbyars/mountebank:latest
+    volumes:
+      - ../scripts/mountebank:/mountebank
+    ports:
+      - 2525:2525
+      - 7005:7005
+    command: mb start --configfile /mountebank/imposters.ejs --allowInjection
+

@@ -1,0 +1,21 @@
+{
+  "imposters": [
+    {
+      "port": 7005,
+      "protocol": "http",
+      "name": "VAProfile",
+      "stubs": [
+         <% include stubs/emailBioStubOneEmail.ejs %>
+      ],
+      "defaultResponse": {
+        "statusCode": 200,
+        "headers": {
+          "connection": "open"
+        },
+        "body": {
+          "name": "va profile"
+        }
+      }
+    }
+  ]
+}
