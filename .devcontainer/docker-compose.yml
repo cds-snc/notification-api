@@ -5,6 +5,7 @@ services:
     build: 
       context: ..
       dockerfile: .devcontainer/Dockerfile
+    entrypoint: dev-notif-entrypoint.sh
     volumes:
       - ..:/workspace:cached   
     command: sleep infinity
@@ -15,7 +16,9 @@ services:
       - db
 
   db:
-    image: postgres:13.0
+    build:
+      context: .
+      dockerfile: DbDockerfile
     restart: always
     command:
       - "postgres"

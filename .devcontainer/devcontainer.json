@@ -5,11 +5,13 @@
 	"workspaceFolder": "/workspace",
 
 	"settings": { 
-		"terminal.integrated.shell.linux": "/bin/bash",
-		"python.pythonPath": "/usr/local/bin/python",
+		"editor.fontFamily": "FiraCode Nerd Font",
 		"python.linting.enabled": true,
 		"python.linting.pylintEnabled": true,
-		"python.linting.pylintPath": "/usr/local/bin/pylint"
+		"python.linting.pylintPath": "/usr/local/bin/pylint",
+		"python.pythonPath": "/usr/local/bin/python",
+		"terminal.integrated.shell.linux": "/bin/bash",
+		"terminal.integrated.fontFamily": "FiraCode Nerd Font Mono"
 	},
 
 	"extensions": [

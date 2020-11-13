@@ -1,10 +1,3 @@
-# Content example stolen from 
-# https://hub.docker.com/_/django
-# but adjust based on current Python base image.
-
-# look into other potential base images:
-# https://hub.docker.com/r/circleci/python
-
 FROM python:3.6
 
 ARG USERNAME=vscode
@@ -23,28 +16,24 @@ RUN apt-get update \
     && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
     && apt-get install -y sudo \
     && apt-get -y install curl unzip net-tools \
+    && apt-get -y install manpages man-db tldr \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
     && chmod 0440 /etc/sudoers.d/$USERNAME \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -O -J -L https://github.com/ryanoasis/nerd-fonts/releases/download/v2.1.0/DroidSansMono.zip \
-    && unzip DroidSansMono.zip -d ~/.fonts \
-    && fc-cache -fv
-
 RUN curl -O -J -L https://github.com/ryanoasis/nerd-fonts/releases/download/v2.1.0/FiraMono.zip \
     && unzip FiraMono.zip -d ~/.fonts \
+    && rm FiraMono.zip \
     && fc-cache -fv
 
 RUN curl -fsSL https://starship.rs/install.sh | bash -s -- -y
 
-COPY requirements.txt ./
-WORKDIR /workspace
-
-# RUN echo "export PATH=${GOROOT}/bin:${PATH}" >> /root/.bashrc
-RUN echo "eval '$(starship init bash)'" >> /root/.bashrc
+COPY .devcontainer/dev-notif-entrypoint.sh /usr/local/bin/
 
 EXPOSE 8000
 
-CMD ["pip", "install", "-r", "requirements.txt"]
+RUN python -m pip install wheel
+
+RUN echo "eval '$(starship init bash)'" >> /root/.bashrc
