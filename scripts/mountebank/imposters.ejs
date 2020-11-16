@@ -5,7 +5,10 @@
       "protocol": "http",
       "name": "VAProfile",
       "stubs": [
-         <% include stubs/emailBioStubOneEmail.ejs %>
+         <% include stubs/emailBioStub200_OneEmail.ejs %>,
+         <% include stubs/emailBioStub200_Core103.ejs %>,
+         <% include stubs/emailBioStub200_Rejected.ejs %>,
+         <% include stubs/emailBioStub200_CompletedFailure.ejs %>
       ],
       "defaultResponse": {
         "statusCode": 200,
