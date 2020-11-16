@@ -1,6 +1,8 @@
 import uuid
 
+
 from app.celery.contact_information_tasks import lookup_contact_info, lookup_va_profile_id
+from app.models import Notification, VA_PROFILE_ID, RecipientIdentifier
 
 
 def test_should_log_message_for_contact_information_tasks(client, mocker):
@@ -12,3 +14,22 @@ def test_should_log_message_for_contact_information_tasks(client, mocker):
 
     lookup_va_profile_id(notification_id)
     mock_logger.assert_called_with('This task will look up VA Profile ID.')
+
+
+def test_should_fetch_notification(client, mocker):
+    notification_id = str(uuid.uuid4())
+    _recipient_identifier = RecipientIdentifier(
+        notification_id=notification_id,
+        id_type=VA_PROFILE_ID,
+        id_value='t@t.org'
+    )
+    notification = Notification(
+        id=notification_id,
+    )
+    notification.recipient_identifiers.set(_recipient_identifier)
+    mocked_get_notification_by_id = mocker.patch(
+        'app.celery.contact_information_tasks.notifications_dao.get_notification_by_id',
+        return_value=notification
+    )
+    lookup_contact_info(notification_id)
+    mocked_get_notification_by_id.assert_called()
