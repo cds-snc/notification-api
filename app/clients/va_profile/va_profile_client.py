@@ -15,11 +15,11 @@ class VAProfileClient:
     def get_email(self, va_profile_id):
         current_app.logger.info("Querying VA Profile with ID " + va_profile_id)
 
-        requests.get(f"{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/emails")
+        response = requests.get(
+            f"{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/emails")
+        return self._parse_response(response)
 
-        # parse the response
-
-        # extract the email address
-
-        return "test@test.com"
-
+    def _parse_response(self, response_text):
+        response_dict = response_text.json()
+        if response_dict['status'] == 'COMPLETED_SUCCESS':
+            return response_dict['bios'][0]['emailAddressText']
