@@ -110,6 +110,8 @@ def create_app(application):
         logger=application.logger,
         callback_notify_url_host=application.config["API_HOST_NAME"]
     )
+    va_profile_client.init_app(application.config['VA_PROFILE_URL'])
+
     notify_celery.init_app(application)
     encryption.init_app(application)
     redis_store.init_app(application)

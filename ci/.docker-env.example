@@ -14,3 +14,5 @@ NOTIFICATION_QUEUE_PREFIX='vanotify-'
 BROKER_URL=sqs://foo:bar@localstack:4566
 
 GRANICUS_TOKEN=
+
+VA_PROFILE_URL=http://host.docker.internal:7005
