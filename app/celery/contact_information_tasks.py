@@ -3,6 +3,8 @@ from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 
 from app import notify_celery, va_profile_client
+from app.celery import provider_tasks
+from app.config import QueueNames
 from app.dao import notifications_dao
 from app.models import VA_PROFILE_ID
 
@@ -26,6 +28,10 @@ def lookup_contact_info(notification_id):
     notifications_dao.dao_update_notification(notification)
 
     # place it on the email queue
+    provider_tasks.deliver_email.apply_async(
+        [str(notification.id)],
+        queue=QueueNames.SEND_EMAIL if not notification.service.research_mode else QueueNames.RESEARCH_MODE
+    )
 
 
 @notify_celery.task(name="lookup-va-profile-id-tasks")

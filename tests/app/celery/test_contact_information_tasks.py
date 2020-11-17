@@ -2,7 +2,8 @@ import uuid
 
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.clients.va_profile.va_profile_client import VAProfileClient
-from app.models import Notification, VA_PROFILE_ID, RecipientIdentifier
+from app.config import QueueNames
+from app.models import Notification, VA_PROFILE_ID, RecipientIdentifier, Service
 
 
 def test_should_fetch_notification(client, mocker):
@@ -33,9 +34,16 @@ def test_should_fetch_notification(client, mocker):
         'app.celery.contact_information_tasks.notifications_dao.dao_update_notification'
     )
 
+    mock_deliver_email = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
+    mocked_service = mocker.Mock(Service)
+    mocked_service.research_mode = False
+    notification.service = mocked_service
+
     lookup_contact_info(notification_id)
 
     mocked_get_notification_by_id.assert_called()
     mocked_va_profile_client.get_email.assert_called_with(example_va_profile_id)
     mocked_update_notification.assert_called_with(notification)
     assert notification.to == 'test@test.org'
+
+    mock_deliver_email.assert_called_with([notification_id], queue=QueueNames.SEND_EMAIL)
