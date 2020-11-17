@@ -4,7 +4,7 @@ import jwt
 import time
 import os
 
-notification_url = os.getenv("notification_url")
+notification_url = os.getenv("NOTIFICATION_URL")
 api_secret = os.getenv("NOTIFICATION_SECRET")
 
 if(not api_secret):
