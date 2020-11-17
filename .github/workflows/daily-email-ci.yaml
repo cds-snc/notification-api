@@ -31,7 +31,7 @@ jobs:
          node-version: '12' 
      - name: Run User Flow
        run: |
-         NOTIFICATION_URL=$(aws ssm get-parameter --name /staging/notification-api/api-host-name | jq '.Parameter.Value' -r)"
+         NOTIFICATION_URL=$(aws ssm get-parameter --name /staging/notification-api/api-host-name | jq '.Parameter.Value' -r)
          NOTIFICATION_SECRET=$(aws ssm get-parameter --with-decryption --name /staging/notification-api/admin-client-secret | jq '.Parameter.Value' -r)
          echo "::add-mask::$NOTIFICATION_SECRET"
          docker-compose -f ci/docker-compose-user-flow.yml up --build --abort-on-container-exit --force-recreate daily-check
