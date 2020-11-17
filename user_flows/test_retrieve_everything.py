@@ -6,7 +6,7 @@ from steps import get_services_id
 from steps import get_users
 from steps import get_templates
 
-notification_url = os.getenv("notification_url")
+notification_url = os.getenv("NOTIFICATION_URL")
 api_secret = os.getenv("NOTIFICATION_SECRET")
 
 if(not api_secret):
