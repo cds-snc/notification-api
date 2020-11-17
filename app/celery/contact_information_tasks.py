@@ -19,9 +19,12 @@ def lookup_contact_info(notification_id):
     va_profile_id = notification.recipient_identifiers[VA_PROFILE_ID].id_value
 
     # user va profile client to send the request to get the VAProfile
-    va_profile_client.get_email(va_profile_id)
+    email = va_profile_client.get_email(va_profile_id)
     # get the email form VAProfile
     # update (db) notification with the email address
+    notification.to = email
+    notifications_dao.dao_update_notification(notification)
+
     # place it on the email queue
 
 

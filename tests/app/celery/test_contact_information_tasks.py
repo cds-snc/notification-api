@@ -23,12 +23,19 @@ def test_should_fetch_notification(client, mocker):
     )
 
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
+    mocked_va_profile_client.get_email = mocker.Mock(return_value='test@test.org')
     mocker.patch(
         'app.celery.contact_information_tasks.va_profile_client',
         new=mocked_va_profile_client
+    )
+
+    mocked_update_notification = mocker.patch(
+        'app.celery.contact_information_tasks.notifications_dao.dao_update_notification'
     )
 
     lookup_contact_info(notification_id)
 
     mocked_get_notification_by_id.assert_called()
     mocked_va_profile_client.get_email.assert_called_with(example_va_profile_id)
+    mocked_update_notification.assert_called_with(notification)
+    assert notification.to == 'test@test.org'
