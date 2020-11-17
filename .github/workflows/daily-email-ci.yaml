@@ -3,6 +3,8 @@ name: Daily Email Pipeline
 on:
   schedule:
     - cron: "0 8 * * *"
+  workflow_dispatch:
+    
 
 env:
   tf_version: 0.12.29
@@ -26,15 +28,10 @@ jobs:
          role-duration-seconds: 900
      - uses: actions/setup-node@v2.1.2
        with:
-         node-version: '12'
-     - name: Retrieve URL
-       run: |
-         echo "::set-env name=notification_url::$(aws ssm get-parameter --name /staging/notification-api/api-host-name | jq '.Parameter.Value' -r)"
-     - name: Retrieve Notification Secret
-       run: |
-         NOTIFICATION_SECRET=$(aws ssm get-parameter --with-decryption --name /staging/notification-api/admin-client-secret | jq '.Parameter.Value' -r)
-         echo "::add-mask::$NOTIFICATION_SECRET"
-         echo "::set-env name=NOTIFICATION_SECRET::$NOTIFICATION_SECRET"
+         node-version: '12' 
      - name: Run User Flow
        run: |
+         NOTIFICATION_URL=$(aws ssm get-parameter --name /staging/notification-api/api-host-name | jq '.Parameter.Value' -r)"
+         NOTIFICATION_SECRET=$(aws ssm get-parameter --with-decryption --name /staging/notification-api/admin-client-secret | jq '.Parameter.Value' -r)
+         echo "::add-mask::$NOTIFICATION_SECRET"
          docker-compose -f ci/docker-compose-user-flow.yml up --build --abort-on-container-exit --force-recreate daily-check
