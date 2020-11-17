@@ -318,16 +318,11 @@ jobs:
       - uses: actions/setup-node@v2.1.2
         with:
           node-version: '12'
-      - name: Retrieve URL
-        run: |
-          echo "::set-env name=notification_url::$(aws ssm get-parameter --name /${{ needs.check-environment.outputs.environment }}/notification-api/api-host-name | jq '.Parameter.Value' -r)"
-      - name: Retrieve Notification Secret
-        run: |
-          NOTIFICATION_SECRET=$(aws ssm get-parameter --with-decryption --name /${{ needs.check-environment.outputs.environment }}/notification-api/admin-client-secret | jq '.Parameter.Value' -r)
-          echo "::add-mask::$NOTIFICATION_SECRET"
-          echo "::set-env name=NOTIFICATION_SECRET::$NOTIFICATION_SECRET"
       - name: Run User Flow
         run: |
+          export NOTIFICATION_URL=$(aws ssm get-parameter --name /staging/notification-api/api-host-name | jq '.Parameter.Value' -r)
+          export NOTIFICATION_SECRET=$(aws ssm get-parameter --with-decryption --name /staging/notification-api/admin-client-secret | jq '.Parameter.Value' -r)
+          echo "::add-mask::$NOTIFICATION_SECRET"
           docker-compose -f ci/docker-compose-user-flow.yml up --build --abort-on-container-exit --force-recreate user-flow
 
   deployment-status:
