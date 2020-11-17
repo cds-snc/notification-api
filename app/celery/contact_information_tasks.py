@@ -9,22 +9,17 @@ from app.notifications.process_notifications import send_notification_to_queue
 @notify_celery.task(name="lookup-contact-info-tasks")
 @statsd(namespace="tasks")
 def lookup_contact_info(notification_id):
-    current_app.logger.info("This task will look up contact information.")
+    current_app.logger.info(f"Looking up contact information for notification_id:{notification_id}.")
 
-    # get notification using id
     notification = notifications_dao.get_notification_by_id(notification_id)
 
-    # read the identifier value aka va profile id
     va_profile_id = notification.recipient_identifiers[VA_PROFILE_ID].id_value
 
-    # user va profile client to send the request to get the VAProfile
     email = va_profile_client.get_email(va_profile_id)
-    # get the email form VAProfile
-    # update (db) notification with the email address
+
     notification.to = email
     notifications_dao.dao_update_notification(notification)
 
-    # place it on the email queue
     send_notification_to_queue(notification, notification.service.research_mode)
 
 
