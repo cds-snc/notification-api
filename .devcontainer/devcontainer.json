@@ -1,18 +1,28 @@
 {
 	"name": "Python 3.6 & PostgreSQL",
-	"dockerComposeFile": "../docker-compose.yml",
-	"service": "app",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "dev",
 	"workspaceFolder": "/workspace",
 
 	"settings": { 
-		"terminal.integrated.shell.linux": "/bin/sh",
-		"python.pythonPath": "/usr/local/bin/python",
 		"python.linting.enabled": true,
 		"python.linting.pylintEnabled": true,
-		"python.linting.pylintPath": "/usr/local/bin/pylint"
+		"python.linting.pylintPath": "/usr/local/bin/pylint",
+		"python.pythonPath": "/usr/local/bin/python",
+		"terminal.integrated.shell.linux": "/bin/bash",
+		"terminal.integrated.fontFamily": "FiraCode Nerd Font Mono"
 	},
 
 	"extensions": [
-		"ms-python.python"
+		"donjayamanne.python-extension-pack",
+		"ms-azuretools.vscode-docker",
+		"ms-python.vscode-pylance",
+		"eamodio.gitlens",
+		"wholroyd.jinja",
+		"pmbenjamin.vscode-snyk",
+		"visualstudioexptteam.vscodeintellicode",
+		"yzhang.markdown-all-in-one",
+		"ms-ossdata.vscode-postgresql",
+		"googlecloudtools.cloudcode"
 	]
 }
