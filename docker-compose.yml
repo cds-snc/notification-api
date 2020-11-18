@@ -35,7 +35,7 @@ services:
       - .:/app
     ports:
         - "6011:6011"
-    links:
+    depends_on:
       - db
       - redis
   beat:
