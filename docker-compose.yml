@@ -47,6 +47,7 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379/0
       - SQLALCHEMY_DATABASE_URI=postgres://postgres:chummy@db:5432/notification_api
+    entrypoint: local/scripts/notify-worker-entrypoint.sh
     command: >
       bash -c "sh scripts/run_celery_beat.sh"
     volumes:
@@ -64,8 +65,9 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379/0
       - SQLALCHEMY_DATABASE_URI=postgres://postgres:chummy@db:5432/notification_api
+    entrypoint: local/scripts/notify-worker-entrypoint.sh
     command: >
-      bash -c "rm /tmp/celery.pid; sh scripts/run_celery.sh"
+      bash -c "[[ -f /tmp/celery.pid ]] && rm /tmp/celery.pid; sh /app/scripts/run_celery.sh"
     volumes:
       - .:/app
     depends_on:
@@ -81,8 +83,9 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379/0
       - SQLALCHEMY_DATABASE_URI=postgres://postgres:chummy@db:5432/notification_api
+    entrypoint: local/scripts/notify-worker-entrypoint.sh
     command: >
-      bash -c "sh scripts/run_celery_sms.sh"
+      bash -c "sh /app/scripts/run_celery_sms.sh"
     volumes:
       - .:/app
     depends_on:
@@ -98,8 +101,9 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379/1
       - SQLALCHEMY_DATABASE_URI=postgres://postgres:chummy@db:5432/test_notification_api
+    entrypoint: local/scripts/notify-worker-entrypoint.sh
     command: >
-      bash -c "./scripts/run_tests.sh"
+      bash -c "/app/scripts/run_celery.sh"
     volumes:
       - .:/app
     depends_on:
