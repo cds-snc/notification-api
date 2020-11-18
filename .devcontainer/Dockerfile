@@ -30,7 +30,7 @@ RUN curl -O -J -L https://github.com/ryanoasis/nerd-fonts/releases/download/v2.1
 
 RUN curl -fsSL https://starship.rs/install.sh | bash -s -- -y
 
-COPY .devcontainer/dev-notif-entrypoint.sh /usr/local/bin/
+COPY .devcontainer/scripts/notify-dev-entrypoint.sh /usr/local/bin/
 
 EXPOSE 8000
 

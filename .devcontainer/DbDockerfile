@@ -1,3 +1,0 @@
-FROM postgres:13.0
-
-COPY db-notif-entrypoint.sh /docker-entrypoint-initdb.d/

@@ -5,7 +5,9 @@ services:
     build: 
       context: ..
       dockerfile: .devcontainer/Dockerfile
-    entrypoint: dev-notif-entrypoint.sh
+    entrypoint: notify-dev-entrypoint.sh
+    environment:
+      SQLALCHEMY_DATABASE_URI: postgresql://postgres:chummy@db/notification_api
     volumes:
       - ..:/workspace:cached   
     command: sleep infinity
@@ -16,9 +18,9 @@ services:
       - db
 
   db:
-    build:
-      context: .
-      dockerfile: DbDockerfile
+    image: postgres:11.2
+    volumes:
+    - ./initdb:/docker-entrypoint-initdb.d
     restart: always
     command:
       - "postgres"
@@ -26,7 +28,7 @@ services:
       - "listen_addresses=*"
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: chummy@@
+      POSTGRES_PASSWORD: chummy
       POSTGRES_HOST_AUTH_METHOD: trust
     expose:
       - "5432" 

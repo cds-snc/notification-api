@@ -26,11 +26,6 @@ cd /workspace
 # be quite slow on every invocation of starship.
 git status
 
-# We need to override the default database URI to provide the database
-# container hostname in the URI string.
-cp .env.example .env
-echo -e "\nSQLALCHEMY_DATABASE_URI=postgresql://postgres@db/notification_api" >> .env
-
 make generate-version-file
 pip3 install -r requirements.txt
 pip3 install -r requirements_for_test.txt
