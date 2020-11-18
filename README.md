@@ -14,6 +14,9 @@ Contains:
 
 ## Setting Up
 
+For any issues during the following instructions, make sure to review the 
+**Frequent problems** section toward the end of the document.
+
 ### Local installation instruction 
 
 On OS X:
@@ -43,8 +46,6 @@ if it did not, take a look here: https://github.com/pyenv/pyenv/issues/660
 6. Add the following to your shell rc file. ex: `.bashrc` or `.zshrc`
 
 ```
-export WORKON_HOME=$HOME/.virtualenvs
-export PROJECT_HOME=$HOME/Devel
 source  ~/.pyenv/versions/3.6.9/bin/virtualenvwrapper.sh
 ```
 
@@ -141,6 +142,15 @@ Jinja templates are pulled in from the [notification-utils](https://github.com/c
 6. Remove `USE_LOCAL_JINJA_TEMPLATES=True` from your .env file, and delete any jinja in `jinja_templates`. Deleting the folder and jinja files is not required, but recommended. Make sure you're pulling up-to-date jinja from notification-utils the next time you need to make changes.
 
 ## Frequent problems
+
+__Problem__: No *postgres* role exists. 
+
+__Solution__: If the command complains you don't have a *postgres* role existing,
+execute the following command and retry the above afterward:
+
+```
+createuser -l -s postgres
+```
 
 __Problem__ : `E999 SyntaxError: invalid syntax` when running `flake8`
 
