@@ -17,24 +17,14 @@ fileignoreconfig:
       checksum: a7c7933ff437793580b334307a180ef0e587f2b811c1162b14ec1d403640605c
     - filename: ci/docker-compose-local.yml
       checksum: cdd8fc418af65b72fa3c770bd949aea93960432dbf423e91bd347d9dbfda4c55
-    - filename: ci/.docker-env.example
-      checksum: d0eeb31921d596b0205f53aa30ceb98b8ea35cb07cb502e61d7162e5506777d7
     - filename: .env.example
       checksum: 5512142b488c312a1722a03fb3c1faf9b6374ac8aaaea082d99c2aa9d3eb48b3
-    - filename: ci/.docker-env.example
-      checksum: 932f16a11d08daf09847ff8add0e0d9da6d1d5bcea5e67e98c17e25f8e442da7
-    - filename: ci/.docker-env.example
-      checksum: eb45b6b4739828396b817b89892d2526e0883fbed8b132ebaf91260ea7b9627d
     - filename: ci/docker-compose-local.yml
       checksum: bfa2ed19d0b33d303b96e29cb925c2b0dccd5efcdaa988b6c5ddc163ae812d1a
     - filename: .env.example
       checksum: 5f22d894dbf4f27c1b0b6831a716b36dbe4c9fd309a6f0f486ca6feafffde0e1
-    - filename: ci/.docker-env.example
-      checksum: 6a969b4137eea4e3d9a1aa42725530eb903ad83262890e602578b8a501b4b2ad
     - filename: .env.example
       checksum: 967705ddebb3e8378a81ee52f73c2477b9d6738b0c383622c3eabc69d08d43a8
-    - filename: ci/.docker-env.example
-      checksum: 8893b7f8ca92441758acb3e34ca17e856209a9c45b2e256433e3ded0e112cf7d
     - filename: scripts/postman/notification-api.postman_collection.json
       checksum: 32ab98203b010a45ced5b99588795ed1f542bb350c2a90fb8eee4c4bd2b11535
     - filename: README.md
@@ -43,8 +33,6 @@ fileignoreconfig:
       checksum: 1f8f629c6457841ceeec6af0c1525a792cc2a2eee31528e403129312d17bf28a
     - filename: .env.example
       checksum: 32182b74436c734e14cba982b0cb8e77b0ba978a4fa9db637031012a0054e3b4
-    - filename: ci/.docker-env.example
-      checksum: 6a969b4137eea4e3d9a1aa42725530eb903ad83262890e602578b8a501b4b2ad
     - filename: .env.example
       checksum: 9ea1a9bc9290537e83fa1aa5d06108753f381a891a87aac2b608d6989b72d9bd
     - filename: app/celery/research_mode_tasks.py
@@ -61,3 +49,5 @@ fileignoreconfig:
       checksum: b36d728f5bd34baec7e0447d14d17db4a84cfa886eee5b6c739c9f4865b9446b
     - filename: lambda_functions/user_flows/va-internal-cert-chain.pem
       checksum: b275bb504d07e20888d222c31f12246b79aa554bea84c4d3028f110b0f9d473c
+    - filename: ci/.docker-env.example
+      checksum: ffbc9aca2e334e840724589dea21b5bccfd721b5c6592af391bbbdb21d972b67

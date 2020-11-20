@@ -12,4 +12,6 @@ RUN pip install -r requirements.txt
 
 COPY . /app
 RUN make generate-version-file
-CMD ["sh", "./scripts/run_app.sh"]
+
+ENTRYPOINT ["./scripts/save_certificate.sh"]
+CMD ["./scripts/run_app.sh"]

@@ -16,3 +16,6 @@ BROKER_URL=sqs://foo:bar@localstack:4566
 GRANICUS_TOKEN=
 
 VA_PROFILE_URL=http://host.docker.internal:7005
+
+VANOTIFY_SSL_CERT="CERT-FILE"
+VANOTIFY_SSL_KEY="KEY-FILE"

@@ -16,7 +16,9 @@ class VAProfileClient:
         current_app.logger.info("Querying VA Profile with ID " + va_profile_id)
 
         response = requests.get(
-            f"{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/emails")
+            f"{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/emails",
+            cert=('/app/certs/vanotify_ssl.cert', '/app/certs/vanotify_ssl.key')
+        )
         return self._parse_response(response)
 
     def _parse_response(self, response_text):
