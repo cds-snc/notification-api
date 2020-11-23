@@ -1,0 +1,32 @@
+{
+  "predicates": [
+    {
+      "matches": {
+        "path": "/cuf/contact-information/v1/2004/emails$"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "is": {
+        "statusCode": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body":
+        {
+          "messages": [
+            {
+              "code": "CORE103",
+              "key": "_CUF_NOT_FOUND",
+              "text": "The ContactInformationBio for id/criteria 103 could not be found. Please correct your request and try again!",
+              "severity": "ERROR"
+            }
+          ],
+          "txAuditId": "13b596eb-00bb-4f3c-9b2b-77e1ed688f7e",
+          "status": "COMPLETED_FAILURE"
+        }
+      }
+    }
+  ]
+}

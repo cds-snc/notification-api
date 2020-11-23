@@ -1,0 +1,33 @@
+{
+  "predicates": [
+    {
+      "matches": {
+        "path": "/cuf/contact-information/v1/4290/emails$"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "is": {
+        "statusCode": 429,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body":
+        {
+          "messages": [
+            {
+              "code": "string",
+              "key": "string",
+              "potentiallySelfCorrectingOnRetry": true,
+              "severity": "INFO",
+              "text": "string"
+            }
+          ],
+          "status": "REJECTED",
+          "txAuditId": "string"
+        }
+      }
+    }
+  ]
+}

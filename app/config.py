@@ -364,6 +364,7 @@ class Config(object):
     MMG_INBOUND_SMS_USERNAME = json.loads(os.getenv('MMG_INBOUND_SMS_USERNAME', '[]'))
     GRANICUS_TOKEN = os.environ.get('GRANICUS_TOKEN', '')
     GRANICUS_URL = os.environ.get('GRANICUS_URL', 'https://tms.govdelivery.com')
+    VA_PROFILE_URL = os.environ.get('VA_PROFILE_URL', 'https://dev.vaprofile.va.gov')
 
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "messages.va.gov")
     NOTIFY_EMAIL_FROM = os.getenv("NOTIFY_EMAIL_FROM", "notifications")
@@ -383,6 +384,9 @@ class Config(object):
 
     MMG_URL = os.getenv("MMG_URL", "https://api.mmg.co.uk/json/api.php")
     FIRETEXT_URL = os.getenv("FIRETEXT_URL", "https://www.firetext.co.uk/api/sendsms/json")
+
+    VANOTIFY_SSL_CERT_PATH = os.getenv('VANOTIFY_SSL_CERT_PATH', './certs/vanotify_ssl.cert')
+    VANOTIFY_SSL_KEY_PATH = os.getenv('VANOTIFY_SSL_KEY_PATH', './certs/vanotify_ssl.key')
 
     NOTIFY_LOG_PATH = ''
 

@@ -1,0 +1,32 @@
+{
+  "predicates": [
+    {
+      "matches": {
+        "path": "/cuf/contact-information/v1/4040/emails$"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "is": {
+        "statusCode": 404,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body":
+        {
+          "messages": [
+            {
+              "code": "CORE103",
+              "key": "_CUF_NOT_FOUND",
+              "text": "The ContactInformationBio for id/criteria 100 could not be found. Please correct your request and try again!",
+              "severity": "ERROR"
+            }
+          ],
+          "txAuditId": "b74c604b-d226-4353-87cc-ef8ee51be84c",
+          "status": "COMPLETED_FAILURE"
+        }
+      }
+    }
+  ]
+}
