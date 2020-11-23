@@ -385,6 +385,9 @@ class Config(object):
     MMG_URL = os.getenv("MMG_URL", "https://api.mmg.co.uk/json/api.php")
     FIRETEXT_URL = os.getenv("FIRETEXT_URL", "https://www.firetext.co.uk/api/sendsms/json")
 
+    VANOTIFY_SSL_CERT_PATH = os.getenv('VANOTIFY_SSL_CERT_PATH', './certs/vanotify_ssl.cert')
+    VANOTIFY_SSL_KEY_PATH = os.getenv('VANOTIFY_SSL_KEY_PATH', './certs/vanotify_ssl.key')
+
     NOTIFY_LOG_PATH = ''
 
     FIDO2_SERVER = Fido2Server(

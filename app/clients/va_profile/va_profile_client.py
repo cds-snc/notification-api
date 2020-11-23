@@ -17,7 +17,7 @@ class VAProfileClient:
 
         response = requests.get(
             f"{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/emails",
-            cert=('/app/certs/vanotify_ssl.cert', '/app/certs/vanotify_ssl.key')
+            cert=(current_app.config['VANOTIFY_SSL_CERT_PATH'], current_app.config['VANOTIFY_SSL_KEY_PATH'])
         )
         return self._parse_response(response)
 
