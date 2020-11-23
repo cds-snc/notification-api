@@ -136,7 +136,7 @@ class Config(object):
     AWS_PINPOINT_KEYWORD = os.getenv('AWS_PINPOINT_KEYWORD')
     CSV_UPLOAD_BUCKET_NAME = os.getenv('CSV_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-csv-upload')
     ASSET_UPLOAD_BUCKET_NAME = os.getenv('ASSET_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-asset-upload')
-    ASSET_DOMAIN = os.getenv('ASSET_DOMAIN', 's3.amazonaws.com')
+    ASSET_DOMAIN = os.getenv('ASSET_DOMAIN', 'assets.notification.canada.ca')
     INVITATION_EXPIRATION_DAYS = 2
     NOTIFY_APP_NAME = 'api'
     SQLALCHEMY_RECORD_QUERIES = False

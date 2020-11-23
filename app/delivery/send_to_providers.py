@@ -36,6 +36,7 @@ from app.models import (
     NOTIFICATION_SENDING
 )
 from app.clients.mlwr.mlwr import check_mlwr_score
+from app.utils import get_logo_url
 
 
 def send_sms_to_provider(notification):
@@ -216,12 +217,6 @@ def provider_to_use(notification_type, notification_id, international=False, sen
     return clients.get_client_by_name_and_type(active_providers_in_order[0].identifier, notification_type)
 
 
-def get_logo_url(base_url, logo_file):
-    bucket = current_app.config['ASSET_UPLOAD_BUCKET_NAME']
-    domain = current_app.config['ASSET_DOMAIN']
-    return "https://{}.{}/{}".format(bucket, domain, logo_file)
-
-
 def get_html_email_options(service):
     if service.email_branding is None:
         if service.default_branding_is_french is True:
@@ -238,7 +233,6 @@ def get_html_email_options(service):
             }
 
     logo_url = get_logo_url(
-        current_app.config['ADMIN_BASE_URL'],
         service.email_branding.logo
     ) if service.email_branding.logo else None
 
