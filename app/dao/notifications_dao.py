@@ -680,7 +680,8 @@ def notifications_not_yet_sent(should_be_sending_after_seconds, notification_typ
     notifications = Notification.query.filter(
         Notification.created_at <= older_than_date,
         Notification.notification_type == notification_type,
-        Notification.status == NOTIFICATION_CREATED
+        Notification.status == NOTIFICATION_CREATED,
+        Notification.to is not None
     ).all()
     return notifications
 
