@@ -6,7 +6,7 @@ services:
       dockerfile: ci/Dockerfile.userflow
     environment: 
       - NOTIFICATION_SECRET
-      - notification_url
+      - NOTIFICATION_URL
 
   daily-check:
     build:
@@ -14,5 +14,5 @@ services:
       dockerfile: ci/Dockerfile.userflow
     environment: 
       - NOTIFICATION_SECRET
-      - notification_url
+      - NOTIFICATION_URL
     command: ["sh", "-c", "make daily_user_flows"]

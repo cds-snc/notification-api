@@ -10,6 +10,7 @@ Contains:
 
 - We currently do not support sending of letters
 - We currently do not receive a response if text messages were delivered or not
+- We currently do not receive status updates from our email provider (Granicus) while waiting for ESECC process to be completed
 
 ---
 
@@ -18,6 +19,7 @@ Contains:
 - [Notification API](#notification-api)
   - [Functional constraints](#functional-constraints)
   - [Table of Contents](#table-of-contents)
+  - [API Documentation](#api-documentation)
   - [Setting Up](#setting-up)
     - [Checklist](#checklist)
     - [Local installation instruction](#local-installation-instruction)
@@ -29,6 +31,7 @@ Contains:
   - [AWS Configuration](#aws-configuration)
     - [Install tools](#install-tools)
     - [Useful commands](#useful-commands)
+  - [AWS Lambda Functions](#aws-lambda-functions)
   - [Terraform](#terraform)
     - [Install tools](#install-tools-1)
     - [Useful commands](#useful-commands-1)
@@ -42,6 +45,10 @@ Contains:
 
 ---
 
+## API Documentation
+VANotify OpenAPI specification can be downloaded [here](https://github.com/department-of-veterans-affairs/notification-api/blob/master/documents/openapi/openapi.yaml)
+
+Postman collection and environment files are available [here](https://github.com/department-of-veterans-affairs/notification-api/tree/master/scripts/postman) 
 ## Setting Up
 
 ### Checklist

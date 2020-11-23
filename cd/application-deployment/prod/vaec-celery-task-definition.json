@@ -39,6 +39,14 @@
         {
           "name": "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED",
           "value": "False"
+        },
+        {
+          "name": "GOOGLE_ANALYTICS_ENABLED",
+          "value": "True"
+        },
+        {
+          "name": "GOOGLE_ANALYTICS_TID",
+          "value": "UA-50123418-16"
         }
       ],
       "secrets": [
