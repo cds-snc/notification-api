@@ -78,6 +78,14 @@
                 {
                     "name": "DANGEROUS_SALT",
                     "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/dangerous-salt"
+                },
+                {
+                    "name": "VANOTIFY_SSL_CERT",
+                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/cert/vanotify-va-cert"
+                },
+                {
+                    "name": "VANOTIFY_SSL_KEY",
+                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/cert/vanotify-va-key"
                 }
             ],
             "command": ["sh", "-c", "/app/scripts/run_celery.sh"]
