@@ -92,7 +92,7 @@
                     "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/cert/vanotify-va-key"
                 }
             ],
-            "command": ["sh", "-c", "/app/scripts/run_celery_beat.sh"]
+            "command": ["/app/scripts/run_celery_beat.sh"]
         },
         {
             "name": "datadog-agent",
