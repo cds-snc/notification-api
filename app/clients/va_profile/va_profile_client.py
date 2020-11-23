@@ -24,4 +24,6 @@ class VAProfileClient:
     def _parse_response(self, response_text):
         response_dict = response_text.json()
         if response_dict['status'] == 'COMPLETED_SUCCESS':
-            return response_dict['bios'][0]['emailAddressText']
+            email_address_text = response_dict['bios'][0]['emailAddressText']
+            current_app.logger.info(f"Did VAProfile send email address? {email_address_text is not None}")
+            return email_address_text
