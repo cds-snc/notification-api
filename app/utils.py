@@ -173,3 +173,7 @@ def get_csv_max_rows(service_id):
     if str(service_id) in bulk_sending_services:
         return int(current_app.config['CSV_MAX_ROWS_BULK_SEND'])
     return int(current_app.config['CSV_MAX_ROWS'])
+
+
+def get_logo_url(logo_file):
+    return f"https://{current_app.config['ASSET_DOMAIN']}/{logo_file}"

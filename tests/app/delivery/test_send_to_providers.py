@@ -505,7 +505,7 @@ def test_get_html_email_renderer_prepends_logo_path(notify_api):
     )
 
     renderer = send_to_providers.get_html_email_options(service)
-    domain = "https://notification-alpha-canada-ca-asset-upload.s3.amazonaws.com"
+    domain = "https://assets.notification.canada.ca"
     assert renderer['brand_logo'] == "{}{}".format(domain, '/justice-league.png')
 
 
@@ -532,19 +532,6 @@ def test_get_html_email_renderer_handles_email_branding_without_logo(notify_api)
     assert renderer['brand_text'] == 'League of Justice'
     assert renderer['brand_colour'] == '#000000'
     assert renderer['brand_name'] == 'Justice League'
-
-
-@pytest.mark.parametrize('base_url, expected_url', [
-    # don't change localhost to prevent errors when testing locally
-    ('http://localhost:6012', 'filename.png'),
-    ('https://www.notifications.service.gov.uk', 'filename.png'),
-])
-def test_get_logo_url_works_for_different_environments(base_url, expected_url):
-    logo_file = 'filename.png'
-
-    logo_url = send_to_providers.get_logo_url(base_url, logo_file)
-    domain = "notification-alpha-canada-ca-asset-upload.s3.amazonaws.com"
-    assert logo_url == "https://{}/{}".format(domain, expected_url)
 
 
 def test_should_not_update_notification_if_research_mode_on_exception(

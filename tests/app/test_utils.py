@@ -8,7 +8,8 @@ from app.utils import (
     get_local_timezone_midnight_in_utc,
     get_midnight_for_day_before,
     midnight_n_days_ago,
-    update_dct_to_str
+    update_dct_to_str,
+    get_logo_url,
 )
 
 
@@ -86,3 +87,8 @@ def test_update_dct_to_str():
     expected = ' '.join(expected)
 
     assert result == expected
+
+
+def test_get_logo_url(notify_api):
+    with notify_api.app_context():
+        assert get_logo_url('foo.png') == "https://assets.notification.canada.ca/foo.png"

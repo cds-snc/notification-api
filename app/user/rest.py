@@ -69,9 +69,11 @@ from app.errors import (
     InvalidRequest
 )
 
-from app.utils import (update_dct_to_str)
-
-from app.utils import url_with_token
+from app.utils import (
+    url_with_token,
+    update_dct_to_str,
+    get_logo_url,
+)
 from app.user.users_schema import (
     post_verify_code_schema,
     post_send_user_sms_code_schema,
@@ -479,9 +481,9 @@ def send_branding_request(user_id):
         service=service,
         personalisation={
             'email': get_user_by_id(user_id=user_id).email_address,
-            'serviceID': to['serviceID'],
+            'service_id': to['serviceID'],
             'service_name': to['service_name'],
-            'filename': to['filename']
+            'url': get_logo_url(to['filename']),
         },
         notification_type=template.template_type,
         api_key_id=None,
