@@ -16,7 +16,7 @@
                 "awslogs-stream-prefix": "ecs"
             }
         },
-        "command": ["flask db upgrade"],
+        "command": ["sh", "-c", "flask db upgrade"],
         "environment": [{
                 "name": "NOTIFY_ENVIRONMENT",
                 "value": "development"
