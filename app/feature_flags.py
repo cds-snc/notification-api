@@ -1,8 +1,14 @@
+from enum import Enum
 import os
+
 
 PROVIDER_FEATURE_FLAGS = {
     'govdelivery': 'GOVDELIVERY_EMAIL_CLIENT_ENABLED'
 }
+
+
+class FeatureFlag(Enum):
+    FEATURE_LOOKUP_VA_PROFILE_ID = "FEATURE_LOOKUP_VA_PROFILE_ID"
 
 
 def is_provider_enabled(current_app, provider_identifier):
@@ -21,3 +27,9 @@ def accept_recipient_identifiers_enabled():
 
 def is_gapixel_enabled(current_app):
     return current_app.config.get('GOOGLE_ANALYTICS_ENABLED')
+
+
+def is_feature_enabled(feature_flag):
+    if isinstance(feature_flag, FeatureFlag):
+        return os.getenv(feature_flag.value, 'False') == 'True'
+    return False
