@@ -49,6 +49,10 @@
                 {
                     "name": "GOOGLE_ANALYTICS_ENABLED",
                     "value": "True"
+                },
+                {
+                    "name": "VA_PROFILE_URL",
+                    "value": "https://dev.vaprofile.va.gov"
                 }
             ],
             "secrets": [{
