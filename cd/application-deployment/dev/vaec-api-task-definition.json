@@ -56,7 +56,7 @@
                 },
                 {
                     "name": "VA_PROFILE_URL",
-                    "value": "https://dev.vaprofile.va.gov"
+                    "value": "https://int.vaprofile.va.gov"
                 }
             ],
             "secrets": [{
