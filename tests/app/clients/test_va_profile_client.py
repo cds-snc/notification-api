@@ -62,3 +62,27 @@ def test_get_email_parses_response_and_gets_email_with_success_request(notify_ap
 
     actual_email = test_va_profile_client.get_email('1')
     assert actual_email == expected_email
+
+
+def test_get_email_parses_response_no_bios_no_email(notify_api, rmock, test_va_profile_client):
+    response = {
+        "messages": [
+            {
+                "code": "CORE103",
+                "key": "_CUF_NOT_FOUND",
+                "text": "The EmailBio for id/criteria mdm.cuf.",
+                "severity": "INFO"
+            }
+        ],
+        "txAuditId": "dca32cae-b410-46c5-b61b-9a382567843f",
+        "status": "COMPLETED_SUCCESS"
+    }
+    rmock.request(
+        "GET",
+        ANY,
+        json=response,
+        status_code=200
+    )
+
+    actual_email = test_va_profile_client.get_email('1')
+    assert actual_email is None
