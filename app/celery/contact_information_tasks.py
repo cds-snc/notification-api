@@ -26,9 +26,3 @@ def lookup_contact_info(notification_id):
         [str(notification.id)],
         queue=QueueNames.SEND_EMAIL if not notification.service.research_mode else QueueNames.RESEARCH_MODE
     )
-
-
-@notify_celery.task(name="lookup-va-profile-id-tasks")
-@statsd(namespace="tasks")
-def lookup_va_profile_id(notification_id):
-    current_app.logger.info("This task will look up VA Profile ID.")

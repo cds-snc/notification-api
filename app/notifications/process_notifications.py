@@ -1,3 +1,4 @@
+from app.celery import lookup_va_profile_id_task
 import uuid
 from datetime import datetime
 
@@ -166,7 +167,7 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(notification,
         task = contact_information_tasks.lookup_contact_info
     else:
         queue = QueueNames.LOOKUP_VA_PROFILE_ID
-        task = contact_information_tasks.lookup_va_profile_id
+        task = lookup_va_profile_id_task.lookup_va_profile_id
 
     try:
         task.apply_async([notification.id], queue=queue)
