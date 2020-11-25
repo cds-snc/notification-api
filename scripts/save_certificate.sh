@@ -1,7 +1,7 @@
 #! /usr/bin/env sh
 set -e
 
-if [ -z "$VANOTIFY_SSL_CERT_PATH" ]
+if [ -z "$VANOTIFY_SSL_CERT_PATH" -o -z "$VANOTIFY_SSL_KEY_PATH" ]
 then
   echo "bypassing VAProfile cert and key file generation"
 else
