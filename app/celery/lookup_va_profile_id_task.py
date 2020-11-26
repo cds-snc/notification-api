@@ -18,3 +18,4 @@ def lookup_va_profile_id(notification_id):
             id_value=va_profile_id
         ))
     notifications_dao.dao_update_notification(notification)
+    current_app.logger.info(f"Succsesfully retrieved VA PROFILE ID for notification: {notification_id}")
