@@ -29,7 +29,7 @@ sentry_sdk.init(
     release="notify-api@" + os.environ.get('GIT_SHA', '')
 )
 
-application = Flask('app')
+application = Flask('api')
 application.wsgi_app = ProxyFix(application.wsgi_app)
 create_app(application)
 
