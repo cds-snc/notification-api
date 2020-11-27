@@ -9,6 +9,6 @@ from app import notify_celery, create_app  # noqa
 
 load_dotenv()
 
-application = Flask('delivery')
+application = Flask('celery')
 create_app(application)
 application.app_context().push()
