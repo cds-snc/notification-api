@@ -6,11 +6,6 @@ class VAProfileClientException(Exception):
 
 
 class VAProfileClient:
-    #
-    # def __init__(
-    #         self
-    # ):
-    #     pass
 
     def init_app(self, logger, va_profile_url, ssl_cert_path, ssl_key_path):
         self.logger = logger
