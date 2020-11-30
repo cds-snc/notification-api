@@ -1,5 +1,7 @@
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
+from requests import HTTPError
+
 from app import notify_celery, va_profile_client
 from app.celery import provider_tasks
 from app.clients.va_profile.va_profile_client import VAProfileException
@@ -27,7 +29,7 @@ def lookup_contact_info(notification_id):
             [str(notification.id)],
             queue=QueueNames.SEND_EMAIL if not notification.service.research_mode else QueueNames.RESEARCH_MODE
         )
-    except VAProfileException as e:
+    except (VAProfileException, HTTPError) as e:
         current_app.logger.exception(e)
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
 

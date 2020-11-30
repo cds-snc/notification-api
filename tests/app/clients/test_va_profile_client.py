@@ -1,4 +1,5 @@
 import pytest
+from requests import HTTPError
 from requests_mock import ANY
 
 from app.clients.va_profile.va_profile_client import VAProfileClient, VAProfileException
@@ -168,5 +169,5 @@ def test_get_email_raises_exception_when_no_contact_info(notify_api, rmock, test
 def test_get_email_raises_exception_when_status_not_200(notify_api, rmock, test_va_profile_client, status):
     rmock.get(ANY, status_code=status)
 
-    with pytest.raises(VAProfileException):
+    with pytest.raises(HTTPError):
         test_va_profile_client.get_email('1')

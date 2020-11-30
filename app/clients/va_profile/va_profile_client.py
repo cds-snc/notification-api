@@ -31,9 +31,7 @@ class VAProfileClient:
             f"{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/emails",
             cert=(self.ssl_cert_path, self.ssl_key_path)
         )
-
-        if response.status_code != 200:
-            raise VAProfileException(f"HTTP status was {response.status_code} for VA Profile ID {va_profile_id}")
+        response.raise_for_status()
 
         response_status = response.json()['status']
         if response_status != self.SUCCESS_STATUS:

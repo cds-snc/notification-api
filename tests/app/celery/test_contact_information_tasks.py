@@ -1,5 +1,6 @@
 import uuid
 import pytest
+from requests import HTTPError
 
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.clients.va_profile.va_profile_client import VAProfileClient, VAProfileException
@@ -59,14 +60,18 @@ def test_should_fetch_notification(client, mocker, notification):
     mock_deliver_email.assert_called_with([notification.id], queue=QueueNames.SEND_EMAIL)
 
 
-def test_should_update_notification_to_technical_failure_on_va_profile_client_exception(client, mocker, notification):
+@pytest.mark.parametrize(
+    "exception",
+    [VAProfileException('some error'), HTTPError('some error')]
+)
+def test_should_update_notification_to_technical_failure_on_exception(client, mocker, notification, exception):
     mocked_get_notification_by_id = mocker.patch(
         'app.celery.contact_information_tasks.get_notification_by_id',
         return_value=notification
     )
 
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
-    mocked_va_profile_client.get_email = mocker.Mock(side_effect=VAProfileException('some error'))
+    mocked_va_profile_client.get_email = mocker.Mock(side_effect=exception)
     mocker.patch(
         'app.celery.contact_information_tasks.va_profile_client',
         new=mocked_va_profile_client
