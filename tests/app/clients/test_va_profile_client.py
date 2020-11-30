@@ -54,7 +54,7 @@ def test_get_email_gets_from_correct_url(notify_api, rmock, test_va_profile_clie
     assert rmock.request_history[0].url == expected_url
 
 
-def test_get_email_parses_response_and_gets_email_with_success_request(notify_api, rmock, test_va_profile_client):
+def test_get_email_gets_single_email(notify_api, rmock, test_va_profile_client):
     expected_email = 'hello@moto.com'
     response = {
         "txAuditId": "0e0e53e0-b1f0-404f-a8e1-cc9ab7ef563e",
@@ -79,6 +79,48 @@ def test_get_email_parses_response_and_gets_email_with_success_request(notify_ap
 
     actual_email = test_va_profile_client.get_email('1')
     assert actual_email == expected_email
+
+
+def test_get_email_gets_most_recently_created_email(notify_api, rmock, test_va_profile_client):
+    older_email = 'older@moto.com'
+    newer_email = 'newer@moto.com'
+
+    response = {
+        "txAuditId": "0e0e53e0-b1f0-404f-a8e1-cc9ab7ef563e",
+        "status": "COMPLETED_SUCCESS",
+        "bios": [
+            {
+                "createDate": "2018-04-17T16:01:13Z",
+                "updateDate": "2019-05-09T15:52:33Z",
+                "txAuditId": "61fc5389-9ef5-4818-97c8-73f6ff3db396",
+                "sourceSystem": "VET360-TEST-PARTNER",
+                "sourceDate": "2019-05-09T15:36:34Z",
+                "originatingSourceSystem": "EBENEFITS  - CADD",
+                "sourceSystemUser": "VAEBENEFITS",
+                "effectiveStartDate": "2019-05-09T14:07:10Z",
+                "vet360Id": 203,
+                "emailId": 121,
+                "emailAddressText": older_email
+            },
+            {
+                "createDate": "2020-04-17T16:01:13Z",
+                "updateDate": "2020-05-09T15:52:33Z",
+                "txAuditId": "61fc5389-9ef5-4818-97c8-73f6ff3db396",
+                "sourceSystem": "VET360-TEST-PARTNER",
+                "sourceDate": "2020-05-09T15:36:34Z",
+                "originatingSourceSystem": "EBENEFITS  - CADD",
+                "sourceSystemUser": "VAEBENEFITS",
+                "effectiveStartDate": "2020-05-09T14:07:10Z",
+                "vet360Id": 203,
+                "emailId": 121,
+                "emailAddressText": newer_email
+            }
+        ]
+    }
+    rmock.get(ANY, json=response, status_code=200)
+
+    actual_email = test_va_profile_client.get_email('1')
+    assert actual_email == newer_email
 
 
 def test_get_email_raises_exception_when_no_email_bio(notify_api, rmock, test_va_profile_client):

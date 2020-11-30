@@ -1,4 +1,5 @@
 import requests
+import iso8601
 
 
 class VAProfileClientException(Exception):
@@ -38,6 +39,11 @@ class VAProfileClient:
 
     def _fetch_email_from_bios(self, response_json):
         try:
-            return response_json['bios'][0]['emailAddressText']
+            most_recently_created_bio = sorted(
+                response_json['bios'],
+                key=lambda bio: iso8601.parse_date(bio['createDate']),
+                reverse=True
+            )[0]
+            return most_recently_created_bio['emailAddressText']
         except KeyError as e:
             raise VAProfileClientException("No email in VA Profile response") from e
