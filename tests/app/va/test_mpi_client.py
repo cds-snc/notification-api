@@ -3,7 +3,7 @@ from app.va.mpi import MpiClient, UnsupportedIdentifierException
 from app.va import IdentifierType
 from app.models import RecipientIdentifier
 from requests_mock import ANY
-from urllib.parse import quote_plus
+from requests.utils import quote
 from tests.app.factories.recipient_idenfier import sample_recipient_identifier
 
 
@@ -90,7 +90,7 @@ class TestGetVaProfileId:
         )
 
         expected_url = (f"{mpi_client.base_url}/psim_webservice/fhir/Patient/"
-                        f"{quote_plus(mpi_client.transform_to_fhir_format(recipient_identifier))}"
+                        f"{quote(mpi_client.transform_to_fhir_format(recipient_identifier))}"
                         f"?-sender={MpiClient.SYSTEM_IDENTIFIER}")
 
         actual_va_profile_id = mpi_client.get_va_profile_id(notification)
