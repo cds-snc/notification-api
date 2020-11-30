@@ -1,5 +1,4 @@
 import requests
-from flask import current_app
 
 
 class VAProfileClient:
@@ -9,15 +8,18 @@ class VAProfileClient:
     # ):
     #     pass
 
-    def init_app(self, va_profile_url):
+    def init_app(self, logger, va_profile_url, ssl_cert_path, ssl_key_path):
+        self.logger = logger
         self.va_profile_url = va_profile_url
+        self.ssl_cert_path = ssl_cert_path
+        self.ssl_key_path = ssl_key_path
 
     def get_email(self, va_profile_id):
-        current_app.logger.info("Querying VA Profile with ID " + va_profile_id)
+        self.logger.info("Querying VA Profile with ID " + va_profile_id)
 
         response = requests.get(
             f"{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/emails",
-            cert=(current_app.config['VANOTIFY_SSL_CERT_PATH'], current_app.config['VANOTIFY_SSL_KEY_PATH'])
+            cert=(self.ssl_cert_path, self.ssl_key_path)
         )
         return self._parse_response(response)
 
@@ -26,7 +28,7 @@ class VAProfileClient:
             response_dict = response.json()
             if response_dict['status'] == 'COMPLETED_SUCCESS':
                 email_address_text = self._fetch_email_from_bios(response_dict)
-                current_app.logger.info(f"Did VAProfile send email address? {email_address_text is not None}")
+                self.logger.info(f"Did VAProfile send email address? {email_address_text is not None}")
                 return email_address_text
 
     def _fetch_email_from_bios(self, response_dict):

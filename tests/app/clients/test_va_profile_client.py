@@ -7,9 +7,18 @@ MOCK_VA_PROFILE_URL = 'http://mock.vaprofile.va.gov/'
 
 
 @pytest.fixture(scope='function')
-def test_va_profile_client():
+def test_va_profile_client(mocker):
+    mock_logger = mocker.Mock()
+    MOCK_SSL_KEY_PATH = 'some_key.pem'
+    MOCK_SSL_CERT_PATH = 'some_cert.pem'
+
     test_va_profile_client = VAProfileClient()
-    test_va_profile_client.init_app(MOCK_VA_PROFILE_URL)
+    test_va_profile_client.init_app(
+        mock_logger,
+        MOCK_VA_PROFILE_URL,
+        MOCK_SSL_CERT_PATH,
+        MOCK_SSL_KEY_PATH
+    )
 
     return test_va_profile_client
 
