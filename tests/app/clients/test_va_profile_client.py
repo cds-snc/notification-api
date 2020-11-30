@@ -9,24 +9,21 @@ MOCK_VA_PROFILE_URL = 'http://mock.vaprofile.va.gov/'
 @pytest.fixture(scope='function')
 def test_va_profile_client(mocker):
     mock_logger = mocker.Mock()
-    MOCK_SSL_KEY_PATH = 'some_key.pem'
-    MOCK_SSL_CERT_PATH = 'some_cert.pem'
+    mock_ssl_key_path = 'some_key.pem'
+    mock_ssl_cert_path = 'some_cert.pem'
 
     test_va_profile_client = VAProfileClient()
     test_va_profile_client.init_app(
         mock_logger,
         MOCK_VA_PROFILE_URL,
-        MOCK_SSL_CERT_PATH,
-        MOCK_SSL_KEY_PATH
+        mock_ssl_cert_path,
+        mock_ssl_key_path
     )
 
     return test_va_profile_client
 
 
 def test_get_email_gets_from_correct_url(notify_api, rmock, test_va_profile_client):
-    va_profile_id = '12'
-    expected_url = f"{MOCK_VA_PROFILE_URL}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/emails"
-
     response = {
         "txAuditId": "0e0e53e0-b1f0-404f-a8e1-cc9ab7ef563e",
         "status": "COMPLETED_SUCCESS",
@@ -46,17 +43,14 @@ def test_get_email_gets_from_correct_url(notify_api, rmock, test_va_profile_clie
             }
         ]
     }
+    rmock.get(ANY, json=response, status_code=200)
 
-    rmock.request(
-        "GET",
-        ANY,
-        json=response,
-        status_code=200
-    )
-
+    va_profile_id = '12'
     test_va_profile_client.get_email(va_profile_id)
 
     assert rmock.called
+
+    expected_url = f"{MOCK_VA_PROFILE_URL}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/emails"
     assert rmock.request_history[0].url == expected_url
 
 
@@ -81,13 +75,7 @@ def test_get_email_parses_response_and_gets_email_with_success_request(notify_ap
             }
         ]
     }
-
-    rmock.request(
-        "GET",
-        ANY,
-        json=response,
-        status_code=200
-    )
+    rmock.get(ANY, json=response, status_code=200)
 
     actual_email = test_va_profile_client.get_email('1')
     assert actual_email == expected_email
@@ -106,12 +94,7 @@ def test_get_email_raises_exception_when_no_email_bio(notify_api, rmock, test_va
         "txAuditId": "dca32cae-b410-46c5-b61b-9a382567843f",
         "status": "COMPLETED_SUCCESS"
     }
-    rmock.request(
-        "GET",
-        ANY,
-        json=response,
-        status_code=200
-    )
+    rmock.get(ANY, json=response, status_code=200)
 
     with pytest.raises(VAProfileClientException):
         test_va_profile_client.get_email('1')
@@ -130,12 +113,7 @@ def test_get_email_raises_exception_when_no_contact_info(notify_api, rmock, test
         "txAuditId": "dca32cae-b410-46c5-b61b-9a382567843f",
         "status": "COMPLETED_FAILURE"
     }
-    rmock.request(
-        "GET",
-        ANY,
-        json=response,
-        status_code=200
-    )
+    rmock.get(ANY, json=response, status_code=200)
 
     with pytest.raises(VAProfileClientException):
         test_va_profile_client.get_email('1')
@@ -146,11 +124,7 @@ def test_get_email_raises_exception_when_no_contact_info(notify_api, rmock, test
     [400, 403, 404, 429, 500]
 )
 def test_get_email_raises_exception_when_status_not_200(notify_api, rmock, test_va_profile_client, status):
-    rmock.request(
-        "GET",
-        ANY,
-        json={},
-        status_code=status
-    )
+    rmock.get(ANY, status_code=status)
+
     with pytest.raises(VAProfileClientException):
         test_va_profile_client.get_email('1')
