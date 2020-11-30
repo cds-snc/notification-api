@@ -4,12 +4,13 @@ from app.va import IdentifierType
 from app.models import RecipientIdentifier
 from requests_mock import ANY
 from requests.utils import quote
+
+from app.va.mpi.mpi import IdentifierNotFound
 from tests.app.factories.recipient_idenfier import sample_recipient_identifier
 
 EXPECTED_VA_PROFILE_ID = "15963"
-ADDITIONAL_VA_PROFILE_ID = "15964"
 
-RESPONSE_WITH_VA_PROFILE_ID = {
+BASE_MPI_RESPONSE_WITH_NO_VA_PROFILE_ID = {
     "resourceType": "Patient",
     "id": "1008710501V455565",
     "birthDate": "2010-06-03",
@@ -40,59 +41,11 @@ RESPONSE_WITH_VA_PROFILE_ID = {
         },
         {
             "system": "urn:oid:2.16.840.1.113883.4.349",
-            "value": f"{EXPECTED_VA_PROFILE_ID}^PI^200VETS^USDVA^A"
-        },
-        {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
-            "value": "15962^PI^200VETS^USDVA^H"
-        },
-        {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
-            "value": "15962^PI^200VETS^USDVA^H"
-        },
-        {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
-            "value": "15962^PI^200VETS^USDVA^H"
-        },
-        {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
             "value": "15962^PI^200VETS^USDVA^H"
         },
         {
             "system": "urn:oid:2.16.840.1.113883.4.349",
             "value": "418418001^PI^200BRLS^USVBA^A"
-        },
-        {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
-            "value": "32315715^PI^200CORP^USVBA^A"
-        },
-        {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
-            "value": "15962^PI^200VETS^USDVA^H"
-        },
-        {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
-            "value": "15962^PI^200VETS^USDVA^H"
-        },
-        {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
-            "value": "15962^PI^200VETS^USDVA^H"
-        },
-        {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
-            "value": "15962^PI^200VETS^USDVA^H"
-        },
-        {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
-            "value": "15962^PI^200VETS^USDVA^H"
-        },
-        {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
-            "value": "15962^PI^200VETS^USDVA^H"
-        },
-        {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
-            "value": "15962^PI^200VETS^USDVA^H"
         },
         {
             "system": "urn:oid:2.16.840.1.113883.4.349",
@@ -105,11 +58,23 @@ RESPONSE_WITH_VA_PROFILE_ID = {
     ]
 }
 
-RESPONSE_WITH_TWO_ACTIVE_VA_PROFILE_IDS = RESPONSE_WITH_VA_PROFILE_ID.copy()
-RESPONSE_WITH_TWO_ACTIVE_VA_PROFILE_IDS["identifier"].append({
-            "system": "urn:oid:2.16.840.1.113883.4.349",
-            "value": f"{ADDITIONAL_VA_PROFILE_ID}^PI^200VETS^USDVA^A"
-        })
+
+def response_with_one_active_va_profile_id():
+    resp = BASE_MPI_RESPONSE_WITH_NO_VA_PROFILE_ID.copy()
+    resp["identifier"].append({
+        "system": "urn:oid:2.16.840.1.113883.4.349",
+        "value": f"{EXPECTED_VA_PROFILE_ID}^PI^200VETS^USDVA^A"
+    })
+    return resp
+
+
+def response_with_two_active_va_profile_ids():
+    resp = response_with_one_active_va_profile_id()
+    resp["identifier"].append({
+        "system": "urn:oid:2.16.840.1.113883.4.349",
+        "value": "15964^PI^200VETS^USDVA^A"
+    })
+    return resp
 
 
 @pytest.fixture
@@ -189,7 +154,7 @@ class TestGetVaProfileId:
         rmock.request(
             "GET",
             ANY,
-            json=RESPONSE_WITH_VA_PROFILE_ID,
+            json=response_with_one_active_va_profile_id(),
             status_code=200
         )
 
@@ -214,10 +179,27 @@ class TestGetVaProfileId:
         rmock.request(
             "GET",
             ANY,
-            json=RESPONSE_WITH_TWO_ACTIVE_VA_PROFILE_IDS,
+            json=response_with_two_active_va_profile_ids(),
             status_code=200
         )
 
         actual_va_profile_id = mpi_client.get_va_profile_id(notification)
 
         assert actual_va_profile_id == EXPECTED_VA_PROFILE_ID
+
+    def test_should_throw_error_when_no_active_va_profile_id(
+            self, mpi_client, rmock, sample_notification_model_with_organization
+    ):
+        notification = sample_notification_model_with_organization
+        recipient_identifier = sample_recipient_identifier()
+        notification.recipient_identifiers.set(recipient_identifier)
+
+        rmock.request(
+            "GET",
+            ANY,
+            json=BASE_MPI_RESPONSE_WITH_NO_VA_PROFILE_ID,
+            status_code=200
+        )
+
+        with pytest.raises(IdentifierNotFound):
+            mpi_client.get_va_profile_id(notification)

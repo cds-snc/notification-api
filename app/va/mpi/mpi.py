@@ -6,6 +6,10 @@ class UnsupportedIdentifierException(Exception):
     pass
 
 
+class IdentifierNotFound(Exception):
+    pass
+
+
 class MpiClient:
 
     SYSTEM_IDENTIFIER = "200ENTF"
@@ -39,7 +43,11 @@ class MpiClient:
         response.raise_for_status()
         identifiers = response.json()['identifier']
         va_profile_suffix = "^PI^200VETS^USDVA^A"
-        va_profile_id = next(
-            identifier['value'].split('^')[0] for identifier in identifiers if identifier['value'].endswith(va_profile_suffix)
-        )
-        return va_profile_id
+        try:
+            va_profile_id = next(
+                identifier['value'].split('^')[0] for identifier in identifiers
+                if identifier['value'].endswith(va_profile_suffix)
+            )
+            return va_profile_id
+        except StopIteration as e:
+            raise IdentifierNotFound(f"No active VA Profile Identifier found for: {fhir_identifier}") from e
