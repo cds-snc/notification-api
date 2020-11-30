@@ -113,6 +113,7 @@ def create_app(application):
         callback_notify_url_host=application.config["API_HOST_NAME"]
     )
     va_profile_client.init_app(application.config['VA_PROFILE_URL'])
+    mpi_client.init_app(application.config['MPI_URL'])
 
     notify_celery.init_app(application)
     encryption.init_app(application)

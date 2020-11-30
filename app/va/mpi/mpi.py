@@ -7,6 +7,9 @@ class UnsupportedIdentifierException(Exception):
 
 
 class MpiClient:
+
+    SYSTEM_IDENTIFIER = "200ENTF"
+
     FHIR_FORMAT_SUFFIXES = {
         IdentifierType.ICN: "^NI^200M^USVHA",
         IdentifierType.PID: "^PI^200CORP^USVBA",
@@ -14,8 +17,7 @@ class MpiClient:
     }
 
     def init_app(self, url):
-        self.url = url
-
+        self.base_url = url
 
     def transform_to_fhir_format(self, recipient_identifier):
         try:
@@ -32,7 +34,7 @@ class MpiClient:
             raise ValueError(
                 f"Unexpected number of recipient_identifiers in: {notification.recipient_identifiers.keys()}")
         fhir_identifier = self.transform_to_fhir_format(next(iter(identifiers)))
-
-        response = requests.get(f"{self.url}/{fhir_identifier}")
+        params = {'-sender': self.SYSTEM_IDENTIFIER}
+        response = requests.get(f"{self.base_url}/psim_webservice/fhir/Patient/{fhir_identifier}", params=params)
         response.raise_for_status()
         return response.json()['vaprofileId']
