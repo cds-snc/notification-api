@@ -18,7 +18,15 @@ class VAProfileClient:
 
     def get_email(self, va_profile_id):
         self.logger.info(f"Querying VA Profile with ID {va_profile_id}")
+        response = self._make_request(va_profile_id)
 
+        try:
+            most_recently_created_bio = self._get_most_recently_created_bio(response)
+            return most_recently_created_bio['emailAddressText']
+        except KeyError as e:
+            raise VAProfileException(f"No email in response for VA Profile ID {va_profile_id}") from e
+
+    def _make_request(self, va_profile_id):
         response = requests.get(
             f"{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/emails",
             cert=(self.ssl_cert_path, self.ssl_key_path)
@@ -27,19 +35,15 @@ class VAProfileClient:
         if response.status_code != 200:
             raise VAProfileException(f"HTTP status was {response.status_code} for VA Profile ID {va_profile_id}")
 
-        response_json = response.json()
-        if response_json['status'] != self.SUCCESS_STATUS:
-            raise VAProfileException(f"Response status was {response_json['status']} for VA Profile ID {va_profile_id}")
+        response_status = response.json()['status']
+        if response_status != self.SUCCESS_STATUS:
+            raise VAProfileException(f"Response status was {response_status} for VA Profile ID {va_profile_id}")
 
-        try:
-            most_recently_created_bio = self._get_most_recently_created_bio(response_json)
-            return most_recently_created_bio['emailAddressText']
-        except KeyError as e:
-            raise VAProfileException(f"No email in response for VA Profile ID {va_profile_id}") from e
+        return response
 
-    def _get_most_recently_created_bio(self, response_json):
+    def _get_most_recently_created_bio(self, response):
         sorted_bios = sorted(
-            response_json['bios'],
+            response.json()['bios'],
             key=lambda bio: iso8601.parse_date(bio['createDate']),
             reverse=True
         )
