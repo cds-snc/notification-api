@@ -5,16 +5,16 @@
       "protocol": "http",
       "name": "VAProfile",
       "stubs": [
-         <% include stubs/emailBioStub200_OneEmail.ejs %>,
-         <% include stubs/emailBioStub200_Core103.ejs %>,
-         <% include stubs/emailBioStub200_Rejected.ejs %>,
-         <% include stubs/emailBioStub200_CompletedFailure.ejs %>,
-         <% include stubs/emailBioStub400_Error.ejs %>,
-         <% include stubs/emailBioStub403_Error.ejs %>,
-         <% include stubs/emailBioStub404_Failure.ejs %>,
-         <% include stubs/emailBioStub404_Rejected.ejs %>,
-         <% include stubs/emailBioStub429_Retry.ejs %>,
-         <% include stubs/emailBioStub500_Retry.ejs %>
+         <% include stubs/emailBio/emailBioStub200_OneEmail.ejs %>,
+         <% include stubs/emailBio/emailBioStub200_Core103.ejs %>,
+         <% include stubs/emailBio/emailBioStub200_Rejected.ejs %>,
+         <% include stubs/emailBio/emailBioStub200_CompletedFailure.ejs %>,
+         <% include stubs/emailBio/emailBioStub400_Error.ejs %>,
+         <% include stubs/emailBio/emailBioStub403_Error.ejs %>,
+         <% include stubs/emailBio/emailBioStub404_Failure.ejs %>,
+         <% include stubs/emailBio/emailBioStub404_Rejected.ejs %>,
+         <% include stubs/emailBio/emailBioStub429_Retry.ejs %>,
+         <% include stubs/emailBio/emailBioStub500_Retry.ejs %>
       ],
       "defaultResponse": {
         "statusCode": 200,
@@ -25,6 +25,14 @@
           "name": "va profile"
         }
       }
+    },
+    {
+      "port": 7006,
+      "protocol": "http",
+      "name": "Govdelivery",
+      "stubs": [
+        <% include stubs/govdelivery/govdelivery200.ejs %>
+      ]
     }
   ]
 }
