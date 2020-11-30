@@ -6,7 +6,8 @@ from requests_mock import ANY
 from requests.utils import quote
 from tests.app.factories.recipient_idenfier import sample_recipient_identifier
 
-EXPECTED_VA_PROFILE_ID = "15962"
+EXPECTED_VA_PROFILE_ID = "15963"
+ADDITIONAL_VA_PROFILE_ID = "15964"
 
 RESPONSE_WITH_VA_PROFILE_ID = {
     "resourceType": "Patient",
@@ -104,6 +105,12 @@ RESPONSE_WITH_VA_PROFILE_ID = {
     ]
 }
 
+RESPONSE_WITH_TWO_ACTIVE_VA_PROFILE_IDS = RESPONSE_WITH_VA_PROFILE_ID.copy()
+RESPONSE_WITH_TWO_ACTIVE_VA_PROFILE_IDS["identifier"].append({
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": f"{ADDITIONAL_VA_PROFILE_ID}^PI^200VETS^USDVA^A"
+        })
+
 
 @pytest.fixture
 def mpi_client():
@@ -194,5 +201,23 @@ class TestGetVaProfileId:
 
         assert rmock.called
         assert rmock.request_history[0].url == expected_url
+
+        assert actual_va_profile_id == EXPECTED_VA_PROFILE_ID
+
+    def test_should_make_request_to_mpi_and_return_first_active_va_profile_id(
+        self, mpi_client, rmock, sample_notification_model_with_organization
+    ):
+        notification = sample_notification_model_with_organization
+        recipient_identifier = sample_recipient_identifier()
+        notification.recipient_identifiers.set(recipient_identifier)
+
+        rmock.request(
+            "GET",
+            ANY,
+            json=RESPONSE_WITH_TWO_ACTIVE_VA_PROFILE_IDS,
+            status_code=200
+        )
+
+        actual_va_profile_id = mpi_client.get_va_profile_id(notification)
 
         assert actual_va_profile_id == EXPECTED_VA_PROFILE_ID
