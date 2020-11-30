@@ -6,6 +6,104 @@ from requests_mock import ANY
 from requests.utils import quote
 from tests.app.factories.recipient_idenfier import sample_recipient_identifier
 
+EXPECTED_VA_PROFILE_ID = "15962"
+
+RESPONSE_WITH_VA_PROFILE_ID = {
+    "resourceType": "Patient",
+    "id": "1008710501V455565",
+    "birthDate": "2010-06-03",
+    "name": [
+        {
+            "use": "official",
+            "family": "MOOSE",
+            "given": [
+                "MINNIE"
+            ]
+        }
+    ],
+    "telecom": [
+        {
+            "system": "phone",
+            "value": "(240)979-5003",
+            "use": "home"
+        }
+    ],
+    "identifier": [
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "1008710501V455565^NI^200M^USVHA^P"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "32315716^PI^200CORP^USVBA^A"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": f"{EXPECTED_VA_PROFILE_ID}^PI^200VETS^USDVA^A"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "15962^PI^200VETS^USDVA^H"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "15962^PI^200VETS^USDVA^H"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "15962^PI^200VETS^USDVA^H"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "15962^PI^200VETS^USDVA^H"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "418418001^PI^200BRLS^USVBA^A"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "32315715^PI^200CORP^USVBA^A"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "15962^PI^200VETS^USDVA^H"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "15962^PI^200VETS^USDVA^H"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "15962^PI^200VETS^USDVA^H"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "15962^PI^200VETS^USDVA^H"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "15962^PI^200VETS^USDVA^H"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "15962^PI^200VETS^USDVA^H"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "15962^PI^200VETS^USDVA^H"
+        },
+        {
+            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "value": "418418001^AN^200CORP^USVBA^"
+        },
+        {
+            "system": "http://hl7.org/fhir/sid/us-ssn",
+            "value": "500333153"
+        }
+    ]
+}
+
 
 @pytest.fixture
 def mpi_client():
@@ -80,12 +178,11 @@ class TestGetVaProfileId:
         notification = sample_notification_model_with_organization
         recipient_identifier = sample_recipient_identifier()
         notification.recipient_identifiers.set(recipient_identifier)
-        expected_va_profile_id = "1234"
 
         rmock.request(
             "GET",
             ANY,
-            json={"vaprofileId": expected_va_profile_id},
+            json=RESPONSE_WITH_VA_PROFILE_ID,
             status_code=200
         )
 
@@ -98,4 +195,4 @@ class TestGetVaProfileId:
         assert rmock.called
         assert rmock.request_history[0].url == expected_url
 
-        assert actual_va_profile_id == expected_va_profile_id
+        assert actual_va_profile_id == EXPECTED_VA_PROFILE_ID
