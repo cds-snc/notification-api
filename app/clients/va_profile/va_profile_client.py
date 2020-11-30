@@ -2,11 +2,13 @@ import requests
 import iso8601
 
 
-class VAProfileClientException(Exception):
+class VAProfileException(Exception):
     pass
 
 
 class VAProfileClient:
+
+    SUCCESS_STATUS = 'COMPLETED_SUCCESS'
 
     def init_app(self, logger, va_profile_url, ssl_cert_path, ssl_key_path):
         self.logger = logger
@@ -15,7 +17,7 @@ class VAProfileClient:
         self.ssl_key_path = ssl_key_path
 
     def get_email(self, va_profile_id):
-        self.logger.info("Querying VA Profile with ID " + va_profile_id)
+        self.logger.info(f"Querying VA Profile with ID {va_profile_id}")
 
         response = requests.get(
             f"{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/emails",
@@ -23,27 +25,22 @@ class VAProfileClient:
         )
 
         if response.status_code != 200:
-            raise VAProfileClientException(f"VA Profile responded with HTTP {response.status_code}")
+            raise VAProfileException(f"HTTP status was {response.status_code} for VA Profile ID {va_profile_id}")
 
-        return self._parse_response(response)
-
-    def _parse_response(self, response):
         response_json = response.json()
+        if response_json['status'] != self.SUCCESS_STATUS:
+            raise VAProfileException(f"Response status was {response_json['status']} for VA Profile ID {va_profile_id}")
 
-        if response_json['status'] != 'COMPLETED_SUCCESS':
-            raise VAProfileClientException(f"VA Profile responded with status {response_json['status']}")
-
-        email_address_text = self._fetch_email_from_bios(response_json)
-        self.logger.info(f"Did VAProfile send email address? {email_address_text is not None}")
-        return email_address_text
-
-    def _fetch_email_from_bios(self, response_json):
         try:
-            most_recently_created_bio = sorted(
-                response_json['bios'],
-                key=lambda bio: iso8601.parse_date(bio['createDate']),
-                reverse=True
-            )[0]
+            most_recently_created_bio = self._get_most_recently_created_bio(response_json)
             return most_recently_created_bio['emailAddressText']
         except KeyError as e:
-            raise VAProfileClientException("No email in VA Profile response") from e
+            raise VAProfileException(f"No email in response for VA Profile ID {va_profile_id}") from e
+
+    def _get_most_recently_created_bio(self, response_json):
+        sorted_bios = sorted(
+            response_json['bios'],
+            key=lambda bio: iso8601.parse_date(bio['createDate']),
+            reverse=True
+        )
+        return sorted_bios[0]

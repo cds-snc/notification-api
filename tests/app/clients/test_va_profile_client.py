@@ -1,7 +1,7 @@
 import pytest
 from requests_mock import ANY
 
-from app.clients.va_profile.va_profile_client import VAProfileClient, VAProfileClientException
+from app.clients.va_profile.va_profile_client import VAProfileClient, VAProfileException
 
 MOCK_VA_PROFILE_URL = 'http://mock.vaprofile.va.gov/'
 
@@ -138,7 +138,7 @@ def test_get_email_raises_exception_when_no_email_bio(notify_api, rmock, test_va
     }
     rmock.get(ANY, json=response, status_code=200)
 
-    with pytest.raises(VAProfileClientException):
+    with pytest.raises(VAProfileException):
         test_va_profile_client.get_email('1')
 
 
@@ -157,7 +157,7 @@ def test_get_email_raises_exception_when_no_contact_info(notify_api, rmock, test
     }
     rmock.get(ANY, json=response, status_code=200)
 
-    with pytest.raises(VAProfileClientException):
+    with pytest.raises(VAProfileException):
         test_va_profile_client.get_email('1')
 
 
@@ -168,5 +168,5 @@ def test_get_email_raises_exception_when_no_contact_info(notify_api, rmock, test
 def test_get_email_raises_exception_when_status_not_200(notify_api, rmock, test_va_profile_client, status):
     rmock.get(ANY, status_code=status)
 
-    with pytest.raises(VAProfileClientException):
+    with pytest.raises(VAProfileException):
         test_va_profile_client.get_email('1')

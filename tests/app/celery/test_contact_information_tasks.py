@@ -2,7 +2,7 @@ import uuid
 import pytest
 
 from app.celery.contact_information_tasks import lookup_contact_info
-from app.clients.va_profile.va_profile_client import VAProfileClient, VAProfileClientException
+from app.clients.va_profile.va_profile_client import VAProfileClient, VAProfileException
 from app.config import QueueNames
 from app.models import Notification, VA_PROFILE_ID, RecipientIdentifier, Service, NOTIFICATION_TECHNICAL_FAILURE
 
@@ -66,7 +66,7 @@ def test_should_update_notification_to_technical_failure_on_va_profile_client_ex
     )
 
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
-    mocked_va_profile_client.get_email = mocker.Mock(side_effect=VAProfileClientException('some error'))
+    mocked_va_profile_client.get_email = mocker.Mock(side_effect=VAProfileException('some error'))
     mocker.patch(
         'app.celery.contact_information_tasks.va_profile_client',
         new=mocked_va_profile_client
