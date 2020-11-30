@@ -21,9 +21,17 @@ class VAProfileClient:
         )
         return self._parse_response(response)
 
-    def _parse_response(self, response_text):
-        response_dict = response_text.json()
-        if response_dict['status'] == 'COMPLETED_SUCCESS':
-            email_address_text = response_dict['bios'][0]['emailAddressText']
-            current_app.logger.info(f"Did VAProfile send email address? {email_address_text is not None}")
-            return email_address_text
+
+    def _parse_response(self, response):
+        if response.status_code == 200:
+            response_dict = response.json()
+            if response_dict['status'] == 'COMPLETED_SUCCESS':
+                email_address_text = self._fetch_email_from_bios(response_dict) # [0]['emailAddressText']
+                current_app.logger.info(f"Did VAProfile send email address? {email_address_text is not None}")
+                return email_address_text
+
+
+    def _fetch_email_from_bios(self, response_dict):
+        bios = response_dict.get('bios')
+        if bios and len(bios) > 0:
+            return bios[0]['emailAddressText']
