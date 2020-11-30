@@ -95,3 +95,18 @@ def test_get_email_raises_exception_when_no_email_bio(notify_api, rmock, test_va
 
     with pytest.raises(VAProfileClientException):
         test_va_profile_client.get_email('1')
+
+
+@pytest.mark.parametrize(
+    "status",
+    [400, 403, 404, 429, 500]
+)
+def test_get_email_raises_exception_when_status_not_200(notify_api, rmock, test_va_profile_client, status):
+    rmock.request(
+        "GET",
+        ANY,
+        json={},
+        status_code=status
+    )
+    with pytest.raises(VAProfileClientException):
+        test_va_profile_client.get_email('1')

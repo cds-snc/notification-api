@@ -28,12 +28,14 @@ class VAProfileClient:
         return self._parse_response(response)
 
     def _parse_response(self, response):
-        if response.status_code == 200:
-            response_dict = response.json()
-            if response_dict['status'] == 'COMPLETED_SUCCESS':
-                email_address_text = self._fetch_email_from_bios(response_dict)
-                self.logger.info(f"Did VAProfile send email address? {email_address_text is not None}")
-                return email_address_text
+        if response.status_code != 200:
+            raise VAProfileClientException(f"VA Profile responded with HTTP {response.status_code}")
+
+        response_dict = response.json()
+        if response_dict['status'] == 'COMPLETED_SUCCESS':
+            email_address_text = self._fetch_email_from_bios(response_dict)
+            self.logger.info(f"Did VAProfile send email address? {email_address_text is not None}")
+            return email_address_text
 
     def _fetch_email_from_bios(self, response_dict):
         bios = response_dict.get('bios')
