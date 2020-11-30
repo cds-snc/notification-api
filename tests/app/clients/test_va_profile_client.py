@@ -1,7 +1,7 @@
 import pytest
 from requests_mock import ANY
 
-from app.clients.va_profile.va_profile_client import VAProfileClient
+from app.clients.va_profile.va_profile_client import VAProfileClient, VAProfileClientException
 
 MOCK_VA_PROFILE_URL = 'http://mock.vaprofile.va.gov/'
 
@@ -73,7 +73,7 @@ def test_get_email_parses_response_and_gets_email_with_success_request(notify_ap
     assert actual_email == expected_email
 
 
-def test_get_email_parses_response_no_bios_no_email(notify_api, rmock, test_va_profile_client):
+def test_get_email_raises_exception_when_no_email_bio(notify_api, rmock, test_va_profile_client):
     response = {
         "messages": [
             {
@@ -93,5 +93,5 @@ def test_get_email_parses_response_no_bios_no_email(notify_api, rmock, test_va_p
         status_code=200
     )
 
-    actual_email = test_va_profile_client.get_email('1')
-    assert actual_email is None
+    with pytest.raises(VAProfileClientException):
+        test_va_profile_client.get_email('1')

@@ -1,6 +1,10 @@
 import requests
 
 
+class VAProfileClientException(Exception):
+    pass
+
+
 class VAProfileClient:
     #
     # def __init__(
@@ -35,3 +39,5 @@ class VAProfileClient:
         bios = response_dict.get('bios')
         if bios and len(bios) > 0:
             return bios[0]['emailAddressText']
+        else:
+            raise VAProfileClientException("No email in VA Profile response")
