@@ -6,9 +6,13 @@ from requests_mock import ANY
 from tests.app.factories.recipient_idenfier import sample_recipient_identifier
 
 
+mock_url = "https://foo.bar"
+
 @pytest.fixture
 def mpi_client():
-    return MpiClient()
+    mpi_client = MpiClient()
+    mpi_client.init_app(url=mock_url)
+    return mpi_client
 
 
 class TestTransformToFhirFormat:
@@ -86,3 +90,7 @@ class TestGetVaProfileId:
         actual_va_profile_id = mpi_client.get_va_profile_id(notification)
 
         assert actual_va_profile_id == expected_va_profile_id
+
+        assert rmock.called
+        expected_url = mock_url
+        assert rmock.request_history[0].url == expected_url
