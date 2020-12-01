@@ -1,3 +1,5 @@
+import copy
+
 import pytest
 from app.va.mpi import MpiClient, UnsupportedIdentifierException
 from app.va import IdentifierType
@@ -60,7 +62,7 @@ BASE_MPI_RESPONSE_WITH_NO_VA_PROFILE_ID = {
 
 
 def response_with_one_active_va_profile_id():
-    resp = BASE_MPI_RESPONSE_WITH_NO_VA_PROFILE_ID.copy()
+    resp = copy.deepcopy(BASE_MPI_RESPONSE_WITH_NO_VA_PROFILE_ID)
     resp["identifier"].append({
         "system": "urn:oid:2.16.840.1.113883.4.349",
         "value": f"{EXPECTED_VA_PROFILE_ID}^PI^200VETS^USDVA^A"
