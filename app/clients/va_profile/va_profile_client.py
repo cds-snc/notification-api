@@ -1,5 +1,6 @@
 import requests
 import iso8601
+from time import monotonic
 
 
 class VAProfileException(Exception):
@@ -10,11 +11,12 @@ class VAProfileClient:
 
     SUCCESS_STATUS = 'COMPLETED_SUCCESS'
 
-    def init_app(self, logger, va_profile_url, ssl_cert_path, ssl_key_path):
+    def init_app(self, logger, va_profile_url, ssl_cert_path, ssl_key_path, statsd_client):
         self.logger = logger
         self.va_profile_url = va_profile_url
         self.ssl_cert_path = ssl_cert_path
         self.ssl_key_path = ssl_key_path
+        self.statsd_client = statsd_client
 
     def get_email(self, va_profile_id):
         self.logger.info(f"Querying VA Profile with ID {va_profile_id}")
@@ -22,21 +24,34 @@ class VAProfileClient:
 
         try:
             most_recently_created_bio = self._get_most_recently_created_bio(response)
+            self.statsd_client.incr("clients.va-profile.get-email.success")
             return most_recently_created_bio['emailAddressText']
         except KeyError as e:
+            self.statsd_client.incr("clients.va-profile.get-email.error")
             raise VAProfileException(f"No email in response for VA Profile ID {va_profile_id}") from e
 
     def _make_request(self, va_profile_id):
-        response = requests.get(
-            f"{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/emails",
-            cert=(self.ssl_cert_path, self.ssl_key_path)
-        )
-        response.raise_for_status()
+        start_time = monotonic()
+        try:
+            response = requests.get(
+                f"{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/emails",
+                cert=(self.ssl_cert_path, self.ssl_key_path)
+            )
+            response.raise_for_status()
 
-        response_status = response.json()['status']
-        if response_status != self.SUCCESS_STATUS:
-            raise VAProfileException(f"Response status was {response_status} for VA Profile ID {va_profile_id}")
+            response_status = response.json()['status']
+            if response_status != self.SUCCESS_STATUS:
+                self.statsd_client.incr(f"clients.va-profile.error.{response_status}")
+                raise VAProfileException(f"Response status was {response_status} for VA Profile ID {va_profile_id}")
 
+        except requests.HTTPError as e:
+            self.statsd_client.incr(f"clients.va-profile.error.{e.response.status_code}")
+            raise VAProfileException(str(e)) from e
+        finally:
+            elapsed_time = monotonic() - start_time
+            self.statsd_client.timing("clients.va-profile.request-time", elapsed_time)
+
+        self.statsd_client.incr("clients.va-profile.success")
         return response
 
     def _get_most_recently_created_bio(self, response):
