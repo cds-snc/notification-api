@@ -22,4 +22,4 @@ ARG GIT_SHA
 ENV GIT_SHA ${GIT_SHA}
 
 ENTRYPOINT ["./scripts/save_certificate.sh"]
-CMD ["gunicorn -c gunicorn_config.py application"]
+CMD ["sh", "-c", "gunicorn -c gunicorn_config.py application"]

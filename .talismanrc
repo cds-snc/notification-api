@@ -50,4 +50,4 @@ fileignoreconfig:
     - filename: lambda_functions/user_flows/va-internal-cert-chain.pem
       checksum: b275bb504d07e20888d222c31f12246b79aa554bea84c4d3028f110b0f9d473c
     - filename: ci/.docker-env.example
-      checksum: ffbc9aca2e334e840724589dea21b5bccfd721b5c6592af391bbbdb21d972b67
+      checksum: d3a79013a58f1b8bcb4d1765b34655a693195e6c3de2fedffd80b9d0dc4dec29

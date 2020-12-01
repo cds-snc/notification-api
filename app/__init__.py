@@ -112,7 +112,12 @@ def create_app(application):
         logger=application.logger,
         callback_notify_url_host=application.config["API_HOST_NAME"]
     )
-    va_profile_client.init_app(application.config['VA_PROFILE_URL'])
+    va_profile_client.init_app(
+        application.logger,
+        application.config['VA_PROFILE_URL'],
+        application.config['VANOTIFY_SSL_CERT_PATH'],
+        application.config['VANOTIFY_SSL_KEY_PATH']
+    )
     mpi_client.init_app(application.config['MPI_URL'])
 
     notify_celery.init_app(application)
