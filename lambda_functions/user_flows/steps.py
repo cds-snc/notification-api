@@ -92,19 +92,14 @@ def get_template_id(templates, service_id):
     return template_id
 
 
-def get_right_api_key(old_key_response):
-    right_key = old_key_response[-1]["id"]
-    for api_key in old_key_response:
-        if api_key["name"] == "userflows" and api_key["expiry_date"] is None:
-            right_key = api_key["id"]
-    return right_key
+def revoke_service_api_keys(environment, notification_url, service_id):
+    existing_api_keys_response = get_authenticated_request(environment, F"{notification_url}/service/{service_id}/api-keys")
+    existing_api_keys = existing_api_keys_response.json()['apiKeys']
+    active_api_keys = [api_key for api_key in existing_api_keys if api_key["expiry_date"] is None]
 
-
-def revoke_service_api_key(environment, notification_url, service_id):
-    old_key = get_authenticated_request(environment, F"{notification_url}/service/{service_id}/api-keys")
-    old_key_id = get_right_api_key(old_key.json()['apiKeys'])
-    revoke_url = F"{notification_url}/service/{service_id}/api-key/revoke/{old_key_id}"
-    return post_authenticated_request(environment, revoke_url)
+    for api_key in active_api_keys:
+        revoke_url = F"{notification_url}/service/{service_id}/api-key/revoke/{api_key['id']}"
+        post_authenticated_request(environment, revoke_url)
 
 
 def create_service_api_key(environment, notification_url, service_id, user_id):
@@ -116,13 +111,31 @@ def create_service_api_key(environment, notification_url, service_id, user_id):
         "name": "userflows"
     })
     post_api_key_url = F"{notification_url}/service/{service_id}/api-key"
-    new_key = requests.post(post_api_key_url, headers=header, data=post_api_key_payload)
-    return new_key
+    new_key_response = requests.post(post_api_key_url, headers=header, data=post_api_key_payload)
+    return new_key_response.json()['data']
+
+
+def create_service_test_api_key(environment, notification_url, service_id, user_id):
+    jwt = get_jwt(environment)
+    header = {"Authorization": F"Bearer {jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
+    post_api_key_payload = json.dumps({
+        "created_by": user_id,
+        "key_type": "test",
+        "name": "userflows-test"
+    })
+    post_api_key_url = F"{notification_url}/service/{service_id}/api-key"
+    new_key_response = requests.post(post_api_key_url, headers=header, data=post_api_key_payload)
+    return new_key_response.json()['data']
 
 
 def get_new_service_api_key(environment, notification_url, service_id, user_id):
-    revoke_service_api_key(environment, notification_url, service_id)
+    revoke_service_api_keys(environment, notification_url, service_id)
     return create_service_api_key(environment, notification_url, service_id, user_id)
+
+
+def get_new_service_test_api_key(environment, notification_url, service_id, user_id):
+    revoke_service_api_keys(environment, notification_url, service_id)
+    return create_service_test_api_key(environment, notification_url, service_id, user_id)
 
 
 def get_service_jwt(api_key_secret, service_id):
@@ -140,8 +153,13 @@ def get_service_jwt(api_key_secret, service_id):
     return encoded_jwt
 
 
-def send_email(notification_url, service_jwt, template_id):
+def send_email(notification_url, service_jwt, payload):
     header = {"Authorization": F"Bearer {service_jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
+    post_url = F"{notification_url}/v2/notifications/email"
+    return requests.post(post_url, headers=header, data=payload)
+
+
+def send_email_with_email_address(notification_url, service_jwt, template_id):
     payload = json.dumps({
         "template_id": template_id,
         "email_address": "test@sink.govdelivery.com",
@@ -151,8 +169,23 @@ def send_email(notification_url, service_jwt, template_id):
             "full_name": "Test Subject"
         }
     })
-    post_url = F"{notification_url}/v2/notifications/email"
-    return requests.post(post_url, headers=header, data=payload)
+    return send_email(notification_url, service_jwt, payload)
+
+
+def send_email_with_va_profile_id(notification_url, service_jwt, template_id):
+    payload = json.dumps({
+        "template_id": template_id,
+        "recipient_identifier": {
+            "id_type": "VAPROFILEID",
+            "id_value": "203"
+        },
+        "personalisation": {
+            "claim_id": "600191990",
+            "date_submitted": "October 30, 2020",
+            "full_name": "Test Subject"
+        }
+    })
+    return send_email(notification_url, service_jwt, payload)
 
 
 def get_notification_id(notification_response):
