@@ -1,6 +1,5 @@
 from app.celery import contact_information_tasks
 from app.config import QueueNames
-from app.dao.notifications_dao import update_notification_status_by_id
 from app.models import RecipientIdentifier, VA_PROFILE_ID, NOTIFICATION_TECHNICAL_FAILURE
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
@@ -31,4 +30,4 @@ def lookup_va_profile_id(notification_id):
         )
     except (IdentifierNotFound, UnsupportedIdentifierException) as e:
         current_app.logger.exception(e)
-        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        notifications_dao.update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
