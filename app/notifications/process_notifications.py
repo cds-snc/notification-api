@@ -164,12 +164,16 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(notification,
     if id_type == VA_PROFILE_ID:
         queue = QueueNames.LOOKUP_CONTACT_INFO
         task = contact_information_tasks.lookup_contact_info
+
+        chain = contact_information_tasks.lookup_contact_info.s(notification.id).apply_async(queue = QueueNames.LOOKUP_CONTACT_INFO) | provider_tasks.deliver_email.s(notification.id).apply_async(queue = QueueNames.SEND_EMAIL)
+        chain.apply_async()
     else:
         queue = QueueNames.LOOKUP_VA_PROFILE_ID
         task = contact_information_tasks.lookup_va_profile_id
 
     try:
-        task.apply_async([notification.id], queue=queue)
+        print("hello")
+        # task.apply_async([notification.id], queue=queue)
     except Exception:
         dao_delete_notification_by_id(notification.id)
         raise

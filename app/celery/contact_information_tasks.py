@@ -24,12 +24,14 @@ def lookup_contact_info(notification_id):
         notification.to = email
         dao_update_notification(notification)
 
-        provider_tasks.deliver_email.apply_async(
-            [str(notification.id)],
-            queue=QueueNames.SEND_EMAIL if not notification.service.research_mode else QueueNames.RESEARCH_MODE
-        )
+        # provider_tasks.deliver_email.apply_async(
+        #     [str(notification.id)],
+        #     queue=QueueNames.SEND_EMAIL if not notification.service.research_mode else QueueNames.RESEARCH_MODE
+        # )
+
+        return notification_id
     except VAProfileException as e:
-        current_app.logger.exception(e)
+        # current_app.logger.exception(e)
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
 
 

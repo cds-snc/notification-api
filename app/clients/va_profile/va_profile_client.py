@@ -28,6 +28,7 @@ class VAProfileClient:
             return most_recently_created_bio['emailAddressText']
         except KeyError as e:
             self.statsd_client.incr("clients.va-profile.get-email.error")
+            self.logger.warning("Nope")
             raise VAProfileException(f"No email in response for VA Profile ID {va_profile_id}") from e
 
     def _make_request(self, va_profile_id):
@@ -45,6 +46,7 @@ class VAProfileClient:
                 raise VAProfileException(f"Response status was {response_status} for VA Profile ID {va_profile_id}")
 
         except requests.HTTPError as e:
+            self.logger.exception(e)
             self.statsd_client.incr(f"clients.va-profile.error.{e.response.status_code}")
             raise VAProfileException(str(e)) from e
         finally:
