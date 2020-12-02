@@ -9,6 +9,7 @@ PROVIDER_FEATURE_FLAGS = {
 
 class FeatureFlag(Enum):
     FEATURE_LOOKUP_VA_PROFILE_ID = "FEATURE_LOOKUP_VA_PROFILE_ID"
+    ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED = "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED"
 
 
 def is_provider_enabled(current_app, provider_identifier):
@@ -19,10 +20,7 @@ def is_provider_enabled(current_app, provider_identifier):
 
 
 def accept_recipient_identifiers_enabled():
-    if os.getenv('ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED', 'False') == 'True':
-        return True
-    else:
-        return False
+    return is_feature_enabled(FeatureFlag.ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED)
 
 
 def is_gapixel_enabled(current_app):
