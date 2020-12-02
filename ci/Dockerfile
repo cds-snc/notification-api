@@ -13,7 +13,7 @@ RUN set -ex && mkdir /app
 
 COPY requirements.txt /app/requirements.txt
 WORKDIR /app
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt --use-deprecated=legacy-resolver
 
 COPY . /app
 RUN make generate-version-file
