@@ -2,6 +2,10 @@ import requests
 from app.va import IdentifierType
 
 
+class MpiException(Exception):
+    pass
+
+
 class UnsupportedIdentifierException(Exception):
     pass
 
@@ -46,8 +50,9 @@ class MpiClient:
             params=params,
             cert=(self.ssl_cert_path, self.ssl_key_path)
         )
-        response.raise_for_status()
-        identifiers = response.json()['identifier']
+
+        identifiers = get_json_response(response)['identifier']
+
         va_profile_suffix = "^PI^200VETS^USDVA^A"
         try:
             va_profile_id = next(
@@ -57,3 +62,15 @@ class MpiClient:
             return va_profile_id
         except StopIteration as e:
             raise IdentifierNotFound(f"No active VA Profile Identifier found for: {fhir_identifier}") from e
+
+
+def get_json_response(response):
+    response.raise_for_status()
+    json_response = response.json()
+    if json_response.get('severity'):
+        raise MpiException(
+            f"MPI returned error with severity: {json_response['severity']}, "
+            f"code: {json_response['details']['coding'][0]['code']}, "
+            f"description: {json_response['details']['text']}"
+        )
+    return json_response
