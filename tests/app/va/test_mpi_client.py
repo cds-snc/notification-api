@@ -81,8 +81,16 @@ def response_with_two_active_va_profile_ids():
 
 @pytest.fixture
 def mpi_client():
+    url = 'https://foo.bar'
+    mock_ssl_key_path = 'some_key.pem'
+    mock_ssl_cert_path = 'some_cert.pem'
+
     mpi_client = MpiClient()
-    mpi_client.init_app(url="https://foo.bar")
+    mpi_client.init_app(
+        url,
+        mock_ssl_cert_path,
+        mock_ssl_key_path
+    )
     return mpi_client
 
 
@@ -103,7 +111,7 @@ class TestTransformToFhirFormat:
 
         assert actual_fhir_format == expected
 
-    def test_should_throw_error_when_ivalid_type(self, mpi_client):
+    def test_should_throw_error_when_invalid_type(self, mpi_client):
         recipient_identifier = RecipientIdentifier(
             notification_id="123456",
             id_type="unknown_type",

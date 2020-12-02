@@ -29,5 +29,7 @@ def lookup_va_profile_id(notification_id):
             queue=QueueNames.LOOKUP_CONTACT_INFO
         )
     except (IdentifierNotFound, UnsupportedIdentifierException) as e:
-        current_app.logger.exception(f"{str(e)}. Failed to retrieve VA Profile ID from MPI for notification: {notification_id}")
+        current_app.logger.exception(
+            f"{str(e)}. Failed to retrieve VA Profile ID from MPI for notification: {notification_id}"
+        )
         notifications_dao.update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)

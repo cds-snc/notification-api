@@ -118,7 +118,11 @@ def create_app(application):
         application.config['VANOTIFY_SSL_CERT_PATH'],
         application.config['VANOTIFY_SSL_KEY_PATH']
     )
-    mpi_client.init_app(application.config['MPI_URL'])
+    mpi_client.init_app(
+        application.config['MPI_URL'],
+        application.config['VANOTIFY_SSL_CERT_PATH'],
+        application.config['VANOTIFY_SSL_KEY_PATH']
+    )
 
     notify_celery.init_app(application)
     encryption.init_app(application)

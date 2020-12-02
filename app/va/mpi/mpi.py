@@ -20,8 +20,10 @@ class MpiClient:
         IdentifierType.VA_PROFILE_ID: "^PI^200VETS^USDVA"
     }
 
-    def init_app(self, url):
+    def init_app(self, url, ssl_cert_path, ssl_key_path):
         self.base_url = url
+        self.ssl_cert_path = ssl_cert_path
+        self.ssl_key_path = ssl_key_path
 
     def transform_to_fhir_format(self, recipient_identifier):
         try:
@@ -39,7 +41,11 @@ class MpiClient:
                 f"Unexpected number of recipient_identifiers in: {notification.recipient_identifiers.keys()}")
         fhir_identifier = self.transform_to_fhir_format(next(iter(identifiers)))
         params = {'-sender': self.SYSTEM_IDENTIFIER}
-        response = requests.get(f"{self.base_url}/psim_webservice/fhir/Patient/{fhir_identifier}", params=params)
+        response = requests.get(
+            f"{self.base_url}/psim_webservice/fhir/Patient/{fhir_identifier}",
+            params=params,
+            cert=(self.ssl_cert_path, self.ssl_key_path)
+        )
         response.raise_for_status()
         identifiers = response.json()['identifier']
         va_profile_suffix = "^PI^200VETS^USDVA^A"
