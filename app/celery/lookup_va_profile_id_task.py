@@ -23,11 +23,11 @@ def lookup_va_profile_id(notification_id):
                 id_value=va_profile_id
             ))
         notifications_dao.dao_update_notification(notification)
-        current_app.logger.info(f"Successfully retrieved VA PROFILE ID for notification: {notification_id}")
+        current_app.logger.info(f"Successfully updated notification {notification_id} with VA PROFILE ID")
         contact_information_tasks.lookup_contact_info.apply_async(
             [notification.id],
             queue=QueueNames.LOOKUP_CONTACT_INFO
         )
     except (IdentifierNotFound, UnsupportedIdentifierException) as e:
-        current_app.logger.exception(e)
+        current_app.logger.exception(f"{str(e)}. Failed to retrieve VA Profile ID from MPI for notification: {notification_id}")
         notifications_dao.update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
