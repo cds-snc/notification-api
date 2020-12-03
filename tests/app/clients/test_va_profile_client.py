@@ -1,5 +1,4 @@
 import pytest
-from requests import HTTPError
 from requests_mock import ANY
 
 from app.clients.va_profile.va_profile_client import VAProfileClient, VAProfileException
@@ -12,13 +11,15 @@ def test_va_profile_client(mocker):
     mock_logger = mocker.Mock()
     mock_ssl_key_path = 'some_key.pem'
     mock_ssl_cert_path = 'some_cert.pem'
+    mock_statsd_client = mocker.Mock()
 
     test_va_profile_client = VAProfileClient()
     test_va_profile_client.init_app(
         mock_logger,
         MOCK_VA_PROFILE_URL,
         mock_ssl_cert_path,
-        mock_ssl_key_path
+        mock_ssl_key_path,
+        mock_statsd_client
     )
 
     return test_va_profile_client
@@ -169,5 +170,5 @@ def test_get_email_raises_exception_when_no_contact_info(notify_api, rmock, test
 def test_get_email_raises_exception_when_status_not_200(notify_api, rmock, test_va_profile_client, status):
     rmock.get(ANY, status_code=status)
 
-    with pytest.raises(HTTPError):
+    with pytest.raises(VAProfileException):
         test_va_profile_client.get_email('1')

@@ -116,7 +116,8 @@ def create_app(application):
         application.logger,
         application.config['VA_PROFILE_URL'],
         application.config['VANOTIFY_SSL_CERT_PATH'],
-        application.config['VANOTIFY_SSL_KEY_PATH']
+        application.config['VANOTIFY_SSL_KEY_PATH'],
+        statsd_client
     )
     mpi_client.init_app(
         application.config['MPI_URL'],
