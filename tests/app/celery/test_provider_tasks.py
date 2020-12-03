@@ -5,13 +5,14 @@ from notifications_utils.recipients import InvalidEmailError
 
 import app
 from app.celery import provider_tasks
-from app.celery.provider_tasks import deliver_sms, deliver_email
+from app.celery.provider_tasks import deliver_sms, deliver_throttled_sms, deliver_email
 from app.clients.email.aws_ses import AwsSesClientException
 from app.exceptions import NotificationTechnicalFailureException
 
 
 def test_should_have_decorated_tasks_functions():
     assert deliver_sms.__wrapped__.__name__ == 'deliver_sms'
+    assert deliver_throttled_sms.__wrapped__.__name__ == 'deliver_throttled_sms'
     assert deliver_email.__wrapped__.__name__ == 'deliver_email'
 
 
@@ -22,6 +23,19 @@ def test_should_call_send_sms_to_provider_from_deliver_sms_task(
 
     deliver_sms(sample_notification.id)
     app.delivery.send_to_providers.send_sms_to_provider.assert_called_with(sample_notification)
+
+
+def test_sms_tasks_should_call_same_method(
+    sample_notification,
+    mocker,
+):
+    private_task = mocker.patch('app.celery.provider_tasks._deliver_sms')
+
+    deliver_sms(sample_notification.id)
+    assert private_task.call_count == 1
+
+    deliver_throttled_sms(sample_notification.id)
+    assert private_task.call_count == 2
 
 
 def test_should_add_to_retry_queue_if_notification_not_found_in_deliver_sms_task(
