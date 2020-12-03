@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 from flask import current_app
+from celery import chain
 
 from notifications_utils.clients import redis
 from notifications_utils.recipients import (
@@ -12,7 +13,8 @@ from notifications_utils.recipients import (
 from notifications_utils.timezones import convert_local_timezone_to_utc
 
 from app import redis_store
-from app.celery import provider_tasks, contact_information_tasks
+from app.celery import provider_tasks
+from app.celery.contact_information_tasks import lookup_contact_info, lookup_va_profile_id
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
 from app.feature_flags import accept_recipient_identifiers_enabled
@@ -161,27 +163,25 @@ def send_notification_to_queue(notification, research_mode, queue=None):
 
 
 def send_to_queue_for_recipient_info_based_on_recipient_identifier(notification, id_type):
+    tasks = []
     if id_type == VA_PROFILE_ID:
-        queue = QueueNames.LOOKUP_CONTACT_INFO
-        task = contact_information_tasks.lookup_contact_info
-
-        chain = contact_information_tasks.lookup_contact_info.s(notification.id).apply_async(queue = QueueNames.LOOKUP_CONTACT_INFO) | provider_tasks.deliver_email.s(notification.id).apply_async(queue = QueueNames.SEND_EMAIL)
-        chain.apply_async()
+        tasks = [
+            lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
+            provider_tasks.deliver_email.si(notification.id).set(queue=QueueNames.SEND_EMAIL)
+        ]
     else:
-        queue = QueueNames.LOOKUP_VA_PROFILE_ID
-        task = contact_information_tasks.lookup_va_profile_id
+        tasks = [
+            lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID),
+            lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
+            provider_tasks.deliver_email.si(notification.id).set(queue=QueueNames.SEND_EMAIL)
+        ]
 
-    try:
-        print("hello")
-        # task.apply_async([notification.id], queue=queue)
-    except Exception:
-        dao_delete_notification_by_id(notification.id)
-        raise
+    chain(*tasks).apply_async()
+
     current_app.logger.debug(
-        "{} {} sent to the {} queue".format(
+        "{} {} sent to the queues".format(
             notification.notification_type,
-            notification.id,
-            queue
+            notification.id
         )
     )
 
