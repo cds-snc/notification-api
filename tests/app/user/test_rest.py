@@ -758,7 +758,23 @@ def test_send_already_registered_email_returns_400_when_data_is_missing(client, 
     assert json.loads(resp.get_data(as_text=True))['message'] == {'email': ['Missing data for required field.']}
 
 
-@pytest.mark.skip(reason="not in use")
+def test_send_new_registration_data_email(client, sample_user, contact_us_template, mocker):
+    data = json.dumps({'name': sample_user.name, 'email': sample_user.email_address, 'date': '2020-01-01 12:00:00'})
+    auth_header = create_authorization_header()
+    mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
+    notify_service = contact_us_template.service
+
+    resp = client.post(
+        url_for('user.send_support_email', user_id=str(sample_user.id)),
+        data=data,
+        headers=[('Content-Type', 'application/json'), auth_header])
+    assert resp.status_code == 204
+
+    notification = Notification.query.first()
+    mocked.assert_called_once_with(([str(notification.id)]), queue="notify-internal-tasks")
+    assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
+
+
 def test_send_support_email(client, sample_user, contact_us_template, mocker):
     data = json.dumps({'email': sample_user.email_address, 'message': "test"})
     auth_header = create_authorization_header()
