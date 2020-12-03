@@ -611,12 +611,8 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
         mocker,
         notification_type,
         id_type,
-        expected_tasks):
-    mocker.patch(
-        'app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled',
-        return_value=True
-    )
-
+        expected_tasks
+):
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
 
     notification = Notification(
