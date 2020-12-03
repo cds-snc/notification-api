@@ -179,9 +179,10 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(notification,
     chain(*tasks).apply_async()
 
     current_app.logger.debug(
-        "{} {} sent to the queues".format(
+        "{} {} passed to tasks: {}".format(
             notification.notification_type,
-            notification.id
+            notification.id,
+            [task.name for task in tasks]
         )
     )
 
