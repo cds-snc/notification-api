@@ -365,6 +365,7 @@ class Config(object):
     GRANICUS_TOKEN = os.environ.get('GRANICUS_TOKEN', '')
     GRANICUS_URL = os.environ.get('GRANICUS_URL', 'https://tms.govdelivery.com')
     VA_PROFILE_URL = os.environ.get('VA_PROFILE_URL', 'https://int.vaprofile.va.gov')
+    MPI_URL = os.environ.get('MPI_URL', 'https://ps.dev.iam.va.gov')
 
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "messages.va.gov")
     NOTIFY_EMAIL_FROM = os.getenv("NOTIFY_EMAIL_FROM", "notifications")

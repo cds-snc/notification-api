@@ -29,6 +29,7 @@ from app.clients.sms.aws_sns import AwsSnsClient
 from app.clients.sms.twilio import TwilioSMSClient
 from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
 from app.clients.va_profile.va_profile_client import VAProfileClient
+from app.va.mpi import MpiClient
 from app.encryption import Encryption
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -72,6 +73,7 @@ redis_store = RedisClient()
 performance_platform_client = PerformancePlatformClient()
 document_download_client = DocumentDownloadClient()
 va_profile_client = VAProfileClient()
+mpi_client = MpiClient()
 
 clients = Clients()
 
@@ -116,6 +118,11 @@ def create_app(application):
         application.config['VANOTIFY_SSL_CERT_PATH'],
         application.config['VANOTIFY_SSL_KEY_PATH'],
         statsd_client
+    )
+    mpi_client.init_app(
+        application.config['MPI_URL'],
+        application.config['VANOTIFY_SSL_CERT_PATH'],
+        application.config['VANOTIFY_SSL_KEY_PATH']
     )
 
     notify_celery.init_app(application)

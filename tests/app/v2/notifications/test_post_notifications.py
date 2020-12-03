@@ -877,9 +877,10 @@ def test_post_notification_returns_400_when_get_json_throws_exception(client, sa
 
 
 @pytest.mark.parametrize('expected_type, expected_value, task',
-                         [(VA_PROFILE_ID, 'some va profile id', 'lookup_contact_info'),
-                          (PID, 'some pid', 'lookup_va_profile_id'),
-                          (ICN, 'some icn', 'lookup_va_profile_id')])
+                         [(VA_PROFILE_ID, 'some va profile id',
+                           'app.celery.contact_information_tasks.lookup_contact_info'),
+                          (PID, 'some pid', 'app.celery.lookup_va_profile_id_task.lookup_va_profile_id'),
+                          (ICN, 'some icn', 'app.celery.lookup_va_profile_id_task.lookup_va_profile_id')])
 def test_should_process_notification_successfully_with_recipient_identifiers(
         client,
         mocker,
@@ -897,7 +898,7 @@ def test_should_process_notification_successfully_with_recipient_identifiers(
         return_value=True
     )
     mocked_task = mocker.patch(
-        'app.celery.contact_information_tasks.{}.apply_async'.format(task))
+        f'{task}.apply_async')
     data = {
         "template_id": sample_email_template.id,
         "recipient_identifier": {'id_type': expected_type, 'id_value': expected_value}

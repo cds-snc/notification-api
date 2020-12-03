@@ -31,9 +31,3 @@ def lookup_contact_info(notification_id):
     except VAProfileException as e:
         current_app.logger.exception(e)
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
-
-
-@notify_celery.task(name="lookup-va-profile-id-tasks")
-@statsd(namespace="tasks")
-def lookup_va_profile_id(notification_id):
-    current_app.logger.info("This task will look up VA Profile ID.")

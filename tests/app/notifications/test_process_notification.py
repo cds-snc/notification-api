@@ -601,8 +601,8 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
 
 @pytest.mark.parametrize('notification_type', [EMAIL_TYPE, SMS_TYPE])
 @pytest.mark.parametrize('id_type, expected_queue, expected_task', [
-    (VA_PROFILE_ID, 'lookup-contact-info-tasks', 'lookup_contact_info'),
-    (ICN, 'lookup-va-profile-id-tasks', 'lookup_va_profile_id'),
+    (VA_PROFILE_ID, 'lookup-contact-info-tasks', 'app.celery.contact_information_tasks.lookup_contact_info'),
+    (ICN, 'lookup-va-profile-id-tasks', 'app.celery.lookup_va_profile_id_task.lookup_va_profile_id'),
 ])
 def test_send_notification_to_correct_queue_to_lookup_contact_info(
         client,
@@ -617,8 +617,7 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
         'app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled',
         return_value=True
     )
-    mocked = mocker.patch(
-        'app.celery.contact_information_tasks.{}.apply_async'.format(expected_task))
+    mocked = mocker.patch(f'{expected_task}.apply_async')
     notification = Notification(
         id=str(uuid.uuid4()),
         notification_type=notification_type
