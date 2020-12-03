@@ -183,16 +183,17 @@ def test_get_letter_pdf_filename_returns_tomorrows_filename(notify_api, mocker):
 def test_get_letter_pdf_gets_pdf_from_correct_bucket(
     sample_precompiled_letter_notification_using_test_key,
     bucket_config_name,
-    filename_format
+    filename_format,
+    aws_credentials
 ):
     if bucket_config_name == 'LETTERS_PDF_BUCKET_NAME':
         sample_precompiled_letter_notification_using_test_key.key_type = KEY_TYPE_NORMAL
 
     bucket_name = current_app.config[bucket_config_name]
     filename = datetime.utcnow().strftime(filename_format)
-    conn = boto3.resource('s3', region_name='eu-west-1')
+    conn = boto3.resource('s3', region_name='us-east-1')
     conn.create_bucket(Bucket=bucket_name)
-    s3 = boto3.client('s3', region_name='eu-west-1')
+    s3 = boto3.client('s3', region_name='us-east-1')
     s3.put_object(Bucket=bucket_name, Key=filename, Body=b'pdf_content')
 
     ret = get_letter_pdf(sample_precompiled_letter_notification_using_test_key)
@@ -245,14 +246,14 @@ def test_upload_letter_pdf_uses_postage_from_notification(
 
 @mock_s3
 @freeze_time(FROZEN_DATE_TIME)
-def test_move_failed_pdf_error(notify_api):
+def test_move_failed_pdf_error(notify_api, aws_credentials):
     filename = 'test.pdf'
     bucket_name = current_app.config['LETTERS_SCAN_BUCKET_NAME']
 
-    conn = boto3.resource('s3', region_name='eu-west-1')
+    conn = boto3.resource('s3', region_name='us-east-1')
     bucket = conn.create_bucket(Bucket=bucket_name)
 
-    s3 = boto3.client('s3', region_name='eu-west-1')
+    s3 = boto3.client('s3', region_name='us-east-1')
     s3.put_object(Bucket=bucket_name, Key=filename, Body=b'pdf_content')
 
     move_failed_pdf(filename, ScanErrorType.ERROR)
@@ -263,14 +264,14 @@ def test_move_failed_pdf_error(notify_api):
 
 @mock_s3
 @freeze_time(FROZEN_DATE_TIME)
-def test_move_failed_pdf_scan_failed(notify_api):
+def test_move_failed_pdf_scan_failed(notify_api, aws_credentials):
     filename = 'test.pdf'
     bucket_name = current_app.config['LETTERS_SCAN_BUCKET_NAME']
 
-    conn = boto3.resource('s3', region_name='eu-west-1')
+    conn = boto3.resource('s3', region_name='us-east-1')
     bucket = conn.create_bucket(Bucket=bucket_name)
 
-    s3 = boto3.client('s3', region_name='eu-west-1')
+    s3 = boto3.client('s3', region_name='us-east-1')
     s3.put_object(Bucket=bucket_name, Key=filename, Body=b'pdf_content')
 
     move_failed_pdf(filename, ScanErrorType.FAILURE)
@@ -281,14 +282,14 @@ def test_move_failed_pdf_scan_failed(notify_api):
 
 @mock_s3
 @freeze_time(FROZEN_DATE_TIME)
-def test_copy_redaction_failed_pdf(notify_api):
+def test_copy_redaction_failed_pdf(notify_api, aws_credentials):
     filename = 'test.pdf'
     bucket_name = current_app.config['LETTERS_SCAN_BUCKET_NAME']
 
-    conn = boto3.resource('s3', region_name='eu-west-1')
+    conn = boto3.resource('s3', region_name='us-east-1')
     bucket = conn.create_bucket(Bucket=bucket_name)
 
-    s3 = boto3.client('s3', region_name='eu-west-1')
+    s3 = boto3.client('s3', region_name='us-east-1')
     s3.put_object(Bucket=bucket_name, Key=filename, Body=b'pdf_content')
 
     copy_redaction_failed_pdf(filename)
