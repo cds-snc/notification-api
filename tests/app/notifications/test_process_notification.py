@@ -7,6 +7,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from freezegun import freeze_time
 from collections import namedtuple
 
+from app.celery.contact_information_tasks import lookup_contact_info, lookup_va_profile_id
+from app.celery.provider_tasks import deliver_email
 from app.models import (
     Notification,
     NotificationHistory,
@@ -600,29 +602,30 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
 
 
 @pytest.mark.parametrize('notification_type', [EMAIL_TYPE, SMS_TYPE])
-@pytest.mark.parametrize('id_type, expected_queue, expected_task', [
-    (VA_PROFILE_ID, 'lookup-contact-info-tasks', 'lookup_contact_info'),
-    (ICN, 'lookup-va-profile-id-tasks', 'lookup_va_profile_id'),
+@pytest.mark.parametrize('id_type, expected_tasks', [
+    (VA_PROFILE_ID, [lookup_contact_info, deliver_email]),
+    (ICN, [lookup_va_profile_id, lookup_contact_info, deliver_email]),
 ])
 def test_send_notification_to_correct_queue_to_lookup_contact_info(
         client,
         mocker,
         notification_type,
         id_type,
-        expected_queue,
-        expected_task,
-        sample_template,
-        sample_email_template):
+        expected_tasks):
     mocker.patch(
         'app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled',
         return_value=True
     )
-    mocked = mocker.patch(
-        'app.celery.contact_information_tasks.{}.apply_async'.format(expected_task))
+
+    mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
+
     notification = Notification(
         id=str(uuid.uuid4()),
         notification_type=notification_type
     )
 
     send_to_queue_for_recipient_info_based_on_recipient_identifier(notification, id_type)
-    mocked.assert_called_once_with([notification.id], queue=expected_queue)
+
+    args, _ = mocked_chain.call_args
+    for i, task in enumerate(expected_tasks):
+        assert args[i].task == expected_tasks[i].name
