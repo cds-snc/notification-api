@@ -1,7 +1,7 @@
 import pytest
 from requests_mock import ANY
 
-from app.clients.va_profile.va_profile_client import VAProfileClient, VAProfileException
+from app.va.va_profile import VAProfileClient, VAProfileException
 
 MOCK_VA_PROFILE_URL = 'http://mock.vaprofile.va.gov/'
 

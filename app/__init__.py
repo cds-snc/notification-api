@@ -28,7 +28,7 @@ from app.clients.sms.mmg import MMGClient
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.clients.sms.twilio import TwilioSMSClient
 from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
-from app.clients.va_profile.va_profile_client import VAProfileClient
+from app.va.va_profile import VAProfileClient
 from app.va.mpi import MpiClient
 from app.encryption import Encryption
 

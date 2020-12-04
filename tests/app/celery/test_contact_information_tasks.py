@@ -2,7 +2,7 @@ import uuid
 import pytest
 
 from app.celery.contact_information_tasks import lookup_contact_info
-from app.clients.va_profile.va_profile_client import VAProfileClient, VAProfileException
+from app.va.va_profile import VAProfileClient, VAProfileException
 from app.exceptions import NotificationTechnicalFailureException
 from app.models import Notification, VA_PROFILE_ID, RecipientIdentifier, Service, NOTIFICATION_TECHNICAL_FAILURE
 
