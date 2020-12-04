@@ -1,7 +1,12 @@
 import pytest
 from requests_mock import ANY
 
-from app.va.va_profile import VAProfileClient, VAProfileException
+from app.va.va_profile import (
+    VAProfileClient,
+    NoContactInfoException,
+    VAProfileRetryableException,
+    VAProfileNonRetryableException
+)
 
 MOCK_VA_PROFILE_URL = 'http://mock.vaprofile.va.gov/'
 
@@ -140,11 +145,11 @@ def test_get_email_raises_exception_when_no_email_bio(notify_api, rmock, test_va
     }
     rmock.get(ANY, json=response, status_code=200)
 
-    with pytest.raises(VAProfileException):
+    with pytest.raises(NoContactInfoException):
         test_va_profile_client.get_email('1')
 
 
-def test_get_email_raises_exception_when_no_contact_info(notify_api, rmock, test_va_profile_client):
+def test_get_email_raises_exception_when_failed_request(notify_api, rmock, test_va_profile_client):
     response = {
         "messages": [
             {
@@ -159,16 +164,27 @@ def test_get_email_raises_exception_when_no_contact_info(notify_api, rmock, test
     }
     rmock.get(ANY, json=response, status_code=200)
 
-    with pytest.raises(VAProfileException):
+    with pytest.raises(VAProfileNonRetryableException):
         test_va_profile_client.get_email('1')
 
 
 @pytest.mark.parametrize(
     "status",
-    [400, 403, 404, 429, 500]
+    [429, 500]
 )
-def test_get_email_raises_exception_when_status_not_200(notify_api, rmock, test_va_profile_client, status):
+def test_get_email_raises_retryable_exception(notify_api, rmock, test_va_profile_client, status):
     rmock.get(ANY, status_code=status)
 
-    with pytest.raises(VAProfileException):
+    with pytest.raises(VAProfileRetryableException):
+        test_va_profile_client.get_email('1')
+
+
+@pytest.mark.parametrize(
+    "status",
+    [400, 403, 404]
+)
+def test_get_email_raises_non_retryable_exception(notify_api, rmock, test_va_profile_client, status):
+    rmock.get(ANY, status_code=status)
+
+    with pytest.raises(VAProfileNonRetryableException):
         test_va_profile_client.get_email('1')

@@ -2,7 +2,7 @@ from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 
 from app import notify_celery, va_profile_client
-from app.va.va_profile import VAProfileException
+from app.va.va_profile import VAProfileRetryableException, VAProfileNonRetryableException
 from app.config import QueueNames
 from app.dao.notifications_dao import get_notification_by_id, dao_update_notification, update_notification_status_by_id
 from app.models import VA_PROFILE_ID, NOTIFICATION_TECHNICAL_FAILURE
@@ -21,10 +21,7 @@ def lookup_contact_info(self, notification_id):
     try:
         email = va_profile_client.get_email(va_profile_id)
 
-        notification.to = email
-        dao_update_notification(notification)
-
-    except VAProfileException as e:
+    except VAProfileRetryableException as e:
         current_app.logger.exception(e)
         try:
             self.retry(queue=QueueNames.RETRY)
@@ -33,4 +30,15 @@ def lookup_contact_info(self, notification_id):
                       f"The task lookup_contact_info failed for notification {notification_id}. " \
                       "Notification has been updated to technical-failure"
             update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
-            raise NotificationTechnicalFailureException(message)
+            raise NotificationTechnicalFailureException(message) from e
+
+    except VAProfileNonRetryableException as e:
+        current_app.logger.exception(e)
+        message = f"The task lookup_contact_info failed for notification {notification_id}. " \
+                  "Notification has been updated to technical-failure"
+        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        raise NotificationTechnicalFailureException(message) from e
+
+    else:
+        notification.to = email
+        dao_update_notification(notification)

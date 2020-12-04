@@ -2,9 +2,11 @@ import requests
 import iso8601
 from time import monotonic
 
-
-class VAProfileException(Exception):
-    pass
+from app.va.va_profile import (
+    NoContactInfoException,
+    VAProfileNonRetryableException,
+    VAProfileRetryableException
+)
 
 
 class VAProfileClient:
@@ -28,8 +30,7 @@ class VAProfileClient:
             return most_recently_created_bio['emailAddressText']
         except KeyError as e:
             self.statsd_client.incr("clients.va-profile.get-email.error")
-            self.logger.warning("Nope")
-            raise VAProfileException(f"No email in response for VA Profile ID {va_profile_id}") from e
+            raise NoContactInfoException(f"No email in response for VA Profile ID {va_profile_id}") from e
 
     def _make_request(self, va_profile_id):
         start_time = monotonic()
@@ -40,21 +41,28 @@ class VAProfileClient:
             )
             response.raise_for_status()
 
-            response_status = response.json()['status']
-            if response_status != self.SUCCESS_STATUS:
-                self.statsd_client.incr(f"clients.va-profile.error.{response_status}")
-                raise VAProfileException(f"Response status was {response_status} for VA Profile ID {va_profile_id}")
-
         except requests.HTTPError as e:
             self.logger.exception(e)
             self.statsd_client.incr(f"clients.va-profile.error.{e.response.status_code}")
-            raise VAProfileException(str(e)) from e
+            if e.response.status_code in [429, 500]:
+                raise VAProfileRetryableException(str(e)) from e
+            else:
+                raise VAProfileNonRetryableException(str(e)) from e
+
+        else:
+            response_status = response.json()['status']
+            if response_status != self.SUCCESS_STATUS:
+                self.statsd_client.incr(f"clients.va-profile.error.{response_status}")
+                raise VAProfileNonRetryableException(
+                    f"Response status was {response_status} for VA Profile ID {va_profile_id}"
+                )
+
+            self.statsd_client.incr("clients.va-profile.success")
+            return response
+
         finally:
             elapsed_time = monotonic() - start_time
             self.statsd_client.timing("clients.va-profile.request-time", elapsed_time)
-
-        self.statsd_client.incr("clients.va-profile.success")
-        return response
 
     def _get_most_recently_created_bio(self, response):
         sorted_bios = sorted(
