@@ -10,9 +10,7 @@ from requests.utils import quote
 from app.va.mpi.mpi import IdentifierNotFound, MpiException
 from tests.app.factories.recipient_idenfier import sample_recipient_identifier
 
-EXPECTED_VA_PROFILE_ID = "15963"
-
-BASE_MPI_RESPONSE_WITH_SEVERITY = {
+MPI_ERROR_RESPONSE = {
     "severity": "error",
     "code": "exception",
     "details": {
@@ -27,7 +25,7 @@ BASE_MPI_RESPONSE_WITH_SEVERITY = {
     "id": "2020-12-02 12:14:39"
 }
 
-BASE_MPI_RESPONSE_WITH_NO_VA_PROFILE_ID = {
+MPI_RESPONSE_WITH_NO_VA_PROFILE_ID = {
     "resourceType": "Patient",
     "id": "1008710501V455565",
     "birthDate": "2010-06-03",
@@ -75,9 +73,11 @@ BASE_MPI_RESPONSE_WITH_NO_VA_PROFILE_ID = {
     ]
 }
 
+EXPECTED_VA_PROFILE_ID = "12345"
+
 
 def response_with_one_active_va_profile_id():
-    resp = copy.deepcopy(BASE_MPI_RESPONSE_WITH_NO_VA_PROFILE_ID)
+    resp = copy.deepcopy(MPI_RESPONSE_WITH_NO_VA_PROFILE_ID)
     resp["identifier"].append({
         "system": "urn:oid:2.16.840.1.113883.4.349",
         "value": f"{EXPECTED_VA_PROFILE_ID}^PI^200VETS^USDVA^A"
@@ -89,7 +89,7 @@ def response_with_two_active_va_profile_ids():
     resp = response_with_one_active_va_profile_id()
     resp["identifier"].append({
         "system": "urn:oid:2.16.840.1.113883.4.349",
-        "value": "15964^PI^200VETS^USDVA^A"
+        "value": "67890^PI^200VETS^USDVA^A"
     })
     return resp
 
@@ -136,7 +136,7 @@ class TestTransformToFhirFormat:
             mpi_client.transform_to_fhir_format(recipient_identifier)
         assert "No identifier of type" in str(e.value)
 
-    def test_should_throw_error_when_no_transformation(self, mpi_client, mocker):
+    def test_should_throw_error_when_no_mapping_for_type(self, mpi_client, mocker):
         mock_identifier = mocker.Mock(IdentifierType)
         mock_identifier.name = "MOCKED_IDENTIFIER"
         mock_identifier.value = "mocked_value"
@@ -191,10 +191,9 @@ class TestGetVaProfileId:
 
         assert rmock.called
         assert rmock.request_history[0].url == expected_url
-
         assert actual_va_profile_id == EXPECTED_VA_PROFILE_ID
 
-    def test_should_make_request_to_mpi_and_return_first_active_va_profile_id(
+    def test_should_return_first_active_va_profile_id_when_multiple_active_va_profile_ids_exist(
         self, mpi_client, rmock, sample_notification_model_with_organization
     ):
         notification = sample_notification_model_with_organization
@@ -222,14 +221,14 @@ class TestGetVaProfileId:
         rmock.request(
             "GET",
             ANY,
-            json=BASE_MPI_RESPONSE_WITH_NO_VA_PROFILE_ID,
+            json=MPI_RESPONSE_WITH_NO_VA_PROFILE_ID,
             status_code=200
         )
 
         with pytest.raises(IdentifierNotFound):
             mpi_client.get_va_profile_id(notification)
 
-    def test_should_throw_error_when_severity_in_response(
+    def test_should_throw_error_when_mpi_returns_error_response(
             self, mpi_client, rmock, sample_notification_model_with_organization
     ):
         notification = sample_notification_model_with_organization
@@ -239,7 +238,7 @@ class TestGetVaProfileId:
         rmock.request(
             "GET",
             ANY,
-            json=BASE_MPI_RESPONSE_WITH_SEVERITY,
+            json=MPI_ERROR_RESPONSE,
             status_code=200
         )
 
