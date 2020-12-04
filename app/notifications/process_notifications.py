@@ -134,6 +134,21 @@ def persist_notification(
 
 
 def send_notification_to_queue(notification, research_mode, queue=None):
+    deliver_task, queue = _get_delivery_task(notification, research_mode, queue)
+
+    try:
+        deliver_task.apply_async([str(notification.id)], queue=queue)
+    except Exception:
+        dao_delete_notification_by_id(notification.id)
+        raise
+
+    current_app.logger.debug(
+        "{} {} sent to the {} queue for delivery".format(notification.notification_type,
+                                                         notification.id,
+                                                         queue))
+
+
+def _get_delivery_task(notification, research_mode=False, queue=None):
     if research_mode or notification.key_type == KEY_TYPE_TEST:
         queue = QueueNames.RESEARCH_MODE
 
@@ -150,30 +165,21 @@ def send_notification_to_queue(notification, research_mode, queue=None):
             queue = QueueNames.CREATE_LETTERS_PDF
         deliver_task = create_letters_pdf
 
-    try:
-        deliver_task.apply_async([str(notification.id)], queue=queue)
-    except Exception:
-        dao_delete_notification_by_id(notification.id)
-        raise
-
-    current_app.logger.debug(
-        "{} {} sent to the {} queue for delivery".format(notification.notification_type,
-                                                         notification.id,
-                                                         queue))
+    return deliver_task, queue
 
 
 def send_to_queue_for_recipient_info_based_on_recipient_identifier(notification, id_type):
-    tasks = []
+    deliver_task, deliver_queue = _get_delivery_task(notification)
     if id_type == VA_PROFILE_ID:
         tasks = [
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
-            provider_tasks.deliver_email.si(notification.id).set(queue=QueueNames.SEND_EMAIL)
+            deliver_task.si(notification.id).set(queue=deliver_queue)
         ]
     else:
         tasks = [
             lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
-            provider_tasks.deliver_email.si(notification.id).set(queue=QueueNames.SEND_EMAIL)
+            deliver_task.si(notification.id).set(queue=deliver_queue)
         ]
 
     chain(*tasks).apply_async()

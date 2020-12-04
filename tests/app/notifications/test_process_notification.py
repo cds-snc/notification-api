@@ -8,7 +8,7 @@ from freezegun import freeze_time
 from collections import namedtuple
 
 from app.celery.contact_information_tasks import lookup_contact_info, lookup_va_profile_id
-from app.celery.provider_tasks import deliver_email
+from app.celery.provider_tasks import deliver_email, deliver_sms
 from app.models import (
     Notification,
     NotificationHistory,
@@ -601,10 +601,11 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
     assert notification.recipient_identifiers == {}
 
 
-@pytest.mark.parametrize('notification_type', [EMAIL_TYPE, SMS_TYPE])
-@pytest.mark.parametrize('id_type, expected_tasks', [
-    (VA_PROFILE_ID, [lookup_contact_info, deliver_email]),
-    (ICN, [lookup_va_profile_id, lookup_contact_info, deliver_email]),
+@pytest.mark.parametrize('id_type, notification_type, expected_tasks', [
+    (VA_PROFILE_ID, EMAIL_TYPE, [lookup_contact_info, deliver_email]),
+    (VA_PROFILE_ID, SMS_TYPE, [lookup_contact_info, deliver_sms]),
+    (ICN, EMAIL_TYPE, [lookup_va_profile_id, lookup_contact_info, deliver_email]),
+    (ICN, SMS_TYPE, [lookup_va_profile_id, lookup_contact_info, deliver_sms]),
 ])
 def test_send_notification_to_correct_queue_to_lookup_contact_info(
         client,
