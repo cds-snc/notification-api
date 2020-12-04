@@ -34,9 +34,3 @@ def lookup_contact_info(self, notification_id):
                       "Notification has been updated to technical-failure"
             update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
             raise NotificationTechnicalFailureException(message)
-
-
-@notify_celery.task(name="lookup-va-profile-id-tasks")
-@statsd(namespace="tasks")
-def lookup_va_profile_id(notification_id):
-    current_app.logger.info("This task will look up VA Profile ID.")

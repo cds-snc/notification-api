@@ -1,4 +1,5 @@
 import json
+import os
 import uuid
 from datetime import datetime, timedelta
 
@@ -1319,6 +1320,14 @@ def sample_fido2_key(notify_db, notify_db_session):
     key = Fido2Key(name='sample key', key="abcd", user_id=user.id)
     save_fido2_key(key)
     return key
+
+
+@pytest.fixture
+def aws_credentials():
+    os.environ['AWS_ACCESS_KEY_ID'] = "testing"
+    os.environ['AWS_SECRET_ACCESS_KEY'] = "testing"
+    os.environ['AWS_SESSION_TOKEN'] = "testing"
+    os.environ['AWS_SECURITY_TOKEN'] = "testing"
 
 
 @pytest.fixture

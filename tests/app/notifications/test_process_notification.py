@@ -7,7 +7,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from freezegun import freeze_time
 from collections import namedtuple
 
-from app.celery.contact_information_tasks import lookup_contact_info, lookup_va_profile_id
+from app.celery.contact_information_tasks import lookup_contact_info
+from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.provider_tasks import deliver_email, deliver_sms
 from app.models import (
     Notification,

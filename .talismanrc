@@ -51,3 +51,5 @@ fileignoreconfig:
       checksum: b275bb504d07e20888d222c31f12246b79aa554bea84c4d3028f110b0f9d473c
     - filename: ci/.docker-env.example
       checksum: a6da35724019ec69eccef99ff6f4b050f36fa7846c239f23337fba7449d4fe59
+    - filename: ci/docker-compose-test.yml
+      checksum: 2a18b2897becf05d4456b2c987f448eeb5a276741ec62cc4e554b439abe1e925

@@ -14,7 +14,8 @@ from notifications_utils.timezones import convert_local_timezone_to_utc
 
 from app import redis_store
 from app.celery import provider_tasks
-from app.celery.contact_information_tasks import lookup_contact_info, lookup_va_profile_id
+from app.celery.contact_information_tasks import lookup_contact_info
+from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
 from app.feature_flags import accept_recipient_identifiers_enabled

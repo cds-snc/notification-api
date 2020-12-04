@@ -409,7 +409,7 @@ def test_letter_in_created_state_fails_if_notification_doesnt_exist(sample_notif
     (KEY_TYPE_TEST, NOTIFICATION_DELIVERED, 'TEST_LETTERS_BUCKET_NAME', '')
 ])
 def test_process_letter_task_check_virus_scan_passed(
-    sample_letter_template, mocker, key_type, noti_status, bucket_config_name, destination_folder
+    sample_letter_template, mocker, key_type, noti_status, bucket_config_name, destination_folder, aws_credentials
 ):
     letter_notification = create_notification(template=sample_letter_template, billable_units=0,
                                               status='pending-virus-check', key_type=key_type,
@@ -463,7 +463,7 @@ def test_process_letter_task_check_virus_scan_passed(
 @mock_s3
 @pytest.mark.parametrize('key_type', [KEY_TYPE_NORMAL, KEY_TYPE_TEST])
 def test_process_letter_task_check_virus_scan_passed_when_sanitise_fails(
-    sample_letter_notification, mocker, key_type
+    sample_letter_notification, mocker, key_type, aws_credentials
 ):
     filename = 'NOTIFY.{}'.format(sample_letter_notification.reference)
     source_bucket_name = current_app.config['LETTERS_SCAN_BUCKET_NAME']
@@ -512,11 +512,11 @@ def test_process_letter_task_check_virus_scan_passed_when_redaction_fails(
     bucket_name = current_app.config['LETTERS_SCAN_BUCKET_NAME']
     target_bucket_name = current_app.config[bucket_config_name]
 
-    conn = boto3.resource('s3', region_name='eu-west-1')
+    conn = boto3.resource('s3', region_name='us-east-1')
     conn.create_bucket(Bucket=bucket_name)
     conn.create_bucket(Bucket=target_bucket_name)
 
-    s3 = boto3.client('s3', region_name='eu-west-1')
+    s3 = boto3.client('s3', region_name='us-east-1')
     s3.put_object(Bucket=bucket_name, Key=filename, Body=b'pdf_content')
 
     sample_letter_notification.status = NOTIFICATION_PENDING_VIRUS_CHECK
@@ -557,7 +557,7 @@ def test_process_letter_task_check_virus_scan_passed_when_redaction_fails(
 @mock_s3
 @pytest.mark.parametrize('key_type', [KEY_TYPE_NORMAL, KEY_TYPE_TEST])
 def test_process_letter_task_check_virus_scan_passed_when_file_cannot_be_opened(
-    sample_letter_notification, mocker, key_type
+    sample_letter_notification, mocker, key_type, aws_credentials
 ):
     filename = 'NOTIFY.{}'.format(sample_letter_notification.reference)
     source_bucket_name = current_app.config['LETTERS_SCAN_BUCKET_NAME']
