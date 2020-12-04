@@ -34,6 +34,17 @@
       "stubs": [
         <% include stubs/govdelivery/govdelivery200.ejs %>
       ]
+    },
+    {
+      "port": 7007,
+      "protocol": "http",
+      "name": "MPI",
+      "defaultResponse": {
+        "statusCode": 501
+      },
+      "stubs": [
+        <% include stubs/mpi/stub200Pid_OneVaProfile.ejs %>
+      ]
     }
   ]
 }
