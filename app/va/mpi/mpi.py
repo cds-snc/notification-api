@@ -15,7 +15,6 @@ class IdentifierNotFound(Exception):
 
 
 class MpiClient:
-
     SYSTEM_IDENTIFIER = "200ENTF"
 
     FHIR_FORMAT_SUFFIXES = {
@@ -35,15 +34,19 @@ class MpiClient:
             identifier_type = IdentifierType(recipient_identifier.id_type)
             return f"{recipient_identifier.id_value}{self.FHIR_FORMAT_SUFFIXES[identifier_type]}"
         except ValueError as e:
+            self.logger.exception(e)
             raise UnsupportedIdentifierException(f"No identifier of type: {recipient_identifier.id_type}") from e
         except KeyError as e:
+            self.logger.exception(e)
             raise UnsupportedIdentifierException(f"No mapping for identifier: {identifier_type}") from e
 
     def get_va_profile_id(self, notification):
         identifiers = notification.recipient_identifiers.values()
         if len(identifiers) != 1:
-            raise ValueError(
-                f"Unexpected number of recipient_identifiers in: {notification.recipient_identifiers.keys()}")
+            error_message = "Unexpected number of recipient_identifiers in: " \
+                            f"{notification.recipient_identifiers.keys()}"
+            self.logger.warning(error_message)
+            raise ValueError(error_message)
         fhir_identifier = self.transform_to_fhir_format(next(iter(identifiers)))
         params = {'-sender': self.SYSTEM_IDENTIFIER}
 
@@ -53,7 +56,7 @@ class MpiClient:
                 params=params,
                 cert=(self.ssl_cert_path, self.ssl_key_path)
             )
-            identifiers = get_json_response(response)['identifier']
+            identifiers = self._get_json_response(response)['identifier']
             active_va_profile_suffix = self.FHIR_FORMAT_SUFFIXES[IdentifierType.VA_PROFILE_ID] + '^A'
 
             va_profile_id = next(
@@ -69,14 +72,14 @@ class MpiClient:
             self.logger.exception(e)
             raise IdentifierNotFound(f"No active VA Profile Identifier found for: {fhir_identifier}") from e
 
-
-def get_json_response(response):
-    response.raise_for_status()
-    json_response = response.json()
-    if json_response.get('severity'):
-        raise MpiException(
-            f"MPI returned error with severity: {json_response['severity']}, "
-            f"code: {json_response['details']['coding'][0]['code']}, "
-            f"description: {json_response['details']['text']}"
-        )
-    return json_response
+    def _get_json_response(self, response):
+        response.raise_for_status()
+        json_response = response.json()
+        if json_response.get('severity'):
+            error_message = \
+                f"MPI returned error with severity: {json_response['severity']}, " \
+                f"code: {json_response['details']['coding'][0]['code']}, " \
+                f"description: {json_response['details']['text']}"
+            self.logger.warning(error_message)
+            raise MpiException(error_message)
+        return json_response
