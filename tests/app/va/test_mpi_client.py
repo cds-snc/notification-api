@@ -95,13 +95,15 @@ def response_with_two_active_va_profile_ids():
 
 
 @pytest.fixture
-def mpi_client():
+def mpi_client(mocker):
+    mock_logger = mocker.Mock()
     url = 'https://foo.bar'
     mock_ssl_key_path = 'some_key.pem'
     mock_ssl_cert_path = 'some_cert.pem'
 
     mpi_client = MpiClient()
     mpi_client.init_app(
+        mock_logger,
         url,
         mock_ssl_cert_path,
         mock_ssl_key_path
@@ -170,7 +172,7 @@ class TestGetVaProfileId:
         assert "Unexpected number of recipient_identifiers" in str(e.value)
 
     def test_should_make_request_to_mpi_and_return_va_profile_id(
-        self, mpi_client, rmock, sample_notification_model_with_organization
+            self, mpi_client, rmock, sample_notification_model_with_organization
     ):
         notification = sample_notification_model_with_organization
         recipient_identifier = sample_recipient_identifier()
@@ -194,7 +196,7 @@ class TestGetVaProfileId:
         assert actual_va_profile_id == EXPECTED_VA_PROFILE_ID
 
     def test_should_return_first_active_va_profile_id_when_multiple_active_va_profile_ids_exist(
-        self, mpi_client, rmock, sample_notification_model_with_organization
+            self, mpi_client, rmock, sample_notification_model_with_organization
     ):
         notification = sample_notification_model_with_organization
         recipient_identifier = sample_recipient_identifier()
@@ -240,6 +242,22 @@ class TestGetVaProfileId:
             ANY,
             json=MPI_ERROR_RESPONSE,
             status_code=200
+        )
+
+        with pytest.raises(MpiException):
+            mpi_client.get_va_profile_id(notification)
+
+    def test_should_throw_mpi_exception_when_mpi_returns_http_error(
+            self, mpi_client, rmock, sample_notification_model_with_organization
+    ):
+        notification = sample_notification_model_with_organization
+        recipient_identifier = sample_recipient_identifier()
+        notification.recipient_identifiers.set(recipient_identifier)
+
+        rmock.request(
+            "GET",
+            ANY,
+            status_code=400
         )
 
         with pytest.raises(MpiException):

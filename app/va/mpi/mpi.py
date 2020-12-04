@@ -24,7 +24,8 @@ class MpiClient:
         IdentifierType.VA_PROFILE_ID: "^PI^200VETS^USDVA"
     }
 
-    def init_app(self, url, ssl_cert_path, ssl_key_path):
+    def init_app(self, logger, url, ssl_cert_path, ssl_key_path):
+        self.logger = logger
         self.base_url = url
         self.ssl_cert_path = ssl_cert_path
         self.ssl_key_path = ssl_key_path
@@ -45,22 +46,27 @@ class MpiClient:
                 f"Unexpected number of recipient_identifiers in: {notification.recipient_identifiers.keys()}")
         fhir_identifier = self.transform_to_fhir_format(next(iter(identifiers)))
         params = {'-sender': self.SYSTEM_IDENTIFIER}
-        response = requests.get(
-            f"{self.base_url}/psim_webservice/fhir/Patient/{fhir_identifier}",
-            params=params,
-            cert=(self.ssl_cert_path, self.ssl_key_path)
-        )
 
-        identifiers = get_json_response(response)['identifier']
-
-        va_profile_suffix = "^PI^200VETS^USDVA^A"
         try:
+            response = requests.get(
+                f"{self.base_url}/psim_webservice/fhir/Patient/{fhir_identifier}",
+                params=params,
+                cert=(self.ssl_cert_path, self.ssl_key_path)
+            )
+            identifiers = get_json_response(response)['identifier']
+            active_va_profile_suffix = self.FHIR_FORMAT_SUFFIXES[IdentifierType.VA_PROFILE_ID] + '^A'
+
             va_profile_id = next(
                 identifier['value'].split('^')[0] for identifier in identifiers
-                if identifier['value'].endswith(va_profile_suffix)
+                if identifier['value'].endswith(active_va_profile_suffix)
             )
             return va_profile_id
+
+        except requests.HTTPError as e:
+            self.logger.exception(e)
+            raise MpiException(f"MPI returned {str(e)} while querying for VA Profile ID") from e
         except StopIteration as e:
+            self.logger.exception(e)
             raise IdentifierNotFound(f"No active VA Profile Identifier found for: {fhir_identifier}") from e
 
 

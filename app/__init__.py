@@ -120,6 +120,7 @@ def create_app(application):
         statsd_client
     )
     mpi_client.init_app(
+        application.logger,
         application.config['MPI_URL'],
         application.config['VANOTIFY_SSL_CERT_PATH'],
         application.config['VANOTIFY_SSL_KEY_PATH']
