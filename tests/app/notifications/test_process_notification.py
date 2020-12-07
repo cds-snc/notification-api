@@ -625,5 +625,5 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
     send_to_queue_for_recipient_info_based_on_recipient_identifier(notification, id_type)
 
     args, _ = mocked_chain.call_args
-    for i, task in enumerate(expected_tasks):
-        assert args[i].task == expected_tasks[i].name
+    for called_task, expected_task in zip(args, expected_tasks):
+        assert called_task.name == expected_task.name
