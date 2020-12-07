@@ -53,7 +53,7 @@ def test_should_call_mpi_client_and_save_va_profile_id(notify_api, mocker, notif
     "exception",
     [UnsupportedIdentifierException('some error'), IdentifierNotFound('some error')]
 )
-def test_should_update_notification_to_technical_failure_on_exception(client, mocker, notification, exception):
+def test_should_not_retry_on_nontryable_exception(client, mocker, notification, exception):
 
     mocked_get_notification_by_id = mocker.patch(
         'app.celery.lookup_va_profile_id_task.notifications_dao.get_notification_by_id',
@@ -75,15 +75,19 @@ def test_should_update_notification_to_technical_failure_on_exception(client, mo
         'app.celery.contact_information_tasks.lookup_contact_info.apply_async'
     )
 
-    lookup_va_profile_id(notification.id)
+    mocked_retry = mocker.patch('app.celery.lookup_va_profile_id_task.lookup_va_profile_id.retry')
+
+    with pytest.raises(NotificationTechnicalFailureException):
+        lookup_va_profile_id(notification.id)
 
     mocked_get_notification_by_id.assert_called()
     mocked_lookup_contact_info.assert_not_called()
 
     mocked_update_notification_status_by_id.assert_called_with(notification.id, NOTIFICATION_TECHNICAL_FAILURE)
+    mocked_retry.assert_not_called()
 
 
-def test_should_try_on_retryable_exception(client, mocker, notification):
+def test_should_retry_on_retryable_exception(client, mocker, notification):
     mocker.patch(
         'app.celery.lookup_va_profile_id_task.notifications_dao.get_notification_by_id',
         return_value=notification

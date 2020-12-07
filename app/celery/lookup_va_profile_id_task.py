@@ -40,7 +40,7 @@ def lookup_va_profile_id(self, notification_id):
             notifications_dao.update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
             raise NotificationTechnicalFailureException(message) from e
     except MpiNonRetryableException as e:
-        current_app.logger.exception(
-            f"{str(e)}. Failed to retrieve VA Profile ID from MPI for notification: {notification_id}"
-        )
+        message = f"{str(e)}. Failed to retrieve VA Profile ID from MPI for notification: {notification_id}"
+        current_app.logger.exception(message)
         notifications_dao.update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        raise NotificationTechnicalFailureException(message) from e
