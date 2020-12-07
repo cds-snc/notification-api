@@ -101,13 +101,15 @@ def mpi_client(mocker):
     url = 'https://foo.bar'
     mock_ssl_key_path = 'some_key.pem'
     mock_ssl_cert_path = 'some_cert.pem'
+    mock_statsd_client = mocker.Mock()
 
     mpi_client = MpiClient()
     mpi_client.init_app(
         mock_logger,
         url,
         mock_ssl_cert_path,
-        mock_ssl_key_path
+        mock_ssl_key_path,
+        mock_statsd_client
     )
     return mpi_client
 

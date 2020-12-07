@@ -17,11 +17,12 @@ class MpiClient:
         IdentifierType.VA_PROFILE_ID: "^PI^200VETS^USDVA"
     }
 
-    def init_app(self, logger, url, ssl_cert_path, ssl_key_path):
+    def init_app(self, logger, url, ssl_cert_path, ssl_key_path, statsd_client):
         self.logger = logger
         self.base_url = url
         self.ssl_cert_path = ssl_cert_path
         self.ssl_key_path = ssl_key_path
+        self.statsd_client = statsd_client
 
     def transform_to_fhir_format(self, recipient_identifier):
         try:
@@ -44,29 +45,37 @@ class MpiClient:
             self.logger.warning(error_message)
             raise IncorrectNumberOfIdentifiersException(error_message)
         fhir_identifier, id_type, id_value = self.transform_to_fhir_format(next(iter(identifiers)))
-        params = {'-sender': self.SYSTEM_IDENTIFIER}
 
         try:
             response = requests.get(
                 f"{self.base_url}/psim_webservice/fhir/Patient/{fhir_identifier}",
-                params=params,
+                params={'-sender': self.SYSTEM_IDENTIFIER},
                 cert=(self.ssl_cert_path, self.ssl_key_path)
             )
             identifiers = self._get_json_response(response, id_type, id_value, notification.id)['identifier']
-            active_va_profile_suffix = self.FHIR_FORMAT_SUFFIXES[IdentifierType.VA_PROFILE_ID] + '^A'
 
+            va_profile_id = self.get_profile_id(identifiers, fhir_identifier)
+            self.statsd_client.incr("clients.mpi.get_va_profile_id.success")
+            return va_profile_id
+
+        except requests.HTTPError as e:
+            self.logger.exception(e)
+            self.statsd_client.incr(f"clients.mpi.error.{e.response.status_code}")
+            raise MpiException(f"MPI returned {str(e)} while querying for VA Profile ID") from e
+
+    def get_profile_id(self, identifiers, fhir_identifier):
+        active_va_profile_suffix = self.FHIR_FORMAT_SUFFIXES[IdentifierType.VA_PROFILE_ID] + '^A'
+        try:
             va_profile_id = next(
                 identifier['value'].split('^')[0] for identifier in identifiers
                 if identifier['value'].endswith(active_va_profile_suffix)
             )
             return va_profile_id
-
-        except requests.HTTPError as e:
-            self.logger.exception(e)
-            raise MpiException(f"MPI returned {str(e)} while querying for VA Profile ID") from e
         except StopIteration as e:
             self.logger.exception(e)
+            self.statsd_client.incr("clients.mpi.get_va_profile_id.error")
             raise IdentifierNotFound(f"No active VA Profile Identifier found for: {fhir_identifier}") from e
+
 
     def _get_json_response(self, response, id_type, id_value, notification_id):
         response.raise_for_status()
@@ -78,5 +87,8 @@ class MpiClient:
                 f"description: {json_response['details']['text']} for notification {notification_id} with" \
                 f"recipient identifier {id_type}:{id_value}"
             self.logger.warning(error_message)
+            self.statsd_client.incr("clients.mpi.error")
             raise MpiException(error_message)
+
+        self.statsd_client.incr("clients.mpi.success")
         return json_response
