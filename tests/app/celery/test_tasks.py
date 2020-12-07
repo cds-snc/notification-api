@@ -1106,7 +1106,7 @@ def test_save_sms_uses_sms_sender_reply_to_text(mocker, notify_db_session):
     template = create_template(service=service)
 
     notification = _notification_json(template, to="6502532222")
-    mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+    mocker.patch('app.celery.provider_tasks.deliver_throttled_sms.apply_async')
 
     notification_id = uuid.uuid4()
     save_sms(
