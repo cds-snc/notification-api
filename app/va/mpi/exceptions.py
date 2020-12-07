@@ -16,3 +16,7 @@ class UnsupportedIdentifierException(MpiNonRetryableException):
 
 class IdentifierNotFound(MpiNonRetryableException):
     pass
+
+
+class IncorrectNumberOfIdentifiersException(MpiNonRetryableException):
+    pass

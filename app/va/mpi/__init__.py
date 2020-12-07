@@ -3,7 +3,8 @@ from .exceptions import (  # noqa: F401
     MpiNonRetryableException,
     IdentifierNotFound,
     UnsupportedIdentifierException,
-    MpiException
+    MpiException,
+    IncorrectNumberOfIdentifiersException
 )
 
 from .mpi import MpiClient  # noqa: F401

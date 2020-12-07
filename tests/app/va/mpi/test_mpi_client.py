@@ -7,7 +7,7 @@ from app.models import RecipientIdentifier
 from requests_mock import ANY
 from requests.utils import quote
 
-from app.va.mpi.exceptions import UnsupportedIdentifierException
+from app.va.mpi.exceptions import UnsupportedIdentifierException, IncorrectNumberOfIdentifiersException
 from app.va.mpi.mpi import IdentifierNotFound, MpiException
 from tests.app.factories.recipient_idenfier import sample_recipient_identifier
 
@@ -168,7 +168,7 @@ class TestGetVaProfileId:
         if recipient_identifiers:
             for identifier in recipient_identifiers:
                 notification.recipient_identifiers.set(identifier)
-        with pytest.raises(ValueError) as e:
+        with pytest.raises(IncorrectNumberOfIdentifiersException) as e:
             mpi_client.get_va_profile_id(notification)
         assert "Unexpected number of recipient_identifiers" in str(e.value)
 

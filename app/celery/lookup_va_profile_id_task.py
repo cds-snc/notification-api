@@ -1,17 +1,18 @@
 from app.celery import contact_information_tasks
 from app.config import QueueNames
+from app.exceptions import NotificationTechnicalFailureException
 from app.models import RecipientIdentifier, VA_PROFILE_ID, NOTIFICATION_TECHNICAL_FAILURE
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from app import notify_celery
 from app.dao import notifications_dao
 from app import mpi_client
-from app.va.mpi import IdentifierNotFound, UnsupportedIdentifierException
+from app.va.mpi import MpiRetryableException, MpiNonRetryableException
 
 
-@notify_celery.task(name="lookup-va-profile-id-tasks")
+@notify_celery.task(bind=True, name="lookup-va-profile-id-tasks", max_retries=48, default_retry_delay=300)
 @statsd(namespace="tasks")
-def lookup_va_profile_id(notification_id):
+def lookup_va_profile_id(self, notification_id):
     notification = notifications_dao.get_notification_by_id(notification_id)
 
     try:
@@ -28,7 +29,17 @@ def lookup_va_profile_id(notification_id):
             [notification.id],
             queue=QueueNames.LOOKUP_CONTACT_INFO
         )
-    except (IdentifierNotFound, UnsupportedIdentifierException, ValueError) as e:
+    except MpiRetryableException as e:
+        current_app.logger.exception(e)
+        try:
+            self.retry(queue=QueueNames.RETRY)
+        except self.MaxRetriesExceededError:
+            message = "RETRY FAILED: Max retries reached. " \
+                      f"The task lookup_va_profile_id failed for notification {notification_id}. " \
+                      "Notification has been updated to technical-failure"
+            notifications_dao.update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+            raise NotificationTechnicalFailureException(message) from e
+    except MpiNonRetryableException as e:
         current_app.logger.exception(
             f"{str(e)}. Failed to retrieve VA Profile ID from MPI for notification: {notification_id}"
         )

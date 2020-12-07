@@ -3,7 +3,8 @@ from app.va import IdentifierType
 from app.va.mpi import (
     UnsupportedIdentifierException,
     IdentifierNotFound,
-    MpiException
+    MpiException,
+    IncorrectNumberOfIdentifiersException
 )
 
 
@@ -39,7 +40,7 @@ class MpiClient:
             error_message = "Unexpected number of recipient_identifiers in: " \
                             f"{notification.recipient_identifiers.keys()}"
             self.logger.warning(error_message)
-            raise ValueError(error_message)
+            raise IncorrectNumberOfIdentifiersException(error_message)
         fhir_identifier = self.transform_to_fhir_format(next(iter(identifiers)))
         params = {'-sender': self.SYSTEM_IDENTIFIER}
 
