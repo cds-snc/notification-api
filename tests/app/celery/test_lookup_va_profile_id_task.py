@@ -25,8 +25,6 @@ def test_should_call_mpi_client_and_save_va_profile_id(notify_api, mocker, notif
         return_value=notification
     )
 
-    mocked_contact_info_task = mocker.patch('app.celery.contact_information_tasks.lookup_contact_info.apply_async')
-
     mocked_dao_update_notification = mocker.patch(
         'app.celery.lookup_va_profile_id_task.notifications_dao.dao_update_notification'
     )
@@ -45,8 +43,6 @@ def test_should_call_mpi_client_and_save_va_profile_id(notify_api, mocker, notif
     saved_notification = mocked_dao_update_notification.call_args[0][0]
 
     assert saved_notification.recipient_identifiers[VA_PROFILE_ID].id_value == vaprofile_id
-
-    mocked_contact_info_task.assert_called_with([notification.id], queue=QueueNames.LOOKUP_CONTACT_INFO)
 
 
 @pytest.mark.parametrize(

@@ -1,4 +1,3 @@
-from app.celery import contact_information_tasks
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
 from app.models import RecipientIdentifier, VA_PROFILE_ID, NOTIFICATION_TECHNICAL_FAILURE
@@ -24,11 +23,10 @@ def lookup_va_profile_id(self, notification_id):
                 id_value=va_profile_id
             ))
         notifications_dao.dao_update_notification(notification)
-        current_app.logger.info(f"Successfully updated notification {notification_id} with VA PROFILE ID")
-        contact_information_tasks.lookup_contact_info.apply_async(
-            [notification.id],
-            queue=QueueNames.LOOKUP_CONTACT_INFO
+        current_app.logger.info(
+            f"Successfully updated notification {notification_id} with VA PROFILE ID {va_profile_id}"
         )
+
     except MpiRetryableException as e:
         current_app.logger.exception(e)
         try:

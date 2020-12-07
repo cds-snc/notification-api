@@ -38,30 +38,38 @@ class MpiClient:
             raise UnsupportedIdentifierException(f"No mapping for identifier: {identifier_type}") from e
 
     def get_va_profile_id(self, notification):
-        identifiers = notification.recipient_identifiers.values()
-        if len(identifiers) != 1:
+        recipient_identifiers = notification.recipient_identifiers.values()
+        if len(recipient_identifiers) != 1:
             error_message = "Unexpected number of recipient_identifiers in: " \
                             f"{notification.recipient_identifiers.keys()}"
             self.logger.warning(error_message)
+            self.statsd_client.incr("clients.mpi.incorrect_number_of_recipient_identifiers_error")
             raise IncorrectNumberOfIdentifiersException(error_message)
-        fhir_identifier, id_type, id_value = self.transform_to_fhir_format(next(iter(identifiers)))
 
+        fhir_identifier, id_type, id_value = self.transform_to_fhir_format(next(iter(recipient_identifiers)))
+
+        self.logger.info(f"Querying MPI with {id_type} {id_value}")
+        response_json = self._make_request(fhir_identifier, notification.id)
+        mpi_identifiers = response_json['identifier']
+
+        va_profile_id = self.get_profile_id(mpi_identifiers, fhir_identifier)
+        self.statsd_client.incr("clients.mpi.get_va_profile_id.success")
+        return va_profile_id
+
+    def _make_request(self, fhir_identifier, notification_id):
         try:
             response = requests.get(
                 f"{self.base_url}/psim_webservice/fhir/Patient/{fhir_identifier}",
                 params={'-sender': self.SYSTEM_IDENTIFIER},
                 cert=(self.ssl_cert_path, self.ssl_key_path)
             )
-            identifiers = self._get_json_response(response, id_type, id_value, notification.id)['identifier']
-
-            va_profile_id = self.get_profile_id(identifiers, fhir_identifier)
-            self.statsd_client.incr("clients.mpi.get_va_profile_id.success")
-            return va_profile_id
-
+            response.raise_for_status()
+            self._validate_response(response.json(), notification_id, fhir_identifier)
+            return response.json()
         except requests.HTTPError as e:
             self.logger.exception(e)
             self.statsd_client.incr(f"clients.mpi.error.{e.response.status_code}")
-            raise MpiException(f"MPI returned {str(e)} while querying for VA Profile ID") from e
+            raise MpiException(f"MPI returned {str(e)} while querying for notification {notification_id}") from e
 
     def get_profile_id(self, identifiers, fhir_identifier):
         active_va_profile_suffix = self.FHIR_FORMAT_SUFFIXES[IdentifierType.VA_PROFILE_ID] + '^A'
@@ -76,19 +84,15 @@ class MpiClient:
             self.statsd_client.incr("clients.mpi.get_va_profile_id.error")
             raise IdentifierNotFound(f"No active VA Profile Identifier found for: {fhir_identifier}") from e
 
-
-    def _get_json_response(self, response, id_type, id_value, notification_id):
-        response.raise_for_status()
-        json_response = response.json()
-        if json_response.get('severity'):
+    def _validate_response(self, response_json, notification_id, fhir_identifier):
+        if response_json.get('severity'):
             error_message = \
-                f"MPI returned error with severity: {json_response['severity']}, " \
-                f"code: {json_response['details']['coding'][0]['code']}, " \
-                f"description: {json_response['details']['text']} for notification {notification_id} with" \
-                f"recipient identifier {id_type}:{id_value}"
+                f"MPI returned error with severity: {response_json['severity']}, " \
+                f"code: {response_json['details']['coding'][0]['code']}, " \
+                f"description: {response_json['details']['text']} for notification {notification_id} with" \
+                f"fhir {fhir_identifier}"
             self.logger.warning(error_message)
             self.statsd_client.incr("clients.mpi.error")
             raise MpiException(error_message)
 
         self.statsd_client.incr("clients.mpi.success")
-        return json_response
