@@ -26,7 +26,9 @@ class MpiClient:
     def transform_to_fhir_format(self, recipient_identifier):
         try:
             identifier_type = IdentifierType(recipient_identifier.id_type)
-            return f"{recipient_identifier.id_value}{self.FHIR_FORMAT_SUFFIXES[identifier_type]}"
+            return f"{recipient_identifier.id_value}{self.FHIR_FORMAT_SUFFIXES[identifier_type]}", \
+                   identifier_type, \
+                   recipient_identifier.id_value
         except ValueError as e:
             self.logger.exception(e)
             raise UnsupportedIdentifierException(f"No identifier of type: {recipient_identifier.id_type}") from e
@@ -41,7 +43,7 @@ class MpiClient:
                             f"{notification.recipient_identifiers.keys()}"
             self.logger.warning(error_message)
             raise IncorrectNumberOfIdentifiersException(error_message)
-        fhir_identifier = self.transform_to_fhir_format(next(iter(identifiers)))
+        fhir_identifier, id_type, id_value = self.transform_to_fhir_format(next(iter(identifiers)))
         params = {'-sender': self.SYSTEM_IDENTIFIER}
 
         try:
@@ -50,7 +52,7 @@ class MpiClient:
                 params=params,
                 cert=(self.ssl_cert_path, self.ssl_key_path)
             )
-            identifiers = self._get_json_response(response)['identifier']
+            identifiers = self._get_json_response(response, id_type, id_value, notification.id)['identifier']
             active_va_profile_suffix = self.FHIR_FORMAT_SUFFIXES[IdentifierType.VA_PROFILE_ID] + '^A'
 
             va_profile_id = next(
@@ -66,14 +68,15 @@ class MpiClient:
             self.logger.exception(e)
             raise IdentifierNotFound(f"No active VA Profile Identifier found for: {fhir_identifier}") from e
 
-    def _get_json_response(self, response):
+    def _get_json_response(self, response, id_type, id_value, notification_id):
         response.raise_for_status()
         json_response = response.json()
         if json_response.get('severity'):
             error_message = \
                 f"MPI returned error with severity: {json_response['severity']}, " \
                 f"code: {json_response['details']['coding'][0]['code']}, " \
-                f"description: {json_response['details']['text']}"
+                f"description: {json_response['details']['text']} for notification {notification_id} with" \
+                f"recipient identifier {id_type}:{id_value}"
             self.logger.warning(error_message)
             raise MpiException(error_message)
         return json_response
