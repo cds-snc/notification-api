@@ -1,0 +1,34 @@
+{
+  "predicates": [
+    {
+      "matches": {
+        "path": "/psim_webservice/fhir/Patient/604321%5EPI%5E200CORP%5EUSVBA$",
+        "query": { "-sender": "200ENTF" }
+      }
+    }
+  ],
+  "responses": [
+    {
+      "is": {
+        "statusCode": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+            "severity": "error",
+            "code": "exception",
+            "details": {
+                "coding": [
+                    {
+                        "code": 557
+                    }
+                ],
+                "text": "MVI[S]:INVALID REQUEST"
+            },
+            "resourceType": "OperationOutcome",
+            "id": "2020-12-02 12:14:39"
+        }
+      }
+    }
+  ]
+}
