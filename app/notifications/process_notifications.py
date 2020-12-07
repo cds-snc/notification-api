@@ -127,14 +127,16 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         queue = QueueNames.RESEARCH_MODE
 
     if notification.notification_type == SMS_TYPE:
-        if not queue:
-            queue = QueueNames.SEND_SMS
         deliver_task = provider_tasks.deliver_sms
         if send_to_providers._sms_send_on_pinpoint(
             notification.notification_type,
             notification.reply_to_text
         ):
             deliver_task = provider_tasks.deliver_throttled_sms
+            if not queue:
+                queue = QueueNames.SEND_THROTTLED_SMS
+        if not queue:
+            queue = QueueNames.SEND_SMS
     if notification.notification_type == EMAIL_TYPE:
         if not queue:
             queue = QueueNames.SEND_EMAIL

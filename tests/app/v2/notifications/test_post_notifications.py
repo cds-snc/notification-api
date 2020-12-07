@@ -122,7 +122,7 @@ def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(client, no
     assert resp_json['id'] == str(notification_id)
     assert resp_json['content']['from_number'] == '+16502532222'
     assert notifications[0].reply_to_text == '+16502532222'
-    mocked.assert_called_once_with([str(notification_id)], queue='send-sms-tasks')
+    mocked.assert_called_once_with([str(notification_id)], queue='send-throttled-sms-tasks')
 
 
 def test_post_sms_notification_returns_201_with_sms_sender_id(
@@ -176,7 +176,7 @@ def test_post_sms_notification_uses_sms_sender_id_reply_to(
     notifications = Notification.query.all()
     assert len(notifications) == 1
     assert notifications[0].reply_to_text == '+16502532222'
-    mocked.assert_called_once_with([resp_json['id']], queue='send-sms-tasks')
+    mocked.assert_called_once_with([resp_json['id']], queue='send-throttled-sms-tasks')
 
 
 def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after_post_notification(

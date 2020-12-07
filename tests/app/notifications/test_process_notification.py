@@ -254,7 +254,7 @@ def test_persist_notification_increments_cache_if_key_exists(sample_template, sa
     (False, None, 'sms', 'team', None, 'send-sms-tasks', 'deliver_sms'),
     (False, None, 'letter', 'normal', None, 'create-letters-pdf-tasks', 'letters_pdf_tasks.create_letters_pdf'),
     (False, None, 'sms', 'test', None, 'research-mode-tasks', 'deliver_sms'),
-    (False, None, 'sms', 'normal', '+14383898585', 'send-sms-tasks', 'deliver_throttled_sms'),
+    (False, None, 'sms', 'normal', '+14383898585', 'send-throttled-sms-tasks', 'deliver_throttled_sms'),
     (True, 'notify-internal-tasks', 'email', 'normal', None, 'research-mode-tasks', 'deliver_email'),
     (False, 'notify-internal-tasks', 'sms', 'normal', None, 'notify-internal-tasks', 'deliver_sms'),
     (False, 'notify-internal-tasks', 'email', 'normal', None, 'notify-internal-tasks', 'deliver_email'),
