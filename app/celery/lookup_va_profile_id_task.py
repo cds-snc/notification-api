@@ -6,7 +6,7 @@ from notifications_utils.statsd_decorators import statsd
 from app import notify_celery
 from app.dao import notifications_dao
 from app import mpi_client
-from app.va.mpi.mpi import IdentifierNotFound, UnsupportedIdentifierException
+from app.va.mpi import IdentifierNotFound, UnsupportedIdentifierException
 
 
 @notify_celery.task(name="lookup-va-profile-id-tasks")

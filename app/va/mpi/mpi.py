@@ -1,17 +1,10 @@
 import requests
 from app.va import IdentifierType
-
-
-class MpiException(Exception):
-    pass
-
-
-class UnsupportedIdentifierException(Exception):
-    pass
-
-
-class IdentifierNotFound(Exception):
-    pass
+from app.va.mpi import (
+    UnsupportedIdentifierException,
+    IdentifierNotFound,
+    MpiException
+)
 
 
 class MpiClient:

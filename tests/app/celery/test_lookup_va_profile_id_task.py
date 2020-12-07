@@ -5,8 +5,7 @@ import pytest
 from app.config import QueueNames
 from app.models import Notification, VA_PROFILE_ID, NOTIFICATION_TECHNICAL_FAILURE
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
-from app.va.mpi import UnsupportedIdentifierException
-from app.va.mpi.mpi import IdentifierNotFound
+from app.va.mpi import UnsupportedIdentifierException, IdentifierNotFound
 
 
 @pytest.fixture(scope='function')

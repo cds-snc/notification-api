@@ -1,12 +1,13 @@
 import copy
 
 import pytest
-from app.va.mpi import MpiClient, UnsupportedIdentifierException
+from app.va.mpi import MpiClient
 from app.va import IdentifierType
 from app.models import RecipientIdentifier
 from requests_mock import ANY
 from requests.utils import quote
 
+from app.va.mpi.exceptions import UnsupportedIdentifierException
 from app.va.mpi.mpi import IdentifierNotFound, MpiException
 from tests.app.factories.recipient_idenfier import sample_recipient_identifier
 
