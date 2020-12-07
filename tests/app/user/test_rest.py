@@ -756,7 +756,7 @@ def test_send_already_registered_email_returns_400_when_data_is_missing(client, 
         headers=[('Content-Type', 'application/json'), auth_header])
     assert resp.status_code == 400
     assert json.loads(resp.get_data(as_text=True))['message'] == {'email': ['Missing data for required field.']}
-
+f
 
 def test_send_new_registration_data(client, sample_user, contact_us_template, mocker):
     data = json.dumps({'name': sample_user.name, 'email': sample_user.email_address, 'date': '2020-01-01 12:00:00'})

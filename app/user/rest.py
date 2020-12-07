@@ -477,9 +477,9 @@ def send_support_email(user_id):
 
     ticket = {
         'product_id': 61000000046,
-        'subject': f'{data['email']} just signed up to Notify!',
+        'subject': data["support_type"] if "support_type" in data else "Support Request",
         'description': data['message'],
-        'email': f'name: {data['name']}, email: {data['email']}, date: {data['date']}',
+        'email': data["email"],
         'priority': 1,
         'status': 2,
     }
