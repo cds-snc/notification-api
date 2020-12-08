@@ -63,11 +63,15 @@ source  ~/.pyenv/versions/3.6.9/bin/virtualenvwrapper.sh
 
 `createdb --user=postgres notification_api`
 
-11. Decrypt our existing set of environment variables
+11. Install the required environment variables via our LastPast Vault
 
-`gcloud kms decrypt --project=[PROJECT_NAME] --plaintext-file=.env --ciphertext-file=.env.enc --location=global --keyring=[KEY_RING] --key=[KEY_NAME]`
+Within the team's *LastPass Vault*, you should find corresponding folders for this
+project containing the `.env` content that you should copy in your root folder. This
+will grant the application necessary access to our internal infrastructure. 
 
-A sane set of defaults exists in `.env.example`
+If you don't have access to our *LastPass Vault* (as you evaluate our notification
+platform for example), you will find a sane set of defaults exists in the `.env.example`
+file. Copy that file to `.env` and customize it to your needs.
 
 12. Install all dependencies
 
