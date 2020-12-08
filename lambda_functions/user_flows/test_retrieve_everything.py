@@ -111,6 +111,8 @@ def test_send_email_with_va_profile_id(environment, notification_url, service_id
     assert email_response.status_code == 201
     notification_id = get_notification_id(email_response)
 
+    print(f"**** notification_id: {notification_id }")
+    
     notification_status_response = None
     for _ in range(30):
         service_jwt = get_service_jwt(service_test_api_key, service_id)
