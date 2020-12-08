@@ -11,6 +11,8 @@ from app.va.mpi.exceptions import UnsupportedIdentifierException, IncorrectNumbe
 from app.va.mpi.mpi import IdentifierNotFound, MpiException
 from tests.app.factories.recipient_idenfier import sample_recipient_identifier
 
+SYSTEM_URN_OID = "urn:oid:2.16.840.1.113883.4.349"
+
 MPI_ERROR_RESPONSE = {
     "severity": "error",
     "code": "exception",
@@ -48,23 +50,23 @@ MPI_RESPONSE_WITH_NO_VA_PROFILE_ID = {
     ],
     "identifier": [
         {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "system": SYSTEM_URN_OID,
             "value": "1008710501V455565^NI^200M^USVHA^P"
         },
         {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "system": SYSTEM_URN_OID,
             "value": "32315716^PI^200CORP^USVBA^A"
         },
         {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "system": SYSTEM_URN_OID,
             "value": "15962^PI^200VETS^USDVA^H"
         },
         {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "system": SYSTEM_URN_OID,
             "value": "418418001^PI^200BRLS^USVBA^A"
         },
         {
-            "system": "urn:oid:2.16.840.1.113883.4.349",
+            "system": SYSTEM_URN_OID,
             "value": "418418001^AN^200CORP^USVBA^"
         },
         {
@@ -80,7 +82,7 @@ EXPECTED_VA_PROFILE_ID = "12345"
 def response_with_one_active_va_profile_id():
     resp = copy.deepcopy(MPI_RESPONSE_WITH_NO_VA_PROFILE_ID)
     resp["identifier"].append({
-        "system": "urn:oid:2.16.840.1.113883.4.349",
+        "system": SYSTEM_URN_OID,
         "value": f"{EXPECTED_VA_PROFILE_ID}^PI^200VETS^USDVA^A"
     })
     return resp
@@ -89,7 +91,7 @@ def response_with_one_active_va_profile_id():
 def response_with_two_active_va_profile_ids():
     resp = response_with_one_active_va_profile_id()
     resp["identifier"].append({
-        "system": "urn:oid:2.16.840.1.113883.4.349",
+        "system": SYSTEM_URN_OID,
         "value": "67890^PI^200VETS^USDVA^A"
     })
     return resp
@@ -119,6 +121,7 @@ class TestTransformToFhirFormat:
         (IdentifierType.ICN, "1008533405V377263", "1008533405V377263^NI^200M^USVHA"),
         (IdentifierType.PID, "123456", "123456^PI^200CORP^USVBA"),
         (IdentifierType.VA_PROFILE_ID, "301", "301^PI^200VETS^USDVA"),
+        (IdentifierType.BIRLSID, "789123", "789123^PI^200BRLS^USDVA")
     ])
     def test_should_transform_recipient_identifier_to_mpi_acceptable_format(
             self,

@@ -5,3 +5,4 @@ class IdentifierType(Enum):
     VA_PROFILE_ID = 'VAPROFILEID'
     PID = 'PID'
     ICN = 'ICN'
+    BIRLSID = 'BRLS'

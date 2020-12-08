@@ -14,7 +14,8 @@ class MpiClient:
     FHIR_FORMAT_SUFFIXES = {
         IdentifierType.ICN: "^NI^200M^USVHA",
         IdentifierType.PID: "^PI^200CORP^USVBA",
-        IdentifierType.VA_PROFILE_ID: "^PI^200VETS^USDVA"
+        IdentifierType.VA_PROFILE_ID: "^PI^200VETS^USDVA",
+        IdentifierType.BIRLSID: "^PI^200BRLS^USDVA"
     }
 
     def init_app(self, logger, url, ssl_cert_path, ssl_key_path, statsd_client):
