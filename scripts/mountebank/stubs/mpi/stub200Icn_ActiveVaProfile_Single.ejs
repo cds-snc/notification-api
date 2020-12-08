@@ -1,0 +1,71 @@
+{
+  "predicates": [
+    {
+      "matches": {
+        "path": "/psim_webservice/fhir/Patient/222101%5ENI%5E200M%5EUSVHA$",
+        "query": { "-sender": "200ENTF" }
+      }
+    }
+  ],
+  "responses": [
+    {
+      "is": {
+        "statusCode": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "resourceType": "Patient",
+          "id": "1008710501V455565",
+          "birthDate": "2010-06-03",
+          "name": [
+            {
+              "use": "official",
+              "family": "MOOSE",
+              "given": [
+                "MINNIE"
+              ]
+            }
+          ],
+          "telecom": [
+            {
+              "system": "phone",
+              "value": "(240)979-5003",
+              "use": "home"
+            }
+          ],
+          "identifier": [
+            {
+              "system": "urn:oid:2.16.840.1.113883.4.349",
+              "value": "1008710501V455565^NI^200M^USVHA^P"
+            },
+            {
+              "system": "urn:oid:2.16.840.1.113883.4.349",
+              "value": "2001^PI^200CORP^USVBA^A"
+            },
+            {
+              "system": "urn:oid:2.16.840.1.113883.4.349",
+              "value": "2001^PI^200VETS^USDVA^A"
+            },
+            {
+              "system": "urn:oid:2.16.840.1.113883.4.349",
+              "value": "15962^PI^200VETS^USDVA^H"
+            },
+            {
+              "system": "urn:oid:2.16.840.1.113883.4.349",
+              "value": "418418001^PI^200BRLS^USVBA^A"
+            },
+            {
+              "system": "urn:oid:2.16.840.1.113883.4.349",
+              "value": "418418001^AN^200CORP^USVBA^"
+            },
+            {
+              "system": "http://hl7.org/fhir/sid/us-ssn",
+              "value": "500333153"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
