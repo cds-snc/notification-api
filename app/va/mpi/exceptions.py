@@ -20,3 +20,7 @@ class IdentifierNotFound(MpiNonRetryableException):
 
 class IncorrectNumberOfIdentifiersException(MpiNonRetryableException):
     pass
+
+
+class MultipleActiveVaProfileIdsException(MpiNonRetryableException):
+    pass

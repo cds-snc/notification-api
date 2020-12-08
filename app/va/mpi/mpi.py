@@ -4,7 +4,8 @@ from app.va.mpi import (
     UnsupportedIdentifierException,
     IdentifierNotFound,
     MpiException,
-    IncorrectNumberOfIdentifiersException
+    IncorrectNumberOfIdentifiersException,
+    MultipleActiveVaProfileIdsException
 )
 
 
@@ -53,7 +54,7 @@ class MpiClient:
         response_json = self._make_request(fhir_identifier, notification.id)
         mpi_identifiers = response_json['identifier']
 
-        va_profile_id = self.get_profile_id(mpi_identifiers, fhir_identifier)
+        va_profile_id = self._get_active_va_profile_id(mpi_identifiers, fhir_identifier)
         self.statsd_client.incr("clients.mpi.get_va_profile_id.success")
         return va_profile_id
 
@@ -72,18 +73,24 @@ class MpiClient:
             self.statsd_client.incr(f"clients.mpi.error.{e.response.status_code}")
             raise MpiException(f"MPI returned {str(e)} while querying for notification {notification_id}") from e
 
-    def get_profile_id(self, identifiers, fhir_identifier):
+    def _get_active_va_profile_id(self, identifiers, fhir_identifier):
         active_va_profile_suffix = self.FHIR_FORMAT_SUFFIXES[IdentifierType.VA_PROFILE_ID] + '^A'
-        try:
-            va_profile_id = next(
-                identifier['value'].split('^')[0] for identifier in identifiers
-                if identifier['value'].endswith(active_va_profile_suffix)
-            )
-            return va_profile_id
-        except StopIteration as e:
-            self.logger.exception(e)
+        active_va_profile_id = ""
+        for identifier in identifiers:
+            if identifier['value'].endswith(active_va_profile_suffix):
+                if active_va_profile_id:
+                    self.statsd_client.incr("clients.mpi.get_va_profile_id.error")
+                    raise MultipleActiveVaProfileIdsException(
+                        f"Multiple active VA Profile Identifiers found for: {fhir_identifier}"
+                    )
+                active_va_profile_id = identifier['value'].split('^')[0]
+
+        if not active_va_profile_id:
             self.statsd_client.incr("clients.mpi.get_va_profile_id.error")
-            raise IdentifierNotFound(f"No active VA Profile Identifier found for: {fhir_identifier}") from e
+            raise IdentifierNotFound(f"No active VA Profile Identifier found for: {fhir_identifier}")
+
+        return active_va_profile_id
+
 
     def _validate_response(self, response_json, notification_id, fhir_identifier):
         if response_json.get('severity'):

@@ -7,7 +7,8 @@ from app.models import RecipientIdentifier
 from requests_mock import ANY
 from requests.utils import quote
 
-from app.va.mpi.exceptions import UnsupportedIdentifierException, IncorrectNumberOfIdentifiersException
+from app.va.mpi.exceptions import UnsupportedIdentifierException, IncorrectNumberOfIdentifiersException, \
+    MultipleActiveVaProfileIdsException
 from app.va.mpi.mpi import IdentifierNotFound, MpiException
 from tests.app.factories.recipient_idenfier import sample_recipient_identifier
 
@@ -210,7 +211,7 @@ class TestGetVaProfileId:
         assert rmock.request_history[0].url == expected_url
         assert actual_va_profile_id == EXPECTED_VA_PROFILE_ID
 
-    def test_should_return_first_active_va_profile_id_when_multiple_active_va_profile_ids_exist(
+    def test_should_throw_error_when_multiple_active_va_profile_ids_exist(
             self, mpi_client, rmock, sample_notification_model_with_organization
     ):
         notification = sample_notification_model_with_organization
@@ -224,9 +225,8 @@ class TestGetVaProfileId:
             status_code=200
         )
 
-        actual_va_profile_id = mpi_client.get_va_profile_id(notification)
-
-        assert actual_va_profile_id == EXPECTED_VA_PROFILE_ID
+        with pytest.raises(MultipleActiveVaProfileIdsException):
+            mpi_client.get_va_profile_id(notification)
 
     def test_should_throw_error_when_no_active_va_profile_id(
             self, mpi_client, rmock, sample_notification_model_with_organization

@@ -4,7 +4,8 @@ from .exceptions import (  # noqa: F401
     IdentifierNotFound,
     UnsupportedIdentifierException,
     MpiException,
-    IncorrectNumberOfIdentifiersException
+    IncorrectNumberOfIdentifiersException,
+    MultipleActiveVaProfileIdsException
 )
 
 from .mpi import MpiClient  # noqa: F401
