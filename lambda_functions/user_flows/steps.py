@@ -177,7 +177,7 @@ def send_email_with_va_profile_id(notification_url, service_jwt, template_id):
         "template_id": template_id,
         "recipient_identifier": {
             "id_type": "VAPROFILEID",
-            "id_value": "203"
+            "id_value": "1243"
         },
         "personalisation": {
             "claim_id": "600191990",
