@@ -13,6 +13,7 @@ from app.va.mpi import MpiRetryableException, MpiNonRetryableException, Benefici
 @notify_celery.task(bind=True, name="lookup-va-profile-id-tasks", max_retries=48, default_retry_delay=300)
 @statsd(namespace="tasks")
 def lookup_va_profile_id(self, notification_id):
+    current_app.logger.info(f"Retrieving VA Profile ID from MPI for notification {notification_id}")
     notification = notifications_dao.get_notification_by_id(notification_id)
 
     try:
@@ -29,7 +30,8 @@ def lookup_va_profile_id(self, notification_id):
         )
 
     except MpiRetryableException as e:
-        current_app.logger.exception(e)
+        current_app.logger.warning(f"Received MpiRetryableException for notification {notification_id}."
+                                   f"{str(e)}")
         try:
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
@@ -40,7 +42,7 @@ def lookup_va_profile_id(self, notification_id):
             raise NotificationTechnicalFailureException(message) from e
 
     except MpiNonRetryableException as e:
-        message = f"{str(e)}. Failed to retrieve VA Profile ID from MPI for notification: {notification_id}"
+        message = f"Failed to retrieve VA Profile ID from MPI for notification: {notification_id}"
         current_app.logger.exception(message)
         notifications_dao.update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
         raise NotificationTechnicalFailureException(message) from e
@@ -48,6 +50,6 @@ def lookup_va_profile_id(self, notification_id):
     except BeneficiaryDeceasedException:
         message = f"MPI indicated that recipient is deceased for notification {notification_id}. " \
                   "Stopping execution of following tasks. Notification has been updated to permanent-failure."
-        current_app.logger.info(message)
+        current_app.logger.warning(message)
         self.request.chain = None
         notifications_dao.update_notification_status_by_id(notification_id, NOTIFICATION_PERMANENT_FAILURE)
