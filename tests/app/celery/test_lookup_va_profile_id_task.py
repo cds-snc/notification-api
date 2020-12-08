@@ -3,9 +3,10 @@ import uuid
 import pytest
 
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import Notification, VA_PROFILE_ID, NOTIFICATION_TECHNICAL_FAILURE
+from app.models import Notification, VA_PROFILE_ID, NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
-from app.va.mpi import UnsupportedIdentifierException, IdentifierNotFound, MpiRetryableException
+from app.va.mpi import UnsupportedIdentifierException, IdentifierNotFound, MpiRetryableException, \
+    BeneficiaryDeceasedException
 
 
 @pytest.fixture(scope='function')
@@ -129,3 +130,36 @@ def test_should_update_notification_to_technical_failure_on_max_retries(client, 
         lookup_va_profile_id(notification.id)
 
     mocked_update_notification_status_by_id.assert_called_with(notification.id, NOTIFICATION_TECHNICAL_FAILURE)
+
+
+def test_should_permanently_fail_and_clear_chain_when_deceased(client, mocker, notification):
+    mocker.patch(
+        'app.celery.lookup_va_profile_id_task.notifications_dao.get_notification_by_id',
+        return_value=notification
+    )
+
+    mocked_mpi_client = mocker.Mock()
+    mocked_mpi_client.get_va_profile_id = mocker.Mock(side_effect=BeneficiaryDeceasedException())
+    mocker.patch(
+        'app.celery.lookup_va_profile_id_task.mpi_client',
+        new=mocked_mpi_client
+    )
+
+    mocked_update_notification_status_by_id = mocker.patch(
+        'app.celery.lookup_va_profile_id_task.notifications_dao.update_notification_status_by_id'
+    )
+
+    mocked_request = mocker.Mock()
+    mocked_chain = mocker.PropertyMock()
+    mocked_chain.return_value = ['some-task-to-be-executed-next']
+    type(mocked_request).chain = mocked_chain
+    mocker.patch(
+        'celery.app.task.Task.request',
+        new=mocked_request
+    )
+
+    lookup_va_profile_id(notification.id)
+
+    mocked_update_notification_status_by_id.assert_called_with(notification.id, NOTIFICATION_PERMANENT_FAILURE)
+
+    mocked_chain.assert_called_with(None)

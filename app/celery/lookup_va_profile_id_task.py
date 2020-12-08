@@ -1,12 +1,13 @@
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import RecipientIdentifier, VA_PROFILE_ID, NOTIFICATION_TECHNICAL_FAILURE
+from app.models import RecipientIdentifier, VA_PROFILE_ID, NOTIFICATION_TECHNICAL_FAILURE, \
+    NOTIFICATION_PERMANENT_FAILURE
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from app import notify_celery
 from app.dao import notifications_dao
 from app import mpi_client
-from app.va.mpi import MpiRetryableException, MpiNonRetryableException
+from app.va.mpi import MpiRetryableException, MpiNonRetryableException, BeneficiaryDeceasedException
 
 
 @notify_celery.task(bind=True, name="lookup-va-profile-id-tasks", max_retries=48, default_retry_delay=300)
@@ -37,8 +38,16 @@ def lookup_va_profile_id(self, notification_id):
                       "Notification has been updated to technical-failure"
             notifications_dao.update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
             raise NotificationTechnicalFailureException(message) from e
+
     except MpiNonRetryableException as e:
         message = f"{str(e)}. Failed to retrieve VA Profile ID from MPI for notification: {notification_id}"
         current_app.logger.exception(message)
         notifications_dao.update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
         raise NotificationTechnicalFailureException(message) from e
+
+    except BeneficiaryDeceasedException:
+        message = f"MPI indicated that recipient is deceased for notification {notification_id}. " \
+                  "Stopping execution of following tasks. Notification has been updated to permanent-failure."
+        current_app.logger.info(message)
+        self.request.chain = None
+        notifications_dao.update_notification_status_by_id(notification_id, NOTIFICATION_PERMANENT_FAILURE)

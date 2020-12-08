@@ -5,7 +5,8 @@ from app.va.mpi import (
     IdentifierNotFound,
     MpiException,
     IncorrectNumberOfIdentifiersException,
-    MultipleActiveVaProfileIdsException
+    MultipleActiveVaProfileIdsException,
+    BeneficiaryDeceasedException
 )
 
 
@@ -67,6 +68,7 @@ class MpiClient:
             )
             response.raise_for_status()
             self._validate_response(response.json(), notification_id, fhir_identifier)
+            self._assert_not_deceased(response.json())
             return response.json()
         except requests.HTTPError as e:
             self.logger.exception(e)
@@ -103,3 +105,8 @@ class MpiClient:
             raise MpiException(error_message)
 
         self.statsd_client.incr("clients.mpi.success")
+
+    def _assert_not_deceased(self, response_json):
+        if response_json.get('deceasedDateTime'):
+            self.statsd_client.incr("clients.mpi.beneficiary_deceased")
+            raise BeneficiaryDeceasedException()

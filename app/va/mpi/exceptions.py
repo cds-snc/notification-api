@@ -24,3 +24,7 @@ class IncorrectNumberOfIdentifiersException(MpiNonRetryableException):
 
 class MultipleActiveVaProfileIdsException(MpiNonRetryableException):
     pass
+
+
+class BeneficiaryDeceasedException(MpiException):
+    pass

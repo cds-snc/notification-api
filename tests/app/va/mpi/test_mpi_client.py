@@ -1,15 +1,20 @@
 import copy
 
 import pytest
-from app.va.mpi import MpiClient
 from app.va import IdentifierType
 from app.models import RecipientIdentifier
 from requests_mock import ANY
 from requests.utils import quote
 
-from app.va.mpi.exceptions import UnsupportedIdentifierException, IncorrectNumberOfIdentifiersException, \
-    MultipleActiveVaProfileIdsException
-from app.va.mpi.mpi import IdentifierNotFound, MpiException
+from app.va.mpi import (
+    MpiClient,
+    UnsupportedIdentifierException,
+    IdentifierNotFound,
+    MpiException,
+    IncorrectNumberOfIdentifiersException,
+    MultipleActiveVaProfileIdsException,
+    BeneficiaryDeceasedException
+)
 from tests.app.factories.recipient_idenfier import sample_recipient_identifier
 
 SYSTEM_URN_OID = "urn:oid:2.16.840.1.113883.4.349"
@@ -95,6 +100,12 @@ def response_with_two_active_va_profile_ids():
         "system": SYSTEM_URN_OID,
         "value": "67890^PI^200VETS^USDVA^A"
     })
+    return resp
+
+
+def response_with_deceased_beneficiary():
+    resp = response_with_one_active_va_profile_id()
+    resp["deceasedDateTime"] = "2020-01-01"
     return resp
 
 
@@ -276,4 +287,21 @@ class TestGetVaProfileId:
         )
 
         with pytest.raises(MpiException):
+            mpi_client.get_va_profile_id(notification)
+
+    def test_should_throw_exception_when_beneficiary_deceased(
+            self, mpi_client, rmock, sample_notification_model_with_organization
+    ):
+        notification = sample_notification_model_with_organization
+        recipient_identifier = sample_recipient_identifier()
+        notification.recipient_identifiers.set(recipient_identifier)
+
+        rmock.request(
+            "GET",
+            ANY,
+            json=response_with_deceased_beneficiary(),
+            status_code=200
+        )
+
+        with pytest.raises(BeneficiaryDeceasedException):
             mpi_client.get_va_profile_id(notification)
