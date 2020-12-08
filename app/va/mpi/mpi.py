@@ -91,7 +91,6 @@ class MpiClient:
 
         return active_va_profile_id
 
-
     def _validate_response(self, response_json, notification_id, fhir_identifier):
         if response_json.get('severity'):
             error_message = \
