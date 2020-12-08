@@ -182,7 +182,23 @@ def send_email_with_va_profile_id(notification_url, service_jwt, template_id):
         "personalisation": {
             "claim_id": "600191990",
             "date_submitted": "October 30, 2020",
-            "full_name": "Test Subject"
+            "full_name": "VA Profile ID Email"
+        }
+    })
+    return send_email(notification_url, service_jwt, payload)
+
+
+def send_email_with_icn(notification_url, service_jwt, template_id):
+    payload = json.dumps({
+        "template_id": template_id,
+        "recipient_identifier": {
+            "id_type": "ICN",
+            "id_value": "1008794780V325793"
+        },
+        "personalisation": {
+            "claim_id": "600191990",
+            "date_submitted": "October 30, 2020",
+            "full_name": "ICN Email"
         }
     })
     return send_email(notification_url, service_jwt, payload)

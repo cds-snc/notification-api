@@ -13,6 +13,7 @@ from steps import send_email_with_email_address
 from steps import send_email_with_va_profile_id
 from steps import get_notification_id
 from steps import get_notification_status
+from steps import send_email_with_icn
 
 
 @pytest.fixture(scope="function")
@@ -111,8 +112,6 @@ def test_send_email_with_va_profile_id(environment, notification_url, service_id
     assert email_response.status_code == 201
     notification_id = get_notification_id(email_response)
 
-    print(f"**** notification_id: {notification_id }")
-    
     notification_status_response = None
     for _ in range(30):
         service_jwt = get_service_jwt(service_test_api_key, service_id)
@@ -125,3 +124,28 @@ def test_send_email_with_va_profile_id(environment, notification_url, service_id
 
     assert notification_status_response.json()['status'] == 'delivered'
     assert notification_status_response.json()['email_address'] is not None
+
+
+def test_send_email_with_icn(environment, notification_url, service_id, service_test_api_key, template_id, user_id):
+    service_jwt = get_service_jwt(service_test_api_key, service_id)
+
+    email_response = send_email_with_icn(notification_url, service_jwt, template_id)
+    assert email_response.status_code == 201
+    notification_id = get_notification_id(email_response)
+
+    notification_status_response = None
+    for _ in range(30):
+        service_jwt = get_service_jwt(service_test_api_key, service_id)
+        notification_status_response = get_notification_status(notification_id, notification_url, service_jwt)
+
+        if notification_status_response.json()['status'] == 'delivered':
+            break
+
+        time.sleep(1)
+
+    assert notification_status_response.json()['status'] == 'delivered'
+    assert notification_status_response.json()['email_address'] is not None
+
+    found_va_profile_ids = [identifier for identifier in notification_status_response.json()['recipient_identifiers']
+                            if identifier['id_type'] == 'VAPROFILEID']
+    assert len(found_va_profile_ids) == 1
