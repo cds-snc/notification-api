@@ -22,7 +22,7 @@ jobs:
       - name: Run tests with docker-compose-test
         run: |
           docker-compose -f ci/docker-compose-test.yml up --build --abort-on-container-exit --force-recreate
-  
+
   code-scan:
     runs-on: ubuntu-latest
     steps:
@@ -31,7 +31,7 @@ jobs:
         with:
           python-version: '3.6'
       - run: make check-vulnerabilities
-  
+
   dependency-scan:
     runs-on: ubuntu-latest
     steps:
@@ -40,7 +40,7 @@ jobs:
         with:
           python-version: '3.6'
       - run: make check-dependencies
-  
+
   build-and-push:
     runs-on: ubuntu-latest
     needs: [test, code-scan, dependency-scan]
@@ -53,7 +53,7 @@ jobs:
       - name: Build docker image
         run: |
           docker build -t $IMAGE_REPOSITORY:$IMAGE_TAG -f ci/Dockerfile .
-      
+
       - name: Configure TW AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -64,14 +64,14 @@ jobs:
       - name: Login to TW ECR
         id: login-ecr-tw
         uses: aws-actions/amazon-ecr-login@v1
-      
+
       - name: Publish to TW ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-tw.outputs.registry }}
         run: |
           docker tag $IMAGE_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$IMAGE_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$IMAGE_REPOSITORY:$IMAGE_TAG
-      
+
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -85,7 +85,7 @@ jobs:
       - name: Login to VAEC ECR
         id: login-ecr-vaec
         uses: aws-actions/amazon-ecr-login@v1
-      
+
       - name: Publish to VAEC ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-vaec.outputs.registry }}
