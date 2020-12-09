@@ -1735,11 +1735,13 @@ class ScheduledNotification(db.Model):
 VA_PROFILE_ID = 'VAPROFILEID'
 PID = 'PID'
 ICN = 'ICN'
+BIRLSID = 'BIRLSID'
 
 RECIPIENT_IDENTIFIER_TYPES = [
     VA_PROFILE_ID,
     PID,
-    ICN
+    ICN,
+    BIRLSID
 ]
 
 
