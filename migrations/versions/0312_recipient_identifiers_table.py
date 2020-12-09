@@ -27,3 +27,4 @@ def upgrade():
 
 def downgrade():
     op.execute('DROP TABLE recipient_identifiers')
+    op.execute('DROP TYPE id_types')
