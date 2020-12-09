@@ -88,21 +88,17 @@ class MpiClient:
 
     def _get_active_va_profile_id(self, identifiers, fhir_identifier):
         active_va_profile_suffix = self.FHIR_FORMAT_SUFFIXES[IdentifierType.VA_PROFILE_ID] + '^A'
-        active_va_profile_id = ""
-        for identifier in identifiers:
-            if identifier['value'].endswith(active_va_profile_suffix):
-                if active_va_profile_id:
-                    self.statsd_client.incr("clients.mpi.error.multiple_va_profile_ids")
-                    raise MultipleActiveVaProfileIdsException(
-                        f"Multiple active VA Profile Identifiers found for: {fhir_identifier}"
-                    )
-                active_va_profile_id = identifier['value'].split('^')[0]
-
-        if not active_va_profile_id:
+        va_profile_ids = [identifier['value'].split('^')[0] for identifier in identifiers
+                          if identifier['value'].endswith(active_va_profile_suffix)]
+        if not va_profile_ids:
             self.statsd_client.incr("clients.mpi.error.no_va_profile_id")
             raise IdentifierNotFound(f"No active VA Profile Identifier found for: {fhir_identifier}")
-
-        return active_va_profile_id
+        if len(va_profile_ids) > 1:
+            self.statsd_client.incr("clients.mpi.error.multiple_va_profile_ids")
+            raise MultipleActiveVaProfileIdsException(
+                f"Multiple active VA Profile Identifiers found for: {fhir_identifier}"
+            )
+        return va_profile_ids[0]
 
     def _validate_response(self, response_json, notification_id, fhir_identifier):
         if response_json.get('severity'):
