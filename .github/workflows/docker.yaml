@@ -1,62 +1,63 @@
-name: Build, push to GCR, and deploy
-on:
-  push:
-    branches:    
-      - master
+name: Build, push to AWS ECR, and deploy
+on: push
+  # push:
+    # branches:
+    #   - master
+
+env:
+  AWS_REGION: ca-central-1
+  DOCKER_ORG: public.ecr.aws/v6b8u5o6
+  DOCKER_SLUG: public.ecr.aws/v6b8u5o6/notify-api
+  KUBECTL_VERSION: '1.18.0'
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Build and push
     steps:
-    - uses: actions/checkout@master
-    - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
-      with:
-        version: '270.0.0'
-        service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-        service_account_key: ${{ secrets.GCLOUD_AUTH }}
-    - run: |
-        gcloud auth configure-docker
+    - uses: actions/checkout@v2
+    - name: Install AWS CLI
+      run: |
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip -q awscliv2.zip
+        sudo ./aws/install
+        aws --version
+    - name: Install kubectl
+      run: |
+        curl -LO https://storage.googleapis.com/kubernetes-release/release/v$KUBECTL_VERSION/bin/linux/amd64/kubectl
+        chmod +x ./kubectl
+        sudo mv ./kubectl /usr/local/bin/kubectl
+        kubectl version --client
+        mkdir -p $HOME/.kube
+    - name: AWS auth with ECR
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ECR_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ECR_SECRET_ACCESS_KEY }}
+      run: |
+        aws ecr-public get-login-password --region us-east-1 > /tmp/aws
+        cat /tmp/aws | docker login --username AWS --password-stdin $DOCKER_ORG
+        rm /tmp/aws
     - name: Build
-      run: |        
-        docker build --build-arg GIT_SHA=${GITHUB_SHA::7} -t gcr.io/cdssnc/notify/api:${GITHUB_SHA::7} -t gcr.io/cdssnc/notify/api:latest -f ci/Dockerfile .
+      run: |
+        docker build --build-arg GIT_SHA=${GITHUB_SHA::7} -t $DOCKER_SLUG:${GITHUB_SHA::7} -t $DOCKER_SLUG:latest -f ci/Dockerfile .
     - name: Publish
       run: |
-        docker push gcr.io/cdssnc/notify/api:latest && docker push gcr.io/cdssnc/notify/api:${GITHUB_SHA::7}
-    - name: EKS
-      uses: docker://gcr.io/cdssnc/aws:latest
+        docker push $DOCKER_SLUG:latest && docker push $DOCKER_SLUG:${GITHUB_SHA::7}
+    - name: Get Kubernetes configuration
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      with:
-        args: eks --region ca-central-1 update-kubeconfig --name notification-canada-ca-staging-eks-cluster
-    - name: Apply
-      uses: docker://gcr.io/cdssnc/aws-kubectl:latest
+      run: |
+        aws eks --region $AWS_REGION update-kubeconfig --name notification-canada-ca-staging-eks-cluster --kubeconfig $HOME/.kube/config
+    - name: Update images in staging
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      with:
-        args: set image deployment.apps/api api=gcr.io/cdssnc/notify/api:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=/github/home/.kube/config
-    - name: Apply celery
-      uses: docker://gcr.io/cdssnc/aws-kubectl:latest
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      with:
-        args: set image deployment.apps/celery celery=gcr.io/cdssnc/notify/api:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=/github/home/.kube/config
-    - name: Apply celery-beat
-      uses: docker://gcr.io/cdssnc/aws-kubectl:latest
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      with:
-        args: set image deployment.apps/celery-beat celery-beat=gcr.io/cdssnc/notify/api:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=/github/home/.kube/config
-    - name: Apply celery-sms
-      uses: docker://gcr.io/cdssnc/aws-kubectl:latest
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      with:
-        args: set image deployment.apps/celery-sms celery-sms=gcr.io/cdssnc/notify/api:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=/github/home/.kube/config
+      run: |
+        kubectl set image deployment.apps/api api=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery celery=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-beat celery-beat=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-sms celery-sms=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
     - uses: cds-snc/notification-pr-bot@master
       env:
         TOKEN: ${{ secrets.TOKEN }}
