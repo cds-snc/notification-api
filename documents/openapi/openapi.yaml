@@ -1347,6 +1347,7 @@ components:
                         - VAPROFILEID
                         - PID
                         - ICN
+                        - BIRLSID
                     id_value:
                       type: string
                   required:
