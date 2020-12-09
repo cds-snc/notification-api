@@ -70,7 +70,7 @@ class MpiClient:
         except requests.HTTPError as e:
             self.statsd_client.incr(f"clients.mpi.error.{e.response.status_code}")
             message = f"MPI returned {str(e)} while querying for notification {notification_id}"
-            if e.response.status_code in [429, 500]:
+            if e.response.status_code in [429, 500, 502, 503, 504]:
                 raise MpiRetryableException(message) from e
             else:
                 raise MpiNonRetryableException(message) from e
