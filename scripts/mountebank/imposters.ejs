@@ -44,10 +44,14 @@
         "statusCode": 501
       },
       "stubs": [
-        <% include stubs/mpi/stub200Pid_OneVaProfile.ejs %>,
-        <% include stubs/mpi/stub200Pid_FailedVaProfile.ejs %>,
         <% include stubs/mpi/stub200Birl_OneVaProfile.ejs %>,
-        <% include stubs/mpi/stub200Pid_Deceased.ejs %>
+        <% include stubs/mpi/stub200Icn_ActiveVaProfile_Single.ejs %>,
+        <% include stubs/mpi/stub200Icn_Error_IcnDoesNotExist.ejs %>,
+        <% include stubs/mpi/stub200Pid_ActiveVaProfile_Multiple.ejs %>,
+        <% include stubs/mpi/stub200Pid_ActiveVaProfile_Single.ejs %>,
+        <% include stubs/mpi/stub200Pid_Deceased.ejs %>,
+        <% include stubs/mpi/stub200Pid_Error_MviInvalidRequest.ejs %>,
+        <% include stubs/mpi/stub200Pid_Error_PidDoesNotExist.ejs %>
       ]
     }
   ]
