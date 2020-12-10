@@ -3,13 +3,11 @@ import pytest
 from flask import json, url_for
 
 from app import DATETIME_FORMAT
+from app.va import IdentifierType
 from tests import create_authorization_header
 from tests.app.db import (
     create_notification,
     create_template,
-)
-from app.models import (
-    VA_PROFILE_ID,
 )
 
 
@@ -84,7 +82,7 @@ def test_get_notification_by_id_returns_200(
 
 @pytest.mark.parametrize('recipient_identifiers', [
     None,
-    [{"id_type": VA_PROFILE_ID, "id_value": "some vaprofileid"}]
+    [{"id_type": IdentifierType.VA_PROFILE_ID.value, "id_value": "some vaprofileid"}]
 ])
 def test_get_notification_by_id_with_placeholders_and_recipient_identifiers_returns_200(
         client, sample_email_template_with_placeholders, recipient_identifiers

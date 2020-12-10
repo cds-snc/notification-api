@@ -11,8 +11,9 @@ from app.dao.notifications_dao import (
     delete_notifications_older_than_retention_by_type,
     insert_update_notification_history
 )
-from app.models import Notification, NotificationHistory, VA_PROFILE_ID, RecipientIdentifier, SMS_TYPE, EMAIL_TYPE
+from app.models import Notification, NotificationHistory, RecipientIdentifier, SMS_TYPE, EMAIL_TYPE
 from app.notifications.process_notifications import persist_notification
+from app.va import IdentifierType
 from tests.app.db import (
     create_template,
     create_notification,
@@ -128,7 +129,7 @@ def test_should_delete_notification_and_recipient_identifiers_when_bulk_deleting
     for i in range(1, 11):
         past_date = '2016-0{0}-{1:02d}  {1:02d}:00:00.000000'.format(month, i)
         with freeze_time(past_date):
-            recipient_identifier = {"id_type": VA_PROFILE_ID, "id_value": "foo"}
+            recipient_identifier = {"id_type": IdentifierType.VA_PROFILE_ID.value, "id_value": "foo"}
             persist_notification(
                 template_id=sample_job.template.id,
                 template_version=sample_job.template.version,

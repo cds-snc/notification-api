@@ -1,12 +1,13 @@
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import RecipientIdentifier, VA_PROFILE_ID, NOTIFICATION_TECHNICAL_FAILURE, \
+from app.models import RecipientIdentifier, NOTIFICATION_TECHNICAL_FAILURE, \
     NOTIFICATION_PERMANENT_FAILURE
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from app import notify_celery
 from app.dao import notifications_dao
 from app import mpi_client
+from app.va import IdentifierType
 from app.va.mpi import MpiRetryableException, MpiNonRetryableException, BeneficiaryDeceasedException
 
 
@@ -21,7 +22,7 @@ def lookup_va_profile_id(self, notification_id):
         notification.recipient_identifiers.set(
             RecipientIdentifier(
                 notification_id=notification.id,
-                id_type=VA_PROFILE_ID,
+                id_type=IdentifierType.VA_PROFILE_ID.value,
                 id_value=va_profile_id
             ))
         notifications_dao.dao_update_notification(notification)

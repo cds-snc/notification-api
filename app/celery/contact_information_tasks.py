@@ -2,10 +2,11 @@ from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 
 from app import notify_celery, va_profile_client
+from app.va import IdentifierType
 from app.va.va_profile import VAProfileRetryableException, VAProfileNonRetryableException
 from app.config import QueueNames
 from app.dao.notifications_dao import get_notification_by_id, dao_update_notification, update_notification_status_by_id
-from app.models import VA_PROFILE_ID, NOTIFICATION_TECHNICAL_FAILURE
+from app.models import NOTIFICATION_TECHNICAL_FAILURE
 from app.exceptions import NotificationTechnicalFailureException
 
 
@@ -16,7 +17,7 @@ def lookup_contact_info(self, notification_id):
 
     notification = get_notification_by_id(notification_id)
 
-    va_profile_id = notification.recipient_identifiers[VA_PROFILE_ID].id_value
+    va_profile_id = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value
 
     try:
         email = va_profile_client.get_email(va_profile_id)

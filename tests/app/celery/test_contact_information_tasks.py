@@ -4,7 +4,8 @@ import pytest
 
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import Notification, VA_PROFILE_ID, RecipientIdentifier, Service, NOTIFICATION_TECHNICAL_FAILURE
+from app.models import Notification, RecipientIdentifier, Service, NOTIFICATION_TECHNICAL_FAILURE
+from app.va import IdentifierType
 from app.va.va_profile import VAProfileClient, VAProfileNonRetryableException, \
     VAProfileRetryableException
 
@@ -17,7 +18,7 @@ def notification():
 
     recipient_identifier = RecipientIdentifier(
         notification_id=notification_id,
-        id_type=VA_PROFILE_ID,
+        id_type=IdentifierType.VA_PROFILE_ID.value,
         id_value=EXAMPLE_VA_PROFILE_ID
     )
 

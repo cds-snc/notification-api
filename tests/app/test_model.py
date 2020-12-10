@@ -19,10 +19,9 @@ from app.models import (
     NOTIFICATION_STATUS_LETTER_RECEIVED,
     NOTIFICATION_STATUS_TYPES_FAILED,
     NOTIFICATION_TECHNICAL_FAILURE,
-    PRECOMPILED_TEMPLATE_NAME,
-    VA_PROFILE_ID,
-    ICN
+    PRECOMPILED_TEMPLATE_NAME
 )
+from app.va import IdentifierType
 
 from tests.app.db import (
     create_notification,
@@ -243,11 +242,11 @@ def test_notification_references_template_history(client, sample_template):
 def test_email_notification_serializes_with_recipient_identifiers(client, sample_email_template):
     recipient_identifiers = [
         {
-            "id_type": VA_PROFILE_ID,
+            "id_type": IdentifierType.VA_PROFILE_ID.value,
             "id_value": "some vaprofileid"
         },
         {
-            "id_type": ICN,
+            "id_type": IdentifierType.ICN.value,
             "id_value": "some icn"
         }
     ]

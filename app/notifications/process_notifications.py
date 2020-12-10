@@ -28,7 +28,6 @@ from app.models import (
     NOTIFICATION_CREATED,
     Notification,
     ScheduledNotification,
-    VA_PROFILE_ID,
     RecipientIdentifier)
 from app.dao.notifications_dao import (
     dao_create_notification,
@@ -37,6 +36,7 @@ from app.dao.notifications_dao import (
 
 from app.v2.errors import BadRequestError
 from app.utils import get_template_instance
+from app.va import IdentifierType
 
 
 def create_content_for_notification(template, personalisation):
@@ -171,7 +171,7 @@ def _get_delivery_task(notification, research_mode=False, queue=None):
 
 def send_to_queue_for_recipient_info_based_on_recipient_identifier(notification, id_type):
     deliver_task, deliver_queue = _get_delivery_task(notification)
-    if id_type == VA_PROFILE_ID:
+    if id_type == IdentifierType.VA_PROFILE_ID.value:
         tasks = [
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
             deliver_task.si(notification.id).set(queue=deliver_queue)

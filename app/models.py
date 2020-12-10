@@ -40,6 +40,7 @@ from app import (
 )
 
 from app.history_meta import Versioned
+from app.va import IdentifierType
 
 SMS_TYPE = 'sms'
 EMAIL_TYPE = 'email'
@@ -1732,17 +1733,7 @@ class ScheduledNotification(db.Model):
     pending = db.Column(db.Boolean, nullable=False, default=True)
 
 
-VA_PROFILE_ID = 'VAPROFILEID'
-PID = 'PID'
-ICN = 'ICN'
-BIRLSID = 'BIRLSID'
-
-RECIPIENT_IDENTIFIER_TYPES = [
-    VA_PROFILE_ID,
-    PID,
-    ICN,
-    BIRLSID
-]
+RECIPIENT_IDENTIFIER_TYPES = IdentifierType.values()
 
 
 class RecipientIdentifier(db.Model):
@@ -1753,7 +1744,7 @@ class RecipientIdentifier(db.Model):
         db.Enum(*RECIPIENT_IDENTIFIER_TYPES, name='id_types'),
         primary_key=True,
         nullable=False,
-        default=VA_PROFILE_ID)
+        default=IdentifierType.VA_PROFILE_ID.value)
     id_value = db.Column(db.String, primary_key=True, nullable=False)
 
 

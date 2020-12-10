@@ -5,13 +5,14 @@ from flask import json
 from freezegun import freeze_time
 from jsonschema import ValidationError
 
-from app.models import NOTIFICATION_CREATED, EMAIL_TYPE, RECIPIENT_IDENTIFIER_TYPES, VA_PROFILE_ID
+from app.models import NOTIFICATION_CREATED, EMAIL_TYPE, RECIPIENT_IDENTIFIER_TYPES
 from app.schema_validation import validate
 from app.v2.notifications.notification_schemas import (
     get_notifications_request,
     post_sms_request as post_sms_request_schema,
     post_email_request as post_email_request_schema
 )
+from app.va import IdentifierType
 
 valid_get_json = {}
 
@@ -107,7 +108,7 @@ valid_phone_number_json = {
 }
 valid_recipient_identifier_json = {
     "recipient_identifier": {
-        "id_type": VA_PROFILE_ID,
+        "id_type": IdentifierType.VA_PROFILE_ID.value,
         "id_value": "bar"
     },
     "template_id": str(uuid.uuid4())
@@ -115,7 +116,7 @@ valid_recipient_identifier_json = {
 valid_phone_number_and_recipient_identifier_json = {
     "phone_number": "6502532222",
     "recipient_identifier": {
-        "id_type": VA_PROFILE_ID,
+        "id_type": IdentifierType.VA_PROFILE_ID.value,
         "id_value": "bar"
     },
     "template_id": str(uuid.uuid4())
@@ -159,7 +160,7 @@ def test_post_sms_json_schema_bad_uuid(template_id):
 
 
 missing_id_type_json = {"id_value": "bar"}
-missing_value_json = {"id_type": VA_PROFILE_ID}
+missing_value_json = {"id_type": IdentifierType.VA_PROFILE_ID.value}
 missing_id_type_and_value_json = {}
 
 
@@ -274,7 +275,7 @@ valid_post_email_json = {"email_address": "test@example.gov.uk",
                          }
 valid_recipient_identifier_json = {
     "recipient_identifier": {
-        "id_type": VA_PROFILE_ID,
+        "id_type": IdentifierType.VA_PROFILE_ID.value,
         "id_value": "bar"
     },
     "template_id": str(uuid.uuid4())
@@ -282,7 +283,7 @@ valid_recipient_identifier_json = {
 valid_email_and_recipient_identifier_json = {
     "email_address": "test@example.gov.uk",
     "recipient_identifier": {
-        "id_type": VA_PROFILE_ID,
+        "id_type": IdentifierType.VA_PROFILE_ID.value,
         "id_value": "bar"
     },
     "template_id": str(uuid.uuid4())
@@ -328,7 +329,7 @@ def test_post_email_schema_invalid_email_address(email_address, err_msg):
 
 
 missing_id_type_json = {"id_value": "bar"}
-missing_value_json = {"id_type": VA_PROFILE_ID}
+missing_value_json = {"id_type": IdentifierType.VA_PROFILE_ID.value}
 missing_id_type_and_value_json = {}
 
 

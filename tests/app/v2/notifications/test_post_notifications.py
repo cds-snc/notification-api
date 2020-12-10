@@ -12,16 +12,15 @@ from app.models import (
     SMS_TYPE,
     UPLOAD_DOCUMENT,
     INTERNATIONAL_SMS_TYPE,
-    VA_PROFILE_ID,
-    RecipientIdentifier,
-    PID,
-    ICN)
+    RecipientIdentifier
+)
 from flask import json, current_app
 
 from app.models import Notification
 from app.schema_validation import validate
 from app.v2.errors import RateLimitError
 from app.v2.notifications.notification_schemas import post_sms_response, post_email_response
+from app.va import IdentifierType
 from tests import create_authorization_header
 
 from tests.app.db import (
@@ -876,11 +875,15 @@ def test_post_notification_returns_400_when_get_json_throws_exception(client, sa
     assert response.status_code == 400
 
 
-@pytest.mark.parametrize('expected_type, expected_value, task',
-                         [(VA_PROFILE_ID, 'some va profile id',
-                           'app.celery.contact_information_tasks.lookup_contact_info'),
-                          (PID, 'some pid', 'app.celery.lookup_va_profile_id_task.lookup_va_profile_id'),
-                          (ICN, 'some icn', 'app.celery.lookup_va_profile_id_task.lookup_va_profile_id')])
+@pytest.mark.parametrize(
+    'expected_type, expected_value, task',
+    [
+        (IdentifierType.VA_PROFILE_ID.value, 'some va profile id',
+         'app.celery.contact_information_tasks.lookup_contact_info'),
+        (IdentifierType.PID.value, 'some pid', 'app.celery.lookup_va_profile_id_task.lookup_va_profile_id'),
+        (IdentifierType.ICN.value, 'some icn', 'app.celery.lookup_va_profile_id_task.lookup_va_profile_id')
+    ]
+)
 def test_should_process_notification_successfully_with_recipient_identifiers(
         client,
         mocker,
@@ -931,7 +934,7 @@ def test_post_notification_returns_501_when_recipient_identifiers_present_and_fe
     )
     data = {
         "template_id": sample_email_template.id,
-        "recipient_identifier": {'id_type': VA_PROFILE_ID, 'id_value': "foo"}
+        "recipient_identifier": {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': "foo"}
     }
     auth_header = create_authorization_header(service_id=sample_email_template.service_id)
     response = client.post(

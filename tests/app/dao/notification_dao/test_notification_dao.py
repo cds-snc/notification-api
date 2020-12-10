@@ -50,9 +50,9 @@ from app.models import (
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     JOB_STATUS_IN_PROGRESS,
-    VA_PROFILE_ID,
     RecipientIdentifier)
 from app.notifications.process_notifications import persist_notification
+from app.va import IdentifierType
 from tests.app.db import (
     create_job,
     create_notification,
@@ -612,7 +612,7 @@ def test_should_delete_recipient_identifiers_if_notification_deleted(
         'app.notifications.process_notifications.accept_recipient_identifiers_enabled',
         return_value=True
     )
-    recipient_identifier = {'id_type': VA_PROFILE_ID, 'id_value': 'foo'}
+    recipient_identifier = {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': 'foo'}
     notification = persist_notification(
         template_id=sample_job.template.id,
         template_version=sample_job.template.version,

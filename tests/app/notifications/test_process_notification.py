@@ -17,10 +17,7 @@ from app.models import (
     Template,
     LETTER_TYPE,
     EMAIL_TYPE,
-    VA_PROFILE_ID,
     SMS_TYPE,
-    ICN,
-    PID,
     RecipientIdentifier)
 from app.notifications.process_notifications import (
     create_content_for_notification,
@@ -31,6 +28,7 @@ from app.notifications.process_notifications import (
     send_to_queue_for_recipient_info_based_on_recipient_identifier)
 from notifications_utils.recipients import validate_and_format_phone_number, validate_and_format_email_address
 from app.v2.errors import BadRequestError
+from app.va import IdentifierType
 from tests.app.conftest import sample_api_key as create_api_key
 
 from tests.app.db import create_service, create_template
@@ -527,9 +525,9 @@ def test_persist_notification_with_billable_units_stores_correct_info(
     SMS_TYPE,
 ])
 @pytest.mark.parametrize('id_type, id_value',
-                         [(VA_PROFILE_ID, 'some va profile id'),
-                          (PID, 'some pid'),
-                          (ICN, 'some icn')])
+                         [(IdentifierType.VA_PROFILE_ID.value, 'some va profile id'),
+                          (IdentifierType.PID.value, 'some pid'),
+                          (IdentifierType.ICN.value, 'some icn')])
 def test_persist_notification_persists_recipient_identifiers(
         notify_db,
         notification_type,
@@ -570,7 +568,7 @@ def test_persist_notification_persists_recipient_identifiers(
 
 @pytest.mark.parametrize('recipient_identifiers_enabled, recipient_identifier', [
     (True, None),
-    (False, {'id_type': VA_PROFILE_ID, 'id_value': 'foo'}),
+    (False, {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': 'foo'}),
     (False, None)
 ])
 def test_persist_notification_should_not_persist_recipient_identifier_if_none_present_or_toggle_off(
@@ -603,10 +601,10 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
 
 
 @pytest.mark.parametrize('id_type, notification_type, expected_tasks', [
-    (VA_PROFILE_ID, EMAIL_TYPE, [lookup_contact_info, deliver_email]),
-    (VA_PROFILE_ID, SMS_TYPE, [lookup_contact_info, deliver_sms]),
-    (ICN, EMAIL_TYPE, [lookup_va_profile_id, lookup_contact_info, deliver_email]),
-    (ICN, SMS_TYPE, [lookup_va_profile_id, lookup_contact_info, deliver_sms]),
+    (IdentifierType.VA_PROFILE_ID.value, EMAIL_TYPE, [lookup_contact_info, deliver_email]),
+    (IdentifierType.VA_PROFILE_ID.value, SMS_TYPE, [lookup_contact_info, deliver_sms]),
+    (IdentifierType.ICN.value, EMAIL_TYPE, [lookup_va_profile_id, lookup_contact_info, deliver_email]),
+    (IdentifierType.ICN.value, SMS_TYPE, [lookup_va_profile_id, lookup_contact_info, deliver_sms]),
 ])
 def test_send_notification_to_correct_queue_to_lookup_contact_info(
         client,
