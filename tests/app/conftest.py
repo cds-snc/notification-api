@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 import pytest
 import pytz
 import requests_mock
-from unittest.mock import Mock
 
 from flask import current_app, url_for
 from sqlalchemy import asc
@@ -1222,13 +1221,13 @@ def admin_request(client):
 
 
 @pytest.fixture(scope='function')
-def app_statsd():
+def app_statsd(mocker):
     current_app.config['NOTIFY_ENVIRONMENT'] = "test"
     current_app.config['NOTIFY_APP_NAME'] = "api"
     current_app.config['STATSD_HOST'] = "localhost"
     current_app.config['STATSD_PORT'] = "8000"
     current_app.config['STATSD_PREFIX'] = "prefix"
-    current_app.statsd_client = Mock()
+    current_app.statsd_client = mocker.Mock()
     return current_app
 
 
