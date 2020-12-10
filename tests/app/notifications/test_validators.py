@@ -141,6 +141,41 @@ def test_check_service_message_limit_in_cache_over_message_limit_fails(
         assert not app.notifications.validators.services_dao.mock_calls
 
 
+def test_check_service_message_limit_sends_statsd_over_message_limit_fails(
+        app_statsd,
+        notify_db,
+        notify_db_session,
+        mocker):
+    # Given
+    mocker.patch('app.redis_store.get', return_value=5)
+    mocker.patch('app.notifications.validators.redis_store.set')
+
+    # When
+    service = create_service(notify_db, notify_db_session, restricted=True, limit=4)
+    with pytest.raises(TooManyRequestsError):
+        check_service_over_daily_message_limit("normal", service)
+
+    # Then
+    app_statsd.statsd_client.incr.assert_called_once_with("validators.rate.limit.daily")
+
+
+def test_check_service_message_limit_skip_statsd_over_message_no_limit_fails(
+        app_statsd,
+        notify_db,
+        notify_db_session,
+        mocker):
+    # Given
+    mocker.patch('app.redis_store.get', return_value=0)
+    mocker.patch('app.notifications.validators.redis_store.set')
+
+    # When
+    service = create_service(notify_db, notify_db_session, restricted=True, limit=4)
+    check_service_over_daily_message_limit("normal", service)
+
+    # Then
+    app_statsd.statsd_client.incr.assert_not_called()
+
+
 @pytest.mark.parametrize('template_type, notification_type',
                          [(EMAIL_TYPE, EMAIL_TYPE),
                           (SMS_TYPE, SMS_TYPE)])
