@@ -203,9 +203,8 @@ def test_post_sms_schema_id_type_should_only_use_enum_values(id_type):
         assert len(error.keys()) == 2
         assert error.get('status_code') == 400
         assert len(error.get('errors')) == 1
-        assert {
-            'error': 'ValidationError',
-            'message': "recipient_identifier INVALID is not one of [VAPROFILEID, PID, ICN, BIRLSID]"} in error['errors']
+        assert 'ValidationError' in error['errors'][0]['error']
+        assert f"recipient_identifier {id_type} is not one of " in error['errors'][0]['message']
 
 
 def test_post_sms_json_schema_bad_uuid_and_missing_phone_number_and_recipient_identifier():
@@ -372,9 +371,8 @@ def test_post_email_schema_id_type_should_only_use_enum_values(id_type):
         assert len(error.keys()) == 2
         assert error.get('status_code') == 400
         assert len(error.get('errors')) == 1
-        assert {
-            'error': 'ValidationError',
-            'message': "recipient_identifier INVALID is not one of [VAPROFILEID, PID, ICN, BIRLSID]"} in error['errors']
+        assert 'ValidationError' in error['errors'][0]['error']
+        assert f"recipient_identifier {id_type} is not one of " in error['errors'][0]['message']
 
 
 def valid_email_response():

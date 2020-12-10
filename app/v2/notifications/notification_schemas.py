@@ -2,10 +2,9 @@ from app.models import (
     NOTIFICATION_STATUS_TYPES,
     NOTIFICATION_STATUS_LETTER_ACCEPTED,
     NOTIFICATION_STATUS_LETTER_RECEIVED,
-    TEMPLATE_TYPES,
-    RECIPIENT_IDENTIFIER_TYPES)
+    TEMPLATE_TYPES)
 from app.schema_validation.definitions import (uuid, personalisation, letter_personalisation)
-
+from app.va import IdentifierType
 
 template = {
     "$schema": "http://json-schema.org/draft-04/schema#",
@@ -129,7 +128,7 @@ get_notifications_response = {
 recipient_identifier = {"type": "object", "properties": {
     "id_type": {
         "type": "string",
-        "enum": RECIPIENT_IDENTIFIER_TYPES
+        "enum": IdentifierType.values()
     },
     "id_value": {
         "type": "string"
