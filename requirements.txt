@@ -44,8 +44,7 @@ awscli-cwlogs>=1.4.6,<1.5
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
 itsdangerous==0.24  # pyup: <1.0.0
 
-#git+https://github.com/cds-snc/notifier-utils.git@43.3.0#egg=notifications-utils
-file:///Users/jimmyroyer/Projects/notification-utils#egg=notifications-utils==43.0.0
+git+https://github.com/cds-snc/notifier-utils.git@43.3.0#egg=notifications-utils
 
 # MLWR
 socketio-client==0.5.6
