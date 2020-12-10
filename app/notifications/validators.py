@@ -34,7 +34,7 @@ def check_service_over_api_rate_limit(service, api_key):
             raise RateLimitError(rate_limit, interval, api_key.key_type)
 
 
-@statsd_catch(namespace="validators", counter_name="rate.limit.daily", exception=TooManyRequestsError)
+@statsd_catch(namespace="validators", counter_name="rate_limit.service_daily", exception=TooManyRequestsError)
 def check_service_over_daily_message_limit(key_type, service):
     if key_type != KEY_TYPE_TEST and current_app.config['REDIS_ENABLED']:
         cache_key = daily_limit_cache_key(service.id)
