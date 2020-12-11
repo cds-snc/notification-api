@@ -156,7 +156,7 @@ def test_check_service_message_limit_sends_statsd_over_message_limit_fails(
         check_service_over_daily_message_limit("normal", service)
 
     # Then
-    app_statsd.statsd_client.incr.assert_called_once_with("validators.rate.limit.daily")
+    app_statsd.statsd_client.incr.assert_called_once_with("validators.rate_limit.service_daily")
 
 
 def test_check_service_message_limit_skip_statsd_over_message_no_limit_fails(
