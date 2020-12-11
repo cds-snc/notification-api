@@ -267,6 +267,10 @@ scripts/run_celery_beat.sh
 ---
 
 ## Running in Docker
+Make sure to copy over the .docker-env.example file and fill in the values.
+
+When building the docker image for the first time, run `docker-compose -f ci/docker-compose-local.yml build app`
+
 To run all the tests
 `docker-compose -f ci/docker-compose-test.yml up --build --abort-on-container-exit`
 
