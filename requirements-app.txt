@@ -14,6 +14,7 @@ click-datetime==0.2
 eventlet==0.28.0
 gunicorn==20.0.4  # pyup: ignore, >19.8 breaks eventlet patching
 iso8601==0.1.13
+idna==2.8 # pinned to align with test moto dependency requirements
 jsonschema==3.2.0
 marshmallow-sqlalchemy==0.23.1
 marshmallow==2.21.0
@@ -53,6 +54,3 @@ pycryptodome
 git+https://bitbucket.org/cse-assemblyline/assemblyline_client.git@v3.7.3#egg=assemblyline_client==v3.7.3
 
 rsa>=4.1 # not directly required, pinned by Snyk to avoid a vulnerability
-
-# Pinned down for moto 1.3.14 test dependency
-idna==2.8
