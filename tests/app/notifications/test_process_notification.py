@@ -242,21 +242,24 @@ def test_persist_notification_increments_cache_if_key_exists(sample_template, sa
 
 
 @pytest.mark.parametrize((
-    'research_mode, requested_queue, notification_type, key_type, expected_queue, expected_task'
+    'research_mode, requested_queue, notification_type, key_type, reply_to_text, expected_queue, expected_task'
 ), [
-    (True, None, 'sms', 'normal', 'research-mode-tasks', 'provider_tasks.deliver_sms'),
-    (True, None, 'email', 'normal', 'research-mode-tasks', 'provider_tasks.deliver_email'),
-    (True, None, 'email', 'team', 'research-mode-tasks', 'provider_tasks.deliver_email'),
-    (True, None, 'letter', 'normal', 'research-mode-tasks', 'letters_pdf_tasks.create_letters_pdf'),
-    (False, None, 'sms', 'normal', 'send-sms-tasks', 'provider_tasks.deliver_sms'),
-    (False, None, 'email', 'normal', 'send-email-tasks', 'provider_tasks.deliver_email'),
-    (False, None, 'sms', 'team', 'send-sms-tasks', 'provider_tasks.deliver_sms'),
-    (False, None, 'letter', 'normal', 'create-letters-pdf-tasks', 'letters_pdf_tasks.create_letters_pdf'),
-    (False, None, 'sms', 'test', 'research-mode-tasks', 'provider_tasks.deliver_sms'),
-    (True, 'notify-internal-tasks', 'email', 'normal', 'research-mode-tasks', 'provider_tasks.deliver_email'),
-    (False, 'notify-internal-tasks', 'sms', 'normal', 'notify-internal-tasks', 'provider_tasks.deliver_sms'),
-    (False, 'notify-internal-tasks', 'email', 'normal', 'notify-internal-tasks', 'provider_tasks.deliver_email'),
-    (False, 'notify-internal-tasks', 'sms', 'test', 'research-mode-tasks', 'provider_tasks.deliver_sms'),
+    (True, None, 'sms', 'normal', None, 'research-mode-tasks', 'deliver_sms'),
+    (True, None, 'email', 'normal', None, 'research-mode-tasks', 'deliver_email'),
+    (True, None, 'email', 'team', None, 'research-mode-tasks', 'deliver_email'),
+    (True, None, 'letter', 'normal', None, 'research-mode-tasks', 'letters_pdf_tasks.create_letters_pdf'),
+    (True, None, 'sms', 'normal', '+14383898585', 'research-mode-tasks', 'deliver_throttled_sms'),
+    (False, None, 'sms', 'normal', None, 'send-sms-tasks', 'deliver_sms'),
+    (False, None, 'email', 'normal', None, 'send-email-tasks', 'deliver_email'),
+    (False, None, 'sms', 'team', None, 'send-sms-tasks', 'deliver_sms'),
+    (False, None, 'letter', 'normal', None, 'create-letters-pdf-tasks', 'letters_pdf_tasks.create_letters_pdf'),
+    (False, None, 'sms', 'test', None, 'research-mode-tasks', 'deliver_sms'),
+    (False, None, 'sms', 'normal', '+14383898585', 'send-throttled-sms-tasks', 'deliver_throttled_sms'),
+    (True, 'notify-internal-tasks', 'email', 'normal', None, 'research-mode-tasks', 'deliver_email'),
+    (False, 'notify-internal-tasks', 'sms', 'normal', None, 'notify-internal-tasks', 'deliver_sms'),
+    (False, 'notify-internal-tasks', 'email', 'normal', None, 'notify-internal-tasks', 'deliver_email'),
+    (False, 'notify-internal-tasks', 'sms', 'test', None, 'research-mode-tasks', 'deliver_sms'),
+    (False, 'notify-internal-tasks', 'sms', 'normal', '+14383898585', 'notify-internal-tasks', 'deliver_throttled_sms'),
 ])
 def test_send_notification_to_queue(
     notify_db,
@@ -265,17 +268,24 @@ def test_send_notification_to_queue(
     requested_queue,
     notification_type,
     key_type,
+    reply_to_text,
     expected_queue,
     expected_task,
     mocker,
 ):
-    mocked = mocker.patch('app.celery.{}.apply_async'.format(expected_task))
-    Notification = namedtuple('Notification', ['id', 'key_type', 'notification_type', 'created_at'])
+    if '.' not in expected_task:
+        expected_task = f'provider_tasks.{expected_task}'
+    mocked = mocker.patch(f'app.celery.{expected_task}.apply_async')
+    Notification = namedtuple(
+        'Notification',
+        ['id', 'key_type', 'notification_type', 'reply_to_text', 'created_at']
+    )
     notification = Notification(
         id=uuid.uuid4(),
         key_type=key_type,
         notification_type=notification_type,
         created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+        reply_to_text=reply_to_text,
     )
 
     send_notification_to_queue(notification=notification, research_mode=research_mode, queue=requested_queue)
