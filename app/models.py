@@ -1733,15 +1733,12 @@ class ScheduledNotification(db.Model):
     pending = db.Column(db.Boolean, nullable=False, default=True)
 
 
-RECIPIENT_IDENTIFIER_TYPES = IdentifierType.values()
-
-
 class RecipientIdentifier(db.Model):
     __tablename__ = 'recipient_identifiers'
     notification_id = db.Column(UUID(as_uuid=True), db.ForeignKey('notifications.id', ondelete="cascade"),
                                 primary_key=True, nullable=False)
     id_type = db.Column(
-        db.Enum(*RECIPIENT_IDENTIFIER_TYPES, name='id_types'),
+        db.Enum(*IdentifierType.values(), name='id_types'),
         primary_key=True,
         nullable=False,
         default=IdentifierType.VA_PROFILE_ID.value)

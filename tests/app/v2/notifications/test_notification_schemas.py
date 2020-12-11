@@ -5,7 +5,7 @@ from flask import json
 from freezegun import freeze_time
 from jsonschema import ValidationError
 
-from app.models import NOTIFICATION_CREATED, EMAIL_TYPE, RECIPIENT_IDENTIFIER_TYPES
+from app.models import NOTIFICATION_CREATED, EMAIL_TYPE
 from app.schema_validation import validate
 from app.v2.notifications.notification_schemas import (
     get_notifications_request,
@@ -185,7 +185,7 @@ def test_post_sms_json_schema_missing_recipient_identifier_required_fields(recip
                 'message': "recipient_identifier " + key_name + " is a required property"} in error['errors']
 
 
-@pytest.mark.parametrize("id_type", RECIPIENT_IDENTIFIER_TYPES + ["INVALID"])
+@pytest.mark.parametrize("id_type", IdentifierType.values() + ["INVALID"])
 def test_post_sms_schema_id_type_should_only_use_enum_values(id_type):
     id_type_as_parameter_json = {
         "recipient_identifier": {
@@ -194,7 +194,7 @@ def test_post_sms_schema_id_type_should_only_use_enum_values(id_type):
         },
         "template_id": str(uuid.uuid4())
     }
-    if id_type in RECIPIENT_IDENTIFIER_TYPES:
+    if id_type in IdentifierType.values():
         assert validate(id_type_as_parameter_json, post_sms_request_schema) == id_type_as_parameter_json
     else:
         with pytest.raises(ValidationError) as e:
@@ -353,7 +353,7 @@ def test_post_email_json_schema_missing_recipient_identifier_required_fields(rec
                 'message': "recipient_identifier " + key_name + " is a required property"} in error['errors']
 
 
-@pytest.mark.parametrize("id_type", RECIPIENT_IDENTIFIER_TYPES + ["INVALID"])
+@pytest.mark.parametrize("id_type", IdentifierType.values() + ["INVALID"])
 def test_post_email_schema_id_type_should_only_use_enum_values(id_type):
     id_type_as_parameter_json = {
         "recipient_identifier": {
@@ -362,7 +362,7 @@ def test_post_email_schema_id_type_should_only_use_enum_values(id_type):
         },
         "template_id": str(uuid.uuid4())
     }
-    if id_type in RECIPIENT_IDENTIFIER_TYPES:
+    if id_type in IdentifierType.values():
         assert validate(id_type_as_parameter_json, post_email_request_schema) == id_type_as_parameter_json
     else:
         with pytest.raises(ValidationError) as e:
