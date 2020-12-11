@@ -1,7 +1,6 @@
 import pytest
 import time
 
-from app.va import IdentifierType
 from steps import get_notification_url
 from steps import get_api_health_status
 from steps import get_authenticated_request
@@ -149,5 +148,5 @@ def test_send_email_with_icn(environment, notification_url, service_id, service_
     assert notification_status_response.json()['email_address'] is not None
 
     found_va_profile_ids = [identifier for identifier in notification_status_response.json()['recipient_identifiers']
-                            if identifier['id_type'] == IdentifierType.VA_PROFILE_ID.value]
+                            if identifier['id_type'] == 'VAPROFILEID']
     assert len(found_va_profile_ids) == 1

@@ -4,8 +4,6 @@ import jwt
 import time
 import boto3
 
-from app.va import IdentifierType
-
 client = boto3.client('ssm')
 
 
@@ -177,7 +175,7 @@ def send_email_with_va_profile_id(notification_url, service_jwt, template_id):
     payload = json.dumps({
         "template_id": template_id,
         "recipient_identifier": {
-            "id_type": IdentifierType.VA_PROFILE_ID.value,
+            "id_type": 'VAPROFILEID',
             "id_value": "1243"
         },
         "personalisation": {
@@ -193,7 +191,7 @@ def send_email_with_icn(notification_url, service_jwt, template_id):
     payload = json.dumps({
         "template_id": template_id,
         "recipient_identifier": {
-            "id_type": IdentifierType.ICN.value,
+            "id_type": 'ICN',
             "id_value": "1008794780V325793"
         },
         "personalisation": {
