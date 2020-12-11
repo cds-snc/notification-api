@@ -72,7 +72,10 @@ from app.models import (
     SMS_TYPE,
     DailySortedLetter,
 )
-from app.notifications.process_notifications import persist_notification
+from app.notifications.process_notifications import (
+    persist_notification,
+    send_notification_to_queue,
+)
 from app.service.utils import service_allowed_to_send_to
 from app.utils import get_csv_max_rows
 
@@ -225,10 +228,7 @@ def save_sms(self,
             reply_to_text=reply_to_text
         )
 
-        provider_tasks.deliver_sms.apply_async(
-            [str(saved_notification.id)],
-            queue=QueueNames.SEND_SMS if not service.research_mode else QueueNames.RESEARCH_MODE
-        )
+        send_notification_to_queue(saved_notification, service.research_mode)
 
         current_app.logger.debug(
             "SMS {} created at {} for job {}".format(
@@ -279,10 +279,7 @@ def save_email(self,
             reply_to_text=reply_to_text
         )
 
-        provider_tasks.deliver_email.apply_async(
-            [str(saved_notification.id)],
-            queue=QueueNames.SEND_EMAIL if not service.research_mode else QueueNames.RESEARCH_MODE
-        )
+        send_notification_to_queue(saved_notification, service.research_mode)
 
         current_app.logger.debug("Email {} created at {}".format(saved_notification.id, saved_notification.created_at))
     except SQLAlchemyError as e:
@@ -329,10 +326,7 @@ def save_letter(
         )
 
         if not service.research_mode:
-            letters_pdf_tasks.create_letters_pdf.apply_async(
-                [str(saved_notification.id)],
-                queue=QueueNames.CREATE_LETTERS_PDF
-            )
+            send_notification_to_queue(saved_notification, service.research_mode)
         elif current_app.config['NOTIFY_ENVIRONMENT'] in ['preview', 'development']:
             research_mode_tasks.create_fake_letter_response_file.apply_async(
                 (saved_notification.reference,),
