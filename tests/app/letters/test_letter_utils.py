@@ -200,6 +200,7 @@ def test_get_letter_pdf_gets_pdf_from_correct_bucket(
     assert ret == b'pdf_content'
 
 
+@freeze_time("2020-12-11 17:31:00")
 @pytest.mark.parametrize('is_precompiled_letter,bucket_config_name', [
     (False, 'LETTERS_PDF_BUCKET_NAME'),
     (True, 'LETTERS_SCAN_BUCKET_NAME')
