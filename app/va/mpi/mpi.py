@@ -19,7 +19,7 @@ class MpiClient:
         IdentifierType.ICN: "^NI^200M^USVHA",
         IdentifierType.PID: "^PI^200CORP^USVBA",
         IdentifierType.VA_PROFILE_ID: "^PI^200VETS^USDVA",
-        IdentifierType.BIRLSID: "^PI^200BRLS^USDVA"
+        IdentifierType.BIRLSID: "^PI^200BRLS^USVBA"
     }
 
     def init_app(self, logger, url, ssl_cert_path, ssl_key_path, statsd_client):
