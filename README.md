@@ -188,3 +188,4 @@ __Solution__: Do not specify a database in your `.env`
 __Problem__: Messages are in the queue but not sending
 
 __Solution__: Check that `celery` is running. 
+
