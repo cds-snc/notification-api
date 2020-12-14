@@ -1,3 +1,5 @@
+import pytest
+
 from datetime import datetime
 
 from freezegun import freeze_time
@@ -6,6 +8,13 @@ from app import statsd_client
 from app.celery.process_sns_receipts_tasks import process_sns_results
 from app.notifications.callbacks import create_delivery_status_callback_data
 from app.dao.notifications_dao import get_notification_by_id
+from app.models import (
+    NOTIFICATION_SENT,
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_TEMPORARY_FAILURE,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_TECHNICAL_FAILURE,
+)
 from tests.app.db import (
     create_service_callback_api,
     sns_success_callback,
@@ -23,37 +32,54 @@ def test_process_sns_results_delivered(sample_template, notify_db, notify_db_ses
         notify_db_session,
         template=sample_template,
         reference='ref',
-        status='sent',
+        status=NOTIFICATION_SENT,
         sent_by='sns',
         sent_at=datetime.utcnow()
     )
-    assert get_notification_by_id(notification.id).status == 'sent'
+    assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
     assert process_sns_results(sns_success_callback(reference='ref'))
-    assert get_notification_by_id(notification.id).status == 'delivered'
+    assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
 
     mock_logger.assert_called_once_with(f'SNS callback return status of delivered for notification: {notification.id}')
 
 
-def test_process_sns_results_failed(sample_template, notify_db, notify_db_session, mocker):
+@pytest.mark.parametrize("provider_response,expected_status,should_log_warning", [
+    ("Blocked as spam by phone carrier", NOTIFICATION_TECHNICAL_FAILURE, False),
+    ('Phone carrier is currently unreachable/unavailable', NOTIFICATION_TEMPORARY_FAILURE, False),
+    ('Phone is currently unreachable/unavailable', NOTIFICATION_PERMANENT_FAILURE, False),
+    ("This is not a real response", NOTIFICATION_TECHNICAL_FAILURE, True),
+])
+def test_process_sns_results_failed(
+    sample_template,
+    notify_db,
+    notify_db_session,
+    mocker,
+    provider_response,
+    expected_status,
+    should_log_warning,
+):
     mock_logger = mocker.patch('app.celery.process_sns_receipts_tasks.current_app.logger.info')
+    mock_warning_logger = mocker.patch('app.celery.process_sns_receipts_tasks.current_app.logger.warning')
 
     notification = create_sample_notification(
         notify_db,
         notify_db_session,
         template=sample_template,
         reference='ref',
-        status='sent',
+        status=NOTIFICATION_SENT,
         sent_by='sns',
         sent_at=datetime.utcnow()
     )
-    assert get_notification_by_id(notification.id).status == 'sent'
-    assert process_sns_results(sns_failed_callback(reference='ref'))
-    assert get_notification_by_id(notification.id).status == 'failed'
+    assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
+    assert process_sns_results(sns_failed_callback(provider_response=provider_response, reference='ref'))
+    assert get_notification_by_id(notification.id).status == expected_status
 
     mock_logger.assert_called_once_with((
         f'SNS delivery failed: notification id {notification.id} and reference ref has error found. '
-        'Provider response: Unknown error attempting to reach phone'
+        f'Provider response: {provider_response}'
     ))
+
+    assert mock_warning_logger.call_count == int(should_log_warning)
 
 
 def test_sns_callback_should_retry_if_notification_is_new(mocker):
@@ -91,7 +117,7 @@ def test_process_sns_results_retry_called(sample_template, mocker):
         sample_template,
         reference='ref1',
         sent_at=datetime.utcnow(),
-        status='sent',
+        status=NOTIFICATION_SENT,
         sent_by='sns'
     )
 
@@ -108,7 +134,7 @@ def test_process_sns_results_does_not_process_other_providers(sample_template, m
         sample_template,
         reference='ref1',
         sent_at=datetime.utcnow(),
-        status='sent',
+        status=NOTIFICATION_SENT,
         sent_by='pinpoint'
     )
 
@@ -134,7 +160,7 @@ def test_process_sns_results_calls_service_callback(
             notify_db_session,
             template=sample_template,
             reference='ref',
-            status='sent',
+            status=NOTIFICATION_SENT,
             sent_by='sns',
             sent_at=datetime.utcnow()
         )
@@ -142,10 +168,10 @@ def test_process_sns_results_calls_service_callback(
             service=sample_template.service,
             url="https://example.com"
         )
-        assert get_notification_by_id(notification.id).status == 'sent'
+        assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
 
         assert process_sns_results(sns_success_callback(reference='ref'))
-        assert get_notification_by_id(notification.id).status == 'delivered'
+        assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
         statsd_client.timing_with_dates.assert_any_call(
             "callback.sns.elapsed-time", datetime.utcnow(), notification.sent_at
         )

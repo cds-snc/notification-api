@@ -975,7 +975,7 @@ def sns_success_callback(reference=None, timestamp="2016-06-28 00:40:34.558"):
     return _sns_callback(body)
 
 
-def sns_failed_callback(reference=None, timestamp="2016-06-28 00:40:34.558"):
+def sns_failed_callback(provider_response, reference=None, timestamp="2016-06-28 00:40:34.558"):
     # Payload details: https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html
     body = {
         "notification": {
@@ -988,7 +988,7 @@ def sns_failed_callback(reference=None, timestamp="2016-06-28 00:40:34.558"):
             "priceInUSD": 0.00645,
             "smsType": "Transactional",
             "mcc": 0,
-            "providerResponse": "Unknown error attempting to reach phone",
+            "providerResponse": provider_response,
             "dwellTimeMs": 1420,
             "dwellTimeMsUntilDeviceAck": 1692
         },
