@@ -7,6 +7,7 @@ from notifications_utils.recipients import (
     get_international_phone_info
 )
 from notifications_utils.clients.redis import rate_limit_cache_key, daily_limit_cache_key
+from notifications_utils.statsd_decorators import statsd_catch
 
 from app.dao import services_dao, templates_dao
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
@@ -33,6 +34,7 @@ def check_service_over_api_rate_limit(service, api_key):
             raise RateLimitError(rate_limit, interval, api_key.key_type)
 
 
+@statsd_catch(namespace="validators", counter_name="rate_limit.service_daily", exception=TooManyRequestsError)
 def check_service_over_daily_message_limit(key_type, service):
     if key_type != KEY_TYPE_TEST and current_app.config['REDIS_ENABLED']:
         cache_key = daily_limit_cache_key(service.id)

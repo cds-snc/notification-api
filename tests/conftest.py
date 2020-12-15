@@ -46,7 +46,6 @@ def client(notify_api):
 
 
 def create_test_db(database_uri):
-    # get the
     db_uri_parts = database_uri.split('/')
     postgres_db_uri = '/'.join(db_uri_parts[:-1] + ['postgres'])
 

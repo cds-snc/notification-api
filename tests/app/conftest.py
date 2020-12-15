@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import pytest
 import pytz
 import requests_mock
+
 from flask import current_app, url_for
 from sqlalchemy import asc
 from sqlalchemy.orm.session import make_transient
@@ -1217,6 +1218,17 @@ def admin_request(client):
             return json_resp
 
     return AdminRequest
+
+
+@pytest.fixture(scope='function')
+def app_statsd(mocker):
+    current_app.config['NOTIFY_ENVIRONMENT'] = "test"
+    current_app.config['NOTIFY_APP_NAME'] = "api"
+    current_app.config['STATSD_HOST'] = "localhost"
+    current_app.config['STATSD_PORT'] = "8000"
+    current_app.config['STATSD_PREFIX'] = "prefix"
+    current_app.statsd_client = mocker.Mock()
+    return current_app
 
 
 def datetime_in_past(days=0, seconds=0):
