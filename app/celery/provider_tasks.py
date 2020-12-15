@@ -12,6 +12,11 @@ from app.exceptions import NotificationTechnicalFailureException, MalwarePending
 from app.models import NOTIFICATION_TECHNICAL_FAILURE
 
 
+# Celery rate limits are per worker instance and not a global rate limit.
+# https://docs.celeryproject.org/en/stable/userguide/tasks.html#Task.rate_limit
+# This task is dispatched through the `send-throttled-sms-tasks`
+# queue. This queue is consumed by 1 Celery instance
+# with 1 worker, the SMS Celery pod.
 @notify_celery.task(
     bind=True,
     name="deliver_throttled_sms",
@@ -24,11 +29,19 @@ def deliver_throttled_sms(self, notification_id):
     _deliver_sms(self, notification_id)
 
 
+# Celery rate limits are per worker instance and not a global rate limit.
+# https://docs.celeryproject.org/en/stable/userguide/tasks.html#Task.rate_limit
+# This task is dispatched through the `send-sms-tasks`
+# queue. This queue is consumed by 6 Celery instances
+# with 4 workers in production.
+# The maximum throughput is therefore 6*4 = 24 tasks per second
+# with a rate limit of 1/s
 @notify_celery.task(
     bind=True,
     name="deliver_sms",
     max_retries=48,
     default_retry_delay=300,
+    rate_limit="1/s",
 )
 @statsd(namespace="tasks")
 def deliver_sms(self, notification_id):
