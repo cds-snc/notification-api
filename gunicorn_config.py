@@ -15,7 +15,9 @@ accesslog = '-'
 # to be larger than the idle timeout configured for the load balancer.
 # > By default, Elastic Load Balancing sets the idle timeout value for your load balancer to 60 seconds.
 # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html#connection-idle-timeout
-if os.environ.get("NOTIFY_ENVIRONMENT", "") == "production":
+in_production = os.environ.get("NOTIFY_ENVIRONMENT", "") == "production"
+feature_increased_keepalive = os.environ.get("FEATURE_INCREASED_KEEPALIVE", "") == "true"
+if in_production and feature_increased_keepalive:
     keepalive = 75
 
 
