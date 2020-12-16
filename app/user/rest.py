@@ -473,15 +473,9 @@ def send_new_registration_data(user_id):
 
     ticket = {
         'product_id': 61000000046,
-<<<<<<< HEAD
         'subject': f"{data['email']} just signed up to Notify!",
         'description': data['message'],
         'email': f"name: {data['name']}, email: {data['email']}, date: {data['date']}",
-=======
-        'subject': data["support_type"] if "support_type" in data else "Support Request",
-        'description': data['message'],
-        'email': data["email"],
->>>>>>> 191b4e75... update test cases
         'priority': 1,
         'status': 2,
     }
