@@ -49,6 +49,10 @@ class VAProfileClient:
             else:
                 raise VAProfileNonRetryableException(str(e)) from e
 
+        except requests.RequestException as e:
+            self.statsd_client.incr(f"clients.va-profile.error.request_exception")
+            raise VAProfileRetryableException(f"VA Profile returned {str(e)} while querying for VA Profile ID") from e
+
         else:
             response_status = response.json()['status']
             if response_status != self.SUCCESS_STATUS:
