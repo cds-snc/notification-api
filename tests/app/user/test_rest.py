@@ -758,7 +758,7 @@ def test_send_already_registered_email_returns_400_when_data_is_missing(client, 
     assert json.loads(resp.get_data(as_text=True))['message'] == {'email': ['Missing data for required field.']}
 
 
-def test_send_new_registration_data_email(client, sample_user, contact_us_template, mocker):
+def test_send_new_registration_data(client, sample_user, contact_us_template, mocker):
     data = json.dumps({'name': sample_user.name, 'email': sample_user.email_address, 'date': '2020-01-01 12:00:00'})
     auth_header = create_authorization_header()
     mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
