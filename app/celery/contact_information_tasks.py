@@ -3,10 +3,10 @@ from notifications_utils.statsd_decorators import statsd
 
 from app import notify_celery, va_profile_client
 from app.va import IdentifierType
-from app.va.va_profile import VAProfileRetryableException, VAProfileNonRetryableException
+from app.va.va_profile import VAProfileRetryableException, VAProfileNonRetryableException, NoContactInfoException
 from app.config import QueueNames
 from app.dao.notifications_dao import get_notification_by_id, dao_update_notification, update_notification_status_by_id
-from app.models import NOTIFICATION_TECHNICAL_FAILURE
+from app.models import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
 from app.exceptions import NotificationTechnicalFailureException
 
 
@@ -32,6 +32,13 @@ def lookup_contact_info(self, notification_id):
                       "Notification has been updated to technical-failure"
             update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
             raise NotificationTechnicalFailureException(message) from e
+
+    except NoContactInfoException as e:
+        message = f"{str(e)}: VA Profile could not retrieve the contact information for {notification_id}. " \
+                  "Stopping execution of following tasks. Notification has been updated to permanent-failure."
+        current_app.logger.warning(message)
+        self.request.chain = None
+        update_notification_status_by_id(notification_id, NOTIFICATION_PERMANENT_FAILURE)
 
     except VAProfileNonRetryableException as e:
         current_app.logger.exception(e)
