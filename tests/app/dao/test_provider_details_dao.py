@@ -173,9 +173,9 @@ def set_primary_sms_provider(identifier):
     dao_update_provider_details(secondary_provider)
 
 
-def test_can_get_sms_non_international_providers(restore_provider_details):
+def test_can_get_sms_all_providers(restore_provider_details):
     sms_providers = get_provider_details_by_notification_type('sms')
-    assert len(sms_providers) == 5
+    assert len(sms_providers) == 6
     assert all('sms' == prov.notification_type for prov in sms_providers)
 
 
