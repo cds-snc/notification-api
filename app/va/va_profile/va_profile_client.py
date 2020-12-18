@@ -44,7 +44,7 @@ class VAProfileClient:
         except requests.HTTPError as e:
             self.logger.exception(e)
             self.statsd_client.incr(f"clients.va-profile.error.{e.response.status_code}")
-            if e.response.status_code in [429, 500]:
+            if e.response.status_code in [429, 500, 502, 503, 504]:
                 raise VAProfileRetryableException(str(e)) from e
             else:
                 raise VAProfileNonRetryableException(str(e)) from e
