@@ -86,7 +86,7 @@
         ],
         "command": ["sh", "-c", "/app/scripts/run_celery.sh"],
         "healthCheck": {
-            "command": ["CMD", "sh", "-c", "./scripts/check_celery.sh || exit 1"],
+            "command": ["CMD", "sh", "-c", "./scripts/check_celery.sh"],
             "interval": 30,
             "retries": 5,
             "timeout": 10
