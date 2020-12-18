@@ -438,7 +438,7 @@ def send_already_registered_email(user_id):
  
 
 @user_blueprint.route('/<uuid:user_id>/new-registration-data', methods=['POST'])
-def send_new_registration_data_email(user_id):
+def send_new_registration_data(user_id):
     data, errors = new_registration_user_data_schema.load(request.get_json())
 
     API_URL = current_app.config['FRESH_DESK_API_URL']
