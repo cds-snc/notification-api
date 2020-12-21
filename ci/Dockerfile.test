@@ -8,7 +8,10 @@ RUN set -ex && mkdir /app
 COPY requirements_for_test.txt /app/requirements_for_test.txt
 COPY requirements.txt /app/requirements.txt
 WORKDIR /app
-RUN pip install -r requirements_for_test.txt --use-deprecated=legacy-resolver
+RUN pip install -r requirements_for_test.txt --use-deprecated=legacy-resolver \
+    && rm -rf /usr/local/lib/python3.6/site-packages/Crypto/SelfTest/PublicKey/test_vectors/ECC/*\.pem \
+    && rm -rf /usr/local/lib/python3.6/site-packages/Crypto/SelfTest/PublicKey/test_vectors/RSA/*\.pem \
+    && rm -rf /usr/local/lib/python3.6/site-packages/future/backports/test/*\.pem
 
 COPY . /app
 CMD ["sh", "-c", "make test"]
