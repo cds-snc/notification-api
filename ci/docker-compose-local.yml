@@ -48,6 +48,11 @@ services:
       - app
       - localstack
       - mountebank
+    healthcheck:
+      test: ["CMD", "sh", "-c", "./scripts/check_celery.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
   mountebank:
     container_name: mountebank
     image: bbyars/mountebank:latest
