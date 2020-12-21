@@ -451,21 +451,8 @@ def send_new_registration_data(user_id):
         'priority': 1,
         'status': 2,
     }
+    return _create_fresh_desk_ticket(user_id, ticket)
 
-    response = requests.post(
-        "{}/api/v2/tickets".format(API_URL),
-        json=ticket,
-        auth=HTTPBasicAuth(API_KEY, "x")
-    )
-
-    if response.status_code != 201:
-        print("Failed to create ticket, errors are displayed below")
-        content = json.loads(response.content)
-        print(content["errors"])
-        print("x-request-id : {}".format(content.headers['x-request-id']))
-        print("Status Code : {}".format(str(content.status_code)))
-
-    return jsonify({"status_code": response.status_code}), 204
 
 @user_blueprint.route('/<uuid:user_id>/new-registration-data', methods=['POST'])
 def send_new_registration_data(user_id):
