@@ -34,7 +34,8 @@ def lookup_contact_info(self, notification_id):
             raise NotificationTechnicalFailureException(message) from e
 
     except NoContactInfoException as e:
-        message = f"{str(e)}: VA Profile could not retrieve the contact information for {notification_id}. " \
+        message = f"{e.__class__.__name__} - {str(e)}: " \
+                  f"Can't proceed after querying VA Profile for contact information for {notification_id}. " \
                   "Stopping execution of following tasks. Notification has been updated to permanent-failure."
         current_app.logger.warning(message)
         self.request.chain = None

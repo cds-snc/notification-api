@@ -80,7 +80,7 @@ class MpiClient:
             raise MpiRetryableException(message) from e
         else:
             self._validate_response(response.json(), notification_id, fhir_identifier)
-            self._assert_not_deceased(response.json())
+            self._assert_not_deceased(response.json(), fhir_identifier)
             return response.json()
         finally:
             elapsed_time = monotonic() - start_time
@@ -110,7 +110,9 @@ class MpiClient:
             self.statsd_client.incr("clients.mpi.error")
             raise MpiNonRetryableException(error_message)
 
-    def _assert_not_deceased(self, response_json):
+    def _assert_not_deceased(self, response_json, fhir_identifier):
         if response_json.get('deceasedDateTime'):
             self.statsd_client.incr("clients.mpi.beneficiary_deceased")
-            raise BeneficiaryDeceasedException()
+            raise BeneficiaryDeceasedException(
+                f"Beneficiary deceased for identifier: {fhir_identifier}"
+            )

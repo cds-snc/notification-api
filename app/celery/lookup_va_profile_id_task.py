@@ -43,7 +43,8 @@ def lookup_va_profile_id(self, notification_id):
             raise NotificationTechnicalFailureException(message) from e
 
     except (BeneficiaryDeceasedException, IdentifierNotFound, MultipleActiveVaProfileIdsException) as e:
-        message = f"{str(e)}: MPI did not retrieve a VA Profile ID for {notification_id}. " \
+        message = f"{e.__class__.__name__} - {str(e)}: " \
+                  f"Can't proceed after querying MPI for VA Profile ID for {notification_id}. " \
                   "Stopping execution of following tasks. Notification has been updated to permanent-failure."
         current_app.logger.warning(message)
         self.request.chain = None
