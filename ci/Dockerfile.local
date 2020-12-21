@@ -10,7 +10,10 @@ WORKDIR /app
 
 COPY --chown=vanotify requirements.txt /app/requirements.txt
 
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt \
+    && rm -rf /usr/local/lib/python3.6/site-packages/Crypto/SelfTest/PublicKey/test_vectors/ECC/*\.pem \
+    && rm -rf /usr/local/lib/python3.6/site-packages/Crypto/SelfTest/PublicKey/test_vectors/RSA/*\.pem \
+    && rm -rf /usr/local/lib/python3.6/site-packages/future/backports/test/*\.pem
 
 USER vanotify
 

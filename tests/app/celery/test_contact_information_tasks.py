@@ -4,10 +4,11 @@ import pytest
 
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import Notification, RecipientIdentifier, Service, NOTIFICATION_TECHNICAL_FAILURE
+from app.models import Notification, RecipientIdentifier, Service, NOTIFICATION_TECHNICAL_FAILURE, \
+    NOTIFICATION_PERMANENT_FAILURE
 from app.va import IdentifierType
 from app.va.va_profile import VAProfileClient, VAProfileNonRetryableException, \
-    VAProfileRetryableException
+    VAProfileRetryableException, NoContactInfoException
 
 EXAMPLE_VA_PROFILE_ID = '135'
 
@@ -136,3 +137,38 @@ def test_should_update_notification_to_technical_failure_on_max_retries(client, 
     mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
 
     mocked_update_notification_status_by_id.assert_called_with(notification.id, NOTIFICATION_TECHNICAL_FAILURE)
+
+
+def test_should_update_notification_to_permanent_failure_on_no_contact_info_exception(client, mocker, notification):
+    mocker.patch(
+        'app.celery.contact_information_tasks.get_notification_by_id',
+        return_value=notification
+    )
+
+    mocked_va_profile_client = mocker.Mock(VAProfileClient)
+    mocked_va_profile_client.get_email = mocker.Mock(side_effect=NoContactInfoException('some error'))
+    mocker.patch(
+        'app.celery.contact_information_tasks.va_profile_client',
+        new=mocked_va_profile_client
+    )
+
+    mocked_update_notification_status_by_id = mocker.patch(
+        'app.celery.contact_information_tasks.update_notification_status_by_id'
+    )
+
+    mocked_request = mocker.Mock()
+    mocked_chain = mocker.PropertyMock()
+    mocked_chain.return_value = ['some-task-to-be-executed-next']
+    type(mocked_request).chain = mocked_chain
+    mocker.patch(
+        'celery.app.task.Task.request',
+        new=mocked_request
+    )
+
+    lookup_contact_info(notification.id)
+
+    mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
+
+    mocked_update_notification_status_by_id.assert_called_with(notification.id, NOTIFICATION_PERMANENT_FAILURE)
+
+    mocked_chain.assert_called_with(None)

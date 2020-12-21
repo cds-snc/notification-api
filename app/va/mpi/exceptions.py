@@ -14,11 +14,11 @@ class UnsupportedIdentifierException(MpiNonRetryableException):
     pass
 
 
-class IdentifierNotFound(MpiNonRetryableException):
+class IncorrectNumberOfIdentifiersException(MpiNonRetryableException):
     pass
 
 
-class IncorrectNumberOfIdentifiersException(MpiNonRetryableException):
+class IdentifierNotFound(MpiNonRetryableException):
     pass
 
 
