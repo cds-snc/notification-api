@@ -562,6 +562,7 @@ class EmailDataSchema(ma.Schema):
         except InvalidEmailError as e:
             raise ValidationError(str(e))
 
+
 class NewRegistrationUserDataSchema(ma.Schema):
 
     class Meta:
@@ -584,6 +585,7 @@ class NewRegistrationUserDataSchema(ma.Schema):
             validate_email_address(value)
         except InvalidEmailError as e:
             raise ValidationError(str(e))
+
 
 class SupportEmailDataSchema(ma.Schema):
 

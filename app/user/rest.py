@@ -435,14 +435,11 @@ def send_already_registered_email(user_id):
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
     return jsonify({}), 204
- 
+
 
 @user_blueprint.route('/<uuid:user_id>/new-registration-data', methods=['POST'])
 def send_new_registration_data(user_id):
-    data, errors = new_registration_user_data_schema.load(request.get_json())
-
-    API_URL = current_app.config['FRESH_DESK_API_URL']
-    API_KEY = current_app.config['FRESH_DESK_API_KEY']
+    data, errors = support_email_data_schema.load(request.get_json())
 
     ticket = {
         'product_id': 61000000046,
@@ -452,28 +449,12 @@ def send_new_registration_data(user_id):
         'priority': 1,
         'status': 2,
     }
+    return _create_fresh_desk_ticket(user_id, ticket, errors)
 
-    response = requests.post(
-        "{}/api/v2/tickets".format(API_URL),
-        json=ticket,
-        auth=HTTPBasicAuth(API_KEY, "x")
-    )
-
-    if response.status_code != 201:
-        print("Failed to create ticket, errors are displayed below")
-        content = json.loads(response.content)
-        print(content["errors"])
-        print("x-request-id : {}".format(content.headers['x-request-id']))
-        print("Status Code : {}".format(str(content.status_code)))
-
-    return jsonify({"status_code": response.status_code}), 204
 
 @user_blueprint.route('/<uuid:user_id>/support-email', methods=['POST'])
 def send_support_email(user_id):
-    data, errors = support_email_data_schema.load(request.get_json())
-
-    API_URL = current_app.config['FRESH_DESK_API_URL']
-    API_KEY = current_app.config['FRESH_DESK_API_KEY']
+    data, errors = new_registration_user_data_schema.load(request.get_json())
 
     ticket = {
         'product_id': 61000000046,
@@ -484,20 +465,7 @@ def send_support_email(user_id):
         'status': 2,
     }
 
-    response = requests.post(
-        "{}/api/v2/tickets".format(API_URL),
-        json=ticket,
-        auth=HTTPBasicAuth(API_KEY, "x")
-    )
-
-    if response.status_code != 201:
-        print("Failed to create ticket, errors are displayed below")
-        content = json.loads(response.content)
-        print(content["errors"])
-        print("x-request-id : {}".format(content.headers['x-request-id']))
-        print("Status Code : {}".format(str(content.status_code)))
-
-    return jsonify({"status_code": response.status_code}), 204
+    return _create_fresh_desk_ticket(user_id, ticket, errors)
 
 
 @user_blueprint.route('/<uuid:user_id>/branding-request', methods=['POST'])
@@ -820,3 +788,23 @@ def _update_alert(user_to_update, changes=None):
     )
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+
+
+def _create_fresh_desk_ticket(user_id, ticket, errors):
+    API_URL = current_app.config['FRESH_DESK_API_URL']
+    API_KEY = current_app.config['FRESH_DESK_API_KEY']
+
+    response = requests.post(
+        "{}/api/v2/tickets".format(API_URL),
+        json=ticket,
+        auth=HTTPBasicAuth(API_KEY, "x")
+    )
+
+    if response.status_code != 201:
+        print("Failed to create ticket, errors are displayed below")
+        content = json.loads(response.content)
+        print(content["errors"])
+        print("x-request-id : {}".format(content.headers['x-request-id']))
+        print("Status Code : {}".format(str(content.status_code)))
+
+    return jsonify({"status_code": response.status_code}), 204
