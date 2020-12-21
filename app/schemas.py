@@ -570,6 +570,7 @@ class NewRegistrationUserDataSchema(ma.Schema):
     id = fields.Str(required=True)
     name = fields.Str(required=True)
     email = fields.Str(required=True)
+    message = fields.Str(required=True)
 
     def __init__(self, partial_email=False):
         super().__init__()
