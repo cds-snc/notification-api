@@ -435,7 +435,7 @@ def send_already_registered_email(user_id):
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
     return jsonify({}), 204
- 
+
 
 @user_blueprint.route('/<uuid:user_id>/new-registration-data', methods=['POST'])
 def send_new_registration_data(user_id):
@@ -451,7 +451,7 @@ def send_new_registration_data(user_id):
         'priority': 1,
         'status': 2,
     }
-    return _create_fresh_desk_ticket(user_id, ticket)
+    return _create_fresh_desk_ticket(user_id, ticket, errors)
 
 
 @user_blueprint.route('/<uuid:user_id>/new-registration-data', methods=['POST'])
