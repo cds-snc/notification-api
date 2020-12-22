@@ -27,6 +27,7 @@ from app.clients.sms.loadtesting import LoadtestingClient
 from app.clients.sms.mmg import MMGClient
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.clients.sms.twilio import TwilioSMSClient
+from app.clients.sms.aws_pinpoint import AwsPinpointClient
 from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
 from app.va.va_profile import VAProfileClient
 from app.va.mpi import MpiClient
@@ -66,6 +67,7 @@ twilio_sms_client = TwilioSMSClient(
     auth_token=os.getenv('TWILIO_AUTH_TOKEN'),
     from_number=os.getenv('TWILIO_FROM_NUMBER'),
 )
+aws_pinpoint_client = AwsPinpointClient()
 encryption = Encryption()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
@@ -112,6 +114,13 @@ def create_app(application):
         logger=application.logger,
         callback_notify_url_host=application.config["API_HOST_NAME"]
     )
+    aws_pinpoint_client.init_app(
+        application.config['AWS_PINPOINT_APP_ID'],
+        application.config['AWS_REGION'],
+        application.logger,
+        application.config['AWS_PINPOINT_ORIGINATION_NUMBER'],
+        statsd_client
+    )
     va_profile_client.init_app(
         application.logger,
         application.config['VA_PROFILE_URL'],
@@ -133,7 +142,12 @@ def create_app(application):
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
     clients.init_app(
-        sms_clients=[firetext_client, mmg_client, aws_sns_client, loadtest_client, twilio_sms_client],
+        sms_clients=[firetext_client,
+                     mmg_client,
+                     aws_sns_client,
+                     loadtest_client,
+                     twilio_sms_client,
+                     aws_pinpoint_client],
         email_clients=[aws_ses_client, send_grid_client, govdelivery_client]
     )
 

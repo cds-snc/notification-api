@@ -57,3 +57,5 @@ fileignoreconfig:
       checksum: 6242425670a169d0b5698f38bf80379715ccc36710db21aeb19aef1d13802c8d
     - filename: ci/.docker-env.example
       checksum: 27c13b6d3e6e0ee70f07a49ab7f4a281c2335e13a6a155513e3bdcd93b9ec815
+    - filename: app/config.py
+      checksum: fc23095eea0a9f6c4c1c7069e956dac3ccd11b2e5c1f68fff3d851a0ff468962

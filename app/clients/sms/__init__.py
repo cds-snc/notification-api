@@ -21,5 +21,6 @@ class SmsClient(Client):
     def send_sms(self, *args, **kwargs):
         raise NotImplementedError('TODO Need to implement.')
 
+    # TODO: refactor to use property instead of manual getter
     def get_name(self):
         raise NotImplementedError('TODO Need to implement.')

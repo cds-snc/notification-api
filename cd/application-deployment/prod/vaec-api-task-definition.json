@@ -53,6 +53,10 @@
         {
           "name": "GOOGLE_ANALYTICS_TID",
           "value": "UA-50123418-16"
+        },
+        {
+          "name": "AWS_PINPOINT_ORIGINATION_NUMBER",
+          "value": "+18286786800"
         }
       ],
       "secrets": [
