@@ -562,6 +562,27 @@ class EmailDataSchema(ma.Schema):
         except InvalidEmailError as e:
             raise ValidationError(str(e))
 
+class NewRegistrationUserDataSchema(ma.Schema):
+
+    class Meta:
+        strict = True
+
+    id = fields.Str(required=True)
+    name = fields.Str(required=True)
+    email = fields.Str(required=True)
+
+    def __init__(self, partial_email=False):
+        super().__init__()
+        self.partial_email = partial_email
+
+    @validates('email')
+    def validate_email(self, value):
+        if self.partial_email:
+            return
+        try:
+            validate_email_address(value)
+        except InvalidEmailError as e:
+            raise ValidationError(str(e))
 
 class NewRegistrationUserDataSchema(ma.Schema):
 
