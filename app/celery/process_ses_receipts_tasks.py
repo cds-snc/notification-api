@@ -34,7 +34,6 @@ from app.notifications.notifications_ses_callback import (
     name="process-ses-result",
     max_retries=5,
     default_retry_delay=300,
-    rate_limit="30/m",
 )
 @statsd(namespace="tasks")
 def process_ses_results(self, response):
