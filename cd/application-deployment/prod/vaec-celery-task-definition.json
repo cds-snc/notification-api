@@ -79,7 +79,13 @@
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/dangerous-salt"
         }
       ],
-      "command": ["sh", "-c", "/app/scripts/run_celery.sh"]
+      "command": ["sh", "-c", "/app/scripts/run_celery.sh"],
+      "healthCheck": {
+          "command": ["CMD", "sh", "-c", "./scripts/check_celery.sh"],
+          "interval": 30,
+          "retries": 5,
+          "timeout": 10
+      }
     },
     {
       "name": "datadog-agent",
