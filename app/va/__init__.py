@@ -1,1 +1,1 @@
-from .identifier_type import IdentifierType  # noqa: F401
+from .identifier import IdentifierType, is_fhir_format  # noqa: F401
