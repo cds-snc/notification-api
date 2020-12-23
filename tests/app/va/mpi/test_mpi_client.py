@@ -108,6 +108,14 @@ def response_with_deceased_beneficiary():
 
 
 @pytest.fixture
+def notification_with_recipient_identifier(sample_notification_model_with_organization):
+    notification = sample_notification_model_with_organization
+    recipient_identifier = sample_recipient_identifier()
+    notification.recipient_identifiers.set(recipient_identifier)
+    return notification
+
+
+@pytest.fixture
 def mpi_client(mocker):
     mock_logger = mocker.Mock()
     url = 'https://foo.bar'
@@ -151,12 +159,7 @@ class TestGetVaProfileId:
         recipient_identifier = sample_recipient_identifier()
         notification.recipient_identifiers.set(recipient_identifier)
 
-        rmock.request(
-            "GET",
-            ANY,
-            json=response_with_one_active_va_profile_id(),
-            status_code=200
-        )
+        rmock.get(ANY, json=response_with_one_active_va_profile_id(), status_code=200)
 
         fhir_identifier = transform_to_fhir_format(recipient_identifier)
 
@@ -171,103 +174,51 @@ class TestGetVaProfileId:
         assert actual_va_profile_id == EXPECTED_VA_PROFILE_ID
 
     def test_should_throw_error_when_multiple_active_va_profile_ids_exist(
-            self, mpi_client, rmock, sample_notification_model_with_organization
+            self, mpi_client, rmock, notification_with_recipient_identifier
     ):
-        notification = sample_notification_model_with_organization
-        recipient_identifier = sample_recipient_identifier()
-        notification.recipient_identifiers.set(recipient_identifier)
-
-        rmock.request(
-            "GET",
-            ANY,
-            json=response_with_two_active_va_profile_ids(),
-            status_code=200
-        )
+        rmock.get(ANY, json=response_with_two_active_va_profile_ids(), status_code=200)
 
         with pytest.raises(MultipleActiveVaProfileIdsException):
-            mpi_client.get_va_profile_id(notification)
+            mpi_client.get_va_profile_id(notification_with_recipient_identifier)
 
     def test_should_throw_error_when_no_active_va_profile_id(
-            self, mpi_client, rmock, sample_notification_model_with_organization
+            self, mpi_client, rmock, notification_with_recipient_identifier
     ):
-        notification = sample_notification_model_with_organization
-        recipient_identifier = sample_recipient_identifier()
-        notification.recipient_identifiers.set(recipient_identifier)
-
-        rmock.request(
-            "GET",
-            ANY,
-            json=MPI_RESPONSE_WITH_NO_VA_PROFILE_ID,
-            status_code=200
-        )
+        rmock.get(ANY, json=MPI_RESPONSE_WITH_NO_VA_PROFILE_ID, status_code=200)
 
         with pytest.raises(IdentifierNotFound):
-            mpi_client.get_va_profile_id(notification)
+            mpi_client.get_va_profile_id(notification_with_recipient_identifier)
 
     def test_should_throw_error_when_mpi_returns_error_response(
-            self, mpi_client, rmock, sample_notification_model_with_organization
+            self, mpi_client, rmock, notification_with_recipient_identifier
     ):
-        notification = sample_notification_model_with_organization
-        recipient_identifier = sample_recipient_identifier()
-        notification.recipient_identifiers.set(recipient_identifier)
-
-        rmock.request(
-            "GET",
-            ANY,
-            json=MPI_ERROR_RESPONSE,
-            status_code=200
-        )
+        rmock.get(ANY, json=MPI_ERROR_RESPONSE, status_code=200)
 
         with pytest.raises(MpiNonRetryableException):
-            mpi_client.get_va_profile_id(notification)
+            mpi_client.get_va_profile_id(notification_with_recipient_identifier)
 
     @pytest.mark.parametrize("http_status_code", [429, 500, 502, 503, 504])
     def test_should_throw_mpi_retryable_exception_when_mpi_returns_retryable_http_errors(
-            self, mpi_client, rmock, sample_notification_model_with_organization, http_status_code
+            self, mpi_client, rmock, notification_with_recipient_identifier, http_status_code
     ):
-        notification = sample_notification_model_with_organization
-        recipient_identifier = sample_recipient_identifier()
-        notification.recipient_identifiers.set(recipient_identifier)
-
-        rmock.request(
-            "GET",
-            ANY,
-            status_code=http_status_code
-        )
+        rmock.get(ANY, status_code=http_status_code)
 
         with pytest.raises(MpiRetryableException):
-            mpi_client.get_va_profile_id(notification)
+            mpi_client.get_va_profile_id(notification_with_recipient_identifier)
 
     @pytest.mark.parametrize("http_status_code", [400, 401, 403, 404, 501])
     def test_should_throw_mpi_non_retryable_exception_when_mpi_returns_non_retryable_http_errors(
-            self, mpi_client, rmock, sample_notification_model_with_organization, http_status_code
+            self, mpi_client, rmock, notification_with_recipient_identifier, http_status_code
     ):
-        notification = sample_notification_model_with_organization
-        recipient_identifier = sample_recipient_identifier()
-        notification.recipient_identifiers.set(recipient_identifier)
-
-        rmock.request(
-            "GET",
-            ANY,
-            status_code=http_status_code
-        )
+        rmock.get(ANY, status_code=http_status_code)
 
         with pytest.raises(MpiNonRetryableException):
-            mpi_client.get_va_profile_id(notification)
+            mpi_client.get_va_profile_id(notification_with_recipient_identifier)
 
     def test_should_throw_exception_when_beneficiary_deceased(
-            self, mpi_client, rmock, sample_notification_model_with_organization
+            self, mpi_client, rmock, notification_with_recipient_identifier
     ):
-        notification = sample_notification_model_with_organization
-        recipient_identifier = sample_recipient_identifier()
-        notification.recipient_identifiers.set(recipient_identifier)
-
-        rmock.request(
-            "GET",
-            ANY,
-            json=response_with_deceased_beneficiary(),
-            status_code=200
-        )
+        rmock.get(ANY, json=response_with_deceased_beneficiary(), status_code=200)
 
         with pytest.raises(BeneficiaryDeceasedException):
-            mpi_client.get_va_profile_id(notification)
+            mpi_client.get_va_profile_id(notification_with_recipient_identifier)

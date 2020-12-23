@@ -29,7 +29,8 @@ class MpiClient:
             self.statsd_client.incr("clients.mpi.incorrect_number_of_recipient_identifiers_error")
             raise IncorrectNumberOfIdentifiersException(error_message)
 
-        fhir_identifier = transform_to_fhir_format(next(iter(recipient_identifiers)))
+        recipient_identifier = next(iter(recipient_identifiers))
+        fhir_identifier = transform_to_fhir_format(recipient_identifier)
 
         response_json = self._make_request(fhir_identifier, notification.id)
         mpi_identifiers = response_json['identifier']

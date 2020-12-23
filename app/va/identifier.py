@@ -1,6 +1,6 @@
 from enum import Enum
 
-from app.va.mpi.exceptions import UnsupportedIdentifierException
+from app.va.mpi import UnsupportedIdentifierException
 
 
 class IdentifierType(Enum):
