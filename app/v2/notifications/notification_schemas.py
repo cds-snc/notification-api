@@ -4,7 +4,7 @@ from app.models import (
     NOTIFICATION_STATUS_LETTER_RECEIVED,
     TEMPLATE_TYPES)
 from app.schema_validation.definitions import (uuid, personalisation, letter_personalisation)
-from app.va import IdentifierType
+from app.va.identifier import IdentifierType
 
 template = {
     "$schema": "http://json-schema.org/draft-04/schema#",

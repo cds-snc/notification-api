@@ -7,7 +7,7 @@ from notifications_utils.statsd_decorators import statsd
 from app import notify_celery
 from app.dao import notifications_dao
 from app import mpi_client
-from app.va import IdentifierType
+from app.va.identifier import IdentifierType
 from app.va.mpi import MpiRetryableException, MpiNonRetryableException, BeneficiaryDeceasedException, \
     IdentifierNotFound, MultipleActiveVaProfileIdsException
 

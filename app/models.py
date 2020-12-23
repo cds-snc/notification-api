@@ -40,7 +40,7 @@ from app import (
 )
 
 from app.history_meta import Versioned
-from app.va import IdentifierType
+from app.va.identifier import IdentifierType
 
 SMS_TYPE = 'sms'
 EMAIL_TYPE = 'email'

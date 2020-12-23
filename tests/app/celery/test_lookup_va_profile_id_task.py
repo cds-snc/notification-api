@@ -5,7 +5,7 @@ import pytest
 from app.exceptions import NotificationTechnicalFailureException
 from app.models import Notification, NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
-from app.va import IdentifierType
+from app.va.identifier import IdentifierType
 from app.va.mpi import UnsupportedIdentifierException, IdentifierNotFound, MpiRetryableException, \
     BeneficiaryDeceasedException, MultipleActiveVaProfileIdsException, IncorrectNumberOfIdentifiersException
 

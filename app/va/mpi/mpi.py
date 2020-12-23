@@ -1,10 +1,9 @@
 import requests
 from time import monotonic
-from app.va import IdentifierType
+from app.va.identifier import IdentifierType, transform_to_fhir_format, FHIR_FORMAT_SUFFIXES
 from app.va.mpi import (
     MpiNonRetryableException,
     MpiRetryableException,
-    UnsupportedIdentifierException,
     IdentifierNotFound,
     IncorrectNumberOfIdentifiersException,
     MultipleActiveVaProfileIdsException,
@@ -15,28 +14,12 @@ from app.va.mpi import (
 class MpiClient:
     SYSTEM_IDENTIFIER = "200ENTF"
 
-    FHIR_FORMAT_SUFFIXES = {
-        IdentifierType.ICN: "^NI^200M^USVHA",
-        IdentifierType.PID: "^PI^200CORP^USVBA",
-        IdentifierType.VA_PROFILE_ID: "^PI^200VETS^USDVA",
-        IdentifierType.BIRLSID: "^PI^200BRLS^USVBA"
-    }
-
     def init_app(self, logger, url, ssl_cert_path, ssl_key_path, statsd_client):
         self.logger = logger
         self.base_url = url
         self.ssl_cert_path = ssl_cert_path
         self.ssl_key_path = ssl_key_path
         self.statsd_client = statsd_client
-
-    def transform_to_fhir_format(self, recipient_identifier):
-        try:
-            identifier_type = IdentifierType(recipient_identifier.id_type)
-            return f"{recipient_identifier.id_value}{self.FHIR_FORMAT_SUFFIXES[identifier_type]}"
-        except ValueError as e:
-            raise UnsupportedIdentifierException(f"No identifier of type: {recipient_identifier.id_type}") from e
-        except KeyError as e:
-            raise UnsupportedIdentifierException(f"No mapping for identifier: {identifier_type}") from e
 
     def get_va_profile_id(self, notification):
         recipient_identifiers = notification.recipient_identifiers.values()
@@ -46,7 +29,7 @@ class MpiClient:
             self.statsd_client.incr("clients.mpi.incorrect_number_of_recipient_identifiers_error")
             raise IncorrectNumberOfIdentifiersException(error_message)
 
-        fhir_identifier = self.transform_to_fhir_format(next(iter(recipient_identifiers)))
+        fhir_identifier = transform_to_fhir_format(next(iter(recipient_identifiers)))
 
         response_json = self._make_request(fhir_identifier, notification.id)
         mpi_identifiers = response_json['identifier']
@@ -85,7 +68,7 @@ class MpiClient:
             self.statsd_client.timing("clients.mpi.request-time", elapsed_time)
 
     def _get_active_va_profile_id(self, identifiers, fhir_identifier):
-        active_va_profile_suffix = self.FHIR_FORMAT_SUFFIXES[IdentifierType.VA_PROFILE_ID] + '^A'
+        active_va_profile_suffix = FHIR_FORMAT_SUFFIXES[IdentifierType.VA_PROFILE_ID] + '^A'
         va_profile_ids = [identifier['value'].split('^')[0] for identifier in identifiers
                           if identifier['value'].endswith(active_va_profile_suffix)]
         if not va_profile_ids:

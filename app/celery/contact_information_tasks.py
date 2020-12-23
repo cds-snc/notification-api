@@ -2,7 +2,7 @@ from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 
 from app import notify_celery, va_profile_client
-from app.va import IdentifierType
+from app.va.identifier import IdentifierType
 from app.va.va_profile import VAProfileRetryableException, VAProfileNonRetryableException, NoContactInfoException
 from app.config import QueueNames
 from app.dao.notifications_dao import get_notification_by_id, dao_update_notification, update_notification_status_by_id

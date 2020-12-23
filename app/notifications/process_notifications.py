@@ -36,7 +36,7 @@ from app.dao.notifications_dao import (
 
 from app.v2.errors import BadRequestError
 from app.utils import get_template_instance
-from app.va import IdentifierType
+from app.va.identifier import IdentifierType
 
 
 def create_content_for_notification(template, personalisation):

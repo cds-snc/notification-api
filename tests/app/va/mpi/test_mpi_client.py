@@ -1,15 +1,13 @@
 import pytest
 from copy import deepcopy
-from app.va import IdentifierType
-from app.models import RecipientIdentifier
 from requests_mock import ANY
 from requests.utils import quote
 
+from app.va.identifier import IdentifierType, transform_to_fhir_format
 from app.va.mpi import (
     MpiClient,
     MpiNonRetryableException,
     MpiRetryableException,
-    UnsupportedIdentifierException,
     IdentifierNotFound,
     IncorrectNumberOfIdentifiersException,
     MultipleActiveVaProfileIdsException,
@@ -128,54 +126,6 @@ def mpi_client(mocker):
     return mpi_client
 
 
-class TestTransformToFhirFormat:
-    @pytest.mark.parametrize("id_type, id_value, expected_fhir_format", [
-        (IdentifierType.ICN, "1008533405V377263", "1008533405V377263^NI^200M^USVHA"),
-        (IdentifierType.PID, "123456", "123456^PI^200CORP^USVBA"),
-        (IdentifierType.VA_PROFILE_ID, "301", "301^PI^200VETS^USDVA"),
-        (IdentifierType.BIRLSID, "789123", "789123^PI^200BRLS^USVBA")
-    ])
-    def test_should_transform_recipient_identifier_to_mpi_acceptable_format(
-            self,
-            mpi_client,
-            id_type,
-            id_value,
-            expected_fhir_format
-    ):
-        recipient_identifier = RecipientIdentifier(
-            notification_id="123456",
-            id_type=id_type.value,
-            id_value=id_value
-        )
-        actual_fhir_format = mpi_client.transform_to_fhir_format(recipient_identifier)
-
-        assert actual_fhir_format == expected_fhir_format
-
-    def test_should_throw_error_when_invalid_type(self, mpi_client):
-        recipient_identifier = RecipientIdentifier(
-            notification_id="123456",
-            id_type="unknown_type",
-            id_value="123"
-        )
-        with pytest.raises(UnsupportedIdentifierException) as e:
-            mpi_client.transform_to_fhir_format(recipient_identifier)
-        assert "No identifier of type" in str(e.value)
-
-    def test_should_throw_error_when_no_mapping_for_type(self, mpi_client, mocker):
-        mock_identifier = mocker.Mock(IdentifierType)
-        mock_identifier.name = "MOCKED_IDENTIFIER"
-        mock_identifier.value = "mocked_value"
-        mocker.patch("app.va.mpi.mpi.IdentifierType", return_value=mock_identifier)
-        recipient_identifier = RecipientIdentifier(
-            notification_id="123456",
-            id_type=mock_identifier.name,
-            id_value=mock_identifier.value
-        )
-        with pytest.raises(UnsupportedIdentifierException) as e:
-            mpi_client.transform_to_fhir_format(recipient_identifier)
-        assert "No mapping for identifier" in str(e.value)
-
-
 class TestGetVaProfileId:
 
     @pytest.mark.parametrize("recipient_identifiers", [
@@ -208,7 +158,7 @@ class TestGetVaProfileId:
             status_code=200
         )
 
-        fhir_identifier = mpi_client.transform_to_fhir_format(recipient_identifier)
+        fhir_identifier = transform_to_fhir_format(recipient_identifier)
 
         expected_url = (f"{mpi_client.base_url}/psim_webservice/fhir/Patient/"
                         f"{quote(fhir_identifier)}"
