@@ -147,11 +147,9 @@ class TestTransformToFhirFormat:
             id_type=id_type.value,
             id_value=id_value
         )
-        actual_fhir_format, actual_id_type, actual_id_value = mpi_client.transform_to_fhir_format(recipient_identifier)
+        actual_fhir_format = mpi_client.transform_to_fhir_format(recipient_identifier)
 
         assert actual_fhir_format == expected_fhir_format
-        assert actual_id_type == id_type
-        assert actual_id_value == id_value
 
     def test_should_throw_error_when_invalid_type(self, mpi_client):
         recipient_identifier = RecipientIdentifier(
@@ -210,7 +208,7 @@ class TestGetVaProfileId:
             status_code=200
         )
 
-        fhir_identifier, _, _ = mpi_client.transform_to_fhir_format(recipient_identifier)
+        fhir_identifier = mpi_client.transform_to_fhir_format(recipient_identifier)
 
         expected_url = (f"{mpi_client.base_url}/psim_webservice/fhir/Patient/"
                         f"{quote(fhir_identifier)}"

@@ -32,9 +32,7 @@ class MpiClient:
     def transform_to_fhir_format(self, recipient_identifier):
         try:
             identifier_type = IdentifierType(recipient_identifier.id_type)
-            return f"{recipient_identifier.id_value}{self.FHIR_FORMAT_SUFFIXES[identifier_type]}", \
-                   identifier_type, \
-                   recipient_identifier.id_value
+            return f"{recipient_identifier.id_value}{self.FHIR_FORMAT_SUFFIXES[identifier_type]}"
         except ValueError as e:
             raise UnsupportedIdentifierException(f"No identifier of type: {recipient_identifier.id_type}") from e
         except KeyError as e:
@@ -48,9 +46,8 @@ class MpiClient:
             self.statsd_client.incr("clients.mpi.incorrect_number_of_recipient_identifiers_error")
             raise IncorrectNumberOfIdentifiersException(error_message)
 
-        fhir_identifier, id_type, id_value = self.transform_to_fhir_format(next(iter(recipient_identifiers)))
+        fhir_identifier = self.transform_to_fhir_format(next(iter(recipient_identifiers)))
 
-        self.logger.info(f"Querying MPI with {id_type} {id_value} for notification {notification.id}")
         response_json = self._make_request(fhir_identifier, notification.id)
         mpi_identifiers = response_json['identifier']
 
@@ -59,6 +56,7 @@ class MpiClient:
         return va_profile_id
 
     def _make_request(self, fhir_identifier, notification_id):
+        self.logger.info(f"Querying MPI with {fhir_identifier} for notification {notification_id}")
         start_time = monotonic()
         try:
             response = requests.get(
