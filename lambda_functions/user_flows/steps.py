@@ -84,7 +84,7 @@ def get_user_id(service_id, users):
 
 
 def get_first_email_template_id(templates):
-    first_email_template = next(template for template in templates if template['template_id'] == ['email'])
+    first_email_template = next(template for template in templates if template['template_type'] == ['email'])
     return first_email_template["id"]
 
 
