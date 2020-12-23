@@ -1,6 +1,6 @@
 import requests
 from time import monotonic
-from app.va.identifier import IdentifierType, transform_to_fhir_format, FHIR_FORMAT_SUFFIXES
+from app.va.identifier import IdentifierType, transform_to_fhir_format, is_fhir_format, FHIR_FORMAT_SUFFIXES
 from app.va.mpi import (
     MpiNonRetryableException,
     MpiRetryableException,
@@ -30,7 +30,11 @@ class MpiClient:
             raise IncorrectNumberOfIdentifiersException(error_message)
 
         recipient_identifier = next(iter(recipient_identifiers))
-        fhir_identifier = transform_to_fhir_format(recipient_identifier)
+
+        if is_fhir_format(recipient_identifier.id_value):
+            fhir_identifier = recipient_identifier.id_value
+        else:
+            fhir_identifier = transform_to_fhir_format(recipient_identifier)
 
         response_json = self._make_request(fhir_identifier, notification.id)
         mpi_identifiers = response_json['identifier']

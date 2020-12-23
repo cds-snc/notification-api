@@ -3,7 +3,7 @@ from copy import deepcopy
 from requests_mock import ANY
 from requests.utils import quote
 
-from app.va.identifier import IdentifierType, transform_to_fhir_format
+from app.va.identifier import IdentifierType
 from app.va.mpi import (
     MpiClient,
     MpiNonRetryableException,
@@ -152,8 +152,8 @@ class TestGetVaProfileId:
             mpi_client.get_va_profile_id(notification)
         assert "Unexpected number of recipient_identifiers" in str(e.value)
 
-    def test_should_make_request_to_mpi_and_return_va_profile_id(
-            self, mpi_client, rmock, sample_notification_model_with_organization
+    def test_should_make_request_to_mpi_using_non_transformed_identifier_and_return_va_profile_id(
+            self, mpi_client, rmock, mocker, sample_notification_model_with_organization
     ):
         notification = sample_notification_model_with_organization
         recipient_identifier = sample_recipient_identifier()
@@ -161,14 +161,41 @@ class TestGetVaProfileId:
 
         rmock.get(ANY, json=response_with_one_active_va_profile_id(), status_code=200)
 
-        fhir_identifier = transform_to_fhir_format(recipient_identifier)
+        mocked_is_fhir_format = mocker.patch('app.va.mpi.mpi.is_fhir_format', return_value=True)
 
         expected_url = (f"{mpi_client.base_url}/psim_webservice/fhir/Patient/"
-                        f"{quote(fhir_identifier)}"
+                        f"{quote(recipient_identifier.id_value)}"
                         f"?-sender={MpiClient.SYSTEM_IDENTIFIER}")
 
         actual_va_profile_id = mpi_client.get_va_profile_id(notification)
 
+        mocked_is_fhir_format.assert_called_with(recipient_identifier.id_value)
+        assert rmock.called
+        assert rmock.request_history[0].url == expected_url
+        assert actual_va_profile_id == EXPECTED_VA_PROFILE_ID
+
+    def test_should_make_request_to_mpi_using_transformed_identifier_and_return_va_profile_id(
+            self, mpi_client, rmock, mocker, sample_notification_model_with_organization
+    ):
+        notification = sample_notification_model_with_organization
+        recipient_identifier = sample_recipient_identifier()
+        notification.recipient_identifiers.set(recipient_identifier)
+
+        rmock.get(ANY, json=response_with_one_active_va_profile_id(), status_code=200)
+
+        mocker.patch('app.va.mpi.mpi.is_fhir_format', return_value=False)
+        mocked_transform_to_fhir_format = mocker.patch(
+            'app.va.mpi.mpi.transform_to_fhir_format',
+            return_value='some-transformed-fhir-identifier'
+        )
+
+        expected_url = (f"{mpi_client.base_url}/psim_webservice/fhir/Patient/"
+                        f"{quote('some-transformed-fhir-identifier')}"
+                        f"?-sender={MpiClient.SYSTEM_IDENTIFIER}")
+
+        actual_va_profile_id = mpi_client.get_va_profile_id(notification)
+
+        mocked_transform_to_fhir_format.assert_called_with(recipient_identifier)
         assert rmock.called
         assert rmock.request_history[0].url == expected_url
         assert actual_va_profile_id == EXPECTED_VA_PROFILE_ID
