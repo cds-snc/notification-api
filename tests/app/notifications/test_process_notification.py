@@ -28,7 +28,7 @@ from app.notifications.process_notifications import (
     send_to_queue_for_recipient_info_based_on_recipient_identifier)
 from notifications_utils.recipients import validate_and_format_phone_number, validate_and_format_email_address
 from app.v2.errors import BadRequestError
-from app.va import IdentifierType
+from app.va.identifier import IdentifierType
 from tests.app.conftest import sample_api_key as create_api_key
 
 from tests.app.db import create_service, create_template

@@ -3,7 +3,7 @@ import pytest
 from flask import json, url_for
 
 from app import DATETIME_FORMAT
-from app.va import IdentifierType
+from app.va.identifier import IdentifierType
 from tests import create_authorization_header
 from tests.app.db import (
     create_notification,

@@ -12,7 +12,7 @@ from app.v2.notifications.notification_schemas import (
     post_sms_request as post_sms_request_schema,
     post_email_request as post_email_request_schema
 )
-from app.va import IdentifierType
+from app.va.identifier import IdentifierType
 
 valid_get_json = {}
 

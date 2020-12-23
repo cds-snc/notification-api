@@ -13,7 +13,7 @@ from app.dao.notifications_dao import (
 )
 from app.models import Notification, NotificationHistory, RecipientIdentifier, SMS_TYPE, EMAIL_TYPE
 from app.notifications.process_notifications import persist_notification
-from app.va import IdentifierType
+from app.va.identifier import IdentifierType
 from tests.app.db import (
     create_template,
     create_notification,

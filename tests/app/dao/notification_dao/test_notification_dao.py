@@ -52,7 +52,7 @@ from app.models import (
     JOB_STATUS_IN_PROGRESS,
     RecipientIdentifier)
 from app.notifications.process_notifications import persist_notification
-from app.va import IdentifierType
+from app.va.identifier import IdentifierType
 from tests.app.db import (
     create_job,
     create_notification,

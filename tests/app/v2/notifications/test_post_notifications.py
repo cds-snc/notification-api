@@ -20,7 +20,7 @@ from app.models import Notification
 from app.schema_validation import validate
 from app.v2.errors import RateLimitError
 from app.v2.notifications.notification_schemas import post_sms_response, post_email_response
-from app.va import IdentifierType
+from app.va.identifier import IdentifierType
 from tests import create_authorization_header
 
 from tests.app.db import (

@@ -21,7 +21,7 @@ from app.models import (
     NOTIFICATION_TECHNICAL_FAILURE,
     PRECOMPILED_TEMPLATE_NAME
 )
-from app.va import IdentifierType
+from app.va.identifier import IdentifierType
 
 from tests.app.db import (
     create_notification,
