@@ -111,4 +111,4 @@ def test_send_sms_throws_aws_pinpoint_exception(aws_pinpoint_client, boto_mock):
         aws_pinpoint_client.send_sms(invalid_recipient_number, TEST_CONTENT, TEST_REFERENCE)
 
     assert f"BadRequestException" in str(exception.value)
-    aws_pinpoint_client.statsd_client.incr.assert_called_with("clients.sms.error")
+    aws_pinpoint_client.statsd_client.incr.assert_called_with("clients.pinpoint.error")
