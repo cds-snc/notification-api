@@ -5,7 +5,7 @@ from steps import get_notification_url
 from steps import get_api_health_status
 from steps import get_authenticated_request
 from steps import get_service_id
-from steps import get_template_id
+from steps import get_first_email_template_id
 from steps import get_user_id
 from steps import get_new_service_api_key
 from steps import get_new_service_test_api_key
@@ -38,13 +38,13 @@ def service_id(services):
 
 
 @pytest.fixture(scope="function")
-def templates(environment, notification_url, service_id):
+def get_templates_response(environment, notification_url, service_id):
     return get_authenticated_request(environment, F"{notification_url}/service/{service_id}/template")
 
 
 @pytest.fixture(scope="function")
-def template_id(service_id, templates):
-    return get_template_id(templates.json()['data'], service_id)
+def template_id(get_templates_response):
+    return get_first_email_template_id(get_templates_response.json()['data'])
 
 
 @pytest.fixture(scope="function")
@@ -85,8 +85,8 @@ def test_get_services(environment, notification_url, services):
     assert services.status_code == 200
 
 
-def test_get_templates(environment, notification_url, service_id, templates):
-    assert templates.status_code == 200
+def test_get_templates(environment, notification_url, service_id, get_templates_response):
+    assert get_templates_response.status_code == 200
 
 
 def test_send_email(environment, notification_url, service_id, service_api_key, template_id, user_id):

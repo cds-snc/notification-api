@@ -83,12 +83,9 @@ def get_user_id(service_id, users):
     return user_id
 
 
-def get_template_id(templates, service_id):
-    template_id = templates[-1]["id"]
-    for template in templates:
-        if template["service"] == service_id and template["template_type"] == "email":
-            template_id = template["id"]
-    return template_id
+def get_first_email_template_id(templates):
+    first_email_template = next(template for template in templates if template['template_id'] == ['email'])
+    return first_email_template["id"]
 
 
 def revoke_service_api_keys(environment, notification_url, service_id):
