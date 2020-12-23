@@ -6,7 +6,7 @@ from app.va.identifier import IdentifierType
 from app.va.va_profile import VAProfileRetryableException, VAProfileNonRetryableException, NoContactInfoException
 from app.config import QueueNames
 from app.dao.notifications_dao import get_notification_by_id, dao_update_notification, update_notification_status_by_id
-from app.models import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
+from app.models import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE, EMAIL_TYPE, SMS_TYPE
 from app.exceptions import NotificationTechnicalFailureException
 
 
@@ -20,7 +20,14 @@ def lookup_contact_info(self, notification_id):
     va_profile_id = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value
 
     try:
-        email = va_profile_client.get_email(va_profile_id)
+        if EMAIL_TYPE == notification.notification_type:
+            recipient = va_profile_client.get_email(va_profile_id)
+        elif SMS_TYPE == notification.notification_type:
+            recipient = va_profile_client.get_telephone(va_profile_id)
+        else:
+            raise NotImplementedError(
+                f"The task lookup_contact_info failed for notification {notification_id}. "
+                f"{notification.notification_type} is not supported")
 
     except VAProfileRetryableException as e:
         current_app.logger.exception(e)
@@ -49,5 +56,5 @@ def lookup_contact_info(self, notification_id):
         raise NotificationTechnicalFailureException(message) from e
 
     else:
-        notification.to = email
+        notification.to = recipient
         dao_update_notification(notification)

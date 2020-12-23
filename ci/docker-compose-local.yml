@@ -28,10 +28,10 @@ services:
     depends_on:
       - db
   localstack:
-    image: localstack/localstack:0.12.2
+    image: localstack/localstack:latest
     container_name: localstack
     ports:
-      - "4566-4599:4566-4599"
+      - "4566:4566"
     environment:
       - SERVICES=sqs
       - DEFAULT_REGION=us-east-2

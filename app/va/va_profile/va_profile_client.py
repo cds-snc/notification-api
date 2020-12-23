@@ -1,3 +1,5 @@
+from enum import Enum
+
 import requests
 import iso8601
 from time import monotonic
@@ -7,6 +9,23 @@ from app.va.va_profile import (
     VAProfileNonRetryableException,
     VAProfileRetryableException
 )
+
+
+class PhoneNumberType(Enum):
+
+    MOBILE = 'MOBILE'
+    HOME = 'HOME'
+    WORK = 'WORK'
+    FAX = 'FAX'
+    TEMPORARY = 'TEMPORARY'
+
+    @staticmethod
+    def valid_type_values():
+        return [PhoneNumberType.MOBILE.value, PhoneNumberType.HOME.value]
+
+    @staticmethod
+    def invalid_type_values():
+        return [PhoneNumberType.WORK.value, PhoneNumberType.FAX.value, PhoneNumberType.TEMPORARY.value]
 
 
 class VAProfileClient:
@@ -22,7 +41,7 @@ class VAProfileClient:
 
     def get_email(self, va_profile_id):
         self.logger.info(f"Querying VA Profile with ID {va_profile_id}")
-        response = self._make_request(va_profile_id)
+        response = self._make_request(va_profile_id, 'emails')
 
         try:
             most_recently_created_bio = self._get_most_recently_created_bio(response)
@@ -32,11 +51,28 @@ class VAProfileClient:
             self.statsd_client.incr("clients.va-profile.get-email.error")
             raise NoContactInfoException(f"No email in response for VA Profile ID {va_profile_id}") from e
 
-    def _make_request(self, va_profile_id):
+    def get_telephone(self, va_profile_id):
+        self.logger.info(f"Querying VA Profile with ID {va_profile_id}")
+        response = self._make_request(va_profile_id, 'telephones')
+
+        try:
+            phone_number = self._get_mobile_number(response)
+            if phone_number is None:
+                self.statsd_client.incr("clients.va-profile.get-telephone.no-phone-number")
+                raise NoContactInfoException(
+                    f"No {PhoneNumberType.valid_type_values()} in response for VA Profile ID {va_profile_id}")
+
+            self.statsd_client.incr("clients.va-profile.get-telephone.success")
+            return phone_number
+        except KeyError as e:
+            self.statsd_client.incr("clients.va-profile.get-telephone.error")
+            raise NoContactInfoException(f"No telephone in response for VA Profile ID {va_profile_id}") from e
+
+    def _make_request(self, va_profile_id, bio_type):
         start_time = monotonic()
         try:
             response = requests.get(
-                f"{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/emails",
+                f"{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/{bio_type}",
                 cert=(self.ssl_cert_path, self.ssl_key_path)
             )
             response.raise_for_status()
@@ -68,10 +104,30 @@ class VAProfileClient:
             elapsed_time = monotonic() - start_time
             self.statsd_client.timing("clients.va-profile.request-time", elapsed_time)
 
-    def _get_most_recently_created_bio(self, response):
+    @staticmethod
+    def _get_most_recently_created_bio(response):
         sorted_bios = sorted(
             response.json()['bios'],
             key=lambda bio: iso8601.parse_date(bio['createDate']),
             reverse=True
         )
         return sorted_bios[0]
+
+    @staticmethod
+    def _get_mobile_number(response):
+        phone_number = None
+        sorted_bios = sorted(
+            list(filter(
+                lambda bio:
+                bio['phoneType'] in PhoneNumberType.valid_type_values(),
+                response.json()['bios']
+            )),
+            key=lambda bio: iso8601.parse_date(bio['createDate']),
+            reverse=True
+        )
+
+        if len(sorted_bios) > 0:
+            phone_number =\
+                f"+{sorted_bios[0]['countryCode']}{sorted_bios[0]['areaCode']}{sorted_bios[0]['phoneNumber']}"
+
+        return phone_number
