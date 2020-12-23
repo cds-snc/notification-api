@@ -35,13 +35,13 @@ class AwsPinpointClient(SmsClient):
             response = self._post_message_request(recipient_number, content, sender_id)
 
         except (botocore.exceptions.ClientError, Exception) as e:
-            self.statsd_client.incr("clients.sms.error")
+            self.statsd_client.incr("clients.pinpoint.error")
             raise AwsPinpointException(str(e))
         else:
             elapsed_time = monotonic() - start_time
-            self.logger.info(f"AWS Pinpoint SMS request finished in {elapsed_time}")
+            self.logger.info(f"AWS Pinpoint SMS request finished in {elapsed_time} for {reference}")
             self.statsd_client.timing("clients.sms.request-time", elapsed_time)
-            self.statsd_client.incr("clients.sms.success")
+            self.statsd_client.incr("clients.pinpoint.success")
             return response['MessageResponse']['Result'][recipient_number]['MessageId']
 
     def _post_message_request(self, recipient_number, content, sender):
