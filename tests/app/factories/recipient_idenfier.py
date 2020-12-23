@@ -17,8 +17,7 @@ def sample_recipient_identifier(identifier_type=None, notification_id=None):
     elif identifier_type:
         id_type = identifier_type
     else:
-        rand_identifier = random.choice(IdentifierType._member_names_)  # nosec
-        id_type = IdentifierType[rand_identifier].value
+        id_type = random.choice(IdentifierType.values())  # nosec
     id_value = get_random_alphanumeric_string()
     _notification_id = notification_id if notification_id else uuid4()
     return RecipientIdentifier(notification_id=_notification_id,
