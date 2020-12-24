@@ -1,7 +1,7 @@
 import pytest
 
 from app.models import RecipientIdentifier
-from app.va.identifier import is_fhir_format, IdentifierType, transform_to_fhir_format
+from app.va.identifier import is_fhir_format, IdentifierType, transform_to_fhir_format, transform_from_fhir_format
 from app.va.mpi import UnsupportedIdentifierException
 
 
@@ -66,3 +66,18 @@ class TestTransformToFhirFormat:
         with pytest.raises(UnsupportedIdentifierException) as e:
             transform_to_fhir_format(recipient_identifier)
         assert "No mapping for identifier" in str(e.value)
+
+
+class TestTransformFromFhirFormat:
+    @pytest.mark.parametrize("fhir_format_identifier, expected_identifier", [
+        ("1008533405V377263^NI^200M^USVHA", "1008533405V377263"),
+        ("123456^PI^200CORP^USVBA", "123456"),
+        ("301^PI^200VETS^USDVA", "301"),
+        ("789123^PI^200BRLS^USVBA", "789123")
+    ])
+    def test_should_transform_from_fhir_format(
+            self,
+            fhir_format_identifier,
+            expected_identifier
+    ):
+        assert transform_from_fhir_format(fhir_format_identifier) == expected_identifier

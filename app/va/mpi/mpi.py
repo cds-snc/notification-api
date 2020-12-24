@@ -1,6 +1,12 @@
 import requests
 from time import monotonic
-from app.va.identifier import IdentifierType, transform_to_fhir_format, is_fhir_format, FHIR_FORMAT_SUFFIXES
+from app.va.identifier import (
+    IdentifierType,
+    transform_to_fhir_format,
+    is_fhir_format,
+    FHIR_FORMAT_SUFFIXES,
+    transform_from_fhir_format
+)
 from app.va.mpi import (
     MpiNonRetryableException,
     MpiRetryableException,
@@ -74,7 +80,7 @@ class MpiClient:
 
     def _get_active_va_profile_id(self, identifiers, fhir_identifier):
         active_va_profile_suffix = FHIR_FORMAT_SUFFIXES[IdentifierType.VA_PROFILE_ID] + '^A'
-        va_profile_ids = [identifier['value'].split('^')[0] for identifier in identifiers
+        va_profile_ids = [transform_from_fhir_format(identifier['value']) for identifier in identifiers
                           if identifier['value'].endswith(active_va_profile_suffix)]
         if not va_profile_ids:
             self.statsd_client.incr("clients.mpi.error.no_va_profile_id")

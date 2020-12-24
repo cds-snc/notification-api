@@ -35,3 +35,7 @@ def transform_to_fhir_format(recipient_identifier):
         raise UnsupportedIdentifierException(f"No identifier of type: {recipient_identifier.id_type}") from e
     except KeyError as e:
         raise UnsupportedIdentifierException(f"No mapping for identifier: {identifier_type}") from e
+
+
+def transform_from_fhir_format(fhir_format_identifier: str) -> str:
+    return fhir_format_identifier.split('^')[0]
