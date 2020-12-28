@@ -8,7 +8,7 @@ from app import notify_celery
 from app.dao import notifications_dao
 from app import mpi_client
 from app.va.identifier import IdentifierType
-from app.va.mpi import MpiRetryableException, MpiNonRetryableException, BeneficiaryDeceasedException, \
+from app.va.mpi import MpiRetryableException, BeneficiaryDeceasedException, \
     IdentifierNotFound, MultipleActiveVaProfileIdsException
 
 
@@ -50,7 +50,7 @@ def lookup_va_profile_id(self, notification_id):
         self.request.chain = None
         notifications_dao.update_notification_status_by_id(notification_id, NOTIFICATION_PERMANENT_FAILURE)
 
-    except MpiNonRetryableException as e:
+    except Exception as e:
         message = f"Failed to retrieve VA Profile ID from MPI for notification: {notification_id}" \
                   "Notification has been updated to technical-failure"
         current_app.logger.exception(message)

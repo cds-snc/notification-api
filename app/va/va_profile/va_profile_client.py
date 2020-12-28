@@ -9,6 +9,7 @@ from app.va.va_profile import (
     VAProfileNonRetryableException,
     VAProfileRetryableException
 )
+from app.va.identifier import is_fhir_format, transform_from_fhir_format
 
 
 class PhoneNumberType(Enum):
@@ -70,6 +71,10 @@ class VAProfileClient:
 
     def _make_request(self, va_profile_id, bio_type):
         start_time = monotonic()
+
+        if is_fhir_format(va_profile_id):
+            va_profile_id = transform_from_fhir_format(va_profile_id)
+
         try:
             response = requests.get(
                 f"{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/{bio_type}",

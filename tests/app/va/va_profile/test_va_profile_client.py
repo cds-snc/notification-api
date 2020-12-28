@@ -61,6 +61,36 @@ def test_get_email_gets_from_correct_url(rmock, test_va_profile_client):
     assert rmock.request_history[0].url == expected_url
 
 
+def test_get_email_transforms_from_fhir_format(rmock, test_va_profile_client):
+    response = {
+        "txAuditId": "0e0e53e0-b1f0-404f-a8e1-cc9ab7ef563e",
+        "status": "COMPLETED_SUCCESS",
+        "bios": [
+            {
+                "createDate": "2018-04-17T16:01:13Z",
+                "updateDate": "2019-05-09T15:52:33Z",
+                "txAuditId": "61fc5389-9ef5-4818-97c8-73f6ff3db396",
+                "sourceSystem": "VET360-TEST-PARTNER",
+                "sourceDate": "2019-05-09T15:36:34Z",
+                "originatingSourceSystem": "EBENEFITS  - CADD",
+                "sourceSystemUser": "VAEBENEFITS",
+                "effectiveStartDate": "2019-05-09T14:07:10Z",
+                "vet360Id": 203,
+                "emailId": 121,
+                "emailAddressText": "some@email.com"
+            }
+        ]
+    }
+    rmock.get(ANY, json=response, status_code=200)
+
+    test_va_profile_client.get_email('301^PI^200VETS^USDVA')
+
+    assert rmock.called
+
+    expected_url = f"{MOCK_VA_PROFILE_URL}/contact-information-hub/cuf/contact-information/v1/301/emails"
+    assert rmock.request_history[0].url == expected_url
+
+
 def test_get_telephone_gets_from_correct_url(rmock, test_va_profile_client):
     response = {
         "txAuditId": "0e0e53e0-b1f0-404f-a8e1-cc9ab7ef563e",

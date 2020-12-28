@@ -5,8 +5,8 @@ import pytest
 from app.exceptions import NotificationTechnicalFailureException
 from app.models import Notification, NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
-from app.va.identifier import IdentifierType
-from app.va.mpi import UnsupportedIdentifierException, IdentifierNotFound, MpiRetryableException, \
+from app.va.identifier import IdentifierType, UnsupportedIdentifierException
+from app.va.mpi import IdentifierNotFound, MpiRetryableException, \
     BeneficiaryDeceasedException, MultipleActiveVaProfileIdsException, IncorrectNumberOfIdentifiersException
 
 
@@ -48,9 +48,13 @@ def test_should_call_mpi_client_and_save_va_profile_id(notify_api, mocker, notif
 
 @pytest.mark.parametrize(
     "exception",
-    [UnsupportedIdentifierException('some error'), IncorrectNumberOfIdentifiersException('some error')]
+    [
+        UnsupportedIdentifierException('some error'),
+        IncorrectNumberOfIdentifiersException('some error'),
+        Exception('some error')
+    ]
 )
-def test_should_not_retry_on_nontryable_exception_and_should_update_to_technical_failure(
+def test_should_not_retry_on_other_exception_and_should_update_to_technical_failure(
         client,
         mocker,
         notification,

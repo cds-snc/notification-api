@@ -10,10 +10,6 @@ class MpiNonRetryableException(MpiException):
     pass
 
 
-class UnsupportedIdentifierException(MpiNonRetryableException):
-    pass
-
-
 class IncorrectNumberOfIdentifiersException(MpiNonRetryableException):
     pass
 

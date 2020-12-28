@@ -1,7 +1,5 @@
 from enum import Enum
 
-from app.va.mpi import UnsupportedIdentifierException
-
 
 class IdentifierType(Enum):
 
@@ -25,6 +23,10 @@ FHIR_FORMAT_SUFFIXES = {
     IdentifierType.VA_PROFILE_ID: "^PI^200VETS^USDVA",
     IdentifierType.BIRLSID: "^PI^200BRLS^USVBA"
 }
+
+
+class UnsupportedIdentifierException(Exception):
+    pass
 
 
 def transform_to_fhir_format(recipient_identifier):
