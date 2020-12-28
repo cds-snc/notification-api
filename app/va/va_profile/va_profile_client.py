@@ -41,7 +41,6 @@ class VAProfileClient:
         self.statsd_client = statsd_client
 
     def get_email(self, va_profile_id):
-        self.logger.info(f"Querying VA Profile with ID {va_profile_id}")
         response = self._make_request(va_profile_id, 'emails')
 
         try:
@@ -53,7 +52,6 @@ class VAProfileClient:
             raise NoContactInfoException(f"No email in response for VA Profile ID {va_profile_id}") from e
 
     def get_telephone(self, va_profile_id):
-        self.logger.info(f"Querying VA Profile with ID {va_profile_id}")
         response = self._make_request(va_profile_id, 'telephones')
 
         try:
@@ -74,6 +72,8 @@ class VAProfileClient:
 
         if is_fhir_format(va_profile_id):
             va_profile_id = transform_from_fhir_format(va_profile_id)
+
+        self.logger.info(f"Querying VA Profile with ID {va_profile_id}")
 
         try:
             response = requests.get(
