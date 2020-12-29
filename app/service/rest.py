@@ -853,6 +853,21 @@ def get_organisation_for_service(service_id):
 
 
 @service_blueprint.route('/unique', methods=["GET"])
+def _is_service_name_unique():
+    service_id, name, email_from = _check_request_args(request)
+
+    name_exists = Service.query.filter_by(name=name).first()
+
+    email_from_exists = Service.query.filter(
+        Service.email_from == email_from,
+        Service.id != service_id
+    ).first()
+
+    result = not (name_exists or email_from_exists)
+    return jsonify(result=result), 200
+
+
+@service_blueprint.route('/name/unique', methods=["GET"])
 def is_service_name_unique():
     name = check_unique_name_request_args(request)
 
@@ -1009,6 +1024,22 @@ def check_unique_email_from_request_args(request):
     if errors:
         raise InvalidRequest(errors, status_code=400)
     return service_id, email_from
+
+
+def _check_request_args(request):
+    service_id = request.args.get('service_id')
+    name = request.args.get('name', None)
+    email_from = request.args.get('email_from', None)
+    errors = []
+    if not service_id:
+        errors.append({'service_id': ["Can't be empty"]})
+    if not name:
+        errors.append({'name': ["Can't be empty"]})
+    if not email_from:
+        errors.append({'email_from': ["Can't be empty"]})
+    if errors:
+        raise InvalidRequest(errors, status_code=400)
+    return service_id, name, email_from
 
 
 def check_if_reply_to_address_already_in_use(service_id, email_address):
