@@ -59,3 +59,5 @@ fileignoreconfig:
       checksum: 27c13b6d3e6e0ee70f07a49ab7f4a281c2335e13a6a155513e3bdcd93b9ec815
     - filename: app/config.py
       checksum: fc23095eea0a9f6c4c1c7069e956dac3ccd11b2e5c1f68fff3d851a0ff468962
+    - filename: load_testing/.envrc.example
+      checksum: 81d609827d12e60a59d3f610dc14ff98dd199fcc64300db76083e66abdeadfae
