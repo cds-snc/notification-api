@@ -8,7 +8,14 @@ from sqlalchemy.orm.exc import NoResultFound
 from app import notify_celery, statsd_client
 from app.config import QueueNames
 from app.dao import notifications_dao
-from app.models import NOTIFICATION_SENT, NOTIFICATION_DELIVERED, NOTIFICATION_FAILED
+from app.models import (
+    SNS_PROVIDER,
+    NOTIFICATION_SENT,
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_TEMPORARY_FAILURE,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_TECHNICAL_FAILURE,
+)
 from app.notifications.callbacks import _check_and_queue_callback_task
 
 
@@ -25,13 +32,33 @@ def process_sns_results(self, response):
         sns_message = json.loads(response['Message'])
         reference = sns_message['notification']['messageId']
         status = sns_message['status']
+        provider_response = sns_message['delivery']['providerResponse']
 
-        if status == 'SUCCESS':
+        # See all the possible provider responses
+        # https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html#sms_stats_delivery_fail_reasons
+        reasons = {
+            'Blocked as spam by phone carrier': NOTIFICATION_TECHNICAL_FAILURE,
+            'Destination is on a blocked list': NOTIFICATION_TECHNICAL_FAILURE,
+            'Invalid phone number': NOTIFICATION_TECHNICAL_FAILURE,
+            'Message body is invalid': NOTIFICATION_TECHNICAL_FAILURE,
+            'Phone carrier has blocked this message': NOTIFICATION_TECHNICAL_FAILURE,
+            'Phone carrier is currently unreachable/unavailable': NOTIFICATION_TEMPORARY_FAILURE,
+            'Phone has blocked SMS': NOTIFICATION_TECHNICAL_FAILURE,
+            'Phone is on a blocked list': NOTIFICATION_TECHNICAL_FAILURE,
+            'Phone is currently unreachable/unavailable': NOTIFICATION_PERMANENT_FAILURE,
+            'Phone number is opted out': NOTIFICATION_TECHNICAL_FAILURE,
+            'This delivery would exceed max price': NOTIFICATION_TECHNICAL_FAILURE,
+            'Unknown error attempting to reach phone': NOTIFICATION_TECHNICAL_FAILURE,
+        }
+
+        if status == "SUCCESS":
             notification_status = NOTIFICATION_DELIVERED
-        elif status == 'FAILURE':
-            notification_status = NOTIFICATION_FAILED
         else:
-            current_app.logger.exception(f'Unknown SNS status : {status}')
+            if provider_response not in reasons:
+                current_app.logger.warning(
+                    f"unhandled provider response for reference {reference}, received '{provider_response}'"
+                )
+            notification_status = reasons.get(provider_response, NOTIFICATION_TECHNICAL_FAILURE)
 
         try:
             notification = notifications_dao.dao_get_notification_by_reference(reference)
@@ -45,7 +72,7 @@ def process_sns_results(self, response):
                 )
             return
 
-        if notification.sent_by != 'sns':
+        if notification.sent_by != SNS_PROVIDER:
             current_app.logger.exception(f'SNS callback handled notification {notification.id} not sent by SNS')
             return
 
@@ -58,7 +85,7 @@ def process_sns_results(self, response):
             status=notification_status
         )
 
-        if notification_status == NOTIFICATION_FAILED:
+        if notification_status != NOTIFICATION_DELIVERED:
             current_app.logger.info((
                 f"SNS delivery failed: notification id {notification.id} and reference {reference} has error found. "
                 f"Provider response: {sns_message['delivery']['providerResponse']}"

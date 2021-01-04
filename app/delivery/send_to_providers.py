@@ -33,7 +33,8 @@ from app.models import (
     NOTIFICATION_VIRUS_SCAN_FAILED,
     NOTIFICATION_CONTAINS_PII,
     NOTIFICATION_SENT,
-    NOTIFICATION_SENDING
+    NOTIFICATION_SENDING,
+    PINPOINT_PROVIDER,
 )
 from app.clients.mlwr.mlwr import check_mlwr_score
 from app.utils import get_logo_url
@@ -211,10 +212,14 @@ def provider_to_use(notification_type, notification_id, international=False, sen
         )
         raise Exception("No active {} providers".format(notification_type))
 
-    if sender is not None and notification_type == SMS_TYPE and sender[0] == "+":
-        return clients.get_client_by_name_and_type("pinpoint", notification_type)
+    if _sms_send_on_pinpoint(notification_type, sender):
+        return clients.get_client_by_name_and_type(PINPOINT_PROVIDER, notification_type)
 
     return clients.get_client_by_name_and_type(active_providers_in_order[0].identifier, notification_type)
+
+
+def _sms_send_on_pinpoint(notification_type, sender):
+    return notification_type == SMS_TYPE and sender and sender[0] == "+"
 
 
 def get_html_email_options(service):
