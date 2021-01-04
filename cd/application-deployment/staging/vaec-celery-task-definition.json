@@ -65,6 +65,10 @@
                 {
                     "name": "MPI_URL",
                     "value": "https://sqa.services.eauth.va.gov:9303/sqa"
+                },
+                {
+                    "name": "AWS_PINPOINT_APP_ID",
+                    "value": "164e77155a7a45299b3bc15562732540"
                 }
             ],
             "secrets": [{

@@ -65,6 +65,10 @@
                 {
                     "name": "MPI_URL",
                     "value": "https://int.services.eauth.va.gov:9303/int"
+                },
+                {
+                    "name": "AWS_PINPOINT_APP_ID",
+                    "value": "df55c01206b742d2946ef226410af94f"
                 }
             ],
             "secrets": [{

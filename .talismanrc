@@ -63,3 +63,11 @@ fileignoreconfig:
       checksum: 81d609827d12e60a59d3f610dc14ff98dd199fcc64300db76083e66abdeadfae
     - filename: tests/app/notifications/test_receive_notification.py
       checksum: e6256ebbaae18a88377b49aab94cce35aa9491d5c54a812b176caae152499485
+    - filename: cd/application-deployment/dev/vaec-api-task-definition.json
+      checksum: de6cafecef44b2df9eb5ad1605fb321c513eba4542729b64e9e71e3f5dbac65a
+    - filename: cd/application-deployment/staging/vaec-api-task-definition.json
+      checksum: 0862ace18d85d05bc8d7a6df43bb9ce4caae9d849f03cffc8a78ee6695bf09ae
+    - filename: cd/application-deployment/dev/vaec-celery-task-definition.json
+      checksum: c69fc1e981b4b5d534066fe3cac35eae71f215a35568949357bb67e51cbd9844
+    - filename: cd/application-deployment/staging/vaec-celery-task-definition.json
+      checksum: 3eeebdced2cbb758fd325306d9061f5ee8ff5c8b751144fcf0c02707c458869a
