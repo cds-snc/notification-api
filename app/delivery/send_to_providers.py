@@ -154,12 +154,12 @@ def send_email_to_provider(notification):
             send_email_response(notification.reference, notification.to)
         else:
             if service.sending_domain is None or service.sending_domain.strip() == "":
-                sending_domain = current_app.config['NOTIFY_EMAIL_DOMAIN']
+                sending_domain = current_app.config['NOTIFY_EMAIL_FROM_DOMAIN']
             else:
                 sending_domain = service.sending_domain
 
             if service.email_from is None or service.email_from.strip() == "":
-                email_from = current_app.config['NOTIFY_EMAIL_FROM']
+                email_from = current_app.config['NOTIFY_EMAIL_FROM_USER']
             else:
                 email_from = service.email_from
 

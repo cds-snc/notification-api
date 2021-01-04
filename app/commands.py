@@ -607,7 +607,7 @@ def update_emails_to_remove_gsi(service_id):
 @click.option('-f', '--file_extension', required=False, help="File extension to search for, defaults to rs.txt")
 @statsd(namespace="tasks")
 def replay_daily_sorted_count_files(file_extension):
-    bucket_location = '{}-ftp'.format(current_app.config['NOTIFY_EMAIL_DOMAIN'])
+    bucket_location = '{}-ftp'.format(current_app.config['NOTIFY_EMAIL_FROM_DOMAIN'])
     for filename in s3.get_list_of_files_by_suffix(bucket_name=bucket_location,
                                                    subfolder='root/dispatch',
                                                    suffix=file_extension or '.rs.txt'):

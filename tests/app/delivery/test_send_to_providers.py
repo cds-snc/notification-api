@@ -128,7 +128,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     )
 
     mock_email_client.send_email.assert_called_once_with(
-        '"Sample service" <sample.service@{}>'.format(current_app.config['NOTIFY_EMAIL_DOMAIN']),
+        '"Sample service" <sample.service@{}>'.format(current_app.config['NOTIFY_EMAIL_FROM_DOMAIN']),
         'jo.smith@example.com',
         'Jo <em>some HTML</em>',
         body='Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n',
@@ -208,8 +208,8 @@ def test_should_use_default_sending_domain_and_email_from(
     sample_service.email_from = None
 
     with set_config_values(notify_api, {
-        'NOTIFY_EMAIL_DOMAIN': 'default.email.domain',
-        'NOTIFY_EMAIL_FROM': 'default-email-from'
+        'NOTIFY_EMAIL_FROM_DOMAIN': 'default.email.domain',
+        'NOTIFY_EMAIL_FROM_USER': 'default-email-from'
     }):
         send_to_providers.send_email_to_provider(db_notification)
 

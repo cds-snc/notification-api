@@ -43,7 +43,7 @@
                     "value": "https://stage-tms.govdelivery.com"
                 },
                 {
-                    "name": "NOTIFY_EMAIL_FROM",
+                    "name": "NOTIFY_EMAIL_FROM_USER",
                     "value": "stage-notifications"
                 },
                 {

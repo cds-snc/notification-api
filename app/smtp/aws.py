@@ -24,7 +24,7 @@ def smtp_add(name):
         aws_secret_access_key=current_app.config["AWS_SES_SECRET_KEY"],
         region_name=current_app.config["AWS_SES_REGION"])
 
-    name = name + '.m.' + current_app.config["NOTIFY_EMAIL_DOMAIN"]
+    name = name + '.m.' + current_app.config["NOTIFY_EMAIL_FROM_DOMAIN"]
 
     token = create_domain_identity(ses_client, name)
     add_record(r53_client, '_amazonses.' + name, "\"%s\"" % token, "TXT")

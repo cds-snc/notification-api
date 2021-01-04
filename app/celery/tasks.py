@@ -442,7 +442,7 @@ def record_daily_sorted_counts(self, filename):
 
 
 def parse_dvla_file(filename):
-    bucket_location = '{}-ftp'.format(current_app.config['NOTIFY_EMAIL_DOMAIN'])
+    bucket_location = '{}-ftp'.format(current_app.config['NOTIFY_EMAIL_FROM_DOMAIN'])
     response_file_content = s3.get_s3_file(bucket_location, filename)
 
     try:

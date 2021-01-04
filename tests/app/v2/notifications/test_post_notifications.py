@@ -318,7 +318,7 @@ def test_post_email_notification_returns_201(client, sample_email_template_with_
     assert resp_json['content']['subject'] == sample_email_template_with_placeholders.subject \
         .replace('((name))', 'Bob')
     assert resp_json['content']['from_email'] == "{}@{}".format(
-        sample_email_template_with_placeholders.service.email_from, current_app.config['NOTIFY_EMAIL_DOMAIN'])
+        sample_email_template_with_placeholders.service.email_from, current_app.config['NOTIFY_EMAIL_FROM_DOMAIN'])
     assert 'v2/notifications/{}'.format(notification.id) in resp_json['uri']
     assert resp_json['template']['id'] == str(sample_email_template_with_placeholders.id)
     assert resp_json['template']['version'] == sample_email_template_with_placeholders.version

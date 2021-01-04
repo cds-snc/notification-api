@@ -47,11 +47,11 @@
                 "value": "False"
             },
             {
-                "name": "NOTIFY_EMAIL_DOMAIN",
+                "name": "NOTIFY_EMAIL_FROM_DOMAIN",
                 "value": "public.govdelivery.com"
             },
             {
-                "name": "NOTIFY_EMAIL_FROM",
+                "name": "NOTIFY_EMAIL_FROM_USER",
                 "value": "solutions"
             }
         ],

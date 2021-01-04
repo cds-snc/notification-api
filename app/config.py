@@ -370,8 +370,8 @@ class Config(object):
     VA_PROFILE_URL = os.environ.get('VA_PROFILE_URL', 'https://int.vaprofile.va.gov')
     MPI_URL = os.environ.get('MPI_URL', 'https://ps.dev.iam.va.gov')
 
-    NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "messages.va.gov")
-    NOTIFY_EMAIL_FROM = os.getenv("NOTIFY_EMAIL_FROM", "notifications")
+    NOTIFY_EMAIL_FROM_DOMAIN = os.getenv("NOTIFY_EMAIL_FROM_DOMAIN", "messages.va.gov")
+    NOTIFY_EMAIL_FROM_USER = os.getenv("NOTIFY_EMAIL_FROM_USER", "notifications")
 
     ROUTE_SECRET_KEY_1 = os.getenv('ROUTE_SECRET_KEY_1', '')
     ROUTE_SECRET_KEY_2 = os.getenv('ROUTE_SECRET_KEY_2', '')
