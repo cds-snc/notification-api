@@ -1339,20 +1339,7 @@ components:
               required: [email_address]
             - properties:
                 recipient_identifier:
-                  type: object
-                  properties:
-                    id_type:
-                      type: string
-                      enum:
-                        - VAPROFILEID
-                        - PID
-                        - ICN
-                        - BIRLSID
-                    id_value:
-                      type: string
-                  required:
-                    - id_type
-                    - id_value
+                  $ref: '#/components/schemas/RecipientIdentifier'
               required: [recipient_identifier]
     Notification:
       type: object
@@ -1498,6 +1485,7 @@ components:
             - VAPROFILEID
             - PID
             - ICN
+            - BIRLSID
         id_value:
           type: string
       required:
