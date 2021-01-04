@@ -118,7 +118,7 @@ def create_app(application):
         application.config['AWS_PINPOINT_APP_ID'],
         application.config['AWS_REGION'],
         application.logger,
-        application.config['AWS_PINPOINT_ORIGINATION_NUMBER'],
+        application.config['FROM_NUMBER'],
         statsd_client
     )
     va_profile_client.init_app(

@@ -145,7 +145,6 @@ class Config(object):
     AWS_SES_ACCESS_KEY = os.getenv('AWS_SES_ACCESS_KEY')
     AWS_SES_SECRET_KEY = os.getenv('AWS_SES_SECRET_KEY')
     AWS_PINPOINT_APP_ID = os.getenv('AWS_PINPOINT_APP_ID', 'df55c01206b742d2946ef226410af94f')
-    AWS_PINPOINT_ORIGINATION_NUMBER = os.getenv('AWS_PINPOINT_ORIGINATION_NUMBER', '+12515727927')
     CSV_UPLOAD_BUCKET_NAME = os.getenv('CSV_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-csv-upload')
     ASSET_UPLOAD_BUCKET_NAME = os.getenv('ASSET_UPLOAD_BUCKET_NAME', 'dev-notifications-va-gov-assets')
     ASSET_DOMAIN = os.getenv('ASSET_DOMAIN', 's3.amazonaws.com')
@@ -332,7 +331,9 @@ class Config(object):
         'task_queues': []
     }
 
-    FROM_NUMBER = 'development'
+    # When a service is created, this gets saved as default sms_sender
+    # We are using this for Pinpoint as default ORIGINATION NUMBER
+    FROM_NUMBER = '+12515727927'
 
     STATSD_HOST = os.getenv('STATSD_HOST')
     STATSD_PORT = 8125
@@ -445,8 +446,15 @@ class Development(Config):
             Queue(queue, Exchange('default'), routing_key=queue)
         )
 
+    # When a service is created, this gets saved as default sms_sender
+    # We are using this for Pinpoint as default ORIGINATION NUMBER
+    FROM_NUMBER = '+12515727927'
+
 
 class Test(Development):
+    # When a service is created, this gets saved as default sms_sender
+    # We are using this for Pinpoint as default ORIGINATION NUMBER
+    # This is a different number from ones saved in Pinpoint since this is testing
     FROM_NUMBER = 'testing'
     NOTIFY_ENVIRONMENT = 'test'
     TESTING = True
@@ -491,6 +499,12 @@ class Test(Development):
     GOOGLE_ANALYTICS_ENABLED = True
 
 
+class Staging(Config):
+    # When a service is created, this gets saved as default sms_sender
+    # We are using this for Pinpoint as default ORIGINATION NUMBER
+    FROM_NUMBER = '+12194912099'
+
+
 class Production(Config):
     SQLALCHEMY_POOL_SIZE = int(os.getenv('SQLALCHEMY_POOL_SIZE', 30))
     # CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
@@ -504,11 +518,14 @@ class Production(Config):
     PERFORMANCE_PLATFORM_ENABLED = False
     CHECK_PROXY_HEADER = False
     CRONITOR_ENABLED = False
+    # When a service is created, this gets saved as default sms_sender
+    # We are using this for Pinpoint as default ORIGINATION NUMBER
+    FROM_NUMBER = '+18286786800'
 
 
 configs = {
     'development': Development,
     'test': Test,
-    'staging': Production,
+    'staging': Staging,
     'production': Production
 }

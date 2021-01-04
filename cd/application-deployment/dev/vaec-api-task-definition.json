@@ -69,10 +69,6 @@
                 {
                     "name": "MPI_URL",
                     "value": "https://int.services.eauth.va.gov:9303/int"
-                },
-                {
-                    "name": "AWS_PINPOINT_ORIGINATION_NUMBER",
-                    "value": "+12515727927"
                 }
             ],
             "secrets": [{
