@@ -84,6 +84,28 @@ resource "aws_iam_role_policy_attachment" "notification_ecs_task_sqs" {
   policy_arn = aws_iam_policy.notification_ecs_task_sqs.arn
 }
 
+data "aws_iam_policy_document" "notification_ses" {
+  statement {
+    sid = "NotificationTaskSes"
+
+    actions = [
+      "ses:SendRawEmail"
+    ]
+
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "notification_ecs_task_ses" {
+  name   = "${var.environment_prefix}-notification-ecs-task-ses"
+  policy = data.aws_iam_policy_document.notification_ses.json
+}
+
+resource "aws_iam_role_policy_attachment" "notification_ecs_task_ses" {
+  role       = aws_iam_role.notification_api_task.name
+  policy_arn = aws_iam_policy.notification_ecs_task_ses.arn
+}
+
 resource "aws_kms_grant" "ecs_decrypt_secrets" {
   name              = "${var.environment_prefix}-notification-ecs-decrypt-secrets"
   key_id            = data.terraform_remote_state.base_infrastructure.outputs.notification_kms_key_id
