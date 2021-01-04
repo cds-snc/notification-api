@@ -163,7 +163,11 @@ def send_email_to_provider(notification):
             else:
                 email_from = service.email_from
 
-            from_address = '"{}" <{}@{}>'.format(service.name, email_from, sending_domain)
+            from_address = '"{}" <{}@{}>'.format(
+                current_app.config['NOTIFY_EMAIL_FROM_NAME'],
+                email_from,
+                sending_domain
+            )
 
             email_reply_to = notification.reply_to_text
 

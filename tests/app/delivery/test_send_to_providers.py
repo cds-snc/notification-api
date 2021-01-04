@@ -115,7 +115,8 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
 def test_should_send_personalised_template_to_correct_email_provider_and_persist(
     sample_email_template_with_html,
     mock_email_client,
-    mocked_build_ga_pixel_url
+    mocked_build_ga_pixel_url,
+    notify_api
 ):
     db_notification = create_notification(
         template=sample_email_template_with_html,
@@ -123,12 +124,13 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
         personalisation={'name': 'Jo'}
     )
 
-    send_to_providers.send_email_to_provider(
-        db_notification
-    )
+    with set_config_values(notify_api, {
+        'NOTIFY_EMAIL_FROM_NAME': 'Default Name'
+    }):
+        send_to_providers.send_email_to_provider(db_notification)
 
     mock_email_client.send_email.assert_called_once_with(
-        '"Sample service" <sample.service@{}>'.format(current_app.config['NOTIFY_EMAIL_FROM_DOMAIN']),
+        '"Default Name" <sample.service@{}>'.format(current_app.config['NOTIFY_EMAIL_FROM_DOMAIN']),
         'jo.smith@example.com',
         'Jo <em>some HTML</em>',
         body='Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n',
@@ -166,7 +168,8 @@ def test_should_use_custom_sending_domain_and_email_from(
         sample_service,
         mock_email_client,
         mocked_build_ga_pixel_url,
-        sample_email_template_with_html
+        sample_email_template_with_html,
+        notify_api
 ):
     db_notification = create_notification(
         template=sample_email_template_with_html,
@@ -177,10 +180,13 @@ def test_should_use_custom_sending_domain_and_email_from(
     sample_service.sending_domain = "foo.bar"
     sample_service.email_from = "custom-email-from"
 
-    send_to_providers.send_email_to_provider(db_notification)
+    with set_config_values(notify_api, {
+        'NOTIFY_EMAIL_FROM_NAME': 'Default Name',
+    }):
+        send_to_providers.send_email_to_provider(db_notification)
 
     mock_email_client.send_email.assert_called_once_with(
-        '"Sample service" <custom-email-from@foo.bar>',
+        '"Default Name" <custom-email-from@foo.bar>',
         'jo.smith@example.com',
         'Jo <em>some HTML</em>',
         body='Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n',
@@ -190,7 +196,7 @@ def test_should_use_custom_sending_domain_and_email_from(
     )
 
 
-def test_should_use_default_sending_domain_and_email_from(
+def test_should_use_default_from_email(
         sample_service,
         mock_email_client,
         mocked_build_ga_pixel_url,
@@ -209,12 +215,13 @@ def test_should_use_default_sending_domain_and_email_from(
 
     with set_config_values(notify_api, {
         'NOTIFY_EMAIL_FROM_DOMAIN': 'default.email.domain',
-        'NOTIFY_EMAIL_FROM_USER': 'default-email-from'
+        'NOTIFY_EMAIL_FROM_USER': 'default-email-from',
+        'NOTIFY_EMAIL_FROM_NAME': 'Default Name',
     }):
         send_to_providers.send_email_to_provider(db_notification)
 
     mock_email_client.send_email.assert_called_once_with(
-        '"Sample service" <default-email-from@default.email.domain>',
+        '"Default Name" <default-email-from@default.email.domain>',
         'jo.smith@example.com',
         'Jo <em>some HTML</em>',
         body='Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n',

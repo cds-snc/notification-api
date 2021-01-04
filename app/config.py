@@ -372,6 +372,7 @@ class Config(object):
 
     NOTIFY_EMAIL_FROM_DOMAIN = os.getenv("NOTIFY_EMAIL_FROM_DOMAIN", "messages.va.gov")
     NOTIFY_EMAIL_FROM_USER = os.getenv("NOTIFY_EMAIL_FROM_USER", "notifications")
+    NOTIFY_EMAIL_FROM_NAME = os.getenv("NOTIFY_EMAIL_FROM_NAME", "U.S. Department of Veterans Affairs")
 
     ROUTE_SECRET_KEY_1 = os.getenv('ROUTE_SECRET_KEY_1', '')
     ROUTE_SECRET_KEY_2 = os.getenv('ROUTE_SECRET_KEY_2', '')
