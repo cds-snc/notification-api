@@ -1,0 +1,32 @@
+{
+  "predicates": [
+    {
+      "matches": {
+        "path": "/cuf/contact-information/v1/2003/telephones$"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "is": {
+        "statusCode": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body":
+        {
+          "messages": [
+            {
+              "code": "CORE103",
+              "key": "_CUF_NOT_FOUND",
+              "text": "The TelephoneBio for id/criteria mdm.cuf.contact.information.bio.TelephoneBio@58782f7c[telephoneId=<null>,internationalIndicator=<null>,phoneType=<null>,countryCode=<null>,areaCode=<null>,phoneNumber=<null>,phoneNumberExt=<null>,connectionStatusCode=<null>,textMessageCapableInd=<null>,textMessagePermInd=<null>,voiceMailAcceptableInd=<null>,ttyInd=<null>,effectiveStartDate=<null>,effectiveEndDate=<null>,confirmationDate=<null>,vet360Id=<null>,vaProfileId=135,createDate=<null>,updateDate=<null>,txAuditId=<null>,sourceSystem=<null>,sourceDate=<null>,originatingSourceSystem=<null>,sourceSystemUser=<null>] could not be found. Please correct your request and try again!",
+              "severity": "INFO"
+            }
+          ],
+          "txAuditId": "dca32cae-b410-46c5-b61b-9a382567843f",
+          "status": "COMPLETED_SUCCESS"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "predicates": [
+    {
+      "matches": {
+        "path": "/cuf/contact-information/v1/2005/telephones$"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "is": {
+        "statusCode": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body":
+        {
+          "messages": [
+            {
+              "code": "PERS203",
+              "key": "vaprofileId.Deprecated",
+              "text": "The given id for contact information is deprecated 2,005",
+              "severity": "ERROR",
+              "potentiallySelfCorrectingOnRetry": false
+            }
+          ],
+          "txAuditId": "713436c1-c6f3-4972-a446-348cee2d8583",
+          "status": "COMPLETED_FAILURE"
+        }
+      }
+    }
+  ]
+}

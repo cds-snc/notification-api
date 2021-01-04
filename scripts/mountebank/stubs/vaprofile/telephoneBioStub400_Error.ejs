@@ -1,0 +1,33 @@
+{
+  "predicates": [
+    {
+      "matches": {
+        "path": "/cuf/contact-information/v1/4000/telephones$"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "is": {
+        "statusCode": 400,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body":
+        {
+          "messages": [
+            {
+              "code": "string",
+              "key": "string",
+              "potentiallySelfCorrectingOnRetry": true,
+              "severity": "INFO",
+              "text": "string"
+            }
+          ],
+          "status": "REJECTED",
+          "txAuditId": "fca32cae-b410-46c5-b61b-9a382567843f"
+        }
+      }
+    }
+  ]
+}
