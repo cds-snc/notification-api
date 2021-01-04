@@ -514,7 +514,6 @@ class Production(Config):
     LETTERS_SCAN_BUCKET_NAME = 'production-letters-scan'
     INVALID_PDF_BUCKET_NAME = 'production-letters-invalid-pdf'
     TRANSIENT_UPLOADED_LETTERS = 'production-transient-uploaded-letters'
-    FROM_NUMBER = 'VA.GOV'
     PERFORMANCE_PLATFORM_ENABLED = False
     CHECK_PROXY_HEADER = False
     CRONITOR_ENABLED = False
