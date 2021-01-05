@@ -2520,6 +2520,7 @@ def test_is_service_email_from_unique_returns_200_and_false_if_email_from_exist_
     admin_request,
     notify_db,
     notify_db_session,
+    name,
     email_from
 ):
     create_service(service_name='existing name', email_from='existing.name')
