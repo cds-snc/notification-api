@@ -44,7 +44,7 @@ class VAProfileClient:
         response = self._make_request(va_profile_id, 'emails')
 
         try:
-            most_recently_created_bio = self._get_most_recently_created_bio(response)
+            most_recently_created_bio = self._get_most_recently_created_email_bio(response)
             self.statsd_client.incr("clients.va-profile.get-email.success")
             return most_recently_created_bio['emailAddressText']
         except KeyError as e:
@@ -55,7 +55,7 @@ class VAProfileClient:
         response = self._make_request(va_profile_id, 'telephones')
 
         try:
-            phone_number = self._get_mobile_number(response)
+            phone_number = self._get_phone_number_from_bio(response)
             if phone_number is None:
                 self.statsd_client.incr("clients.va-profile.get-telephone.no-phone-number")
                 raise NoContactInfoException(
@@ -110,7 +110,7 @@ class VAProfileClient:
             self.statsd_client.timing("clients.va-profile.request-time", elapsed_time)
 
     @staticmethod
-    def _get_most_recently_created_bio(response):
+    def _get_most_recently_created_email_bio(response):
         sorted_bios = sorted(
             response.json()['bios'],
             key=lambda bio: iso8601.parse_date(bio['createDate']),
@@ -119,20 +119,14 @@ class VAProfileClient:
         return sorted_bios[0]
 
     @staticmethod
-    def _get_mobile_number(response):
-        phone_number = None
+    def _get_phone_number_from_bio(response):
+        # This sorting first sorts by phone type and then by create date
+        # since reverse order is used, MOBILE is before HOME
         sorted_bios = sorted(
-            list(filter(
-                lambda bio:
-                bio['phoneType'] in PhoneNumberType.valid_type_values(),
-                response.json()['bios']
-            )),
-            key=lambda bio: iso8601.parse_date(bio['createDate']),
+            (bio for bio in response.json()['bios'] if bio['phoneType'] in PhoneNumberType.valid_type_values()),
+            key=lambda bio: (bio['phoneType'], iso8601.parse_date(bio['createDate'])),
             reverse=True
         )
 
-        if len(sorted_bios) > 0:
-            phone_number =\
-                f"+{sorted_bios[0]['countryCode']}{sorted_bios[0]['areaCode']}{sorted_bios[0]['phoneNumber']}"
-
-        return phone_number
+        if sorted_bios:
+            return f"+{sorted_bios[0]['countryCode']}{sorted_bios[0]['areaCode']}{sorted_bios[0]['phoneNumber']}"

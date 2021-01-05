@@ -191,6 +191,17 @@ def test_get_telephone_gets_single_mobile_phone_number(rmock, test_va_profile_cl
     assert actual_phone_number == expected_phone_number
 
 
+def test_get_telephone_empty_bios(rmock, test_va_profile_client):
+    response = {
+        "txAuditId": "0e0e53e0-b1f0-404f-a8e1-cc9ab7ef563e",
+        "status": "COMPLETED_SUCCESS"
+    }
+    rmock.get(ANY, json=response, status_code=200)
+
+    with pytest.raises(NoContactInfoException):
+        test_va_profile_client.get_telephone('1')
+
+
 def test_get_telephone_gets_single_work_phone_number(rmock, test_va_profile_client):
     response = {
         "txAuditId": "0e0e53e0-b1f0-404f-a8e1-cc9ab7ef563e",
@@ -382,6 +393,80 @@ def test_get_telephone_gets_multiple_mobile_phone_numbers(rmock, test_va_profile
                 "countryCode": "1",
                 "areaCode": "555",
                 "phoneNumber": "2222222",
+                "connectionStatusCode": "NO_KNOWN_PROBLEM"
+            }
+        ]
+    }
+    rmock.get(ANY, json=response, status_code=200)
+
+    actual_phone_number = test_va_profile_client.get_telephone('1')
+    assert actual_phone_number == expected_phone_number
+
+
+def test_get_telephone_gets_mobile_phone_number(rmock, test_va_profile_client):
+    expected_phone_number = '+15551111111'
+    response = {
+        "txAuditId": "0e0e53e0-b1f0-404f-a8e1-cc9ab7ef563e",
+        "status": "COMPLETED_SUCCESS",
+        "bios": [
+            {
+                "createDate": "2020-10-23T13:07:50Z",
+                "updateDate": "2020-11-25T15:30:23Z",
+                "txAuditId": "f9f28afb-2ac3-4f92-acef-5f36f1fbd322",
+                "sourceSystem": "VAPROFILE-TEST-PARTNER",
+                "sourceDate": "2020-11-25T14:38:17Z",
+                "originatingSourceSystem": "eVA",
+                "sourceSystemUser": "foo",
+                "effectiveStartDate": "2020-11-25T14:38:17Z",
+                "effectiveEndDate": "2021-11-25T14:38:17Z",
+                "confirmationDate": "2020-11-25T14:38:17Z",
+                "vet360Id": 2004,
+                "telephoneId": 14365,
+                "internationalIndicator": False,
+                "phoneType": "HOME",
+                "countryCode": "1",
+                "areaCode": "555",
+                "phoneNumber": "2222222",
+                "connectionStatusCode": "NO_KNOWN_PROBLEM"
+            },
+            {
+                "createDate": "2019-10-25T13:07:50Z",
+                "updateDate": "2019-11-25T15:30:23Z",
+                "txAuditId": "f9f28afb-2ac3-4f92-acef-5f36f1fbd322",
+                "sourceSystem": "VAPROFILE-TEST-PARTNER",
+                "sourceDate": "2020-11-25T14:38:17Z",
+                "originatingSourceSystem": "eVA",
+                "sourceSystemUser": "foo",
+                "effectiveStartDate": "2020-11-25T14:38:17Z",
+                "effectiveEndDate": "2021-11-25T14:38:17Z",
+                "confirmationDate": "2020-11-25T14:38:17Z",
+                "vet360Id": 2004,
+                "telephoneId": 14365,
+                "internationalIndicator": False,
+                "phoneType": "HOME",
+                "countryCode": "1",
+                "areaCode": "555",
+                "phoneNumber": "333",
+                "connectionStatusCode": "NO_KNOWN_PROBLEM"
+            },
+            {
+                "createDate": "2019-10-25T13:07:50Z",
+                "updateDate": "2019-11-25T15:30:23Z",
+                "txAuditId": "f9f28afb-2ac3-4f92-acef-5f36f1fbd322",
+                "sourceSystem": "VAPROFILE-TEST-PARTNER",
+                "sourceDate": "2020-11-25T14:38:17Z",
+                "originatingSourceSystem": "eVA",
+                "sourceSystemUser": "foo",
+                "effectiveStartDate": "2020-11-25T14:38:17Z",
+                "effectiveEndDate": "2021-11-25T14:38:17Z",
+                "confirmationDate": "2020-11-25T14:38:17Z",
+                "vet360Id": 2004,
+                "telephoneId": 14365,
+                "internationalIndicator": False,
+                "phoneType": "MOBILE",
+                "countryCode": "1",
+                "areaCode": "555",
+                "phoneNumber": "1111111",
                 "connectionStatusCode": "NO_KNOWN_PROBLEM"
             }
         ]
