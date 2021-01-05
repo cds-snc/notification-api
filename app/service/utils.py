@@ -1,11 +1,13 @@
 import itertools
 
+from flask import current_app
+
 from notifications_utils.recipients import allowed_to_send_to
 
 from app.models import (
     ServiceWhitelist,
     MOBILE_TYPE, EMAIL_TYPE,
-    KEY_TYPE_TEST, KEY_TYPE_TEAM, KEY_TYPE_NORMAL)
+    KEY_TYPE_TEST, KEY_TYPE_TEAM, KEY_TYPE_NORMAL, Service)
 
 
 def get_recipients_from_request(request_json, key, type):
@@ -52,3 +54,17 @@ def service_allowed_to_send_to(recipient, service, key_type, allow_whitelisted_r
                 whitelist_members
             )
         )
+
+
+def compute_source_email_address(service: Service) -> str:
+    if service.sending_domain is None or service.sending_domain.strip() == "":
+        sending_domain = current_app.config['NOTIFY_EMAIL_FROM_DOMAIN']
+    else:
+        sending_domain = service.sending_domain
+
+    if service.email_from is None or service.email_from.strip() == "":
+        email_from = current_app.config['NOTIFY_EMAIL_FROM_USER']
+    else:
+        email_from = service.email_from
+
+    return '"{}" <{}@{}>'.format(current_app.config['NOTIFY_EMAIL_FROM_NAME'], email_from, sending_domain)

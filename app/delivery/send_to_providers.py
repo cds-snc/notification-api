@@ -35,6 +35,7 @@ from app.models import (
     NOTIFICATION_SENT,
     NOTIFICATION_SENDING
 )
+from app.service.utils import compute_source_email_address
 
 
 def send_sms_to_provider(notification):
@@ -153,26 +154,10 @@ def send_email_to_provider(notification):
             update_notification_to_sending(notification, provider)
             send_email_response(notification.reference, notification.to)
         else:
-            if service.sending_domain is None or service.sending_domain.strip() == "":
-                sending_domain = current_app.config['NOTIFY_EMAIL_FROM_DOMAIN']
-            else:
-                sending_domain = service.sending_domain
-
-            if service.email_from is None or service.email_from.strip() == "":
-                email_from = current_app.config['NOTIFY_EMAIL_FROM_USER']
-            else:
-                email_from = service.email_from
-
-            from_address = '"{}" <{}@{}>'.format(
-                current_app.config['NOTIFY_EMAIL_FROM_NAME'],
-                email_from,
-                sending_domain
-            )
-
             email_reply_to = notification.reply_to_text
 
             reference = provider.send_email(
-                source=from_address,
+                source=compute_source_email_address(service),
                 to_addresses=validate_and_format_email_address(notification.to),
                 subject=plain_text_email.subject,
                 body=str(plain_text_email),

@@ -1,8 +1,14 @@
+import pytest
+
 from app.dao.date_util import get_current_financial_year_start_year
 from freezegun import freeze_time
 
 
 # see get_financial_year for conversion of financial years.
+from app.service.utils import compute_source_email_address
+from tests.conftest import set_config_values
+
+
 @freeze_time("2017-03-31 22:59:59.999999")
 def test_get_current_financial_year_start_year_before_march():
     current_fy = get_current_financial_year_start_year()
@@ -14,3 +20,32 @@ def test_get_current_financial_year_start_year_before_march():
 def test_get_current_financial_year_start_year_after_april():
     current_fy = get_current_financial_year_start_year()
     assert current_fy == 2017
+
+
+DEFAULT_EMAIL_FROM_VALUES = {
+    'NOTIFY_EMAIL_FROM_DOMAIN': 'default.domain',
+    'NOTIFY_EMAIL_FROM_USER': 'default-email-from',
+    'NOTIFY_EMAIL_FROM_NAME': 'Default Name',
+}
+
+
+@pytest.mark.parametrize(
+    'service_sending_domain, service_email_from, expected_source_email_address',
+    [
+        (None, None, '"Default Name" <default-email-from@default.domain>'),
+        ('custom.domain', None, '"Default Name" <default-email-from@custom.domain>'),
+        (None, 'custom-email-from', '"Default Name" <custom-email-from@default.domain>')
+    ]
+)
+def test_should_compute_source_email_address(
+        sample_service,
+        notify_api,
+        service_sending_domain,
+        service_email_from,
+        expected_source_email_address
+):
+    sample_service.sending_domain = service_sending_domain
+    sample_service.email_from = service_email_from
+
+    with set_config_values(notify_api, DEFAULT_EMAIL_FROM_VALUES):
+        assert compute_source_email_address(sample_service) == expected_source_email_address

@@ -37,6 +37,16 @@ from tests.app.db import (
 from tests.conftest import set_config_values
 
 
+@pytest.fixture
+def mock_source_email_address(mocker):
+    source_email_address = '"Some Name" <some-user@some.domain>'
+    mocker.patch(
+        'app.delivery.send_to_providers.compute_source_email_address',
+        return_value=source_email_address
+    )
+    return source_email_address
+
+
 def test_should_return_highest_priority_active_provider(restore_provider_details):
     providers = provider_details_dao.get_provider_details_by_notification_type('sms')
 
@@ -116,7 +126,8 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     sample_email_template_with_html,
     mock_email_client,
     mocked_build_ga_pixel_url,
-    notify_api
+    notify_api,
+    mock_source_email_address
 ):
     db_notification = create_notification(
         template=sample_email_template_with_html,
@@ -130,7 +141,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
         send_to_providers.send_email_to_provider(db_notification)
 
     mock_email_client.send_email.assert_called_once_with(
-        source='"Default Name" <sample.service@{}>'.format(current_app.config['NOTIFY_EMAIL_FROM_DOMAIN']),
+        source=mock_source_email_address,
         to_addresses='jo.smith@example.com',
         subject='Jo <em>some HTML</em>',
         body='Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n',
@@ -162,51 +173,6 @@ def test_should_not_send_email_message_when_service_is_inactive_notification_is_
     assert str(sample_notification.id) in str(e.value)
     mock_email_client.send_email.assert_not_called()
     assert Notification.query.get(sample_notification.id).status == 'technical-failure'
-
-
-def test_should_use_custom_sending_domain_and_email_from(
-        sample_service,
-        mock_email_client,
-        mocked_build_ga_pixel_url,
-        sample_email_template_with_html,
-        notify_api
-):
-    db_notification = create_notification(template=sample_email_template_with_html)
-
-    sample_service.sending_domain = "foo.bar"
-    sample_service.email_from = "custom-email-from"
-
-    with set_config_values(notify_api, {
-        'NOTIFY_EMAIL_FROM_NAME': 'Default Name',
-    }):
-        send_to_providers.send_email_to_provider(db_notification)
-
-    _, kwargs = mock_email_client.send_email.call_args
-    assert kwargs['source'] == '"Default Name" <custom-email-from@foo.bar>'
-
-
-def test_should_use_default_from_email(
-        sample_service,
-        mock_email_client,
-        mocked_build_ga_pixel_url,
-        sample_email_template_with_html,
-        notify_api
-):
-
-    db_notification = create_notification(template=sample_email_template_with_html)
-
-    sample_service.sending_domain = None
-    sample_service.email_from = None
-
-    with set_config_values(notify_api, {
-        'NOTIFY_EMAIL_FROM_DOMAIN': 'default.email.domain',
-        'NOTIFY_EMAIL_FROM_USER': 'default-email-from',
-        'NOTIFY_EMAIL_FROM_NAME': 'Default Name',
-    }):
-        send_to_providers.send_email_to_provider(db_notification)
-
-    _, kwargs = mock_email_client.send_email.call_args
-    assert kwargs['source'] == '"Default Name" <default-email-from@default.email.domain>'
 
 
 @pytest.mark.parametrize("client_send", ["app.aws_sns_client.send_sms", "app.mmg_client.send_sms"])
