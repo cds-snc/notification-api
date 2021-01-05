@@ -130,9 +130,9 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
         send_to_providers.send_email_to_provider(db_notification)
 
     mock_email_client.send_email.assert_called_once_with(
-        '"Default Name" <sample.service@{}>'.format(current_app.config['NOTIFY_EMAIL_FROM_DOMAIN']),
-        'jo.smith@example.com',
-        'Jo <em>some HTML</em>',
+        source='"Default Name" <sample.service@{}>'.format(current_app.config['NOTIFY_EMAIL_FROM_DOMAIN']),
+        to_addresses='jo.smith@example.com',
+        subject='Jo <em>some HTML</em>',
         body='Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n',
         html_body=ANY,
         reply_to_address=None,
@@ -171,11 +171,7 @@ def test_should_use_custom_sending_domain_and_email_from(
         sample_email_template_with_html,
         notify_api
 ):
-    db_notification = create_notification(
-        template=sample_email_template_with_html,
-        to_field="jo.smith@example.com",
-        personalisation={'name': 'Jo'}
-    )
+    db_notification = create_notification(template=sample_email_template_with_html)
 
     sample_service.sending_domain = "foo.bar"
     sample_service.email_from = "custom-email-from"
@@ -185,15 +181,8 @@ def test_should_use_custom_sending_domain_and_email_from(
     }):
         send_to_providers.send_email_to_provider(db_notification)
 
-    mock_email_client.send_email.assert_called_once_with(
-        '"Default Name" <custom-email-from@foo.bar>',
-        'jo.smith@example.com',
-        'Jo <em>some HTML</em>',
-        body='Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n',
-        html_body=ANY,
-        reply_to_address=None,
-        attachments=[]
-    )
+    _, kwargs = mock_email_client.send_email.call_args
+    assert kwargs['source'] == '"Default Name" <custom-email-from@foo.bar>'
 
 
 def test_should_use_default_from_email(
@@ -204,11 +193,7 @@ def test_should_use_default_from_email(
         notify_api
 ):
 
-    db_notification = create_notification(
-        template=sample_email_template_with_html,
-        to_field="jo.smith@example.com",
-        personalisation={'name': 'Jo'}
-    )
+    db_notification = create_notification(template=sample_email_template_with_html)
 
     sample_service.sending_domain = None
     sample_service.email_from = None
@@ -220,15 +205,8 @@ def test_should_use_default_from_email(
     }):
         send_to_providers.send_email_to_provider(db_notification)
 
-    mock_email_client.send_email.assert_called_once_with(
-        '"Default Name" <default-email-from@default.email.domain>',
-        'jo.smith@example.com',
-        'Jo <em>some HTML</em>',
-        body='Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n',
-        html_body=ANY,
-        reply_to_address=None,
-        attachments=[]
-    )
+    _, kwargs = mock_email_client.send_email.call_args
+    assert kwargs['source'] == '"Default Name" <default-email-from@default.email.domain>'
 
 
 @pytest.mark.parametrize("client_send", ["app.aws_sns_client.send_sms", "app.mmg_client.send_sms"])
@@ -451,19 +429,10 @@ def test_send_email_should_use_service_reply_to_email(
     db_notification = create_notification(template=sample_email_template, reply_to_text='foo@bar.com')
     create_reply_to_email(service=sample_service, email_address='foo@bar.com')
 
-    send_to_providers.send_email_to_provider(
-        db_notification,
-    )
+    send_to_providers.send_email_to_provider(db_notification)
 
-    mock_email_client.send_email.assert_called_once_with(
-        ANY,
-        ANY,
-        ANY,
-        body=ANY,
-        html_body=ANY,
-        reply_to_address='foo@bar.com',
-        attachments=[]
-    )
+    _, kwargs = mock_email_client.send_email.call_args
+    assert kwargs['reply_to_address'] == 'foo@bar.com'
 
 
 def test_get_html_email_renderer_should_return_for_normal_service(
@@ -761,19 +730,10 @@ def test_send_email_to_provider_uses_reply_to_from_notification(
 ):
     db_notification = create_notification(template=sample_email_template, reply_to_text="test@test.com")
 
-    send_to_providers.send_email_to_provider(
-        db_notification,
-    )
+    send_to_providers.send_email_to_provider(db_notification)
 
-    mock_email_client.send_email.assert_called_once_with(
-        ANY,
-        ANY,
-        ANY,
-        body=ANY,
-        html_body=ANY,
-        reply_to_address="test@test.com",
-        attachments=[]
-    )
+    _, kwargs = mock_email_client.send_email.call_args
+    assert kwargs['reply_to_address'] == "test@test.com"
 
 
 def test_send_email_to_provider_should_format_reply_to_email_address(
@@ -783,19 +743,10 @@ def test_send_email_to_provider_should_format_reply_to_email_address(
 ):
     db_notification = create_notification(template=sample_email_template, reply_to_text="test@test.com\t")
 
-    send_to_providers.send_email_to_provider(
-        db_notification,
-    )
+    send_to_providers.send_email_to_provider(db_notification)
 
-    mock_email_client.send_email.assert_called_once_with(
-        ANY,
-        ANY,
-        ANY,
-        body=ANY,
-        html_body=ANY,
-        reply_to_address="test@test.com",
-        attachments=[]
-    )
+    _, kwargs = mock_email_client.send_email.call_args
+    assert kwargs['reply_to_address'] == "test@test.com"
 
 
 def test_send_sms_to_provider_should_format_phone_number(sample_notification, mock_sms_client):
@@ -817,17 +768,8 @@ def test_send_email_to_provider_should_format_email_address(
 
     send_to_providers.send_email_to_provider(sample_email_notification)
 
-    # to_addresses
-    mock_email_client.send_email.assert_called_once_with(
-        ANY,
-        # to_addresses
-        'test@example.com',
-        ANY,
-        body=ANY,
-        html_body=ANY,
-        reply_to_address=ANY,
-        attachments=[]
-    )
+    _, kwargs = mock_email_client.send_email.call_args
+    assert kwargs['to_addresses'] == 'test@example.com'
 
 
 def test_notification_can_have_document_attachment_without_mlwr_sid(

@@ -172,9 +172,9 @@ def send_email_to_provider(notification):
             email_reply_to = notification.reply_to_text
 
             reference = provider.send_email(
-                from_address,
-                validate_and_format_email_address(notification.to),
-                plain_text_email.subject,
+                source=from_address,
+                to_addresses=validate_and_format_email_address(notification.to),
+                subject=plain_text_email.subject,
                 body=str(plain_text_email),
                 html_body=str(html_email),
                 reply_to_address=validate_and_format_email_address(email_reply_to) if email_reply_to else None,
