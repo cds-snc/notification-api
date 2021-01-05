@@ -130,6 +130,7 @@ register_errors(service_blueprint)
 def handle_integrity_error(exc):
     """
     Handle integrity errors caused by the unique constraint on ix_organisation_name
+    DP TEST
     """
     if any(
         'duplicate key value violates unique constraint "{}"'.format(constraint) in str(exc)
