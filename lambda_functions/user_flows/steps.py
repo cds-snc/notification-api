@@ -3,6 +3,7 @@ import json
 import jwt
 import time
 import boto3
+from jwt import PyJWT
 
 client = boto3.client('ssm')
 
@@ -86,6 +87,11 @@ def get_user_id(service_id, users):
 def get_first_email_template_id(templates):
     first_email_template = next(template for template in templates if template['template_type'] == 'email')
     return first_email_template["id"]
+
+
+def get_first_sms_template_id(templates):
+    first_sms_template = next(template for template in templates if template['template_type'] == 'sms')
+    return first_sms_template["id"]
 
 
 def revoke_service_api_keys(environment, notification_url, service_id):
@@ -208,3 +214,18 @@ def get_notification_status(notification_id, notification_url, service_jwt):
     header = {"Authorization": "Bearer " + service_jwt.decode("utf-8"), 'Content-Type': 'application/json'}
     url = F"{notification_url}/v2/notifications/{notification_id}"
     return requests.get(url, headers=header)
+
+
+def send_sms_with_phone_number(notification_url: str, service_jwt: PyJWT, template_id: str, recipient_number: str):
+    payload = json.dumps({
+        "phone_number": recipient_number,
+        "template_id": template_id
+    })
+
+    return send_sms(notification_url, service_jwt, payload)
+
+
+def send_sms(notification_url: str, service_jwt: PyJWT, payload: str):
+    header = {"Authorization": F"Bearer {service_jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
+    post_url = F"{notification_url}/v2/notifications/sms"
+    return requests.post(post_url, headers=header, data=payload)

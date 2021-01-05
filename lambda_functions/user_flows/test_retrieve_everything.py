@@ -1,3 +1,4 @@
+import os
 import pytest
 import time
 
@@ -15,6 +16,9 @@ from steps import send_email_with_va_profile_id
 from steps import get_notification_id
 from steps import get_notification_status
 from steps import send_email_with_icn
+from steps import \
+    send_sms_with_phone_number, \
+    get_first_sms_template_id
 
 
 @pytest.fixture(scope="function")
@@ -45,6 +49,11 @@ def get_templates_response(environment, notification_url, service_id):
 @pytest.fixture(scope="function")
 def template_id(get_templates_response):
     return get_first_email_template_id(get_templates_response.json()['data'])
+
+
+@pytest.fixture(scope="function")
+def sms_template_id(get_templates_response):
+    return get_first_sms_template_id(get_templates_response.json()['data'])
 
 
 @pytest.fixture(scope="function")
@@ -150,3 +159,25 @@ def test_send_email_with_icn(environment, notification_url, service_id, service_
     found_va_profile_ids = [identifier for identifier in notification_status_response.json()['recipient_identifiers']
                             if identifier['id_type'] == 'VAPROFILEID']
     assert len(found_va_profile_ids) == 1
+
+
+def test_send_text(notification_url, service_test_api_key, service_id, sms_template_id):
+    service_jwt = get_service_jwt(service_test_api_key, service_id)
+    some_recipient_number = '+18881111111'
+
+    sms_response = send_sms_with_phone_number(notification_url, service_jwt, sms_template_id, some_recipient_number)
+    assert sms_response.status_code == 201
+    notification_id = get_notification_id(sms_response)
+
+    notification_status_response = None
+    for _ in range(30):
+        service_jwt = get_service_jwt(service_test_api_key, service_id)
+        notification_status_response = get_notification_status(notification_id, notification_url, service_jwt)
+
+        if notification_status_response.json()['status'] == 'delivered':
+            break
+
+        time.sleep(1)
+
+    assert notification_status_response.json()['status'] == 'delivered'
+    assert notification_status_response.json()['content']['from_number'] == os.getenv('FROM_NUMBER')
