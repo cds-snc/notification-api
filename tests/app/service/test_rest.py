@@ -2494,7 +2494,7 @@ def test_is_service_name_unique_returns_200_with_name_capitalized_or_punctuation
 
 @pytest.mark.parametrize('name, email_from', [
                          ("existing name", "email.from"),
-                         ("name", "existing.name")
+                         ("name", "existing name")
                          ])
 def test_is_service_name_unique_returns_200_and_false_if_name_exist(
     admin_request,
