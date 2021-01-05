@@ -182,4 +182,4 @@ def test_send_text(notification_url, service_test_api_key, service_id, sms_templ
         time.sleep(1)
 
     assert notification_status_response.json()['status'] == 'sent'
-    assert notification_status_response.json()['content']['from_number'] == os.getenv('FROM_NUMBER')
+    assert notification_status_response.json()['phone_number'] == VALID_TEST_RECIPIENT_PHONE_NUMBER
