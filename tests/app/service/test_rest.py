@@ -2512,6 +2512,7 @@ def test_is_service_name_unique_returns_200_and_false_if_name_exist(
 
     assert response == {"result": False}
 
+
 @pytest.mark.parametrize('name, email_from', [
                          ("existing name", "existing.name")
                          ])
