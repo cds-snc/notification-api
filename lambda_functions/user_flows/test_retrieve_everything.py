@@ -176,10 +176,10 @@ def test_send_text(notification_url, service_test_api_key, service_id, sms_templ
         service_jwt = get_service_jwt(service_test_api_key, service_id)
         notification_status_response = get_notification_status(notification_id, notification_url, service_jwt)
 
-        if notification_status_response.json()['status'] == 'delivered':
+        if notification_status_response.json()['status'] == 'sent':
             break
 
         time.sleep(1)
 
-    assert notification_status_response.json()['status'] == 'delivered'
+    assert notification_status_response.json()['status'] == 'sent'
     assert notification_status_response.json()['content']['from_number'] == os.getenv('FROM_NUMBER')
