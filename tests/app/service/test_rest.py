@@ -2445,7 +2445,7 @@ def test_search_for_notification_by_to_field_returns_notifications_by_type(
 
 
 def test_is_service_name_unique_returns_200_if_unique(admin_request, notify_db, notify_db_session):
-    service = create_service(service_name='unique', email_from='unique')
+    create_service(service_name='unique', email_from='unique')
 
     response = admin_request.get(
         'service.is_service_name_unique',
@@ -2481,7 +2481,7 @@ def test_is_service_name_unique_returns_200_with_name_capitalized_or_punctuation
     name,
     email_from
 ):
-    service = create_service(service_name='unique', email_from='unique')
+    create_service(service_name='unique', email_from='unique')
 
     response = admin_request.get(
         'service.is_service_name_unique',
@@ -2518,7 +2518,6 @@ def test_is_service_email_from_unique_returns_200_and_false_if_email_from_exist_
     admin_request,
     notify_db,
     notify_db_session,
-    name,
     email_from
 ):
     create_service(service_name='existing name', email_from='existing.name')
