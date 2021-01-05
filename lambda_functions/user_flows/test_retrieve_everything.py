@@ -21,6 +21,9 @@ from steps import \
     get_first_sms_template_id
 
 
+VALID_TEST_RECIPIENT_PHONE_NUMBER = "+16502532222"
+
+
 @pytest.fixture(scope="function")
 def environment(pytestconfig):
     return pytestconfig.getoption("environment")
@@ -163,9 +166,8 @@ def test_send_email_with_icn(environment, notification_url, service_id, service_
 
 def test_send_text(notification_url, service_test_api_key, service_id, sms_template_id):
     service_jwt = get_service_jwt(service_test_api_key, service_id)
-    some_recipient_number = '+18881111111'
 
-    sms_response = send_sms_with_phone_number(notification_url, service_jwt, sms_template_id, some_recipient_number)
+    sms_response = send_sms_with_phone_number(notification_url, service_jwt, sms_template_id, VALID_TEST_RECIPIENT_PHONE_NUMBER)
     assert sms_response.status_code == 201
     notification_id = get_notification_id(sms_response)
 
