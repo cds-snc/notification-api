@@ -1006,7 +1006,7 @@ def create_smtp_relay(service_id):
 def check_unique_name_request_args(request):
     name = request.args.get('name', None)
     if not name:
-        raise InvalidRequest({'name': ["Can't be empty"]}, status_code=400)
+        raise InvalidRequest([{'name': ["Can't be empty"]}], status_code=400)
     return name
 
 
