@@ -23,19 +23,19 @@ def get_api_secret(environment):
 
 
 def get_jwt(environment):
-    jwtSecret = get_api_secret(environment)
+    jwt_secret = get_api_secret(environment)
     header = {'typ': 'JWT', 'alg': 'HS256'}
     combo = {}
-    currentTimestamp = int(time.time())
+    current_timestamp = int(time.time())
     data = {
         'iss': "notify-admin",
-        'iat': currentTimestamp,
-        'exp': currentTimestamp + 30,
+        'iat': current_timestamp,
+        'exp': current_timestamp + 30,
         'jti': 'jwt_nonce'
     }
     combo.update(data)
     combo.update(header)
-    encoded_jwt = jwt.encode(combo, jwtSecret, algorithm='HS256')
+    encoded_jwt = jwt.encode(combo, jwt_secret, algorithm='HS256')
     return encoded_jwt
 
 
@@ -61,11 +61,11 @@ def get_api_health_status(environment, url):
 
 
 def get_organization_id(data):
-    id = data[-1]['id']
+    organization_id = data[-1]['id']
     for organization in data:
         if organization['count_of_live_services'] >= 1:
-            id = organization['id']
-    return id
+            organization_id = organization['id']
+    return organization_id
 
 
 def get_service_id(data):
@@ -141,17 +141,17 @@ def get_new_service_test_api_key(environment, notification_url, service_id, user
 
 
 def get_service_jwt(api_key_secret, service_id):
-    jwtSecret = api_key_secret
+    jwt_secret = api_key_secret
     header = {'typ': 'JWT', 'alg': 'HS256'}
     combo = {}
-    currentTimestamp = int(time.time())
+    current_timestamp = int(time.time())
     data = {
         'iss': service_id,
-        'iat': currentTimestamp,
+        'iat': current_timestamp,
     }
     combo.update(data)
     combo.update(header)
-    encoded_jwt = jwt.encode(combo, jwtSecret, algorithm='HS256')
+    encoded_jwt = jwt.encode(combo, jwt_secret, algorithm='HS256')
     return encoded_jwt
 
 
@@ -222,6 +222,17 @@ def send_sms_with_phone_number(notification_url: str, service_jwt: PyJWT, templa
         "template_id": template_id
     })
 
+    return send_sms(notification_url, service_jwt, payload)
+
+
+def send_sms_with_va_profile_id(notification_url: str, service_jwt: PyJWT, template_id: str):
+    payload = json.dumps({
+        "template_id": template_id,
+        "recipient_identifier": {
+            "id_type": 'VAPROFILEID',
+            "id_value": "203"
+        }
+    })
     return send_sms(notification_url, service_jwt, payload)
 
 

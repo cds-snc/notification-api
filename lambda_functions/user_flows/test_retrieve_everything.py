@@ -18,7 +18,8 @@ from steps import get_notification_status
 from steps import send_email_with_icn
 from steps import \
     send_sms_with_phone_number, \
-    get_first_sms_template_id
+    get_first_sms_template_id, \
+    send_sms_with_va_profile_id
 
 
 VALID_TEST_RECIPIENT_PHONE_NUMBER = "+16502532222"
@@ -167,10 +168,32 @@ def test_send_email_with_icn(environment, notification_url, service_id, service_
 def test_send_text(notification_url, service_test_api_key, service_id, sms_template_id):
     service_jwt = get_service_jwt(service_test_api_key, service_id)
 
-    sms_response = send_sms_with_phone_number(notification_url, service_jwt, sms_template_id, VALID_TEST_RECIPIENT_PHONE_NUMBER)
+    sms_response = send_sms_with_phone_number(
+        notification_url, service_jwt, sms_template_id, VALID_TEST_RECIPIENT_PHONE_NUMBER
+    )
     assert sms_response.status_code == 201
     notification_id = get_notification_id(sms_response)
 
+    notification_status_response = wait_for_status(notification_id, notification_url, service_id, service_test_api_key)
+
+    assert notification_status_response.json()['status'] == 'sent'
+    assert notification_status_response.json()['phone_number'] == VALID_TEST_RECIPIENT_PHONE_NUMBER
+
+
+def test_send_text_with_profile_id(notification_url, service_test_api_key, service_id, sms_template_id):
+    service_jwt = get_service_jwt(service_test_api_key, service_id)
+
+    sms_response = send_sms_with_va_profile_id(notification_url, service_jwt, template_id)
+    assert sms_response.status_code == 201
+    notification_id = get_notification_id(sms_response)
+
+    notification_status_response = wait_for_status(notification_id, notification_url, service_id, service_test_api_key)
+
+    assert notification_status_response.json()['status'] == 'sent'
+    assert notification_status_response.json()['phone_number'] == VALID_TEST_RECIPIENT_PHONE_NUMBER
+
+
+def wait_for_status(notification_id, notification_url, service_id, service_test_api_key):
     notification_status_response = None
     for _ in range(30):
         service_jwt = get_service_jwt(service_test_api_key, service_id)
@@ -180,6 +203,4 @@ def test_send_text(notification_url, service_test_api_key, service_id, sms_templ
             break
 
         time.sleep(1)
-
-    assert notification_status_response.json()['status'] == 'sent'
-    assert notification_status_response.json()['phone_number'] == VALID_TEST_RECIPIENT_PHONE_NUMBER
+    return notification_status_response
