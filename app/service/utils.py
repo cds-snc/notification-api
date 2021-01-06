@@ -71,7 +71,4 @@ def compute_source_email_address(service: Service) -> str:
 
 
 def compute_source_email_address_with_display_name(service: Service) -> str:
-    return '"{}" <{}>'.format(
-        current_app.config['NOTIFY_EMAIL_FROM_NAME'],
-        compute_source_email_address(service)
-    )
+    return f'"{current_app.config["NOTIFY_EMAIL_FROM_NAME"]}" <{compute_source_email_address(service)}>'
