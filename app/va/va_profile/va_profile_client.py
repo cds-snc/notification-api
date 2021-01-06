@@ -45,26 +45,25 @@ class VAProfileClient:
 
         try:
             most_recently_created_bio = self._get_most_recently_created_email_bio(response)
+            email = most_recently_created_bio['emailAddressText']
             self.statsd_client.incr("clients.va-profile.get-email.success")
-            return most_recently_created_bio['emailAddressText']
+            return email
         except KeyError as e:
-            self.statsd_client.incr("clients.va-profile.get-email.error")
+            self.statsd_client.incr("clients.va-profile.get-email.no-email")
             raise NoContactInfoException(f"No email in response for VA Profile ID {va_profile_id}") from e
 
     def get_telephone(self, va_profile_id):
         response = self._make_request(va_profile_id, 'telephones')
 
         try:
-            phone_number = self._get_phone_number_from_bio(response)
-            if phone_number is None:
-                self.statsd_client.incr("clients.va-profile.get-telephone.no-phone-number")
-                raise NoContactInfoException(
-                    f"No {PhoneNumberType.valid_type_values()} in response for VA Profile ID {va_profile_id}")
-
+            most_recently_created_bio = self._get_highest_order_phone_bio(response)
+            phone_number = f"+{most_recently_created_bio['countryCode']}" \
+                           f"{most_recently_created_bio['areaCode']}" \
+                           f"{most_recently_created_bio['phoneNumber']}"
             self.statsd_client.incr("clients.va-profile.get-telephone.success")
             return phone_number
         except KeyError as e:
-            self.statsd_client.incr("clients.va-profile.get-telephone.error")
+            self.statsd_client.incr("clients.va-profile.get-telephone.no-phone-number")
             raise NoContactInfoException(f"No telephone in response for VA Profile ID {va_profile_id}") from e
 
     def _make_request(self, va_profile_id, bio_type):
@@ -116,17 +115,16 @@ class VAProfileClient:
             key=lambda bio: iso8601.parse_date(bio['createDate']),
             reverse=True
         )
-        return sorted_bios[0]
+        return sorted_bios[0] if sorted_bios else {}
 
     @staticmethod
-    def _get_phone_number_from_bio(response):
-        # This sorting first sorts by phone type and then by create date
-        # since reverse order is used, MOBILE is before HOME
+    def _get_highest_order_phone_bio(response):
+        # First sort by phone type and then by create date
+        # since reverse order is used, potential MOBILE bios will end up before HOME
         sorted_bios = sorted(
             (bio for bio in response.json()['bios'] if bio['phoneType'] in PhoneNumberType.valid_type_values()),
             key=lambda bio: (bio['phoneType'], iso8601.parse_date(bio['createDate'])),
             reverse=True
         )
 
-        if sorted_bios:
-            return f"+{sorted_bios[0]['countryCode']}{sorted_bios[0]['areaCode']}{sorted_bios[0]['phoneNumber']}"
+        return sorted_bios[0] if sorted_bios else {}

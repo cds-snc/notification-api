@@ -194,6 +194,19 @@ def test_get_telephone_gets_single_mobile_phone_number(rmock, test_va_profile_cl
 def test_get_telephone_empty_bios(rmock, test_va_profile_client):
     response = {
         "txAuditId": "0e0e53e0-b1f0-404f-a8e1-cc9ab7ef563e",
+        "status": "COMPLETED_SUCCESS",
+        "bios": []
+    }
+
+    rmock.get(ANY, json=response, status_code=200)
+
+    with pytest.raises(NoContactInfoException):
+        test_va_profile_client.get_telephone('1')
+
+
+def test_get_telephone_no_bio(rmock, test_va_profile_client):
+    response = {
+        "txAuditId": "0e0e53e0-b1f0-404f-a8e1-cc9ab7ef563e",
         "status": "COMPLETED_SUCCESS"
     }
     rmock.get(ANY, json=response, status_code=200)
@@ -531,6 +544,26 @@ def test_get_email_raises_exception_when_no_email_bio(notify_api, rmock, test_va
         ],
         "txAuditId": "dca32cae-b410-46c5-b61b-9a382567843f",
         "status": "COMPLETED_SUCCESS"
+    }
+    rmock.get(ANY, json=response, status_code=200)
+
+    with pytest.raises(NoContactInfoException):
+        test_va_profile_client.get_email('1')
+
+
+def test_get_email_raises_exception_when_empty_bio(notify_api, rmock, test_va_profile_client):
+    response = {
+        "messages": [
+            {
+                "code": "CORE103",
+                "key": "_CUF_NOT_FOUND",
+                "text": "The EmailBio for id/criteria mdm.cuf.",
+                "severity": "INFO"
+            }
+        ],
+        "txAuditId": "dca32cae-b410-46c5-b61b-9a382567843f",
+        "status": "COMPLETED_SUCCESS",
+        "bios": []
     }
     rmock.get(ANY, json=response, status_code=200)
 
