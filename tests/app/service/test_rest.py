@@ -2445,13 +2445,24 @@ def test_search_for_notification_by_to_field_returns_notifications_by_type(
 
 
 def test_is_service_name_unique_returns_200_if_unique(admin_request, notify_db, notify_db_session):
-    service = create_service(service_name='unique', email_from='unique')
+    create_service(service_name='unique', email_from='unique')
 
     response = admin_request.get(
         'service.is_service_name_unique',
         _expected_status=200,
-        service_id=service.id,
         name='something',
+    )
+
+    assert response == {"result": True}
+
+
+def test_is_email_from_unique_returns_200_if_unique(admin_request, notify_db, notify_db_session):
+    service = create_service(service_name='unique', email_from='unique')
+
+    response = admin_request.get(
+        'service.is_service_email_from_unique',
+        _expected_status=200,
+        service_id=service.id,
         email_from='something'
     )
 
@@ -2470,24 +2481,42 @@ def test_is_service_name_unique_returns_200_with_name_capitalized_or_punctuation
     name,
     email_from
 ):
-    service = create_service(service_name='unique', email_from='unique')
+    create_service(service_name='unique', email_from='unique')
 
     response = admin_request.get(
         'service.is_service_name_unique',
         _expected_status=200,
-        service_id=service.id,
         name=name,
-        email_from=email_from
     )
 
     assert response == {"result": True}
 
 
 @pytest.mark.parametrize('name, email_from', [
-                         ("existing name", "email.from"),
-                         ("name", "existing.name")
+                         ("existing name", "email.from")
                          ])
-def test_is_service_name_unique_returns_200_and_false_if_name_or_email_from_exist_for_a_different_service(
+def test_is_service_name_unique_returns_200_and_false_if_name_exist(
+    admin_request,
+    notify_db,
+    notify_db_session,
+    name,
+    email_from
+):
+    create_service(service_name='existing name', email_from='existing.name')
+
+    response = admin_request.get(
+        'service.is_service_name_unique',
+        _expected_status=200,
+        name=name,
+    )
+
+    assert response == {"result": False}
+
+
+@pytest.mark.parametrize('name, email_from', [
+                         ("existing name", "existing.name")
+                         ])
+def test_is_service_email_from_unique_returns_200_and_false_if_email_from_exist_for_a_different_service(
     admin_request,
     notify_db,
     notify_db_session,
@@ -2498,29 +2527,10 @@ def test_is_service_name_unique_returns_200_and_false_if_name_or_email_from_exis
     different_service_id = '111aa111-2222-bbbb-aaaa-111111111111'
 
     response = admin_request.get(
-        'service.is_service_name_unique',
+        'service.is_service_email_from_unique',
         _expected_status=200,
         service_id=different_service_id,
-        name=name,
         email_from=email_from
-    )
-
-    assert response == {"result": False}
-
-
-def test_is_service_name_unique_returns_200_and_false_if_name_exists_for_the_same_service(
-    admin_request,
-    notify_db,
-    notify_db_session
-):
-    service = create_service(service_name='unique', email_from='unique')
-
-    response = admin_request.get(
-        'service.is_service_name_unique',
-        _expected_status=200,
-        service_id=service.id,
-        name='unique',
-        email_from='unique2'
     )
 
     assert response == {"result": False}
@@ -2532,9 +2542,17 @@ def test_is_service_name_unique_returns_400_when_name_does_not_exist(admin_reque
         _expected_status=400
     )
 
+    assert response["message"][0]["name"] == ["Can't be empty"]
+
+
+def test_is_email_from_unique_returns_400_when_email_from_does_not_exist(admin_request):
+    response = admin_request.get(
+        'service.is_service_email_from_unique',
+        _expected_status=400
+    )
+
     assert response["message"][0]["service_id"] == ["Can't be empty"]
-    assert response["message"][1]["name"] == ["Can't be empty"]
-    assert response["message"][2]["email_from"] == ["Can't be empty"]
+    assert response["message"][1]["email_from"] == ["Can't be empty"]
 
 
 def test_get_email_reply_to_addresses_when_there_are_no_reply_to_email_addresses(client, sample_service):
