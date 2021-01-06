@@ -1,12 +1,14 @@
 from datetime import datetime, date
 
 import pytest
+from freezegun.api import freeze_time
 
 from app.dao.date_util import (
     get_financial_year,
     get_april_fools,
     get_month_start_and_end_date_in_utc,
     get_financial_year_for_datetime,
+    get_current_financial_year_start_year
 )
 
 
@@ -45,3 +47,16 @@ def test_get_month_start_and_end_date_in_utc(month, year, expected_start, expect
 ])
 def test_get_financial_year_for_datetime(dt, fy):
     assert get_financial_year_for_datetime(dt) == fy
+
+
+@freeze_time("2017-03-31 22:59:59.999999")
+def test_get_current_financial_year_start_year_before_march():
+    current_fy = get_current_financial_year_start_year()
+    assert current_fy == 2016
+
+
+@freeze_time("2017-04-01 4:00:00.000000")
+# This test assumes the local timezone is EST
+def test_get_current_financial_year_start_year_after_april():
+    current_fy = get_current_financial_year_start_year()
+    assert current_fy == 2017
