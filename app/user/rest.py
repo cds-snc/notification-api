@@ -439,7 +439,7 @@ def send_already_registered_email(user_id):
 
 @user_blueprint.route('/<uuid:user_id>/new-registration-data', methods=['POST'])
 def send_new_registration_data(user_id):
-    data, errors = support_email_data_schema.load(request.get_json())
+    data, errors = new_registration_user_data_schema.load(request.get_json())
 
     ticket = {
         'product_id': 61000000046,
@@ -454,7 +454,7 @@ def send_new_registration_data(user_id):
 
 @user_blueprint.route('/<uuid:user_id>/support-email', methods=['POST'])
 def send_support_email(user_id):
-    data, errors = new_registration_user_data_schema.load(request.get_json())
+    data, errors = support_email_data_schema.load(request.get_json())
 
     ticket = {
         'product_id': 61000000046,
@@ -800,6 +800,9 @@ def _create_fresh_desk_ticket(user_id, ticket, errors):
         auth=HTTPBasicAuth(API_KEY, "x")
     )
 
+    return _verify_fresh_desk_ticket_creation(response)
+
+def _verify_fresh_desk_ticket_creation(response):
     if response.status_code != 201:
         print("Failed to create ticket, errors are displayed below")
         content = json.loads(response.content)
