@@ -592,7 +592,6 @@ class SupportEmailDataSchema(ma.Schema):
     class Meta:
         strict = True
 
-    name = fields.Str(required=True)
     email = fields.Str(required=True)
     message = fields.Str(required=True)
     support_type = fields.Str(required=False)
