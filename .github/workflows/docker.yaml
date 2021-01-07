@@ -39,7 +39,13 @@ jobs:
         rm /tmp/aws
     - name: Build
       run: |
-        docker build --build-arg GIT_SHA=${GITHUB_SHA::7} -t $DOCKER_SLUG:${GITHUB_SHA::7} -t $DOCKER_SLUG:latest -f ci/Dockerfile .
+        docker pull $DOCKER_SLUG:latest
+        docker build \
+        --cache-from $DOCKER_SLUG:latest \
+        --build-arg GIT_SHA=${GITHUB_SHA::7} \
+        -t $DOCKER_SLUG:${GITHUB_SHA::7} \
+        -t $DOCKER_SLUG:latest \
+        -f ci/Dockerfile .
     - name: Publish
       run: |
         docker push $DOCKER_SLUG:latest && docker push $DOCKER_SLUG:${GITHUB_SHA::7}
