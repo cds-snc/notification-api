@@ -28,6 +28,8 @@ class PhoneNumberType(Enum):
 class VAProfileClient:
 
     SUCCESS_STATUS = 'COMPLETED_SUCCESS'
+    EMAIL_BIO_TYPE = 'emails'
+    PHONE_BIO_TYPE = 'telephones'
 
     def init_app(self, logger, va_profile_url, ssl_cert_path, ssl_key_path, statsd_client):
         self.logger = logger
@@ -37,7 +39,7 @@ class VAProfileClient:
         self.statsd_client = statsd_client
 
     def get_email(self, va_profile_id):
-        response = self._make_request(va_profile_id, 'emails')
+        response = self._make_request(va_profile_id, self.EMAIL_BIO_TYPE)
 
         most_recently_created_bio = self._get_most_recently_created_email_bio(response, va_profile_id)
         email = most_recently_created_bio['emailAddressText']
@@ -45,7 +47,7 @@ class VAProfileClient:
         return email
 
     def get_telephone(self, va_profile_id):
-        response = self._make_request(va_profile_id, 'telephones')
+        response = self._make_request(va_profile_id, self.PHONE_BIO_TYPE)
 
         most_recently_created_bio = self._get_highest_order_phone_bio(response, va_profile_id)
         phone_number = f"+{most_recently_created_bio['countryCode']}" \
@@ -89,6 +91,7 @@ class VAProfileClient:
                 raise VAProfileNonRetryableException(
                     f"Response status was {response_status} for VA Profile ID {va_profile_id}"
                 )
+            self._validate_response(response_json, va_profile_id, bio_type)
 
             self.statsd_client.incr("clients.va-profile.success")
             return response_json
@@ -103,8 +106,8 @@ class VAProfileClient:
             key=lambda bio: iso8601.parse_date(bio['createDate']),
             reverse=True
         )
-
-        return sorted_bios[0] if sorted_bios else self._raise_no_contact_info_exception('email', va_profile_id)
+        return sorted_bios[0] if sorted_bios else \
+            self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id)
 
     def _get_highest_order_phone_bio(self, response, va_profile_id):
         # First sort by phone type and then by create date
@@ -114,9 +117,15 @@ class VAProfileClient:
             key=lambda bio: (bio['phoneType'], iso8601.parse_date(bio['createDate'])),
             reverse=True
         )
-
-        return sorted_bios[0] if sorted_bios else self._raise_no_contact_info_exception('telephone', va_profile_id)
+        return sorted_bios[0] if sorted_bios else \
+            self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id)
 
     def _raise_no_contact_info_exception(self, bio_type: str, va_profile_id: str):
         self.statsd_client.incr(f"clients.va-profile.get-{bio_type}.no-{bio_type}")
         raise NoContactInfoException(f"No {bio_type} in response for VA Profile ID {va_profile_id}")
+
+    def _validate_response(self, response, va_profile_id, bio_type):
+        if response.get('messages'):
+            self.statsd_client.incr(f"clients.va-profile.get-{bio_type}.no-{bio_type}")
+            raise NoContactInfoException(f"No {bio_type} in response for VA Profile ID {va_profile_id} "
+                                         f"because {response['messages']['code']}")
