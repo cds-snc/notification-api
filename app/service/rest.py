@@ -886,7 +886,7 @@ def is_service_email_from_unique():
     service_id, email_from = check_unique_email_from_request_args(request)
 
     email_from_exists = Service.query.filter(
-        Service.email_from == email_from,
+        func.lower(Service.email_from) == func.lower(email_from),
         Service.id != service_id
     ).first()
 
