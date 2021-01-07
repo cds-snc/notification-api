@@ -408,6 +408,10 @@ class Test(Development):
     NOTIFY_ENVIRONMENT = 'test'
     TESTING = True
 
+    # Freshdesk
+    FRESH_DESK_API_URL = os.getenv('FRESH_DESK_API_URL')
+    FRESH_DESK_API_KEY = os.getenv('FRESH_DESK_API_KEY')
+
     # CSV_UPLOAD_BUCKET_NAME = 'test-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'test-test-letters'
     DVLA_RESPONSE_BUCKET_NAME = 'test.notify.com-ftp'
