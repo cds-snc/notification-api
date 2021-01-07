@@ -520,7 +520,7 @@ class Production(Config):
     CRONITOR_ENABLED = False
     # When a service is created, this gets saved as default sms_sender
     # We are using this for Pinpoint as default ORIGINATION NUMBER
-    FROM_NUMBER = '+18286786800'
+    FROM_NUMBER = '+12513189950'
 
 
 configs = {
