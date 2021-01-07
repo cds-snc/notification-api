@@ -97,30 +97,22 @@ class VAProfileClient:
             self.statsd_client.timing("clients.va-profile.request-time", elapsed_time)
 
     def _get_most_recently_created_email_bio(self, response, va_profile_id):
-        sorted_bios = None
-        try:
-            sorted_bios = sorted(
-                response.json()['bios'],
-                key=lambda bio: iso8601.parse_date(bio['createDate']),
-                reverse=True
-            )
-        except KeyError:
-            pass
+        sorted_bios = sorted(
+            response.json()['bios'],
+            key=lambda bio: iso8601.parse_date(bio['createDate']),
+            reverse=True
+        )
 
         return sorted_bios[0] if sorted_bios else self._raise_no_contact_info_exception('email', va_profile_id)
 
     def _get_highest_order_phone_bio(self, response, va_profile_id):
         # First sort by phone type and then by create date
         # since reverse order is used, potential MOBILE bios will end up before HOME
-        sorted_bios = None
-        try:
-            sorted_bios = sorted(
-                (bio for bio in response.json()['bios'] if bio['phoneType'] in PhoneNumberType.valid_type_values()),
-                key=lambda bio: (bio['phoneType'], iso8601.parse_date(bio['createDate'])),
-                reverse=True
-            )
-        except KeyError:
-            pass
+        sorted_bios = sorted(
+            (bio for bio in response.json()['bios'] if bio['phoneType'] in PhoneNumberType.valid_type_values()),
+            key=lambda bio: (bio['phoneType'], iso8601.parse_date(bio['createDate'])),
+            reverse=True
+        )
 
         return sorted_bios[0] if sorted_bios else self._raise_no_contact_info_exception('telephone', va_profile_id)
 
