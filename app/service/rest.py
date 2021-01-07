@@ -9,6 +9,7 @@ from flask import (
 )
 from notifications_utils.letter_timings import letter_can_be_cancelled
 from notifications_utils.timezones import convert_utc_to_local_timezone
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -871,7 +872,7 @@ def _is_service_name_unique():
 def is_service_name_unique():
     name = check_unique_name_request_args(request)
 
-    name_exists = Service.query.filter_by(name=name).first()
+    name_exists = Service.query.filter(func.lower(Service.name) == func.lower(name)).first()
 
     result = not name_exists
     return jsonify(result=result), 200
