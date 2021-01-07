@@ -30,6 +30,7 @@ class VAProfileClient:
     SUCCESS_STATUS = 'COMPLETED_SUCCESS'
     EMAIL_BIO_TYPE = 'emails'
     PHONE_BIO_TYPE = 'telephones'
+    TX_AUDIT_ID = 'txAuditId'
 
     def init_app(self, logger, va_profile_url, ssl_cert_path, ssl_key_path, statsd_client):
         self.logger = logger
@@ -89,7 +90,8 @@ class VAProfileClient:
             if response_status != self.SUCCESS_STATUS:
                 self.statsd_client.incr(f"clients.va-profile.error.{response_status}")
                 raise VAProfileNonRetryableException(
-                    f"Response status was {response_status} for VA Profile ID {va_profile_id}"
+                    f"Response status was {response_status} for VA Profile ID {va_profile_id} "
+                    f"with AuditId {response_json.get(self.TX_AUDIT_ID)}"
                 )
             self._validate_response(response_json, va_profile_id, bio_type)
 
@@ -107,7 +109,7 @@ class VAProfileClient:
             reverse=True
         )
         return sorted_bios[0] if sorted_bios else \
-            self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id)
+            self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
 
     def _get_highest_order_phone_bio(self, response, va_profile_id):
         # First sort by phone type and then by create date
@@ -118,14 +120,14 @@ class VAProfileClient:
             reverse=True
         )
         return sorted_bios[0] if sorted_bios else \
-            self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id)
+            self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
 
-    def _raise_no_contact_info_exception(self, bio_type: str, va_profile_id: str):
+    def _raise_no_contact_info_exception(self, bio_type: str, va_profile_id: str, tx_audit_id: str):
         self.statsd_client.incr(f"clients.va-profile.get-{bio_type}.no-{bio_type}")
-        raise NoContactInfoException(f"No {bio_type} in response for VA Profile ID {va_profile_id}")
+        raise NoContactInfoException(f"No {bio_type} in response for VA Profile ID {va_profile_id} "
+                                     f"with AuditId {tx_audit_id}")
 
     def _validate_response(self, response, va_profile_id, bio_type):
         if response.get('messages'):
             self.statsd_client.incr(f"clients.va-profile.get-{bio_type}.no-{bio_type}")
-            raise NoContactInfoException(f"No {bio_type} in response for VA Profile ID {va_profile_id} "
-                                         f"because {response['messages']['code']}")
+            self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
