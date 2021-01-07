@@ -2471,11 +2471,10 @@ def test_is_email_from_unique_returns_200_if_unique(admin_request, notify_db, no
 
 
 @pytest.mark.parametrize('name, email_from',
-                         [("UNIQUE", "unique"),
-                          ("Unique.", "unique"),
+                         [("Unique.", "unique"),
                           ("**uniQUE**", "unique")
                           ])
-def test_is_service_name_unique_returns_200_with_name_capitalized_or_punctuation_added(
+def test_is_service_name_unique_returns_200_with_punctuation_added(
     admin_request,
     notify_db,
     notify_db_session,
@@ -2483,6 +2482,38 @@ def test_is_service_name_unique_returns_200_with_name_capitalized_or_punctuation
     email_from
 ):
     service = create_service(service_name='unique', email_from='unique')
+
+    response = admin_request.get(
+        'service.is_service_name_unique',
+        _expected_status=200,
+        name=name,
+        service_id=service.id
+    )
+
+    assert response == {"result": True}
+
+
+@pytest.mark.parametrize('name, email_from',
+                         [("UNIQUE", "unique"),
+                          ])
+def test_is_service_name_is_not_unique_returns_200_with_capitalization_while_unique_same_service(
+    admin_request,
+    notify_db,
+    notify_db_session,
+    name,
+    email_from
+):
+    service = create_service(service_name='unique', email_from='unique')
+    different_service_id = '111aa111-2222-bbbb-aaaa-111111111111'
+
+    response = admin_request.get(
+        'service.is_service_name_unique',
+        _expected_status=200,
+        name=name,
+        service_id=different_service_id
+    )
+
+    assert response == {"result": False}
 
     response = admin_request.get(
         'service.is_service_name_unique',
