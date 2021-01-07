@@ -82,7 +82,8 @@ class VAProfileClient:
             raise VAProfileRetryableException(f"VA Profile returned {str(e)} while querying for VA Profile ID") from e
 
         else:
-            response_status = response.json()['status']
+            response_json = response.json()
+            response_status = response_json['status']
             if response_status != self.SUCCESS_STATUS:
                 self.statsd_client.incr(f"clients.va-profile.error.{response_status}")
                 raise VAProfileNonRetryableException(
@@ -90,7 +91,7 @@ class VAProfileClient:
                 )
 
             self.statsd_client.incr("clients.va-profile.success")
-            return response
+            return response_json
 
         finally:
             elapsed_time = monotonic() - start_time
@@ -98,7 +99,7 @@ class VAProfileClient:
 
     def _get_most_recently_created_email_bio(self, response, va_profile_id):
         sorted_bios = sorted(
-            response.json()['bios'],
+            response['bios'],
             key=lambda bio: iso8601.parse_date(bio['createDate']),
             reverse=True
         )
@@ -109,7 +110,7 @@ class VAProfileClient:
         # First sort by phone type and then by create date
         # since reverse order is used, potential MOBILE bios will end up before HOME
         sorted_bios = sorted(
-            (bio for bio in response.json()['bios'] if bio['phoneType'] in PhoneNumberType.valid_type_values()),
+            (bio for bio in response['bios'] if bio['phoneType'] in PhoneNumberType.valid_type_values()),
             key=lambda bio: (bio['phoneType'], iso8601.parse_date(bio['createDate'])),
             reverse=True
         )
