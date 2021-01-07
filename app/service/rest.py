@@ -870,9 +870,12 @@ def _is_service_name_unique():
 
 @service_blueprint.route('/name/unique', methods=["GET"])
 def is_service_name_unique():
-    name = check_unique_name_request_args(request)
+    service_id, name = check_unique_name_request_args(request)
 
-    name_exists = Service.query.filter(func.lower(Service.name) == func.lower(name)).first()
+    name_exists = Service.query.filter(
+        func.lower(Service.name) == func.lower(name),
+        Service.id != service_id
+    ).first()
 
     result = not name_exists
     return jsonify(result=result), 200
@@ -1005,10 +1008,16 @@ def create_smtp_relay(service_id):
 
 
 def check_unique_name_request_args(request):
+    service_id = request.args.get('service_id')
     name = request.args.get('name', None)
+    errors = []
+    if not service_id:
+        errors.append({'service_id': ["Can't be empty"]})
     if not name:
-        raise InvalidRequest([{'name': ["Can't be empty"]}], status_code=400)
-    return name
+        errors.append({'name': ["Can't be empty"]})
+    if errors:
+        raise InvalidRequest(errors, status_code=400)
+    return service_id, name
 
 
 def check_unique_email_from_request_args(request):
