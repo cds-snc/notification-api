@@ -30,7 +30,6 @@ from app.dao.notifications_dao import (
     dao_delete_notifications_by_id,
     dao_created_scheduled_notification
 )
-from app.delivery import send_to_providers
 from app.v2.errors import BadRequestError
 from app.utils import get_template_instance
 
@@ -128,10 +127,7 @@ def send_notification_to_queue(notification, research_mode, queue=None):
 
     if notification.notification_type == SMS_TYPE:
         deliver_task = provider_tasks.deliver_sms
-        if send_to_providers._sms_send_on_pinpoint(
-            notification.notification_type,
-            notification.reply_to_text
-        ):
+        if notification.sends_with_custom_number():
             deliver_task = provider_tasks.deliver_throttled_sms
             if not queue:
                 queue = QueueNames.SEND_THROTTLED_SMS

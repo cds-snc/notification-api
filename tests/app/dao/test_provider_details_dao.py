@@ -49,6 +49,7 @@ def test_can_get_sms_international_providers(restore_provider_details):
     assert all(prov.supports_international for prov in sms_providers)
 
 
+@pytest.mark.skip(reason="Currently using only 1 SMS provider")
 def test_can_get_sms_providers_in_order_of_priority(restore_provider_details):
     providers = get_provider_details_by_notification_type('sms', False)
 
@@ -122,6 +123,7 @@ def test_get_current_sms_provider_returns_correct_provider(restore_provider_deta
     assert provider.identifier == 'sns'
 
 
+@pytest.mark.skip(reason="Currently using only 1 SMS provider")
 @pytest.mark.parametrize('provider_identifier', ['sns', 'pinpoint'])
 def test_get_alternative_sms_provider_returns_expected_provider(notify_db, provider_identifier):
     provider = get_alternative_sms_provider(provider_identifier)
@@ -139,6 +141,7 @@ def test_switch_sms_provider_to_current_provider_does_not_switch(
     assert current_sms_provider.identifier == new_provider.identifier
 
 
+@pytest.mark.skip(reason="Currently using only 1 SMS provider")
 def test_switch_sms_provider_to_inactive_provider_does_not_switch(
     restore_provider_details,
     current_sms_provider
@@ -171,6 +174,7 @@ def test_toggle_sms_provider_switches_provider(
     assert new_provider.priority < old_starting_provider.priority
 
 
+@pytest.mark.skip(reason="Currently using only 1 SMS provider")
 def test_toggle_sms_provider_switches_when_provider_priorities_are_equal(
     mocker,
     restore_provider_details,
@@ -266,6 +270,7 @@ def test_can_get_all_provider_history(restore_provider_details, current_sms_prov
     assert len(dao_get_provider_versions(current_sms_provider.id)) == 1
 
 
+@pytest.mark.skip(reason="Currently using only 1 SMS provider")
 def test_get_sms_provider_with_equal_priority_returns_provider(
     restore_provider_details
 ):

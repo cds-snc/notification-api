@@ -22,7 +22,6 @@ from app.clients.document_download import DocumentDownloadClient
 from app.clients.email.aws_ses import AwsSesClient
 from app.clients.email.sendgrid_client import SendGridClient
 from app.clients.sms.aws_sns import AwsSnsClient
-from app.clients.sms.aws_pinpoint import AwsPinpointClient
 from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
 from app.encryption import Encryption
 
@@ -51,7 +50,6 @@ notify_celery = NotifyCelery()
 aws_ses_client = AwsSesClient()
 send_grid_client = SendGridClient()
 aws_sns_client = AwsSnsClient()
-aws_pinpoint_client = AwsPinpointClient()
 encryption = Encryption()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
@@ -82,7 +80,6 @@ def create_app(application):
     statsd_client.init_app(application)
     logging.init_app(application, statsd_client)
     aws_sns_client.init_app(application, statsd_client=statsd_client)
-    aws_pinpoint_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config['AWS_REGION'], statsd_client=statsd_client)
     send_grid_client.init_app(application.config['SENDGRID_API_KEY'], statsd_client=statsd_client)
     notify_celery.init_app(application)
@@ -91,10 +88,7 @@ def create_app(application):
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
     clients.init_app(
-        sms_clients=[
-            aws_sns_client,
-            aws_pinpoint_client,
-        ],
+        sms_clients=[aws_sns_client],
         email_clients=[aws_ses_client, send_grid_client]
     )
 

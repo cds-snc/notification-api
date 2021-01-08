@@ -39,6 +39,7 @@ from tests.app.db import (
 from tests.conftest import set_config_values
 
 
+@pytest.mark.skip(reason="Currently using only 1 SMS provider")
 def test_should_return_highest_priority_active_provider(restore_provider_details):
     providers = provider_details_dao.get_provider_details_by_notification_type('sms')
     providers = [provider for provider in providers if provider.active]
@@ -75,9 +76,11 @@ def test_provider_to_use(restore_provider_details):
     providers = provider_details_dao.get_provider_details_by_notification_type('sms')
     first = providers[0]
 
-    # provider is pinpoint if sms and sender is set
+    assert first.identifier == 'sns'
+
+    # provider is still SNS if SMS and sender is set
     provider = send_to_providers.provider_to_use('sms', '1234', False, '+12345678901')
-    assert "pinpoint" == provider.name
+    assert first.identifier == provider.name
 
     # provider is highest priority sms provider if sender is not set
     provider = send_to_providers.provider_to_use('sms', '1234', False)
