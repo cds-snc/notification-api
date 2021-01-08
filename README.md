@@ -442,6 +442,12 @@ This will allow to easily revert local copy of notifications-utils in sites-pack
 
 ---
 
+## Adding Environment Variables to Task Definition files
+When adding environment variables to any `<filename>-task-definition.json` file, make sure you add them to the corresponding
+`celery`and `celery-beat` files as well. We want to try and keep these consistent with each other.
+
+___
+
 ## Frequent problems
 
 __Problem__ : `E999 SyntaxError: invalid syntax` when running `flake8`
