@@ -25,17 +25,6 @@ from tests.app.db import (
 )
 
 
-def set_primary_sms_provider(identifier):
-    primary_provider = get_provider_details_by_identifier(identifier)
-    secondary_provider = get_alternative_sms_provider(identifier)
-
-    primary_provider.priority = 10
-    secondary_provider.priority = 20
-
-    dao_update_provider_details(primary_provider)
-    dao_update_provider_details(secondary_provider)
-
-
 def test_can_get_sms_non_international_providers(restore_provider_details):
     sms_providers = get_provider_details_by_notification_type('sms')
     assert len(sms_providers) == 5
@@ -106,7 +95,6 @@ def test_update_adds_history(restore_provider_details):
 
 
 def test_update_sms_provider_to_inactive_sets_inactive(restore_provider_details):
-    set_primary_sms_provider('sns')
     primary_provider = get_current_provider('sms')
     primary_provider.active = False
 
@@ -116,8 +104,6 @@ def test_update_sms_provider_to_inactive_sets_inactive(restore_provider_details)
 
 
 def test_get_current_sms_provider_returns_correct_provider(restore_provider_details):
-    set_primary_sms_provider('sns')
-
     provider = get_current_provider('sms')
 
     assert provider.identifier == 'sns'
@@ -157,6 +143,7 @@ def test_switch_sms_provider_to_inactive_provider_does_not_switch(
     assert new_provider.identifier == current_sms_provider.identifier
 
 
+@pytest.mark.skip(reason="Currently using only 1 SMS provider")
 def test_toggle_sms_provider_switches_provider(
     mocker,
     restore_provider_details,
@@ -195,6 +182,7 @@ def test_toggle_sms_provider_switches_when_provider_priorities_are_equal(
     assert new_provider.priority < old_starting_provider.priority
 
 
+@pytest.mark.skip(reason="Currently using only 1 SMS provider")
 def test_toggle_sms_provider_updates_provider_history(
     mocker,
     restore_provider_details,
@@ -220,6 +208,7 @@ def test_toggle_sms_provider_updates_provider_history(
     assert updated_provider_history_rows[0].version - provider_history_rows[0].version == 1
 
 
+@pytest.mark.skip(reason="Currently using only 1 SMS provider")
 def test_toggle_sms_provider_switches_provider_stores_notify_user_id(
     restore_provider_details,
     sample_user,
@@ -236,6 +225,7 @@ def test_toggle_sms_provider_switches_provider_stores_notify_user_id(
     assert new_provider.created_by_id == sample_user.id
 
 
+@pytest.mark.skip(reason="Currently using only 1 SMS provider")
 def test_toggle_sms_provider_switches_provider_stores_notify_user_id_in_history(
     restore_provider_details,
     sample_user,
@@ -292,7 +282,7 @@ def test_get_current_sms_provider_returns_active_only(restore_provider_details):
     dao_update_provider_details(current_provider)
     new_current_provider = get_current_provider('sms')
 
-    assert current_provider.identifier != new_current_provider.identifier
+    assert new_current_provider is None
 
 
 @freeze_time('2018-06-28 12:00')
@@ -347,5 +337,5 @@ def test_dao_get_provider_stats(notify_db_session):
     assert result[5].identifier == 'pinpoint'
     assert result[5].notification_type == 'sms'
     assert result[5].supports_international is False
-    assert result[5].active is True
+    assert result[5].active is False
     assert result[5].current_month_billable_sms == 0
