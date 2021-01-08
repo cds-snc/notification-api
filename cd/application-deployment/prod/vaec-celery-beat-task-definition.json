@@ -50,7 +50,7 @@
         },
         {
           "name": "VA_PROFILE_URL",
-          "value": "https://www.vaprofile.va.gov/contact-information-hub/cuf/contact-information/v1/"
+          "value": "https://www.vaprofile.va.gov"
         },
         {
             "name": "VANOTIFY_SSL_CERT_PATH",
@@ -62,7 +62,7 @@
         },
         {
             "name": "MPI_URL",
-            "value": "https://services.eauth.va.gov:9303/prod/psim_webservice/fhir/Patient/"
+            "value": "https://services.eauth.va.gov:9303/prod"
         },
         {
           "name": "AWS_PINPOINT_APP_ID",
@@ -97,6 +97,14 @@
         {
           "name": "DANGEROUS_SALT",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/dangerous-salt"
+        },
+        {
+          "name": "VANOTIFY_SSL_CERT",
+            "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/cert/vanotify-va-cert"
+        },
+        {
+            "name": "VANOTIFY_SSL_KEY",
+            "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/cert/vanotify-va-key"
         }
       ],
       "command": ["sh", "-c", "/app/scripts/run_celery_beat.sh"]
