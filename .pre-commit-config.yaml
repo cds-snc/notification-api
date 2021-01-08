@@ -8,3 +8,7 @@ repos:
       hooks:
           - id: bandit
             args: [-c, .bandit.yml, -r, -l]
+    - repo: https://gitlab.com/pycqa/flake8
+      rev: '3.7.7'
+      hooks:
+        - id: flake8
