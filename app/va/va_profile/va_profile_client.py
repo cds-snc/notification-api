@@ -124,7 +124,7 @@ class VAProfileClient:
 
     def _raise_no_contact_info_exception(self, bio_type: str, va_profile_id: str, tx_audit_id: str):
         self.statsd_client.incr(f"clients.va-profile.get-{bio_type}.no-{bio_type}")
-        raise NoContactInfoException(f"No {bio_type} in response for VA Profile ID {va_profile_id} "
+        raise NoContactInfoException(f"No {bio_type} in response for VA Profile ID {va_profile_id} "\
                                      f"with AuditId {tx_audit_id}")
 
     def _validate_response(self, response, va_profile_id, bio_type):
