@@ -60,7 +60,7 @@ fileignoreconfig:
     - filename: app/config.py
       checksum: fc23095eea0a9f6c4c1c7069e956dac3ccd11b2e5c1f68fff3d851a0ff468962
     - filename: load_testing/.envrc.example
-      checksum: 81d609827d12e60a59d3f610dc14ff98dd199fcc64300db76083e66abdeadfae
+      checksum: 346170b4657b08d95961708a26a54ede21523f4a68dc67a1cb36e977cf367147
     - filename: tests/app/notifications/test_receive_notification.py
       checksum: e6256ebbaae18a88377b49aab94cce35aa9491d5c54a812b176caae152499485
     - filename: cd/application-deployment/dev/vaec-api-task-definition.json
