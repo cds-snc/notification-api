@@ -2470,16 +2470,15 @@ def test_is_email_from_unique_returns_200_if_unique(admin_request, notify_db, no
     assert response == {"result": True}
 
 
-@pytest.mark.parametrize('name, email_from',
-                         [("Unique.", "unique"),
-                          ("**uniQUE**", "unique")
+@pytest.mark.parametrize('name',
+                         [("Unique."),
+                          ("**uniQUE**")
                           ])
 def test_is_service_name_unique_returns_200_with_punctuation_added(
     admin_request,
     notify_db,
     notify_db_session,
-    name,
-    email_from
+    name
 ):
     service = create_service(service_name='unique', email_from='unique')
 
@@ -2493,18 +2492,17 @@ def test_is_service_name_unique_returns_200_with_punctuation_added(
     assert response == {"result": True}
 
 
-@pytest.mark.parametrize('name, email_from',
-                         [("UNIQUE", "unique"),
+@pytest.mark.parametrize('name',
+                         [("UNIQUE"),
                           ])
 def test_is_service_name_is_not_unique_returns_200_with_capitalization_while_unique_same_service(
     admin_request,
     notify_db,
     notify_db_session,
-    name,
-    email_from
+    name
 ):
     service = create_service(service_name='unique', email_from='unique')
-    different_service_id = '111aa111-2222-bbbb-aaaa-111111111111'
+    different_service_id = uuid.uuid4()
 
     response = admin_request.get(
         'service.is_service_name_unique',
@@ -2525,18 +2523,17 @@ def test_is_service_name_is_not_unique_returns_200_with_capitalization_while_uni
     assert response == {"result": True}
 
 
-@pytest.mark.parametrize('name, email_from', [
-                         ("existing name", "email.from")
+@pytest.mark.parametrize('name', [
+                         ("existing name")
                          ])
 def test_is_service_name_unique_returns_200_and_false_if_name_exist(
     admin_request,
     notify_db,
     notify_db_session,
-    name,
-    email_from
+    name
 ):
     create_service(service_name='existing name', email_from='existing.name')
-    different_service_id = '111aa111-2222-bbbb-aaaa-111111111111'
+    different_service_id = uuid.uuid4()
 
     response = admin_request.get(
         'service.is_service_name_unique',
@@ -2559,7 +2556,7 @@ def test_is_service_email_from_unique_returns_200_and_false_if_email_from_exist_
     email_from
 ):
     create_service(service_name='existing name', email_from='existing.name')
-    different_service_id = '111aa111-2222-bbbb-aaaa-111111111111'
+    different_service_id = uuid.uuid4()
 
     response = admin_request.get(
         'service.is_service_email_from_unique',
