@@ -69,16 +69,13 @@ def get_organization_id(data):
 
 
 def get_service_id(services):
-    service_id = next(service for service in services if service['name'] == "VA Notify")
-    return service_id['id']
+    service = next(service for service in services if service['name'] == "User Flows Test Service")
+    return service['id']
 
 
 def get_user_id(service_id, users):
-    user_id = users[-1]['id']
-    for user in users:
-        if service_id in user['services']:
-            user_id = user['id']
-    return user_id
+    user = next(user for user in users if user['name'] == 'Test User' and service_id in user['services'])
+    return user['id']
 
 
 def get_first_email_template_id(templates):
