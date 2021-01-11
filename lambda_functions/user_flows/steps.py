@@ -68,12 +68,9 @@ def get_organization_id(data):
     return organization_id
 
 
-def get_service_id(data):
-    service_id = data[-1]['id']
-    for service in data:
-        if service['email_from'] == "solutions":
-            service_id = service['id']
-    return service_id
+def get_service_id(services):
+    service_id = next(service for service in services if service['name'] == "VA Notify")
+    return service_id['id']
 
 
 def get_user_id(service_id, users):
