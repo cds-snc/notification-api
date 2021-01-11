@@ -11,4 +11,16 @@ repos:
     - repo: https://gitlab.com/pycqa/flake8
       rev: '3.7.7'
       hooks:
-        - id: flake8
+          - id: flake8
+            args: [--config, .flake8]
+            exclude: |
+              (?x)(
+                ^venv*|
+                ^__pycache__|
+                ^node_modules|
+                ^cache|
+                ^migrations|
+                ^build|
+                ^lambda_functions
+              )
+            
