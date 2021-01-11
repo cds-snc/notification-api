@@ -190,7 +190,7 @@ def test_send_text_with_profile_id(notification_url, service_test_api_key, servi
     notification_status_response = wait_for_status(notification_id, notification_url, service_id, service_test_api_key)
 
     assert notification_status_response.json()['status'] == 'sent'
-    assert notification_status_response.json()['phone_number'] == VALID_TEST_RECIPIENT_PHONE_NUMBER
+    assert notification_status_response.json()['phone_number'] is not None
 
 
 def wait_for_status(notification_id, notification_url, service_id, service_test_api_key):

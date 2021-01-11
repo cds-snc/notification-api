@@ -172,7 +172,7 @@ def send_email_with_va_profile_id(notification_url, service_jwt, template_id):
     payload = json.dumps({
         "template_id": template_id,
         "recipient_identifier": {
-            "id_type": 'VAPROFILEID',
+            "id_type": "VAPROFILEID",
             "id_value": "1243"
         },
         "personalisation": {
@@ -188,7 +188,7 @@ def send_email_with_icn(notification_url, service_jwt, template_id):
     payload = json.dumps({
         "template_id": template_id,
         "recipient_identifier": {
-            "id_type": 'ICN',
+            "id_type": "ICN",
             "id_value": "1008794780V325793"
         },
         "personalisation": {
@@ -223,7 +223,7 @@ def send_sms_with_va_profile_id(notification_url: str, service_jwt: PyJWT, templ
     payload = json.dumps({
         "template_id": template_id,
         "recipient_identifier": {
-            "id_type": 'VAPROFILEID',
+            "id_type": "VAPROFILEID",
             "id_value": "203"
         }
     })
