@@ -29,8 +29,9 @@ def get_provider_details_by_identifier(identifier):
 
 def get_alternative_sms_provider(identifier):
     # We currently run with a single SMS provider (SNS)
-    # so this method is not implemented
-    raise NotImplementedError
+    # so this method is not implemented and does not
+    # switch providers.
+    return get_provider_details_by_identifier(identifier)
 
 
 def get_current_provider(notification_type):
