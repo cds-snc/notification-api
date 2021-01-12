@@ -101,7 +101,8 @@ def test_get_services(environment, notification_url, services):
 def test_get_templates(environment, notification_url, service_id, get_templates_response):
     assert get_templates_response.status_code == 200
 
-
+# will re-enable once SES set up is completed (story numbers 288 and 321)
+@pytest.skip
 def test_send_email(environment, notification_url, service_id, service_api_key, template_id, user_id):
     service_jwt = get_service_jwt(service_api_key, service_id)
     email_response = send_email_with_email_address(notification_url, service_jwt, template_id)
@@ -183,7 +184,7 @@ def test_send_text(notification_url, service_test_api_key, service_id, sms_templ
 def test_send_text_with_profile_id(notification_url, service_test_api_key, service_id, sms_template_id):
     service_jwt = get_service_jwt(service_test_api_key, service_id)
 
-    sms_response = send_sms_with_va_profile_id(notification_url, service_jwt, template_id)
+    sms_response = send_sms_with_va_profile_id(notification_url, service_jwt, sms_template_id)
     assert sms_response.status_code == 201
     notification_id = get_notification_id(sms_response)
 

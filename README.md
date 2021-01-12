@@ -318,7 +318,28 @@ aws sts get-caller-identity
 ---
 
 ## AWS Lambda Functions
-[//]: #:TODO:"Add notes with useful commands and other development details"
+[//]: #:TODO:"Add notes with useful commands and other development details...this is a work in progress draft"
+
+We house our lambda functions in `/lambda_functions/`. The infrastructure resources live in our infra repo as part of the utility stack.
+#### List of lambda functions (`/lambda_functions/`):
+
+* user_flows_handler
+  - Triggers user flows tests
+  - lives in `/lambda_functions/user_flows/`
+
+#### Development workflow (suggested):
+_Follow user flows lambda setup as model_
+
+1. If creating a new lambda function, the basic assets needed are:
+  - Create needed lambda resources in our infra repo, which requires a dummy lambda zip file deployed
+  - Create a subdirectory in the /lambda_functions/
+  - Create a file in the subdirectory using the naming convention `{function name}_lambda.py`
+  - In the lambda file, it should define the handler with similar convention: `{function name}_handler(event, context)`
+  - Define a new deploy job in ['Build Lambda Functions'](.github/workflows/lambda-functions.yaml) workflow following the naming convention `deploy-{functon name}-lambda`
+
+2. Building out the lambda function:
+  - Any time you make changes and push them up, the ['Build Lambda Functions'](.github/workflows/lambda-functions.yaml) workflow will be triggered, specifically related to the lambda you're working on if the deploy job was scoped correctly. This workflow packages up the required artifacts and deploys to the AWS Lambda service. Current setup does not invoke the function upon completed deployment.
+  - To invoke the function, you can either use the AWS Lambda project specific console or awscli.
 
 ---
 
