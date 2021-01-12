@@ -341,6 +341,9 @@ _Follow user flows lambda setup as model_
   - Any time you make changes and push them up, the ['Build Lambda Functions'](.github/workflows/lambda-functions.yaml) workflow will be triggered, specifically related to the lambda you're working on if the deploy job was scoped correctly. This workflow packages up the required artifacts and deploys to the AWS Lambda service. Current setup does not invoke the function upon completed deployment.
   - To invoke the function, you can either use the AWS Lambda project specific console or awscli.
 
+Resources:
+* [AWS Lambda Documentation](https://docs.aws.amazon.com/lambda/index.html)
+
 ---
 
 ## Terraform
