@@ -101,8 +101,8 @@ def test_get_services(environment, notification_url, services):
 def test_get_templates(environment, notification_url, service_id, get_templates_response):
     assert get_templates_response.status_code == 200
 
-# will re-enable once SES set up is completed (story numbers 288 and 321)
-@pytest.skip
+
+@pytest.mark.skip(reason="Will re-enable once SES set up is completed (story numbers 288 and 321). Current SES changes impact provider priority, causing clash with Govdelivery test data")
 def test_send_email(environment, notification_url, service_id, service_api_key, template_id, user_id):
     service_jwt = get_service_jwt(service_api_key, service_id)
     email_response = send_email_with_email_address(notification_url, service_jwt, template_id)
