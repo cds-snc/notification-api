@@ -4,7 +4,7 @@ import time
 
 from requests import Response
 
-from steps import get_notification_url
+from steps import get_notification_url, get_admin_jwt
 from steps import get_api_health_status
 from steps import get_authenticated_request
 from steps import get_service_id
@@ -39,7 +39,8 @@ def notification_url(environment) -> str:
 
 @pytest.fixture(scope="function")
 def services(environment, notification_url) -> Response:
-    return get_authenticated_request(environment, F"{notification_url}/service")
+    jwt_token = get_admin_jwt(environment)
+    return get_authenticated_request(F"{notification_url}/service", jwt_token)
 
 
 @pytest.fixture(scope="function")
@@ -49,7 +50,8 @@ def service_id(services) -> str:
 
 @pytest.fixture(scope="function")
 def get_templates_response(environment, notification_url, service_id) -> Response:
-    return get_authenticated_request(environment, F"{notification_url}/service/{service_id}/template")
+    jwt_token = get_admin_jwt(environment)
+    return get_authenticated_request(F"{notification_url}/service/{service_id}/template", jwt_token)
 
 
 @pytest.fixture(scope="function")
@@ -64,7 +66,8 @@ def sms_template_id(get_templates_response) -> str:
 
 @pytest.fixture(scope="function")
 def users(environment, notification_url) -> Response:
-    return get_authenticated_request(environment, F"{notification_url}/user")
+    jwt_token = get_admin_jwt(environment)
+    return get_authenticated_request(F"{notification_url}/user", jwt_token)
 
 
 @pytest.fixture(scope="function")
@@ -88,7 +91,8 @@ def test_api_healthy(environment, notification_url):
 
 
 def test_get_organizations(environment, notification_url):
-    organizations = get_authenticated_request(environment, F"{notification_url}/organisations")
+    jwt_token = get_admin_jwt(environment)
+    organizations = get_authenticated_request(F"{notification_url}/organisations", jwt_token)
     assert organizations.status_code == 200
 
 

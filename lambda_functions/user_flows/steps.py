@@ -8,7 +8,7 @@ from requests import Response
 client = boto3.client('ssm')
 
 
-def get_api_secret(environment: str) -> str:
+def get_admin_client_secret(environment: str) -> str:
     key = "/{env}/notification-api/admin-client-secret".format(env=environment)
     resp = client.get_parameter(
         Name=key,
@@ -22,7 +22,7 @@ def get_api_secret(environment: str) -> str:
     return api_secret
 
 
-def get_jwt(issuer: str, secret_key: str) -> bytes:
+def encode_jwt(issuer: str, secret_key: str) -> bytes:
     header = {'typ': 'JWT', 'alg': 'HS256'}
     combo = {}
     current_timestamp = int(time.time())
@@ -34,32 +34,29 @@ def get_jwt(issuer: str, secret_key: str) -> bytes:
     }
     combo.update(data)
     combo.update(header)
-    encoded_jwt = jwt.encode(combo, secret_key, algorithm='HS256')
-    return encoded_jwt
+    return jwt.encode(combo, secret_key, algorithm='HS256')
 
 
 def get_admin_jwt(environment: str) -> bytes:
-    jwt_secret = get_api_secret(environment)
-    return get_jwt('notify-admin', jwt_secret)
+    admin_client_secret = get_admin_client_secret(environment)
+    return encode_jwt('notify-admin', admin_client_secret)
 
 
 def get_service_jwt(service_id: str, api_key_secret: str) -> bytes:
-    return get_jwt(service_id, api_key_secret)
+    return encode_jwt(service_id, api_key_secret)
 
 
 def get_notification_url(environment: str) -> str:
     return "https://{env}.api.notifications.va.gov".format(env=environment)
 
 
-def get_authenticated_request(environment: str, url: str) -> Response:
-    jwt = get_admin_jwt(environment)
-    header = {"Authorization": F"Bearer {jwt.decode('utf-8')}"}
+def get_authenticated_request(url: str, jwt_token: bytes) -> Response:
+    header = {"Authorization": F"Bearer {jwt_token.decode('utf-8')}"}
     return requests.get(url, headers=header)
 
 
-def post_authenticated_request(environment: str, url: str, payload={}) -> Response:
-    jwt = get_admin_jwt(environment)
-    header = {"Authorization": F"Bearer {jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
+def post_authenticated_request(url: str, jwt_token: bytes, payload: str = '{}') -> Response:
+    header = {"Authorization": F"Bearer {jwt_token.decode('utf-8')}", 'Content-Type': 'application/json'}
     return requests.post(url, headers=header, data=payload)
 
 
@@ -96,13 +93,17 @@ def get_first_sms_template_id(templates) -> str:
 
 
 def revoke_service_api_keys(environment: str, notification_url: str, service_id: str) -> None:
-    existing_api_keys_response = get_authenticated_request(environment, F"{notification_url}/service/{service_id}/api-keys")
+    jwt_token = get_admin_jwt(environment)
+    existing_api_keys_response = get_authenticated_request(
+        F"{notification_url}/service/{service_id}/api-keys",
+        jwt_token
+    )
     existing_api_keys = existing_api_keys_response.json()['apiKeys']
     active_api_keys = [api_key for api_key in existing_api_keys if api_key["expiry_date"] is None]
 
     for api_key in active_api_keys:
         revoke_url = F"{notification_url}/service/{service_id}/api-key/revoke/{api_key['id']}"
-        post_authenticated_request(environment, revoke_url)
+        post_authenticated_request(revoke_url, jwt_token)
 
 
 def create_service_api_key(environment: str, notification_url: str, service_id: str, user_id: str) -> str:
@@ -114,20 +115,19 @@ def create_service_api_key(environment: str, notification_url: str, service_id: 
         "name": "userflows"
     })
     post_api_key_url = F"{notification_url}/service/{service_id}/api-key"
-    new_key_response = requests.post(post_api_key_url, headers=header, data=post_api_key_payload)
+    new_key_response = post_authenticated_request(post_api_key_url, jwt, post_api_key_payload)
     return new_key_response.json()['data']
 
 
 def create_service_test_api_key(environment: str, notification_url: str, service_id: str, user_id: str) -> str:
     jwt = get_admin_jwt(environment)
-    header = {"Authorization": F"Bearer {jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
     post_api_key_payload = json.dumps({
         "created_by": user_id,
         "key_type": "test",
         "name": "userflows-test"
     })
     post_api_key_url = F"{notification_url}/service/{service_id}/api-key"
-    new_key_response = requests.post(post_api_key_url, headers=header, data=post_api_key_payload)
+    new_key_response = post_authenticated_request(post_api_key_url, jwt, post_api_key_payload)
     return new_key_response.json()['data']
 
 
@@ -142,9 +142,8 @@ def get_new_service_test_api_key(environment: str, notification_url: str, servic
 
 
 def send_email(notification_url: str, service_jwt: bytes, payload: str) -> Response:
-    header = {"Authorization": F"Bearer {service_jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
     post_url = F"{notification_url}/v2/notifications/email"
-    return requests.post(post_url, headers=header, data=payload)
+    return post_authenticated_request(post_url, service_jwt, payload)
 
 
 def send_email_with_email_address(notification_url: str, service_jwt: bytes, template_id: str) -> Response:
@@ -197,9 +196,7 @@ def get_notification_id(notification_response: Response) -> str:
 
 
 def get_notification_status(notification_id: str, notification_url: str, service_jwt: bytes) -> Response:
-    header = {"Authorization": "Bearer " + service_jwt.decode("utf-8"), 'Content-Type': 'application/json'}
-    url = F"{notification_url}/v2/notifications/{notification_id}"
-    return requests.get(url, headers=header)
+    return get_authenticated_request(F"{notification_url}/v2/notifications/{notification_id}", service_jwt)
 
 
 def send_sms_with_phone_number(notification_url: str, service_jwt: bytes, template_id: str, recipient_number: str) -> Response:
@@ -223,6 +220,4 @@ def send_sms_with_va_profile_id(notification_url: str, service_jwt: bytes, templ
 
 
 def send_sms(notification_url: str, service_jwt: bytes, payload: str) -> Response:
-    header = {"Authorization": F"Bearer {service_jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
-    post_url = F"{notification_url}/v2/notifications/sms"
-    return requests.post(post_url, headers=header, data=payload)
+    return post_authenticated_request(F"{notification_url}/v2/notifications/sms", service_jwt, payload)
