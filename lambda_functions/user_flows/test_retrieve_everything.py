@@ -108,20 +108,20 @@ def test_get_organizations(environment, notification_url):
     assert organizations.status_code == 200
 
 
-def test_get_users(environment, notification_url, get_users_response):
+def test_get_users(get_users_response):
     assert get_users_response.status_code == 200
 
 
-def test_get_services(environment, notification_url, get_services_response):
+def test_get_services(get_services_response):
     assert get_services_response.status_code == 200
 
 
-def test_get_templates(environment, notification_url, service_id, get_templates_response):
+def test_get_templates(get_templates_response):
     assert get_templates_response.status_code == 200
 
 
 @pytest.mark.skip(reason="Will re-enable once SES set up is completed (story numbers 288 and 321). Current SES changes impact provider priority, causing clash with Govdelivery test data")
-def test_send_email(environment, notification_url, service_id, service_api_key, template_id, user_id):
+def test_send_email(notification_url, service_id, service_api_key, template_id):
     service_jwt = get_service_jwt(service_id, service_api_key)
     email_response = send_email_with_email_address(notification_url, service_jwt, template_id)
     assert email_response.status_code == 201
@@ -138,7 +138,7 @@ def test_send_email(environment, notification_url, service_id, service_api_key, 
     assert notification_status == 'sending'
 
 
-def test_send_email_with_va_profile_id(environment, notification_url, service_id, service_test_api_key, template_id, user_id):
+def test_send_email_with_va_profile_id(notification_url, service_id, service_test_api_key, template_id):
     service_jwt = get_service_jwt(service_id, service_test_api_key)
 
     email_response = send_email_with_va_profile_id(notification_url, service_jwt, template_id)
@@ -158,7 +158,7 @@ def test_send_email_with_va_profile_id(environment, notification_url, service_id
     assert notification_status_response.json()['email_address'] is not None
 
 
-def test_send_email_with_icn(environment, notification_url, service_id, service_test_api_key, template_id, user_id):
+def test_send_email_with_icn(notification_url, service_id, service_test_api_key, template_id):
     service_jwt = get_service_jwt(service_id, service_test_api_key)
 
     email_response = send_email_with_icn(notification_url, service_jwt, template_id)
