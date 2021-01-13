@@ -127,17 +127,16 @@ def test_send_email_with_va_profile_id(environment, notification_url, service_id
     assert email_response.status_code == 201
     notification_id = get_notification_id(email_response)
 
-    notification_status_response = None
-    for _ in range(30):
-        service_jwt = get_service_jwt(service_test_api_key, service_id)
-        notification_status_response = get_notification_status(notification_id, notification_url, service_jwt)
+    desired_status = 'delivered'
+    notification_status_response = wait_for_status(
+        notification_id,
+        notification_url,
+        service_id,
+        service_test_api_key,
+        desired_status
+    )
 
-        if notification_status_response.json()['status'] == 'delivered':
-            break
-
-        time.sleep(1)
-
-    assert notification_status_response.json()['status'] == 'delivered'
+    assert notification_status_response.json()['status'] == desired_status
     assert notification_status_response.json()['email_address'] is not None
 
 
@@ -148,17 +147,16 @@ def test_send_email_with_icn(environment, notification_url, service_id, service_
     assert email_response.status_code == 201
     notification_id = get_notification_id(email_response)
 
-    notification_status_response = None
-    for _ in range(30):
-        service_jwt = get_service_jwt(service_test_api_key, service_id)
-        notification_status_response = get_notification_status(notification_id, notification_url, service_jwt)
+    desired_status = 'delivered'
+    notification_status_response = wait_for_status(
+        notification_id,
+        notification_url,
+        service_id,
+        service_test_api_key,
+        desired_status
+    )
 
-        if notification_status_response.json()['status'] == 'delivered':
-            break
-
-        time.sleep(1)
-
-    assert notification_status_response.json()['status'] == 'delivered'
+    assert notification_status_response.json()['status'] == desired_status
     assert notification_status_response.json()['email_address'] is not None
 
     found_va_profile_ids = [identifier for identifier in notification_status_response.json()['recipient_identifiers']
@@ -175,9 +173,16 @@ def test_send_text(notification_url, service_test_api_key, service_id, sms_templ
     assert sms_response.status_code == 201
     notification_id = get_notification_id(sms_response)
 
-    notification_status_response = wait_for_status(notification_id, notification_url, service_id, service_test_api_key)
+    desired_status = 'sent'
+    notification_status_response = wait_for_status(
+        notification_id,
+        notification_url,
+        service_id,
+        service_test_api_key,
+        desired_status
+    )
 
-    assert notification_status_response.json()['status'] == 'sent'
+    assert notification_status_response.json()['status'] == desired_status
     assert notification_status_response.json()['phone_number'] == VALID_TEST_RECIPIENT_PHONE_NUMBER
 
 
@@ -188,19 +193,26 @@ def test_send_text_with_profile_id(notification_url, service_test_api_key, servi
     assert sms_response.status_code == 201
     notification_id = get_notification_id(sms_response)
 
-    notification_status_response = wait_for_status(notification_id, notification_url, service_id, service_test_api_key)
+    desired_status = 'sent'
+    notification_status_response = wait_for_status(
+        notification_id,
+        notification_url,
+        service_id,
+        service_test_api_key,
+        desired_status
+    )
 
-    assert notification_status_response.json()['status'] == 'sent'
+    assert notification_status_response.json()['status'] == desired_status
     assert notification_status_response.json()['phone_number'] is not None
 
 
-def wait_for_status(notification_id, notification_url, service_id, service_test_api_key):
+def wait_for_status(notification_id, notification_url, service_id, service_test_api_key, desired_status='sent'):
     notification_status_response = None
     for _ in range(30):
         service_jwt = get_service_jwt(service_test_api_key, service_id)
         notification_status_response = get_notification_status(notification_id, notification_url, service_jwt)
 
-        if notification_status_response.json()['status'] == 'sent':
+        if notification_status_response.json()['status'] == desired_status:
             break
 
         time.sleep(1)
