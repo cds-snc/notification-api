@@ -47,7 +47,7 @@ def post_authenticated_request(url: str, jwt_token: bytes, payload: str = '{}') 
     return requests.post(url, headers=header, data=payload)
 
 
-def revoke_service_api_keys(notification_url: str, admin_jwt_token, service_id: str) -> None:
+def revoke_service_api_keys(notification_url: str, admin_jwt_token: bytes, service_id: str) -> None:
     existing_api_keys_response = get_authenticated_request(
         F"{notification_url}/service/{service_id}/api-keys",
         admin_jwt_token
@@ -60,7 +60,7 @@ def revoke_service_api_keys(notification_url: str, admin_jwt_token, service_id: 
         post_authenticated_request(revoke_url, admin_jwt_token)
 
 
-def create_service_api_key(notification_url: str, admin_jwt_token: bytes, user_id: str, key_type: str, service_id: str):
+def create_service_api_key(notification_url: str, admin_jwt_token: bytes, user_id: str, key_type: str, service_id: str) -> str:
     post_api_key_payload = json.dumps({
         "created_by": user_id,
         "key_type": key_type,
