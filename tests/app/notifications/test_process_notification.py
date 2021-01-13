@@ -5,7 +5,6 @@ import pytest
 from boto3.exceptions import Boto3Error
 from sqlalchemy.exc import SQLAlchemyError
 from freezegun import freeze_time
-from collections import namedtuple
 
 from app.models import (
     Notification,
@@ -276,10 +275,6 @@ def test_send_notification_to_queue(
     if '.' not in expected_task:
         expected_task = f'provider_tasks.{expected_task}'
     mocked = mocker.patch(f'app.celery.{expected_task}.apply_async')
-    Notification = namedtuple(
-        'Notification',
-        ['id', 'key_type', 'notification_type', 'reply_to_text', 'created_at']
-    )
     notification = Notification(
         id=uuid.uuid4(),
         key_type=key_type,

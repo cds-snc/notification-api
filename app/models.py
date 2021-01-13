@@ -1099,10 +1099,9 @@ class TemplateHistory(TemplateBase):
 
 
 SNS_PROVIDER = 'sns'
-PINPOINT_PROVIDER = 'pinpoint'
 SES_PROVIDER = 'ses'
 
-SMS_PROVIDERS = [SNS_PROVIDER, PINPOINT_PROVIDER]
+SMS_PROVIDERS = [SNS_PROVIDER]
 EMAIL_PROVIDERS = [SES_PROVIDER]
 PROVIDERS = SMS_PROVIDERS + EMAIL_PROVIDERS
 
@@ -1458,6 +1457,10 @@ class Notification(db.Model):
             return self.updated_at.strftime(DATETIME_FORMAT)
 
         return None
+
+    def sends_with_custom_number(self):
+        sender = self.reply_to_text
+        return self.notification_type == SMS_TYPE and sender and sender[0] == "+"
 
     @staticmethod
     def substitute_status(status_or_statuses):
