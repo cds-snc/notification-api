@@ -142,8 +142,11 @@ def get_new_service_test_api_key(environment: str, notification_url: str, servic
 
 
 def send_email(notification_url: str, service_jwt: bytes, payload: str) -> Response:
-    post_url = F"{notification_url}/v2/notifications/email"
-    return post_authenticated_request(post_url, service_jwt, payload)
+    return post_authenticated_request(F"{notification_url}/v2/notifications/email", service_jwt, payload)
+
+
+def send_sms(notification_url: str, service_jwt: bytes, payload: str) -> Response:
+    return post_authenticated_request(F"{notification_url}/v2/notifications/sms", service_jwt, payload)
 
 
 def send_email_with_email_address(notification_url: str, service_jwt: bytes, template_id: str) -> Response:
@@ -217,7 +220,3 @@ def send_sms_with_va_profile_id(notification_url: str, service_jwt: bytes, templ
         }
     })
     return send_sms(notification_url, service_jwt, payload)
-
-
-def send_sms(notification_url: str, service_jwt: bytes, payload: str) -> Response:
-    return post_authenticated_request(F"{notification_url}/v2/notifications/sms", service_jwt, payload)
