@@ -1,18 +1,11 @@
 import pytest
 import time
 
-from requests import Response
+from requests import Response, get
 
 from steps import (
-    get_notification_url,
     get_admin_jwt,
-    get_api_health_status,
     get_authenticated_request,
-    get_service_id,
-    get_first_email_template_id,
-    get_user_id,
-    get_new_service_api_key,
-    get_new_service_test_api_key,
     get_service_jwt,
     send_email_with_email_address,
     send_email_with_va_profile_id,
@@ -20,8 +13,10 @@ from steps import (
     get_notification_status,
     send_email_with_icn,
     send_sms_with_phone_number,
-    get_first_sms_template_id,
-    send_sms_with_va_profile_id
+    send_sms_with_va_profile_id,
+    create_service_test_api_key,
+    create_service_api_key,
+    revoke_service_api_keys
 )
 
 VALID_TEST_RECIPIENT_PHONE_NUMBER = "+16502532222"
@@ -34,18 +29,22 @@ def environment(pytestconfig) -> str:
 
 @pytest.fixture(scope="function")
 def notification_url(environment) -> str:
-    return get_notification_url(environment)
+    return f"https://{environment}.api.notifications.va.gov"
 
 
 @pytest.fixture(scope="function")
-def services(environment, notification_url) -> Response:
+def get_services_response(environment, notification_url) -> Response:
     jwt_token = get_admin_jwt(environment)
     return get_authenticated_request(F"{notification_url}/service", jwt_token)
 
 
 @pytest.fixture(scope="function")
-def service_id(services) -> str:
-    return get_service_id(services.json()['data'])
+def service_id(get_services_response) -> str:
+    service = next(
+        service for service in get_services_response.json()['data']
+        if service['name'] == "User Flows Test Service"
+    )
+    return service['id']
 
 
 @pytest.fixture(scope="function")
@@ -56,37 +55,51 @@ def get_templates_response(environment, notification_url, service_id) -> Respons
 
 @pytest.fixture(scope="function")
 def template_id(get_templates_response) -> str:
-    return get_first_email_template_id(get_templates_response.json()['data'])
+    first_email_template = next(
+        template for template in get_templates_response.json()['data']
+        if template['template_type'] == 'email'
+    )
+    return first_email_template["id"]
 
 
 @pytest.fixture(scope="function")
 def sms_template_id(get_templates_response) -> str:
-    return get_first_sms_template_id(get_templates_response.json()['data'])
+    first_sms_template = next(
+        template for template in get_templates_response.json()['data']
+        if template['template_type'] == 'sms'
+    )
+    return first_sms_template["id"]
 
 
 @pytest.fixture(scope="function")
-def users(environment, notification_url) -> Response:
+def get_users_response(environment, notification_url) -> Response:
     jwt_token = get_admin_jwt(environment)
     return get_authenticated_request(F"{notification_url}/user", jwt_token)
 
 
 @pytest.fixture(scope="function")
-def user_id(service_id, users) -> str:
-    return get_user_id(service_id, users.json()['data'])
+def user_id(service_id, get_users_response) -> str:
+    user = next(
+        user for user in get_users_response.json()['data']
+        if user['name'] == 'Test User' and service_id in user['services']
+    )
+    return user['id']
 
 
 @pytest.fixture(scope="function")
 def service_api_key(environment, notification_url, service_id, user_id) -> str:
-    return get_new_service_api_key(environment, notification_url, service_id, user_id)
+    revoke_service_api_keys(environment, notification_url, service_id)
+    return create_service_api_key(environment, notification_url, service_id, user_id)
 
 
 @pytest.fixture(scope="function")
 def service_test_api_key(environment, notification_url, service_id, user_id) -> str:
-    return get_new_service_test_api_key(environment, notification_url, service_id, user_id)
+    revoke_service_api_keys(environment, notification_url, service_id)
+    return create_service_test_api_key(environment, notification_url, service_id, user_id)
 
 
-def test_api_healthy(environment, notification_url):
-    response = get_api_health_status(environment, F"{notification_url}/_status")
+def test_api_healthy(notification_url):
+    response = get(F"{notification_url}/_status")
     assert response.status_code == 200
 
 
@@ -96,12 +109,12 @@ def test_get_organizations(environment, notification_url):
     assert organizations.status_code == 200
 
 
-def test_get_users(environment, notification_url, users):
-    assert users.status_code == 200
+def test_get_users(environment, notification_url, get_users_response):
+    assert get_users_response.status_code == 200
 
 
-def test_get_services(environment, notification_url, services):
-    assert services.status_code == 200
+def test_get_services(environment, notification_url, get_services_response):
+    assert get_services_response.status_code == 200
 
 
 def test_get_templates(environment, notification_url, service_id, get_templates_response):

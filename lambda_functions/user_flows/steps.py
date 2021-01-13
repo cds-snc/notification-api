@@ -46,10 +46,6 @@ def get_service_jwt(service_id: str, api_key_secret: str) -> bytes:
     return encode_jwt(service_id, api_key_secret)
 
 
-def get_notification_url(environment: str) -> str:
-    return "https://{env}.api.notifications.va.gov".format(env=environment)
-
-
 def get_authenticated_request(url: str, jwt_token: bytes) -> Response:
     header = {"Authorization": F"Bearer {jwt_token.decode('utf-8')}"}
     return requests.get(url, headers=header)
@@ -58,38 +54,6 @@ def get_authenticated_request(url: str, jwt_token: bytes) -> Response:
 def post_authenticated_request(url: str, jwt_token: bytes, payload: str = '{}') -> Response:
     header = {"Authorization": F"Bearer {jwt_token.decode('utf-8')}", 'Content-Type': 'application/json'}
     return requests.post(url, headers=header, data=payload)
-
-
-def get_api_health_status(environment: str, url: str) -> Response:
-    return requests.get(url)
-
-
-def get_organization_id(data) -> str:
-    organization_id = data[-1]['id']
-    for organization in data:
-        if organization['count_of_live_services'] >= 1:
-            organization_id = organization['id']
-    return organization_id
-
-
-def get_service_id(services) -> str:
-    service = next(service for service in services if service['name'] == "User Flows Test Service")
-    return service['id']
-
-
-def get_user_id(service_id: str, users) -> str:
-    user = next(user for user in users if user['name'] == 'Test User' and service_id in user['services'])
-    return user['id']
-
-
-def get_first_email_template_id(templates) -> str:
-    first_email_template = next(template for template in templates if template['template_type'] == 'email')
-    return first_email_template["id"]
-
-
-def get_first_sms_template_id(templates) -> str:
-    first_sms_template = next(template for template in templates if template['template_type'] == 'sms')
-    return first_sms_template["id"]
 
 
 def revoke_service_api_keys(environment: str, notification_url: str, service_id: str) -> None:
@@ -128,16 +92,6 @@ def create_service_test_api_key(environment: str, notification_url: str, service
     post_api_key_url = F"{notification_url}/service/{service_id}/api-key"
     new_key_response = post_authenticated_request(post_api_key_url, jwt_token, post_api_key_payload)
     return new_key_response.json()['data']
-
-
-def get_new_service_api_key(environment: str, notification_url: str, service_id: str, user_id: str) -> str:
-    revoke_service_api_keys(environment, notification_url, service_id)
-    return create_service_api_key(environment, notification_url, service_id, user_id)
-
-
-def get_new_service_test_api_key(environment: str, notification_url: str, service_id: str, user_id: str) -> str:
-    revoke_service_api_keys(environment, notification_url, service_id)
-    return create_service_test_api_key(environment, notification_url, service_id, user_id)
 
 
 def send_email(notification_url: str, service_jwt: bytes, payload: str) -> Response:
