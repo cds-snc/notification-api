@@ -16,27 +16,35 @@ def get_api_secret(environment: str) -> str:
     )
     api_secret = resp["Parameter"]["Value"]
 
-    if(not api_secret):
+    if not api_secret:
         raise ValueError("Could not retrieve secret environment variable")
 
     return api_secret
 
 
-def get_jwt(environment: str) -> bytes:
-    jwt_secret = get_api_secret(environment)
+def get_jwt(issuer: str, secret_key: str) -> bytes:
     header = {'typ': 'JWT', 'alg': 'HS256'}
     combo = {}
     current_timestamp = int(time.time())
     data = {
-        'iss': "notify-admin",
+        'iss': issuer,
         'iat': current_timestamp,
         'exp': current_timestamp + 30,
         'jti': 'jwt_nonce'
     }
     combo.update(data)
     combo.update(header)
-    encoded_jwt = jwt.encode(combo, jwt_secret, algorithm='HS256')
+    encoded_jwt = jwt.encode(combo, secret_key, algorithm='HS256')
     return encoded_jwt
+
+
+def get_admin_jwt(environment: str) -> bytes:
+    jwt_secret = get_api_secret(environment)
+    return get_jwt('notify-admin', jwt_secret)
+
+
+def get_service_jwt(service_id: str, api_key_secret: str) -> bytes:
+    return get_jwt(service_id, api_key_secret)
 
 
 def get_notification_url(environment: str) -> str:
@@ -44,13 +52,13 @@ def get_notification_url(environment: str) -> str:
 
 
 def get_authenticated_request(environment: str, url: str) -> Response:
-    jwt = get_jwt(environment)
+    jwt = get_admin_jwt(environment)
     header = {"Authorization": F"Bearer {jwt.decode('utf-8')}"}
     return requests.get(url, headers=header)
 
 
 def post_authenticated_request(environment: str, url: str, payload={}) -> Response:
-    jwt = get_jwt(environment)
+    jwt = get_admin_jwt(environment)
     header = {"Authorization": F"Bearer {jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
     return requests.post(url, headers=header, data=payload)
 
@@ -98,7 +106,7 @@ def revoke_service_api_keys(environment: str, notification_url: str, service_id:
 
 
 def create_service_api_key(environment: str, notification_url: str, service_id: str, user_id: str) -> str:
-    jwt = get_jwt(environment)
+    jwt = get_admin_jwt(environment)
     header = {"Authorization": F"Bearer {jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
     post_api_key_payload = json.dumps({
         "created_by": user_id,
@@ -111,7 +119,7 @@ def create_service_api_key(environment: str, notification_url: str, service_id: 
 
 
 def create_service_test_api_key(environment: str, notification_url: str, service_id: str, user_id: str) -> str:
-    jwt = get_jwt(environment)
+    jwt = get_admin_jwt(environment)
     header = {"Authorization": F"Bearer {jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
     post_api_key_payload = json.dumps({
         "created_by": user_id,
@@ -131,21 +139,6 @@ def get_new_service_api_key(environment: str, notification_url: str, service_id:
 def get_new_service_test_api_key(environment: str, notification_url: str, service_id: str, user_id: str) -> str:
     revoke_service_api_keys(environment, notification_url, service_id)
     return create_service_test_api_key(environment, notification_url, service_id, user_id)
-
-
-def get_service_jwt(api_key_secret: str, service_id: str) -> bytes:
-    jwt_secret = api_key_secret
-    header = {'typ': 'JWT', 'alg': 'HS256'}
-    combo = {}
-    current_timestamp = int(time.time())
-    data = {
-        'iss': service_id,
-        'iat': current_timestamp,
-    }
-    combo.update(data)
-    combo.update(header)
-    encoded_jwt = jwt.encode(combo, jwt_secret, algorithm='HS256')
-    return encoded_jwt
 
 
 def send_email(notification_url: str, service_jwt: bytes, payload: str) -> Response:

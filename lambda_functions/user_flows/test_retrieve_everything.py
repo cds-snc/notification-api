@@ -106,14 +106,14 @@ def test_get_templates(environment, notification_url, service_id, get_templates_
 
 @pytest.mark.skip(reason="Will re-enable once SES set up is completed (story numbers 288 and 321). Current SES changes impact provider priority, causing clash with Govdelivery test data")
 def test_send_email(environment, notification_url, service_id, service_api_key, template_id, user_id):
-    service_jwt = get_service_jwt(service_api_key, service_id)
+    service_jwt = get_service_jwt(service_id, service_api_key)
     email_response = send_email_with_email_address(notification_url, service_jwt, template_id)
     assert email_response.status_code == 201
     notification_id = get_notification_id(email_response)
     time_count = 0
     notification_status = ""
     while notification_status != "sending" and time_count < 30:
-        service_jwt = get_service_jwt(service_api_key, service_id)
+        service_jwt = get_service_jwt(service_id, service_api_key)
         notification_status_response = get_notification_status(notification_id, notification_url, service_jwt)
         assert notification_status_response.status_code == 200
         notification_status = notification_status_response.json()['status']
@@ -123,7 +123,7 @@ def test_send_email(environment, notification_url, service_id, service_api_key, 
 
 
 def test_send_email_with_va_profile_id(environment, notification_url, service_id, service_test_api_key, template_id, user_id):
-    service_jwt = get_service_jwt(service_test_api_key, service_id)
+    service_jwt = get_service_jwt(service_id, service_test_api_key)
 
     email_response = send_email_with_va_profile_id(notification_url, service_jwt, template_id)
     assert email_response.status_code == 201
@@ -143,7 +143,7 @@ def test_send_email_with_va_profile_id(environment, notification_url, service_id
 
 
 def test_send_email_with_icn(environment, notification_url, service_id, service_test_api_key, template_id, user_id):
-    service_jwt = get_service_jwt(service_test_api_key, service_id)
+    service_jwt = get_service_jwt(service_id, service_test_api_key)
 
     email_response = send_email_with_icn(notification_url, service_jwt, template_id)
     assert email_response.status_code == 201
@@ -167,7 +167,7 @@ def test_send_email_with_icn(environment, notification_url, service_id, service_
 
 
 def test_send_text(notification_url, service_test_api_key, service_id, sms_template_id):
-    service_jwt = get_service_jwt(service_test_api_key, service_id)
+    service_jwt = get_service_jwt(service_id, service_test_api_key)
 
     sms_response = send_sms_with_phone_number(
         notification_url, service_jwt, sms_template_id, VALID_TEST_RECIPIENT_PHONE_NUMBER
@@ -189,7 +189,7 @@ def test_send_text(notification_url, service_test_api_key, service_id, sms_templ
 
 
 def test_send_text_with_profile_id(notification_url, service_test_api_key, service_id, sms_template_id):
-    service_jwt = get_service_jwt(service_test_api_key, service_id)
+    service_jwt = get_service_jwt(service_id, service_test_api_key)
 
     sms_response = send_sms_with_va_profile_id(notification_url, service_jwt, sms_template_id)
     assert sms_response.status_code == 201
@@ -217,7 +217,7 @@ def wait_for_status(
 ) -> Response:
     notification_status_response = None
     for _ in range(30):
-        service_jwt = get_service_jwt(service_test_api_key, service_id)
+        service_jwt = get_service_jwt(service_id, service_test_api_key)
         notification_status_response = get_notification_status(notification_id, notification_url, service_jwt)
 
         assert notification_status_response.status_code == 200
