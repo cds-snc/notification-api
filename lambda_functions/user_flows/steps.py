@@ -37,10 +37,6 @@ def encode_jwt(issuer: str, secret_key: str) -> bytes:
     return jwt.encode(combo, secret_key, algorithm='HS256')
 
 
-def get_service_jwt(service_id: str, api_key_secret: str) -> bytes:
-    return encode_jwt(service_id, api_key_secret)
-
-
 def get_authenticated_request(url: str, jwt_token: bytes) -> Response:
     header = {"Authorization": F"Bearer {jwt_token.decode('utf-8')}"}
     return requests.get(url, headers=header)
