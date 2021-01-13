@@ -3,12 +3,12 @@ import json
 import jwt
 import time
 import boto3
-from jwt import PyJWT
+from requests import Response
 
 client = boto3.client('ssm')
 
 
-def get_api_secret(environment):
+def get_api_secret(environment: str) -> str:
     key = "/{env}/notification-api/admin-client-secret".format(env=environment)
     resp = client.get_parameter(
         Name=key,
@@ -22,7 +22,7 @@ def get_api_secret(environment):
     return api_secret
 
 
-def get_jwt(environment):
+def get_jwt(environment: str) -> bytes:
     jwt_secret = get_api_secret(environment)
     header = {'typ': 'JWT', 'alg': 'HS256'}
     combo = {}
@@ -39,28 +39,27 @@ def get_jwt(environment):
     return encoded_jwt
 
 
-def get_notification_url(environment):
+def get_notification_url(environment: str) -> str:
     return "https://{env}.api.notifications.va.gov".format(env=environment)
 
 
-def get_authenticated_request(environment, url):
+def get_authenticated_request(environment: str, url: str) -> Response:
     jwt = get_jwt(environment)
     header = {"Authorization": F"Bearer {jwt.decode('utf-8')}"}
-    r = requests.get(url, headers=header)
-    return r
+    return requests.get(url, headers=header)
 
 
-def post_authenticated_request(environment, url, payload={}):
+def post_authenticated_request(environment: str, url: str, payload={}) -> Response:
     jwt = get_jwt(environment)
     header = {"Authorization": F"Bearer {jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
     return requests.post(url, headers=header, data=payload)
 
 
-def get_api_health_status(environment, url):
+def get_api_health_status(environment: str, url: str) -> Response:
     return requests.get(url)
 
 
-def get_organization_id(data):
+def get_organization_id(data) -> str:
     organization_id = data[-1]['id']
     for organization in data:
         if organization['count_of_live_services'] >= 1:
@@ -68,27 +67,27 @@ def get_organization_id(data):
     return organization_id
 
 
-def get_service_id(services):
+def get_service_id(services) -> str:
     service = next(service for service in services if service['name'] == "User Flows Test Service")
     return service['id']
 
 
-def get_user_id(service_id, users):
+def get_user_id(service_id: str, users) -> str:
     user = next(user for user in users if user['name'] == 'Test User' and service_id in user['services'])
     return user['id']
 
 
-def get_first_email_template_id(templates):
+def get_first_email_template_id(templates) -> str:
     first_email_template = next(template for template in templates if template['template_type'] == 'email')
     return first_email_template["id"]
 
 
-def get_first_sms_template_id(templates):
+def get_first_sms_template_id(templates) -> str:
     first_sms_template = next(template for template in templates if template['template_type'] == 'sms')
     return first_sms_template["id"]
 
 
-def revoke_service_api_keys(environment, notification_url, service_id):
+def revoke_service_api_keys(environment: str, notification_url: str, service_id: str) -> None:
     existing_api_keys_response = get_authenticated_request(environment, F"{notification_url}/service/{service_id}/api-keys")
     existing_api_keys = existing_api_keys_response.json()['apiKeys']
     active_api_keys = [api_key for api_key in existing_api_keys if api_key["expiry_date"] is None]
@@ -98,7 +97,7 @@ def revoke_service_api_keys(environment, notification_url, service_id):
         post_authenticated_request(environment, revoke_url)
 
 
-def create_service_api_key(environment, notification_url, service_id, user_id):
+def create_service_api_key(environment: str, notification_url: str, service_id: str, user_id: str) -> str:
     jwt = get_jwt(environment)
     header = {"Authorization": F"Bearer {jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
     post_api_key_payload = json.dumps({
@@ -111,7 +110,7 @@ def create_service_api_key(environment, notification_url, service_id, user_id):
     return new_key_response.json()['data']
 
 
-def create_service_test_api_key(environment, notification_url, service_id, user_id):
+def create_service_test_api_key(environment: str, notification_url: str, service_id: str, user_id: str) -> str:
     jwt = get_jwt(environment)
     header = {"Authorization": F"Bearer {jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
     post_api_key_payload = json.dumps({
@@ -124,17 +123,17 @@ def create_service_test_api_key(environment, notification_url, service_id, user_
     return new_key_response.json()['data']
 
 
-def get_new_service_api_key(environment, notification_url, service_id, user_id):
+def get_new_service_api_key(environment: str, notification_url: str, service_id: str, user_id: str) -> str:
     revoke_service_api_keys(environment, notification_url, service_id)
     return create_service_api_key(environment, notification_url, service_id, user_id)
 
 
-def get_new_service_test_api_key(environment, notification_url, service_id, user_id):
+def get_new_service_test_api_key(environment: str, notification_url: str, service_id: str, user_id: str) -> str:
     revoke_service_api_keys(environment, notification_url, service_id)
     return create_service_test_api_key(environment, notification_url, service_id, user_id)
 
 
-def get_service_jwt(api_key_secret, service_id):
+def get_service_jwt(api_key_secret: str, service_id: str) -> bytes:
     jwt_secret = api_key_secret
     header = {'typ': 'JWT', 'alg': 'HS256'}
     combo = {}
@@ -149,13 +148,13 @@ def get_service_jwt(api_key_secret, service_id):
     return encoded_jwt
 
 
-def send_email(notification_url, service_jwt, payload):
+def send_email(notification_url: str, service_jwt: bytes, payload: str) -> Response:
     header = {"Authorization": F"Bearer {service_jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
     post_url = F"{notification_url}/v2/notifications/email"
     return requests.post(post_url, headers=header, data=payload)
 
 
-def send_email_with_email_address(notification_url, service_jwt, template_id):
+def send_email_with_email_address(notification_url: str, service_jwt: bytes, template_id: str) -> Response:
     payload = json.dumps({
         "template_id": template_id,
         "email_address": "test@sink.govdelivery.com",
@@ -168,7 +167,7 @@ def send_email_with_email_address(notification_url, service_jwt, template_id):
     return send_email(notification_url, service_jwt, payload)
 
 
-def send_email_with_va_profile_id(notification_url, service_jwt, template_id):
+def send_email_with_va_profile_id(notification_url: str, service_jwt: bytes, template_id: str) -> Response:
     payload = json.dumps({
         "template_id": template_id,
         "recipient_identifier": {
@@ -184,7 +183,7 @@ def send_email_with_va_profile_id(notification_url, service_jwt, template_id):
     return send_email(notification_url, service_jwt, payload)
 
 
-def send_email_with_icn(notification_url, service_jwt, template_id):
+def send_email_with_icn(notification_url: str, service_jwt: bytes, template_id: str) -> Response:
     payload = json.dumps({
         "template_id": template_id,
         "recipient_identifier": {
@@ -200,17 +199,17 @@ def send_email_with_icn(notification_url, service_jwt, template_id):
     return send_email(notification_url, service_jwt, payload)
 
 
-def get_notification_id(notification_response):
+def get_notification_id(notification_response: Response) -> str:
     return notification_response.json()['id']
 
 
-def get_notification_status(notification_id, notification_url, service_jwt):
+def get_notification_status(notification_id: str, notification_url: str, service_jwt: bytes) -> Response:
     header = {"Authorization": "Bearer " + service_jwt.decode("utf-8"), 'Content-Type': 'application/json'}
     url = F"{notification_url}/v2/notifications/{notification_id}"
     return requests.get(url, headers=header)
 
 
-def send_sms_with_phone_number(notification_url: str, service_jwt: PyJWT, template_id: str, recipient_number: str):
+def send_sms_with_phone_number(notification_url: str, service_jwt: bytes, template_id: str, recipient_number: str) -> Response:
     payload = json.dumps({
         "phone_number": recipient_number,
         "template_id": template_id
@@ -219,7 +218,7 @@ def send_sms_with_phone_number(notification_url: str, service_jwt: PyJWT, templa
     return send_sms(notification_url, service_jwt, payload)
 
 
-def send_sms_with_va_profile_id(notification_url: str, service_jwt: PyJWT, template_id: str):
+def send_sms_with_va_profile_id(notification_url: str, service_jwt: bytes, template_id: str) -> Response:
     payload = json.dumps({
         "template_id": template_id,
         "recipient_identifier": {
@@ -230,7 +229,7 @@ def send_sms_with_va_profile_id(notification_url: str, service_jwt: PyJWT, templ
     return send_sms(notification_url, service_jwt, payload)
 
 
-def send_sms(notification_url: str, service_jwt: PyJWT, payload: str):
+def send_sms(notification_url: str, service_jwt: bytes, payload: str) -> Response:
     header = {"Authorization": F"Bearer {service_jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
     post_url = F"{notification_url}/v2/notifications/sms"
     return requests.post(post_url, headers=header, data=payload)

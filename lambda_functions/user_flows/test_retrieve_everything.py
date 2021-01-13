@@ -2,6 +2,8 @@ import os
 import pytest
 import time
 
+from requests import Response
+
 from steps import get_notification_url
 from steps import get_api_health_status
 from steps import get_authenticated_request
@@ -26,57 +28,57 @@ VALID_TEST_RECIPIENT_PHONE_NUMBER = "+16502532222"
 
 
 @pytest.fixture(scope="function")
-def environment(pytestconfig):
+def environment(pytestconfig) -> str:
     return pytestconfig.getoption("environment")
 
 
 @pytest.fixture(scope="function")
-def notification_url(environment):
+def notification_url(environment) -> str:
     return get_notification_url(environment)
 
 
 @pytest.fixture(scope="function")
-def services(environment, notification_url):
+def services(environment, notification_url) -> Response:
     return get_authenticated_request(environment, F"{notification_url}/service")
 
 
 @pytest.fixture(scope="function")
-def service_id(services):
+def service_id(services) -> str:
     return get_service_id(services.json()['data'])
 
 
 @pytest.fixture(scope="function")
-def get_templates_response(environment, notification_url, service_id):
+def get_templates_response(environment, notification_url, service_id) -> Response:
     return get_authenticated_request(environment, F"{notification_url}/service/{service_id}/template")
 
 
 @pytest.fixture(scope="function")
-def template_id(get_templates_response):
+def template_id(get_templates_response) -> str:
     return get_first_email_template_id(get_templates_response.json()['data'])
 
 
 @pytest.fixture(scope="function")
-def sms_template_id(get_templates_response):
+def sms_template_id(get_templates_response) -> str:
     return get_first_sms_template_id(get_templates_response.json()['data'])
 
 
 @pytest.fixture(scope="function")
-def users(environment, notification_url):
+def users(environment, notification_url) -> Response:
     return get_authenticated_request(environment, F"{notification_url}/user")
 
 
 @pytest.fixture(scope="function")
-def user_id(service_id, users):
+def user_id(service_id, users) -> str:
     return get_user_id(service_id, users.json()['data'])
 
 
 @pytest.fixture(scope="function")
-def service_api_key(environment, notification_url, service_id, user_id):
+def service_api_key(environment, notification_url, service_id, user_id) -> str:
     return get_new_service_api_key(environment, notification_url, service_id, user_id)
 
 
 @pytest.fixture(scope="function")
-def service_test_api_key(environment, notification_url, service_id, user_id):
+def service_test_api_key(environment, notification_url, service_id, user_id) -> str:
     return get_new_service_test_api_key(environment, notification_url, service_id, user_id)
 
 
@@ -206,7 +208,13 @@ def test_send_text_with_profile_id(notification_url, service_test_api_key, servi
     assert notification_status_response.json()['phone_number'] is not None
 
 
-def wait_for_status(notification_id, notification_url, service_id, service_test_api_key, desired_status):
+def wait_for_status(
+        notification_id: str,
+        notification_url: str,
+        service_id: str,
+        service_test_api_key: str,
+        desired_status: str
+) -> Response:
     notification_status_response = None
     for _ in range(30):
         service_jwt = get_service_jwt(service_test_api_key, service_id)
