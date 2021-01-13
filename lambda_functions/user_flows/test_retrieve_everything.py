@@ -1,28 +1,28 @@
-import os
 import pytest
 import time
 
 from requests import Response
 
-from steps import get_notification_url, get_admin_jwt
-from steps import get_api_health_status
-from steps import get_authenticated_request
-from steps import get_service_id
-from steps import get_first_email_template_id
-from steps import get_user_id
-from steps import get_new_service_api_key
-from steps import get_new_service_test_api_key
-from steps import get_service_jwt
-from steps import send_email_with_email_address
-from steps import send_email_with_va_profile_id
-from steps import get_notification_id
-from steps import get_notification_status
-from steps import send_email_with_icn
-from steps import \
-    send_sms_with_phone_number, \
-    get_first_sms_template_id, \
+from steps import (
+    get_notification_url,
+    get_admin_jwt,
+    get_api_health_status,
+    get_authenticated_request,
+    get_service_id,
+    get_first_email_template_id,
+    get_user_id,
+    get_new_service_api_key,
+    get_new_service_test_api_key,
+    get_service_jwt,
+    send_email_with_email_address,
+    send_email_with_va_profile_id,
+    get_notification_id,
+    get_notification_status,
+    send_email_with_icn,
+    send_sms_with_phone_number,
+    get_first_sms_template_id,
     send_sms_with_va_profile_id
-
+)
 
 VALID_TEST_RECIPIENT_PHONE_NUMBER = "+16502532222"
 

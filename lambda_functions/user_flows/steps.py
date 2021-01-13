@@ -107,27 +107,26 @@ def revoke_service_api_keys(environment: str, notification_url: str, service_id:
 
 
 def create_service_api_key(environment: str, notification_url: str, service_id: str, user_id: str) -> str:
-    jwt = get_admin_jwt(environment)
-    header = {"Authorization": F"Bearer {jwt.decode('utf-8')}", 'Content-Type': 'application/json'}
+    jwt_token = get_admin_jwt(environment)
     post_api_key_payload = json.dumps({
         "created_by": user_id,
         "key_type": "normal",
         "name": "userflows"
     })
     post_api_key_url = F"{notification_url}/service/{service_id}/api-key"
-    new_key_response = post_authenticated_request(post_api_key_url, jwt, post_api_key_payload)
+    new_key_response = post_authenticated_request(post_api_key_url, jwt_token, post_api_key_payload)
     return new_key_response.json()['data']
 
 
 def create_service_test_api_key(environment: str, notification_url: str, service_id: str, user_id: str) -> str:
-    jwt = get_admin_jwt(environment)
+    jwt_token = get_admin_jwt(environment)
     post_api_key_payload = json.dumps({
         "created_by": user_id,
         "key_type": "test",
         "name": "userflows-test"
     })
     post_api_key_url = F"{notification_url}/service/{service_id}/api-key"
-    new_key_response = post_authenticated_request(post_api_key_url, jwt, post_api_key_payload)
+    new_key_response = post_authenticated_request(post_api_key_url, jwt_token, post_api_key_payload)
     return new_key_response.json()['data']
 
 
