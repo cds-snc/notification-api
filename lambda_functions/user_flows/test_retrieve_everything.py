@@ -3,9 +3,7 @@ import time
 
 from requests import Response, get
 
-from lambda_functions.user_flows.steps import create_service_api_key
 from steps import (
-    get_admin_jwt,
     get_authenticated_request,
     get_service_jwt,
     send_email_with_email_address,
@@ -15,7 +13,10 @@ from steps import (
     send_email_with_icn,
     send_sms_with_phone_number,
     send_sms_with_va_profile_id,
-    revoke_service_api_keys
+    revoke_service_api_keys,
+    create_service_api_key,
+    encode_jwt,
+    get_admin_client_secret
 )
 
 VALID_TEST_RECIPIENT_PHONE_NUMBER = "+16502532222"
@@ -32,9 +33,13 @@ def notification_url(environment) -> str:
 
 
 @pytest.fixture(scope="function")
-def get_services_response(environment, notification_url) -> Response:
-    jwt_token = get_admin_jwt(environment)
-    return get_authenticated_request(F"{notification_url}/service", jwt_token)
+def admin_jwt_token(environment) -> bytes:
+    return encode_jwt('notify-admin', get_admin_client_secret(environment))
+
+
+@pytest.fixture(scope="function")
+def get_services_response(notification_url, admin_jwt_token) -> Response:
+    return get_authenticated_request(F"{notification_url}/service", admin_jwt_token)
 
 
 @pytest.fixture(scope="function")
@@ -47,9 +52,8 @@ def service_id(get_services_response) -> str:
 
 
 @pytest.fixture(scope="function")
-def get_templates_response(environment, notification_url, service_id) -> Response:
-    jwt_token = get_admin_jwt(environment)
-    return get_authenticated_request(F"{notification_url}/service/{service_id}/template", jwt_token)
+def get_templates_response(notification_url, admin_jwt_token, service_id) -> Response:
+    return get_authenticated_request(F"{notification_url}/service/{service_id}/template", admin_jwt_token)
 
 
 @pytest.fixture(scope="function")
@@ -71,9 +75,8 @@ def sms_template_id(get_templates_response) -> str:
 
 
 @pytest.fixture(scope="function")
-def get_users_response(environment, notification_url) -> Response:
-    jwt_token = get_admin_jwt(environment)
-    return get_authenticated_request(F"{notification_url}/user", jwt_token)
+def get_users_response(notification_url, admin_jwt_token) -> Response:
+    return get_authenticated_request(F"{notification_url}/user", admin_jwt_token)
 
 
 @pytest.fixture(scope="function")
@@ -86,15 +89,15 @@ def user_id(service_id, get_users_response) -> str:
 
 
 @pytest.fixture(scope="function")
-def service_api_key(environment, notification_url, service_id, user_id) -> str:
-    revoke_service_api_keys(environment, notification_url, service_id)
-    return create_service_api_key(environment, notification_url, service_id, user_id, "normal")
+def service_api_key(notification_url, admin_jwt_token, service_id, user_id) -> str:
+    revoke_service_api_keys(notification_url, admin_jwt_token, service_id)
+    return create_service_api_key(notification_url, admin_jwt_token, user_id, "normal", service_id)
 
 
 @pytest.fixture(scope="function")
-def service_test_api_key(environment, notification_url, service_id, user_id) -> str:
-    revoke_service_api_keys(environment, notification_url, service_id)
-    return create_service_api_key(environment, notification_url, service_id, user_id, "test")
+def service_test_api_key(notification_url, admin_jwt_token, service_id, user_id) -> str:
+    revoke_service_api_keys(notification_url, admin_jwt_token, service_id)
+    return create_service_api_key(notification_url, admin_jwt_token, user_id, "test", service_id)
 
 
 def test_api_healthy(notification_url):
@@ -102,9 +105,8 @@ def test_api_healthy(notification_url):
     assert response.status_code == 200
 
 
-def test_get_organizations(environment, notification_url):
-    jwt_token = get_admin_jwt(environment)
-    organizations = get_authenticated_request(F"{notification_url}/organisations", jwt_token)
+def test_get_organizations(notification_url, admin_jwt_token):
+    organizations = get_authenticated_request(F"{notification_url}/organisations", admin_jwt_token)
     assert organizations.status_code == 200
 
 

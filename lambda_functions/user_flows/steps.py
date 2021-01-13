@@ -37,11 +37,6 @@ def encode_jwt(issuer: str, secret_key: str) -> bytes:
     return jwt.encode(combo, secret_key, algorithm='HS256')
 
 
-def get_admin_jwt(environment: str) -> bytes:
-    admin_client_secret = get_admin_client_secret(environment)
-    return encode_jwt('notify-admin', admin_client_secret)
-
-
 def get_service_jwt(service_id: str, api_key_secret: str) -> bytes:
     return encode_jwt(service_id, api_key_secret)
 
@@ -56,29 +51,27 @@ def post_authenticated_request(url: str, jwt_token: bytes, payload: str = '{}') 
     return requests.post(url, headers=header, data=payload)
 
 
-def revoke_service_api_keys(environment: str, notification_url: str, service_id: str) -> None:
-    jwt_token = get_admin_jwt(environment)
+def revoke_service_api_keys(notification_url: str, admin_jwt_token, service_id: str) -> None:
     existing_api_keys_response = get_authenticated_request(
         F"{notification_url}/service/{service_id}/api-keys",
-        jwt_token
+        admin_jwt_token
     )
     existing_api_keys = existing_api_keys_response.json()['apiKeys']
     active_api_keys = [api_key for api_key in existing_api_keys if api_key["expiry_date"] is None]
 
     for api_key in active_api_keys:
         revoke_url = F"{notification_url}/service/{service_id}/api-key/revoke/{api_key['id']}"
-        post_authenticated_request(revoke_url, jwt_token)
+        post_authenticated_request(revoke_url, admin_jwt_token)
 
 
-def create_service_api_key(environment: str, notification_url: str, service_id: str, user_id: str, key_type: str):
-    jwt_token = get_admin_jwt(environment)
+def create_service_api_key(notification_url: str, admin_jwt_token: bytes, user_id: str, key_type: str, service_id: str):
     post_api_key_payload = json.dumps({
         "created_by": user_id,
         "key_type": key_type,
         "name": f"userflows-key-{key_type}"
     })
     post_api_key_url = F"{notification_url}/service/{service_id}/api-key"
-    new_key_response = post_authenticated_request(post_api_key_url, jwt_token, post_api_key_payload)
+    new_key_response = post_authenticated_request(post_api_key_url, admin_jwt_token, post_api_key_payload)
     return new_key_response.json()['data']
 
 
