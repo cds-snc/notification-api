@@ -26,7 +26,7 @@ jobs:
             --instance-ids $INSTANCE_ID \
             --parameters '{"commands":[
                 "#!/bin/bash",
-                "locust -f notification-api/load_testing/locustfile.py --headless -u 1 -r 1 --host http://dev.api.notifications.va.gov --run-time 5s"
+                "sudo -u locust locust -f notification-api/load_testing/locustfile.py --headless -u 1 -r 1 --host https://dev.api.notifications.va.gov --run-time 5s"
               ]}' \
             --output text --query "Command.CommandId")
           aws ssm wait command-executed --command-id $COMMAND_ID --instance-id $INSTANCE_ID ; \
