@@ -206,14 +206,17 @@ def test_send_text_with_profile_id(notification_url, service_test_api_key, servi
     assert notification_status_response.json()['phone_number'] is not None
 
 
-def wait_for_status(notification_id, notification_url, service_id, service_test_api_key, desired_status='sent'):
+def wait_for_status(notification_id, notification_url, service_id, service_test_api_key, desired_status):
     notification_status_response = None
     for _ in range(30):
         service_jwt = get_service_jwt(service_test_api_key, service_id)
         notification_status_response = get_notification_status(notification_id, notification_url, service_jwt)
 
+        assert notification_status_response.status_code == 200
+
         if notification_status_response.json()['status'] == desired_status:
-            break
+            return notification_status_response
 
         time.sleep(1)
-    return notification_status_response
+
+    pytest.fail(f"Response did not reach desired status '{desired_status}': {notification_status_response.json()}")
