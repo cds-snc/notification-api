@@ -3,6 +3,7 @@ import time
 
 from requests import Response, get
 
+from lambda_functions.user_flows.steps import create_service_api_key
 from steps import (
     get_admin_jwt,
     get_authenticated_request,
@@ -14,8 +15,6 @@ from steps import (
     send_email_with_icn,
     send_sms_with_phone_number,
     send_sms_with_va_profile_id,
-    create_service_test_api_key,
-    create_service_api_key,
     revoke_service_api_keys
 )
 
@@ -89,13 +88,13 @@ def user_id(service_id, get_users_response) -> str:
 @pytest.fixture(scope="function")
 def service_api_key(environment, notification_url, service_id, user_id) -> str:
     revoke_service_api_keys(environment, notification_url, service_id)
-    return create_service_api_key(environment, notification_url, service_id, user_id)
+    return create_service_api_key(environment, notification_url, service_id, user_id, "normal")
 
 
 @pytest.fixture(scope="function")
 def service_test_api_key(environment, notification_url, service_id, user_id) -> str:
     revoke_service_api_keys(environment, notification_url, service_id)
-    return create_service_test_api_key(environment, notification_url, service_id, user_id)
+    return create_service_api_key(environment, notification_url, service_id, user_id, "test")
 
 
 def test_api_healthy(notification_url):
