@@ -36,5 +36,5 @@ jobs:
             --details \
             --query "CommandInvocations[].CommandPlugins[].{Status:Status,StatusDetails:StatusDetails,ResponseCode:ResponseCode,Output:Output}")
           echo `jq '.[].Status' <<< $RESULT`
-          printf `jq '.[].Output' <<< $RESULT`
+          printf '%b\n' "$(jq '.[].Output' <<< $RESULT)"
           exit `jq '.[].ResponseCode' <<< $RESULT`
