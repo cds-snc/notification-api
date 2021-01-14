@@ -8,7 +8,6 @@ from locust import HttpUser, task
 class SendEmail(HttpUser):
 
     def on_start(self):
-        print(os.getenv("LOAD_TESTING_template_id"))
         self.template_id = self.read_configuration('template_id')
         self.service_id = self.read_configuration('service_id')
         self.api_key = self.read_configuration('api_key')
@@ -36,9 +35,14 @@ class SendEmail(HttpUser):
         }
         payload = {
             'template_id': self.template_id,
-            'email_address': 'pherbert@thoughtworks.com'
+            'email_address': 'test-email@not-a-real-email.com'
         }
-        self.client.post('/v2/notifications/email', json=payload, headers=headers)
+        self.client.post(
+            '/v2/notifications/email',
+            json=payload,
+            headers=headers,
+            verify='/etc/pki/tls/certs/ca-bundle.trust.crt'
+        )
 
     def _get_jwt(self) -> bytes:
         header = {'typ': 'JWT', 'alg': 'HS256'}
