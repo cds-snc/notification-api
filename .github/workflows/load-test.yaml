@@ -26,7 +26,8 @@ jobs:
             --instance-ids $INSTANCE_ID \
             --parameters '{"commands":[
                 "#!/bin/bash",
-                "su - locust -c \"locust -f notification-api/load_testing/locustfile.py --headless -u 1 -r 1 --host https://dev.api.notifications.va.gov --run-time 5s\""
+                "su - locust -c \"locust -f notification-api/load_testing/locustfile.py --headless -u 1 -r 1 --host https://dev.api.notifications.va.gov --run-time 5s --csv results 2>/dev/null\""
+                "su - locust -c \"cat results_stats.csv\""
               ]}' \
             --output text --query "Command.CommandId")
           aws ssm wait command-executed --command-id $COMMAND_ID --instance-id $INSTANCE_ID ; \
@@ -34,5 +35,6 @@ jobs:
             --command-id $COMMAND_ID \
             --details \
             --query "CommandInvocations[].CommandPlugins[].{Status:Status,StatusDetails:StatusDetails,ResponseCode:ResponseCode,Output:Output}")
-          echo $RESULT
+          echo `jq '.[].Status' <<< $RESULT`
+          echo `jq '.[].Output' <<< $RESULT`
           exit `jq '.[].ResponseCode' <<< $RESULT`
