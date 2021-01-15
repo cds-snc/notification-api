@@ -1,0 +1,32 @@
+name: 'Run commands on EC2'
+description: 'Run bash commands on a specified EC2 instance'
+inputs:
+  instance-id-ssm-parameter-path:
+    description: 'The path of an SSM parameter that stores the ID of the target EC2 instance'
+    required: true
+  commands:
+    description: 'A string containing at least one double-quote-enclosed command, comma-separated'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Invoke commands
+      shell: bash {0}
+      run: |
+        INSTANCE_ID=$(aws ssm get-parameter --name ${{ inputs.instance-id-ssm-parameter-path }} | jq '.Parameter.Value' -r)
+        COMMAND_ID=$(aws ssm send-command \
+          --document-name "AWS-RunShellScript" \
+          --instance-ids $INSTANCE_ID \
+          --parameters '{"commands":[
+              "#!/bin/bash",
+              ${{ inputs.commands }}
+            ]}' \
+          --output text --query "Command.CommandId")
+        aws ssm wait command-executed --command-id $COMMAND_ID --instance-id $INSTANCE_ID ; \
+        RESULT=$(aws ssm list-command-invocations \
+          --command-id $COMMAND_ID \
+          --details \
+          --query "CommandInvocations[].CommandPlugins[].{Status:Status,StatusDetails:StatusDetails,ResponseCode:ResponseCode,Output:Output}")
+        echo `jq '.[].Status' <<< $RESULT`
+        printf '%b\n' "$(jq '.[].Output' <<< $RESULT)"
+        exit `jq '.[].ResponseCode' <<< $RESULT`
