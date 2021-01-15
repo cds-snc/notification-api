@@ -1,8 +1,6 @@
 fileignoreconfig:
     - filename: .github/workflows/staging-ci.yaml
       checksum: 92acfa31554b7ea857d6e901b6c10a3833d96f63b3b96e17e13c7a33b4aab6b7
-    - filename: .github/workflows/dev-ci.yaml
-      checksum: 9948c4dc19370e0ba1ade0cc7a7776ea6fd17c5f6f8b6743742104d262cfc6f8
     - filename: .github/workflows/deployment-tw.yaml
       checksum: c1078dacbed33c89a46462d290465902e267f9fb6f44218654406a4072a0a37b
     - filename: scripts/postman/development.postman_environment.json
@@ -42,7 +40,7 @@ fileignoreconfig:
     - filename: Brewfile.lock.json
       checksum: a7a52a240fe957c16eff861e45b975704f05c3eb4b1299d568615ba5bef95350
     - filename: .github/workflows/dev-ci.yaml
-      checksum: 3d8287c7d3bcd51024b2a3011e3d29a3cbc74753723a0ec86ef2827b24b99ba7
+      checksum: 46d029987e00a7c70a90c33fdde4c55a6dc06f7d1cfa1af139c61413e8b735f3
     - filename: .github/workflows/lambda-functions.yaml
       checksum: 98e291f97aaf0057998260270ff95649713fa35c718bb51f3042cc9ca59afd25
     - filename: .github/workflows/twistlock.yaml
