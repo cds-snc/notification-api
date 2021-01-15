@@ -11,6 +11,8 @@ jobs:
   twistlock-scan:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
+
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -30,28 +32,15 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr-vaec.outputs.registry }}
           IMAGE_REPOSITORY: "notification_api"
           IMAGE_TAG: ${{ github.event.inputs.imageTag }}
-        shell: bash {0}
-        run: |
-          INSTANCE_ID=$(aws ssm get-parameter --name /utility/twistlock/instance | jq '.Parameter.Value' -r)
-          COMMAND_ID=$(aws ssm send-command \
-            --document-name "AWS-RunShellScript" \
-            --instance-ids $INSTANCE_ID \
-            --parameters '{"commands":[
-                "#!/bin/bash",
-                "aws --region us-gov-west-1 ecr get-login-password | docker login --username AWS --password-stdin '"$ECR_REGISTRY"' 2>/dev/null",
-                "docker pull '"$ECR_REGISTRY"'/'"$IMAGE_REPOSITORY"':'"$IMAGE_TAG"' 1>/dev/null",
-                "docker logout '"$ECR_REGISTRY"'",
-                "export TWISTLOCK_PASSWORD=$(aws --region us-gov-west-1 ssm get-parameter --name /utility/twistlock/vanotify-ci-user-password --with-decryption | jq '.Parameter.Value' -r)",
-                "twistcli images scan --project VaNotify --address https://twistlock.devops.va.gov --user vanotify-ci-user '"$ECR_REGISTRY"'/'"$IMAGE_REPOSITORY"':'"$IMAGE_TAG"'",
-                "STATUS_CODE=$?",
-                "docker image prune -a -f 1>/dev/null",
-                "exit $STATUS_CODE"
-              ]}' \
-            --output text --query "Command.CommandId")
-          aws ssm wait command-executed --command-id $COMMAND_ID --instance-id $INSTANCE_ID ; \
-          RESULT=$(aws ssm list-command-invocations \
-            --command-id $COMMAND_ID \
-            --details \
-            --query "CommandInvocations[].CommandPlugins[].{Status:Status,StatusDetails:StatusDetails,ResponseCode:ResponseCode,Output:Output}")
-          echo $RESULT
-          exit `jq '.[].ResponseCode' <<< $RESULT`
+        uses: ./.github/actions/run-commands-on-ec2
+        with:
+          instance-id-ssm-parameter-path: /utility/twistlock/instance
+          commands: >-
+            "aws --region us-gov-west-1 ecr get-login-password | docker login --username AWS --password-stdin '"$ECR_REGISTRY"' 2>/dev/null",
+            "docker pull '"$ECR_REGISTRY"'/'"$IMAGE_REPOSITORY"':'"$IMAGE_TAG"' 1>/dev/null",
+            "docker logout '"$ECR_REGISTRY"'",
+            "export TWISTLOCK_PASSWORD=$(aws --region us-gov-west-1 ssm get-parameter --name /utility/twistlock/vanotify-ci-user-password --with-decryption | jq '.Parameter.Value' -r)",
+            "twistcli images scan --project VaNotify --address https://twistlock.devops.va.gov --user vanotify-ci-user '"$ECR_REGISTRY"'/'"$IMAGE_REPOSITORY"':'"$IMAGE_TAG"'",
+            "STATUS_CODE=$?",
+            "docker image prune -a -f 1>/dev/null",
+            "exit $STATUS_CODE"
