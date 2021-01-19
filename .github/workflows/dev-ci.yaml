@@ -95,7 +95,6 @@ jobs:
 
       - name: Perform twistlock scan
         uses: ./.github/actions/run-commands-on-ec2
-        continue-on-error: true
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-vaec.outputs.registry }}
         with:
