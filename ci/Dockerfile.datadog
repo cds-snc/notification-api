@@ -3,9 +3,13 @@ FROM datadog/agent:latest
 RUN \
   DEBIAN_FRONTEND=noninteractive apt-get update \
   && apt-get install -y --no-install-recommends -o Dpkg::Options::="--force-confnew" \
-      ca-certificates \
+      ca-certificates jq \
     && apt-get clean
 
 COPY ./certs/VA-Internal-S2-RCA1-v1.crt /usr/local/share/ca-certificates/VA-Internal-S2-RCA1-v1.crt
 RUN /usr/sbin/update-ca-certificates
 
+COPY ./scripts/datadog_expose_task_arn.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
