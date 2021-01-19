@@ -67,6 +67,10 @@
         {
           "name": "AWS_PINPOINT_APP_ID",
           "value": "9535150638b04a49b49755af2b2d316b"
+        },
+        {
+            "name": "AWS_SES_EMAIL_FROM_USER",
+            "value": "do-not-reply"
         }
       ],
       "secrets": [

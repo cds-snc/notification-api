@@ -51,8 +51,8 @@
                 "value": "solutions"
             },
             {
-                "name": "AWS_PINPOINT_APP_ID",
-                "value": "df55c01206b742d2946ef226410af94f"
+                "name": "AWS_SES_EMAIL_FROM_DOMAIN",
+                "value": "dev.api.twnotify.com"
             }
         ],
         "secrets": [{

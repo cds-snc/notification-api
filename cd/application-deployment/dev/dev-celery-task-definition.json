@@ -49,6 +49,10 @@
             {
                 "name": "NOTIFY_EMAIL_FROM_USER",
                 "value": "solutions"
+            },
+            {
+                "name": "AWS_SES_EMAIL_FROM_DOMAIN",
+                "value": "dev.api.twnotify.com"
             }
         ],
         "secrets": [{

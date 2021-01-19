@@ -420,8 +420,8 @@ def test_process_letter_task_check_virus_scan_passed(
     target_aws_region = current_app.config['AWS_REGION']
 
     conn = boto3.resource('s3', region_name=target_aws_region)
-    conn.create_bucket(Bucket=source_bucket_name)
-    conn.create_bucket(Bucket=target_bucket_name)
+    conn.create_bucket(Bucket=source_bucket_name, CreateBucketConfiguration={'LocationConstraint': target_aws_region})
+    conn.create_bucket(Bucket=target_bucket_name, CreateBucketConfiguration={'LocationConstraint': target_aws_region})
 
     s3 = boto3.client('s3', region_name=target_aws_region)
     s3.put_object(Bucket=source_bucket_name, Key=filename, Body=b'old_pdf')

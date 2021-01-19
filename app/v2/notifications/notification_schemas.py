@@ -75,8 +75,8 @@ get_notifications_request = {
         "status": {
             "type": "array",
             "items": {
-                "enum": NOTIFICATION_STATUS_TYPES +
-                    [NOTIFICATION_STATUS_LETTER_ACCEPTED + ', ' + NOTIFICATION_STATUS_LETTER_RECEIVED]
+                "enum": NOTIFICATION_STATUS_TYPES
+                    + [NOTIFICATION_STATUS_LETTER_ACCEPTED + ', ' + NOTIFICATION_STATUS_LETTER_RECEIVED]
             }
         },
         "template_type": {
@@ -214,11 +214,10 @@ email_content = {
     "type": "object",
     "title": "notification email content",
     "properties": {
-        "from_email": {"type": "string", "format": "email_address"},
         "body": {"type": "string"},
         "subject": {"type": "string"}
     },
-    "required": ["body", "from_email", "subject"]
+    "required": ["body", "subject"]
 }
 
 post_email_response = {

@@ -659,8 +659,6 @@ paths:
                         properties:
                           body:
                             type: string
-                          from_email:
-                            type: string
                           subject:
                             type: string
         '400':

@@ -18,7 +18,6 @@ from flask import json, current_app
 
 from app.models import Notification
 from app.schema_validation import validate
-from app.service.utils import compute_source_email_address
 from app.v2.errors import RateLimitError
 from app.v2.notifications.notification_schemas import post_sms_response, post_email_response
 from app.va.identifier import IdentifierType
@@ -318,9 +317,6 @@ def test_post_email_notification_returns_201(client, sample_email_template_with_
         .replace('((name))', 'Bob')
     assert resp_json['content']['subject'] == sample_email_template_with_placeholders.subject \
         .replace('((name))', 'Bob')
-    assert resp_json['content']['from_email'] == compute_source_email_address(
-        sample_email_template_with_placeholders.service
-    )
     assert 'v2/notifications/{}'.format(notification.id) in resp_json['uri']
     assert resp_json['template']['id'] == str(sample_email_template_with_placeholders.id)
     assert resp_json['template']['version'] == sample_email_template_with_placeholders.version

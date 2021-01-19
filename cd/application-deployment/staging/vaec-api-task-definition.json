@@ -73,6 +73,10 @@
                 {
                     "name": "AWS_PINPOINT_APP_ID",
                     "value": "164e77155a7a45299b3bc15562732540"
+                },
+                {
+                    "name": "AWS_SES_EMAIL_FROM_USER",
+                    "value": "staging-do-not-reply"
                 }
             ],
             "secrets": [{

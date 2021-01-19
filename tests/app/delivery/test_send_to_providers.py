@@ -40,11 +40,11 @@ from tests.conftest import set_config_values
 @pytest.fixture
 def mock_source_email_address(mocker):
     source_email_address = '"Some Name" <some-user@some.domain>'
-    mocker.patch(
-        'app.delivery.send_to_providers.compute_source_email_address_with_display_name',
+    mock_compute_function = mocker.patch(
+        'app.delivery.send_to_providers.compute_source_email_address',
         return_value=source_email_address
     )
-    return source_email_address
+    return (source_email_address, mock_compute_function)
 
 
 def test_should_return_highest_priority_active_provider(restore_provider_details):
@@ -122,6 +122,25 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
     assert notification.reference == "some-reference"
 
 
+def test_send_email_to_provider_should_compute_source_email_address(
+    sample_email_template_with_html,
+    mock_email_client,
+    mocked_build_ga_pixel_url,
+    notify_api,
+    mock_source_email_address
+):
+    db_notification = create_notification(
+        template=sample_email_template_with_html,
+        to_field="jo.smith@example.com",
+        personalisation={'name': 'Jo'}
+    )
+    mock_compute_email_from = mock_source_email_address[1]
+
+    send_to_providers.send_email_to_provider(db_notification)
+
+    mock_compute_email_from.assert_called_once_with(db_notification.service, mock_email_client)
+
+
 def test_should_send_personalised_template_to_correct_email_provider_and_persist(
     sample_email_template_with_html,
     mock_email_client,
@@ -141,7 +160,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
         send_to_providers.send_email_to_provider(db_notification)
 
     mock_email_client.send_email.assert_called_once_with(
-        source=mock_source_email_address,
+        source=mock_source_email_address[0],
         to_addresses='jo.smith@example.com',
         subject='Jo <em>some HTML</em>',
         body='Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n',

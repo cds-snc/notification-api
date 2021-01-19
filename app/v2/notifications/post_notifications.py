@@ -45,7 +45,6 @@ from app.notifications.validators import (
     check_service_sms_sender_id
 )
 from app.schema_validation import validate
-from app.service.utils import compute_source_email_address
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
@@ -173,8 +172,7 @@ def post_notification(notification_type):
     elif notification_type == EMAIL_TYPE:
         create_resp_partial = functools.partial(
             create_post_email_response_from_notification,
-            subject=template_with_content.subject,
-            email_from=compute_source_email_address(authenticated_service)
+            subject=template_with_content.subject
         )
     elif notification_type == LETTER_TYPE:
         create_resp_partial = functools.partial(

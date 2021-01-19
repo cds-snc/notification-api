@@ -18,3 +18,19 @@ class EmailClient(Client):
 
     def get_name(self):
         raise NotImplementedError('TODO Need to implement.')
+
+    @property
+    def email_from_domain(self):
+        '''
+        Returns None by default.
+        Can be overriden by child class if desired
+        '''
+        pass
+
+    @property
+    def email_from_user(self):
+        '''
+        Returns None by default.
+        Can be overriden by child class if desired
+        '''
+        pass

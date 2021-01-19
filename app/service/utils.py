@@ -1,3 +1,4 @@
+from app.clients.email import EmailClient
 import itertools
 
 from flask import current_app
@@ -18,12 +19,8 @@ def get_whitelist_objects(service_id, request_json):
     return [
         ServiceWhitelist.from_string(service_id, type, recipient)
         for type, recipient in (
-            get_recipients_from_request(request_json,
-                                        'phone_numbers',
-                                        MOBILE_TYPE) +
-            get_recipients_from_request(request_json,
-                                        'email_addresses',
-                                        EMAIL_TYPE)
+            get_recipients_from_request(request_json, 'phone_numbers', MOBILE_TYPE)
+            + get_recipients_from_request(request_json, 'email_addresses', EMAIL_TYPE)
         )
     ]
 
@@ -44,8 +41,7 @@ def service_allowed_to_send_to(recipient, service, key_type, allow_whitelisted_r
     ]
 
     if (
-        (key_type == KEY_TYPE_NORMAL and service.restricted) or
-        (key_type == KEY_TYPE_TEAM)
+        (key_type == KEY_TYPE_NORMAL and service.restricted) or (key_type == KEY_TYPE_TEAM)
     ):
         return allowed_to_send_to(
             recipient,
@@ -56,19 +52,15 @@ def service_allowed_to_send_to(recipient, service, key_type, allow_whitelisted_r
         )
 
 
-def compute_source_email_address(service: Service) -> str:
-    if service.sending_domain is None or service.sending_domain.strip() == "":
-        sending_domain = current_app.config['NOTIFY_EMAIL_FROM_DOMAIN']
-    else:
-        sending_domain = service.sending_domain
+def compute_source_email_address(service: Service, provider: EmailClient) -> str:
+    sending_domain = next(
+        domain for domain in
+        [service.sending_domain, provider.email_from_domain, current_app.config['NOTIFY_EMAIL_FROM_DOMAIN']]
+        if domain is not None)
 
-    if service.email_from is None or service.email_from.strip() == "":
-        email_from = current_app.config['NOTIFY_EMAIL_FROM_USER']
-    else:
-        email_from = service.email_from
+    email_from = next(
+        email for email in
+        [service.email_from, provider.email_from_user, current_app.config['NOTIFY_EMAIL_FROM_USER']]
+        if email is not None)
 
-    return f"{email_from}@{sending_domain}"
-
-
-def compute_source_email_address_with_display_name(service: Service) -> str:
-    return f'"{current_app.config["NOTIFY_EMAIL_FROM_NAME"]}" <{compute_source_email_address(service)}>'
+    return f'"{current_app.config["NOTIFY_EMAIL_FROM_NAME"]}" <{email_from}@{sending_domain}>'
