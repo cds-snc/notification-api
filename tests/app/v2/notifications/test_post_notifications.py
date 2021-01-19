@@ -328,9 +328,9 @@ def test_post_email_notification_returns_201(client, sample_email_template_with_
 
 
 @pytest.mark.parametrize('recipient, notification_type', [
-    ('simulate-delivered@notifications.service.gov.uk', EMAIL_TYPE),
-    ('simulate-delivered-2@notifications.service.gov.uk', EMAIL_TYPE),
-    ('simulate-delivered-3@notifications.service.gov.uk', EMAIL_TYPE),
+    ('simulate-delivered@notification.canada.ca', EMAIL_TYPE),
+    ('simulate-delivered-2@notification.canada.ca', EMAIL_TYPE),
+    ('simulate-delivered-3@notification.canada.ca', EMAIL_TYPE),
     ('6132532222', 'sms'),
     ('6132532223', 'sms'),
     ('6132532224', 'sms')
@@ -819,7 +819,7 @@ def test_post_notification_with_document_upload_simulated(client, notify_db_sess
     document_download_mock.get_upload_url.return_value = 'https://document-url'
 
     data = {
-        "email_address": 'simulate-delivered@notifications.service.gov.uk',
+        "email_address": 'simulate-delivered@notification.canada.ca',
         "template_id": template.id,
         "personalisation": {"document": {"file": "abababab"}}
     }

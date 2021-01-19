@@ -11,9 +11,10 @@ RUN set -ex && mkdir /app
 
 WORKDIR /app
 
-COPY . /app
-
+COPY requirements.txt /app
 RUN set -ex && pip3 install -r requirements.txt
+
+COPY . /app
 
 RUN make generate-version-file
 

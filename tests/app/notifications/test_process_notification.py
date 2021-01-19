@@ -5,7 +5,6 @@ import pytest
 from boto3.exceptions import Boto3Error
 from sqlalchemy.exc import SQLAlchemyError
 from freezegun import freeze_time
-from collections import namedtuple
 
 from app.models import (
     Notification,
@@ -276,10 +275,6 @@ def test_send_notification_to_queue(
     if '.' not in expected_task:
         expected_task = f'provider_tasks.{expected_task}'
     mocked = mocker.patch(f'app.celery.{expected_task}.apply_async')
-    Notification = namedtuple(
-        'Notification',
-        ['id', 'key_type', 'notification_type', 'reply_to_text', 'created_at']
-    )
     notification = Notification(
         id=uuid.uuid4(),
         key_type=key_type,
@@ -307,9 +302,9 @@ def test_send_notification_to_queue_throws_exception_deletes_notification(sample
     ("+16132532222", "sms", True),
     ("+16132532223", "sms", True),
     ("6132532222", "sms", True),
-    ("simulate-delivered@notifications.service.gov.uk", "email", True),
-    ("simulate-delivered-2@notifications.service.gov.uk", "email", True),
-    ("simulate-delivered-3@notifications.service.gov.uk", "email", True),
+    ("simulate-delivered@notification.canada.ca", "email", True),
+    ("simulate-delivered-2@notification.canada.ca", "email", True),
+    ("simulate-delivered-3@notification.canada.ca", "email", True),
     ("6132532225", "sms", False),
     ("valid_email@test.com", "email", False)
 ])
@@ -318,9 +313,9 @@ def test_simulated_recipient(notify_api, to_address, notification_type, expected
     The values where the expected = 'research-mode' are listed in the config['SIMULATED_EMAIL_ADDRESSES']
     and config['SIMULATED_SMS_NUMBERS']. These values should result in using the research mode queue.
     SIMULATED_EMAIL_ADDRESSES = (
-        'simulate-delivered@notifications.service.gov.uk',
-        'simulate-delivered-2@notifications.service.gov.uk',
-        'simulate-delivered-2@notifications.service.gov.uk'
+        'simulate-delivered@notification.canada.ca',
+        'simulate-delivered-2@notification.canada.ca',
+        'simulate-delivered-2@notification.canada.ca'
     )
     SIMULATED_SMS_NUMBERS = ('6132532222', '+16132532222', '+16132532223')
     """

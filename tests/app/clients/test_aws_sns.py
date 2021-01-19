@@ -30,3 +30,24 @@ def test_send_sms_returns_raises_error_if_there_is_no_valid_number_is_found(noti
         aws_sns_client.send_sms(to, content, reference)
 
     assert 'No valid numbers found for SMS delivery' in str(excinfo.value)
+
+
+def test_send_sms_with_long_code_successful_returns_aws_sns_response(notify_api, mocker):
+    boto_mock = mocker.patch.object(aws_sns_client, '_long_codes_client', create=True)
+    mocker.patch.object(aws_sns_client, 'statsd_client', create=True)
+
+    sender = "+19025551234"
+    to = "6135555555"
+    content = reference = 'foo'
+
+    with notify_api.app_context():
+        aws_sns_client.send_sms(to, content, reference, sender=sender)
+
+    boto_mock.publish.assert_called_once_with(
+        PhoneNumber=f"+1{to}",
+        Message=content,
+        MessageAttributes={
+            'AWS.SNS.SMS.SMSType': {'DataType': 'String', 'StringValue': 'Transactional'},
+            'AWS.MM.SMS.OriginationNumber': {'DataType': 'String', 'StringValue': sender},
+        }
+    )

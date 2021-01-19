@@ -15,8 +15,6 @@ from app.models import (
     ProviderDetailsHistory,
     SMS_TYPE,
     User,
-    PINPOINT_PROVIDER,
-    SNS_PROVIDER,
 )
 from app import db
 
@@ -30,13 +28,10 @@ def get_provider_details_by_identifier(identifier):
 
 
 def get_alternative_sms_provider(identifier):
-    alternate_provider = None
-    if identifier == SNS_PROVIDER:
-        alternate_provider = PINPOINT_PROVIDER
-    elif identifier == PINPOINT_PROVIDER:
-        alternate_provider = SNS_PROVIDER
-
-    return ProviderDetails.query.filter_by(identifier=alternate_provider).one()
+    # We currently run with a single SMS provider (SNS)
+    # so this method is not implemented and does not
+    # switch providers.
+    return get_provider_details_by_identifier(identifier)
 
 
 def get_current_provider(notification_type):

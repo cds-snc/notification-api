@@ -134,8 +134,7 @@ class Config(object):
     AWS_SES_SMTP = os.getenv("AWS_SES_SMTP", "email-smtp.us-east-1.amazonaws.com")
     AWS_SES_ACCESS_KEY = os.getenv('AWS_SES_ACCESS_KEY')
     AWS_SES_SECRET_KEY = os.getenv('AWS_SES_SECRET_KEY')
-    AWS_PINPOINT_APP_ID = os.getenv('AWS_PINPOINT_APP_ID')
-    AWS_PINPOINT_KEYWORD = os.getenv('AWS_PINPOINT_KEYWORD')
+    AWS_PINPOINT_REGION = os.getenv('AWS_PINPOINT_REGION', "us-west-2")
     CSV_UPLOAD_BUCKET_NAME = os.getenv('CSV_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-csv-upload')
     ASSET_UPLOAD_BUCKET_NAME = os.getenv('ASSET_UPLOAD_BUCKET_NAME', 'notification-alpha-canada-ca-asset-upload')
     ASSET_DOMAIN = os.getenv('ASSET_DOMAIN', 'assets.notification.canada.ca')
@@ -323,9 +322,9 @@ class Config(object):
     SENDING_NOTIFICATIONS_TIMEOUT_PERIOD = 259200  # 3 days
 
     SIMULATED_EMAIL_ADDRESSES = (
-        'simulate-delivered@notifications.service.gov.uk',
-        'simulate-delivered-2@notifications.service.gov.uk',
-        'simulate-delivered-3@notifications.service.gov.uk',
+        'simulate-delivered@notification.canada.ca',
+        'simulate-delivered-2@notification.canada.ca',
+        'simulate-delivered-3@notification.canada.ca',
     )
 
     SIMULATED_SMS_NUMBERS = ('+16132532222', '+16132532223', '+16132532224')

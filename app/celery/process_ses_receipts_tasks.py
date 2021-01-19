@@ -24,7 +24,17 @@ from app.notifications.notifications_ses_callback import (
 )
 
 
-@notify_celery.task(bind=True, name="process-ses-result", max_retries=5, default_retry_delay=300)
+# Celery rate limits are per worker instance and not a global rate limit.
+# https://docs.celeryproject.org/en/stable/userguide/tasks.html#Task.rate_limit
+# This queue is consumed by 6 Celery instances with 4 workers in production.
+# The maximum throughput is therefore 6 instances * 4 workers * 30 tasks = 720 tasks / minute
+# if we set rate_limit="30/m" on the Celery task
+@notify_celery.task(
+    bind=True,
+    name="process-ses-result",
+    max_retries=5,
+    default_retry_delay=300,
+)
 @statsd(namespace="tasks")
 def process_ses_results(self, response):
     try:

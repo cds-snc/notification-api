@@ -125,6 +125,7 @@ def test_should_update_all_scheduled_jobs_and_put_on_queue(notify_db, notify_db_
     ])
 
 
+@pytest.mark.skip(reason="Currently using only 1 SMS provider")
 def test_switch_providers_on_slow_delivery_switches_once_then_does_not_switch_if_already_switched(
         notify_api,
         mocker,

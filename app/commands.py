@@ -5,10 +5,10 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 import click
-import flask
 import itertools
 from click_datetime import Datetime as click_dt
 from flask import current_app, json
+from flask import cli as flask_cli
 from notifications_utils.template import SMSMessageTemplate
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
@@ -66,7 +66,7 @@ class notify_command:
         # Then we need to turn it into a click.Command - that's what command_group.add_command expects.
         @click.command(name=self.name)
         @functools.wraps(func)
-        @flask.cli.with_appcontext
+        @flask_cli.with_appcontext
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
 
