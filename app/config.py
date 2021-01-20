@@ -19,6 +19,7 @@ if os.getenv('VCAP_SERVICES'):
 
 
 ses_configuration_sets = {
+    'test': None,
     'development': 'dev-configuration-set',
     'staging': 'staging-configuration-set',
     'production': 'prod-configuration-set',
