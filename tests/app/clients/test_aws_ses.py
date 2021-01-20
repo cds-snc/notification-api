@@ -90,7 +90,27 @@ def test_send_email_uses_from_address(notify_api, ses_client, boto_mock):
     assert actual == from_address
 
 
-def test_send_email_uses_configuration_set(notify_api, ses_client, boto_mock):
+def test_send_email_does_not_use_configuration_set_if_None(mocker):
+    aws_ses_client = AwsSesClient()
+    aws_ses_client.init_app(
+        config.Test.AWS_REGION,
+        mocker.Mock(),
+        mocker.Mock(),
+        configuration_set=None
+    )
+    boto_mock = mocker.patch.object(aws_ses_client, '_client', create=True)
+
+    aws_ses_client.send_email(
+        'from@address.com',
+        to_addresses='foo@bar.com',
+        subject='Subject',
+        body='Body'
+    )
+
+    assert 'ConfigurationSetName' not in boto_mock.send_raw_email.call_args[1]
+
+
+def test_send_email_uses_configuration_set_from_config(notify_api, ses_client, boto_mock):
     with notify_api.app_context():
         ses_client.send_email(
             'from@address.com',

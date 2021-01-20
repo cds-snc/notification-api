@@ -1,6 +1,5 @@
 import boto3
 import botocore
-from flask import current_app
 from time import monotonic
 from notifications_utils.recipients import InvalidEmailError
 from unidecode import unidecode
@@ -109,11 +108,13 @@ class AwsSesClient(EmailClient):
                 part.add_header('Content-Disposition', 'attachment', filename=attachment["name"])
                 msg.attach(part)
 
+            kwargs = {'ConfigurationSetName': self._configuration_set} if self._configuration_set else {}
+
             start_time = monotonic()
             response = self._client.send_raw_email(
                 Source=source,
                 RawMessage={'Data': msg.as_string()},
-                ConfigurationSetName=self._configuration_set
+                **kwargs
             )
         except botocore.exceptions.ClientError as e:
             self.statsd_client.incr("clients.ses.error")
@@ -132,7 +133,7 @@ class AwsSesClient(EmailClient):
             raise AwsSesClientException(str(e))
         else:
             elapsed_time = monotonic() - start_time
-            current_app.logger.info("AWS SES request finished in {}".format(elapsed_time))
+            self.logger.info("AWS SES request finished in {}".format(elapsed_time))
             self.statsd_client.timing("clients.ses.request-time", elapsed_time)
             self.statsd_client.incr("clients.ses.success")
             return response['MessageId']
