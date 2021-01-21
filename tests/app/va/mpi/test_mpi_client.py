@@ -32,6 +32,16 @@ MPI_ERROR_RESPONSE = {
     "id": "2020-12-02 12:14:39"
 }
 
+MPI_SECURITY_ERROR_RESPONSE = {
+    "severity": "error",
+    "code": "security",
+    "details": {
+        "text": "Invalid Profile Request"
+    },
+    "resourceType": "OperationOutcome",
+    "id": "2021-01-21 13:50:03"
+}
+
 MPI_RESPONSE_WITH_NO_VA_PROFILE_ID = {
     "resourceType": "Patient",
     "id": "1008710501V455565",
@@ -248,4 +258,12 @@ class TestGetVaProfileId:
         rmock.get(ANY, json=response_with_deceased_beneficiary(), status_code=200)
 
         with pytest.raises(BeneficiaryDeceasedException):
+            mpi_client.get_va_profile_id(notification_with_recipient_identifier)
+
+    def test_should_handle_security_exception(
+            self, mpi_client, rmock, notification_with_recipient_identifier
+    ):
+        rmock.get(ANY, json=MPI_SECURITY_ERROR_RESPONSE, status_code=200)
+
+        with pytest.raises(MpiNonRetryableException):
             mpi_client.get_va_profile_id(notification_with_recipient_identifier)

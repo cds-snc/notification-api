@@ -95,10 +95,8 @@ class MpiClient:
     def _validate_response(self, response_json, notification_id, fhir_identifier):
         if response_json.get('severity'):
             error_message = \
-                f"MPI returned error with severity: {response_json['severity']}, " \
-                f"code: {response_json['details']['coding'][0]['code']}, " \
-                f"description: {response_json['details']['text']} for notification {notification_id} with" \
-                f"fhir {fhir_identifier}"
+                f"MPI returned error: {response_json} " \
+                f"for notification {notification_id} with fhir {fhir_identifier}"
             self.statsd_client.incr("clients.mpi.error")
             raise MpiNonRetryableException(error_message)
 
