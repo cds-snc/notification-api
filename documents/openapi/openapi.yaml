@@ -1064,6 +1064,9 @@ components:
         email_from:
           type: string
           format: email
+        email_provider_id:
+          type: string
+          nullable: true
         message_limit:
           type: integer
         name:
@@ -1074,6 +1077,9 @@ components:
           nullable: true
         restricted:
           type: boolean
+        sms_provider_id:
+          type: string
+          nullable: true
         user_id:
           $ref: '#/components/schemas/Id'
       required:
@@ -1116,6 +1122,9 @@ components:
         email_from:
           type: string
           format: email
+        email_provider_id:
+          type: string
+          nullable: true
         go_live_at:
           type: string
           format: datetime
@@ -1181,6 +1190,9 @@ components:
           type: array
           items:
             type: string
+        sms_provider_id:
+          type: string
+          nullable: true
         smtp_user:
           type: string
           nullable: true
@@ -1219,6 +1231,9 @@ components:
           enum:
             - normal
             - priority
+        provider_id:
+          type: string
+          nullable: true
         service:
           $ref: '#/components/schemas/Id'
         subject:
@@ -1270,6 +1285,9 @@ components:
           type: boolean
         id:
           $ref: '#/components/schemas/Id'
+        provider_id:
+          type: string
+          nullable: true
         redact_personalisation:
           type: boolean
         reply_to:
@@ -1426,6 +1444,10 @@ components:
           type: string
           format: date-time
           nullable: true
+        sent_by:
+          type: string
+          nullable: true
+          description: The provider that sent or tried to send the notification
         status:
           type: string
           enum:

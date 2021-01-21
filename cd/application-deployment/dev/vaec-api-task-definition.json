@@ -77,6 +77,10 @@
                 {
                     "name": "AWS_SES_EMAIL_FROM_USER",
                     "value": "dev-do-not-reply"
+                },
+                {
+                    "name": "TEMPLATE_SERVICE_PROVIDERS_ENABLED",
+                    "value": "True"
                 }
             ],
             "secrets": [{

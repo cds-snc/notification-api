@@ -28,7 +28,7 @@ from app.notifications.validators import (
     check_template_is_for_notification_type,
     check_template_is_active,
     check_rate_limiting,
-    service_has_permission,
+    service_has_permission
 )
 from app.schemas import (
     email_notification_schema,
@@ -200,8 +200,8 @@ def create_template_object_for_notification(template, personalisation):
         raise InvalidRequest(errors, status_code=400)
 
     if (
-        template_object.template_type == SMS_TYPE and
-        template_object.content_count > SMS_CHAR_COUNT_LIMIT
+        template_object.template_type == SMS_TYPE
+        and template_object.content_count > SMS_CHAR_COUNT_LIMIT
     ):
         message = 'Content has a character count greater than the limit of {}'.format(SMS_CHAR_COUNT_LIMIT)
         errors = {'content': [message]}

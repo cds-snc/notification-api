@@ -8,7 +8,7 @@ from app.config import QueueNames
 from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
 from app.delivery import send_to_providers
-from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException
+from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException, InvalidProviderException
 from app.models import NOTIFICATION_TECHNICAL_FAILURE
 
 
@@ -22,6 +22,10 @@ def deliver_sms(self, notification_id):
             raise NoResultFound()
         send_to_providers.send_sms_to_provider(notification)
         current_app.logger.info(f"Successfully sent sms for notification id: {notification_id}")
+    except InvalidProviderException as e:
+        current_app.logger.exception(e)
+        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        raise NotificationTechnicalFailureException(str(e))
     except Exception:
         try:
             current_app.logger.exception(
@@ -50,11 +54,16 @@ def deliver_email(self, notification_id):
         current_app.logger.info(f"Successfully sent email for notification id: {notification_id}")
     except InvalidEmailError as e:
         current_app.logger.exception(e)
-        update_notification_status_by_id(notification_id, 'technical-failure')
+        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        raise NotificationTechnicalFailureException(str(e))
     except MalwarePendingException:
         current_app.logger.info(
             "RETRY: Email notification {} is pending malware scans".format(notification_id))
         self.retry(queue=QueueNames.RETRY, countdown=60)
+    except InvalidProviderException as e:
+        current_app.logger.exception(e)
+        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        raise NotificationTechnicalFailureException(str(e))
     except Exception:
         try:
             current_app.logger.exception(

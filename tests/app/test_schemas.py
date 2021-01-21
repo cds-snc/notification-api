@@ -133,3 +133,19 @@ def test_provider_details_history_schema_returns_user_details(
     data = provider_details_schema.dump(current_sms_provider_in_history).data
 
     assert sorted(data['created_by'].keys()) == sorted(['id', 'email_address', 'name'])
+
+
+def test_services_schema_includes_providers(
+    sample_service,
+    ses_provider,
+    current_sms_provider
+):
+    from app.schemas import service_schema
+
+    sample_service.email_provider_id = ses_provider.id
+    sample_service.sms_provider_id = current_sms_provider.id
+
+    data = service_schema.dump(sample_service).data
+    assert data
+    assert data['email_provider_id'] == str(ses_provider.id)
+    assert data['sms_provider_id'] == str(current_sms_provider.id)

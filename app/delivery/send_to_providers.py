@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+from uuid import UUID
 
 import requests
 import app.googleanalytics.pixels as gapixels
@@ -18,11 +19,16 @@ from app.dao.notifications_dao import (
 )
 from app.dao.provider_details_dao import (
     get_provider_details_by_notification_type,
-    dao_toggle_sms_provider
+    dao_toggle_sms_provider, get_provider_details_by_id
 )
 from app.dao.templates_dao import dao_get_template_by_id
-from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException
-from app.feature_flags import is_provider_enabled, is_gapixel_enabled
+from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException, InvalidProviderException
+from app.feature_flags import (
+    is_provider_enabled,
+    is_gapixel_enabled,
+    is_feature_enabled,
+    FeatureFlag
+)
 from app.models import (
     SMS_TYPE,
     KEY_TYPE_TEST,
@@ -33,7 +39,8 @@ from app.models import (
     NOTIFICATION_VIRUS_SCAN_FAILED,
     NOTIFICATION_CONTAINS_PII,
     NOTIFICATION_SENT,
-    NOTIFICATION_SENDING
+    NOTIFICATION_SENDING,
+    Notification, ProviderDetails
 )
 from app.service.utils import compute_source_email_address
 
@@ -46,7 +53,7 @@ def send_sms_to_provider(notification):
         return
 
     if notification.status == 'created':
-        provider = provider_to_use(SMS_TYPE, notification.id, notification.international)
+        provider = provider_to_use(SMS_TYPE, notification, notification.international)
 
         template_model = dao_get_template_by_id(notification.template_id, notification.template_version)
 
@@ -93,7 +100,7 @@ def send_email_to_provider(notification):
 
     # TODO: no else - replace with if statement raising error / logging when not 'created'
     if notification.status == 'created':
-        provider = provider_to_use(EMAIL_TYPE, notification.id)
+        provider = provider_to_use(EMAIL_TYPE, notification)
 
         # TODO: remove that code or extract attachment handling to separate method
         # Extract any file objects from the personalization
@@ -186,18 +193,41 @@ def should_use_provider(provider):
     return provider.active and is_provider_enabled(current_app, provider.identifier)
 
 
-def provider_to_use(notification_type, notification_id, international=False):
+def load_provider(provider_id: UUID) -> ProviderDetails:
+    provider_details = get_provider_details_by_id(provider_id)
+    if provider_details is not None and not provider_details.active:
+        raise InvalidProviderException(f'provider {provider_id} is not active')
+
+    return provider_details
+
+
+def provider_to_use(notification_type, notification: Notification, international=False):
+    if is_feature_enabled(FeatureFlag.TEMPLATE_SERVICE_PROVIDERS_ENABLED):
+        provider_id = get_provider_id(notification, notification_type)
+
+        if provider_id:
+            return clients.get_client_by_name_and_type(load_provider(provider_id).identifier, notification_type)
+
     active_providers_in_order = [
         p for p in get_provider_details_by_notification_type(notification_type, international) if should_use_provider(p)
     ]
 
     if not active_providers_in_order:
         current_app.logger.error(
-            "{} {} failed as no active providers".format(notification_type, notification_id)
+            "{} {} failed as no active providers".format(notification_type, notification.id)
         )
         raise Exception("No active {} providers".format(notification_type))
 
     return clients.get_client_by_name_and_type(active_providers_in_order[0].identifier, notification_type)
+
+
+def get_provider_id(notification, notification_type):
+    # the provider from template has highest priority, so if it is valid we'll use that one
+    providers = [notification.template.provider_id,
+                 notification.service.email_provider_id if notification_type == EMAIL_TYPE
+                 else notification.service.sms_provider_id]
+
+    return next((provider for provider in providers if provider is not None), None)
 
 
 def get_logo_url(base_url, logo_file):

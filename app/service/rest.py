@@ -46,8 +46,8 @@ from app.dao.service_sms_sender_dao import (
 )
 from app.dao.services_dao import (
     dao_add_user_to_service,
-    dao_archive_service,
     dao_create_service,
+    dao_archive_service,
     dao_fetch_all_services,
     dao_fetch_all_services_by_user,
     dao_fetch_live_services_data,
@@ -118,6 +118,8 @@ from app.utils import pagination_links
 
 from app.smtp.aws import (smtp_add, smtp_get_user_key, smtp_remove)
 from nanoid import generate
+
+CAN_T_BE_EMPTY_ERROR_MESSAGE = "Can't be empty"
 
 service_blueprint = Blueprint('service', __name__)
 
@@ -232,6 +234,7 @@ def create_service():
 @service_blueprint.route('/<uuid:service_id>', methods=['POST'])
 def update_service(service_id):
     req_json = request.get_json()
+
     fetched_service = dao_fetch_service_by_id(service_id)
     # Capture the status change here as Marshmallow changes this later
     service_going_live = fetched_service.restricted and not req_json.get('restricted', True)
@@ -975,11 +978,11 @@ def check_request_args(request):
     email_from = request.args.get('email_from', None)
     errors = []
     if not service_id:
-        errors.append({'service_id': ["Can't be empty"]})
+        errors.append({'service_id': [CAN_T_BE_EMPTY_ERROR_MESSAGE]})
     if not name:
-        errors.append({'name': ["Can't be empty"]})
+        errors.append({'name': [CAN_T_BE_EMPTY_ERROR_MESSAGE]})
     if not email_from:
-        errors.append({'email_from': ["Can't be empty"]})
+        errors.append({'email_from': [CAN_T_BE_EMPTY_ERROR_MESSAGE]})
     if errors:
         raise InvalidRequest(errors, status_code=400)
     return service_id, name, email_from

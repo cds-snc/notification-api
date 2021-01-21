@@ -35,6 +35,7 @@ from app.errors import (
 from app.letters.utils import get_letter_pdf
 from app.models import SMS_TYPE, Template, SECOND_CLASS, LETTER_TYPE
 from app.notifications.validators import service_has_permission, check_reply_to
+from app.provider_details import validate_providers
 from app.schema_validation import validate
 from app.schemas import (template_schema, template_history_schema)
 from app.template.template_schemas import post_create_template_schema
@@ -71,6 +72,9 @@ def create_template(service_id):
     # permissions needs to be placed here otherwise marshmallow will interfere with versioning
     permissions = fetched_service.permissions
     template_json = validate(request.get_json(), post_create_template_schema)
+
+    validate_providers.validate_template_providers(template_json)
+
     folder = validate_parent_folder(template_json=template_json)
     new_template = Template.from_json(template_json, folder)
 
@@ -204,7 +208,7 @@ def get_template_versions(service_id, template_id):
 def _template_has_not_changed(current_data, updated_template):
     return all(
         current_data[key] == updated_template[key]
-        for key in ('name', 'content', 'subject', 'archived', 'process_type', 'postage')
+        for key in ('name', 'content', 'subject', 'archived', 'process_type', 'postage', 'provider_id')
     )
 
 

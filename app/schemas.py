@@ -24,9 +24,12 @@ from notifications_utils.recipients import (
 
 from app import ma
 from app import models
-from app.models import ServicePermission
+from app.models import ServicePermission, EMAIL_TYPE, SMS_TYPE
 from app.dao.permissions_dao import permission_dao
+from app.provider_details import validate_providers
 from app.utils import get_template_instance
+
+DATE_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
 
 
 def _validate_positive_number(value, msg="Not a positive integer"):
@@ -84,8 +87,8 @@ class BaseSchema(ma.ModelSchema):
 class UserSchema(BaseSchema):
 
     permissions = fields.Method("user_permissions", dump_only=True)
-    password_changed_at = field_for(models.User, 'password_changed_at', format='%Y-%m-%d %H:%M:%S.%f')
-    created_at = field_for(models.User, 'created_at', format='%Y-%m-%d %H:%M:%S.%f')
+    password_changed_at = field_for(models.User, 'password_changed_at', format=DATE_FORMAT)
+    created_at = field_for(models.User, 'created_at', format=DATE_FORMAT)
     auth_type = field_for(models.User, 'auth_type')
 
     def user_permissions(self, usr):
@@ -211,6 +214,8 @@ class ServiceSchema(BaseSchema):
     override_flag = False
     letter_contact_block = fields.Method(serialize="get_letter_contact")
     go_live_at = field_for(models.Service, 'go_live_at', format='%Y-%m-%d %H:%M:%S.%f')
+    email_provider_id = field_for(models.Service, 'email_provider_id')
+    sms_provider_id = field_for(models.Service, 'sms_provider_id')
 
     def get_letter_logo_filename(self, service):
         return service.letter_branding and service.letter_branding.filename
@@ -238,6 +243,8 @@ class ServiceSchema(BaseSchema):
             'reply_to_email_addresses',
             'letter_contacts',
             'complaints',
+            'email_provider',
+            'sms_provider'
         )
         strict = True
 
@@ -251,6 +258,16 @@ class ServiceSchema(BaseSchema):
         if len(set(permissions)) != len(permissions):
             duplicates = list(set([x for x in permissions if permissions.count(x) > 1]))
             raise ValidationError('Duplicate Service Permission: {}'.format(duplicates))
+
+    @validates('email_provider_id')
+    def validate_email_provider_id(self, value):
+        if value and not validate_providers.is_provider_valid(value, EMAIL_TYPE):
+            raise ValidationError(f"Invalid email_provider_id: {value}")
+
+    @validates('sms_provider_id')
+    def validate_sms_provider_id(self, value):
+        if value and not validate_providers.is_provider_valid(value, SMS_TYPE):
+            raise ValidationError(f"Invalid sms_provider_id: {value}")
 
     @pre_load()
     def format_for_data_model(self, in_data):
@@ -308,6 +325,7 @@ class NotificationModelSchema(BaseSchema):
 class BaseTemplateSchema(BaseSchema):
     reply_to = fields.Method("get_reply_to", allow_none=True)
     reply_to_text = fields.Method("get_reply_to_text", allow_none=True)
+    provider_id = field_for(models.Template, 'provider_id')
 
     def get_reply_to(self, template):
         return template.reply_to
@@ -317,7 +335,7 @@ class BaseTemplateSchema(BaseSchema):
 
     class Meta:
         model = models.Template
-        exclude = ("service_id", "jobs", "service_letter_contact_id")
+        exclude = ("service_id", "jobs", "service_letter_contact_id", "provider")
         strict = True
 
 
@@ -336,12 +354,16 @@ class TemplateSchema(BaseTemplateSchema):
             subject = data.get('subject')
             if not subject or subject.strip() == '':
                 raise ValidationError('Invalid template subject', 'subject')
+        provider_id = data.get('provider_id')
+        if provider_id is not None and not validate_providers.is_provider_valid(provider_id, data.get('template_type')):
+            raise ValidationError(f"Invalid provider id: {provider_id}", 'provider_id')
 
 
 class TemplateHistorySchema(BaseSchema):
 
     reply_to = fields.Method("get_reply_to", allow_none=True)
     reply_to_text = fields.Method("get_reply_to_text", allow_none=True)
+    provider_id = field_for(models.Template, 'provider_id')
 
     created_by = fields.Nested(UserSchema, only=['id', 'name', 'email_address'], dump_only=True)
     created_at = field_for(models.Template, 'created_at', format='%Y-%m-%d %H:%M:%S.%f')

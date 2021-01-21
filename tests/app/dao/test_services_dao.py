@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime
-# from unittest import mock
 
 import pytest
 from freezegun import freeze_time
@@ -161,6 +160,106 @@ def test_cannot_create_two_services_with_same_name(notify_db_session):
     assert 'duplicate key value violates unique constraint "services_name_key"' in str(excinfo.value)
 
 
+def test_cannot_create_service_with_non_existent_email_provider(notify_db_session):
+    user = create_user()
+    dummy_email_provider_details_id = uuid.uuid4()
+
+    service = Service(
+        name="service_name",
+        email_from="email_from1",
+        message_limit=1000,
+        restricted=False,
+        created_by=user,
+        email_provider_id=dummy_email_provider_details_id
+    )
+
+    with pytest.raises(IntegrityError) as excinfo:
+        dao_create_service(service, user)
+    assert 'services_email_provider_id_fkey' in str(excinfo.value)
+
+
+def test_cannot_create_service_with_non_existent_sms_provider(notify_db_session):
+    user = create_user()
+    dummy_sms_provider_details_id = uuid.uuid4()
+
+    service = Service(
+        name="service_name",
+        email_from="email_from1",
+        message_limit=1000,
+        restricted=False,
+        created_by=user,
+        sms_provider_id=dummy_sms_provider_details_id
+    )
+
+    with pytest.raises(IntegrityError) as excinfo:
+        dao_create_service(service, user)
+    assert 'services_sms_provider_id_fkey' in str(excinfo.value)
+
+
+def test_can_create_service_with_valid_email_provider(notify_db_session, ses_provider):
+    user = create_user()
+
+    service = Service(
+        name="service_with_email_provider_name",
+        email_from="email_from",
+        message_limit=1000,
+        restricted=False,
+        created_by=user,
+        email_provider_id=ses_provider.id
+    )
+
+    try:
+        dao_create_service(service, user)
+    except IntegrityError:
+        pytest.fail("Could not create service with with valid email provider")
+    stored_service = dao_fetch_service_by_id(service.id)
+    assert stored_service is not None
+    assert stored_service.email_provider_id == ses_provider.id
+
+
+def test_can_create_service_with_valid_sms_provider(notify_db_session, firetext_provider):
+    user = create_user()
+
+    service = Service(
+        name="service_with_sms_provider_name",
+        message_limit=1000,
+        restricted=False,
+        created_by=user,
+        sms_provider_id=firetext_provider.id
+    )
+
+    try:
+        dao_create_service(service, user)
+    except IntegrityError:
+        pytest.fail("Could not create service with with valid sms provider")
+    stored_service = dao_fetch_service_by_id(service.id)
+    assert stored_service is not None
+    assert stored_service.sms_provider_id == firetext_provider.id
+
+
+def test_can_create_service_with_valid_email_and_sms_providers(notify_db_session, ses_provider, firetext_provider):
+    user = create_user()
+
+    service = Service(
+        name="service_with_sms_provider_name",
+        message_limit=1000,
+        restricted=False,
+        created_by=user,
+        email_provider_id=ses_provider.id,
+        sms_provider_id=firetext_provider.id
+    )
+
+    try:
+        dao_create_service(service, user)
+    except IntegrityError:
+        pytest.fail("Could not create service with with valid email and sms providers")
+
+    stored_service = dao_fetch_service_by_id(service.id)
+    assert stored_service is not None
+    assert stored_service.email_provider_id == ses_provider.id
+    assert stored_service.sms_provider_id == firetext_provider.id
+
+
 def test_can_create_two_services_with_same_email_from(notify_db_session):
     user = create_user()
     assert Service.query.count() == 0
@@ -206,7 +305,7 @@ def test_should_add_user_to_service(notify_db_session):
     new_user = User(
         name='Test User',
         email_address='new_user@digital.cabinet-office.gov.uk',
-        password='password',
+        password=' ',
         mobile_number='+16502532222'
     )
     save_model_user(new_user)
@@ -275,7 +374,7 @@ def test_should_remove_user_from_service(notify_db_session):
     new_user = User(
         name='Test User',
         email_address='new_user@digital.cabinet-office.gov.uk',
-        password='password',
+        password=' ',
         mobile_number='+16502532222'
     )
     save_model_user(new_user)
@@ -283,6 +382,22 @@ def test_should_remove_user_from_service(notify_db_session):
     assert new_user in Service.query.first().users
     dao_remove_user_from_service(service, new_user)
     assert new_user not in Service.query.first().users
+
+
+def test_should_remove_provider_from_service(notify_db_session, ses_provider):
+    user = create_user()
+    service = Service(name="service_name",
+                      email_from="email_from",
+                      message_limit=1000,
+                      restricted=False,
+                      created_by=user,
+                      email_provider_id=ses_provider.id)
+    dao_create_service(service, user)
+    stored_service = dao_fetch_service_by_id(service.id)
+    stored_service.email_provider_id = None
+    dao_update_service(service)
+    updated_service = dao_fetch_service_by_id(service.id)
+    assert not updated_service.email_provider_id
 
 
 def test_removing_a_user_from_a_service_deletes_their_permissions(sample_user, sample_service):
@@ -376,7 +491,7 @@ def test_get_all_user_services_only_returns_services_user_has_access_to(notify_d
     new_user = User(
         name='Test User',
         email_address='new_user@digital.cabinet-office.gov.uk',
-        password='password',
+        password=' ',
         mobile_number='+16502532222'
     )
     save_model_user(new_user)
@@ -549,7 +664,11 @@ def test_create_service_creates_a_history_record_with_current_data(notify_db_ses
     assert service_from_db.created_by.id == service_history.created_by_id
 
 
-def test_update_service_creates_a_history_record_with_current_data(notify_db_session):
+def test_update_service_creates_a_history_record_with_current_data(
+        notify_db_session,
+        current_sms_provider,
+        ses_provider
+):
     user = create_user()
     assert Service.query.count() == 0
     assert Service.get_history_model().query.count() == 0
@@ -565,6 +684,7 @@ def test_update_service_creates_a_history_record_with_current_data(notify_db_ses
     assert Service.get_history_model().query.count() == 1
 
     service.name = 'updated_service_name'
+    service.sms_provider_id = current_sms_provider.id
     dao_update_service(service)
 
     assert Service.query.count() == 1
@@ -574,8 +694,12 @@ def test_update_service_creates_a_history_record_with_current_data(notify_db_ses
 
     assert service_from_db.version == 2
 
-    assert Service.get_history_model().query.filter_by(name='service_name').one().version == 1
-    assert Service.get_history_model().query.filter_by(name='updated_service_name').one().version == 2
+    service_history = Service.get_history_model().query.filter_by(name='service_name').one()
+    assert service_history.version == 1
+    assert service_history.sms_provider_id is None
+    service_history = Service.get_history_model().query.filter_by(name='updated_service_name').one()
+    assert service_history.version == 2
+    assert service_history.sms_provider_id == current_sms_provider.id
 
 
 def test_update_service_permission_creates_a_history_record_with_current_data(notify_db_session):
@@ -689,7 +813,7 @@ def test_add_existing_user_to_another_service_doesnot_change_old_permissions(not
     other_user = User(
         name='Other Test User',
         email_address='other_user@digital.cabinet-office.gov.uk',
-        password='password',
+        password=' ',
         mobile_number='+447700900987'
     )
     save_model_user(other_user)
@@ -945,7 +1069,6 @@ def test_dao_suspend_service_with_no_api_keys(notify_db_session):
     dao_suspend_service(service.id)
     service = Service.query.get(service.id)
     assert not service.active
-    assert service.name == service.name
     assert service.api_keys == []
 
 
@@ -956,7 +1079,6 @@ def test_dao_suspend_service_marks_service_as_inactive_and_expires_api_keys(noti
     dao_suspend_service(service.id)
     service = Service.query.get(service.id)
     assert not service.active
-    assert service.name == service.name
 
     api_key = ApiKey.query.get(api_key.id)
     assert api_key.expiry_date == datetime(2001, 1, 1, 23, 59, 00)

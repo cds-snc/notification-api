@@ -18,7 +18,7 @@ from app.models import (
     LETTER_TYPE,
     SMS_TYPE,
     Template,
-    TemplateHistory
+    TemplateHistory, ProviderDetails
 )
 from app.dao.templates_dao import dao_get_template_by_id, dao_redact_template
 from app.dao.service_permissions_dao import dao_add_service_permission
@@ -82,6 +82,159 @@ def test_should_create_a_new_template_for_a_service(
     template = Template.query.get(json_resp['data']['id'])
     from app.schemas import template_schema
     assert sorted(json_resp['data']) == sorted(template_schema.dump(template).data)
+
+
+def test_should_create_a_new_template_with_a_valid_provider(client, sample_user, ses_provider):
+    template_type = EMAIL_TYPE
+    service = create_service(service_permissions=[template_type])
+    data = {
+        'name': 'my template',
+        'template_type': template_type,
+        'content': 'template <b>content</b>',
+        'service': str(service.id),
+        'created_by': str(sample_user.id),
+        'provider_id': str(ses_provider.id),
+        'subject': 'subject'
+    }
+    data = json.dumps(data)
+    auth_header = create_authorization_header()
+
+    response = client.post(
+        f'/service/{service.id}/template',
+        headers=[('Content-Type', 'application/json'), auth_header],
+        data=data
+    )
+    assert response.status_code == 201
+    json_resp = json.loads(response.get_data(as_text=True))
+    assert json_resp['data']['provider_id'] == str(ses_provider.id)
+
+    template = Template.query.get(json_resp['data']['id'])
+    assert template.provider_id == ses_provider.id
+
+
+@pytest.mark.parametrize('template_type', (
+    EMAIL_TYPE,
+    SMS_TYPE
+))
+def test_should_not_create_template_with_non_existent_provider(
+    client,
+    sample_user,
+    fake_uuid,
+    template_type
+):
+    service = create_service(service_permissions=[template_type])
+    data = {
+        'name': 'my template',
+        'template_type': template_type,
+        'content': 'template <b>content</b>',
+        'service': str(service.id),
+        'created_by': str(sample_user.id),
+        'provider_id': str(fake_uuid),
+        'subject': 'subject'
+    }
+    data = json.dumps(data)
+    auth_header = create_authorization_header()
+
+    response = client.post(
+        f'/service/{service.id}/template',
+        headers=[('Content-Type', 'application/json'), auth_header],
+        data=data
+    )
+    assert response.status_code == 400
+
+    json_resp = json.loads(response.get_data(as_text=True))
+    assert json_resp['result'] == 'error'
+    assert json_resp['message'] == f"invalid {template_type}_provider_id"
+
+
+@pytest.mark.parametrize('template_type', (
+    EMAIL_TYPE,
+    SMS_TYPE
+))
+def test_should_not_create_template_with_inactive_provider(
+    client,
+    sample_user,
+    fake_uuid,
+    template_type,
+    mocker
+):
+    service = create_service(service_permissions=[template_type])
+    data = {
+        'name': 'my template',
+        'template_type': template_type,
+        'content': 'template <b>content</b>',
+        'service': str(service.id),
+        'created_by': str(sample_user.id),
+        'provider_id': str(fake_uuid),
+        'subject': 'subject'
+    }
+    data = json.dumps(data)
+    auth_header = create_authorization_header()
+
+    mocked_provider_details = mocker.Mock(ProviderDetails)
+    mocked_provider_details.active = False
+    mocked_provider_details.notification_type = template_type
+    mocked_provider_details.id = fake_uuid
+    mocker.patch(
+        'app.template.rest.validate_providers.get_provider_details_by_id',
+        return_value=mocked_provider_details
+    )
+
+    response = client.post(
+        f'/service/{service.id}/template',
+        headers=[('Content-Type', 'application/json'), auth_header],
+        data=data
+    )
+    assert response.status_code == 400
+
+    json_resp = json.loads(response.get_data(as_text=True))
+    assert json_resp['result'] == 'error'
+    assert json_resp['message'] == f"invalid {template_type}_provider_id"
+
+
+@pytest.mark.parametrize('template_type', (
+    EMAIL_TYPE,
+    SMS_TYPE
+))
+def test_should_not_create_template_with_incorrect_provider_type(
+    client,
+    sample_user,
+    fake_uuid,
+    template_type,
+    mocker
+):
+    service = create_service(service_permissions=[template_type])
+    data = {
+        'name': 'my template',
+        'template_type': template_type,
+        'content': 'template <b>content</b>',
+        'service': str(service.id),
+        'created_by': str(sample_user.id),
+        'provider_id': str(fake_uuid),
+        'subject': 'subject'
+    }
+    data = json.dumps(data)
+    auth_header = create_authorization_header()
+
+    mocked_provider_details = mocker.Mock(ProviderDetails)
+    mocked_provider_details.active = True
+    mocked_provider_details.notification_type = LETTER_TYPE
+    mocked_provider_details.id = fake_uuid
+    mocker.patch(
+        'app.template.rest.validate_providers.get_provider_details_by_id',
+        return_value=mocked_provider_details
+    )
+
+    response = client.post(
+        f'/service/{service.id}/template',
+        headers=[('Content-Type', 'application/json'), auth_header],
+        data=data
+    )
+    assert response.status_code == 400
+
+    json_resp = json.loads(response.get_data(as_text=True))
+    assert json_resp['result'] == 'error'
+    assert json_resp['message'] == f"invalid {template_type}_provider_id"
 
 
 def test_create_a_new_template_for_a_service_adds_folder_relationship(
@@ -980,6 +1133,90 @@ def test_preview_letter_template_by_id_invalid_file_type(
     )
 
     assert ['file_type must be pdf or png'] == resp['message']['content']
+
+
+def test_should_update_template_with_a_valid_provider(admin_request, sample_email_template, ses_provider):
+    provider_id = str(ses_provider.id)
+    data = {
+        'provider_id': provider_id
+    }
+    json_resp = admin_request.post(
+        'template.update_template',
+        service_id=sample_email_template.service_id,
+        template_id=sample_email_template.id,
+        _data=data,
+        _expected_status=200)
+
+    assert json_resp['data']['provider_id'] == provider_id
+
+    updated_template = dao_get_template_by_id(sample_email_template.id)
+    assert updated_template.provider_id == ses_provider.id
+
+
+def test_should_not_update_template_with_non_existent_provider(admin_request, sample_email_template, fake_uuid):
+    data = {
+        'provider_id': fake_uuid
+    }
+    admin_request.post(
+        'template.update_template',
+        service_id=sample_email_template.service_id,
+        template_id=sample_email_template.id,
+        _data=data,
+        _expected_status=400)
+
+
+@pytest.mark.parametrize('template_type', (
+    EMAIL_TYPE,
+    SMS_TYPE
+))
+def test_should_not_update_template_with_inactive_provider(
+        mocker, admin_request, sample_email_template, fake_uuid, template_type
+):
+    data = {
+        'provider_id': fake_uuid
+    }
+    mocked_provider_details = mocker.Mock(ProviderDetails)
+    mocked_provider_details.active = False
+    mocked_provider_details.notification_type = template_type
+    mocked_provider_details.id = fake_uuid
+    mocker.patch(
+        'app.schemas.validate_providers.get_provider_details_by_id',
+        return_value=mocked_provider_details
+    )
+
+    json_resp = admin_request.post(
+        'template.update_template',
+        service_id=sample_email_template.service_id,
+        template_id=sample_email_template.id,
+        _data=data,
+        _expected_status=400)
+    assert json_resp['result'] == 'error'
+    assert json_resp['message']['provider_id'][0] == f"Invalid provider id: {fake_uuid}"
+
+
+def test_should_not_update_template_with_incorrect_provider_type(
+        mocker, admin_request, sample_email_template, fake_uuid
+):
+    data = {
+        'provider_id': fake_uuid
+    }
+    mocked_provider_details = mocker.Mock(ProviderDetails)
+    mocked_provider_details.active = True
+    mocked_provider_details.notification_type = SMS_TYPE
+    mocked_provider_details.id = fake_uuid
+    mocker.patch(
+        'app.schemas.validate_providers.get_provider_details_by_id',
+        return_value=mocked_provider_details
+    )
+
+    json_resp = admin_request.post(
+        'template.update_template',
+        service_id=sample_email_template.service_id,
+        template_id=sample_email_template.id,
+        _data=data,
+        _expected_status=400)
+    assert json_resp['result'] == 'error'
+    assert json_resp['message']['provider_id'][0] == f"Invalid provider id: {fake_uuid}"
 
 
 @freeze_time('2012-12-12')

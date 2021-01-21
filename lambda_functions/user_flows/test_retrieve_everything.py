@@ -129,14 +129,17 @@ def test_send_email(notification_url, service_id, service_api_key, template_id):
     notification_id = get_notification_id(email_response)
     time_count = 0
     notification_status = ""
+    notification_sent_by = None
     while notification_status != "sending" and time_count < 30:
         service_jwt = encode_jwt(service_id, service_api_key)
         notification_status_response = get_notification_status(notification_id, notification_url, service_jwt)
         assert notification_status_response.status_code == 200
         notification_status = notification_status_response.json()['status']
+        notification_sent_by = notification_status_response.json()['sent_by']
         time.sleep(1)
         time_count = time_count + 1
     assert notification_status == 'sending'
+    assert notification_sent_by is not None
 
 
 def test_send_email_with_va_profile_id(notification_url, service_id, service_test_api_key, template_id):
@@ -155,8 +158,9 @@ def test_send_email_with_va_profile_id(notification_url, service_id, service_tes
         desired_status
     )
 
-    assert notification_status_response.json()['status'] == desired_status
-    assert notification_status_response.json()['email_address'] is not None
+    assert notification_status_response['status'] == desired_status
+    assert notification_status_response['email_address'] is not None
+    assert notification_status_response['sent_by'] is not None
 
 
 def test_send_email_with_icn(notification_url, service_id, service_test_api_key, template_id):
@@ -175,8 +179,9 @@ def test_send_email_with_icn(notification_url, service_id, service_test_api_key,
         desired_status
     )
 
-    assert notification_status_response.json()['status'] == desired_status
-    assert notification_status_response.json()['email_address'] is not None
+    assert notification_status_response['status'] == desired_status
+    assert notification_status_response['email_address'] is not None
+    assert notification_status_response['sent_by'] is not None
 
     found_va_profile_ids = [identifier for identifier in notification_status_response.json()['recipient_identifiers']
                             if identifier['id_type'] == 'VAPROFILEID']
@@ -201,8 +206,9 @@ def test_send_text(notification_url, service_test_api_key, service_id, sms_templ
         desired_status
     )
 
-    assert notification_status_response.json()['status'] == desired_status
-    assert notification_status_response.json()['phone_number'] == VALID_TEST_RECIPIENT_PHONE_NUMBER
+    assert notification_status_response['status'] == desired_status
+    assert notification_status_response['phone_number'] == VALID_TEST_RECIPIENT_PHONE_NUMBER
+    assert notification_status_response['sent_by'] is not None
 
 
 def test_send_text_with_profile_id(notification_url, service_test_api_key, service_id, sms_template_id):
@@ -221,8 +227,9 @@ def test_send_text_with_profile_id(notification_url, service_test_api_key, servi
         desired_status
     )
 
-    assert notification_status_response.json()['status'] == desired_status
-    assert notification_status_response.json()['phone_number'] is not None
+    assert notification_status_response['status'] == desired_status
+    assert notification_status_response['phone_number'] is not None
+    assert notification_status_response['sent_by'] is not None
 
 
 def wait_for_status(
@@ -231,7 +238,7 @@ def wait_for_status(
         service_id: str,
         service_test_api_key: str,
         desired_status: str
-) -> Response:
+) -> dict:
     notification_status_response = None
     for _ in range(30):
         service_jwt = encode_jwt(service_id, service_test_api_key)
@@ -240,7 +247,7 @@ def wait_for_status(
         assert notification_status_response.status_code == 200
 
         if notification_status_response.json()['status'] == desired_status:
-            return notification_status_response
+            return notification_status_response.json()
 
         time.sleep(1)
 

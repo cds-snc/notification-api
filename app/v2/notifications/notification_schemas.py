@@ -55,6 +55,7 @@ get_notification_response = {
         "subject": {"type": ["string", "null"]},
         "created_at": {"type": "string"},
         "sent_at": {"type": ["string", "null"]},
+        "sent_by": {"type": ["string", "null"]},
         "completed_at": {"type": ["string", "null"]},
         "scheduled_for": {"type": ["string", "null"]}
     },
@@ -62,7 +63,7 @@ get_notification_response = {
         # technically, all keys are required since we always have all of them
         "id", "reference", "email_address", "phone_number",
         "line_1", "line_2", "line_3", "line_4", "line_5", "line_6", "postcode",
-        "type", "status", "template", "body", "created_at", "sent_at", "completed_at"
+        "type", "status", "template", "body", "created_at", "sent_at", "sent_by", "completed_at"
     ]
 }
 

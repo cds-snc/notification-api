@@ -7,7 +7,7 @@ import app
 from app.celery import provider_tasks
 from app.celery.provider_tasks import deliver_sms, deliver_email
 from app.clients.email.aws_ses import AwsSesClientException
-from app.exceptions import NotificationTechnicalFailureException
+from app.exceptions import NotificationTechnicalFailureException, InvalidProviderException
 
 
 def test_should_have_decorated_tasks_functions():
@@ -88,7 +88,22 @@ def test_should_technical_error_and_not_retry_if_invalid_email(sample_notificati
     mocker.patch('app.delivery.send_to_providers.send_email_to_provider', side_effect=InvalidEmailError('bad email'))
     mocker.patch('app.celery.provider_tasks.deliver_email.retry')
 
-    deliver_email(sample_notification.id)
+    with pytest.raises(NotificationTechnicalFailureException):
+        deliver_email(sample_notification.id)
+
+    assert provider_tasks.deliver_email.retry.called is False
+    assert sample_notification.status == 'technical-failure'
+
+
+def test_should_technical_error_and_not_retry_if_invalid_provider(sample_notification, mocker):
+    mocker.patch(
+        'app.delivery.send_to_providers.send_email_to_provider',
+        side_effect=InvalidProviderException('invalid provider')
+    )
+    mocker.patch('app.celery.provider_tasks.deliver_email.retry')
+
+    with pytest.raises(NotificationTechnicalFailureException):
+        deliver_email(sample_notification.id)
 
     assert provider_tasks.deliver_email.retry.called is False
     assert sample_notification.status == 'technical-failure'

@@ -16,7 +16,7 @@ from app.notifications.validators import (
     check_service_email_reply_to_id,
     check_service_sms_sender_id,
     check_service_letter_contact_id,
-    check_reply_to,
+    check_reply_to
 )
 
 from app.v2.errors import (

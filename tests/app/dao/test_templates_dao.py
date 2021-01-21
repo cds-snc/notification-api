@@ -519,3 +519,34 @@ def test_template_postage_constraint_on_update(sample_service, sample_user):
     created.postage = 'third'
     with pytest.raises(expected_exception=SQLAlchemyError):
         dao_update_template(created)
+
+
+def test_template_with_no_given_provider_id_has_null_provider_id(sample_service, sample_user):
+    data = {
+        'name': 'Sample Template',
+        'template_type': "email",
+        'content': "Template content",
+        'service': sample_service,
+        'created_by': sample_user,
+    }
+
+    template = Template(**data)
+    dao_create_template(template)
+
+    assert Template.query.filter_by(id=template.id).one().provider_id is None
+
+
+def test_template_with_provider_id_persists_provider_id(sample_service, sample_user, ses_provider):
+    data = {
+        'name': 'Sample Template',
+        'template_type': "email",
+        'content': "Template content",
+        'service': sample_service,
+        'created_by': sample_user,
+        'provider_id': ses_provider.id
+    }
+
+    template = Template(**data)
+    dao_create_template(template)
+
+    assert Template.query.filter_by(id=template.id).one().provider_id == ses_provider.id
