@@ -42,7 +42,7 @@ unidecode==1.1.1
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
 itsdangerous==0.24
 
-git+https://github.com/department-of-veterans-affairs/notification-utils.git@1.0.21#egg=notification-utils==1.0.21
+git+https://github.com/department-of-veterans-affairs/notification-utils.git@1.0.22#egg=notification-utils==1.0.22
 
 # MLWR
 socketio-client==0.5.6
