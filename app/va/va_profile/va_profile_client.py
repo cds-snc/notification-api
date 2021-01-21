@@ -129,5 +129,4 @@ class VAProfileClient:
 
     def _validate_response(self, response, va_profile_id, bio_type):
         if response.get('messages'):
-            self.statsd_client.incr(f"clients.va-profile.get-{bio_type}.no-{bio_type}")
-            self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
+            self._raise_no_contact_info_exception(bio_type, va_profile_id, response.get(self.TX_AUDIT_ID))
