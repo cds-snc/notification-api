@@ -183,7 +183,7 @@ def test_send_email_with_icn(notification_url, service_id, service_test_api_key,
     assert notification_status_response['email_address'] is not None
     assert notification_status_response['sent_by'] is not None
 
-    found_va_profile_ids = [identifier for identifier in notification_status_response.json()['recipient_identifiers']
+    found_va_profile_ids = [identifier for identifier in notification_status_response['recipient_identifiers']
                             if identifier['id_type'] == 'VAPROFILEID']
     assert len(found_va_profile_ids) == 1
 
