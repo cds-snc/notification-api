@@ -32,7 +32,7 @@ class MpiClient:
         if len(recipient_identifiers) != 1:
             error_message = "Unexpected number of recipient_identifiers in: " \
                             f"{notification.recipient_identifiers.keys()}"
-            self.statsd_client.incr("clients.mpi.incorrect_number_of_recipient_identifiers_error")
+            self.statsd_client.incr("clients.mpi.get_va_profile_id.error.incorrect_number_of_recipient_identifiers")
             raise IncorrectNumberOfIdentifiersException(error_message)
 
         recipient_identifier = next(iter(recipient_identifiers))
@@ -46,7 +46,7 @@ class MpiClient:
         mpi_identifiers = response_json['identifier']
 
         va_profile_id = self._get_active_va_profile_id(mpi_identifiers, fhir_identifier)
-        self.statsd_client.incr("clients.mpi.success")
+        self.statsd_client.incr("clients.mpi.get_va_profile_id.success")
         return va_profile_id
 
     def _make_request(self, fhir_identifier, notification_id):
@@ -73,6 +73,7 @@ class MpiClient:
         else:
             self._validate_response(response.json(), notification_id, fhir_identifier)
             self._assert_not_deceased(response.json(), fhir_identifier)
+            self.statsd_client.incr("clients.mpi.success")
             return response.json()
         finally:
             elapsed_time = monotonic() - start_time
@@ -83,10 +84,10 @@ class MpiClient:
         va_profile_ids = [transform_from_fhir_format(identifier['value']) for identifier in identifiers
                           if identifier['value'].endswith(active_va_profile_suffix)]
         if not va_profile_ids:
-            self.statsd_client.incr("clients.mpi.error.no_va_profile_id")
+            self.statsd_client.incr("clients.mpi.get_va_profile_id.error.no_va_profile_id")
             raise IdentifierNotFound(f"No active VA Profile Identifier found for: {fhir_identifier}")
         if len(va_profile_ids) > 1:
-            self.statsd_client.incr("clients.mpi.error.multiple_va_profile_ids")
+            self.statsd_client.incr("clients.mpi.get_va_profile_id.error.multiple_va_profile_ids")
             raise MultipleActiveVaProfileIdsException(
                 f"Multiple active VA Profile Identifiers found for: {fhir_identifier}"
             )
@@ -102,7 +103,7 @@ class MpiClient:
 
     def _assert_not_deceased(self, response_json, fhir_identifier):
         if response_json.get('deceasedDateTime'):
-            self.statsd_client.incr("clients.mpi.beneficiary_deceased")
+            self.statsd_client.incr("clients.mpi.get_va_profile_id.beneficiary_deceased")
             raise BeneficiaryDeceasedException(
                 f"Beneficiary deceased for identifier: {fhir_identifier}"
             )
