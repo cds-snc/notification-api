@@ -1,3 +1,5 @@
+import pytest
+
 from app.models import ProviderDetails, EMAIL_TYPE, SMS_TYPE
 from app.provider_details.validate_providers import is_provider_valid
 
@@ -5,37 +7,22 @@ PROVIDER_DETAILS_BY_ID_PATH = 'app.provider_details.validate_providers.get_provi
 
 
 def test_check_provider_exists(notify_db, fake_uuid):
-    assert is_provider_valid(fake_uuid, 'email') is False
-
-
-def test_check_provider_is_active_and_of_incorrect_type(mocker, fake_uuid):
-    mocked_provider_details = mocker.Mock(ProviderDetails)
-    mocked_provider_details.active = True
-    mocked_provider_details.notification_type = SMS_TYPE
-    mocker.patch(
-        PROVIDER_DETAILS_BY_ID_PATH,
-        return_value=mocked_provider_details
-    )
     assert is_provider_valid(fake_uuid, EMAIL_TYPE) is False
 
 
-def test_check_provider_is_inactive_and_of_correct_type(mocker, fake_uuid):
+@pytest.mark.parametrize('is_active, notification_type, checked_notification_type, expected_result', [
+    (True, SMS_TYPE, EMAIL_TYPE, False),
+    (False, EMAIL_TYPE, EMAIL_TYPE, False),
+    (True, EMAIL_TYPE, EMAIL_TYPE, True)
+])
+def test_check_provider_is_active(
+        mocker, fake_uuid, is_active, notification_type, checked_notification_type, expected_result
+):
     mocked_provider_details = mocker.Mock(ProviderDetails)
-    mocked_provider_details.active = False
-    mocked_provider_details.notification_type = EMAIL_TYPE
+    mocked_provider_details.active = is_active
+    mocked_provider_details.notification_type = notification_type
     mocker.patch(
         PROVIDER_DETAILS_BY_ID_PATH,
         return_value=mocked_provider_details
     )
-    assert is_provider_valid(fake_uuid, EMAIL_TYPE) is False
-
-
-def test_check_provider_is_active_and_of_correct_type(mocker, fake_uuid):
-    mocked_provider_details = mocker.Mock(ProviderDetails)
-    mocked_provider_details.active = True
-    mocked_provider_details.notification_type = EMAIL_TYPE
-    mocker.patch(
-        PROVIDER_DETAILS_BY_ID_PATH,
-        return_value=mocked_provider_details
-    )
-    assert is_provider_valid(fake_uuid, EMAIL_TYPE) is True
+    assert is_provider_valid(fake_uuid, checked_notification_type) is expected_result

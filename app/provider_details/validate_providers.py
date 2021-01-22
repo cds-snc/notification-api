@@ -19,10 +19,5 @@ def validate_template_providers(request: dict):
         throw_invalid_request_error(template_type)
 
 
-def validate_template_provider(provider_id: str, template_type: str):
-    if not(provider_id is None or is_provider_valid(provider_id, template_type)):
-        throw_invalid_request_error(template_type)
-
-
 def throw_invalid_request_error(template_type):
     raise InvalidRequest(f'invalid {template_type}_provider_id', status_code=400)
