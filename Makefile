@@ -22,7 +22,7 @@ test: generate-version-file ## Run tests
 .PHONY: freeze-requirements
 freeze-requirements:
 	rm -rf venv-freeze
-	virtualenv -p python3 venv-freeze
+	python -m venv venv-freeze
 	# Make sure we are using the latest pip prior to requirements installation.
 	$$(pwd)/venv-freeze/bin/python3 -m pip install --upgrade pip
 	$$(pwd)/venv-freeze/bin/pip install -r requirements-app.txt --no-cache-dir
