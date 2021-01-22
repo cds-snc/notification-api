@@ -112,7 +112,7 @@ scripts/run_celery_beat.sh
 
 ### Python version
 
-This codebase is Python 3 only. At the moment we run 3.9.1 in production. You will run into problems if you try to use Python 3.4 or older, or Python 3.7 or newer.
+This codebase is Python 3 only. At the moment we run 3.9.1 in production. You will run into problems if you try to use Python 3.4 or older.
 
 ## To update application dependencies
 
@@ -158,7 +158,7 @@ createuser -l -s postgres
 
 __Problem__ : `E999 SyntaxError: invalid syntax` when running `flake8`
 
-__Solution__ : Check that you are in your correct virtualenv, with python 3.5 or 3.9
+__Solution__ : Check that you are in your correct virtualenv, with python 3.9
 
 ---
 
