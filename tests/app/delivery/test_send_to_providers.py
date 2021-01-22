@@ -216,6 +216,7 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(
     db_notification = create_notification(template=sample_template, to_field='+16502532222', status='created',
                                           reply_to_text=sample_template.service.get_default_sms_sender())
 
+    sample_template.service.prefix_sms = True
     version_on_notification = sample_template.version
 
     # Change the template
@@ -316,7 +317,7 @@ def test_should_send_sms_with_downgraded_content(notify_db_session, mock_sms_cli
     msg = "á é ï o u 🍇 foo\tbar\u200bbaz((misc))…"
     placeholder = '∆∆∆abc'
     gsm_message = "?odz Housing Service: a é i o u ? foo barbaz???abc..."
-    service = create_service(service_name='Łódź Housing Service')
+    service = create_service(service_name='Łódź Housing Service', prefix_sms=True)
     template = create_template(service, content=msg)
     db_notification = create_notification(
         template=template,

@@ -228,7 +228,7 @@ def test_get_service_by_id(admin_request, sample_service):
     assert not json_resp['data']['research_mode']
     assert json_resp['data']['email_branding'] is None
     assert 'branding' not in json_resp['data']
-    assert json_resp['data']['prefix_sms'] is True
+    assert json_resp['data']['prefix_sms'] is False
     assert json_resp['data']['letter_logo_filename'] is None
 
 

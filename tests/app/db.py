@@ -108,7 +108,7 @@ def create_service(
         research_mode=False,
         active=True,
         email_from=None,
-        prefix_sms=True,
+        prefix_sms=False,
         message_limit=1000,
         organisation_type='other',
         check_if_service_exists=False,
@@ -439,7 +439,7 @@ def create_inbound_sms(
     if not service.inbound_number:
         create_inbound_number(
             # create random inbound number
-            notify_number or '1{:10}'.format(random.randint(0, 1e9 - 1)),
+            notify_number or '1{:10}'.format(random.randint(0, 1e9 - 1)),  # nosec
             provider=provider,
             service_id=service.id
         )
@@ -458,7 +458,7 @@ def create_inbound_sms(
     return inbound
 
 
-def create_service_inbound_api(
+def create_service_inbound_api(  # nosec
         service,
         url="https://something.com",
         bearer_token="some_super_secret",
@@ -472,7 +472,7 @@ def create_service_inbound_api(
     return service_inbound_api
 
 
-def create_service_callback_api(
+def create_service_callback_api(  # nosec
         service,
         url="https://something.com",
         bearer_token="some_super_secret",

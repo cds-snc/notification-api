@@ -102,7 +102,7 @@ def test_create_service(notify_db_session):
     assert service_db.id == service.id
     assert service_db.email_from == 'email_from'
     assert service_db.research_mode is False
-    assert service_db.prefix_sms is True
+    assert service_db.prefix_sms is False
     assert service.active is True
     assert user in service_db.users
     assert service_db.organisation_type == 'other'
@@ -130,7 +130,7 @@ def test_create_service_with_organisation(notify_db_session):
     assert service_db.id == service.id
     assert service_db.email_from == 'email_from'
     assert service_db.research_mode is False
-    assert service_db.prefix_sms is True
+    assert service_db.prefix_sms is False
     assert service.active is True
     assert user in service_db.users
     assert service_db.organisation_type == 'other'
@@ -302,7 +302,7 @@ def test_should_add_user_to_service(notify_db_session):
                       created_by=user)
     dao_create_service(service, user)
     assert user in Service.query.first().users
-    new_user = User(
+    new_user = User(  # nosec
         name='Test User',
         email_address='new_user@digital.cabinet-office.gov.uk',
         password=' ',
@@ -371,7 +371,7 @@ def test_should_remove_user_from_service(notify_db_session):
                       restricted=False,
                       created_by=user)
     dao_create_service(service, user)
-    new_user = User(
+    new_user = User(  # nosec
         name='Test User',
         email_address='new_user@digital.cabinet-office.gov.uk',
         password=' ',
@@ -488,7 +488,7 @@ def test_get_all_user_services_only_returns_services_user_has_access_to(notify_d
     create_service(service_name='service 1', user=user, email_from='service.1')
     create_service(service_name='service 2', user=user, email_from='service.2')
     service_3 = create_service(service_name='service 3', user=user, email_from='service.3')
-    new_user = User(
+    new_user = User(  # nosec
         name='Test User',
         email_address='new_user@digital.cabinet-office.gov.uk',
         password=' ',
@@ -810,7 +810,7 @@ def test_add_existing_user_to_another_service_doesnot_change_old_permissions(not
     test_user_permissions = Permission.query.filter_by(service=service_one, user=user).all()
     assert len(test_user_permissions) == 8
 
-    other_user = User(
+    other_user = User(  # nosec
         name='Other Test User',
         email_address='other_user@digital.cabinet-office.gov.uk',
         password=' ',

@@ -480,7 +480,7 @@ class Service(db.Model, Versioned):
     email_from = db.Column(db.Text, index=False, unique=False, nullable=True)
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), index=True, nullable=False)
     created_by = db.relationship('User', foreign_keys=[created_by_id])
-    prefix_sms = db.Column(db.Boolean, nullable=False, default=True)
+    prefix_sms = db.Column(db.Boolean, nullable=False, default=False)
     organisation_type = db.Column(
         db.String(255),
         db.ForeignKey('organisation_types.name'),
