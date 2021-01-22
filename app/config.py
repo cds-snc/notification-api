@@ -79,6 +79,10 @@ class Config(object):
 
     # DB conection string
     SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI')
+    SQLALCHEMY_BINDS = {
+        'writer': 'postgres://postgres:chummy@localhost:5432/notification_api',
+        'reader': 'postgres://reader:chummy@localhost:5432/notification_api',
+    }
 
     # Hosted graphite statsd prefix
     STATSD_PREFIX = os.getenv('STATSD_PREFIX')
