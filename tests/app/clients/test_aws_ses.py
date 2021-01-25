@@ -4,7 +4,8 @@ import pytest
 from notifications_utils.recipients import InvalidEmailError
 
 from app import aws_ses_client, config
-from app.clients.email.aws_ses import get_aws_responses, AwsSesClientException, AwsSesClient
+from app.clients.email.aws_ses import get_aws_responses, AwsSesClientException, AwsSesClient, \
+    AwsSesClientThrottlingSendRateException
 
 
 @pytest.fixture
@@ -223,3 +224,41 @@ def test_should_set_email_from_domain_when_it_is_overridden():
 
 def test_should_set_email_from_user_when_it_is_overridden():
     assert aws_ses_client.email_from_user == config.Test.AWS_SES_EMAIL_FROM_USER
+
+
+def test_send_email_raises_send_rate_throttling_exception(ses_client, boto_mock):
+    error_response = {
+        'Error': {
+            'Code': 'Throttling',
+            'Message': 'Maximum sending rate exceeded.',
+            'Type': 'Sender'
+        }
+    }
+    boto_mock.send_raw_email.side_effect = botocore.exceptions.ClientError(error_response, 'opname')
+
+    with pytest.raises(AwsSesClientThrottlingSendRateException):
+        ses_client.send_email(
+            source='from@address.com',
+            to_addresses='foo@bar.com',
+            subject='Subject',
+            body='Body'
+        )
+
+
+def test_send_email_does_not_raise_exception_if_non_send_rate_throttling(ses_client, boto_mock):
+    error_response = {
+        'Error': {
+            'Code': 'Throttling',
+            'Message': 'Daily message quota exceeded',
+            'Type': 'Sender'
+        }
+    }
+    boto_mock.send_raw_email.side_effect = botocore.exceptions.ClientError(error_response, 'opname')
+
+    with pytest.raises(AwsSesClientException):
+        ses_client.send_email(
+            source='from@address.com',
+            to_addresses='foo@bar.com',
+            subject='Subject',
+            body='Body'
+        )

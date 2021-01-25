@@ -6,7 +6,7 @@ from notifications_utils.recipients import InvalidEmailError
 import app
 from app.celery import provider_tasks
 from app.celery.provider_tasks import deliver_sms, deliver_email
-from app.clients.email.aws_ses import AwsSesClientException
+from app.clients.email.aws_ses import AwsSesClientException, AwsSesClientThrottlingSendRateException
 from app.exceptions import NotificationTechnicalFailureException, InvalidProviderException
 
 
@@ -72,18 +72,6 @@ def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_sms_task(s
     assert sample_notification.status == 'technical-failure'
 
 
-def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_email_task(sample_notification, mocker):
-    mocker.patch('app.delivery.send_to_providers.send_email_to_provider', side_effect=Exception("EXPECTED"))
-    mocker.patch('app.celery.provider_tasks.deliver_email.retry', side_effect=MaxRetriesExceededError())
-
-    with pytest.raises(NotificationTechnicalFailureException) as e:
-        deliver_email(sample_notification.id)
-    assert str(sample_notification.id) in str(e.value)
-
-    provider_tasks.deliver_email.retry.assert_called_with(queue="retry-tasks")
-    assert sample_notification.status == 'technical-failure'
-
-
 def test_should_technical_error_and_not_retry_if_invalid_email(sample_notification, mocker):
     mocker.patch('app.delivery.send_to_providers.send_email_to_provider', side_effect=InvalidEmailError('bad email'))
     mocker.patch('app.celery.provider_tasks.deliver_email.retry')
@@ -92,6 +80,28 @@ def test_should_technical_error_and_not_retry_if_invalid_email(sample_notificati
         deliver_email(sample_notification.id)
 
     assert provider_tasks.deliver_email.retry.called is False
+    assert sample_notification.status == 'technical-failure'
+
+
+@pytest.mark.parametrize(
+    'exception_class', [
+        Exception(),
+        AwsSesClientException(),
+        AwsSesClientThrottlingSendRateException(),
+        MaxRetriesExceededError()
+    ]
+)
+def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_email_task(
+    sample_notification, mocker, exception_class
+):
+    mocker.patch('app.delivery.send_to_providers.send_email_to_provider', side_effect=exception_class)
+    mocker.patch('app.celery.provider_tasks.deliver_email.retry', side_effect=MaxRetriesExceededError())
+
+    with pytest.raises(NotificationTechnicalFailureException) as e:
+        deliver_email(sample_notification.id)
+    assert str(sample_notification.id) in str(e.value)
+
+    provider_tasks.deliver_email.retry.assert_called_with(queue="retry-tasks")
     assert sample_notification.status == 'technical-failure'
 
 
