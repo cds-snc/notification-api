@@ -1,4 +1,4 @@
-FROM python:3.6
+FROM python:3.9
 
 ARG USERNAME=vscode
 ARG USER_UID=1000
