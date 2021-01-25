@@ -43,7 +43,7 @@ class SendEmail(HttpUser):
             '/v2/notifications/email',
             json=payload,
             headers=headers,
-            verify='/etc/pki/tls/certs/ca-bundle.trust.crt'
+            verify=os.getenv('REQUESTS_CA_BUNDLE')
         )
 
     def _get_jwt(self) -> bytes:
