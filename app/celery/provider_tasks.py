@@ -53,7 +53,7 @@ def deliver_email(self, notification_id):
         send_to_providers.send_email_to_provider(notification)
         current_app.logger.info(f"Successfully sent email for notification id: {notification_id}")
     except InvalidEmailError as e:
-        current_app.logger.exception(e)
+        current_app.logger.exception(f"Email notification {notification_id} failed: {str(e)}")
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
         raise NotificationTechnicalFailureException(str(e))
     except MalwarePendingException:
@@ -61,7 +61,7 @@ def deliver_email(self, notification_id):
             "RETRY: Email notification {} is pending malware scans".format(notification_id))
         self.retry(queue=QueueNames.RETRY, countdown=60)
     except InvalidProviderException as e:
-        current_app.logger.exception(e)
+        current_app.logger.exception(f"Invalid provider for {notification_id}: {str(e)}")
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
         raise NotificationTechnicalFailureException(str(e))
     except Exception:
