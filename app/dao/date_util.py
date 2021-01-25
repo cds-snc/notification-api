@@ -1,5 +1,6 @@
 import os
 
+from notifications_utils.strftime_codes import no_pad_month
 from datetime import datetime, timedelta, date, time
 
 from notifications_utils.timezones import convert_local_timezone_to_utc
@@ -26,7 +27,7 @@ def get_financial_year(year):
 
 def get_current_financial_year():
     now = datetime.utcnow()
-    current_month = int(now.strftime('%-m'))
+    current_month = int(now.strftime(no_pad_month()))
     current_year = int(now.strftime('%Y'))
     year = current_year if current_month > 3 else current_year - 1
     return get_financial_year(year)
