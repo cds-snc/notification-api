@@ -121,22 +121,7 @@ class AwsSesClient(EmailClient):
                 **kwargs
             )
         except botocore.exceptions.ClientError as e:
-            self.statsd_client.incr("clients.ses.error")
-
-            # http://docs.aws.amazon.com/ses/latest/DeveloperGuide/api-error-codes.html
-            if e.response['Error']['Code'] == 'InvalidParameterValue':
-                raise InvalidEmailError('email: "{}" message: "{}"'.format(
-                    to_addresses[0],
-                    e.response['Error']['Message']
-                ))
-            elif (
-                e.response['Error']['Code'] == 'Throttling'
-                and e.response['Error']['Message'] == 'Maximum sending rate exceeded.'
-            ):
-                raise AwsSesClientThrottlingSendRateException(str(e))
-            else:
-                self.statsd_client.incr("clients.ses.error")
-                raise AwsSesClientException(str(e))
+            self.check_error_code(e, to_addresses)
         except Exception as e:
             self.statsd_client.incr("clients.ses.error")
             raise AwsSesClientException(str(e))
@@ -146,6 +131,23 @@ class AwsSesClient(EmailClient):
             self.statsd_client.timing("clients.ses.request-time", elapsed_time)
             self.statsd_client.incr("clients.ses.success")
             return response['MessageId']
+
+    def check_error_code(self, e, to_addresses):
+        self.statsd_client.incr("clients.ses.error")
+
+        # http://docs.aws.amazon.com/ses/latest/DeveloperGuide/api-error-codes.html
+        if e.response['Error']['Code'] == 'InvalidParameterValue':
+            raise InvalidEmailError('email: "{}" message: "{}"'.format(
+                to_addresses[0],
+                e.response['Error']['Message']
+            ))
+        elif (
+                e.response['Error']['Code'] == 'Throttling'
+                and e.response['Error']['Message'] == 'Maximum sending rate exceeded.'
+        ):
+            raise AwsSesClientThrottlingSendRateException(str(e))
+        else:
+            raise AwsSesClientException(str(e))
 
 
 def punycode_encode_email(email_address):
