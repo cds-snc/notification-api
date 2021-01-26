@@ -19,9 +19,6 @@ test: generate-version-file ## Run tests
 user_flows: generate-version-file ## Run tests
 	./scripts/run_user_flows.sh
 
-daily_user_flows: generate-version-file ## Run tests
-	./scripts/run_daily_check.sh
-
 freeze-requirements: ## Generate requirements file
 	rm -rf venv-freeze
 	virtualenv -p python3 venv-freeze

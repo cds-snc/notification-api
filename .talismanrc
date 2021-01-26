@@ -7,8 +7,6 @@ fileignoreconfig:
       checksum: 8c45546e8fdf3bd3e2185e1f37c1a6eda6bec75b78f10913e4408641ffbd9e2c
     - filename: scripts/postman/staging.postman_environment.json
       checksum: 61421aaa6298a36f7f8a65a573b216be3b23e68655958ee1a4da24ebc30782f8
-    - filename: .github/workflows/daily-email-ci.yaml
-      checksum: eefb3681a957c536aec0bb70f218947657e6357738e04f35a4d59f08a0bf6ba8
     - filename: certs/VA-Internal-S2-RCA1-v1.crt
       checksum: b3cdaa6e2a9961ba935379fc4d21dcdd70478b027b9efadbd20a4ae9faaf13a0
     - filename: .env.local.example
