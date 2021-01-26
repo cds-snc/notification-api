@@ -9,7 +9,7 @@ from app.clients.email.aws_ses import get_aws_responses, AwsSesClientException, 
 
 
 @pytest.fixture
-def ses_client(mocker):
+def ses_client(mocker, client):
     mocker.patch.object(aws_ses_client, 'statsd_client', create=True)
     return aws_ses_client
 
@@ -64,13 +64,13 @@ def test_should_be_none_if_unrecognised_status_code():
 ],
     ids=['default_endpoint_for_region', 'custom_fips_endpoint'])
 def test_should_use_correct_enpdoint_url_in_boto(endpoint_url, expected):
-    aws_ses_client = AwsSesClient()
-    aws_ses_client.init_app(
+    local_aws_ses_client = AwsSesClient()
+    local_aws_ses_client.init_app(
         config.Test.AWS_REGION,
         None,
         None,
         endpoint_url=endpoint_url)
-    assert aws_ses_client._client._endpoint.host == expected
+    assert local_aws_ses_client._client._endpoint.host == expected
 
 
 def test_should_use_enpdoint_from_config(notify_api):
@@ -91,17 +91,17 @@ def test_send_email_uses_from_address(notify_api, ses_client, boto_mock):
     assert actual == from_address
 
 
-def test_send_email_does_not_use_configuration_set_if_None(mocker):
-    aws_ses_client = AwsSesClient()
-    aws_ses_client.init_app(
+def test_send_email_does_not_use_configuration_set_if_none(mocker):
+    local_aws_ses_client = AwsSesClient()
+    local_aws_ses_client.init_app(
         config.Test.AWS_REGION,
         mocker.Mock(),
         mocker.Mock(),
         configuration_set=None
     )
-    boto_mock = mocker.patch.object(aws_ses_client, '_client', create=True)
+    boto_mock = mocker.patch.object(local_aws_ses_client, '_client', create=True)
 
-    aws_ses_client.send_email(
+    local_aws_ses_client.send_email(
         'from@address.com',
         to_addresses='foo@bar.com',
         subject='Subject',
@@ -175,7 +175,7 @@ def test_send_email_encodes_reply_to_address(notify_api, ses_client, boto_mock):
                       raw_message)[0] == '=?utf-8?b?ZsO4w7jDuMO4QHhuLS1ici15aWFhYWFhLmNvbQ==?='
 
 
-def test_send_email_raises_bad_email_as_InvalidEmailError(ses_client, boto_mock):
+def test_send_email_raises_bad_email(ses_client, boto_mock):
     error_response = {
         'Error': {
             'Code': 'InvalidParameterValue',
@@ -197,7 +197,7 @@ def test_send_email_raises_bad_email_as_InvalidEmailError(ses_client, boto_mock)
     assert 'definitely@invalid_email.com' in str(excinfo.value)
 
 
-def test_send_email_raises_other_errs_as_AwsSesClientException(ses_client, boto_mock):
+def test_send_email_raises_other_errors(ses_client, boto_mock):
     error_response = {
         'Error': {
             'Code': 'ServiceUnavailable',
@@ -218,11 +218,11 @@ def test_send_email_raises_other_errs_as_AwsSesClientException(ses_client, boto_
     assert 'some error message from amazon' in str(excinfo.value)
 
 
-def test_should_set_email_from_domain_when_it_is_overridden():
+def test_should_set_email_from_domain_when_it_is_overridden(client):
     assert aws_ses_client.email_from_domain == config.Test.AWS_SES_EMAIL_FROM_DOMAIN
 
 
-def test_should_set_email_from_user_when_it_is_overridden():
+def test_should_set_email_from_user_when_it_is_overridden(client):
     assert aws_ses_client.email_from_user == config.Test.AWS_SES_EMAIL_FROM_USER
 
 
