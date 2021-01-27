@@ -99,3 +99,5 @@ fileignoreconfig:
       checksum: bd6d379824dd3a828fa4689a1a8b7fa77d37abe880a4b16e1b68b4d93954ab3d
     - filename: tests/app/clients/test_aws_ses.py
       checksum: cfa17f09c46c18c6bb6e648562a871adf63b15e647815402c5abff418b56803f
+    - filename: lambda_functions/ses_callback/ses_callback_lambda.py
+      checksum: 05c24c8775ff48491cc810243d4da7741efe2d151a0dbb421fdf516d61766e8d
