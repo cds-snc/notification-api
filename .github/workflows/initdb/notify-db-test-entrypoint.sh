@@ -15,4 +15,4 @@ set -ex
 # Create reader user meant for testing writer/reader replica functionality.
 # Getting through the `psql` client is a mean to set the password as one cannot
 # set the password via the `createuser` command-line utility.
-psql -f create-role-reader.sql postgresql://postgres:postgres@localhost:5432
+psql -a -f create-role-reader.sql postgresql://postgres:postgres@localhost:5432
