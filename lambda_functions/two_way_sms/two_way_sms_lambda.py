@@ -6,7 +6,7 @@ import os
 region = os.getenv("AWS_REGION")
 pinpoint = boto3.client('pinpoint', region_name=region)
 pinpoint_project_id = os.getenv("AWS_PINPOINT_APP_ID")
-start_keyword = os.getenv("START")
+start_keyword = os.getenv("START_KEYWORD")
 supported_keywords = os.getenv("SUPPORTED_KEYWORDS")
 default_response_message = os.getenv("DEFAULT_RESPONSE_MESSAGE")
 
