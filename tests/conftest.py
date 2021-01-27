@@ -45,23 +45,46 @@ def client(notify_api):
         yield client
 
 
-def create_test_db(app, writer_uri, reader_uri):
+def create_test_db(writer_uri):
     db_uri_parts = writer_uri.split('/')
-    postgres_db_uri = '/'.join(db_uri_parts[:-1] + ['postgres'])
+    admin_db_uri = '/'.join(db_uri_parts[:-1] + ['postgres'])
+    db_name = db_uri_parts[-1]
 
     postgres_db = sqlalchemy.create_engine(
-        postgres_db_uri,
+        admin_db_uri,
         echo=False,
         isolation_level='AUTOCOMMIT',
         client_encoding='utf8'
     )
     try:
-        sql_create_db = 'CREATE DATABASE {};'.format(db_uri_parts[-1])
-        sql_grant_reader = 'GRANT SELECT ON ALL TABLES IN SCHEMA public to reader;'
+        sql_create_db = f'CREATE DATABASE {db_name};'
         postgres_db.execute(sqlalchemy.sql.text(sql_create_db)).close()
-        postgres_db.execute(sqlalchemy.sql.text(sql_grant_reader)).close()
     except sqlalchemy.exc.ProgrammingError:
         # database "test_notification_api_master" already exists
+        pass
+    finally:
+        postgres_db.dispose()
+
+
+def grant_test_db(writer_uri):
+    db_reader = 'reader'
+    db_schema = 'public'
+
+    postgres_db = sqlalchemy.create_engine(
+        writer_uri,
+        echo=False,
+        isolation_level='AUTOCOMMIT',
+        client_encoding='utf8'
+    )
+    try:
+        sql_grant_reader_usage = f'GRANT USAGE ON SCHEMA {db_schema} TO {db_reader};'
+        sql_grant_reader_public = f'GRANT SELECT ON ALL TABLES IN SCHEMA {db_schema} TO {db_reader};'
+        sql_grant_reader_default = (f'ALTER DEFAULT PRIVILEGES IN SCHEMA {db_schema} '
+                                    f'GRANT SELECT ON TABLES TO {db_reader};')
+        postgres_db.execute(sqlalchemy.sql.text(sql_grant_reader_usage)).close()
+        postgres_db.execute(sqlalchemy.sql.text(sql_grant_reader_public)).close()
+        postgres_db.execute(sqlalchemy.sql.text(sql_grant_reader_default)).close()
+    except sqlalchemy.exc.ProgrammingError:
         pass
     finally:
         postgres_db.dispose()
@@ -81,7 +104,7 @@ def notify_db(notify_api, worker_id):
         'reader': uri_db_reader,
         'writer': uri_db_writer
     }
-    create_test_db(current_app, uri_db_writer, uri_db_reader)
+    create_test_db(uri_db_writer)
 
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))
     ALEMBIC_CONFIG = os.path.join(BASE_DIR, 'migrations')
@@ -90,6 +113,8 @@ def notify_db(notify_api, worker_id):
 
     with notify_api.app_context():
         upgrade(config, 'head')
+
+    grant_test_db(uri_db_writer)
 
     yield db
 
