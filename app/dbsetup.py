@@ -1,8 +1,7 @@
-from flask_sqlalchemy import SQLAlchemy as _SQLAlchemy, get_state
+from flask_sqlalchemy import SQLAlchemy, get_state
 from sqlalchemy import orm
 from functools import partial
 from flask import current_app
-from flask_sqlalchemy import SQLAlchemy as _SQLAlchemy, get_state
 
 
 class RoutingSession(orm.Session):
@@ -60,11 +59,11 @@ class RoutingSession(orm.Session):
         return s
 
 
-class RoutingSQLAlchemy(_SQLAlchemy):
+class RoutingSQLAlchemy(SQLAlchemy):
     """We need to subclass SQLAlchemy in order to override create_engine options"""
 
     def __init__(self, *args, **kwargs):
-        _SQLAlchemy.__init__(self, *args, **kwargs)
+        SQLAlchemy.__init__(self, *args, **kwargs)
         self.session.using_bind = lambda s: self.session().using_bind(s)
 
     def apply_driver_hacks(self, app, info, options):

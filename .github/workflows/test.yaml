@@ -12,7 +12,7 @@ jobs:
           POSTGRES_DB: test_notification_api
         ports:
         - 5432:5432
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5 --entrypoint scripts/notify-db-test-entrypoint.sh
 
     steps:
     - name: Install libcurl
@@ -34,3 +34,4 @@ jobs:
       run: /bin/bash -c "pip install -r requirements_for_test.txt && make test"
       env:
         SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost:5432/test_notification_api
+        SQLALCHEMY_DATABASE_READER_URI: postgresql://reader@localhost:5432/test_notification_api
