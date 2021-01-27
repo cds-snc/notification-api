@@ -1,11 +1,24 @@
 import re
+from unittest.mock import ANY
+
 import botocore
 import pytest
 from notifications_utils.recipients import InvalidEmailError
 
 from app import aws_ses_client, config
-from app.clients.email.aws_ses import get_aws_responses, AwsSesClientException, AwsSesClient, \
+from app.clients.email.aws_ses import (
+    get_aws_responses,
+    AwsSesClientException,
+    AwsSesClient,
     AwsSesClientThrottlingSendRateException
+)
+
+ERROR_MESSAGE_FROM_AMAZON = 'some error message from amazon'
+FROM_ADDRESS_COM = 'from@address.com'
+FOO_BAR_COM = 'foo@bar.com'
+
+STATSD_CLIENTS_SES_ERROR = "clients.ses.error"
+STATSD_CLIENTS_SES_REQUEST_TIME = "clients.ses.request-time"
 
 
 @pytest.fixture
@@ -77,18 +90,16 @@ def test_should_use_enpdoint_from_config(notify_api):
     assert aws_ses_client._client._endpoint.host == config.Test.AWS_SES_ENDPOINT_URL
 
 
-def test_send_email_uses_from_address(notify_api, ses_client, boto_mock):
-    from_address = 'from@address.com'
-    with notify_api.app_context():
-        ses_client.send_email(
-            from_address,
-            to_addresses='foo@bar.com',
-            subject='Subject',
-            body='Body',
-        )
+def test_send_email_uses_from_address(ses_client, boto_mock):
+    ses_client.send_email(
+        FROM_ADDRESS_COM,
+        to_addresses=FOO_BAR_COM,
+        subject='Subject',
+        body='Body',
+    )
 
     actual = boto_mock.send_raw_email.call_args[1]['Source']
-    assert actual == from_address
+    assert actual == FROM_ADDRESS_COM
 
 
 def test_send_email_does_not_use_configuration_set_if_none(mocker):
@@ -102,8 +113,8 @@ def test_send_email_does_not_use_configuration_set_if_none(mocker):
     boto_mock = mocker.patch.object(local_aws_ses_client, '_client', create=True)
 
     local_aws_ses_client.send_email(
-        'from@address.com',
-        to_addresses='foo@bar.com',
+        FROM_ADDRESS_COM,
+        to_addresses=FOO_BAR_COM,
         subject='Subject',
         body='Body'
     )
@@ -114,8 +125,8 @@ def test_send_email_does_not_use_configuration_set_if_none(mocker):
 def test_send_email_uses_configuration_set_from_config(notify_api, ses_client, boto_mock):
     with notify_api.app_context():
         ses_client.send_email(
-            'from@address.com',
-            to_addresses='foo@bar.com',
+            FROM_ADDRESS_COM,
+            to_addresses=FOO_BAR_COM,
             subject='Subject',
             body='Body',
         )
@@ -126,12 +137,12 @@ def test_send_email_uses_configuration_set_from_config(notify_api, ses_client, b
 
 @pytest.mark.parametrize('reply_to_address, expected_value', [
     (None, config.Test.AWS_SES_DEFAULT_REPLY_TO),
-    ('foo@bar.com', 'foo@bar.com')
+    (FOO_BAR_COM, FOO_BAR_COM)
 ], ids=['empty', 'single_email'])
 def test_send_email_handles_reply_to_address(notify_api, ses_client, boto_mock, reply_to_address, expected_value):
     with notify_api.app_context():
         ses_client.send_email(
-            source='from@address.com',
+            source=FROM_ADDRESS_COM,
             to_addresses='to@address.com',
             subject='Subject',
             body='Body',
@@ -142,44 +153,46 @@ def test_send_email_handles_reply_to_address(notify_api, ses_client, boto_mock, 
     assert re.findall(r'reply-to: (.+@\w+.\w+)', raw_message)[0] == expected_value
 
 
-def test_send_email_encodes_to_address(notify_api, ses_client, boto_mock):
-    with notify_api.app_context():
-        ses_client.send_email(
-            'from@address.com',
-            to_addresses='føøøø@bååååår.com',
-            subject='Subject',
-            body='Body',
-        )
+def test_send_email_encodes_to_address(ses_client, boto_mock):
+    ses_client.send_email(
+        FROM_ADDRESS_COM,
+        to_addresses='føøøø@bååååår.com',
+        subject='Subject',
+        body='Body',
+    )
 
     raw_message = boto_mock.send_raw_email.call_args[1]['RawMessage']['Data']
     # When sending raw emails AWS SES required email addresses to be punycode and MIME encoded using following format:
     # =?charset?encoding?encoded-text?=
     assert re.findall(r'To: (=\?utf-8.*==\?=)\n',
                       raw_message)[0] == '=?utf-8?b?ZsO4w7jDuMO4QHhuLS1ici15aWFhYWFhLmNvbQ==?='
+    ses_client.statsd_client.incr.assert_called_with("clients.ses.success")
+    ses_client.statsd_client.timing.assert_called_with(STATSD_CLIENTS_SES_REQUEST_TIME, ANY)
 
 
-def test_send_email_encodes_reply_to_address(notify_api, ses_client, boto_mock):
-    with notify_api.app_context():
-        ses_client.send_email(
-            'from@address.com',
-            to_addresses='to@address.com',
-            subject='Subject',
-            body='Body',
-            reply_to_address='føøøø@bååååår.com'
-        )
+def test_send_email_encodes_reply_to_address(ses_client, boto_mock):
+    ses_client.send_email(
+        FROM_ADDRESS_COM,
+        to_addresses='to@address.com',
+        subject='Subject',
+        body='Body',
+        reply_to_address='føøøø@bååååår.com'
+    )
 
     raw_message = boto_mock.send_raw_email.call_args[1]['RawMessage']['Data']
     # When sending raw emails AWS SES required email addresses to be punycode and MIME encoded using following format:
     # =?charset?encoding?encoded-text?=
     assert re.findall(r'reply-to: (=\?utf-8.*==\?=)\n',
                       raw_message)[0] == '=?utf-8?b?ZsO4w7jDuMO4QHhuLS1ici15aWFhYWFhLmNvbQ==?='
+    ses_client.statsd_client.incr.assert_called_with("clients.ses.success")
+    ses_client.statsd_client.timing.assert_called_with(STATSD_CLIENTS_SES_REQUEST_TIME, ANY)
 
 
 def test_send_email_raises_bad_email(ses_client, boto_mock):
     error_response = {
         'Error': {
             'Code': 'InvalidParameterValue',
-            'Message': 'some error message from amazon',
+            'Message': ERROR_MESSAGE_FROM_AMAZON,
             'Type': 'Sender'
         }
     }
@@ -187,21 +200,23 @@ def test_send_email_raises_bad_email(ses_client, boto_mock):
 
     with pytest.raises(InvalidEmailError) as excinfo:
         ses_client.send_email(
-            source='from@address.com',
+            source=FROM_ADDRESS_COM,
             to_addresses='definitely@invalid_email.com',
             subject='Subject',
             body='Body'
         )
 
-    assert 'some error message from amazon' in str(excinfo.value)
+    assert ERROR_MESSAGE_FROM_AMAZON in str(excinfo.value)
     assert 'definitely@invalid_email.com' in str(excinfo.value)
+    ses_client.statsd_client.incr.assert_called_with("clients.ses.error.invalid-email")
+    ses_client.statsd_client.timing.assert_called_with(STATSD_CLIENTS_SES_REQUEST_TIME, ANY)
 
 
 def test_send_email_raises_other_errors(ses_client, boto_mock):
     error_response = {
         'Error': {
             'Code': 'ServiceUnavailable',
-            'Message': 'some error message from amazon',
+            'Message': ERROR_MESSAGE_FROM_AMAZON,
             'Type': 'Sender'
         }
     }
@@ -209,13 +224,15 @@ def test_send_email_raises_other_errors(ses_client, boto_mock):
 
     with pytest.raises(AwsSesClientException) as excinfo:
         ses_client.send_email(
-            source='from@address.com',
-            to_addresses='foo@bar.com',
+            source=FROM_ADDRESS_COM,
+            to_addresses=FOO_BAR_COM,
             subject='Subject',
             body='Body'
         )
 
-    assert 'some error message from amazon' in str(excinfo.value)
+    assert ERROR_MESSAGE_FROM_AMAZON in str(excinfo.value)
+    ses_client.statsd_client.incr.assert_called_with(STATSD_CLIENTS_SES_ERROR)
+    ses_client.statsd_client.timing.assert_called_with(STATSD_CLIENTS_SES_REQUEST_TIME, ANY)
 
 
 def test_should_set_email_from_domain_when_it_is_overridden(client):
@@ -226,7 +243,7 @@ def test_should_set_email_from_user_when_it_is_overridden(client):
     assert aws_ses_client.email_from_user == config.Test.AWS_SES_EMAIL_FROM_USER
 
 
-def test_send_email_raises_send_rate_throttling_exception(ses_client, boto_mock):
+def test_send_email_raises_send_rate_throttling_exception(client, ses_client, boto_mock):
     error_response = {
         'Error': {
             'Code': 'Throttling',
@@ -238,11 +255,14 @@ def test_send_email_raises_send_rate_throttling_exception(ses_client, boto_mock)
 
     with pytest.raises(AwsSesClientThrottlingSendRateException):
         ses_client.send_email(
-            source='from@address.com',
-            to_addresses='foo@bar.com',
+            source=FROM_ADDRESS_COM,
+            to_addresses=FOO_BAR_COM,
             subject='Subject',
             body='Body'
         )
+
+    ses_client.statsd_client.incr.assert_called_with("clients.ses.error.throttling")
+    ses_client.statsd_client.timing.assert_called_with(STATSD_CLIENTS_SES_REQUEST_TIME, ANY)
 
 
 def test_send_email_does_not_raise_exception_if_non_send_rate_throttling(ses_client, boto_mock):
@@ -257,8 +277,24 @@ def test_send_email_does_not_raise_exception_if_non_send_rate_throttling(ses_cli
 
     with pytest.raises(AwsSesClientException):
         ses_client.send_email(
-            source='from@address.com',
-            to_addresses='foo@bar.com',
+            source=FROM_ADDRESS_COM,
+            to_addresses=FOO_BAR_COM,
             subject='Subject',
             body='Body'
         )
+    ses_client.statsd_client.incr.assert_called_with(STATSD_CLIENTS_SES_ERROR)
+    ses_client.statsd_client.timing.assert_called_with(STATSD_CLIENTS_SES_REQUEST_TIME, ANY)
+
+
+def test_send_email_does_not_call_statsd_if_boto_is_not_called(client, mocker, ses_client):
+
+    with pytest.raises(Exception):
+        ses_client.send_email(
+            source=None,
+            to_addresses=FOO_BAR_COM,
+            subject='Subject',
+            body='Body'
+        )
+
+    ses_client.statsd_client.incr.assert_not_called()
+    ses_client.statsd_client.timing.assert_not_called()
