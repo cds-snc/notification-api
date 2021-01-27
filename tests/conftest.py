@@ -4,8 +4,6 @@ import os
 from flask import Flask
 from alembic.command import upgrade
 from alembic.config import Config
-from flask.globals import session
-from app.dbsetup import RoutingSQLAlchemy
 import pytest
 import sqlalchemy
 
@@ -57,17 +55,7 @@ def create_test_db(app, writer_uri, reader_uri):
         isolation_level='AUTOCOMMIT',
         client_encoding='utf8'
     )
-    # The DB URI should be found in the app's configuration.
-    # session_options = {
-    #     'autocommit': True
-    # }
-    # postgres_db = RoutingSQLAlchemy(app, session_options)
     try:
-        # result = postgres_db.session \
-        #     .execute(sqlalchemy.sql.text('CREATE DATABASE {}'.format(db_uri_parts[-1]))) \
-        #     .execution_options(autocommit=True)
-        # result.close()
-
         sql_create_db = 'CREATE DATABASE {};'.format(db_uri_parts[-1])
         sql_grant_reader = 'GRANT SELECT ON ALL TABLES IN SCHEMA public to reader;'
         postgres_db.execute(sqlalchemy.sql.text(sql_create_db)).close()
@@ -77,11 +65,6 @@ def create_test_db(app, writer_uri, reader_uri):
         pass
     finally:
         postgres_db.dispose()
-
-        # /REMOVEME: For the RoutingSQLAlchemy setup...
-        # The postgres_db.shutdown_session function should automatically get called
-        # on application shutdown via @app.teardown_appcontext
-        # pass
 
 
 @pytest.fixture(scope='session')
