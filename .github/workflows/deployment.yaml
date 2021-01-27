@@ -203,7 +203,7 @@ jobs:
 
   deployment-status:
     runs-on: ubuntu-latest
-    needs: [run-migrations, deploy-api, deploy-celery, deploy-celery-beat, run-user-flows, deploy-ses-callback-lambda]
+    needs: [run-migrations, deploy-api, deploy-celery, deploy-celery-beat, run-user-flows, deploy-lambdas]
     if: always()
     steps:
       - uses: actions/github-script@v3
