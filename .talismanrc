@@ -101,3 +101,5 @@ fileignoreconfig:
       checksum: cfa17f09c46c18c6bb6e648562a871adf63b15e647815402c5abff418b56803f
     - filename: lambda_functions/ses_callback/ses_callback_lambda.py
       checksum: 05c24c8775ff48491cc810243d4da7741efe2d151a0dbb421fdf516d61766e8d
+    - filename: .github/workflows/deployment.yaml
+      checksum: 6fe45959b2c9834053b332782a6e4d8851dab5c4ce6d50c70047225a790bc5e4
