@@ -2,7 +2,6 @@ import os
 import random
 import string
 import uuid
-from dotenv import load_dotenv
 
 from app.celery.celery import NotifyCelery
 from app.clients import Clients
@@ -11,21 +10,19 @@ from app.clients.email.aws_ses import AwsSesClient
 from app.clients.email.sendgrid_client import SendGridClient
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
+from app.dbsetup import RoutingSQLAlchemy
 from app.encryption import Encryption
 
-from flask import _request_ctx_stack, current_app, request, g, jsonify, make_response
-from flask_sqlalchemy import SQLAlchemy as _SQLAlchemy, get_state
+from dotenv import load_dotenv
+
+from flask import _request_ctx_stack, request, g, jsonify, make_response
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
-
-from functools import partial
 
 from notifications_utils.clients.zendesk.zendesk_client import ZendeskClient
 from notifications_utils.clients.statsd.statsd_client import StatsdClient
 from notifications_utils.clients.redis.redis_client import RedisClient
 from notifications_utils import logging, request_helper
-
-from sqlalchemy import orm
 
 from time import monotonic
 
@@ -38,88 +35,7 @@ DATE_FORMAT = "%Y-%m-%d"
 
 load_dotenv()
 
-
-class RoutingSession(orm.Session):
-
-    def __init__(self, db, autocommit=False, autoflush=False, **options):
-        self.app = db.get_app()
-        self.db = db
-        self._model_changes = {}
-        orm.Session.__init__(
-            self, autocommit=autocommit, autoflush=autoflush,
-            bind=db.engine,
-            binds=db.get_binds(self.app), **options)
-
-    def get_bind(self, mapper=None, clause=None):
-        try:
-            state = get_state(self.app)
-        except (AssertionError, AttributeError, TypeError) as err:
-            # TODO: Change the log to DEBUG level.
-            current_app.logger.info(
-                "cant get configuration. default bind. Error:" + err)
-            return orm.Session.get_bind(self, mapper, clause)
-
-        """
-        If there are no binds configured, connect using the default
-        SQLALCHEMY_DATABASE_URI
-        """
-        if state is None or not self.app.config['SQLALCHEMY_BINDS']:
-            if not self.app.debug:
-                # TODO: Change the log to DEBUG level.
-                current_app.logger.info("Connecting -> DEFAULT")
-            return orm.Session.get_bind(self, mapper, clause)
-
-        elif self._name:
-            # TODO: Change the log to DEBUG level.
-            self.app.logger.debug("Connecting -> {}".format(self._name))
-            return state.db.get_engine(self.app, bind=self._name)
-
-        # Writes go to the writer instance
-        elif self._flushing:  # we who are about to write, salute you
-            # TODO: Change the log to DEBUG level.
-            current_app.logger.info("Connecting -> WRITER")
-            return state.db.get_engine(self.app, bind='writer')
-
-        # Everything else goes to the reader instance(s)
-        else:
-            current_app.logger.info("Connecting -> READER")
-            return state.db.get_engine(self.app, bind='reader')
-
-    _name = None
-
-    def using_bind(self, name):
-        s = RoutingSession(self.db)
-        vars(s).update(vars(self))
-        s._name = name
-        return s
-
-
-class SQLAlchemy(_SQLAlchemy):
-    """We need to subclass SQLAlchemy in order to override create_engine options"""
-
-    def __init__(self, *args, **kwargs):
-        _SQLAlchemy.__init__(self, *args, **kwargs)
-        self.session.using_bind = lambda s: self.session().using_bind(s)
-
-    def apply_driver_hacks(self, app, info, options):
-        super().apply_driver_hacks(app, info, options)
-        if 'connect_args' not in options:
-            options['connect_args'] = {}
-        options['connect_args']["options"] = "-c statement_timeout={}".format(
-            int(app.config['SQLALCHEMY_STATEMENT_TIMEOUT']) * 1000
-        )
-        # self.session.using_bind = lambda s: self.session().using_bind(s)
-
-    def create_scoped_session(self, options=None):
-        if options is None:
-            options = {}
-        scopefunc = options.pop('scopefunc', None)
-        return orm.scoped_session(
-            partial(RoutingSession, self, **options), scopefunc=scopefunc
-        )
-
-
-db = SQLAlchemy()
+db = RoutingSQLAlchemy()
 migrate = Migrate()
 ma = Marshmallow()
 notify_celery = NotifyCelery()

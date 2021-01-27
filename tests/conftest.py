@@ -4,6 +4,8 @@ import os
 from flask import Flask
 from alembic.command import upgrade
 from alembic.config import Config
+from flask.globals import session
+from app.dbsetup import RoutingSQLAlchemy
 import pytest
 import sqlalchemy
 
@@ -45,8 +47,8 @@ def client(notify_api):
         yield client
 
 
-def create_test_db(database_uri):
-    db_uri_parts = database_uri.split('/')
+def create_test_db(app, writer_uri, reader_uri):
+    db_uri_parts = writer_uri.split('/')
     postgres_db_uri = '/'.join(db_uri_parts[:-1] + ['postgres'])
 
     postgres_db = sqlalchemy.create_engine(
@@ -55,14 +57,31 @@ def create_test_db(database_uri):
         isolation_level='AUTOCOMMIT',
         client_encoding='utf8'
     )
+    # The DB URI should be found in the app's configuration.
+    # session_options = {
+    #     'autocommit': True
+    # }
+    # postgres_db = RoutingSQLAlchemy(app, session_options)
     try:
-        result = postgres_db.execute(sqlalchemy.sql.text('CREATE DATABASE {}'.format(db_uri_parts[-1])))
-        result.close()
+        # result = postgres_db.session \
+        #     .execute(sqlalchemy.sql.text('CREATE DATABASE {}'.format(db_uri_parts[-1]))) \
+        #     .execution_options(autocommit=True)
+        # result.close()
+
+        sql_create_db = 'CREATE DATABASE {};'.format(db_uri_parts[-1])
+        sql_grant_reader = 'GRANT SELECT ON ALL TABLES IN SCHEMA public to reader;'
+        postgres_db.execute(sqlalchemy.sql.text(sql_create_db)).close()
+        postgres_db.execute(sqlalchemy.sql.text(sql_grant_reader)).close()
     except sqlalchemy.exc.ProgrammingError:
         # database "test_notification_api_master" already exists
         pass
     finally:
         postgres_db.dispose()
+
+        # /REMOVEME: For the RoutingSQLAlchemy setup...
+        # The postgres_db.shutdown_session function should automatically get called
+        # on application shutdown via @app.teardown_appcontext
+        # pass
 
 
 @pytest.fixture(scope='session')
@@ -72,7 +91,14 @@ def notify_db(notify_api, worker_id):
     # create a database for this worker thread -
     from flask import current_app
     current_app.config['SQLALCHEMY_DATABASE_URI'] += '_{}'.format(worker_id)
-    create_test_db(current_app.config['SQLALCHEMY_DATABASE_URI'])
+    current_app.config['SQLALCHEMY_DATABASE_READER_URI'] += '_{}'.format(worker_id)
+    uri_db_writer = current_app.config['SQLALCHEMY_DATABASE_URI']
+    uri_db_reader = current_app.config['SQLALCHEMY_DATABASE_READER_URI']
+    current_app.config['SQLALCHEMY_BINDS'] = {
+        'reader': uri_db_reader,
+        'writer': uri_db_writer
+    }
+    create_test_db(current_app, uri_db_writer, uri_db_reader)
 
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))
     ALEMBIC_CONFIG = os.path.join(BASE_DIR, 'migrations')
@@ -107,6 +133,9 @@ def notify_db_session(notify_db):
                             "invite_status_type",
                             "service_callback_type"]:
             notify_db.engine.execute(tbl.delete())
+            with notify_db.engine.connect() as connection:
+                connection.execute(tbl.delete())
+
     notify_db.session.commit()
 
 

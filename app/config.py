@@ -79,10 +79,14 @@ class Config(object):
 
     # DB conection string
     SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI')
-    SQLALCHEMY_BINDS = {
-        'writer': 'postgres://postgres:chummy@localhost:5432/notification_api',
-        'reader': 'postgres://reader:chummy@localhost:5432/notification_api',
-    }
+    SQLALCHEMY_DATABASE_READER_URI = os.getenv('SQLALCHEMY_DATABASE_READER_URI')
+    # By making the database reader optional, we can revert to a single writer
+    # instance configuration easily.
+    if SQLALCHEMY_DATABASE_READER_URI:
+        SQLALCHEMY_BINDS = {
+            'writer': SQLALCHEMY_DATABASE_URI,
+            'reader': SQLALCHEMY_DATABASE_READER_URI,
+        }
 
     # Hosted graphite statsd prefix
     STATSD_PREFIX = os.getenv('STATSD_PREFIX')
