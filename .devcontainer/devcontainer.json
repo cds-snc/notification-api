@@ -1,5 +1,5 @@
 {
-	"name": "Python 3.6 & PostgreSQL",
+	"name": "Python 3.9 & PostgreSQL",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "dev",
 	"workspaceFolder": "/workspace",
