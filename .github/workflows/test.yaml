@@ -12,12 +12,14 @@ jobs:
           POSTGRES_DB: test_notification_api
         ports:
         - 5432:5432
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5 --volume /$(pwd)/.github/workflows/initdb:/docker-entrypoint-initdb.d
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
     - name: Install libcurl
       run: sudo apt-get install libssl-dev libcurl4-openssl-dev
     - uses: actions/checkout@v2
+    - name: Set up test database
+      run: psql -a -f ./scripts/initdb/setup-test-db.sql postgresql://postgres:postgres@localhost:5432
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
       with:
