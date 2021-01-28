@@ -206,7 +206,6 @@ def test_send_email_raises_bad_email(ses_client, boto_mock):
         )
 
     assert ERROR_MESSAGE_FROM_AMAZON in str(excinfo.value)
-    assert 'definitely@invalid_email.com' in str(excinfo.value)
     ses_client.statsd_client.incr.assert_called_with("clients.ses.error.invalid-email")
     ses_client.statsd_client.timing.assert_called_with(STATSD_CLIENTS_SES_REQUEST_TIME, ANY)
 

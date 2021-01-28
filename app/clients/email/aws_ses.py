@@ -139,10 +139,7 @@ class AwsSesClient(EmailClient):
         # http://docs.aws.amazon.com/ses/latest/DeveloperGuide/api-error-codes.html
         if e.response['Error']['Code'] == 'InvalidParameterValue':
             self.statsd_client.incr("clients.ses.error.invalid-email")
-            raise InvalidEmailError('email: "{}" message: "{}"'.format(
-                to_addresses[0],
-                e.response['Error']['Message']
-            ))
+            raise InvalidEmailError('message: "{}"'.format(e.response['Error']['Message']))
         elif (
                 e.response['Error']['Code'] == 'Throttling'
                 and e.response['Error']['Message'] == 'Maximum sending rate exceeded.'
