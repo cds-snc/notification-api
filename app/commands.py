@@ -617,7 +617,8 @@ def populate_notification_postage(start_date):
             db.session.using_bind('writer') \
                 .execute(sql.format('notifications'), {'start': start_date, 'end': end_date})
 
-        result = db.session.using_bind('writer').execute(sql.format('notification_history'), {'start': start_date, 'end': end_date})
+        result = db.session.using_bind('writer') \
+            .execute(sql.format('notification_history'), {'start': start_date, 'end': end_date})
         db.session.commit()
 
         current_app.logger.info('notification postage took {}ms. Migrated {} rows for {} to {}'.format(
