@@ -139,15 +139,14 @@ def test_send_email_uses_configuration_set_from_config(notify_api, ses_client, b
     (None, config.Test.AWS_SES_DEFAULT_REPLY_TO),
     (FOO_BAR_COM, FOO_BAR_COM)
 ], ids=['empty', 'single_email'])
-def test_send_email_handles_reply_to_address(notify_api, ses_client, boto_mock, reply_to_address, expected_value):
-    with notify_api.app_context():
-        ses_client.send_email(
-            source=FROM_ADDRESS_COM,
-            to_addresses='to@address.com',
-            subject='Subject',
-            body='Body',
-            reply_to_address=reply_to_address
-        )
+def test_send_email_handles_reply_to_address(ses_client, boto_mock, reply_to_address, expected_value):
+    ses_client.send_email(
+        source=FROM_ADDRESS_COM,
+        to_addresses='to@address.com',
+        subject='Subject',
+        body='Body',
+        reply_to_address=reply_to_address
+    )
 
     raw_message = boto_mock.send_raw_email.call_args[1]['RawMessage']['Data']
     assert re.findall(r'reply-to: (.+@\w+.\w+)', raw_message)[0] == expected_value

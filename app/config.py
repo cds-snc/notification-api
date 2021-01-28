@@ -154,7 +154,7 @@ class Config(object):
     AWS_SES_SECRET_KEY = os.getenv('AWS_SES_SECRET_KEY')
     AWS_SES_EMAIL_FROM_DOMAIN = os.getenv('AWS_SES_EMAIL_FROM_DOMAIN', 'notifications.va.gov')
     AWS_SES_EMAIL_FROM_USER = os.getenv('AWS_SES_EMAIL_FROM_USER')
-    AWS_SES_DEFAULT_REPLY_TO = os.getenv('AWS_SES_DEFAULT_REPLY_TO')
+    AWS_SES_DEFAULT_REPLY_TO = os.getenv('AWS_SES_DEFAULT_REPLY_TO', 'Do Not Reply <VaNoReplyMessages@va.gov>')
     AWS_SES_CONFIGURATION_SET = os.getenv('AWS_SES_CONFIGURATION_SET', ses_configuration_sets[NOTIFY_ENVIRONMENT])
     AWS_SES_ENDPOINT_URL = os.getenv('AWS_SES_ENDPOINT_URL', 'https://email-fips.us-gov-west-1.amazonaws.com')
     AWS_PINPOINT_APP_ID = os.getenv('AWS_PINPOINT_APP_ID', 'df55c01206b742d2946ef226410af94f')
