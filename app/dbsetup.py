@@ -30,8 +30,7 @@ class RoutingSession(orm.Session):
         try:
             state = get_state(self.app)
         except (AssertionError, AttributeError, TypeError) as err:
-            # TODO: Change the log to DEBUG level.
-            current_app.logger.info(
+            current_app.logger.error(
                 "cant get configuration. default bind. Error:" + err)
             return orm.Session.get_bind(self, mapper, clause)
 
@@ -41,28 +40,25 @@ class RoutingSession(orm.Session):
         """
         if state is None or not self.app.config['SQLALCHEMY_BINDS']:
             if not self.app.debug:
-                # TODO: Change the log to DEBUG level.
-                current_app.logger.info("Connecting -> DEFAULT")
+                current_app.logger.debug("Connecting -> DEFAULT")
             return orm.Session.get_bind(self, mapper, clause)
 
         elif self._name:
-            # TODO: Change the log to DEBUG level.
             self.app.logger.debug("Connecting -> {}".format(self._name))
             return state.db.get_engine(self.app, bind=self._name)
 
         # Writes go to the writer instance
         elif self._flushing:
-            # TODO: Change the log to DEBUG level.
-            current_app.logger.info("Connecting -> WRITER")
+            current_app.logger.debug("Connecting -> WRITER")
             return state.db.get_engine(self.app, bind='writer')
 
         elif clause is not None and self._is_query_modify(clause.compile()):
-            current_app.logger.info("Connecting -> WRITER")
+            current_app.logger.debug("Connecting -> WRITER")
             return state.db.get_engine(self.app, bind='writer')
 
         # Everything else goes to the reader instance(s)
         else:
-            current_app.logger.info("Connecting -> READER")
+            current_app.logger.debug("Connecting -> READER")
             return state.db.get_engine(self.app, bind='reader')
 
     def using_bind(self, name):
