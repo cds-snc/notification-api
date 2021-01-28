@@ -427,14 +427,15 @@ def migrate_data_to_ft_billing(start_date, end_date):
                 group by bst_date, template_id, service_id, notification_type, provider, rate_multiplier, international,
                     sms_rate, letter_rate, postage, created_at
                 order by bst_date
-            on conflict on constraint ft_billing_pkey do update set
+            on conflict on constraint ft_billing_pkey do updat
              billable_units = excluded.billable_units,
              notifications_sent = excluded.notifications_sent,
              rate = excluded.rate,
              updated_at = now()
             """
 
-        result = db.session.using_bind('writer').execute(sql, {"start": process_date, "end": process_date + timedelta(days=1)})
+        result = db.session.using_bind('writer') \
+            .execute(sql, {"start": process_date, "end": process_date + timedelta(days=1)})
         db.session.commit()
         current_app.logger.info('ft_billing: --- Completed took {}ms. Migrated {} rows for {}'.format(
             datetime.now() - start_time, result.rowcount, process_date))
@@ -524,7 +525,8 @@ def migrate_data_to_ft_notification_status(start_date, end_date):
                 group by bst_date, template_id, service_id, job_id, notification_type, key_type, notification_status
                 order by bst_date
             """
-        result = db.session.using_bind('writer').execute(sql, {"start": process_date, "end": process_date + timedelta(days=1)})
+        result = db.session.using_bind('writer') \
+            .execute(sql, {"start": process_date, "end": process_date + timedelta(days=1)})
         db.session.commit()
         print('ft_notification_status: --- Completed took {}ms. Migrated {} rows for {}.'.format(
             datetime.now() - start_time,
@@ -612,7 +614,8 @@ def populate_notification_postage(start_date):
 
         if end_date > datetime.utcnow() - timedelta(days=8):
             print('Updating notifications table as well')
-            db.session.using_bind('writer').execute(sql.format('notifications'), {'start': start_date, 'end': end_date})
+            db.session.using_bind('writer') \
+                .execute(sql.format('notifications'), {'start': start_date, 'end': end_date})
 
         result = db.session.using_bind('writer').execute(sql.format('notification_history'), {'start': start_date, 'end': end_date})
         db.session.commit()
@@ -646,7 +649,8 @@ def update_jobs_archived_flag(start_date, end_date):
                     at time zone 'UTC'
                     and created_at < (date :end + time '00:00:00') at time zone 'America/Toronto' at time zone 'UTC'"""
 
-        result = db.session.using_bind('writer').execute(sql, {"start": process_date, "end": process_date + timedelta(days=1)})
+        result = db.session.using_bind('writer') \
+            .execute(sql, {"start": process_date, "end": process_date + timedelta(days=1)})
         db.session.commit()
         current_app.logger.info('jobs: --- Completed took {}ms. Archived {} jobs for {}'.format(
             datetime.now() - start_time, result.rowcount, process_date))
