@@ -7,6 +7,15 @@ from flask import current_app
 class RoutingSession(orm.Session):
 
     _name = None
+    DATA_MODIFICATION_LITERALS = [
+        'update',
+        'delete',
+        'create',
+        'copy',
+        'insert',
+        'drop',
+        'alter'
+    ]
 
     def __init__(self, db, autocommit=False, autoflush=False, **options):
         self.app = db.get_app()
@@ -42,8 +51,12 @@ class RoutingSession(orm.Session):
             return state.db.get_engine(self.app, bind=self._name)
 
         # Writes go to the writer instance
-        elif self._flushing:  # we who are about to write, salute you
+        elif self._flushing:
             # TODO: Change the log to DEBUG level.
+            current_app.logger.info("Connecting -> WRITER")
+            return state.db.get_engine(self.app, bind='writer')
+
+        elif clause is not None and self._is_query_modify(clause.compile()):
             current_app.logger.info("Connecting -> WRITER")
             return state.db.get_engine(self.app, bind='writer')
 
@@ -57,6 +70,14 @@ class RoutingSession(orm.Session):
         vars(s).update(vars(self))
         s._name = name
         return s
+
+    def _is_query_modify(self, query) -> bool:
+        query_literals = [ literal.lower() for literal in str(query).split(' ') ]
+        intersection = [
+            literal for literal in query_literals
+            if literal in self.DATA_MODIFICATION_LITERALS
+        ]
+        return len(intersection) > 0
 
 
 class RoutingSQLAlchemy(SQLAlchemy):
