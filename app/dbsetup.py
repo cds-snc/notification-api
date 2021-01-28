@@ -72,7 +72,7 @@ class RoutingSession(orm.Session):
         return s
 
     def _is_query_modify(self, query) -> bool:
-        query_literals = [ literal.lower() for literal in str(query).split(' ') ]
+        query_literals = [literal.lower() for literal in str(query).split(' ')]
         intersection = [
             literal for literal in query_literals
             if literal in self.DATA_MODIFICATION_LITERALS
