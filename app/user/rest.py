@@ -369,7 +369,7 @@ def send_user_confirm_new_email(user_id):
         personalisation={
             'name': user_to_send_to.name,
             'url': _create_confirmation_url(user=user_to_send_to, email_address=email['email']),
-            'feedback_url': current_app.config['ADMIN_BASE_URL'] + '/support/ask-question-give-feedback'
+            'feedback_url': f"{current_app.config['ADMIN_BASE_URL']}/contact",
         },
         notification_type=template.template_type,
         api_key_id=None,
@@ -421,9 +421,9 @@ def send_already_registered_email(user_id):
         recipient=to['email'],
         service=service,
         personalisation={
-            'signin_url': current_app.config['ADMIN_BASE_URL'] + '/sign-in',
-            'forgot_password_url': current_app.config['ADMIN_BASE_URL'] + '/forgot-password',
-            'feedback_url': current_app.config['ADMIN_BASE_URL'] + '/support/ask-question-give-feedback'
+            'signin_url': f"{current_app.config['ADMIN_BASE_URL']}/sign-in",
+            'forgot_password_url': f"{current_app.config['ADMIN_BASE_URL']}/forgot-password",
+            'feedback_url': f"{current_app.config['ADMIN_BASE_URL']}/contact",
         },
         notification_type=template.template_type,
         api_key_id=None,
@@ -777,7 +777,7 @@ def _update_alert(user_to_update, changes=None):
         service=service,
         personalisation={
             'base_url': Config.ADMIN_BASE_URL,
-            'contact_us_url': f'{Config.ADMIN_BASE_URL}/support/ask-question-give-feedback',
+            'contact_us_url': f'{Config.ADMIN_BASE_URL}/contact',
             'change_type_en': change_type_en,
             'change_type_fr': change_type_fr,
         },
