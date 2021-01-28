@@ -86,9 +86,15 @@ class AwsSesClient(EmailClient):
                    html_body='',
                    reply_to_address=None,
                    attachments=[]):
-        kwargs, msg, source, to_addresses = self._build_email_arguments(
+        source = unidecode(source)
+        if isinstance(to_addresses, str):
+            to_addresses = [to_addresses]
+        kwargs = {'ConfigurationSetName': self._configuration_set} if self._configuration_set else {}
+
+        msg = self._build_message(
             attachments, body, html_body, reply_to_address, source, subject, to_addresses
         )
+
         start_time = monotonic()
         try:
             response = self._client.send_raw_email(
@@ -109,16 +115,13 @@ class AwsSesClient(EmailClient):
             self.logger.info("AWS SES request finished in {}".format(elapsed_time))
             self.statsd_client.timing("clients.ses.request-time", elapsed_time)
 
-    def _build_email_arguments(self, attachments, body, html_body, reply_to_address, source, subject, to_addresses):
-        if isinstance(to_addresses, str):
-            to_addresses = [to_addresses]
-        source = unidecode(source)
+    def _build_message(self, attachments, body, html_body, reply_to_address, source, subject, to_addresses):
         reply_to = reply_to_address if reply_to_address else self._default_reply_to_address
         multipart_content_subtype = 'alternative' if html_body else 'mixed'
         msg = MIMEMultipart(multipart_content_subtype)
         msg['Subject'] = subject
         msg['From'] = source
-        msg['To'] = ",".join([punycode_encode_email(addr) for addr in to_addresses])
+        msg['To'] = ",".join([punycode_encode_email(address) for address in to_addresses])
         if reply_to:
             msg['reply-to'] = punycode_encode_email(reply_to)
         part = MIMEText(body, 'plain')
@@ -130,8 +133,7 @@ class AwsSesClient(EmailClient):
             part = MIMEApplication(attachment["data"])
             part.add_header('Content-Disposition', 'attachment', filename=attachment["name"])
             msg.attach(part)
-        kwargs = {'ConfigurationSetName': self._configuration_set} if self._configuration_set else {}
-        return kwargs, msg, source, to_addresses
+        return msg
 
     def _check_error_code(self, e, to_addresses):
         # http://docs.aws.amazon.com/ses/latest/DeveloperGuide/api-error-codes.html
