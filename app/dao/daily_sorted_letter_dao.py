@@ -35,4 +35,4 @@ def dao_create_or_update_daily_sorted_letter(new_daily_sorted_letter):
             'updated_at': datetime.utcnow()
         }
     )
-    db.session.connection().execute(stmt)
+    db.session.using_bind('writer').connection().execute(stmt)

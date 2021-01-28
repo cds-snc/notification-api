@@ -471,7 +471,7 @@ def update_fact_billing(data, process_day):
               "updated_at": datetime.utcnow()
               }
     )
-    db.session.connection().execute(stmt)
+    db.session.using_bind('writer').connection().execute(stmt)
     db.session.commit()
 
 

@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from flask_sqlalchemy import SQLAlchemy, get_state
 from sqlalchemy import orm
 from functools import partial
@@ -7,15 +8,6 @@ from flask import current_app
 class RoutingSession(orm.Session):
 
     _name = None
-    DATA_MODIFICATION_LITERALS = [
-        'update',
-        'delete',
-        'create',
-        'copy',
-        'insert',
-        'drop',
-        'alter'
-    ]
 
     def __init__(self, db, autocommit=False, autoflush=False, **options):
         self.app = db.get_app()
@@ -43,7 +35,36 @@ class RoutingSession(orm.Session):
                 current_app.logger.debug("Connecting -> DEFAULT")
             return orm.Session.get_bind(self, mapper, clause)
 
-        elif self._name:
+        return self.load_balance(state, mapper, clause)
+
+    @abstractmethod
+    def load_balance(self, state, mapper=None, clause=None):
+        pass
+
+    @abstractmethod
+    def using_bind(self, name):
+        pass
+
+
+class ImplicitRoutingSession(RoutingSession):
+
+    DATA_MODIFICATION_LITERALS = [
+        'update',
+        'delete',
+        'create',
+        'copy',
+        'insert',
+        'drop',
+        'alter'
+    ]
+
+    def __init__(self, db, autocommit=False, autoflush=False, **options):
+        RoutingSession.__init__(
+            self, db, autocommit=autocommit, autoflush=autoflush, **options)
+
+    def load_balance(self, state, mapper=None, clause=None):
+        # Use the explicit bind if present
+        if self._name:
             self.app.logger.debug("Connecting -> {}".format(self._name))
             return state.db.get_engine(self.app, bind=self._name)
 
@@ -52,6 +73,7 @@ class RoutingSession(orm.Session):
             current_app.logger.debug("Connecting -> WRITER")
             return state.db.get_engine(self.app, bind='writer')
 
+        # We might deal with an undetected writes so let's check the clause itself
         elif clause is not None and self._is_query_modify(clause.compile()):
             current_app.logger.debug("Connecting -> WRITER")
             return state.db.get_engine(self.app, bind='writer')
@@ -61,12 +83,6 @@ class RoutingSession(orm.Session):
             current_app.logger.debug("Connecting -> READER")
             return state.db.get_engine(self.app, bind='reader')
 
-    def using_bind(self, name):
-        s = RoutingSession(self.db)
-        vars(s).update(vars(self))
-        s._name = name
-        return s
-
     def _is_query_modify(self, query) -> bool:
         query_literals = [literal.lower() for literal in str(query).split(' ')]
         intersection = [
@@ -74,6 +90,36 @@ class RoutingSession(orm.Session):
             if literal in self.DATA_MODIFICATION_LITERALS
         ]
         return len(intersection) > 0
+
+    def using_bind(self, name):
+        s = ImplicitRoutingSession(self.db)
+        vars(s).update(vars(self))
+        s._name = name
+        return s
+
+
+class ExplicitRoutingSession(RoutingSession):
+
+    def __init__(self, db, autocommit=False, autoflush=False, **options):
+        RoutingSession.__init__(
+            self, db, autocommit=autocommit, autoflush=autoflush, **options)
+
+    def load_balance(self, state, mapper=None, clause=None):
+        # Use the explicit name if present
+        if self._name:
+            self.app.logger.debug("Connecting -> {}".format(self._name))
+            return state.db.get_engine(self.app, bind=self._name)
+
+        # Everything else goes to the writer instance(s)
+        else:
+            current_app.logger.debug("Connecting -> WRITER")
+            return state.db.get_engine(self.app, bind='writer')
+
+    def using_bind(self, name):
+        s = ExplicitRoutingSession(self.db)
+        vars(s).update(vars(self))
+        s._name = name
+        return s
 
 
 class RoutingSQLAlchemy(SQLAlchemy):
@@ -96,5 +142,5 @@ class RoutingSQLAlchemy(SQLAlchemy):
             options = {}
         scopefunc = options.pop('scopefunc', None)
         return orm.scoped_session(
-            partial(RoutingSession, self, **options), scopefunc=scopefunc
+            partial(ImplicitRoutingSession, self, **options), scopefunc=scopefunc
         )
