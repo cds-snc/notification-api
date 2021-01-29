@@ -1,13 +1,12 @@
 from abc import abstractmethod
-from flask_sqlalchemy import BaseQuery, SQLAlchemy, get_state
-# from flask_sqlalchemy import BaseQuery, SignallingSession, SQLAlchemy, get_state
+from flask_sqlalchemy import BaseQuery, SignallingSession, SQLAlchemy, get_state
 from flask_sqlalchemy.model import Model
 from sqlalchemy import orm
 from functools import partial
 from flask import current_app
 
 
-class RoutingSession(orm.Session):
+class RoutingSession(SignallingSession):
 
     _name = None
 
@@ -155,14 +154,8 @@ class ExplicitRoutingSession(RoutingSession):
         return s
 
 
-class RoutingSQLAlchemy(SQLAlchemy):
+class NotifySQLAlchemy(SQLAlchemy):
     """We need to subclass SQLAlchemy in order to override create_engine options"""
-
-    def __init__(self, *args, **kwargs):
-        SQLAlchemy.__init__(self, use_native_unicode=True, session_options=None,
-                            query_class=BaseQuery, model_class=Model,
-                            *args, **kwargs)
-        self.session.using_bind = lambda s: self.session().using_bind(s)
 
     def apply_driver_hacks(self, app, info, options):
         super().apply_driver_hacks(app, info, options)
@@ -171,6 +164,16 @@ class RoutingSQLAlchemy(SQLAlchemy):
         options['connect_args']["options"] = "-c statement_timeout={}".format(
             int(app.config['SQLALCHEMY_STATEMENT_TIMEOUT']) * 1000
         )
+
+
+class RoutingSQLAlchemy(NotifySQLAlchemy):
+    """We need to subclass SQLAlchemy in order to override create_engine options"""
+
+    def __init__(self, *args, **kwargs):
+        SQLAlchemy.__init__(self, use_native_unicode=True, session_options=None,
+                            query_class=BaseQuery, model_class=Model,
+                            *args, **kwargs)
+        self.session.using_bind = lambda s: self.session().using_bind(s)
 
     def create_scoped_session(self, options=None):
         if options is None:
