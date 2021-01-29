@@ -47,6 +47,31 @@ class RoutingSession(orm.Session):
 
 
 class ImplicitRoutingSession(RoutingSession):
+    """This session implementation will route to implicit bind via automatic
+    detection.
+
+    If no bind is explicitly mentioned with the session via the `using_bind`
+    function, then the logic tries to determine if the current session will
+    lead to a modification in the database state. This automation logic work
+    as follows:
+
+    First, we look if the `flushing` property is enabled in the session. If
+    that is true, it indicates that some state need to be flushed to the
+    database. The writer bind gets returned.
+
+    Second, we look at the generate query if the SQL statement is attached
+    to the current session. Such statement is usually attached when using
+    SQLAlchemy DSL syntax for queries. If that SQL statement contains
+    certain keywords such as `update` or `delete`, then the writer bind
+    gets returned.
+
+    Third, failing previous detection of intended changes in the database,
+    the reader bind gets returned.
+
+    If this automatic detection does not work, then it is advised to
+    specify the bind manually via `using_bind` available with this Session
+    implementation.
+    """
 
     DATA_MODIFICATION_LITERALS = [
         'update',
@@ -99,6 +124,11 @@ class ImplicitRoutingSession(RoutingSession):
 
 
 class ExplicitRoutingSession(RoutingSession):
+    """This session implementation will route to explicitly named bind.
+
+    If no bind is mentioned with the session via the `using_bind` function,
+    then the `reader` bind will get returned instead.
+    """
 
     def __init__(self, db, autocommit=False, autoflush=False, **options):
         RoutingSession.__init__(
@@ -142,5 +172,5 @@ class RoutingSQLAlchemy(SQLAlchemy):
             options = {}
         scopefunc = options.pop('scopefunc', None)
         return orm.scoped_session(
-            partial(ImplicitRoutingSession, self, **options), scopefunc=scopefunc
+            partial(ExplicitRoutingSession, self, **options), scopefunc=scopefunc
         )
