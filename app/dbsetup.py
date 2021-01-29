@@ -1,5 +1,7 @@
 from abc import abstractmethod
-from flask_sqlalchemy import SQLAlchemy, get_state
+from flask_sqlalchemy import BaseQuery, SQLAlchemy, get_state
+# from flask_sqlalchemy import BaseQuery, SignallingSession, SQLAlchemy, get_state
+from flask_sqlalchemy.model import Model
 from sqlalchemy import orm
 from functools import partial
 from flask import current_app
@@ -13,6 +15,7 @@ class RoutingSession(orm.Session):
         self.app = db.get_app()
         self.db = db
         self._model_changes = {}
+        options.setdefault("query_cls", BaseQuery)
         orm.Session.__init__(
             self, autocommit=autocommit, autoflush=autoflush,
             bind=db.engine,
@@ -140,7 +143,7 @@ class ExplicitRoutingSession(RoutingSession):
             self.app.logger.debug("Connecting -> {}".format(self._name))
             return state.db.get_engine(self.app, bind=self._name)
 
-        # Everything else goes to the writer instance(s)
+        # Everything else goes to the writer engine
         else:
             current_app.logger.debug("Connecting -> WRITER")
             return state.db.get_engine(self.app, bind='writer')
@@ -156,7 +159,9 @@ class RoutingSQLAlchemy(SQLAlchemy):
     """We need to subclass SQLAlchemy in order to override create_engine options"""
 
     def __init__(self, *args, **kwargs):
-        SQLAlchemy.__init__(self, *args, **kwargs)
+        SQLAlchemy.__init__(self, use_native_unicode=True, session_options=None,
+                            query_class=BaseQuery, model_class=Model,
+                            *args, **kwargs)
         self.session.using_bind = lambda s: self.session().using_bind(s)
 
     def apply_driver_hacks(self, app, info, options):
