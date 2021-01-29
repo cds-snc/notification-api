@@ -46,4 +46,13 @@ class NotifyCelery(Celery):
             task_cls=make_task(app),
         )
 
-        self.conf.update(app.config)
+        # See https://docs.celeryproject.org/en/stable/userguide/configuration.html
+        self.conf.update({
+            'beat_schedule': app.config['CELERYBEAT_SCHEDULE'],
+            'imports': app.config['CELERY_IMPORTS'],
+            'task_serializer': app.config['CELERY_TASK_SERIALIZER'],
+            'timezone': app.config['CELERY_TIMEZONE'],
+            'broker_transport_options': app.config['BROKER_TRANSPORT_OPTIONS'],
+            'task_queues': app.config['CELERY_QUEUES'],
+            'accept_content': app.config['CELERY_ACCEPT_CONTENT'],
+        })
