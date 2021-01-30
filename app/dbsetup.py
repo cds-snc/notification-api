@@ -10,7 +10,7 @@ class RoutingSession(SignallingSession):
 
     _name = None
 
-    def __init__(self, db, autocommit=False, autoflush=False, **options):
+    def __init__(self, db, autocommit=False, autoflush=True, **options):
         self.app = db.get_app()
         self.db = db
         self._model_changes = {}
@@ -132,7 +132,7 @@ class ExplicitRoutingSession(RoutingSession):
     then the `reader` bind will get returned instead.
     """
 
-    def __init__(self, db, autocommit=False, autoflush=False, **options):
+    def __init__(self, db, autocommit=False, autoflush=True, **options):
         RoutingSession.__init__(
             self, db, autocommit=autocommit, autoflush=autoflush, **options)
 
