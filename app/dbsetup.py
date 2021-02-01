@@ -3,6 +3,7 @@ from functools import lru_cache, partial
 
 from flask_sqlalchemy import (BaseQuery, SignallingSession, SQLAlchemy, get_state)
 from sqlalchemy import orm
+from flask import _app_ctx_stack
 
 
 class RoutingSession(SignallingSession):
@@ -14,13 +15,37 @@ class RoutingSession(SignallingSession):
         if not binds_setup:
             super().get_bind(mapper, clause)
 
-        state = get_state(self.app)
-
-        return self.load_balance(state, mapper, clause)
+        return self.load_balance(mapper, clause)
 
     @abstractmethod
-    def load_balance(self, state, mapper=None, clause=None):
+    def load_balance(self, mapper=None, clause=None):
         pass
+
+
+class ExplicitRoutingSession(RoutingSession):
+    """This session implementation will route to explicitly named bind.
+    If no bind is mentioned with the session via the `using_bind` function,
+    then the `reader` bind will get returned instead.
+    """
+
+    _name = None
+
+    def load_balance(self, mapper=None, clause=None):
+        # Use the explicit name if present
+        if self._name:
+            bind = self._name
+            self._name = None
+            print(f"Connecting -> {bind}")
+            return get_state(self.app).db.get_engine(self.app, bind=bind)
+
+        # Everything else goes to the writer engine
+        else:
+            print("Connecting -> WRITER")
+            return get_state(self.app).db.get_engine(self.app, bind='writer')
+
+    def using_bind(self, name):
+        self._name = name
+        return self
 
 
 class ImplicitRoutingSession(RoutingSession):
@@ -62,9 +87,8 @@ class ImplicitRoutingSession(RoutingSession):
 
     def load_balance(self, state, mapper=None, clause=None):
         # Writes go to the writer instance
-        if self._flushing or clause is None:
-            sql = clause.compile() if clause else ""
-            print(f"Connecting -> WRITER {sql}")
+        if self._flushing or clause is None or not self._is_clean():
+            print("Connecting -> WRITER")
             return state.db.get_engine(self.app, bind='writer')
 
         # We might deal with an undetected writes so let's check the clause itself
@@ -92,12 +116,13 @@ class RoutingSQLAlchemy(SQLAlchemy):
         options['connect_args']["options"] = "-c statement_timeout={}".format(
             int(app.config['SQLALCHEMY_STATEMENT_TIMEOUT']) * 1000
         )
+        self.session.using_bind = lambda s: self.session().using_bind(s)
 
     def create_scoped_session(self, options=None):
         if options is None:
             options = {}
-        scopefunc = options.pop('scopefunc', None)
+        scopefunc = options.pop('scopefunc', _app_ctx_stack.__ident_func__)
         options.setdefault('query_cls', BaseQuery)
         return orm.scoped_session(
-            partial(ImplicitRoutingSession, self, **options), scopefunc=scopefunc
+            partial(ExplicitRoutingSession, self, **options), scopefunc=scopefunc
         )
