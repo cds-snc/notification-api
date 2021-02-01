@@ -117,7 +117,7 @@ def update_fact_notification_status(data, process_day):
             notification_status=row.status,
             notification_count=row.notification_count,
         )
-        db.session.using_bind('writer').connection().execute(stmt)
+        db.session.connection().execute(stmt)
         db.session.commit()
 
 

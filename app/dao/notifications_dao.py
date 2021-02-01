@@ -388,7 +388,7 @@ def insert_update_notification_history(notification_type, date_to_delete_from, s
               "sent_by": stmt.excluded.sent_by
               }
     )
-    db.session.using_bind('writer').connection().execute(stmt)
+    db.session.connection().execute(stmt)
     db.session.commit()
 
 

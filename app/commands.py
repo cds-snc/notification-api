@@ -126,10 +126,10 @@ def backfill_notification_statuses():
     LIMIT = 250000
     subq = "SELECT id FROM notification_history WHERE notification_status is NULL LIMIT {}".format(LIMIT)
     update = "UPDATE notification_history SET notification_status = status WHERE id in ({})".format(subq)
-    result = db.session.using_bind('writer').execute(subq).fetchall()
+    result = db.session.execute(subq).fetchall()
 
     while len(result) > 0:
-        db.session.using_bind('writer').execute(update)
+        db.session.execute(update)
         print('commit {} updates at {}'.format(LIMIT, datetime.utcnow()))
         db.session.commit()
         result = db.session.execute(subq).fetchall()
@@ -146,7 +146,7 @@ def update_notification_international_flag():
     result = db.session.execute(subq).fetchall()
 
     while len(result) > 0:
-        db.session.using_bind('writer').execute(update)
+        db.session.execute(update)
         print('commit 250000 updates at {}'.format(datetime.utcnow()))
         db.session.commit()
         result = db.session.execute(subq).fetchall()
@@ -156,7 +156,7 @@ def update_notification_international_flag():
     update_history = "update notification_history set international = False where id in ({})".format(subq_history)
     result_history = db.session.execute(subq_history).fetchall()
     while len(result_history) > 0:
-        db.session.using_bind('writer').execute(update_history)
+        db.session.execute(update_history)
         print('commit 250000 updates at {}'.format(datetime.utcnow()))
         db.session.commit()
         result_history = db.session.execute(subq_history).fetchall()
@@ -179,7 +179,7 @@ def fix_notification_statuses_not_in_sync():
     result = db.session.execute(subq).fetchall()
 
     while len(result) > 0:
-        db.session.using_bind('writer').execute(update)
+        db.session.execute(update)
         print('Committed {} updates at {}'.format(len(result), datetime.utcnow()))
         db.session.commit()
         result = db.session.execute(subq).fetchall()
@@ -187,7 +187,7 @@ def fix_notification_statuses_not_in_sync():
     subq_hist = "SELECT id FROM notification_history WHERE cast (status as text) != notification_status LIMIT {}" \
         .format(MAX)
     update = "UPDATE notification_history SET notification_status = status WHERE id in ({})".format(subq_hist)
-    result = db.session.using_bind('writer').execute(subq_hist).fetchall()
+    result = db.session.execute(subq_hist).fetchall()
 
     while len(result) > 0:
         db.session.execute(update)
@@ -297,7 +297,7 @@ def insert_inbound_numbers_from_file(file_name):
 
     for line in file:
         print(line)
-        db.session.using_bind('writer').execute(sql.format(uuid.uuid4(), line.strip()))
+        db.session.execute(sql.format(uuid.uuid4(), line.strip()))
         db.session.commit()
     file.close()
 
@@ -434,8 +434,7 @@ def migrate_data_to_ft_billing(start_date, end_date):
              updated_at = now()
             """
 
-        result = db.session.using_bind('writer') \
-            .execute(sql, {"start": process_date, "end": process_date + timedelta(days=1)})
+        result = db.session.execute(sql, {"start": process_date, "end": process_date + timedelta(days=1)})
         db.session.commit()
         current_app.logger.info('ft_billing: --- Completed took {}ms. Migrated {} rows for {}'.format(
             datetime.now() - start_time, result.rowcount, process_date))
@@ -500,7 +499,7 @@ def migrate_data_to_ft_notification_status(start_date, end_date):
         start_time = datetime.now()
         # migrate data into ft_notification_status and update if record already exists
 
-        db.session.using_bind('writer').execute(
+        db.session.execute(
             'delete from ft_notification_status where bst_date = :process_date',
             {"process_date": process_date}
         )
@@ -525,8 +524,7 @@ def migrate_data_to_ft_notification_status(start_date, end_date):
                 group by bst_date, template_id, service_id, job_id, notification_type, key_type, notification_status
                 order by bst_date
             """
-        result = db.session.using_bind('writer') \
-            .execute(sql, {"start": process_date, "end": process_date + timedelta(days=1)})
+        result = db.session.execute(sql, {"start": process_date, "end": process_date + timedelta(days=1)})
         db.session.commit()
         print('ft_notification_status: --- Completed took {}ms. Migrated {} rows for {}.'.format(
             datetime.now() - start_time,
@@ -614,11 +612,9 @@ def populate_notification_postage(start_date):
 
         if end_date > datetime.utcnow() - timedelta(days=8):
             print('Updating notifications table as well')
-            db.session.using_bind('writer') \
-                .execute(sql.format('notifications'), {'start': start_date, 'end': end_date})
+            db.session.execute(sql.format('notifications'), {'start': start_date, 'end': end_date})
 
-        result = db.session.using_bind('writer') \
-            .execute(sql.format('notification_history'), {'start': start_date, 'end': end_date})
+        result = db.session.execute(sql.format('notification_history'), {'start': start_date, 'end': end_date})
         db.session.commit()
 
         current_app.logger.info('notification postage took {}ms. Migrated {} rows for {} to {}'.format(
@@ -650,8 +646,7 @@ def update_jobs_archived_flag(start_date, end_date):
                     at time zone 'UTC'
                     and created_at < (date :end + time '00:00:00') at time zone 'America/Toronto' at time zone 'UTC'"""
 
-        result = db.session.using_bind('writer') \
-            .execute(sql, {"start": process_date, "end": process_date + timedelta(days=1)})
+        result = db.session.execute(sql, {"start": process_date, "end": process_date + timedelta(days=1)})
         db.session.commit()
         current_app.logger.info('jobs: --- Completed took {}ms. Archived {} jobs for {}'.format(
             datetime.now() - start_time, result.rowcount, process_date))
@@ -685,7 +680,7 @@ def update_emails_to_remove_gsi(service_id):
                updated_at = now()
          WHERE id = :user_id
         """
-        db.session.using_bind('writer').execute(update_stmt, {'user_id': str(user.user_id)})
+        db.session.execute(update_stmt, {'user_id': str(user.user_id)})
         db.session.commit()
 
 

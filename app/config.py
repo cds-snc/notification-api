@@ -396,6 +396,7 @@ class Development(Config):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.alpha.canada.ca")
 
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", 'postgresql://postgres@localhost/notification_api')
+    SQLALCHEMY_DATABASE_READER_URI = os.getenv("SQLALCHEMY_DATABASE_READER_URI", 'postgresql://postgres@localhost/notification_api')
     REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
     ANTIVIRUS_ENABLED = os.getenv('ANTIVIRUS_ENABLED') == '1'
@@ -423,9 +424,12 @@ class Test(Development):
     INVALID_PDF_BUCKET_NAME = 'test-letters-invalid-pdf'
     TRANSIENT_UPLOADED_LETTERS = 'test-transient-uploaded-letters'
 
-    # this is overriden in jenkins and on cloudfoundry
     SQLALCHEMY_DATABASE_URI = os.getenv(
         'SQLALCHEMY_DATABASE_URI',
+        'postgresql://postgres@localhost/test_notification_api'
+    )
+    SQLALCHEMY_DATABASE_READER_URI = os.getenv(
+        'SQLALCHEMY_DATABASE_READER_URI',
         'postgresql://postgres@localhost/test_notification_api'
     )
 

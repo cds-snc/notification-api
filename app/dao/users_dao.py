@@ -37,9 +37,9 @@ def save_model_user(usr, update_dict={}, pwd=None):
         usr.password_changed_at = datetime.utcnow()
     if update_dict:
         _remove_values_for_keys_if_present(update_dict, ['id', 'password_changed_at'])
-        db.session.using_bind("writer").query(User).filter_by(id=usr.id).update(update_dict)
+        db.session.query(User).filter_by(id=usr.id).update(update_dict)
     else:
-        db.session.using_bind("writer").add(usr)
+        db.session.add(usr)
     db.session.commit()
 
 
