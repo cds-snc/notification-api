@@ -70,11 +70,12 @@ class ImplicitRoutingSession(RoutingSession):
         elif clause is not None and self._is_query_modify(clause.compile()):
             self.app.logger.debug(f"Connecting -> WRITER {clause.compile()}")
             return state.db.get_engine(self.app, bind='writer')
-
         # Everything else goes to the reader instance(s)
-        else:
+        elif clause is not None:
             self.app.logger.debug("Connecting -> READER")
             return state.db.get_engine(self.app, bind='reader')
+        else:
+            return state.db.get_engine(self.app, bind='writer')
 
     @lru_cache(maxsize=1000)
     def _is_query_modify(self, query) -> bool:
