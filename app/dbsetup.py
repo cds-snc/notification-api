@@ -10,7 +10,7 @@ class RoutingSession(SignallingSession):
 
     _name = None
 
-    def __init__(self, db, autocommit=False, autoflush=False, **options):
+    def __init__(self, db, autocommit=False, autoflush=True, **options):
         self.app = db.get_app()
         self.db = db
         self._model_changes = {}
@@ -149,7 +149,7 @@ class ExplicitRoutingSession(RoutingSession):
 
     def using_bind(self, name):
         s = ExplicitRoutingSession(self.db)
-        vars(s).update(vars(self))
+        # vars(s).update(vars(self))
         s._name = name
         return s
 
