@@ -148,10 +148,12 @@ class ExplicitRoutingSession(RoutingSession):
             return state.db.get_engine(self.app, bind='writer')
 
     def using_bind(self, name):
-        s = ExplicitRoutingSession(self.db)
+        # s = ExplicitRoutingSession(self.db)
         # vars(s).update(vars(self))
-        s._name = name
-        return s
+        # s._name = name
+        # return s
+        # self._name = name
+        return self
 
 
 class DefaultRoutingSession(RoutingSession):
@@ -173,10 +175,6 @@ class DefaultRoutingSession(RoutingSession):
         return state.db.get_engine(self.app, bind='writer')
 
     def using_bind(self, name):
-        # s = DefaultRoutingSession(self.db)
-        # vars(s).update(vars(self))
-        # s._name = name
-        # return s
         return self
 
 
@@ -207,6 +205,6 @@ class RoutingSQLAlchemy(NotifySQLAlchemy):
         scopefunc = options.pop("scopefunc", _app_ctx_stack.__ident_func__)
         options.setdefault("query_cls", BaseQuery)
         return orm.scoped_session(
-            # partial(ExplicitRoutingSession, self, **options), scopefunc=scopefunc
-            partial(DefaultRoutingSession, self, **options), scopefunc=scopefunc
+            partial(ExplicitRoutingSession, self, **options), scopefunc=scopefunc
+            # partial(DefaultRoutingSession, self, **options), scopefunc=scopefunc
         )
