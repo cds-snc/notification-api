@@ -62,20 +62,20 @@ class ImplicitRoutingSession(RoutingSession):
 
     def load_balance(self, state, mapper=None, clause=None):
         # Writes go to the writer instance
-        if self._flushing:
-            self.app.logger.debug("Connecting -> WRITER")
+        if self._flushing or clause is None:
+            sql = clause.compile() if clause else ""
+            print(f"Connecting -> WRITER {sql}")
             return state.db.get_engine(self.app, bind='writer')
 
         # We might deal with an undetected writes so let's check the clause itself
         elif clause is not None and self._is_query_modify(clause.compile()):
-            self.app.logger.debug(f"Connecting -> WRITER {clause.compile()}")
+            print(f"Connecting -> WRITER {clause.compile()}")
             return state.db.get_engine(self.app, bind='writer')
+
         # Everything else goes to the reader instance(s)
-        elif clause is not None:
-            self.app.logger.debug("Connecting -> READER")
-            return state.db.get_engine(self.app, bind='reader')
         else:
-            return state.db.get_engine(self.app, bind='writer')
+            print(f"Connecting -> READER {clause.compile()}")
+            return state.db.get_engine(self.app, bind='reader')
 
     @lru_cache(maxsize=1000)
     def _is_query_modify(self, query) -> bool:
