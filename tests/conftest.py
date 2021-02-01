@@ -47,18 +47,19 @@ def client(notify_api):
 
 def create_test_db(writer_uri):
     db_uri_parts = writer_uri.split('/')
-    admin_db_uri = '/'.join(db_uri_parts[:-1] + ['postgres'])
+    db_uri = '/'.join(db_uri_parts[:-1] + ['postgres'])
     db_name = db_uri_parts[-1]
 
     postgres_db = sqlalchemy.create_engine(
-        admin_db_uri,
+        db_uri,
         echo=False,
         isolation_level='AUTOCOMMIT',
         client_encoding='utf8'
     )
     try:
-        sql_create_db = f'CREATE DATABASE {db_name};'
-        postgres_db.execute(sqlalchemy.sql.text(sql_create_db)).close()
+        postgres_db.execute(
+            sqlalchemy.sql.text(f'CREATE DATABASE {db_name};')
+        ).close()
     except sqlalchemy.exc.ProgrammingError:
         # database "test_notification_api_master" already exists
         pass
@@ -92,7 +93,7 @@ def grant_test_db(writer_uri):
 
 @pytest.fixture(scope='session')
 def notify_db(notify_api, worker_id):
-    # assert 'test_notification_api' in db.engine.url.database, 'dont run tests against main db'
+    assert 'test_notification_api' in db.engine.url.database, 'dont run tests against main db'
 
     # create a database for this worker thread -
     from flask import current_app
@@ -140,8 +141,7 @@ def notify_db_session(notify_db):
                             "auth_type",
                             "invite_status_type",
                             "service_callback_type"]:
-            with notify_db.engine.connect() as connection:
-                connection.execute(tbl.delete())
+            notify_db.engine.execute(tbl.delete())
 
     notify_db.session.commit()
 

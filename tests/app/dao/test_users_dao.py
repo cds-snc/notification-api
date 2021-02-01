@@ -6,8 +6,6 @@ from sqlalchemy.exc import DataError
 from sqlalchemy.orm.exc import NoResultFound
 import pytest
 
-from flask import current_app
-
 from app import db
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from app.dao.users_dao import (
@@ -37,8 +35,6 @@ from tests.app.db import create_permissions, create_service, create_template_fol
     '+1-800-555-5555',
 ])
 def test_create_user(notify_db_session, phone_number):
-    users_count = User.query.count()
-    current_app.logger.info(f'Users count in the database is {users_count}')
     email = 'notify@digital.cabinet-office.gov.uk'
     data = {
         'name': 'Test User',
