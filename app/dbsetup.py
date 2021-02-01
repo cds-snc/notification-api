@@ -149,7 +149,7 @@ class ExplicitRoutingSession(RoutingSession):
 
     def using_bind(self, name):
         s = ExplicitRoutingSession(self.db)
-        vars(s).update(vars(self))
+        # vars(s).update(vars(self))
         s._name = name
         return s
 
