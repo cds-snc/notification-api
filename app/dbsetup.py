@@ -32,7 +32,7 @@ class ExplicitRoutingSession(RoutingSession):
 
     def load_balance(self, mapper=None, clause=None):
         # Use the explicit name if present
-        if self._name:
+        if self._name and not self._flushing:
             bind = self._name
             self._name = None
             print(f"Connecting -> {bind}")
