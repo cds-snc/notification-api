@@ -148,12 +148,10 @@ class ExplicitRoutingSession(RoutingSession):
             return state.db.get_engine(self.app, bind='writer')
 
     def using_bind(self, name):
-        # s = ExplicitRoutingSession(self.db)
+        s = ExplicitRoutingSession(self.db)
         # vars(s).update(vars(self))
-        # s._name = name
-        # return s
-        # self._name = name
-        return self
+        s._name = name
+        return s
 
 
 class DefaultRoutingSession(RoutingSession):
