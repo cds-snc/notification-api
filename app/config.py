@@ -36,6 +36,7 @@ class QueueNames(object):
     CALLBACKS = 'service-callbacks'
     LETTERS = 'letter-tasks'
     ANTIVIRUS = 'antivirus-tasks'
+    DELIVERY_RECEIPTS = 'delivery-receipts'
 
     @staticmethod
     def all_queues():
@@ -54,6 +55,7 @@ class QueueNames(object):
             # QueueNames.CREATE_LETTERS_PDF,
             QueueNames.CALLBACKS,
             # QueueNames.LETTERS,
+            QueueNames.DELIVERY_RECEIPTS,
         ]
 
 
