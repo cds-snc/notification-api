@@ -170,9 +170,14 @@ def test_normal_api_key_returns_notifications_created_from_jobs_and_from_api(
     )
     api_notification.job = None
 
+    headers = _create_auth_header_from_key(sample_api_key)
+
+    # from app import db
+    # db.session.close()
+
     response = client.get(
         path='/notifications',
-        headers=_create_auth_header_from_key(sample_api_key))
+        headers=headers)
 
     assert response.status_code == 200
 

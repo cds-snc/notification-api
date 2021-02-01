@@ -3,7 +3,7 @@ from flask_sqlalchemy import BaseQuery, SignallingSession, SQLAlchemy, get_state
 from flask_sqlalchemy.model import Model
 from sqlalchemy import orm
 from functools import partial
-from flask import current_app
+from flask import current_app, _app_ctx_stack
 
 
 class RoutingSession(SignallingSession):
@@ -85,14 +85,14 @@ class ImplicitRoutingSession(RoutingSession):
         'alter'
     ]
 
-    def __init__(self, db, autocommit=False, autoflush=False, **options):
+    def __init__(self, db, autocommit=False, autoflush=True, **options):
         RoutingSession.__init__(
             self, db, autocommit=autocommit, autoflush=autoflush, **options)
 
     def load_balance(self, state, mapper=None, clause=None):
         # Use the explicit bind if present
         if self._name:
-            self.app.logger.debug("Connecting -> {}".format(self._name))
+            self.app.logger.debug(f"Connecting -> ${self._name}")
             return state.db.get_engine(self.app, bind=self._name)
 
         # Writes go to the writer instance
@@ -132,14 +132,14 @@ class ExplicitRoutingSession(RoutingSession):
     then the `reader` bind will get returned instead.
     """
 
-    def __init__(self, db, autocommit=False, autoflush=False, **options):
+    def __init__(self, db, autocommit=False, autoflush=True, **options):
         RoutingSession.__init__(
             self, db, autocommit=autocommit, autoflush=autoflush, **options)
 
     def load_balance(self, state, mapper=None, clause=None):
         # Use the explicit name if present
         if self._name:
-            self.app.logger.debug("Connecting -> {}".format(self._name))
+            self.app.logger.debug(f"Connecting -> ${self._name}")
             return state.db.get_engine(self.app, bind=self._name)
 
         # Everything else goes to the writer engine
@@ -152,6 +152,32 @@ class ExplicitRoutingSession(RoutingSession):
         vars(s).update(vars(self))
         s._name = name
         return s
+
+
+class DefaultRoutingSession(RoutingSession):
+    """This session implementation will always route to the provided named bind.
+
+    This is useful for redirecting to the same database, likely the writer/main
+    instance. The default behavior without a named default_bind is to default to
+    `writer` URI bind.
+    """
+
+    def __init__(self, db, default_bind='writer', autocommit=False, autoflush=True, **options):
+        self._name = default_bind
+        RoutingSession.__init__(
+            self, db, autocommit=autocommit, autoflush=autoflush, **options)
+
+    def load_balance(self, state, mapper=None, clause=None):
+        # Everything goes to the writer engine!
+        self.app.logger.debug(f"Connecting -> ${self._name}")
+        return state.db.get_engine(self.app, bind='writer')
+
+    def using_bind(self, name):
+        # s = DefaultRoutingSession(self.db)
+        # vars(s).update(vars(self))
+        # s._name = name
+        # return s
+        return self
 
 
 class NotifySQLAlchemy(SQLAlchemy):
@@ -178,7 +204,9 @@ class RoutingSQLAlchemy(NotifySQLAlchemy):
     def create_scoped_session(self, options=None):
         if options is None:
             options = {}
-        scopefunc = options.pop('scopefunc', None)
+        scopefunc = options.pop("scopefunc", _app_ctx_stack.__ident_func__)
+        options.setdefault("query_cls", BaseQuery)
         return orm.scoped_session(
-            partial(ExplicitRoutingSession, self, **options), scopefunc=scopefunc
+            # partial(ExplicitRoutingSession, self, **options), scopefunc=scopefunc
+            partial(DefaultRoutingSession, self, **options), scopefunc=scopefunc
         )
