@@ -577,7 +577,7 @@ def dao_get_notifications_by_to_field(service_id, search_term, notification_type
 
 @statsd(namespace="dao")
 def dao_get_notification_by_reference(reference):
-    return Notification.query.filter(
+    return db.session.using_bind("reader").query(Notification).filter(
         Notification.reference == reference
     ).one()
 
