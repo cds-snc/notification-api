@@ -14,7 +14,7 @@ def test_create_ticket(notify_api):
             'email': 'test@example.com',
             'priority': 1,
             'status': 2,
-            'tags': None
+            'tags': []
         }
 
         encoded_auth = base64.b64encode(b'freshdesk-api-key:x').decode('ascii')

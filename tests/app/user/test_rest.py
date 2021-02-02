@@ -792,7 +792,7 @@ def test_send_support_email_with_live_service(client, sample_service, mocker):
     )
     assert resp.status_code == 204
 
-    mocked.assert_called_once_with(data | {'tags': None})
+    mocked.assert_called_once_with(data | {'tags': []})
 
 
 def test_send_support_email_returns_400_when_data_is_missing(client, sample_user, mocker):

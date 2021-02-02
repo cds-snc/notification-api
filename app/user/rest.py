@@ -445,7 +445,7 @@ def send_support_email(user_id):
         user = get_user_by_email(data['email'])
         has_active_services = any([not s.restricted for s in user.services])
         if has_active_services:
-            data['tags'] = None
+            data['tags'] = []
     except NoResultFound:
         pass
 
