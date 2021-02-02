@@ -173,7 +173,8 @@ def test_normal_api_key_returns_notifications_created_from_jobs_and_from_api(
     headers = _create_auth_header_from_key(sample_api_key)
 
     from app import db
-    db.session.close()
+    db.session.commit()
+    # db.session.close()
     # db.session.begin()
 
     response = client.get(
