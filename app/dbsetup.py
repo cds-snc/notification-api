@@ -140,16 +140,20 @@ class ExplicitRoutingSession(RoutingSession):
         # Use the explicit name if present
         if self._name:
             self.app.logger.debug(f"Connecting -> ${self._name}")
-            return state.db.get_engine(self.app, bind=self._name)
+            engine = state.db.get_engine(self.app, bind=self._name)
+            # self._name = None
+            return engine
 
         # Everything else goes to the writer engine
         else:
             current_app.logger.debug("Connecting -> WRITER")
-            return state.db.get_engine(self.app, bind='writer')
+            engine = state.db.get_engine(self.app, bind='writer')
+            # self._name = None
+            return engine
 
     def using_bind(self, name):
         s = ExplicitRoutingSession(self.db)
-        # vars(s).update(vars(self))
+        vars(s).update(vars(self))
         s._name = name
         return s
 
