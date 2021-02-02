@@ -7,7 +7,12 @@ from freezegun import freeze_time
 
 from app import statsd_client, encryption
 from app.celery.process_ses_receipts_tasks import process_ses_results, process_ses_smtp_results
-from app.celery.research_mode_tasks import ses_hard_bounce_callback, ses_soft_bounce_callback, ses_notification_callback
+from app.celery.research_mode_tasks import (
+    ses_hard_bounce_callback,
+    ses_soft_bounce_callback,
+    ses_notification_callback,
+    ses_notification_callback_with_event_type
+)
 from app.celery.service_callback_tasks import create_delivery_status_callback_data
 from app.dao.notifications_dao import get_notification_by_id
 from app.models import Complaint, Notification
@@ -100,6 +105,12 @@ def test_process_ses_results(sample_email_template):
     create_notification(sample_email_template, reference='ref1', sent_at=datetime.utcnow(), status='sending')
 
     assert process_ses_results(response=ses_notification_callback(reference='ref1'))
+
+
+def test_process_ses_results_event_type(sample_email_template):
+    create_notification(sample_email_template, reference='ref1', sent_at=datetime.utcnow(), status='sending')
+
+    assert process_ses_results(response=ses_notification_callback_with_event_type(reference='ref1'))
 
 
 def test_process_ses_results_retry_called(sample_email_template, notify_db, mocker):
