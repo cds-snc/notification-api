@@ -2,7 +2,9 @@ import boto3
 import json
 import logging
 import os
+import phonenumbers
 
+logger = logging.getLogger()
 region = os.getenv("AWS_REGION")
 pinpoint = boto3.client('pinpoint', region_name=region)
 pinpoint_project_id = os.getenv("AWS_PINPOINT_APP_ID")
@@ -13,48 +15,81 @@ default_response_message = os.getenv("DEFAULT_RESPONSE_MESSAGE")
 
 
 def two_way_sms_handler(event, context):
+    logger.setLevel(logging.INFO)
+
     try:
         for record in event["Records"]:
             parsed_message = json.loads(record["Sns"]["Message"])
             text_response = parsed_message["messageBody"]
-            recipient_number = parsed_message["originationNumber"]
             sender = parsed_message["destinationNumber"]
+            recipient_number = _validate_phone_number(parsed_message["originationNumber"])
 
             if start_keyword in text_response.upper():
-                response = sns.opt_in_phone_number(
-                    phoneNumber=recipient_number
-                )
-                parsed_response = {
-                    'RequestId': response['ResponseMetadata']['RequestId'],
-                    'StatusCode': response['ResponseMetadata']['HTTPStatusCode'],
-                    'DeliveryStatus': response['MessageResponse'][recipient_number]['DeliveryStatus'],
-                    'StatusMessage': response['MessageResponse'][recipient_number]['DeliveryStatus']
+                response = _make_sns_opt_in_request(recipient_number)
+                response.raise_for_status()
 
-                }
-                logging.info(f"Handler successfully with response {parsed_response}")
-                return parsed_response
+                parsed_response = _parse_response_sns(response, recipient_number)
+
+                if parsed_response['DeliveryStatus'] in [200]:
+                    logging.info(f"Handler successfully with response {parsed_response}")
+                    return parsed_response
+                else:
+                    raise Exception(f"SnsException: {parsed_response}")
             elif text_response.upper() not in supported_keywords:
-                response = pinpoint.send_messages(
-                    ApplicationId=pinpoint_project_id,
-                    MessageRequest={
-                        "Addresses": {
-                            recipient_number: {
-                                "ChannelType": "SMS"
-                            }
-                        },
-                        "MessageConfiguration": {
-                            "SMSMessage": {
-                                "Body": default_response_message,
-                                "MessageType": "TRANSACTIONAL",
-                                "OriginationNumber": sender
-                            }
-                        }
-                    }
-                )
+                response = _make_pinpoint_send_message_request(recipient_number, sender)
 
-                response_body = response['MessageResponse']['Result'][recipient_number]
-                logging.info(f"Handler successfully sent message with message {response_body}")
-                return response_body
+                logging.info(f"Handler successfully sent message with message "
+                             f"{response['MessageResponse']['Result'][recipient_number]}")
+                return response['MessageResponse']['Result'][recipient_number]
 
     except Exception as error:
         logging.error(f"Handler error when processing sms response: {error}")
+
+
+def _validate_phone_number(recipient_number):
+    result = phonenumbers.parse(recipient_number, "US")
+    if phonenumbers.is_valid_number(result):
+        return recipient_number
+    else:
+        raise Exception(f"Invalid phone number")
+
+
+def _make_sns_opt_in_request(recipient_number):
+    return sns.opt_in_phone_number(
+        phoneNumber=recipient_number
+    )
+
+
+def _parse_response_sns(response, recipient_number):
+    parsed_response = {
+        'RequestId': response['ResponseMetadata']['RequestId'],
+        'StatusCode': response['ResponseMetadata']['HTTPStatusCode']
+    }
+
+    if 'MessageResponse' in response.values():
+        parsed_response.update({
+            'DeliveryStatus': response['MessageResponse'][recipient_number]['DeliveryStatus'],
+            'StatusMessage': response['MessageResponse'][recipient_number]['DeliveryStatus']
+        })
+
+    return parsed_response
+
+
+def _make_pinpoint_send_message_request(recipient_number, sender):
+    return pinpoint.send_messages(
+        ApplicationId=pinpoint_project_id,
+        MessageRequest={
+            "Addresses": {
+                recipient_number: {
+                    "ChannelType": "SMS"
+                }
+            },
+            "MessageConfiguration": {
+                "SMSMessage": {
+                    "Body": default_response_message,
+                    "MessageType": "TRANSACTIONAL",
+                    "OriginationNumber": sender
+                }
+            }
+        }
+    )
