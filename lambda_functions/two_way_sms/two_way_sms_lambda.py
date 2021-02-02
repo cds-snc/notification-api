@@ -14,7 +14,7 @@ supported_keywords = os.getenv("SUPPORTED_KEYWORDS")
 default_response_message = os.getenv("DEFAULT_RESPONSE_MESSAGE")
 
 
-def two_way_sms_handler(event, context):
+def two_way_sms_handler(event: dict, context: dict) -> dict:
     logger.setLevel(logging.INFO)
 
     try:
@@ -25,28 +25,35 @@ def two_way_sms_handler(event, context):
             recipient_number = _validate_phone_number(parsed_message["originationNumber"])
 
             if start_keyword in text_response.upper():
-                response = _make_sns_opt_in_request(recipient_number)
-                response.raise_for_status()
-
-                parsed_response = _parse_response_sns(response, recipient_number)
-
-                if parsed_response['DeliveryStatus'] in [200]:
-                    logging.info(f"Handler successfully with response {parsed_response}")
-                    return parsed_response
-                else:
-                    raise Exception(f"SnsException: {parsed_response}")
+                return _opt_in_number(recipient_number)
             elif text_response.upper() not in supported_keywords:
-                response = _make_pinpoint_send_message_request(recipient_number, sender)
-
-                logging.info(f"Handler successfully sent message with message "
-                             f"{response['MessageResponse']['Result'][recipient_number]}")
-                return response['MessageResponse']['Result'][recipient_number]
+                return _send_default_sms_message(recipient_number, sender)
 
     except Exception as error:
         logging.error(f"Handler error when processing sms response: {error}")
 
 
-def _validate_phone_number(recipient_number):
+def _opt_in_number(recipient_number: str) -> dict:
+    response = _make_sns_opt_in_request(recipient_number)
+    response.raise_for_status()
+
+    parsed_response = _parse_response_sns(response, recipient_number)
+
+    if parsed_response['DeliveryStatus'] in [200]:
+        logging.info(f"Handler successfully with response {parsed_response}")
+        return parsed_response
+    else:
+        raise Exception(f"SnsException: {parsed_response}")
+
+
+def _send_default_sms_message(recipient_number, sender):
+    response = _make_pinpoint_send_message_request(recipient_number, sender)
+    logging.info(f"Handler successfully sent message with message "
+                 f"{response['MessageResponse']['Result'][recipient_number]}")
+    return response['MessageResponse']['Result'][recipient_number]
+
+
+def _validate_phone_number(recipient_number: str) -> str:
     result = phonenumbers.parse(recipient_number, "US")
     if phonenumbers.is_valid_number(result):
         return recipient_number
@@ -54,13 +61,13 @@ def _validate_phone_number(recipient_number):
         raise Exception(f"Invalid phone number")
 
 
-def _make_sns_opt_in_request(recipient_number):
+def _make_sns_opt_in_request(recipient_number: str) -> dict:
     return sns.opt_in_phone_number(
         phoneNumber=recipient_number
     )
 
 
-def _parse_response_sns(response, recipient_number):
+def _parse_response_sns(response: dict, recipient_number: str) -> dict:
     parsed_response = {
         'RequestId': response['ResponseMetadata']['RequestId'],
         'StatusCode': response['ResponseMetadata']['HTTPStatusCode']
@@ -75,7 +82,7 @@ def _parse_response_sns(response, recipient_number):
     return parsed_response
 
 
-def _make_pinpoint_send_message_request(recipient_number, sender):
+def _make_pinpoint_send_message_request(recipient_number: str, sender: str) -> dict:
     return pinpoint.send_messages(
         ApplicationId=pinpoint_project_id,
         MessageRequest={
