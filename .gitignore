@@ -77,7 +77,10 @@ celerybeat.pid
 # CloudFoundry
 .cf
 
-/scripts/run_my_tests.sh
+# VSCode
 .vscode
+.pythonenv
 
+# Misc
+/scripts/run_my_tests.sh
 jinja_templates/
