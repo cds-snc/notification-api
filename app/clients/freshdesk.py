@@ -10,7 +10,7 @@ class Freshdesk(object):
     @staticmethod
     def create_ticket(data):
         ticket = {
-            'product_id': 61000000046,
+            'product_id': current_app.config['FRESH_DESK_PRODUCT_ID'],
             'subject': data.get("support_type", "Support Request"),
             'description': data["message"],
             'email': data["email"],
