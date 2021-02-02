@@ -340,6 +340,7 @@ def dao_add_user_to_service(service, user, permissions=None, folder_permissions=
         valid_template_folders = dao_get_valid_template_folders_by_id(folder_permissions)
         service_user.folders = valid_template_folders
         db.session.add(service_user)
+        db.session.commit()
 
     except Exception as e:
         db.session.rollback()
