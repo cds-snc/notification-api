@@ -169,7 +169,12 @@ jobs:
 
       - name: Package and deploy Two Way SMS lambda function
         run: |
-          zip -j two_way_sms_lambda two_way_sms/two_way_sms_lambda.py
+          cd two_way_sms
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install -r requirements-lambda.txt
+          deactivate
+          zip -j two_way_sms_lambda two_way_sms_lambda.py venv/lib/python3.6/site-packages
           aws lambda update-function-code --function-name project-${{ github.event.deployment.environment }}-two-way-sms-lambda --zip-file fileb://two_way_sms_lambda.zip
 
   run-user-flows:

@@ -69,7 +69,7 @@ def _parse_response_sns(response, recipient_number):
     if 'MessageResponse' in response.values():
         parsed_response.update({
             'DeliveryStatus': response['MessageResponse'][recipient_number]['DeliveryStatus'],
-            'StatusMessage': response['MessageResponse'][recipient_number]['DeliveryStatus']
+            'StatusMessage': response['MessageResponse'][recipient_number]['StatusMessage']
         })
 
     return parsed_response
