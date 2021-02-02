@@ -43,6 +43,7 @@ class MpiClient:
             fhir_identifier = transform_to_fhir_format(recipient_identifier)
 
         response_json = self._make_request(fhir_identifier, notification.id)
+        self._assert_not_deceased(response_json, fhir_identifier)
         mpi_identifiers = response_json['identifier']
 
         va_profile_id = self._get_active_va_profile_id(mpi_identifiers, fhir_identifier)
@@ -72,7 +73,6 @@ class MpiClient:
             raise MpiRetryableException(message) from e
         else:
             self._validate_response(response.json(), notification_id, fhir_identifier)
-            self._assert_not_deceased(response.json(), fhir_identifier)
             self.statsd_client.incr("clients.mpi.success")
             return response.json()
         finally:

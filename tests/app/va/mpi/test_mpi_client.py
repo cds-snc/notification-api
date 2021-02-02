@@ -267,3 +267,14 @@ class TestGetVaProfileId:
 
         with pytest.raises(MpiNonRetryableException):
             mpi_client.get_va_profile_id(notification_with_recipient_identifier)
+
+    def test_should_treat_beneficiary_deceased_as_successful_call_to_mpi(
+            self, mpi_client, rmock, notification_with_recipient_identifier
+    ):
+        rmock.get(ANY, json=response_with_deceased_beneficiary(), status_code=200)
+
+        with pytest.raises(BeneficiaryDeceasedException):
+            mpi_client.get_va_profile_id(notification_with_recipient_identifier)
+
+        mpi_client.statsd_client.incr.assert_any_call("clients.mpi.success")
+        mpi_client.statsd_client.incr.assert_called_with("clients.mpi.get_va_profile_id.beneficiary_deceased")
