@@ -8,6 +8,7 @@ from fido2 import cbor
 from fido2.client import ClientData
 from fido2.ctap2 import AuthenticatorData
 import pwnedpasswords
+from sqlalchemy.orm.exc import NoResultFound
 
 from flask import (jsonify, request, Blueprint, current_app, abort)
 from sqlalchemy.exc import IntegrityError
@@ -438,6 +439,15 @@ def send_already_registered_email(user_id):
 @user_blueprint.route('/<uuid:user_id>/support-email', methods=['POST'])
 def send_support_email(user_id):
     data, errors = support_email_data_schema.load(request.get_json())
+
+    data['tags'] = ['z_skip_opsgenie', 'z_skip_urgent_escalation']
+    try:
+        user = get_user_by_email(data['email'])
+        has_active_services = any([not s.restricted for s in user.services])
+        if has_active_services:
+            data['tags'] = None
+    except NoResultFound:
+        pass
 
     status_code = Freshdesk.create_ticket(data)
 

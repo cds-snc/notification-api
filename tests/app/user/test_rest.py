@@ -758,7 +758,7 @@ def test_send_already_registered_email_returns_400_when_data_is_missing(client, 
     assert json.loads(resp.get_data(as_text=True))['message'] == {'email': ['Missing data for required field.']}
 
 
-def test_send_support_email(client, sample_user, mocker):
+def test_send_support_email_no_live_service(client, sample_user, mocker):
     data = {
         'name': sample_user.name,
         'email': sample_user.email_address,
@@ -773,7 +773,26 @@ def test_send_support_email(client, sample_user, mocker):
     )
     assert resp.status_code == 204
 
-    mocked.assert_called_once_with(data)
+    mocked.assert_called_once_with(data | {'tags': ['z_skip_opsgenie', 'z_skip_urgent_escalation']})
+
+
+def test_send_support_email_with_live_service(client, sample_service, mocker):
+    sample_user = sample_service.users[0]
+    data = {
+        'name': sample_user.name,
+        'email': sample_user.email_address,
+        'message': "test"
+    }
+    mocked = mocker.patch('app.user.rest.Freshdesk.create_ticket', return_value=201)
+
+    resp = client.post(
+        url_for('user.send_support_email', user_id=str(sample_user.id)),
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), create_authorization_header()]
+    )
+    assert resp.status_code == 204
+
+    mocked.assert_called_once_with(data | {'tags': None})
 
 
 def test_send_support_email_returns_400_when_data_is_missing(client, sample_user, mocker):
