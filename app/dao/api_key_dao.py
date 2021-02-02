@@ -31,7 +31,7 @@ def expire_api_key(service_id, api_key_id):
 
 
 def get_api_key_by_secret(secret):
-    return ApiKey.query.filter_by(
+    return db.on_reader().query(ApiKey).filter_by(
         _secret=encryption.encrypt(str(secret))
     ).options(joinedload('service')).one()
 
