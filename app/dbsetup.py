@@ -1,4 +1,4 @@
-from functools import partial
+from functools import partial, cached_property
 
 from flask_sqlalchemy import (BaseQuery, SignallingSession, SQLAlchemy, get_state)
 from sqlalchemy import orm
@@ -15,12 +15,10 @@ class ExplicitRoutingSession(SignallingSession):
     _name = None
 
     def get_bind(self, mapper=None, clause=None):
-        # If there are no binds configured, connect using the default
-        # SQLALCHEMY_DATABASE_URI
-        binds = self.app.config['SQLALCHEMY_BINDS'] or {}
-        binds_setup = all([k in binds for k in ['reader', 'writer']])
-        if not binds_setup:
-            super().get_bind(mapper, clause)
+        # If reader and writer binds are not configured,
+        # connect using the default SQLALCHEMY_DATABASE_URI
+        if not self.binds_setup:
+            return super().get_bind(mapper, clause)
 
         return self.load_balance(mapper, clause)
 
@@ -40,6 +38,11 @@ class ExplicitRoutingSession(SignallingSession):
     def using_bind(self, name):
         self._name = name
         return self
+
+    @cached_property
+    def binds_setup(self):
+        binds = self.app.config['SQLALCHEMY_BINDS'] or {}
+        return all([k in binds for k in ['reader', 'writer']])
 
 
 class RoutingSQLAlchemy(SQLAlchemy):
