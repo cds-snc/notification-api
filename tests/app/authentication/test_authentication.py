@@ -315,6 +315,8 @@ def test_authentication_returns_error_when_service_doesnt_exit(
 def test_authentication_returns_error_when_service_inactive(client, sample_api_key):
     sample_api_key.service.active = False
     token = create_jwt_token(secret=str(sample_api_key.id), client_id=str(sample_api_key.service_id))
+    from app import db
+    db.session.commit()
 
     response = client.get('/notifications', headers={'Authorization': 'Bearer {}'.format(token)})
 
