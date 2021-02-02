@@ -81,6 +81,14 @@ class Config(object):
 
     # DB conection string
     SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI')
+    SQLALCHEMY_DATABASE_READER_URI = os.getenv('SQLALCHEMY_DATABASE_READER_URI')
+    # By making the database reader optional, we can revert to a single writer
+    # instance configuration easily.
+    if SQLALCHEMY_DATABASE_READER_URI:
+        SQLALCHEMY_BINDS = {
+            'writer': SQLALCHEMY_DATABASE_URI,
+            'reader': SQLALCHEMY_DATABASE_READER_URI,
+        }
 
     # Hosted graphite statsd prefix
     STATSD_PREFIX = os.getenv('STATSD_PREFIX')
@@ -417,7 +425,6 @@ class Test(Development):
     INVALID_PDF_BUCKET_NAME = 'test-letters-invalid-pdf'
     TRANSIENT_UPLOADED_LETTERS = 'test-transient-uploaded-letters'
 
-    # this is overriden in jenkins and on cloudfoundry
     SQLALCHEMY_DATABASE_URI = os.getenv(
         'SQLALCHEMY_DATABASE_URI',
         'postgresql://postgres@localhost/test_notification_api'

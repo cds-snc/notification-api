@@ -45,21 +45,47 @@ def client(notify_api):
         yield client
 
 
-def create_test_db(database_uri):
-    db_uri_parts = database_uri.split('/')
-    postgres_db_uri = '/'.join(db_uri_parts[:-1] + ['postgres'])
+def create_test_db(writer_uri):
+    db_uri_parts = writer_uri.split('/')
+    db_uri = '/'.join(db_uri_parts[:-1] + ['postgres'])
+    db_name = db_uri_parts[-1]
 
     postgres_db = sqlalchemy.create_engine(
-        postgres_db_uri,
+        db_uri,
         echo=False,
         isolation_level='AUTOCOMMIT',
         client_encoding='utf8'
     )
     try:
-        result = postgres_db.execute(sqlalchemy.sql.text('CREATE DATABASE {}'.format(db_uri_parts[-1])))
-        result.close()
+        postgres_db.execute(
+            sqlalchemy.sql.text(f'CREATE DATABASE {db_name};')
+        ).close()
     except sqlalchemy.exc.ProgrammingError:
         # database "test_notification_api_master" already exists
+        pass
+    finally:
+        postgres_db.dispose()
+
+
+def grant_test_db(writer_uri):
+    db_reader = 'reader'
+    db_schema = 'public'
+
+    postgres_db = sqlalchemy.create_engine(
+        writer_uri,
+        echo=False,
+        isolation_level='AUTOCOMMIT',
+        client_encoding='utf8'
+    )
+    try:
+        statements = [
+            f'GRANT USAGE ON SCHEMA {db_schema} TO {db_reader};',
+            f'GRANT SELECT ON ALL TABLES IN SCHEMA {db_schema} TO {db_reader};',
+            f'ALTER DEFAULT PRIVILEGES IN SCHEMA {db_schema} GRANT SELECT ON TABLES TO {db_reader};',
+        ]
+        for statement in statements:
+            postgres_db.execute(sqlalchemy.sql.text(statement)).close()
+    except sqlalchemy.exc.ProgrammingError:
         pass
     finally:
         postgres_db.dispose()
@@ -72,7 +98,14 @@ def notify_db(notify_api, worker_id):
     # create a database for this worker thread -
     from flask import current_app
     current_app.config['SQLALCHEMY_DATABASE_URI'] += '_{}'.format(worker_id)
-    create_test_db(current_app.config['SQLALCHEMY_DATABASE_URI'])
+    current_app.config['SQLALCHEMY_DATABASE_READER_URI'] += '_{}'.format(worker_id)
+    uri_db_writer = current_app.config['SQLALCHEMY_DATABASE_URI']
+    uri_db_reader = current_app.config['SQLALCHEMY_DATABASE_READER_URI']
+    current_app.config['SQLALCHEMY_BINDS'] = {
+        'reader': uri_db_reader,
+        'writer': uri_db_writer
+    }
+    create_test_db(uri_db_writer)
 
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))
     ALEMBIC_CONFIG = os.path.join(BASE_DIR, 'migrations')
@@ -81,6 +114,8 @@ def notify_db(notify_api, worker_id):
 
     with notify_api.app_context():
         upgrade(config, 'head')
+
+    grant_test_db(uri_db_writer)
 
     yield db
 
