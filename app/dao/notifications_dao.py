@@ -195,7 +195,7 @@ def get_notification_by_id(notification_id, service_id=None, _raise=False):
     if service_id:
         filters.append(Notification.service_id == service_id)
 
-    query = Notification.query.filter(*filters)
+    query = db.on_reader().query(Notification).filter(*filters)
 
     return query.one() if _raise else query.first()
 
@@ -577,7 +577,7 @@ def dao_get_notifications_by_to_field(service_id, search_term, notification_type
 
 @statsd(namespace="dao")
 def dao_get_notification_by_reference(reference):
-    return db.session.using_bind("reader").query(Notification).filter(
+    return db.on_reader().query(Notification).filter(
         Notification.reference == reference
     ).one()
 

@@ -43,6 +43,9 @@ class ExplicitRoutingSession(SignallingSession):
 
 
 class RoutingSQLAlchemy(SQLAlchemy):
+    def on_reader(self):
+        return self.session().using_bind('reader')
+
     def apply_driver_hacks(self, app, info, options):
         super().apply_driver_hacks(app, info, options)
         if 'connect_args' not in options:
@@ -50,7 +53,6 @@ class RoutingSQLAlchemy(SQLAlchemy):
         options['connect_args']["options"] = "-c statement_timeout={}".format(
             int(app.config['SQLALCHEMY_STATEMENT_TIMEOUT']) * 1000
         )
-        self.session.using_bind = lambda s: self.session().using_bind(s)
 
     def create_scoped_session(self, options=None):
         options = options or {}

@@ -99,7 +99,7 @@ def dao_get_template_by_id_and_service_id(template_id, service_id, version=None)
             hidden=False,
             service_id=service_id,
             version=version).one()
-    return db.session.using_bind("reader").query(Template) \
+    return db.on_reader().query(Template) \
         .filter_by(id=template_id, hidden=False, service_id=service_id) \
         .one()
 
