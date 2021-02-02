@@ -8,7 +8,7 @@ from app.clients.freshdesk import Freshdesk
 def test_create_ticket(notify_api):
     def match_json(request):
         expected = {
-            'product_id': 'freshdesk-product-id',
+            'product_id': 42,
             'subject': 'Ask a question',
             'description': 'my message',
             'email': 'test@example.com',
