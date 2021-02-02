@@ -2,6 +2,18 @@ import os
 import random
 import string
 import uuid
+from dotenv import load_dotenv
+
+from flask import _request_ctx_stack, request, g, jsonify, make_response
+from flask_marshmallow import Marshmallow
+from flask_migrate import Migrate
+from time import monotonic
+from notifications_utils.clients.zendesk.zendesk_client import ZendeskClient
+from notifications_utils.clients.statsd.statsd_client import StatsdClient
+from notifications_utils.clients.redis.redis_client import RedisClient
+from notifications_utils import logging, request_helper
+from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
+from werkzeug.local import LocalProxy
 
 from app.celery.celery import NotifyCelery
 from app.clients import Clients
@@ -12,23 +24,6 @@ from app.clients.sms.aws_sns import AwsSnsClient
 from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
 from app.dbsetup import RoutingSQLAlchemy
 from app.encryption import Encryption
-
-from dotenv import load_dotenv
-
-from flask import _request_ctx_stack, request, g, jsonify, make_response
-from flask_marshmallow import Marshmallow
-from flask_migrate import Migrate
-
-from notifications_utils.clients.zendesk.zendesk_client import ZendeskClient
-from notifications_utils.clients.statsd.statsd_client import StatsdClient
-from notifications_utils.clients.redis.redis_client import RedisClient
-from notifications_utils import logging, request_helper
-
-from time import monotonic
-
-from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
-from werkzeug.local import LocalProxy
-
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 DATE_FORMAT = "%Y-%m-%d"

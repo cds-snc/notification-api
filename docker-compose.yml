@@ -55,6 +55,7 @@ services:
     depends_on:
       - db
       - redis
+      - web
   worker:
     image: notification-api
     restart: on-failure
@@ -72,6 +73,7 @@ services:
     depends_on:
       - db
       - redis
+      - web
   worker_sms:
     image: notification-api
     restart: on-failure
@@ -89,6 +91,7 @@ services:
     depends_on:
       - db
       - redis
+      - web
   tests:
     image: notification-api-tests
     restart: "no"
