@@ -157,9 +157,7 @@ def sns_smtp_callback_handler():
 def process_ses_results(self, response):
     try:
         ses_message = json.loads(response['Message'])
-        notification_type = ses_message.get('notificationType')
-        if notification_type is None:
-            notification_type = ses_message.get('eventType')
+        notification_type = ses_message.get('eventType')
 
         if notification_type == 'Bounce':
             notification_type = determine_notification_bounce_type(notification_type, ses_message)
@@ -224,7 +222,7 @@ def process_ses_smtp_results(self, response):
     try:
         ses_message = json.loads(response['Message'])
 
-        notification_type = ses_message['notificationType']
+        notification_type = ses_message['eventType']
         headers = ses_message['mail']['commonHeaders']
         source = ses_message['mail']['source']
         recipients = ses_message['mail']['destination']

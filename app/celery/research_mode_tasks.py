@@ -14,6 +14,11 @@ from app.models import SMS_TYPE
 from app.config import QueueNames
 from app.celery.process_ses_receipts_tasks import process_ses_results
 
+EMAIL_SIMULATOR_AMAZON_SES_COM = 'success@simulator.amazonses.com'
+EMAIL_TEST_NOTIFY_WORKS = 'TEST <TEST@notify.works>'
+BOUNCE_EMAIL_AMAZON_SES_COM = 'bounce@simulator.amazonses.com'
+LAMBDA_TEST = 'lambda test'
+
 temp_fail = "7700900003"
 perm_fail = "7700900002"
 delivered = "7700900001"
@@ -217,7 +222,7 @@ def ses_notification_callback(reference):
     ses_message_body = {
         'delivery': {
             'processingTimeMillis': 2003,
-            'recipients': ['success@simulator.amazonses.com'],
+            'recipients': [EMAIL_SIMULATOR_AMAZON_SES_COM],
             'remoteMtaIp': '123.123.123.123',
             'reportingMTA': 'a7-32.smtp-out.eu-west-1.amazonses.com',
             'smtpResponse': '250 2.6.0 Message received',
@@ -225,88 +230,23 @@ def ses_notification_callback(reference):
         },
         'mail': {
             'commonHeaders': {
-                'from': ['TEST <TEST@notify.works>'],
-                'subject': 'lambda test',
-                'to': ['success@simulator.amazonses.com']
+                'from': [EMAIL_TEST_NOTIFY_WORKS],
+                'subject': LAMBDA_TEST,
+                'to': [EMAIL_SIMULATOR_AMAZON_SES_COM]
             },
-            'destination': ['success@simulator.amazonses.com'],
+            'destination': [EMAIL_SIMULATOR_AMAZON_SES_COM],
             'headers': [
                 {
                     'name': 'From',
-                    'value': 'TEST <TEST@notify.works>'
+                    'value': EMAIL_TEST_NOTIFY_WORKS
                 },
                 {
                     'name': 'To',
-                    'value': 'success@simulator.amazonses.com'
+                    'value': EMAIL_SIMULATOR_AMAZON_SES_COM
                 },
                 {
                     'name': 'Subject',
-                    'value': 'lambda test'
-                },
-                {
-                    'name': 'MIME-Version',
-                    'value': '1.0'
-                },
-                {
-                    'name': 'Content-Type',
-                    'value': 'multipart/alternative; boundary="----=_Part_617203_1627511946.1510920841645"'
-                }
-            ],
-            'headersTruncated': False,
-            'messageId': reference,
-            'sendingAccountId': '12341234',
-            'source': '"TEST" <TEST@notify.works>',
-            'sourceArn': 'arn:aws:ses:eu-west-1:12341234:identity/notify.works',
-            'sourceIp': '0.0.0.1',
-            'timestamp': '2017-11-17T12:14:01.643Z'
-        },
-        'notificationType': 'Delivery'
-    }
-
-    return {
-        'Type': 'Notification',
-        'MessageId': '8e83c020-1234-1234-1234-92a8ee9baa0a',
-        'TopicArn': 'arn:aws:sns:eu-west-1:12341234:ses_notifications',
-        'Subject': None,
-        'Message': json.dumps(ses_message_body),
-        'Timestamp': '2017-11-17T12:14:03.710Z',
-        'SignatureVersion': '1',
-        'Signature': '[REDACTED]',
-        'SigningCertUrl': 'https://sns.eu-west-1.amazonaws.com/SimpleNotificationService-[REDACTED].pem',
-        'UnsubscribeUrl': 'https://sns.eu-west-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=[REACTED]',
-        'MessageAttributes': {}
-    }
-
-
-def ses_notification_callback_with_event_type(reference):
-    ses_message_body = {
-        'delivery': {
-            'processingTimeMillis': 2003,
-            'recipients': ['success@simulator.amazonses.com'],
-            'remoteMtaIp': '123.123.123.123',
-            'reportingMTA': 'a7-32.smtp-out.eu-west-1.amazonses.com',
-            'smtpResponse': '250 2.6.0 Message received',
-            'timestamp': '2017-11-17T12:14:03.646Z'
-        },
-        'mail': {
-            'commonHeaders': {
-                'from': ['TEST <TEST@notify.works>'],
-                'subject': 'lambda test',
-                'to': ['success@simulator.amazonses.com']
-            },
-            'destination': ['success@simulator.amazonses.com'],
-            'headers': [
-                {
-                    'name': 'From',
-                    'value': 'TEST <TEST@notify.works>'
-                },
-                {
-                    'name': 'To',
-                    'value': 'success@simulator.amazonses.com'
-                },
-                {
-                    'name': 'Subject',
-                    'value': 'lambda test'
+                    'value': LAMBDA_TEST
                 },
                 {
                     'name': 'MIME-Version',
@@ -359,7 +299,7 @@ def _ses_bounce_callback(reference, bounce_type):
             'bouncedRecipients': [{
                 'action': 'failed',
                 'diagnosticCode': 'smtp; 550 5.1.1 user unknown',
-                'emailAddress': 'bounce@simulator.amazonses.com',
+                'emailAddress': BOUNCE_EMAIL_AMAZON_SES_COM,
                 'status': '5.1.1'
             }],
             'feedbackId': '0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000',
@@ -369,19 +309,19 @@ def _ses_bounce_callback(reference, bounce_type):
         },
         'mail': {
             'commonHeaders': {
-                'from': ['TEST <TEST@notify.works>'],
+                'from': [EMAIL_TEST_NOTIFY_WORKS],
                 'subject': 'ses callback test',
-                'to': ['bounce@simulator.amazonses.com']
+                'to': [BOUNCE_EMAIL_AMAZON_SES_COM]
             },
-            'destination': ['bounce@simulator.amazonses.com'],
+            'destination': [BOUNCE_EMAIL_AMAZON_SES_COM],
             'headers': [
                 {
                     'name': 'From',
-                    'value': 'TEST <TEST@notify.works>'
+                    'value': EMAIL_TEST_NOTIFY_WORKS
                 },
                 {
                     'name': 'To',
-                    'value': 'bounce@simulator.amazonses.com'
+                    'value': BOUNCE_EMAIL_AMAZON_SES_COM
                 },
                 {
                     'name': 'Subject',
@@ -404,7 +344,7 @@ def _ses_bounce_callback(reference, bounce_type):
             'sourceIp': '0.0.0.1',
             'timestamp': '2017-11-17T12:14:03.000Z'
         },
-        'notificationType': 'Bounce'
+        'eventType': 'Bounce'
     }
     return {
         'Type': 'Notification',
