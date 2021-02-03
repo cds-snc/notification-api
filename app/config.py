@@ -425,7 +425,6 @@ class Test(Development):
     INVALID_PDF_BUCKET_NAME = 'test-letters-invalid-pdf'
     TRANSIENT_UPLOADED_LETTERS = 'test-transient-uploaded-letters'
 
-    # this is overriden in jenkins and on cloudfoundry
     SQLALCHEMY_DATABASE_URI = os.getenv(
         'SQLALCHEMY_DATABASE_URI',
         'postgresql://postgres@localhost/test_notification_api'

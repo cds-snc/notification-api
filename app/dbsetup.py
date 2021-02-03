@@ -2,7 +2,7 @@ from abc import abstractmethod
 from flask_sqlalchemy import BaseQuery, SignallingSession, SQLAlchemy, get_state
 from flask_sqlalchemy.model import Model
 from sqlalchemy import orm
-from functools import partial
+from functools import cached_property, partial
 from flask import current_app, _app_ctx_stack
 
 
@@ -20,7 +20,18 @@ class RoutingSession(SignallingSession):
             bind=db.engine,
             binds=db.get_binds(self.app), **options)
 
+    @cached_property
+    def binds_setup(self):
+        binds = self.app.config['SQLALCHEMY_BINDS'] or {}
+        return all([k in binds for k in ['reader', 'writer']])
+
     def get_bind(self, mapper=None, clause=None):
+        # If reader and writer binds are not configured,
+        # connect using the default SQLALCHEMY_DATABASE_URI
+        if not self.binds_setup:
+            current_app.logger.debug("Connecting -> DEFAULT")
+            return super().get_bind(mapper, clause)
+
         try:
             state = get_state(self.app)
         except (AssertionError, AttributeError, TypeError) as err:
@@ -28,14 +39,9 @@ class RoutingSession(SignallingSession):
                 "cant get configuration. default bind. Error:" + err)
             return orm.Session.get_bind(self, mapper, clause)
 
-        """
-        If there are no binds configured, connect using the default
-        SQLALCHEMY_DATABASE_URI
-        """
-        if state is None or not self.app.config['SQLALCHEMY_BINDS']:
-            if not self.app.debug:
-                current_app.logger.debug("Connecting -> DEFAULT")
-            return orm.Session.get_bind(self, mapper, clause)
+        if state is None:
+            current_app.logger.debug("Connecting -> DEFAULT")
+            return super().get_bind(mapper, clause)
 
         return self.load_balance(state, mapper, clause)
 
@@ -132,10 +138,6 @@ class ExplicitRoutingSession(RoutingSession):
     then the `reader` bind will get returned instead.
     """
 
-    def __init__(self, db, autocommit=False, autoflush=True, **options):
-        RoutingSession.__init__(
-            self, db, autocommit=autocommit, autoflush=autoflush, **options)
-
     def load_balance(self, state, mapper=None, clause=None):
         # Use the explicit name if present
         if self._name:
@@ -209,3 +211,6 @@ class RoutingSQLAlchemy(NotifySQLAlchemy):
             partial(ImplicitRoutingSession, self, **options), scopefunc=scopefunc
             # partial(DefaultRoutingSession, self, **options), scopefunc=scopefunc
         )
+
+    def on_reader(self):
+        return self.session().using_bind('reader')

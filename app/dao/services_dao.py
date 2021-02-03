@@ -199,10 +199,11 @@ def dao_fetch_service_by_inbound_number(number):
 
 
 def dao_fetch_service_by_id_with_api_keys(service_id, only_active=False):
-    query = db.session.using_bind("reader") \
-        .query(Service) \
-        .filter(Service.id == service_id) \
-        .options(joinedload('api_keys'))
+    query = db.on_reader().query(Service).filter_by(
+        id=service_id
+    ).options(
+        joinedload('api_keys')
+    )
 
     if only_active:
         query = query.filter(Service.active)

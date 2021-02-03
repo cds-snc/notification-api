@@ -57,8 +57,9 @@ def create_test_db(writer_uri):
         client_encoding='utf8'
     )
     try:
-        sql_create_db = f'CREATE DATABASE {db_name};'
-        postgres_db.execute(sqlalchemy.sql.text(sql_create_db)).close()
+        postgres_db.execute(
+            sqlalchemy.sql.text(f'CREATE DATABASE {db_name};')
+        ).close()
     except sqlalchemy.exc.ProgrammingError:
         # database "test_notification_api_master" already exists
         pass
@@ -77,13 +78,13 @@ def grant_test_db(writer_uri):
         client_encoding='utf8'
     )
     try:
-        sql_grant_reader_usage = f'GRANT USAGE ON SCHEMA {db_schema} TO {db_reader};'
-        sql_grant_reader_public = f'GRANT SELECT ON ALL TABLES IN SCHEMA {db_schema} TO {db_reader};'
-        sql_grant_reader_default = (f'ALTER DEFAULT PRIVILEGES IN SCHEMA {db_schema} '
-                                    f'GRANT SELECT ON TABLES TO {db_reader};')
-        postgres_db.execute(sqlalchemy.sql.text(sql_grant_reader_usage)).close()
-        postgres_db.execute(sqlalchemy.sql.text(sql_grant_reader_public)).close()
-        postgres_db.execute(sqlalchemy.sql.text(sql_grant_reader_default)).close()
+        statements = [
+            f'GRANT USAGE ON SCHEMA {db_schema} TO {db_reader};',
+            f'GRANT SELECT ON ALL TABLES IN SCHEMA {db_schema} TO {db_reader};',
+            f'ALTER DEFAULT PRIVILEGES IN SCHEMA {db_schema} GRANT SELECT ON TABLES TO {db_reader};',
+        ]
+        for statement in statements:
+            postgres_db.execute(sqlalchemy.sql.text(statement)).close()
     except sqlalchemy.exc.ProgrammingError:
         pass
     finally:
