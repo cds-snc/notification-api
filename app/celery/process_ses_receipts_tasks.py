@@ -70,6 +70,7 @@ def get_certificate(url):
     certificate_cache.set(url, res, timeout=60 * 60)  # 60 minutes
     return res
 
+
 # 400 counts as a permanent failure so SNS will not retry.
 # 500 counts as a failed delivery attempt so SNS will retry.
 # See https://docs.aws.amazon.com/sns/latest/dg/DeliveryPolicies.html#DeliveryPolicies

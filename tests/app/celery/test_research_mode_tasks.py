@@ -88,7 +88,7 @@ def test_make_sns_callback(notify_api, rmock):
 
 
 def test_make_ses_callback(notify_api, mocker):
-    mock_task = mocker.patch('app.celery.research_mode_tasks.process_ses_results')
+    mock_task = mocker.patch('app.celery.research_mode_tasks.process_ses_receipts_tasks.process_ses_results')
     some_ref = str(uuid.uuid4())
     send_email_response(reference=some_ref, to="test@test.com")
 

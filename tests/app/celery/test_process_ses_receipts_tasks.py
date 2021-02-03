@@ -6,7 +6,7 @@ from freezegun import freeze_time
 
 
 from app import statsd_client, encryption
-from app.celery.process_ses_receipts_tasks import process_ses_results, process_ses_smtp_results
+from app.celery import process_ses_receipts_tasks
 from app.celery.research_mode_tasks import (
     ses_hard_bounce_callback,
     ses_soft_bounce_callback,
@@ -103,7 +103,7 @@ def test_notifications_ses_200_call_process_task(client, mocker):
 def test_process_ses_results(sample_email_template):
     create_notification(sample_email_template, reference='ref1', sent_at=datetime.utcnow(), status='sending')
 
-    assert process_ses_results(response=ses_notification_callback(reference='ref1'))
+    assert process_ses_receipts_tasks.process_ses_results(response=ses_notification_callback(reference='ref1'))
 
 
 def test_process_ses_results_retry_called(sample_email_template, notify_db, mocker):
@@ -111,14 +111,14 @@ def test_process_ses_results_retry_called(sample_email_template, notify_db, mock
 
     mocker.patch("app.dao.notifications_dao._update_notification_status", side_effect=Exception("EXPECTED"))
     mocked = mocker.patch('app.celery.process_ses_receipts_tasks.process_ses_results.retry')
-    process_ses_results(response=ses_notification_callback(reference='ref1'))
+    process_ses_receipts_tasks.process_ses_results(response=ses_notification_callback(reference='ref1'))
     assert mocked.call_count != 0
 
 
 def test_process_ses_results_in_complaint(sample_email_template, mocker):
     notification = create_notification(template=sample_email_template, reference='ref1')
     mocked = mocker.patch("app.dao.notifications_dao.update_notification_status_by_reference")
-    process_ses_results(response=ses_complaint_callback())
+    process_ses_receipts_tasks.process_ses_results(response=ses_complaint_callback())
     assert mocked.call_count == 0
     complaints = Complaint.query.all()
     assert len(complaints) == 1
@@ -157,7 +157,7 @@ def test_ses_callback_should_update_notification_status(
                                                    url="https://original_url.com")
         assert get_notification_by_id(notification.id).status == 'sending'
 
-        assert process_ses_results(ses_notification_callback(reference='ref'))
+        assert process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference='ref'))
         assert get_notification_by_id(notification.id).status == 'delivered'
         statsd_client.timing_with_dates.assert_any_call(
             "callback.ses.elapsed-time", datetime.utcnow(), notification.sent_at
@@ -173,7 +173,7 @@ def test_ses_callback_should_not_update_notification_status_if_already_delivered
     mock_upd = mocker.patch('app.celery.process_ses_receipts_tasks.notifications_dao._update_notification_status')
     notification = create_notification(template=sample_email_template, reference='ref', status='delivered')
 
-    assert process_ses_results(ses_notification_callback(reference='ref')) is None
+    assert process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference='ref')) is None
     assert get_notification_by_id(notification.id).status == 'delivered'
 
     mock_dup.assert_called_once_with(notification, 'delivered')
@@ -185,7 +185,7 @@ def test_ses_callback_should_retry_if_notification_is_new(client, notify_db, moc
     mock_logger = mocker.patch('app.celery.process_ses_receipts_tasks.current_app.logger.error')
 
     with freeze_time('2017-11-17T12:14:03.646Z'):
-        assert process_ses_results(ses_notification_callback(reference='ref')) is None
+        assert process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference='ref')) is None
         assert mock_logger.call_count == 0
         assert mock_retry.call_count == 1
 
@@ -195,7 +195,7 @@ def test_ses_callback_should_log_if_notification_is_missing(client, notify_db, m
     mock_logger = mocker.patch('app.celery.process_ses_receipts_tasks.current_app.logger.warning')
 
     with freeze_time('2017-11-17T12:34:03.646Z'):
-        assert process_ses_results(ses_notification_callback(reference='ref')) is None
+        assert process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference='ref')) is None
         assert mock_retry.call_count == 0
         mock_logger.assert_called_once_with('notification not found for reference: ref (update to delivered)')
 
@@ -205,7 +205,7 @@ def test_ses_callback_should_not_retry_if_notification_is_old(client, notify_db,
     mock_logger = mocker.patch('app.celery.process_ses_receipts_tasks.current_app.logger.error')
 
     with freeze_time('2017-11-21T12:14:03.646Z'):
-        assert process_ses_results(ses_notification_callback(reference='ref')) is None
+        assert process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference='ref')) is None
         assert mock_logger.call_count == 0
         assert mock_retry.call_count == 0
 
@@ -228,7 +228,7 @@ def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
 
         assert get_notification_by_id(notification.id).status == 'sending'
 
-        assert process_ses_results(ses_notification_callback(reference='ref'))
+        assert process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference='ref'))
         assert get_notification_by_id(notification.id).status == 'delivered'
 
         send_mock.assert_not_called()
@@ -259,9 +259,9 @@ def test_ses_callback_should_update_multiple_notification_status_sent(
         reference='ref3',
     )
     create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
-    assert process_ses_results(ses_notification_callback(reference='ref1'))
-    assert process_ses_results(ses_notification_callback(reference='ref2'))
-    assert process_ses_results(ses_notification_callback(reference='ref3'))
+    assert process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference='ref1'))
+    assert process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference='ref2'))
+    assert process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference='ref3'))
     assert send_mock.called
 
 
@@ -279,7 +279,7 @@ def test_ses_callback_should_set_status_to_temporary_failure(client,
     )
     create_service_callback_api(service=notification.service, url="https://original_url.com")
     assert get_notification_by_id(notification.id).status == 'sending'
-    assert process_ses_results(ses_soft_bounce_callback(reference='ref'))
+    assert process_ses_receipts_tasks.process_ses_results(ses_soft_bounce_callback(reference='ref'))
     assert get_notification_by_id(notification.id).status == 'temporary-failure'
     assert send_mock.called
 
@@ -299,7 +299,7 @@ def test_ses_callback_should_set_status_to_permanent_failure(client,
     create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
 
     assert get_notification_by_id(notification.id).status == 'sending'
-    assert process_ses_results(ses_hard_bounce_callback(reference='ref'))
+    assert process_ses_receipts_tasks.process_ses_results(ses_hard_bounce_callback(reference='ref'))
     assert get_notification_by_id(notification.id).status == 'permanent-failure'
     assert send_mock.called
 
@@ -316,7 +316,7 @@ def test_ses_callback_should_send_on_complaint_to_user_callback_api(sample_email
         template=sample_email_template, reference='ref1', sent_at=datetime.utcnow(), status='sending'
     )
     response = ses_complaint_callback()
-    assert process_ses_results(response)
+    assert process_ses_receipts_tasks.process_ses_results(response)
 
     assert send_mock.call_count == 1
     assert encryption.decrypt(send_mock.call_args[0][0][0]) == {
@@ -404,13 +404,13 @@ def test_notifications_ses_smtp_200_call_process_task(client, mocker):
 
 def test_process_ses_smtp_results(sample_email_template, smtp_template):
     create_notification(template=sample_email_template)
-    assert process_ses_smtp_results(response=ses_smtp_notification_callback())
+    assert process_ses_receipts_tasks.process_ses_smtp_results(response=ses_smtp_notification_callback())
 
 
 def test_process_ses_smtp_results_in_complaint(sample_email_template, mocker, smtp_template):
     create_notification(template=sample_email_template, reference='ref1')
     mocked = mocker.patch("app.dao.notifications_dao.update_notification_status_by_reference")
-    process_ses_smtp_results(response=ses_smtp_complaint_callback())
+    process_ses_receipts_tasks.process_ses_smtp_results(response=ses_smtp_complaint_callback())
     assert mocked.call_count == 0
     complaints = Complaint.query.all()
     assert len(complaints) == 1
@@ -429,7 +429,7 @@ def test_ses_smtp_callback_should_set_status_to_temporary_failure(client,
 
     create_service_callback_api(service=notification.service, url="https://original_url.com")
 
-    assert process_ses_smtp_results(ses_smtp_soft_bounce_callback(reference='ref'))
+    assert process_ses_receipts_tasks.process_ses_smtp_results(ses_smtp_soft_bounce_callback(reference='ref'))
     assert send_mock.called
 
 
@@ -446,7 +446,7 @@ def test_ses_smtp_callback_should_set_status_to_permanent_failure(client,
 
     create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
 
-    assert process_ses_smtp_results(ses_smtp_hard_bounce_callback(reference='ref'))
+    assert process_ses_receipts_tasks.process_ses_smtp_results(ses_smtp_hard_bounce_callback(reference='ref'))
     assert send_mock.called
 
 
@@ -461,6 +461,6 @@ def test_ses_smtp_callback_should_send_on_complaint_to_user_callback_api(smtp_te
     create_notification(template=sample_email_template, reference='ref1')
 
     response = ses_smtp_complaint_callback()
-    assert process_ses_smtp_results(response)
+    assert process_ses_receipts_tasks.process_ses_smtp_results(response)
 
     assert send_mock.call_count == 1

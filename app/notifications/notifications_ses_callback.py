@@ -21,11 +21,7 @@ from app.config import QueueNames
 def determine_notification_bounce_type(notification_type, ses_message):
     remove_emails_from_bounce(ses_message)
     current_app.logger.info('SES bounce dict: {}'.format(json.dumps(ses_message).replace('{', '(').replace('}', ')')))
-    if ses_message['bounce']['bounceType'] == 'Permanent':
-        notification_type = ses_message['bounce']['bounceType']  # permanent or not
-    else:
-        notification_type = 'Temporary'
-    return notification_type
+    return 'Permanent' if ses_message['bounce']['bounceType'] == 'Permanent' else 'Temporary'
 
 
 def handle_complaint(ses_message):

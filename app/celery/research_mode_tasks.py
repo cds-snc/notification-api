@@ -12,7 +12,7 @@ from app import notify_celery
 from app.aws.s3 import file_exists
 from app.models import SMS_TYPE
 from app.config import QueueNames
-from app.celery.process_ses_receipts_tasks import process_ses_results
+from app.celery import process_ses_receipts_tasks
 
 EMAIL_SIMULATOR_AMAZON_SES_COM = 'success@simulator.amazonses.com'
 EMAIL_TEST_NOTIFY_WORKS = 'TEST <TEST@notify.works>'
@@ -66,7 +66,7 @@ def send_email_response(reference, to):
     else:
         body = ses_notification_callback(reference)
 
-    process_ses_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
+    process_ses_receipts_tasks.process_ses_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
 
 
 def make_request(notification_type, provider, data, headers, path=None):
