@@ -65,7 +65,7 @@ attrs==20.3.0
 awscli==1.18.188
 bcrypt==3.2.0
 billiard==3.6.3.0
-bleach==3.2.1
+bleach==3.3.0
 blinker==1.4
 boto==2.49.0
 boto3==1.16.28
