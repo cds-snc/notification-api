@@ -758,36 +758,60 @@ def test_send_already_registered_email_returns_400_when_data_is_missing(client, 
     assert json.loads(resp.get_data(as_text=True))['message'] == {'email': ['Missing data for required field.']}
 
 
-@pytest.mark.skip(reason="not in use")
-def test_send_support_email(client, sample_user, contact_us_template, mocker):
-    data = json.dumps({'email': sample_user.email_address, 'message': "test"})
-    auth_header = create_authorization_header()
-    mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
-    notify_service = contact_us_template.service
+def test_send_support_email_no_live_service(client, sample_user, mocker):
+    data = {
+        'name': sample_user.name,
+        'email': sample_user.email_address,
+        'message': "test"
+    }
+    mocked = mocker.patch('app.user.rest.Freshdesk.create_ticket', return_value=201)
 
     resp = client.post(
         url_for('user.send_support_email', user_id=str(sample_user.id)),
-        data=data,
-        headers=[('Content-Type', 'application/json'), auth_header])
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), create_authorization_header()]
+    )
     assert resp.status_code == 204
 
-    notification = Notification.query.first()
-    mocked.assert_called_once_with(([str(notification.id)]), queue="notify-internal-tasks")
-    assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
+    mocked.assert_called_once_with(data | {'tags': ['z_skip_opsgenie', 'z_skip_urgent_escalation']})
 
 
-@pytest.mark.skip(reason="not in use")
-def test_send_support_email_returns_400_when_data_is_missing(client, sample_user):
-    data = json.dumps({})
-    auth_header = create_authorization_header()
+def test_send_support_email_with_live_service(client, sample_service, mocker):
+    sample_user = sample_service.users[0]
+    data = {
+        'name': sample_user.name,
+        'email': sample_user.email_address,
+        'message': "test"
+    }
+    mocked = mocker.patch('app.user.rest.Freshdesk.create_ticket', return_value=201)
 
     resp = client.post(
         url_for('user.send_support_email', user_id=str(sample_user.id)),
-        data=data,
-        headers=[('Content-Type', 'application/json'), auth_header])
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), create_authorization_header()]
+    )
+    assert resp.status_code == 204
+
+    mocked.assert_called_once_with(data | {'tags': []})
+
+
+def test_send_support_email_returns_400_when_data_is_missing(client, sample_user, mocker):
+    data = {}
+    mocked = mocker.patch('app.user.rest.Freshdesk.create_ticket')
+
+    resp = client.post(
+        url_for('user.send_support_email', user_id=str(sample_user.id)),
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), create_authorization_header()]
+    )
     assert resp.status_code == 400
     assert json.loads(resp.get_data(as_text=True))['message'] == {
-        'email': ['Missing data for required field.'], 'message': ['Missing data for required field.']}
+        'name': ['Missing data for required field.'],
+        'email': ['Missing data for required field.'],
+        'message': ['Missing data for required field.'],
+    }
+
+    mocked.assert_not_called()
 
 
 def test_send_user_confirm_new_email_returns_204(client, sample_user, change_email_confirmation_template, mocker):

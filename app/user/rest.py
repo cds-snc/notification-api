@@ -3,17 +3,17 @@ import uuid
 from datetime import (datetime, timedelta)
 import base64
 import pickle
-import requests
-from requests.auth import HTTPBasicAuth
 
 from fido2 import cbor
 from fido2.client import ClientData
 from fido2.ctap2 import AuthenticatorData
 import pwnedpasswords
+from sqlalchemy.orm.exc import NoResultFound
 
 from flask import (jsonify, request, Blueprint, current_app, abort)
 from sqlalchemy.exc import IntegrityError
 
+from app.clients.freshdesk import Freshdesk
 from app.config import QueueNames, Config
 from app.dao.fido2_key_dao import (
     save_fido2_key,
@@ -440,32 +440,18 @@ def send_already_registered_email(user_id):
 def send_support_email(user_id):
     data, errors = support_email_data_schema.load(request.get_json())
 
-    API_URL = current_app.config['FRESH_DESK_API_URL']
-    API_KEY = current_app.config['FRESH_DESK_API_KEY']
+    data['tags'] = ['z_skip_opsgenie', 'z_skip_urgent_escalation']
+    try:
+        user = get_user_by_email(data['email'])
+        has_live_services = any([not s.restricted for s in user.services])
+        if has_live_services:
+            data['tags'] = []
+    except NoResultFound:
+        pass
 
-    ticket = {
-        'product_id': 61000000046,
-        'subject': data["support_type"] if "support_type" in data else "Support Request",
-        'description': data['message'],
-        'email': data["email"],
-        'priority': 1,
-        'status': 2,
-    }
+    status_code = Freshdesk.create_ticket(data)
 
-    response = requests.post(
-        "{}/api/v2/tickets".format(API_URL),
-        json=ticket,
-        auth=HTTPBasicAuth(API_KEY, "x")
-    )
-
-    if response.status_code != 201:
-        print("Failed to create ticket, errors are displayed below")
-        content = json.loads(response.content)
-        print(content["errors"])
-        print("x-request-id : {}".format(content.headers['x-request-id']))
-        print("Status Code : {}".format(str(content.status_code)))
-
-    return jsonify({"status_code": response.status_code}), 204
+    return jsonify({"status_code": status_code}), 204
 
 
 @user_blueprint.route('/<uuid:user_id>/branding-request', methods=['POST'])
