@@ -207,8 +207,8 @@ class RoutingSQLAlchemy(NotifySQLAlchemy):
         scopefunc = options.pop("scopefunc", _app_ctx_stack.__ident_func__)
         options.setdefault("query_cls", BaseQuery)
         return orm.scoped_session(
-            # partial(ExplicitRoutingSession, self, **options), scopefunc=scopefunc
-            partial(ImplicitRoutingSession, self, **options), scopefunc=scopefunc
+            partial(ExplicitRoutingSession, self, **options), scopefunc=scopefunc
+            # partial(ImplicitRoutingSession, self, **options), scopefunc=scopefunc
             # partial(DefaultRoutingSession, self, **options), scopefunc=scopefunc
         )
 

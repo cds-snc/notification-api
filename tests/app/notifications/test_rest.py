@@ -174,8 +174,6 @@ def test_normal_api_key_returns_notifications_created_from_jobs_and_from_api(
 
     from app import db
     db.session.commit()
-    # db.session.close()
-    # db.session.begin()
 
     response = client.get(
         path='/notifications',
