@@ -47,42 +47,7 @@ def test_two_way_sms_handler_with_sns_and_start_keyword(mocker, mock_boto):
         }
     }
 
-    event = {
-        "Records": [
-            {
-                "EventVersion": "1.0",
-                "EventSubscriptionArn": "some_arn",
-                "EventSource": "aws:sns",
-                "Sns": {
-                    "SignatureVersion": "1",
-                    "Timestamp": "2019-01-02T12:45:07.000Z",
-                    "Signature": "some signature",
-                    "SigningCertUrl": "some_url",
-                    "MessageId": "message-id",
-                    "Message": '{\"originationNumber\":\"+16502532222\",'
-                               '\"destinationNumber\":\"+from_number\",'
-                               '\"messageKeyword\":\"keyword_blah\",'
-                               '\"messageBody\":\"start\",'
-                               '\"inboundMessageId\":\"inbound-message-id\",'
-                               '\"previousPublishedMessageId\":\"prev-pub-msg-id\"}',
-                    "MessageAttributes": {
-                        "Test": {
-                            "Type": "String",
-                            "Value": "TestString"
-                        },
-                        "TestBinary": {
-                            "Type": "Binary",
-                            "Value": "TestBinary"
-                        }
-                    },
-                    "Type": "Notification",
-                    "UnsubscribeUrl": "some_url",
-                    "TopicArn": "some-arn",
-                    "Subject": "some-test-thing"
-                }
-            }
-        ]
-    }
+    event = create_event('start')
 
     mock_boto.client.return_value = mock_sns
 
@@ -126,7 +91,18 @@ def test_two_way_sms_handler_with_pinpoint_and_unsupported_keyword(mocker, mock_
         }
     }
 
-    event = {
+    event = create_event('unsupported keywords')
+
+    mock_boto.client.return_value = mock_pinpoint
+
+    response = two_way_sms_handler(event, mocker.Mock())
+    mock_pinpoint.send_messages.assert_called_once()
+
+    assert response['StatusCode'] == 200
+
+
+def create_event(message_body: str) -> dict:
+    return {
         "Records": [
             {
                 "EventVersion": "1.0",
@@ -141,7 +117,7 @@ def test_two_way_sms_handler_with_pinpoint_and_unsupported_keyword(mocker, mock_
                     "Message": '{\"originationNumber\":\"+16502532222\",'
                                '\"destinationNumber\":\"+from_number\",'
                                '\"messageKeyword\":\"keyword_blah\",'
-                               '\"messageBody\":\"unsupported keywords\",'
+                               f'\"messageBody\":\"{message_body}\",'
                                '\"inboundMessageId\":\"inbound-message-id\",'
                                '\"previousPublishedMessageId\":\"prev-pub-msg-id\"}',
                     "MessageAttributes": {
@@ -162,10 +138,3 @@ def test_two_way_sms_handler_with_pinpoint_and_unsupported_keyword(mocker, mock_
             }
         ]
     }
-
-    mock_boto.client.return_value = mock_pinpoint
-
-    response = two_way_sms_handler(event, mocker.Mock())
-    mock_pinpoint.send_messages.assert_called_once()
-
-    assert response['StatusCode'] == 200
