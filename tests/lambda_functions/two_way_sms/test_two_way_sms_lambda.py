@@ -112,13 +112,12 @@ def test_handler_with_sns_start_keyword_permanent_failure(mocker, mock_boto):
         assert response['DeliveryStatusMessage'] == failure_result['StatusMessage']
 
 
-@pytest.mark.skip("wip")
 def test_handler_with_sns_start_keyword_already_opted_in(mocker, mock_boto):
     mock_sns = mocker.Mock()
 
     mock_minimal_response = {
         'ResponseMetadata': {
-            'RequestId': 'd090f18f-b13a-4771-913e-3162c10968a8',
+            'RequestId': 'some request id',
             'HTTPStatusCode': 200,
             'HTTPHeaders': {
                 'date': 'Fri, 29 Jan 2021 01:07:00 GMT',
@@ -126,7 +125,7 @@ def test_handler_with_sns_start_keyword_already_opted_in(mocker, mock_boto):
                 'connection': 'keep-alive',
                 'x-amzn-requestid': 'request-id',
                 'access-control-allow-origin': '*',
-                'x-amz-apigw-id': 'Z4vkMEaxPHMFvkg=',
+                'x-amz-apigw-id': 'some id',
                 'cache-control': 'no-store',
                 'x-amzn-trace-id': 'trace-id'
             },

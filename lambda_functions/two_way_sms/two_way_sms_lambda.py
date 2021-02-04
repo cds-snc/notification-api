@@ -74,7 +74,7 @@ def _parse_response_sns(response: dict, recipient_number: str) -> tuple:
             'DeliveryStatusMessage': response['MessageResponse']['Result'][recipient_number]['StatusMessage']
         })
 
-    if parsed_response["DeliveryStatusCode"] in [400]:
+    if "DeliveryStatusCode" in parsed_response.keys() and parsed_response["DeliveryStatusCode"] in [400]:
         return False, parsed_response
 
     return True, parsed_response
