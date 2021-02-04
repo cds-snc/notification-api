@@ -62,6 +62,39 @@ def test_handler_with_sns_and_start_keyword_success(mocker, mock_boto):
     assert response['DeliveryStatusMessage'] == success_result['StatusMessage']
 
 
+def test_handler_with_sns_start_keyword_failure(mocker, mock_boto):
+    mock_sns = mocker.Mock()
+    mock_failure_response = {
+        'ResponseMetadata': {
+            'RequestId': 'request-id',
+            'HTTPStatusCode': 400,
+            'HTTPHeaders': {
+                'date': 'Fri, 29 Jan 2021 01:07:00 GMT',
+                'content-type': 'application/json', 'content-length': '303',
+                'connection': 'keep-alive',
+                'x-amzn-requestid': 'request-id',
+                'access-control-allow-origin': '*',
+                'x-amz-apigw-id': 'some-id',
+                'cache-control': 'no-store',
+                'x-amzn-trace-id': 'trace-id'
+            },
+            'RetryAttempts': 0
+        }
+    }
+
+    mock_sns.opt_in_phone_number = mocker.Mock(side_effect=Exception)
+
+    event = create_event('start')
+
+    mock_boto.client.return_value = mock_sns
+
+    with pytest.raises(Exception):
+        response = two_way_sms_handler(event, mocker.Mock())
+
+        mock_sns.opt_in_phone_number.assert_called_once()
+        assert response['StatusCode'] == mock_failure_response['ResponseMetadata']['HTTPStatusCode']
+
+
 def test_handler_with_sns_start_keyword_permanent_failure(mocker, mock_boto):
     mock_sns = mocker.Mock()
     phone_number_that_has_maxed_opt_out = VALID_TEST_RECIPIENT_PHONE_NUMBER
