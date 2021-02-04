@@ -2,7 +2,6 @@ import boto3
 import json
 import logging
 import os
-import phonenumbers
 
 logger = logging.getLogger()
 region = os.getenv("AWS_REGION")
@@ -22,7 +21,7 @@ def two_way_sms_handler(event: dict, context: dict) -> dict:
             parsed_message = json.loads(record["Sns"]["Message"])
             text_response = parsed_message["messageBody"]
             sender = parsed_message["destinationNumber"]
-            recipient_number = _validate_phone_number(parsed_message["originationNumber"])
+            recipient_number = parsed_message["originationNumber"]
 
             if start_keyword in text_response.upper():
                 return _opt_in_number(recipient_number)
@@ -39,7 +38,7 @@ def _opt_in_number(recipient_number: str) -> dict:
 
     parsed_response = _parse_response_sns(response, recipient_number)
 
-    if parsed_response['DeliveryStatus'] in [200]:
+    if parsed_response["DeliveryStatus"] in [200]:
         logging.info(f"Handler successfully with response {parsed_response}")
         return parsed_response
     else:
@@ -51,14 +50,6 @@ def _send_default_sms_message(recipient_number, sender):
     logging.info(f"Handler successfully sent message with message "
                  f"{response['MessageResponse']['Result'][recipient_number]}")
     return response['MessageResponse']['Result'][recipient_number]
-
-
-def _validate_phone_number(recipient_number: str) -> str:
-    result = phonenumbers.parse(recipient_number, "US")
-    if phonenumbers.is_valid_number(result):
-        return recipient_number
-    else:
-        raise Exception(f"Invalid phone number")
 
 
 def _make_sns_opt_in_request(recipient_number: str) -> dict:
