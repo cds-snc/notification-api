@@ -4,11 +4,13 @@ import boto3
 import os
 import uuid
 
+ROUTING_KEY = "notify-internal-tasks"
+
 
 def lambda_handler(event, context):
     sqs = boto3.resource('sqs')
     queue = sqs.get_queue_by_name(
-        QueueName=os.getenv('DESTINATION_QUEUE_NAME')
+        QueueName=f"{os.getenv('NOTIFICATION_QUEUE_PREFIX')}{ROUTING_KEY}"
     )
 
     for record in event["Records"]:
@@ -46,7 +48,7 @@ def lambda_handler(event, context):
                 "delivery_info": {
                     "priority": 0,
                     "exchange": "default",
-                    "routing_key": "notify-internal-tasks"
+                    "routing_key": ROUTING_KEY
                 },
                 "body_encoding": "base64",
                 "delivery_tag": str(uuid.uuid4())

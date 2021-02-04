@@ -3,7 +3,10 @@ import json
 import os
 
 
-from lambda_functions.ses_callback.ses_callback_lambda import lambda_handler
+from lambda_functions.ses_callback.ses_callback_lambda import (
+    lambda_handler,
+    ROUTING_KEY
+)
 
 
 def test_lambda_handler(mocker):
@@ -56,7 +59,8 @@ def test_lambda_handler(mocker):
 
 
 def test_lambda_handler_queue_name(mocker):
-    expected_queue_name = os.environ['DESTINATION_QUEUE_NAME'] = 'dev-notification-notify-internal-tasks'
+    queue_name_prefix = os.environ['NOTIFICATION_QUEUE_PREFIX'] = 'test-notification-'
+    expected_queue_name = f"{queue_name_prefix}{ROUTING_KEY}"
     mock_queue = mocker.Mock()
 
     # noinspection PyPep8Naming
@@ -68,7 +72,7 @@ def test_lambda_handler_queue_name(mocker):
     def mocked_send_message(MessageBody):  # NOSONAR
         assert MessageBody
         envelope = json.loads(base64.b64decode(MessageBody))
-        assert envelope['properties']['delivery_info']['routing_key'] in expected_queue_name
+        assert envelope['properties']['delivery_info']['routing_key'] == ROUTING_KEY
 
     mock_queue.send_message.side_effect = mocked_send_message
 
