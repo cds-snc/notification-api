@@ -1,3 +1,8 @@
+import base64
+import json
+import os
+
+
 from lambda_functions.ses_callback.ses_callback_lambda import lambda_handler
 
 
@@ -48,3 +53,41 @@ def test_lambda_handler(mocker):
     assert response['statusCode'] == 200
 
     mock_queue.send_message.assert_called_once()
+
+
+def test_lambda_handler_queue_name(mocker):
+    expected_queue_name = os.environ['DESTINATION_QUEUE_NAME'] = 'dev-notification-notify-internal-tasks'
+    mock_queue = mocker.Mock()
+
+    # noinspection PyPep8Naming
+    def mocked_queue_name(QueueName):  # NOSONAR
+        assert QueueName == expected_queue_name
+        return mock_queue
+
+    # noinspection PyPep8Naming
+    def mocked_send_message(MessageBody):  # NOSONAR
+        assert MessageBody
+        envelope = json.loads(base64.b64decode(MessageBody))
+        assert envelope['properties']['delivery_info']['routing_key'] in expected_queue_name
+
+    mock_queue.send_message.side_effect = mocked_send_message
+
+    mock_sqs = mocker.Mock()
+    mock_sqs.get_queue_by_name.side_effect = mocked_queue_name
+
+    mock_boto = mocker.Mock()
+    mock_boto.resource.return_value = mock_sqs
+
+    mocker.patch('lambda_functions.ses_callback.ses_callback_lambda.boto3', new=mock_boto)
+
+    event = {
+        "Records": [
+            {
+                "Sns": {
+                    "Message": "Hello from SNS!",
+                }
+            }
+        ]
+    }
+
+    lambda_handler(event, mocker.Mock())
