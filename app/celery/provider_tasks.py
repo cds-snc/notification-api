@@ -43,7 +43,7 @@ def deliver_sms(self, notification_id):
             raise NotificationTechnicalFailureException(message)
 
 
-@notify_celery.task(bind=True, name="deliver_email", max_retries=48, default_retry_delay=300)
+@notify_celery.task(bind=True, name="deliver_email", max_retries=48, default_retry_delay=30)
 @statsd(namespace="tasks")
 def deliver_email(self, notification_id):
     try:
@@ -59,7 +59,7 @@ def deliver_email(self, notification_id):
         raise NotificationTechnicalFailureException(str(e))
     except MalwarePendingException:
         current_app.logger.info(
-            "RETRY: Email notification {} is pending malware scans".format(notification_id))
+            f"RETRY number {self.request.retries}: Email notification {notification_id} is pending malware scans")
         self.retry(queue=QueueNames.RETRY, countdown=60)
     except InvalidProviderException as e:
         current_app.logger.exception(f"Invalid provider for {notification_id}: {str(e)}")
@@ -69,11 +69,11 @@ def deliver_email(self, notification_id):
         try:
             if isinstance(e, AwsSesClientThrottlingSendRateException):
                 current_app.logger.warning(
-                    f"RETRY: Email notification {notification_id} was rate limited by SES"
+                    f"RETRY number {self.request.retries}: Email notification {notification_id} was rate limited by SES"
                 )
             else:
                 current_app.logger.exception(
-                    f"RETRY: Email notification {notification_id} failed"
+                    f"RETRY number {self.request.retries}: Email notification {notification_id} failed"
                 )
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
