@@ -1,18 +1,13 @@
-import pytest
-import sys
-from unittest import mock
-
 from lambda_functions.two_way_sms.two_way_sms_lambda import two_way_sms_handler
 
 VALID_TEST_RECIPIENT_PHONE_NUMBER = "+16502532222"
 
 
-@pytest.mark.skip('WIP')
 def test_two_way_sms_handler_with_sns(mocker):
-    mock_boto = mock.Mock()
-    sys.modules['boto3'] = mock_boto
+    mock_boto = mocker.Mock()
+    mocker.patch('lambda_functions.two_way_sms.two_way_sms_lambda.boto3', new=mock_boto)
+
     mock_sns = mocker.Mock()
-    mock_boto.client.return_value = mock_sns
 
     mock_sns.opt_in_phone_number.return_value = {
         'ResponseMetadata': {
@@ -81,6 +76,8 @@ def test_two_way_sms_handler_with_sns(mocker):
             }
         ]
     }
+
+    mock_boto.client.return_value = mock_sns
 
     response = two_way_sms_handler(event, mocker.Mock())
     mock_sns.opt_in_phone_number.assert_called_once()
