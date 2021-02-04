@@ -9,7 +9,8 @@ pinpoint_project_id = os.getenv("AWS_PINPOINT_APP_ID")
 default_response_message = os.getenv("DEFAULT_RESPONSE_MESSAGE")
 
 
-def two_way_sms_handler(event: dict, context: dict) -> dict:
+# context type is LambdaContext which reqs an import from a pkg we don't have, so omitted
+def two_way_sms_handler(event: dict, context) -> dict:
     logger = logging.getLogger()
     region = os.getenv("AWS_REGION")
     pinpoint = boto3.client('pinpoint', region_name=region)
