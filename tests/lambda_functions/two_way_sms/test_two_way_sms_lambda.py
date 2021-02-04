@@ -61,24 +61,18 @@ def test_two_way_sms_handler_with_pinpoint_and_unsupported_keyword(mocker, mock_
     mock_pinpoint = mocker.Mock()
 
     mock_pinpoint.send_messages.return_value = {
-        'ResponseMetadata': {
-            'RequestId': 'request-id',
-            'HTTPStatusCode': 200,
-            'HTTPHeaders': {
-                'date': 'Fri, 29 Jan 2021 22:05:47 GMT',
-                'content-type': 'application/json',
-                'content-length': '303',
-                'connection': 'keep-alive',
-                'x-amzn-requestid': 'request-id',
-                'access-control-allow-origin': '*',
-                'x-amz-apigw-id': 'other-id',
-                'cache-control': 'no-store',
-                'x-amzn-trace-id': 'trace-id'
-            },
-            'RetryAttempts': 0
-        },
         'MessageResponse': {
             'ApplicationId': 'test-app-id',
+            'EndpointResult': {
+                'some endpoint': {
+                    'Address': 'some address',
+                    'DeliveryStatus': 'SUCCESSFUL',
+                    'MessageId': 'test-message-id',
+                    'StatusCode': 200,
+                    'StatusMessage': 'MessageId: test-message-id',
+                    'UpdatedToken': 'some token'
+                }
+            },
             'RequestId': 'request-id',
             'Result': {
                 VALID_TEST_RECIPIENT_PHONE_NUMBER: {
