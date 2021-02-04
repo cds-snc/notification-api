@@ -44,6 +44,7 @@ class QueueNames(object):
     ANTIVIRUS = 'antivirus-tasks'
     LOOKUP_CONTACT_INFO = 'lookup-contact-info-tasks'
     LOOKUP_VA_PROFILE_ID = 'lookup-va-profile-id-tasks'
+    DELIVERY_RECEIPTS = 'delivery-receipts'
 
     @staticmethod
     def all_queues():
@@ -62,7 +63,8 @@ class QueueNames(object):
             QueueNames.CALLBACKS,
             # QueueNames.LETTERS,
             QueueNames.LOOKUP_CONTACT_INFO,
-            QueueNames.LOOKUP_VA_PROFILE_ID
+            QueueNames.LOOKUP_VA_PROFILE_ID,
+            QueueNames.DELIVERY_RECEIPTS
         ]
 
 
@@ -450,7 +452,9 @@ class Development(Config):
 
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "vanotify-")
 
-    SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", 'postgresql://postgres@localhost/notification_api')
+    SQLALCHEMY_DATABASE_URI = os.getenv(  # nosec
+        "SQLALCHEMY_DATABASE_URI",
+        'postgresql://postgres@localhost/notification_api')
     REDIS_URL = 'redis://localhost:6379/0'
 
     ANTIVIRUS_ENABLED = os.getenv('ANTIVIRUS_ENABLED') == '1'
@@ -482,7 +486,7 @@ class Test(Development):
     TRANSIENT_UPLOADED_LETTERS = 'test-transient-uploaded-letters'
 
     # this is overriden in jenkins and on cloudfoundry
-    SQLALCHEMY_DATABASE_URI = os.getenv(
+    SQLALCHEMY_DATABASE_URI = os.getenv(  # nosec
         'SQLALCHEMY_DATABASE_URI',
         'postgresql://postgres@localhost/test_notification_api'
     )

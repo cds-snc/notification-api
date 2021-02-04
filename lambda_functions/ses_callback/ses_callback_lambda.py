@@ -4,7 +4,7 @@ import boto3
 import os
 import uuid
 
-ROUTING_KEY = "notify-internal-tasks"
+ROUTING_KEY = "delivery-receipts"
 
 
 def lambda_handler(event, context):
