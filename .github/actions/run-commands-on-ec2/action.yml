@@ -22,7 +22,12 @@ runs:
               ${{ inputs.commands }}
             ]}' \
           --output text --query "Command.CommandId")
-        aws ssm wait command-executed --command-id $COMMAND_ID --instance-id $INSTANCE_ID ; \
+        n=0
+        until [ "$n" -ge 5 ]
+        do
+          aws ssm wait command-executed --command-id $COMMAND_ID --instance-id $INSTANCE_ID && break
+          n=$((n+1))
+        done
         RESULT=$(aws ssm list-command-invocations \
           --command-id $COMMAND_ID \
           --details \
