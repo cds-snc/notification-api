@@ -1,3 +1,4 @@
+import botocore
 import pytest
 
 from lambda_functions.two_way_sms.two_way_sms_lambda import two_way_sms_handler
@@ -64,7 +65,14 @@ def test_handler_with_sns_and_start_keyword_success(mocker, mock_boto):
 
 def test_handler_with_sns_start_keyword_failure(mocker, mock_boto):
     mock_sns = mocker.Mock()
-    mock_failure_response = {
+    failure_response = {
+        'Error': {
+            "Code": 400,
+            'Message': {
+                'RequestID': 'id',
+                'Message': "BadRequestException",
+            }
+        },
         'ResponseMetadata': {
             'RequestId': 'request-id',
             'HTTPStatusCode': 400,
@@ -82,17 +90,16 @@ def test_handler_with_sns_start_keyword_failure(mocker, mock_boto):
         }
     }
 
-    mock_sns.opt_in_phone_number = mocker.Mock(side_effect=Exception)
+    mock_boto.client.side_effect = botocore.exceptions.ClientError(failure_response, "exception")
 
     event = create_event('start')
 
     mock_boto.client.return_value = mock_sns
 
-    with pytest.raises(Exception):
-        response = two_way_sms_handler(event, mocker.Mock())
+    with pytest.raises(Exception) as exception:
+        two_way_sms_handler(event, mocker.Mock())
 
-        mock_sns.opt_in_phone_number.assert_called_once()
-        assert response['StatusCode'] == mock_failure_response['ResponseMetadata']['HTTPStatusCode']
+    assert str(failure_response["ResponseMetadata"]["HTTPStatusCode"]) in str(exception.value)
 
 
 def test_handler_with_sns_start_keyword_permanent_failure(mocker, mock_boto):
@@ -176,7 +183,7 @@ def test_handler_with_sns_start_keyword_already_opted_in(mocker, mock_boto):
     assert response['StatusCode'] == mock_minimal_response['ResponseMetadata']['HTTPStatusCode']
 
 
-def test_handler_with_pinpoint_and_unsupported_keyword(mocker, mock_boto):
+def test_handler_with_pinpoint_and_unsupported_keyword_success(mocker, mock_boto):
     mock_pinpoint = mocker.Mock()
 
     mock_pinpoint.send_messages.return_value = {
@@ -212,6 +219,31 @@ def test_handler_with_pinpoint_and_unsupported_keyword(mocker, mock_boto):
     mock_pinpoint.send_messages.assert_called_once()
 
     assert response['StatusCode'] == 200
+
+
+def test_handler_with_pinpoint_and_unsupported_keyword_failure(mocker, mock_boto):
+    mock_pinpoint = mocker.Mock()
+    failure_response = {
+        'Error': {
+            "Code": 400,
+            'Message': {
+                'RequestID': 'id',
+                'Message': "BadRequestException",
+            }
+        }
+    }
+
+    mock_boto.client.return_value = mock_pinpoint
+
+    mock_boto.client.side_effect = botocore.exceptions.ClientError(failure_response, "exception")
+
+    event = create_event('other words')
+
+    with pytest.raises(Exception) as exception:
+        two_way_sms_handler(event, mocker.Mock())
+
+    assert str(failure_response["Error"]["Code"]) in str(exception.value)
+    assert str(failure_response["Error"]["Message"]["Message"]) in str(exception.value)
 
 
 def create_event(message_body: str) -> dict:
