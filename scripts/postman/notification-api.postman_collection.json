@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "f4a97520-3e8b-48dd-ac89-08fd4d57cef6",
+		"_postman_id": "55cc163a-f307-402d-a05a-7ebe832c4f85",
 		"name": "notification-api",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -14,7 +14,6 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "edc337c1-dda4-43ba-8f77-5d4c0743cb25",
 								"exec": [
 									"pm.test(\"Check if status is ok\", function() {",
 									"    var jsonData = pm.response.json();",
@@ -32,7 +31,6 @@
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "e8ad90ab-f1bb-4e27-8835-1557ea299027",
 								"exec": [
 									""
 								],
@@ -55,8 +53,7 @@
 					},
 					"response": []
 				}
-			],
-			"protocolProfileBehavior": {}
+			]
 		},
 		{
 			"name": "create organization",
@@ -64,10 +61,9 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "dc87f753-a7f7-428b-adf7-d0047e978ebe",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
@@ -127,7 +123,6 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "edd50baf-47d4-483d-b29c-23d1935b7dc1",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -180,10 +175,9 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "873711db-ba25-4a74-aaf6-8ddb3b269e51",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
@@ -243,12 +237,8 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "46987d4b-8f87-41fc-9c3e-8bccad0fde6b",
 						"exec": [
-							"if (pm.response.code == 200) {",
-							"    var jsonData = pm.response.json(); ",
-							"    pm.environment.set(\"organization-id\", jsonData[0].id);",
-							"} "
+							""
 						],
 						"type": "text/javascript"
 					}
@@ -285,10 +275,9 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "7dbd5c10-96f8-48c7-9350-b1f98c1d2f36",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
@@ -348,7 +337,6 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "cbc0edef-3c02-4968-b97c-d04b5b060e9f",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -415,10 +403,9 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "6765b7d7-7551-4ba1-9c2f-e75512ebd2a4",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
@@ -478,7 +465,6 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "6736db40-ca2f-4fba-b081-1a58dc8c3c17",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -540,15 +526,195 @@
 			"response": []
 		},
 		{
+			"name": "provider details",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
+							"",
+							"// Set headers for JWT",
+							"var header = {",
+							"\t'typ': 'JWT',",
+							"\t'alg': 'HS256'",
+							"};",
+							"",
+							"// Prepare timestamp in seconds",
+							"var currentTimestamp = Math.floor(Date.now() / 1000)",
+							"",
+							"var data = {",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
+							"\t'iat': currentTimestamp,",
+							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
+							"\t'jti': 'jwt_nonce'",
+							"}",
+							"",
+							"",
+							"function base64url(source) {",
+							"    // Encode in classical base64",
+							"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+							"    ",
+							"    // Remove padding equal characters",
+							"    encodedSource = encodedSource.replace(/=+$/, '')",
+							"    ",
+							"    // Replace characters according to base64url specifications",
+							"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+							"    encodedSource = encodedSource.replace(/\\//g, '_')",
+							"    ",
+							"    return encodedSource",
+							"}",
+							"",
+							"// encode header",
+							"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+							"var encodedHeader = base64url(stringifiedHeader)",
+							"",
+							"// encode data",
+							"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+							"var encodedData = base64url(stringifiedData)",
+							"",
+							"// build token",
+							"var token = `${encodedHeader}.${encodedData}`",
+							"",
+							"// sign token",
+							"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+							"signature = base64url(signature)",
+							"var signedToken = `${token}.${signature}`",
+							"",
+							"pm.environment.set('jwt_signed', signedToken)",
+							"console.log('Signed and encoded JWT', signedToken)"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_signed}}"
+					}
+				],
+				"url": {
+					"raw": "https://{{notification-api-url}}/provider-details",
+					"protocol": "http",
+					"host": [
+						"{{notification-api-url}}"
+					],
+					"path": [
+						"provider-details"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "update provider detail",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
+							"",
+							"// Set headers for JWT",
+							"var header = {",
+							"\t'typ': 'JWT',",
+							"\t'alg': 'HS256'",
+							"};",
+							"",
+							"// Prepare timestamp in seconds",
+							"var currentTimestamp = Math.floor(Date.now() / 1000)",
+							"",
+							"var data = {",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
+							"\t'iat': currentTimestamp,",
+							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
+							"\t'jti': 'jwt_nonce'",
+							"}",
+							"",
+							"",
+							"function base64url(source) {",
+							"    // Encode in classical base64",
+							"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+							"    ",
+							"    // Remove padding equal characters",
+							"    encodedSource = encodedSource.replace(/=+$/, '')",
+							"    ",
+							"    // Replace characters according to base64url specifications",
+							"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+							"    encodedSource = encodedSource.replace(/\\//g, '_')",
+							"    ",
+							"    return encodedSource",
+							"}",
+							"",
+							"// encode header",
+							"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+							"var encodedHeader = base64url(stringifiedHeader)",
+							"",
+							"// encode data",
+							"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+							"var encodedData = base64url(stringifiedData)",
+							"",
+							"// build token",
+							"var token = `${encodedHeader}.${encodedData}`",
+							"",
+							"// sign token",
+							"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+							"signature = base64url(signature)",
+							"var signedToken = `${token}.${signature}`",
+							"",
+							"pm.environment.set('jwt_signed', signedToken)",
+							"console.log('Signed and encoded JWT', signedToken)"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_signed}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"priority\": 50,\n    \"active\": true\n}"
+				},
+				"url": {
+					"raw": "https://{{notification-api-url}}/provider-details/c80ee998-4e1d-44f6-a0fb-93b1f41cc3de",
+					"protocol": "http",
+					"host": [
+						"{{notification-api-url}}"
+					],
+					"path": [
+						"provider-details",
+						"c80ee998-4e1d-44f6-a0fb-93b1f41cc3de"
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "get users",
 			"event": [
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "2c1a7405-9aea-440c-8003-6494fa852d91",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
@@ -608,12 +774,8 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "bbe583b1-ad47-4b2e-ab37-71245962c2f9",
 						"exec": [
-							"if (pm.response.code == 200) {",
-							"    var jsonData = pm.response.json(); ",
-							"    pm.environment.set(\"user-id\", jsonData[0].id);",
-							"} "
+							""
 						],
 						"type": "text/javascript"
 					}
@@ -662,10 +824,9 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "5f861c8d-2c75-404f-81e8-828b338bbcab",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
@@ -725,7 +886,6 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "3660d5c8-d47a-4eee-b7e3-9392d463a240",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -788,10 +948,9 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "bdda4fc8-9adf-4e7e-a11d-86d9c9cc87d7",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
@@ -851,7 +1010,6 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "d9d44d39-a1b4-4832-9dcf-0ded9c12240b",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -914,10 +1072,9 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "d0d78fb5-539c-4ca4-bcb2-2ae6db8c8185",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
@@ -1013,10 +1170,9 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "45387f36-bc89-49b5-8547-849711485df6",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
@@ -1076,7 +1232,6 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "70354567-9ee7-4218-8318-12826de5b836",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -1131,7 +1286,6 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "1471a031-bfec-4d0d-b51c-bd9673ca014b",
 						"exec": [
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
@@ -1191,7 +1345,6 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "05c30269-6d48-48ab-8d0e-de8db11c34f5",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -1245,7 +1398,6 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "d8f4bb7f-1228-4d28-a03d-4999e6b974e1",
 						"type": "text/javascript",
 						"exec": [
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
@@ -1305,7 +1457,6 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "5a5ffed3-9c80-4629-89b2-f1818af77563",
 						"type": "text/javascript",
 						"exec": [
 							"if (pm.response.code == 201) {",
@@ -1360,10 +1511,9 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "1790b9c7-dc03-4162-808f-1c464f958269",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
@@ -1423,13 +1573,8 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "d7506688-c466-4b98-86f4-13a261d8f328",
 						"exec": [
-							"if (pm.response.code == 200) {",
-							"    var jsonData = pm.response.json(); ",
-							"    var form526Template = jsonData.data.find(template => template.name === \"Form 526 submission confirmation\")",
-							"    pm.environment.set(\"template-id\", form526Template ? form526Template.id : jsonData.data[0].id);",
-							"}"
+							""
 						],
 						"type": "text/javascript"
 					}
@@ -1470,15 +1615,14 @@
 			"response": []
 		},
 		{
-			"name": "create api key",
+			"name": "create service Callback",
 			"event": [
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "c7b439de-a666-49a0-becc-f3b91566f7d5",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
@@ -1538,7 +1682,243 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "a2bff6a3-245d-452a-be1b-9dc5119656e6",
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_signed}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"url\": \"https://host.docker.internal:7005/\",\n    \"bearer_token\": \"some token\",\n    \"updated_by_id\": \"{{user-id}}\"\n}"
+				},
+				"url": {
+					"raw": "https://{{notification-api-url}}/service/{{service-id}}/delivery-receipt-api",
+					"protocol": "http",
+					"host": [
+						"{{notification-api-url}}"
+					],
+					"path": [
+						"service",
+						"{{service-id}}",
+						"delivery-receipt-api"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "update service Callback",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// JWT generation script adapted from",
+							"// https://gist.github.com/corbanb/",
+							"",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
+							"",
+							"// Set headers for JWT",
+							"var header = {",
+							"\t'typ': 'JWT',",
+							"\t'alg': 'HS256'",
+							"};",
+							"",
+							"// Prepare timestamp in seconds",
+							"var currentTimestamp = Math.floor(Date.now() / 1000)",
+							"",
+							"var data = {",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
+							"\t'iat': currentTimestamp,",
+							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
+							"\t'jti': 'jwt_nonce'",
+							"}",
+							"",
+							"",
+							"function base64url(source) {",
+							"    // Encode in classical base64",
+							"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+							"    ",
+							"    // Remove padding equal characters",
+							"    encodedSource = encodedSource.replace(/=+$/, '')",
+							"    ",
+							"    // Replace characters according to base64url specifications",
+							"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+							"    encodedSource = encodedSource.replace(/\\//g, '_')",
+							"    ",
+							"    return encodedSource",
+							"}",
+							"",
+							"// encode header",
+							"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+							"var encodedHeader = base64url(stringifiedHeader)",
+							"",
+							"// encode data",
+							"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+							"var encodedData = base64url(stringifiedData)",
+							"",
+							"// build token",
+							"var token = `${encodedHeader}.${encodedData}`",
+							"",
+							"// sign token",
+							"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+							"signature = base64url(signature)",
+							"var signedToken = `${token}.${signature}`",
+							"",
+							"pm.environment.set('jwt_signed', signedToken)",
+							"console.log('Signed and encoded JWT', signedToken)"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code == 201) {",
+							"    var jsonData = pm.response.json(); ",
+							"    pm.environment.set(\"service-id\", jsonData.id);",
+							"} else {",
+							"    var url = \"https://\" + pm.environment.get(\"notification-api-url\") + \"/service/find-services-by-name?service_name=main service\";",
+							"    pm.sendRequest({",
+							"        url: url,",
+							"        method: 'GET',",
+							"        header: 'authorization: Bearer ' + pm.environment.get(\"jwt_signed\"),",
+							"    }, function (err, res) {",
+							"        pm.environment.set(\"service-id\", res.json().data[0].id);",
+							"    });",
+							"}",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_signed}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"test service for local 2\",\n    \"user_id\": \"{{user-id}}\",\n    \"organisation_id\": \"{{organization-id}}\",\n    \"message_limit\": 1000,\n    \"restricted\": false,\n    \"active\": true,\n    \"created_by\": \"{{user-id}}\"\n}"
+				},
+				"url": {
+					"raw": "https://{{notification-api-url}}/service",
+					"protocol": "http",
+					"host": [
+						"{{notification-api-url}}"
+					],
+					"path": [
+						"service"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create api key",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// JWT generation script adapted from",
+							"// https://gist.github.com/corbanb/",
+							"",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
+							"",
+							"// Set headers for JWT",
+							"var header = {",
+							"\t'typ': 'JWT',",
+							"\t'alg': 'HS256'",
+							"};",
+							"",
+							"// Prepare timestamp in seconds",
+							"var currentTimestamp = Math.floor(Date.now() / 1000)",
+							"",
+							"var data = {",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
+							"\t'iat': currentTimestamp,",
+							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
+							"\t'jti': 'jwt_nonce'",
+							"}",
+							"",
+							"",
+							"function base64url(source) {",
+							"    // Encode in classical base64",
+							"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+							"    ",
+							"    // Remove padding equal characters",
+							"    encodedSource = encodedSource.replace(/=+$/, '')",
+							"    ",
+							"    // Replace characters according to base64url specifications",
+							"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+							"    encodedSource = encodedSource.replace(/\\//g, '_')",
+							"    ",
+							"    return encodedSource",
+							"}",
+							"",
+							"// encode header",
+							"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+							"var encodedHeader = base64url(stringifiedHeader)",
+							"",
+							"// encode data",
+							"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+							"var encodedData = base64url(stringifiedData)",
+							"",
+							"// build token",
+							"var token = `${encodedHeader}.${encodedData}`",
+							"",
+							"// sign token",
+							"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+							"signature = base64url(signature)",
+							"var signedToken = `${token}.${signature}`",
+							"",
+							"pm.environment.set('jwt_signed', signedToken)",
+							"console.log('Signed and encoded JWT', signedToken)"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -1594,10 +1974,9 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "7ac5bc3c-2c8e-4272-8c43-9d79d8466ca3",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
@@ -1701,10 +2080,9 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "25a30340-a178-4872-930d-979d2ae7c741",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
 							"",
@@ -1764,12 +2142,8 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "ab6486e7-61f6-43f0-92fe-fdf90064ff00",
 						"exec": [
-							"if (pm.response.code == 200) {",
-							"    var jsonData = pm.response.json();",
-							"    pm.environment.set(\"api-key-id\", jsonData.apiKeys.find(apiKey => apiKey.expiry_date === null).id);",
-							"}",
+							"",
 							""
 						],
 						"type": "text/javascript"
@@ -1810,10 +2184,9 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "b4ef904b-1e04-4dfb-b0f7-fb021c6abeb5",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get(\"service-api-key\");",
 							"",
@@ -1870,7 +2243,6 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "ff667e08-9628-473b-a520-26cd485ad8bc",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -1924,10 +2296,9 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "772b79fb-9129-4ad5-b04e-7b8690f26407",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get(\"service-api-key\");",
 							"",
@@ -1984,7 +2355,6 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "4904ddc2-f74e-4ce1-b47c-4ef5625f3da2",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -2038,10 +2408,9 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "74d0b9b4-60b9-4168-83bc-84840802c1c8",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get(\"service-api-key\");",
 							"",
@@ -2098,7 +2467,6 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "213b5ba9-3a4c-42fc-819e-2975548222e6",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -2151,10 +2519,9 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "6c0e1695-f8b5-47fd-a751-d4534d4f7f49",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get(\"service-api-key\");",
 							"",
@@ -2211,7 +2578,6 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "b34ec56c-2704-41b5-96aa-b11c24342d5b",
 						"exec": [
 							"if (pm.response.code == 201) {",
 							"    var jsonData = pm.response.json(); ",
@@ -2264,11 +2630,10 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "fd9a561b-8d6c-4164-8792-dc14c1a56129",
 						"type": "text/javascript",
 						"exec": [
 							"// JWT generation script adapted from",
-							"// https://gist.github.com/corbanb/db03150abbe899285d6a86cc480f674d",
+							"// https://gist.github.com/corbanb/",
 							"",
 							"var jwtSecret = pm.environment.get(\"service-api-key\");",
 							"",
@@ -2366,6 +2731,5 @@
 			},
 			"response": []
 		}
-	],
-	"protocolProfileBehavior": {}
+	]
 }
