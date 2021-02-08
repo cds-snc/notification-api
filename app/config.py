@@ -167,7 +167,7 @@ class Config(object):
     NOTIFY_APP_NAME = 'api'
     SQLALCHEMY_RECORD_QUERIES = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_POOL_SIZE = int(os.getenv('SQLALCHEMY_POOL_SIZE', 5))
+    SQLALCHEMY_POOL_SIZE = int(os.getenv('SQLALCHEMY_POOL_SIZE', 30))
     SQLALCHEMY_POOL_TIMEOUT = 30
     SQLALCHEMY_POOL_RECYCLE = 300
     SQLALCHEMY_STATEMENT_TIMEOUT = 1200
@@ -531,7 +531,6 @@ class Staging(Config):
 
 
 class Production(Config):
-    SQLALCHEMY_POOL_SIZE = int(os.getenv('SQLALCHEMY_POOL_SIZE', 30))
     # CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'production-test-letters'
     DVLA_RESPONSE_BUCKET_NAME = 'notifications.service.gov.uk-ftp'
