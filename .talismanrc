@@ -109,3 +109,5 @@ fileignoreconfig:
       checksum: 36c82ee4f725f0442c33bac13a6a4bd11f06aea33b4d2360a294bf39e0b29b64
     - filename: lambda_functions/two_way_sms/two_way_sms_lambda.py
       checksum: 0d73059ed698ab210d5bc340745401342c13ec06061f2d6313eed316531b3ceb
+    - filename: .github/workflows/deployment-tw.yaml
+      checksum: 61bf7b6da8b8c4b8c20a5e4358c83a143a9c55367531cfd2819f0fdf7dbf8b23
