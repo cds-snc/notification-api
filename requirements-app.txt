@@ -1,6 +1,7 @@
 # Run `make freeze-requirements` to update requirements.txt
 # with package version changes made in requirements-app.txt
 
+boto==2.49.0
 cffi==1.14.4
 celery[sqs]==5.0.5
 docopt==0.6.2

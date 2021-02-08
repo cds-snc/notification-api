@@ -3,6 +3,7 @@
 # Run `make freeze-requirements` to update requirements.txt
 # with package version changes made in requirements-app.txt
 
+boto==2.49.0
 cffi==1.14.4
 celery[sqs]==5.0.5
 docopt==0.6.2
@@ -76,14 +77,13 @@ click-didyoumean==0.0.3
 click-plugins==1.1.1
 click-repl==0.1.6
 colorama==0.4.3
-cryptography==3.3.1
+cryptography==3.4.2
 dnspython==1.16.0
 docutils==0.15.2
 filelock==3.0.12
 flask-redis==0.4.0
 future==0.18.2
 greenlet==1.0.0
-importlib-metadata==3.4.0
 Jinja2==2.11.3
 jmespath==0.10.0
 kombu==5.0.2
@@ -114,11 +114,9 @@ six==1.15.0
 smartypants==2.0.1
 starkbank-ecdsa==1.1.0
 statsd==3.3.0
-typing-extensions==3.7.4.3
 urllib3==1.26.3
 vine==5.0.0
 wcwidth==0.2.5
 webencodings==0.5.1
 websocket-client==0.57.0
 Werkzeug==1.0.1
-zipp==3.4.0
