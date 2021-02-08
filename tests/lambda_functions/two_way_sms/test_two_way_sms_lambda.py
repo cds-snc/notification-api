@@ -248,37 +248,37 @@ def test_handler_with_pinpoint_and_unsupported_keyword_failure(mocker, mock_boto
 
 def create_event(message_body: str) -> dict:
     return {
-        "Records": [
+        'Records': [
             {
-                "EventVersion": "1.0",
-                "EventSubscriptionArn": "some_arn",
-                "EventSource": "aws:sns",
-                "Sns": {
-                    "SignatureVersion": "1",
-                    "Timestamp": "2019-01-02T12:45:07.000Z",
-                    "Signature": "some signature",
-                    "SigningCertUrl": "some_url",
-                    "MessageId": "message-id",
-                    "Message": '{'f'\"originationNumber\":\"{VALID_TEST_RECIPIENT_PHONE_NUMBER}\",'
+                'EventVersion': '1.0',
+                'EventSubscriptionArn': 'some_arn',
+                'EventSource': 'aws:sns',
+                'Sns': {
+                    'SignatureVersion': '1',
+                    'Timestamp': '2019-01-02T12:45:07.000Z',
+                    'Signature': 'some signature',
+                    'SigningCertUrl': 'some_url',
+                    'MessageId': 'message-id',
+                    'Message': '{'f'\"originationNumber\":\"{VALID_TEST_RECIPIENT_PHONE_NUMBER}\",'
                                '\"destinationNumber\":\"+from_number\",'
                                '\"messageKeyword\":\"keyword_blah\",'
                                f'\"messageBody\":\"{message_body}\",'
                                '\"inboundMessageId\":\"inbound-message-id\",'
                                '\"previousPublishedMessageId\":\"prev-pub-msg-id\"}',
-                    "MessageAttributes": {
-                        "Test": {
-                            "Type": "String",
-                            "Value": "TestString"
+                    'MessageAttributes': {
+                        'Test': {
+                            'Type': 'String',
+                            'Value': 'TestString'
                         },
-                        "TestBinary": {
-                            "Type": "Binary",
-                            "Value": "TestBinary"
+                        'TestBinary': {
+                            'Type': 'Binary',
+                            'Value': 'TestBinary'
                         }
                     },
-                    "Type": "Notification",
-                    "UnsubscribeUrl": "some_url",
-                    "TopicArn": "some-arn",
-                    "Subject": "some-test-thing"
+                    'Type': 'Notification',
+                    'UnsubscribeUrl': 'some_url',
+                    'TopicArn': 'some-arn',
+                    'Subject': 'some-test-thing'
                 }
             }
         ]

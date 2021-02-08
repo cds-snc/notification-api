@@ -107,3 +107,5 @@ fileignoreconfig:
       checksum: f36f0c3503c3920e44d91e2d9a76973a35b1085b3724d61651d17c565c1f2f74
     - filename: tests/lambda_functions/two_way_sms/test_two_way_sms_lambda.py
       checksum: 36c82ee4f725f0442c33bac13a6a4bd11f06aea33b4d2360a294bf39e0b29b64
+    - filename: lambda_functions/two_way_sms/two_way_sms_lambda.py
+      checksum: 0d73059ed698ab210d5bc340745401342c13ec06061f2d6313eed316531b3ceb
