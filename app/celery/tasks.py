@@ -624,3 +624,28 @@ def process_returned_letters_list(notification_references):
             updated, updated_history, len(notification_references)
         )
     )
+
+
+@notify_celery.task(name='send-notify-no-reply')
+@statsd(namespace="tasks")
+def send_notify_no_reply(data):
+    payload = json.loads(data)
+
+    service = dao_fetch_service_by_id(current_app.config['NOTIFY_SERVICE_ID'])
+    template = dao_get_template_by_id(current_app.config['NO_REPLY_TEMPLATE_ID'])
+
+    saved_notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        recipient=payload["sender"],
+        service=service,
+        personalisation={
+            'sending_email_address': payload["recipients"][0]
+        },
+        notification_type=template.template_type,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+        reply_to_text=service.get_default_reply_to_email_address(),
+    )
+
+    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
