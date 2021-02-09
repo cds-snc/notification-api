@@ -1012,8 +1012,8 @@ def no_reply_template(notify_db, notify_db_session):
         service=service,
         user=user,
         template_config_name='NO_REPLY_TEMPLATE_ID',
-        content=('((message))'),
-        subject='((subject))',
+        content=("You tried to reach ((sending_email_address)) but we don't read messages"),
+        subject='No Reply',
         template_type='email'
     )
 
