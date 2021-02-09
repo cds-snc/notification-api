@@ -1633,3 +1633,16 @@ def test_send_notify_no_reply(mocker, no_reply_template):
     queue_call = queue_mock.call_args_list[0][1]
 
     assert queue_call['queue'] == QueueNames.NOTIFY
+
+
+def test_send_notify_no_reply_retry(mocker, no_reply_template):
+    mocker.patch('app.celery.tasks.send_notify_no_reply.retry', side_effect=Retry)
+    mocker.patch('app.celery.tasks.send_notification_to_queue', side_effect=Exception())
+
+    with pytest.raises(Retry):
+        send_notify_no_reply(json.dumps({
+            'sender': 'sender@example.com',
+            'recipients': ['service@notify.ca'],
+        }))
+
+    tasks.send_notify_no_reply.retry.assert_called_with(queue=QueueNames.RETRY)
