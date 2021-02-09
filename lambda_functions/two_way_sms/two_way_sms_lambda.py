@@ -21,20 +21,16 @@ def two_way_sms_handler(event: dict, context) -> dict:
     start_keyword = os.getenv('START_KEYWORD')
     supported_keywords = os.getenv('SUPPORTED_KEYWORDS')
 
-    try:
-        for record in event['Records']:
-            parsed_message = json.loads(record['Sns']['Message'])
-            text_response = parsed_message['messageBody']
-            sender = parsed_message['destinationNumber']
-            recipient_number = parsed_message['originationNumber']
+    for record in event['Records']:
+        parsed_message = json.loads(record['Sns']['Message'])
+        text_response = parsed_message['messageBody']
+        sender = parsed_message['destinationNumber']
+        recipient_number = parsed_message['originationNumber']
 
-            if start_keyword in text_response.upper():
-                return _opt_in_number(recipient_number, sns)
-            elif text_response.upper() not in supported_keywords:
-                return _send_default_sms_message(recipient_number, sender, pinpoint)
-
-    except Exception as error:
-        logging.error(f'Handler error when processing sms response: {error}')
+        if start_keyword in text_response.upper():
+            return _opt_in_number(recipient_number, sns)
+        elif text_response.upper() not in supported_keywords:
+            return _send_default_sms_message(recipient_number, sender, pinpoint)
 
 
 def _opt_in_number(recipient_number: str, sns: BaseClient) -> dict:
