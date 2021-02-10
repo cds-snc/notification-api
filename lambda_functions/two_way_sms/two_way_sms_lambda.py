@@ -62,7 +62,7 @@ def _make_sns_opt_in_request(recipient_number: str, sns: BaseClient) -> dict:
         message = {
             'sns_opt_in_request_id': error.response['ResponseMetadata']['RequestId'],
             'error_code': error.response['Error']['Code'],
-            'error_message': error.response['Error']['Code']
+            'error_message': error.response['Error']['Message']
         }
         sns.publish(
             TopicArn=failure_topic_arn,
