@@ -346,7 +346,7 @@ def test_create_service(
     assert json_resp['data']['name'] == 'created service'
     assert json_resp['data']['email_from'] == 'created.service'
     assert not json_resp['data']['research_mode']
-    assert json_resp['data']['rate_limit'] == 3000
+    assert json_resp['data']['rate_limit'] == 1000
     assert json_resp['data']['letter_branding'] is None
     assert json_resp['data']['count_as_live'] is expected_count_as_live
 
