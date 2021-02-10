@@ -4,10 +4,12 @@ import logging
 import os
 
 from botocore.client import BaseClient
+from botocore.exceptions import ClientError
 
 logger = logging.getLogger()
 pinpoint_project_id = os.getenv('AWS_PINPOINT_APP_ID')
 default_response_message = os.getenv('DEFAULT_RESPONSE_MESSAGE')
+failure_topic_arn = os.getenv('FAILURE_TOPIC_ARN')
 
 
 # context type is LambdaContext which reqs an import from a pkg we don't have, so omitted
@@ -52,9 +54,22 @@ def _send_default_sms_message(recipient_number, sender, pinpoint: BaseClient):
 
 
 def _make_sns_opt_in_request(recipient_number: str, sns: BaseClient) -> dict:
-    return sns.opt_in_phone_number(
-        phoneNumber=recipient_number
-    )
+    try:
+        return sns.opt_in_phone_number(
+            phoneNumber=recipient_number
+        )
+    except ClientError as error:
+        message = {
+            'sns_opt_in_request_id': error.response['ResponseMetadata']['RequestId'],
+            'error_code': error.response['Error']['Code'],
+            'error_message': error.response['Error']['Code']
+        }
+        sns.publish(
+            TopicArn=failure_topic_arn,
+            Message=json.dumps(message),
+            Subject='AWS SNS Opt-in Failure'
+        )
+        raise error
 
 
 def _parse_response_sns(response: dict, recipient_number: str) -> tuple:
