@@ -30,6 +30,7 @@ from app.celery.tasks import (
     s3,
     send_inbound_sms_to_service,
     process_returned_letters_list,
+    send_notify_no_reply,
 )
 from app.config import QueueNames
 from app.dao import jobs_dao, service_email_reply_to_dao, service_sms_sender_dao
@@ -1607,3 +1608,41 @@ def test_process_returned_letters_list_updates_history_if_notification_is_alread
 
     assert [n.status for n in notifications] == ['returned-letter', 'returned-letter']
     assert all(n.updated_at for n in notifications)
+
+
+def test_send_notify_no_reply(mocker, no_reply_template):
+    persist_mock = mocker.patch('app.celery.tasks.persist_notification')
+    queue_mock = mocker.patch('app.celery.tasks.send_notification_to_queue')
+
+    data = json.dumps({
+        'sender': 'sender@example.com',
+        'recipients': ['service@notify.ca'],
+    })
+
+    send_notify_no_reply(data)
+
+    assert len(persist_mock.call_args_list) == 1
+    persist_call = persist_mock.call_args_list[0][1]
+
+    assert persist_call["recipient"] == 'sender@example.com'
+    assert persist_call['personalisation'] == {
+        'sending_email_address': 'service@notify.ca',
+    }
+
+    assert len(queue_mock.call_args_list) == 1
+    queue_call = queue_mock.call_args_list[0][1]
+
+    assert queue_call['queue'] == QueueNames.NOTIFY
+
+
+def test_send_notify_no_reply_retry(mocker, no_reply_template):
+    mocker.patch('app.celery.tasks.send_notify_no_reply.retry', side_effect=Retry)
+    mocker.patch('app.celery.tasks.send_notification_to_queue', side_effect=Exception())
+
+    with pytest.raises(Retry):
+        send_notify_no_reply(json.dumps({
+            'sender': 'sender@example.com',
+            'recipients': ['service@notify.ca'],
+        }))
+
+    tasks.send_notify_no_reply.retry.assert_called_with(queue=QueueNames.RETRY)

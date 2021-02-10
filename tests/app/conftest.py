@@ -1006,6 +1006,19 @@ def smtp_template(notify_db, notify_db_session):
 
 
 @pytest.fixture(scope='function')
+def no_reply_template(notify_db, notify_db_session):
+    service, user = notify_service(notify_db, notify_db_session)
+    return create_custom_template(
+        service=service,
+        user=user,
+        template_config_name='NO_REPLY_TEMPLATE_ID',
+        content=("You tried to reach ((sending_email_address)) but we don't read messages"),
+        subject='No Reply',
+        template_type='email'
+    )
+
+
+@pytest.fixture(scope='function')
 def mou_signed_templates(notify_db, notify_db_session):
     service, user = notify_service(notify_db, notify_db_session)
     import importlib
