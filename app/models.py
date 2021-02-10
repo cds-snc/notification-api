@@ -478,7 +478,7 @@ class Service(db.Model, Versioned):
         nullable=True,
     )
     crown = db.Column(db.Boolean, index=False, nullable=True)
-    rate_limit = db.Column(db.Integer, index=False, nullable=False, default=3000)
+    rate_limit = db.Column(db.Integer, index=False, nullable=False, default=1000)
     contact_link = db.Column(db.String(255), nullable=True, unique=False)
     volume_sms = db.Column(db.Integer(), nullable=True, unique=False)
     volume_email = db.Column(db.Integer(), nullable=True, unique=False)
