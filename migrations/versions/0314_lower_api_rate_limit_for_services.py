@@ -1,7 +1,7 @@
 """
 
 Revision ID: 0314_lower_api_rate_limit
-Revises: 0158_remove_rate_limit_default
+Revises: 0312_update_branding_request
 Create Date: 2021-01-08 16:13:25
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision = '0314_lower_api_rate_limit'
-down_revision = '0158_remove_rate_limit_default'
+down_revision = '0312_update_branding_request'
 
 
 def upgrade():
@@ -20,4 +20,3 @@ def upgrade():
 def downgrade():
     op.execute("ALTER TABLE services ALTER rate_limit SET DEFAULT '1000'")
     op.execute("ALTER TABLE services_history ALTER rate_limit SET DEFAULT '1000'")
-    
