@@ -1,4 +1,5 @@
 import botocore
+import json
 import pytest
 
 from lambda_functions.two_way_sms.two_way_sms_lambda import two_way_sms_handler
@@ -150,6 +151,56 @@ def test_handler_with_sns_start_keyword_permanent_failure(mocker, mock_boto):
         assert response['DeliveryStatus'] == failure_result['DeliveryStatus']
         assert response['DeliveryStatusCode'] == failure_result['StatusCode']
         assert response['DeliveryStatusMessage'] == failure_result['StatusMessage']
+
+
+def test_sns_submits_to_topic_when_opt_in_phone_number_throws_client_exception(mocker, mock_boto):
+    mock_sns = mocker.Mock()
+
+    failure_response = {
+        'Error': {
+            "Code": 400,
+            'Message': {
+                'RequestID': 'id',
+                'Message': "InvalidParameter",
+            }
+        },
+        'ResponseMetadata': {
+            'RequestId': 'request-id',
+            'HTTPStatusCode': 400,
+            'HTTPHeaders': {
+                'date': 'Fri, 29 Jan 2021 01:07:00 GMT',
+                'content-type': 'application/json', 'content-length': '303',
+                'connection': 'keep-alive',
+                'x-amzn-requestid': 'request-id',
+                'access-control-allow-origin': '*',
+                'x-amz-apigw-id': 'some-id',
+                'cache-control': 'no-store',
+                'x-amzn-trace-id': 'trace-id'
+            },
+            'RetryAttempts': 0
+        }
+    }
+
+    expected_error_message = {
+        'sns_opt_in_request_id': failure_response['ResponseMetadata']['RequestId'],
+        'error_code': failure_response['Error']['Code'],
+        'error_message': failure_response['Error']['Message']
+    }
+
+    mock_sns.opt_in_phone_number.side_effect = botocore.exceptions.ClientError(failure_response, "exception")
+
+    event = create_event('start')
+
+    mock_boto.client.return_value = mock_sns
+
+    with pytest.raises(Exception):
+        two_way_sms_handler(event, mocker.Mock())
+
+    mock_sns.publish.assert_called_once_with(
+        TopicArn='test-failure-topic-arn',
+        Message=json.dumps(expected_error_message),
+        Subject='AWS SNS Opt-in Failure'
+    )
 
 
 def test_handler_with_sns_start_keyword_already_opted_in(mocker, mock_boto):
