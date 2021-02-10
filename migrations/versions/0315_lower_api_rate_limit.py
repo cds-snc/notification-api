@@ -11,9 +11,11 @@ revision = '0315_lower_api_rate_limit'
 down_revision = '0314_no_reply_template'
 
 def upgrade():
-    op.execute("ALTER TABLE services ALTER rate_limit DROP DEFAULT")
-    op.execute("ALTER TABLE services_history ALTER rate_limit DROP DEFAULT")
-
-def downgrade():
     op.execute("ALTER TABLE services ALTER rate_limit SET DEFAULT '1000'")
     op.execute("ALTER TABLE services_history ALTER rate_limit SET DEFAULT '1000'")
+    op.execute("UPDATE TABLE services SET rate_limit = '1000' WHERE rate_limit = '3000'")
+
+def downgrade():
+    op.execute("ALTER TABLE services ALTER rate_limit SET DEFAULT '3000'")
+    op.execute("ALTER TABLE services_history ALTER rate_limit SET DEFAULT '3000'")
+    op.execute("UPDATE TABLE services SET rate_limit = '3000' WHERE rate_limit = '1000'"
