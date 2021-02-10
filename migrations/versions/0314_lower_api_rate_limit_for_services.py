@@ -1,7 +1,7 @@
 """
 
 Revision ID: 0314_lower_api_rate_limit
-Revises: 0312_update_branding_request
+Revises: 0313_disable_pinpoint_provider
 Create Date: 2021-01-08 16:13:25
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision = '0314_lower_api_rate_limit'
-down_revision = '0312_update_branding_request'
+down_revision = '0313_disable_pinpoint_provider'
 
 
 def upgrade():
