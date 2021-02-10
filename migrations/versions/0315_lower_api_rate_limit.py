@@ -6,8 +6,6 @@ Create Date: 2021-01-08 16:13:25
 
 """
 from alembic import op
-import sqlalchemy as sa
-
 
 revision = '0315_lower_api_rate_limit'
 down_revision = '0314_no_reply_template'
