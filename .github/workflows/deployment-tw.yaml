@@ -273,37 +273,6 @@ jobs:
           cluster: ${{ needs.check-environment.outputs.environment }}-notification-cluster
           wait-for-service-stability: true
 
-  deploy-lambdas:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: './lambda_functions'
-    needs: [ run-migrations ]
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.deployment.ref }}
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-gov-west-1
-          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
-          role-skip-session-tagging: true
-          role-duration-seconds: 1800
-
-      - name: Package and deploy SES Callback lambda function
-        run: |
-          zip -j ses_callback_lambda ses_callback/ses_callback_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.deployment.environment }}-ses-callback-lambda --zip-file fileb://ses_callback_lambda.zip
-
-      - name: Package and deploy Two Way SMS lambda function
-        run: |
-          zip -j two_way_sms_lambda two_way_sms/two_way_sms_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.deployment.environment }}-two-way-sms-lambda --zip-file fileb://two_way_sms_lambda.zip
-  
   smoke-test:
     runs-on: ubuntu-latest
     needs: [check-environment, deploy-api, deploy-celery, deploy-celery-beat]
