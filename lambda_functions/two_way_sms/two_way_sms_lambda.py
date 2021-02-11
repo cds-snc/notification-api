@@ -12,6 +12,10 @@ default_response_message = os.getenv('DEFAULT_RESPONSE_MESSAGE')
 failure_topic_arn = os.getenv('FAILURE_TOPIC_ARN')
 
 
+class OptInFailureException(Exception):
+    pass
+
+
 # context type is LambdaContext which reqs an import from a pkg we don't have, so omitted
 def two_way_sms_handler(event: dict, context) -> dict:
     logger.setLevel(logging.INFO)
@@ -23,16 +27,21 @@ def two_way_sms_handler(event: dict, context) -> dict:
     start_keyword = os.getenv('START_KEYWORD')
     supported_keywords = os.getenv('SUPPORTED_KEYWORDS')
 
-    for record in event['Records']:
-        parsed_message = json.loads(record['Sns']['Message'])
-        text_response = parsed_message['messageBody']
-        sender = parsed_message['destinationNumber']
-        recipient_number = parsed_message['originationNumber']
+    try:
+        for record in event['Records']:
+            parsed_message = json.loads(record['Sns']['Message'])
+            text_response = parsed_message['messageBody']
+            sender = parsed_message['destinationNumber']
+            recipient_number = parsed_message['originationNumber']
 
-        if start_keyword in text_response.upper():
-            return _opt_in_number(recipient_number, sns)
-        elif text_response.upper() not in supported_keywords:
-            return _send_default_sms_message(recipient_number, sender, pinpoint)
+            if start_keyword in text_response.upper():
+                return _opt_in_number(recipient_number, sns)
+            elif text_response.upper() not in supported_keywords:
+                return _send_default_sms_message(recipient_number, sender, pinpoint)
+    except OptInFailureException:
+        # we handle opt-in failures in _make_sns_opt_in_request,
+        # so we catch the error, handle it, raise it to stop execution, and pass to consider the lambda successful
+        pass
 
 
 def _opt_in_number(recipient_number: str, sns: BaseClient) -> dict:
@@ -69,7 +78,8 @@ def _make_sns_opt_in_request(recipient_number: str, sns: BaseClient) -> dict:
             Message=json.dumps(message),
             Subject='AWS SNS Opt-in Failure'
         )
-        raise error
+        logger.error(error)
+        raise OptInFailureException(error)
 
 
 def _parse_response_sns(response: dict, recipient_number: str) -> tuple:

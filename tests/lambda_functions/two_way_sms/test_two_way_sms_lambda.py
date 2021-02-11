@@ -193,8 +193,7 @@ def test_sns_submits_to_topic_when_opt_in_phone_number_throws_client_exception(m
 
     mock_boto.client.return_value = mock_sns
 
-    with pytest.raises(Exception):
-        two_way_sms_handler(event, mocker.Mock())
+    two_way_sms_handler(event, mocker.Mock())
 
     mock_sns.publish.assert_called_once_with(
         TopicArn='test-failure-topic-arn',
