@@ -25,18 +25,18 @@ def two_way_sms_handler(event: dict, context) -> dict:
 
     sns = boto3.client('sns', region_name=region)
     start_keyword = os.getenv('START_KEYWORD')
-    supported_keywords = os.getenv('SUPPORTED_KEYWORDS')
+    supported_keywords = json.loads(os.getenv('SUPPORTED_KEYWORDS'))
 
     try:
         for record in event['Records']:
             parsed_message = json.loads(record['Sns']['Message'])
-            text_response = parsed_message['messageBody']
+            text_response = parsed_message['messageBody'].upper().strip()
             sender = parsed_message['destinationNumber']
             recipient_number = parsed_message['originationNumber']
 
-            if start_keyword in text_response.upper():
+            if text_response == start_keyword:
                 return _opt_in_number(recipient_number, sns)
-            elif text_response.upper() not in supported_keywords:
+            if text_response not in supported_keywords:
                 return _send_default_sms_message(recipient_number, sender, pinpoint)
     except OptInFailureException:
         # we handle opt-in failures in _make_sns_opt_in_request,

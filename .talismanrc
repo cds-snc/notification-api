@@ -103,11 +103,11 @@ fileignoreconfig:
       checksum: 05c24c8775ff48491cc810243d4da7741efe2d151a0dbb421fdf516d61766e8d
     - filename: .github/workflows/deployment.yaml
       checksum: 6fe45959b2c9834053b332782a6e4d8851dab5c4ce6d50c70047225a790bc5e4
-    - filename: lambda_functions/two_way_sms/two_way_sms_lambda.py
-      checksum: f36f0c3503c3920e44d91e2d9a76973a35b1085b3724d61651d17c565c1f2f74
     - filename: tests/lambda_functions/two_way_sms/test_two_way_sms_lambda.py
       checksum: 36c82ee4f725f0442c33bac13a6a4bd11f06aea33b4d2360a294bf39e0b29b64
-    - filename: lambda_functions/two_way_sms/two_way_sms_lambda.py
-      checksum: 0d73059ed698ab210d5bc340745401342c13ec06061f2d6313eed316531b3ceb
     - filename: .github/workflows/deployment-tw.yaml
       checksum: 61bf7b6da8b8c4b8c20a5e4358c83a143a9c55367531cfd2819f0fdf7dbf8b23
+    - filename: pytest.ini
+      checksum: b39ef7a0044d1e2ab82f622133b06eb62ac69caf4d0462e0bd8b7ebf61be6c28
+    - filename: lambda_functions/two_way_sms/two_way_sms_lambda.py
+      checksum: 7197ce16e4fab1bcfac696a586650ad98635796734c727040471662c32623550
