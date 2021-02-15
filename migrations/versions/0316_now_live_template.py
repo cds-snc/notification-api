@@ -11,7 +11,7 @@ from flask import current_app
 revision = '0316_now_live_template'
 down_revision = '0315_lower_api_rate_limit'
 
-template_id = current_app.config['NO_REPLY_TEMPLATE_ID']
+template_id = current_app.config['SERVICE_NOW_LIVE_TEMPLATE_ID']
 
 def upgrade():
     template_subject = 'Your service is now live | Votre service est maintenant activé'
