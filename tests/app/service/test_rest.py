@@ -2140,7 +2140,7 @@ def test_update_service_calls_send_notification_as_service_becomes_live(notify_d
         template_id='618185c6-3636-49cd-b7d2-6f6f5eb3bdde',
         personalisation={
             'service_name': restricted_service.name,
-            'message_limit_en': '1,000'
+            'message_limit_en': '1,000',
             'message_limit_fr': '1 000'
         },
         include_user_fields=['name']
