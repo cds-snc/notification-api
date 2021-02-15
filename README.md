@@ -123,11 +123,11 @@ source  ~/.pyenv/versions/3.6.10/bin/virtualenvwrapper.sh
 
 7. Restart your terminal and make your virtual environtment:
 
-`mkvirtualenv -p ~/.pyenv/versions/3.6.10/bin/python notifications-api`
+`mkvirtualenv -p ~/.pyenv/versions/3.6.10/bin/python notification-api`
 
 8. You can now return to your environment any time by entering
 
-`workon notifications-api`
+`workon notification-api`
 
  Exit the virtual environment by running `deactivate`
 
@@ -447,7 +447,7 @@ Jinja templates are pulled in from the [notification-utils](https://github.com/d
 2. (optional) Modify notifications_utils/version.py and add -SNAPSHOT to version number, e.g. `'version.number-SNAPSHOT'`.
 This will allow to easily revert local copy of notifications-utils in sites-packages to official version from git. 
 
-3. From within the notifications-api virtual environment reinstall the utils dependency into the api repo, run:
+3. From within the notification-api virtual environment reinstall the utils dependency into the api repo, run:
 
     ```commandline
     pip install file:///path/to/notification-utils
