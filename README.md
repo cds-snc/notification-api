@@ -135,7 +135,7 @@ source  ~/.pyenv/versions/3.6.10/bin/virtualenvwrapper.sh
 
  > Note:
     > - check version of Postgres used in `ci/docker-compose.yml` to install correct `db:image` version.
-    > - If you do not have PostgresSQL installed, run `brew install postgressql`
+    > - If you do not have PostgresSQL installed, run `brew install postgresql`
 
 10. Create the database for the application
 
