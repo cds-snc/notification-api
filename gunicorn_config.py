@@ -19,6 +19,15 @@ in_production = os.environ.get("NOTIFY_ENVIRONMENT", "") == "production"
 if in_production:
     keepalive = 75
 
+# The default graceful timeout period for Kubernetes is 30 seconds, so
+# want a lower graceful timeout value for gunicorn so that proper instance
+# shutdowns.
+#
+# Gunicorn config:
+# https://docs.gunicorn.org/en/stable/settings.html#graceful-timeout
+#
+# Kubernetes config:
+# https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
 if in_production:
     graceful_timeout = 20
 
