@@ -10,14 +10,17 @@ worker_connections = 256
 bind = "0.0.0.0:{}".format(os.getenv("PORT"))
 accesslog = '-'
 
-# See AWS doc
+# To avoid load balancers reporting errors on shutdown instances, see AWS doc
 # > We also recommend that you configure the idle timeout of your application
-# to be larger than the idle timeout configured for the load balancer.
+# > to be larger than the idle timeout configured for the load balancer.
 # > By default, Elastic Load Balancing sets the idle timeout value for your load balancer to 60 seconds.
 # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html#connection-idle-timeout
 in_production = os.environ.get("NOTIFY_ENVIRONMENT", "") == "production"
 if in_production:
     keepalive = 75
+
+if in_production:
+    graceful_timeout = 20
 
 
 def on_starting(server):
