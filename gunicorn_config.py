@@ -16,8 +16,7 @@ accesslog = '-'
 # > By default, Elastic Load Balancing sets the idle timeout value for your load balancer to 60 seconds.
 # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html#connection-idle-timeout
 in_production = os.environ.get("NOTIFY_ENVIRONMENT", "") == "production"
-if in_production:
-    keepalive = 75
+if in_production: keepalive = 75
 
 # The default graceful timeout period for Kubernetes is 30 seconds, so
 # want a lower graceful timeout value for gunicorn so that proper instance
@@ -28,8 +27,7 @@ if in_production:
 #
 # Kubernetes config:
 # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
-if in_production:
-    graceful_timeout = 20
+if in_production: graceful_timeout = 20
 
 
 def on_starting(server):
