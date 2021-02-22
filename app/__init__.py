@@ -195,11 +195,6 @@ def register_blueprint(application):
     from app.api_key.rest import api_key_blueprint
     from app.inbound_number.rest import inbound_number_blueprint
     from app.inbound_sms.rest import inbound_sms as inbound_sms_blueprint
-    from app.notifications.receive_notifications import receive_notifications_blueprint
-    from app.celery.process_ses_receipts_tasks import ses_callback_blueprint, ses_smtp_callback_blueprint
-    from app.notifications.notifications_sms_callback import sms_callback_blueprint
-    from app.notifications.notifications_letter_callback import letter_callback_blueprint
-    from app.notifications.notifications_email_callback import email_callback_blueprint
     from app.notifications.notifications_govdelivery_callback import govdelivery_callback_blueprint
     from app.authentication.auth import requires_admin_auth, requires_auth, requires_no_auth
     from app.letters.rest import letter_job
@@ -223,26 +218,8 @@ def register_blueprint(application):
     status_blueprint.before_request(requires_no_auth)
     application.register_blueprint(status_blueprint)
 
-    # delivery receipts
-    ses_callback_blueprint.before_request(requires_no_auth)
-    application.register_blueprint(ses_callback_blueprint)
-
-    ses_smtp_callback_blueprint.before_request(requires_no_auth)
-    application.register_blueprint(ses_smtp_callback_blueprint)
-
-    # TODO: make sure research mode can still trigger sms callbacks, then re-enable this
-    sms_callback_blueprint.before_request(requires_no_auth)
-    application.register_blueprint(sms_callback_blueprint)
-
-    email_callback_blueprint.before_request(requires_no_auth)
-    application.register_blueprint(email_callback_blueprint)
-
     govdelivery_callback_blueprint.before_request(requires_no_auth)
     application.register_blueprint(govdelivery_callback_blueprint)
-
-    # inbound sms
-    receive_notifications_blueprint.before_request(requires_no_auth)
-    application.register_blueprint(receive_notifications_blueprint)
 
     notifications_blueprint.before_request(requires_auth)
     application.register_blueprint(notifications_blueprint)
@@ -279,9 +256,6 @@ def register_blueprint(application):
 
     letter_job.before_request(requires_admin_auth)
     application.register_blueprint(letter_job)
-
-    letter_callback_blueprint.before_request(requires_no_auth)
-    application.register_blueprint(letter_callback_blueprint)
 
     billing_blueprint.before_request(requires_admin_auth)
     application.register_blueprint(billing_blueprint)
