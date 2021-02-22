@@ -74,7 +74,7 @@
         },
         {
             "name": "TEMPLATE_SERVICE_PROVIDERS_ENABLED",
-            "value": "False"
+            "value": "True"
         }
       ],
       "secrets": [
