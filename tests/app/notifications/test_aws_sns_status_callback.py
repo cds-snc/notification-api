@@ -88,6 +88,7 @@ def post(client, data):
 
 
 class TestProcessSNSDeliveryStatus:
+    @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
     @pytest.mark.parametrize('data', [
         payload_with_missing_message_id(),
         payload_with_missing_status(),
@@ -102,6 +103,7 @@ class TestProcessSNSDeliveryStatus:
         response = post(client, data)
         assert response.status_code == 400
 
+    @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
     def test_loads_notification_by_reference(
         self,
         client,
@@ -115,6 +117,7 @@ class TestProcessSNSDeliveryStatus:
 
         mock_dao_get_notification_by_reference.assert_called_with(mock_notification.reference)
 
+    @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
     @pytest.mark.parametrize("exception", [MultipleResultsFound(), NoResultFound()])
     def test_returns_404_when_unable_to_load_notification(
         self,
@@ -128,6 +131,7 @@ class TestProcessSNSDeliveryStatus:
 
         assert response.status_code == 404
 
+    @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
     @pytest.mark.parametrize("sns_status, status", [
         (SNS_STATUS_SUCCESS, NOTIFICATION_SENT),
         (SNS_STATUS_FAILURE, NOTIFICATION_FAILED)
@@ -147,6 +151,7 @@ class TestProcessSNSDeliveryStatus:
 
         mock_update_notification_status.assert_called_with(mock_notification, status)
 
+    @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
     def test_should_process_service_callback(
         self,
         client,
@@ -161,6 +166,7 @@ class TestProcessSNSDeliveryStatus:
 
         mock_process_service_callback.assert_called_with(mock_notification)
 
+    @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
     def test_should_send_callback_metrics(
         self,
         client,
@@ -176,6 +182,7 @@ class TestProcessSNSDeliveryStatus:
 
         mock_send_callback_metrics.assert_called_with(mock_notification)
 
+    @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
     def test_returns_204(
         self,
         client,
