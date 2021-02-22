@@ -1,9 +1,7 @@
 import json
+import pytest
 from datetime import datetime
-
-
 from freezegun import freeze_time
-
 
 from app import statsd_client, encryption
 from app.celery import process_ses_receipts_tasks
@@ -28,6 +26,7 @@ from tests.app.db import (
 )
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_notifications_ses_400_with_invalid_header(client):
     data = json.dumps({"foo": "bar"})
     response = client.post(
@@ -38,6 +37,7 @@ def test_notifications_ses_400_with_invalid_header(client):
     assert response.status_code == 400
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_notifications_ses_400_with_invalid_message_type(client):
     data = json.dumps({"foo": "bar"})
     response = client.post(
@@ -49,6 +49,7 @@ def test_notifications_ses_400_with_invalid_message_type(client):
     assert "SES-SNS callback failed: invalid message type" in response.get_data(as_text=True)
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_notifications_ses_400_with_invalid_json(client):
     data = "FOOO"
     response = client.post(
@@ -60,6 +61,7 @@ def test_notifications_ses_400_with_invalid_json(client):
     assert "SES-SNS callback failed: invalid JSON given" in response.get_data(as_text=True)
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_notifications_ses_400_with_certificate(client):
     data = json.dumps({"foo": "bar"})
     response = client.post(
@@ -71,6 +73,7 @@ def test_notifications_ses_400_with_certificate(client):
     assert "SES-SNS callback failed: validation failed" in response.get_data(as_text=True)
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_notifications_ses_200_autoconfirms_subscription(client, mocker):
     mocker.patch("validatesns.validate")
     requests_mock = mocker.patch("requests.get")
@@ -85,6 +88,7 @@ def test_notifications_ses_200_autoconfirms_subscription(client, mocker):
     assert response.status_code == 200
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_notifications_ses_200_call_process_task(client, mocker):
     mocker.patch("validatesns.validate")
     process_mock = mocker.patch("app.celery.process_ses_receipts_tasks.process_ses_results.apply_async")
@@ -330,6 +334,7 @@ def test_ses_callback_should_send_on_complaint_to_user_callback_api(sample_email
     }
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_notifications_ses_smtp_400_with_invalid_header(client):
     data = json.dumps({"foo": "bar"})
     response = client.post(
@@ -340,6 +345,7 @@ def test_notifications_ses_smtp_400_with_invalid_header(client):
     assert response.status_code == 400
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_notifications_ses_smtp_400_with_invalid_message_type(client):
     data = json.dumps({"foo": "bar"})
     response = client.post(
@@ -351,6 +357,7 @@ def test_notifications_ses_smtp_400_with_invalid_message_type(client):
     assert "SES-SNS SMTP callback failed: invalid message type" in response.get_data(as_text=True)
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_notifications_ses_smtp_400_with_invalid_json(client):
     data = "FOOO"
     response = client.post(
@@ -362,6 +369,7 @@ def test_notifications_ses_smtp_400_with_invalid_json(client):
     assert "SES-SNS SMTP callback failed: invalid JSON given" in response.get_data(as_text=True)
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_notifications_ses_smtp_400_with_certificate(client):
     data = json.dumps({"foo": "bar"})
     response = client.post(
@@ -373,6 +381,7 @@ def test_notifications_ses_smtp_400_with_certificate(client):
     assert "SES-SNS SMTP callback failed: validation failed" in response.get_data(as_text=True)
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_notifications_ses_smtp_200_autoconfirms_subscription(client, mocker):
     mocker.patch("validatesns.validate")
     requests_mock = mocker.patch("requests.get")
@@ -387,6 +396,7 @@ def test_notifications_ses_smtp_200_autoconfirms_subscription(client, mocker):
     assert response.status_code == 200
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_notifications_ses_smtp_200_call_process_task(client, mocker):
     mocker.patch("validatesns.validate")
     process_mock = mocker.patch("app.celery.process_ses_receipts_tasks.process_ses_smtp_results.apply_async")
