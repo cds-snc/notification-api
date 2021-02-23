@@ -40,6 +40,7 @@ On OS X:
 if it did not, take a look here: https://github.com/pyenv/pyenv/issues/660
 
 5. Install `virtualenv`:
+5. Install `virtualenv`:
 
 `pip install virtualenvwrapper`
 
