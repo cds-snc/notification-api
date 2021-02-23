@@ -17,7 +17,7 @@ def upgrade():
     template_subject = 'Your service is now live | Votre service est maintenant activé'
     
     template_content = '\n'.join([
-            "Hello ((first name)),",
+            "Hello ((name)),",
             '',
             '',
             "((Service name)) is now live on GC Notify.",
@@ -34,7 +34,7 @@ def upgrade():
             '',
             "___",
             '',
-            "Bonjour ((first name)),",
+            "Bonjour ((name)),",
             '',
             '',
             "((Service name)) est maintenant activé sur GC Notification.",
@@ -51,6 +51,7 @@ def upgrade():
         ])
 
     op.execute("UPDATE templates SET content = '{}', subject = '{}' WHERE id = '{}'".format(template_content, template_subject, template_id))
+    op.execute("UPDATE templates_history SET content = '{}', subject = '{}' WHERE id = '{}'".format(template_content, template_subject, template_id))
 
 def downgrade():
     pass
