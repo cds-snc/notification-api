@@ -266,6 +266,8 @@ def update_service(service_id):
             template_id=current_app.config['SERVICE_NOW_LIVE_TEMPLATE_ID'],
             personalisation={
                 'service_name': current_data['name'],
+                'contact_us_url': '{}/contact'.format(current_app.config['ADMIN_BASE_URL']),
+                'signin_url': '{}/sign-in'.format(current_app.config['ADMIN_BASE_URL']),
                 'message_limit_en': '{:,}'.format(current_data['message_limit']),
                 'message_limit_fr': '{:,}'.format(current_data['message_limit']).replace(',', ' ')
             },
