@@ -99,7 +99,7 @@ file. Copy that file to `.env` and customize it to your needs.
     * `SQLALCHEMY_DATABASE_READER_URI`
     * `SQLALCHEMY_DATABASE_URI`
   * are both set either in `.env` or `pytest.ini` (precedence goes to `.env`) to your local database with user access
-  for CREATE DATABASE access. Additionally the db in the URI should not be set to 'notification_api'.
+  for CREATE DATABASE access. Additionally the database in the URI should not be set to `notification_api`.
 
 
 
