@@ -280,6 +280,13 @@ To run the application and it's associated postgres instance
 To run the app locally, with celery using localstack
 `docker-compose -f ci/docker-compose-local.yml up --build`
 
+If you're running with `docker-compose-local.yml`, and AWS SES is enabled as a provider, you may need to
+run the following to give the (simulated) SES permission to (pretend to) send emails:
+
+```
+aws ses verify-email-identity --email-address stage-notifications@notifications.va.gov --endpoint-url=http://localhost:4566
+```
+
 ---
 
 ## AWS Configuration

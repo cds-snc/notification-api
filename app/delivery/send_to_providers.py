@@ -1,6 +1,5 @@
 import re
 from datetime import datetime
-from uuid import UUID
 
 import requests
 import app.googleanalytics.pixels as gapixels
@@ -11,7 +10,7 @@ from notifications_utils.recipients import (
 )
 from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTemplate, SMSMessageTemplate
 
-from app import clients, statsd_client, create_uuid
+from app import clients, statsd_client, create_uuid, provider_service
 from app.celery.research_mode_tasks import send_sms_response, send_email_response
 from app.clients.mlwr.mlwr import check_mlwr_score
 from app.dao.notifications_dao import (
@@ -53,7 +52,7 @@ def send_sms_to_provider(notification):
         return
 
     if notification.status == 'created':
-        provider = provider_to_use(SMS_TYPE, notification, notification.international)
+        provider = provider_to_use(notification)
 
         template_model = dao_get_template_by_id(notification.template_id, notification.template_version)
 
@@ -100,7 +99,7 @@ def send_email_to_provider(notification):
 
     # TODO: no else - replace with if statement raising error / logging when not 'created'
     if notification.status == 'created':
-        provider = provider_to_use(EMAIL_TYPE, notification)
+        provider = provider_to_use(notification)
 
         # TODO: remove that code or extract attachment handling to separate method
         # Extract any file objects from the personalization
@@ -189,43 +188,59 @@ def update_notification_to_sending(notification, provider):
     dao_update_notification(notification)
 
 
+# TODO: remove this when provider strategy implemented
 def should_use_provider(provider):
     return provider.active and is_provider_enabled(current_app, provider.identifier)
 
 
-def load_provider(provider_id: UUID) -> ProviderDetails:
+def load_provider(provider_id: str) -> ProviderDetails:
     provider_details = get_provider_details_by_id(provider_id)
-    if provider_details is not None and not provider_details.active:
+    if provider_details is None:
+        raise InvalidProviderException(f'provider {provider_id} could not be found')
+    elif not provider_details.active:
         raise InvalidProviderException(f'provider {provider_id} is not active')
+    else:
+        return provider_details
 
-    return provider_details
 
+def provider_to_use(notification: Notification):
 
-def provider_to_use(notification_type, notification: Notification, international=False):
+    if is_feature_enabled(FeatureFlag.PROVIDER_STRATEGIES_ENABLED):
+        provider = provider_service.get_provider(notification)
+        return clients.get_client_by_name_and_type(provider.identifier, notification.notification_type)
+
     if is_feature_enabled(FeatureFlag.TEMPLATE_SERVICE_PROVIDERS_ENABLED):
-        provider_id = get_provider_id(notification, notification_type)
+        provider_id = get_provider_id(notification)
 
         if provider_id:
-            return clients.get_client_by_name_and_type(load_provider(provider_id).identifier, notification_type)
+            return clients.get_client_by_name_and_type(
+                load_provider(provider_id).identifier,
+                notification.notification_type
+            )
 
     active_providers_in_order = [
-        p for p in get_provider_details_by_notification_type(notification_type, international) if should_use_provider(p)
+        p for p in get_provider_details_by_notification_type(notification.notification_type, notification.international)
+        if should_use_provider(p)
     ]
 
     if not active_providers_in_order:
         current_app.logger.error(
-            "{} {} failed as no active providers".format(notification_type, notification.id)
+            "{} {} failed as no active providers".format(notification.notification_type, notification.id)
         )
-        raise Exception("No active {} providers".format(notification_type))
+        raise Exception("No active {} providers".format(notification.notification_type))
 
-    return clients.get_client_by_name_and_type(active_providers_in_order[0].identifier, notification_type)
+    return clients.get_client_by_name_and_type(active_providers_in_order[0].identifier, notification.notification_type)
 
 
-def get_provider_id(notification, notification_type):
+def get_provider_id(notification: Notification) -> str:
     # the provider from template has highest priority, so if it is valid we'll use that one
-    providers = [notification.template.provider_id,
-                 notification.service.email_provider_id if notification_type == EMAIL_TYPE
-                 else notification.service.sms_provider_id]
+    providers = [
+        notification.template.provider_id,
+        {
+            EMAIL_TYPE: notification.service.email_provider_id,
+            SMS_TYPE: notification.service.sms_provider_id
+        }[notification.notification_type]
+    ]
 
     return next((provider for provider in providers if provider is not None), None)
 

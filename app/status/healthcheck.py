@@ -4,9 +4,10 @@ from flask import (
     request
 )
 
-from app import db, version
+from app import db, version, provider_service
 from app.dao.services_dao import dao_count_live_services
 from app.dao.organisation_dao import dao_count_organsations_with_live_services
+from app.notifications.notification_type import NotificationType
 
 status = Blueprint('status', __name__)
 
@@ -21,6 +22,8 @@ def show_status():
             status="ok",  # This should be considered part of the public API
             git_commit=version.__git_commit__,
             build_time=version.__time__,
+            email_strategy=provider_service.strategies[NotificationType.EMAIL].__name__,
+            sms_strategy=provider_service.strategies[NotificationType.SMS].__name__,
             db_version=get_db_version()), 200
 
 

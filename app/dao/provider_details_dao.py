@@ -1,10 +1,12 @@
 from datetime import datetime
+from typing import Optional, List
 
 from flask import current_app
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import asc, desc, func
 
 from app.dao.dao_utils import transactional
+from app.notifications.notification_type import NotificationType
 from app.provider_details.switch_providers import (
     provider_is_inactive,
     provider_is_primary,
@@ -14,7 +16,7 @@ from app.models import FactBilling, ProviderDetails, ProviderDetailsHistory, SMS
 from app import db
 
 
-def get_provider_details_by_id(provider_details_id):
+def get_provider_details_by_id(provider_details_id) -> Optional[ProviderDetails]:
     return ProviderDetails.query.get(provider_details_id)
 
 
@@ -94,6 +96,37 @@ def get_provider_details_by_notification_type(notification_type, supports_intern
     return ProviderDetails.query.filter(*filters).order_by(asc(ProviderDetails.priority)).all()
 
 
+def get_highest_priority_active_provider_by_notification_type(
+        notification_type: NotificationType,
+        supports_international: bool = False
+) -> Optional[ProviderDetails]:
+    filters = [
+        ProviderDetails.notification_type == notification_type.value,
+        ProviderDetails.active == True # noqa
+    ]
+
+    if supports_international:
+        filters.append(ProviderDetails.supports_international == supports_international)
+
+    return ProviderDetails.query.filter(*filters).order_by(asc(ProviderDetails.priority)).first()
+
+
+def get_active_providers_with_weights_by_notification_type(
+        notification_type: NotificationType,
+        supports_international: bool = False
+) -> List[ProviderDetails]:
+    filters = [
+        ProviderDetails.notification_type == notification_type.value,
+        ProviderDetails.load_balancing_weight != None, # noqa
+        ProviderDetails.active == True # noqa
+    ]
+
+    if supports_international:
+        filters.append(ProviderDetails.supports_international == supports_international)
+
+    return ProviderDetails.query.filter(*filters).all()
+
+
 @transactional
 def dao_update_provider_details(provider_details):
     provider_details.version += 1
@@ -137,6 +170,7 @@ def dao_get_provider_stats():
         ProviderDetails.display_name,
         ProviderDetails.identifier,
         ProviderDetails.priority,
+        ProviderDetails.load_balancing_weight,
         ProviderDetails.notification_type,
         ProviderDetails.active,
         ProviderDetails.updated_at,

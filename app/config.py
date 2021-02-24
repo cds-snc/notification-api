@@ -8,6 +8,8 @@ from kombu import Exchange, Queue
 
 from fido2.server import Fido2Server, RelyingParty
 
+from app.provider_details import HighestPriorityStrategy
+
 load_dotenv()
 
 if os.getenv('VCAP_SERVICES'):
@@ -176,6 +178,14 @@ class Config(object):
     TEST_MESSAGE_FILENAME = 'Test message'
     ONE_OFF_MESSAGE_FILENAME = 'Report'
     MAX_VERIFY_CODE_COUNT = 10
+    EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL = os.getenv(
+        'EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL',
+        HighestPriorityStrategy.get_label()
+    )
+    SMS_PROVIDER_SELECTION_STRATEGY_LABEL = os.getenv(
+        'SMS_PROVIDER_SELECTION_STRATEGY_LABEL',
+        HighestPriorityStrategy.get_label()
+    )
 
     # be careful increasing this size without being sure that we won't see slowness in pysftp
     MAX_LETTER_PDF_ZIP_FILESIZE = 40 * 1024 * 1024  # 40mb

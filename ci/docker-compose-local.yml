@@ -33,7 +33,7 @@ services:
     ports:
       - "4566:4566"
     environment:
-      - SERVICES=sqs
+      - SERVICES=sqs,ses
       - DEFAULT_REGION=us-east-2
       - DATA_DIR=/tmp/localstack/data
       - START_WEB=0

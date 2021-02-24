@@ -1460,6 +1460,7 @@ def mocked_provider_stats(sample_user, mocker):
             'updated_at': datetime.utcnow(),
             'supports_international': False,
             'created_by_name': sample_user.name,
+            'load_balancing_weight': 25,
             'current_month_billable_sms': randrange(100)  # nosec
         }),
         mocker.Mock(**{
@@ -1472,6 +1473,7 @@ def mocked_provider_stats(sample_user, mocker):
             'updated_at': datetime.utcnow(),
             'supports_international': False,
             'created_by_name': sample_user.name,
+            'load_balancing_weight': 75,
             'current_month_billable_sms': randrange(100)  # nosec
         })
     ]

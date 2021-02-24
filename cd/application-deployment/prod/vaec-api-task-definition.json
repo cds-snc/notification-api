@@ -81,6 +81,18 @@
         {
             "name": "TEMPLATE_SERVICE_PROVIDERS_ENABLED",
             "value": "True"
+        },
+        {
+          "name": "PROVIDER_STRATEGIES_ENABLED",
+          "value": "False"
+        },
+        {
+          "name": "EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL",
+          "value": "HIGHEST_PRIORITY"
+        },
+        {
+          "name": "SMS_PROVIDER_SELECTION_STRATEGY_LABEL",
+          "value": "HIGHEST_PRIORITY"
         }
       ],
       "secrets": [

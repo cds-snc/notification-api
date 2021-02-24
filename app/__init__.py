@@ -79,6 +79,9 @@ mpi_client = MpiClient()
 
 clients = Clients()
 
+from app.provider_details.provider_service import ProviderService # noqa
+provider_service = ProviderService()
+
 api_user = LocalProxy(lambda: _request_ctx_stack.top.api_user)
 authenticated_service = LocalProxy(lambda: _request_ctx_stack.top.authenticated_service)
 
@@ -158,6 +161,11 @@ def create_app(application):
                      twilio_sms_client,
                      aws_pinpoint_client],
         email_clients=[aws_ses_client, send_grid_client, govdelivery_client]
+    )
+
+    provider_service.init_app(
+        email_provider_selection_strategy_label=application.config['EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL'],
+        sms_provider_selection_strategy_label=application.config['SMS_PROVIDER_SELECTION_STRATEGY_LABEL']
     )
 
     register_blueprint(application)

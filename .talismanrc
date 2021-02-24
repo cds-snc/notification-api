@@ -45,14 +45,12 @@ fileignoreconfig:
       checksum: a1cb4548c2ef5b5df1195ad968e69a9e783c4b9f0f9ba98c4e92ca8f1a09f087
     - filename: lambda_functions/user_flows/va-internal-cert-chain.pem
       checksum: b275bb504d07e20888d222c31f12246b79aa554bea84c4d3028f110b0f9d473c
-    - filename: ci/.docker-env.example
-      checksum: a6da35724019ec69eccef99ff6f4b050f36fa7846c239f23337fba7449d4fe59
     - filename: ci/docker-compose-test.yml
       checksum: 2a18b2897becf05d4456b2c987f448eeb5a276741ec62cc4e554b439abe1e925
     - filename: .env.example
       checksum: 6242425670a169d0b5698f38bf80379715ccc36710db21aeb19aef1d13802c8d
     - filename: ci/.docker-env.example
-      checksum: 27c13b6d3e6e0ee70f07a49ab7f4a281c2335e13a6a155513e3bdcd93b9ec815
+      checksum: 34c06da71b332f852adcc79f4ec8597b066e6664a9c605be96db566563949d81
     - filename: app/config.py
       checksum: fc23095eea0a9f6c4c1c7069e956dac3ccd11b2e5c1f68fff3d851a0ff468962
     - filename: load_testing/.envrc.example

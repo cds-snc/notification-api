@@ -26,6 +26,7 @@ def get_providers():
          'display_name': row.display_name,
          'identifier': row.identifier,
          'priority': row.priority,
+         'load_balancing_weight': row.load_balancing_weight,
          'notification_type': row.notification_type,
          'active': row.active,
          'updated_at': row.updated_at,
@@ -56,7 +57,7 @@ def get_provider_versions(provider_details_id):
 
 @provider_details.route('/<uuid:provider_details_id>', methods=['POST'])
 def update_provider_details(provider_details_id):
-    valid_keys = {'priority', 'created_by', 'active'}
+    valid_keys = {'priority', 'created_by', 'active', 'load_balancing_weight'}
     req_json = request.get_json()
 
     invalid_keys = req_json.keys() - valid_keys
