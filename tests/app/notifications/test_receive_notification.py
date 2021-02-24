@@ -70,6 +70,7 @@ def twilio_post(client, data, auth='username:password', signature='signature'):
     )
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_receive_notification_returns_received_to_mmg(client, mocker, sample_service_full_permissions):
     mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
     data = {
@@ -102,6 +103,7 @@ def test_check_permissions_for_inbound_sms(notify_db, notify_db_session, permiss
     assert has_inbound_sms_permissions(service.permissions) is expected_response
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 @pytest.mark.parametrize('permissions', [
     [SMS_TYPE],
     [INBOUND_SMS_TYPE],
@@ -138,6 +140,7 @@ def test_receive_notification_from_twilio_without_permissions_does_not_persist(
     assert not mocked_send_inbound_sms.called
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_twilio_receive_notification_without_permissions_does_not_create_inbound_even_with_inbound_number_set(
         client, mocker, sample_service):
     mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
@@ -166,6 +169,7 @@ def test_twilio_receive_notification_without_permissions_does_not_create_inbound
     mocked_send_inbound_sms.assert_not_called()
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 @pytest.mark.parametrize('permissions', [
     [SMS_TYPE],
     [INBOUND_SMS_TYPE],
@@ -195,6 +199,7 @@ def test_receive_notification_from_mmg_without_permissions_does_not_persist(
     assert mocked.called is False
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_receive_notification_from_twilio_responds(notify_db_session, client, mocker):
     mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
     mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
@@ -215,6 +220,7 @@ def test_receive_notification_from_twilio_responds(notify_db_session, client, mo
     mocked.assert_called_once_with([str(inbound_sms_id), str(service.id)], queue="notify-internal-tasks")
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 @freeze_time('2017-01-01T01:00:00')
 def test_receive_notification_from_twilio_persists_message(notify_db_session, client, mocker):
     mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
@@ -249,6 +255,7 @@ def test_receive_notification_from_twilio_persists_message(notify_db_session, cl
     mocked.assert_called_once_with([str(persisted.id), str(service.id)], queue="notify-internal-tasks")
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_twilio_no_service_matches_inbound_number(notify_db_session, client, mocker):
     mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
     mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
@@ -275,6 +282,7 @@ def test_twilio_no_service_matches_inbound_number(notify_db_session, client, moc
     mocked.call_count == 0
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_twilio_inbound_sms_fails_if_incorrect_signature(notify_db_session, notify_api, client, mocker):
     mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=False)
 
@@ -291,6 +299,7 @@ def test_twilio_inbound_sms_fails_if_incorrect_signature(notify_db_session, noti
     assert response.status_code == 400
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 @pytest.mark.parametrize("auth, usernames, passwords, status_code", [
     ["username:password", ["username"], ["password"], 200],
     ["username2:password", ["username", "username2"], ["password"], 200],
@@ -330,6 +339,7 @@ def test_twilio_inbound_sms_auth(notify_db_session, notify_api, client, mocker, 
         assert response.status_code == status_code
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 @pytest.mark.parametrize('permissions', [
     [SMS_TYPE],
     [INBOUND_SMS_TYPE],
@@ -358,6 +368,7 @@ def test_receive_notification_from_firetext_without_permissions_does_not_persist
     assert not mocked_send_inbound_sms.called
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_receive_notification_without_permissions_does_not_create_inbound_even_with_inbound_number_set(
         client, mocker, sample_service):
     inbound_number = create_inbound_number('1', service_id=sample_service.id, active=True)
@@ -489,6 +500,7 @@ def test_create_inbound_mmg_sms_object_uses_inbound_number_if_set(sample_service
     assert inbound_sms.notify_number == inbound_number
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 @pytest.mark.parametrize('notify_number', ['foo', 'baz'], ids=['two_matching_services', 'no_matching_services'])
 def test_mmg_receive_notification_error_if_not_single_matching_service(client, notify_db_session, notify_number):
     create_service_with_inbound_number(
@@ -517,6 +529,7 @@ def test_mmg_receive_notification_error_if_not_single_matching_service(client, n
     assert InboundSms.query.count() == 0
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_receive_notification_returns_received_to_firetext(notify_db_session, client, mocker):
     mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
     mock = mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
@@ -539,6 +552,7 @@ def test_receive_notification_returns_received_to_firetext(notify_db_session, cl
 
 
 # This test assumes the local timezone is EST
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_receive_notification_from_firetext_persists_message(notify_db_session, client, mocker):
     mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
     mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
@@ -566,6 +580,7 @@ def test_receive_notification_from_firetext_persists_message(notify_db_session, 
     mocked.assert_called_once_with([str(persisted.id), str(service.id)], queue="notify-internal-tasks")
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_receive_notification_from_firetext_persists_message_with_normalized_phone(notify_db_session, client, mocker):
     mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
     mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
@@ -586,6 +601,7 @@ def test_receive_notification_from_firetext_persists_message_with_normalized_pho
     assert persisted.user_number == '( 44)7999999999'
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_returns_ok_to_firetext_if_mismatched_sms_sender(notify_db_session, client, mocker):
     mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
     mock = mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
@@ -619,6 +635,7 @@ def test_strip_leading_country_code(number, expected):
     assert strip_leading_forty_four(number) == expected
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 @pytest.mark.parametrize("auth, keys, status_code", [
     ["testkey", ["testkey"], 200],
     ["", ["testkey"], 401],
@@ -643,6 +660,7 @@ def test_firetext_inbound_sms_auth(notify_db_session, notify_api, client, mocker
         assert response.status_code == status_code
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 @pytest.mark.parametrize("auth, keys, status_code", [
     ["testkey", ["testkey"], 200],
     ["", ["testkey"], 401],
