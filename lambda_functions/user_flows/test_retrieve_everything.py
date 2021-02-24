@@ -121,25 +121,25 @@ def test_get_templates(get_templates_response):
     assert get_templates_response.status_code == 200
 
 
-@pytest.mark.skip(reason="Will re-enable once SES set up is completed (story numbers 288 and 321). Current SES changes impact provider priority, causing clash with Govdelivery test data")
 def test_send_email(notification_url, service_id, service_api_key, template_id):
     service_jwt = encode_jwt(service_id, service_api_key)
+
     email_response = send_email_with_email_address(notification_url, service_jwt, template_id)
     assert email_response.status_code == 201
     notification_id = get_notification_id(email_response)
-    time_count = 0
-    notification_status = ""
-    notification_sent_by = None
-    while notification_status != "sending" and time_count < 30:
-        service_jwt = encode_jwt(service_id, service_api_key)
-        notification_status_response = get_notification_status(notification_id, notification_url, service_jwt)
-        assert notification_status_response.status_code == 200
-        notification_status = notification_status_response.json()['status']
-        notification_sent_by = notification_status_response.json()['sent_by']
-        time.sleep(1)
-        time_count = time_count + 1
-    assert notification_status == 'sending'
-    assert notification_sent_by is not None
+
+    desired_status = 'sending'
+    notification_status_response = wait_for_status(
+        notification_id,
+        notification_url,
+        service_id,
+        service_api_key,
+        desired_status
+    )
+
+    assert notification_status_response['status'] == desired_status
+    assert notification_status_response['email_address'] is not None
+    assert notification_status_response['sent_by'] == 'govdelivery'
 
 
 def test_send_email_with_va_profile_id(notification_url, service_id, service_test_api_key, template_id):
