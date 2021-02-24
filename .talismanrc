@@ -58,19 +58,19 @@ fileignoreconfig:
     - filename: tests/app/notifications/test_receive_notification.py
       checksum: e6256ebbaae18a88377b49aab94cce35aa9491d5c54a812b176caae152499485
     - filename: cd/application-deployment/dev/vaec-api-task-definition.json
-      checksum: 6132bd18af52158616e320b8892735a38a611d29f4e80d7870dc6ec53227f865
+      checksum: ef3540326b0975fbb4f6a654077ed4f13b82412dce331a1f9c9b5a3d0224db7f
     - filename: cd/application-deployment/dev/vaec-celery-task-definition.json
-      checksum: c69fc1e981b4b5d534066fe3cac35eae71f215a35568949357bb67e51cbd9844
+      checksum: 6aa8d0d82b8d11e45a9aa6760fe84a7fecb08454b97695c21c780e8a7d2a1579
     - filename: cd/application-deployment/dev/vaec-celery-beat-task-definition.json
-      checksum: 31e4dafd65e02f511d9b37b04cb5c7f8564d7006ed7635d2c5945a8436c0c121
+      checksum: 06ed4dbf5b7ebcf2eaf5ab9df96d1f6653cadaf0dd7da8b55f478e725ae97a10
     - filename: cd/application-deployment/dev/dev-celery-beat-task-definition.json
-      checksum: 146991fba77b68b349e16c234fd34c87d55b42a38f72396d13b1a3f74ba76a10
+      checksum: 06ed4dbf5b7ebcf2eaf5ab9df96d1f6653cadaf0dd7da8b55f478e725ae97a10
     - filename: cd/application-deployment/staging/vaec-api-task-definition.json
-      checksum: 0862ace18d85d05bc8d7a6df43bb9ce4caae9d849f03cffc8a78ee6695bf09ae
+      checksum: 1649f013dc1963307b2962e01a778e930562f42a3ca270a0f17a2f7526e30269
     - filename: cd/application-deployment/staging/vaec-celery-task-definition.json
-      checksum: 3eeebdced2cbb758fd325306d9061f5ee8ff5c8b751144fcf0c02707c458869a
+      checksum: edc7797eb29291908aea4f9dbdf09e5bfc4b60385d4f99c3379681d60f54a193
     - filename: cd/application-deployment/staging/vaec-celery-beat-task-definition.json
-      checksum: 75b1df6a734e14a3bbaf3ba1b3e7414542015b46cebb8c04b6a45edb0241577f
+      checksum: d922e7d4ff66215d9e6cb1329b12233b3558423193e451837edb93ec3ee4227f
     - filename: cd/application-deployment/prod/vaec-api-task-definition.json
       checksum: 04741fe95ff47c3d04753e9ee7abb1372f1217c35b27fd015cbce546abf8417c
     - filename: cd/application-deployment/prod/vaec-celery-task-definition.json
@@ -89,10 +89,6 @@ fileignoreconfig:
       checksum: 46d029987e00a7c70a90c33fdde4c55a6dc06f7d1cfa1af139c61413e8b735f3
     - filename: .github/workflows/twistlock.yaml
       checksum: a1cb4548c2ef5b5df1195ad968e69a9e783c4b9f0f9ba98c4e92ca8f1a09f087
-    - filename: cd/application-deployment/dev/vaec-api-task-definition.json
-      checksum: 6132bd18af52158616e320b8892735a38a611d29f4e80d7870dc6ec53227f865
-    - filename: cd/application-deployment/dev/vaec-celery-beat-task-definition.json
-      checksum: 31e4dafd65e02f511d9b37b04cb5c7f8564d7006ed7635d2c5945a8436c0c121
     - filename: load_testing/.envrc.example
       checksum: bd6d379824dd3a828fa4689a1a8b7fa77d37abe880a4b16e1b68b4d93954ab3d
     - filename: tests/app/clients/test_aws_ses.py

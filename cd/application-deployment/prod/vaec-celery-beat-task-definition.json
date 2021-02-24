@@ -33,8 +33,8 @@
           "value": "prod-notification-"
         },
         {
-            "name": "STATSD_HOST",
-            "value": "localhost"
+          "name": "STATSD_HOST",
+          "value": "localhost"
         },
         {
           "name": "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED",
@@ -53,28 +53,28 @@
           "value": "https://www.vaprofile.va.gov"
         },
         {
-            "name": "VANOTIFY_SSL_CERT_PATH",
-            "value": "/app/certs/vanotify_ssl_cert.pem"
+          "name": "VANOTIFY_SSL_CERT_PATH",
+          "value": "/app/certs/vanotify_ssl_cert.pem"
         },
         {
-            "name": "VANOTIFY_SSL_KEY_PATH",
-            "value": "/app/certs/vanotify_ssl_key.pem"
+          "name": "VANOTIFY_SSL_KEY_PATH",
+          "value": "/app/certs/vanotify_ssl_key.pem"
         },
         {
-            "name": "MPI_URL",
-            "value": "https://services.eauth.va.gov:9303/prod"
+          "name": "MPI_URL",
+          "value": "https://services.eauth.va.gov:9303/prod"
         },
         {
           "name": "AWS_PINPOINT_APP_ID",
           "value": "9535150638b04a49b49755af2b2d316b"
         },
         {
-            "name": "AWS_SES_EMAIL_FROM_USER",
-            "value": "do-not-reply"
+          "name": "AWS_SES_EMAIL_FROM_USER",
+          "value": "do-not-reply"
         },
         {
-            "name": "TEMPLATE_SERVICE_PROVIDERS_ENABLED",
-            "value": "True"
+          "name": "TEMPLATE_SERVICE_PROVIDERS_ENABLED",
+          "value": "True"
         },
         {
           "name": "PROVIDER_STRATEGIES_ENABLED",
@@ -120,14 +120,18 @@
         },
         {
           "name": "VANOTIFY_SSL_CERT",
-            "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/cert/vanotify-va-cert"
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/cert/vanotify-va-cert"
         },
         {
-            "name": "VANOTIFY_SSL_KEY",
-            "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/cert/vanotify-va-key"
+          "name": "VANOTIFY_SSL_KEY",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/cert/vanotify-va-key"
         }
       ],
-      "command": ["sh", "-c", "/app/scripts/run_celery_beat.sh"]
+      "command": [
+        "sh",
+        "-c",
+        "/app/scripts/run_celery_beat.sh"
+      ]
     },
     {
       "name": "datadog-agent",

@@ -1,201 +1,213 @@
 {
-    "family": "staging-notification-api-task",
-    "executionRoleArn": "arn:aws-us-gov:iam::171875617347:role/project/project-staging-notification-api-task-execution-role",
-    "taskRoleArn": "arn:aws-us-gov:iam::171875617347:role/project/project-staging-notification-api-task-role",
-    "networkMode": "awsvpc",
-    "containerDefinitions": [{
-            "name": "notification-api",
-            "image": "{will-be-replaced-by-ci}",
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-group": "staging-notification-api-log-group",
-                    "awslogs-region": "us-gov-west-1",
-                    "awslogs-stream-prefix": "ecs"
-                }
-            },
-            "portMappings": [{
-                "containerPort": 6011,
-                "hostPort": 6011
-            }],
-            "environment": [{
-                    "name": "NOTIFY_ENVIRONMENT",
-                    "value": "staging"
-                },
-                {
-                    "name": "FLASK_APP",
-                    "value": "application.py"
-                },
-                {
-                    "name": "API_HOST_NAME",
-                    "value": "https://staging.api.notifications.va.gov"
-                },
-                {
-                    "name": "NOTIFICATION_QUEUE_PREFIX",
-                    "value": "staging-notification-"
-                },
-                {
-                    "name": "STATSD_HOST",
-                    "value": "localhost"
-                },
-                {
-                    "name": "GRANICUS_URL",
-                    "value": "https://stage-tms.govdelivery.com"
-                },
-                {
-                    "name": "NOTIFY_EMAIL_FROM_USER",
-                    "value": "stage-notifications"
-                },
-                {
-                    "name": "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED",
-                    "value": "True"
-                },
-                {
-                    "name": "GOOGLE_ANALYTICS_ENABLED",
-                    "value": "True"
-                },
-                {
-                    "name": "VA_PROFILE_URL",
-                    "value": "https://qa.vaprofile.va.gov"
-                },
-                {
-                    "name": "VANOTIFY_SSL_CERT_PATH",
-                    "value": "/app/certs/vanotify_ssl_cert.pem"
-                },
-                {
-                    "name": "VANOTIFY_SSL_KEY_PATH",
-                    "value": "/app/certs/vanotify_ssl_key.pem"
-                },
-                {
-                    "name": "MPI_URL",
-                    "value": "https://sqa.services.eauth.va.gov:9303/sqa"
-                },
-                {
-                    "name": "AWS_PINPOINT_APP_ID",
-                    "value": "164e77155a7a45299b3bc15562732540"
-                },
-                {
-                    "name": "AWS_SES_EMAIL_FROM_USER",
-                    "value": "staging-do-not-reply"
-                },
-                {
-                    "name": "TEMPLATE_SERVICE_PROVIDERS_ENABLED",
-                    "value": "True"
-                },
-                {
-                    "name": "PROVIDER_STRATEGIES_ENABLED",
-                    "value": "False"
-                },
-                {
-                    "name": "EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL",
-                    "value": "HIGHEST_PRIORITY"
-                },
-                {
-                    "name": "SMS_PROVIDER_SELECTION_STRATEGY_LABEL",
-                    "value": "HIGHEST_PRIORITY"
-                }
-            ],
-            "secrets": [{
-                    "name": "TWILIO_ACCOUNT_SID",
-                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/twilio/account-sid"
-                },
-                {
-                    "name": "TWILIO_AUTH_TOKEN",
-                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/twilio/auth-token"
-                },
-                {
-                    "name": "TWILIO_FROM_NUMBER",
-                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/twilio/from-number"
-                },
-                {
-                    "name": "GRANICUS_TOKEN",
-                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/granicus/token"
-                },
-                {
-                    "name": "SQLALCHEMY_DATABASE_URI",
-                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/database/uri"
-                },
-                {
-                    "name": "ADMIN_CLIENT_SECRET",
-                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/admin-client-secret"
-                },
-                {
-                    "name": "SECRET_KEY",
-                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/secret-key"
-                },
-                {
-                    "name": "DANGEROUS_SALT",
-                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/dangerous-salt"
-                },
-                {
-                    "name": "VANOTIFY_SSL_CERT",
-                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/cert/vanotify-va-cert"
-                },
-                {
-                    "name": "VANOTIFY_SSL_KEY",
-                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/cert/vanotify-va-key"
-                }
-            ]
-        },
-        {
-            "name": "datadog-agent",
-            "image": "171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/datadog/agent:latest",
-            "essential": true,
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-group": "staging-notification-api-datadog-log-group",
-                    "awslogs-region": "us-gov-west-1",
-                    "awslogs-stream-prefix": "ecs"
-                }
-            },
-            "portMappings": [{
-                "containerPort": 8125,
-                "hostPort": 8125,
-                "protocol": "udp"
-            }],
-            "environment": [{
-                "name": "ECS_FARGATE",
-                "value": "true"
-            }],
-            "secrets": [{
-                "name": "DD_API_KEY",
-                "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/datadog/apikey"
-            }]
+  "family": "staging-notification-api-task",
+  "executionRoleArn": "arn:aws-us-gov:iam::171875617347:role/project/project-staging-notification-api-task-execution-role",
+  "taskRoleArn": "arn:aws-us-gov:iam::171875617347:role/project/project-staging-notification-api-task-role",
+  "networkMode": "awsvpc",
+  "containerDefinitions": [
+    {
+      "name": "notification-api",
+      "image": "{will-be-replaced-by-ci}",
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "staging-notification-api-log-group",
+          "awslogs-region": "us-gov-west-1",
+          "awslogs-stream-prefix": "ecs"
         }
-    ],
-    "requiresCompatibilities": [
-        "FARGATE"
-    ],
-    "cpu": "512",
-    "memory": "1024",
-    "tags": [{
-            "key": "Stack",
-            "value": "application-deployment"
-        },
+      },
+      "portMappings": [
         {
-            "key": "Environment",
-            "value": "staging"
-        },
-        {
-            "key": "Team",
-            "value": "vanotify"
-        },
-        {
-            "key": "ManagedBy",
-            "value": "CI"
-        },
-        {
-            "key": "VAECID",
-            "value": "AWG20200714002"
-        },
-        {
-            "key": "ProjectName",
-            "value": "VA Notify"
-        },
-        {
-            "key": "ProjectShort",
-            "value": "NOTIFY"
+          "containerPort": 6011,
+          "hostPort": 6011
         }
-    ]
+      ],
+      "environment": [
+        {
+          "name": "NOTIFY_ENVIRONMENT",
+          "value": "staging"
+        },
+        {
+          "name": "FLASK_APP",
+          "value": "application.py"
+        },
+        {
+          "name": "API_HOST_NAME",
+          "value": "https://staging.api.notifications.va.gov"
+        },
+        {
+          "name": "NOTIFICATION_QUEUE_PREFIX",
+          "value": "staging-notification-"
+        },
+        {
+          "name": "STATSD_HOST",
+          "value": "localhost"
+        },
+        {
+          "name": "GRANICUS_URL",
+          "value": "https://stage-tms.govdelivery.com"
+        },
+        {
+          "name": "NOTIFY_EMAIL_FROM_USER",
+          "value": "stage-notifications"
+        },
+        {
+          "name": "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED",
+          "value": "True"
+        },
+        {
+          "name": "GOOGLE_ANALYTICS_ENABLED",
+          "value": "True"
+        },
+        {
+          "name": "VA_PROFILE_URL",
+          "value": "https://qa.vaprofile.va.gov"
+        },
+        {
+          "name": "VANOTIFY_SSL_CERT_PATH",
+          "value": "/app/certs/vanotify_ssl_cert.pem"
+        },
+        {
+          "name": "VANOTIFY_SSL_KEY_PATH",
+          "value": "/app/certs/vanotify_ssl_key.pem"
+        },
+        {
+          "name": "MPI_URL",
+          "value": "https://sqa.services.eauth.va.gov:9303/sqa"
+        },
+        {
+          "name": "AWS_PINPOINT_APP_ID",
+          "value": "164e77155a7a45299b3bc15562732540"
+        },
+        {
+          "name": "AWS_SES_EMAIL_FROM_USER",
+          "value": "staging-do-not-reply"
+        },
+        {
+          "name": "TEMPLATE_SERVICE_PROVIDERS_ENABLED",
+          "value": "True"
+        },
+        {
+          "name": "PROVIDER_STRATEGIES_ENABLED",
+          "value": "False"
+        },
+        {
+          "name": "EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL",
+          "value": "HIGHEST_PRIORITY"
+        },
+        {
+          "name": "SMS_PROVIDER_SELECTION_STRATEGY_LABEL",
+          "value": "HIGHEST_PRIORITY"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "TWILIO_ACCOUNT_SID",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/twilio/account-sid"
+        },
+        {
+          "name": "TWILIO_AUTH_TOKEN",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/twilio/auth-token"
+        },
+        {
+          "name": "TWILIO_FROM_NUMBER",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/twilio/from-number"
+        },
+        {
+          "name": "GRANICUS_TOKEN",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/granicus/token"
+        },
+        {
+          "name": "SQLALCHEMY_DATABASE_URI",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/database/uri"
+        },
+        {
+          "name": "ADMIN_CLIENT_SECRET",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/admin-client-secret"
+        },
+        {
+          "name": "SECRET_KEY",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/secret-key"
+        },
+        {
+          "name": "DANGEROUS_SALT",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/dangerous-salt"
+        },
+        {
+          "name": "VANOTIFY_SSL_CERT",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/cert/vanotify-va-cert"
+        },
+        {
+          "name": "VANOTIFY_SSL_KEY",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/cert/vanotify-va-key"
+        }
+      ]
+    },
+    {
+      "name": "datadog-agent",
+      "image": "171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/datadog/agent:latest",
+      "essential": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "staging-notification-api-datadog-log-group",
+          "awslogs-region": "us-gov-west-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "portMappings": [
+        {
+          "containerPort": 8125,
+          "hostPort": 8125,
+          "protocol": "udp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "ECS_FARGATE",
+          "value": "true"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DD_API_KEY",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/datadog/apikey"
+        }
+      ]
+    }
+  ],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "tags": [
+    {
+      "key": "Stack",
+      "value": "application-deployment"
+    },
+    {
+      "key": "Environment",
+      "value": "staging"
+    },
+    {
+      "key": "Team",
+      "value": "vanotify"
+    },
+    {
+      "key": "ManagedBy",
+      "value": "CI"
+    },
+    {
+      "key": "VAECID",
+      "value": "AWG20200714002"
+    },
+    {
+      "key": "ProjectName",
+      "value": "VA Notify"
+    },
+    {
+      "key": "ProjectShort",
+      "value": "NOTIFY"
+    }
+  ]
 }
