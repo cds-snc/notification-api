@@ -1,6 +1,7 @@
 from typing import Type, Dict, Optional
 
 from app.dao.provider_details_dao import get_provider_details_by_id
+from app.exceptions import InvalidProviderException
 from app.models import Notification, ProviderDetails
 from app.notifications.notification_type import NotificationType
 from app.provider_details.provider_selection_strategy_interface import ProviderSelectionStrategyInterface, \
@@ -44,10 +45,23 @@ class ProviderService:
     def get_provider(self, notification: Notification) -> ProviderDetails:
         template_or_service_provider_id = self._get_template_or_service_provider_id(notification)
         if template_or_service_provider_id:
-            return get_provider_details_by_id(template_or_service_provider_id)
+            provider = get_provider_details_by_id(template_or_service_provider_id)
 
-        provider_selection_strategy = self._strategies[NotificationType(notification.notification_type)]
-        return provider_selection_strategy.get_provider(notification)
+            if provider is None:
+                raise InvalidProviderException(f'provider {template_or_service_provider_id} could not be found')
+            elif not provider.active:
+                raise InvalidProviderException(f'provider {template_or_service_provider_id} is not active')
+
+        else:
+            provider_selection_strategy = self._strategies[NotificationType(notification.notification_type)]
+            provider = provider_selection_strategy.get_provider(notification)
+
+            if provider is None:
+                raise InvalidProviderException(
+                    f'provider strategy {provider_selection_strategy.get_label()} could not find a suitable provider'
+                )
+
+        return provider
 
     @staticmethod
     def _get_template_or_service_provider_id(notification: Notification) -> Optional[str]:

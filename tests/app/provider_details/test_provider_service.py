@@ -1,5 +1,6 @@
 import pytest
 
+from app.exceptions import InvalidProviderException
 from app.models import Notification, ProviderDetails, Template, Service
 from app.notifications.notification_type import NotificationType
 from app.provider_details.provider_selection_strategy_interface import ProviderSelectionStrategyInterface
@@ -114,6 +115,39 @@ class TestGetProvider:
 
         mock_get_provider_details.assert_called_with('some-id')
 
+    def test_raises_exception_if_template_provider_cannot_be_found(self, mocker, provider_service):
+
+        template_with_provider = mocker.Mock(Template, provider_id='some-id')
+
+        mock_notification = mocker.Mock(Notification, template=template_with_provider)
+
+        mock_provider = mocker.Mock(ProviderDetails, active=False)
+        mock_get_provider_details = mocker.patch(
+            'app.provider_details.provider_service.get_provider_details_by_id',
+            return_value=mock_provider
+        )
+
+        with pytest.raises(InvalidProviderException):
+            provider_service.get_provider(mock_notification)
+
+        mock_get_provider_details.assert_called_with('some-id')
+
+    def test_raises_exception_if_template_provider_is_inactive(self, mocker, provider_service):
+
+        template_with_provider = mocker.Mock(Template, provider_id='some-id')
+
+        mock_notification = mocker.Mock(Notification, template=template_with_provider)
+
+        mock_get_provider_details = mocker.patch(
+            'app.provider_details.provider_service.get_provider_details_by_id',
+            return_value=None
+        )
+
+        with pytest.raises(InvalidProviderException):
+            provider_service.get_provider(mock_notification)
+
+        mock_get_provider_details.assert_called_with('some-id')
+
     @pytest.mark.parametrize(
         'notification_type, expected_provider_id', [
             (NotificationType.EMAIL, 'email-provider-id'),
@@ -179,3 +213,24 @@ class TestGetProvider:
 
         assert provider_service.get_provider(notification) == provider
         expected_strategy.get_provider.assert_called_with(notification)
+
+    @pytest.mark.parametrize('notification_type', [NotificationType.EMAIL, NotificationType.SMS])
+    def test_raises_exception_when_strategy_cannot_find_suitable_provider(
+            self,
+            mocker,
+            provider_service,
+            notification_type,
+    ):
+        template_without_provider = mocker.Mock(Template, provider_id=None)
+        service_without_providers = mocker.Mock(Service, email_provider_id=None, sms_provider_id=None)
+
+        mocker.patch.object(provider_service.strategies[notification_type], 'get_provider', return_value=None)
+
+        notification = mocker.Mock(
+            notification_type=notification_type,
+            template=template_without_provider,
+            service=service_without_providers
+        )
+
+        with pytest.raises(InvalidProviderException):
+            provider_service.get_provider(notification)
