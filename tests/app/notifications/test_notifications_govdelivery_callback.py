@@ -27,6 +27,13 @@ def mock_update_notification_status(mocker):
     )
 
 
+@pytest.fixture
+def mock_statsd(mocker):
+    return mocker.patch(
+        'app.notifications.notifications_govdelivery_callback.statsd_client'
+    )
+
+
 def get_govdelivery_request(reference, status):
     return {
         "sid": "some_sid",
@@ -108,11 +115,13 @@ def test_govdelivery_callback_always_returns_200_after_expected_exceptions(
         mock_dao_get_notification_by_reference,
         mock_map_govdelivery_status_to_notify_status,
         mock_update_notification_status,
+        mock_statsd,
         exception
 ):
     mock_dao_get_notification_by_reference.side_effect = exception
 
     response = post(client, get_govdelivery_request("123456", "sent"))
+    mock_statsd.incr.assert_called_with(f'callback.govdelivery.failure.{type(exception)}')
 
     assert response.status_code == 200
 
@@ -123,12 +132,7 @@ def test_govdelivery_callback_raises_invalid_request_if_missing_data(client):
     assert response.status_code == 400
 
 
-def test_govdelivery_callback_raises_invalid_request_if_unrecognised_status(
-        client,
-        mock_map_govdelivery_status_to_notify_status
-):
-    mock_map_govdelivery_status_to_notify_status.side_effect = KeyError()
-
+def test_govdelivery_callback_raises_invalid_request_if_unrecognised_status(client):
     response = post(client, get_govdelivery_request("123456", "some-status"))
 
     assert response.status_code == 400
@@ -145,3 +149,28 @@ def test_govdelivery_callback_raises_exceptions_after_unexpected_exceptions(
     with pytest.raises(Exception):
         response = post(client, get_govdelivery_request("123456", "sent"))
         assert response.status_code == 500
+
+
+@pytest.mark.parametrize("notification_status", ["sent", "failed", "other"])
+def test_should_store_statistics_when_successful(
+        client,
+        mocker,
+        mock_dao_get_notification_by_reference,
+        mock_map_govdelivery_status_to_notify_status,
+        mock_update_notification_status,
+        mock_statsd,
+        notification_status
+):
+    notification = mocker.Mock(Notification)
+    notification.sent_at = datetime.utcnow()
+    mock_dao_get_notification_by_reference.return_value = notification
+    mock_map_govdelivery_status_to_notify_status.return_value = notification_status
+
+    post(client, get_govdelivery_request("123456", "sent"))
+
+    mock_statsd.incr.assert_called_with(f'callback.govdelivery.{notification_status}')
+    mock_statsd.timing_with_dates.assert_called_with(
+        'callback.govdelivery.elapsed-time',
+        mocker.ANY,
+        notification.sent_at
+    )
