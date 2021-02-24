@@ -42,12 +42,14 @@ def dvla_post(client, data):
     )
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_dvla_callback_returns_400_with_invalid_request(client):
     data = json.dumps({"foo": "bar"})
     response = dvla_post(client, data)
     assert response.status_code == 400
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_dvla_callback_autoconfirms_subscription(client, mocker):
     autoconfirm_mock = mocker.patch('app.notifications.notifications_letter_callback.autoconfirm_subscription')
 
@@ -57,6 +59,7 @@ def test_dvla_callback_autoconfirms_subscription(client, mocker):
     assert autoconfirm_mock.called
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_dvla_callback_autoconfirm_does_not_call_update_letter_notifications_task(client, mocker):
     autoconfirm_mock = mocker.patch('app.notifications.notifications_letter_callback.autoconfirm_subscription')
     update_task = \
@@ -70,6 +73,7 @@ def test_dvla_callback_autoconfirm_does_not_call_update_letter_notifications_tas
     assert not update_task.called
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_dvla_callback_calls_does_not_update_letter_notifications_task_with_invalid_file_type(client, mocker):
     update_task = \
         mocker.patch('app.notifications.notifications_letter_callback.update_letter_notifications_statuses.apply_async')
@@ -81,6 +85,7 @@ def test_dvla_callback_calls_does_not_update_letter_notifications_task_with_inva
     assert not update_task.called
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 @pytest.mark.parametrize("filename",
                          ['Notify-20170411153023-rs.txt', 'Notify-20170411153023-rsp.txt'])
 def test_dvla_rs_and_rsp_txt_file_callback_calls_update_letter_notifications_task(client, mocker, filename):
@@ -97,6 +102,7 @@ def test_dvla_rs_and_rsp_txt_file_callback_calls_update_letter_notifications_tas
     daily_sorted_counts_task.assert_called_with([filename], queue='notify-internal-tasks')
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_dvla_ack_calls_does_not_call_letter_notifications_task(client, mocker):
     update_task = mocker.patch(
         'app.notifications.notifications_letter_callback.update_letter_notifications_statuses.apply_async')
@@ -110,6 +116,7 @@ def test_dvla_ack_calls_does_not_call_letter_notifications_task(client, mocker):
     daily_sorted_counts_task.assert_not_called()
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_firetext_callback_should_not_need_auth(client, mocker):
     mocker.patch('app.statsd_client.incr')
     data = 'mobile=441234123123&status=0&reference=send-sms-code&time=2016-03-10 14:17:00'
@@ -118,6 +125,7 @@ def test_firetext_callback_should_not_need_auth(client, mocker):
     assert response.status_code == 200
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_firetext_callback_should_return_400_if_empty_reference(client, mocker):
     mocker.patch('app.statsd_client.incr')
     data = 'mobile=441234123123&status=0&reference=&time=2016-03-10 14:17:00'
@@ -129,6 +137,7 @@ def test_firetext_callback_should_return_400_if_empty_reference(client, mocker):
     assert json_resp['message'] == ['Firetext callback failed: reference missing']
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_firetext_callback_should_return_400_if_no_reference(client, mocker):
     mocker.patch('app.statsd_client.incr')
     data = 'mobile=441234123123&status=0&time=2016-03-10 14:17:00'
@@ -139,6 +148,7 @@ def test_firetext_callback_should_return_400_if_no_reference(client, mocker):
     assert json_resp['message'] == ['Firetext callback failed: reference missing']
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_firetext_callback_should_return_200_if_send_sms_reference(client, mocker):
     mocker.patch('app.statsd_client.incr')
     data = 'mobile=441234123123&status=0&time=2016-03-10 14:17:00&reference=send-sms-code'
@@ -149,6 +159,7 @@ def test_firetext_callback_should_return_200_if_send_sms_reference(client, mocke
     assert json_resp['message'] == 'Firetext callback succeeded: send-sms-code'
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_firetext_callback_should_return_400_if_no_status(client, mocker):
     mocker.patch('app.statsd_client.incr')
     data = 'mobile=441234123123&time=2016-03-10 14:17:00&reference=send-sms-code'
@@ -159,6 +170,7 @@ def test_firetext_callback_should_return_400_if_no_status(client, mocker):
     assert json_resp['message'] == ['Firetext callback failed: status missing']
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_firetext_callback_should_set_status_technical_failure_if_status_unknown(
         client, mocker, sample_notification):
     sample_notification.status = 'sending'
@@ -170,6 +182,7 @@ def test_firetext_callback_should_set_status_technical_failure_if_status_unknown
     assert 'Firetext callback failed: status 99 not found.' in str(e.value)
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_firetext_callback_returns_200_when_notification_id_is_not_a_valid_uuid(client, mocker):
     mocker.patch('app.statsd_client.incr')
     data = 'mobile=441234123123&status=0&time=2016-03-10 14:17:00&reference=1234'
@@ -180,6 +193,7 @@ def test_firetext_callback_returns_200_when_notification_id_is_not_a_valid_uuid(
     assert json_resp['message'] == 'Firetext callback with invalid reference 1234'
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_callback_should_return_200_if_cannot_find_notification_id(
     notify_db,
     notify_db_session,
@@ -197,6 +211,7 @@ def test_callback_should_return_200_if_cannot_find_notification_id(
     assert json_resp['result'] == 'success'
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_firetext_callback_should_update_notification_status(
         client, mocker, sample_notification
 ):
@@ -224,6 +239,7 @@ def test_firetext_callback_should_update_notification_status(
     assert send_mock.called_once_with([sample_notification.id], queue="notify-internal-tasks")
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_firetext_callback_should_update_notification_status_failed(
         client, mocker, sample_template
 ):
@@ -249,6 +265,7 @@ def test_firetext_callback_should_update_notification_status_failed(
     assert get_notification_by_id(notification.id).status == 'permanent-failure'
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_firetext_callback_should_update_notification_status_pending(client, sample_template, mocker):
     mocker.patch('app.statsd_client.incr')
     mocker.patch(
@@ -271,6 +288,7 @@ def test_firetext_callback_should_update_notification_status_pending(client, sam
     assert get_notification_by_id(notification.id).status == 'pending'
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_process_mmg_response_return_200_when_cid_is_send_sms_code(client):
     data = '{"reference": "10100164", "CID": "send-sms-code", "MSISDN": "447775349060", "status": "3", \
         "deliverytime": "2016-04-05 16:01:07"}'
@@ -282,6 +300,7 @@ def test_process_mmg_response_return_200_when_cid_is_send_sms_code(client):
     assert json_data['message'] == 'MMG callback succeeded: send-sms-code'
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_process_mmg_response_returns_200_when_cid_is_valid_notification_id(
         sample_notification, client, mocker
 ):
@@ -304,6 +323,7 @@ def test_process_mmg_response_returns_200_when_cid_is_valid_notification_id(
     assert get_notification_by_id(sample_notification.id).status == 'delivered'
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_process_mmg_response_status_5_updates_notification_with_permanently_failed(
     sample_notification, client, mocker
 ):
@@ -325,6 +345,7 @@ def test_process_mmg_response_status_5_updates_notification_with_permanently_fai
     assert get_notification_by_id(sample_notification.id).status == 'permanent-failure'
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_process_mmg_response_status_2_updates_notification_with_permanently_failed(
     sample_notification, client, mocker
 ):
@@ -345,6 +366,7 @@ def test_process_mmg_response_status_2_updates_notification_with_permanently_fai
     assert get_notification_by_id(sample_notification.id).status == 'permanent-failure'
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_process_mmg_response_status_4_updates_notification_with_temporary_failed(
         sample_notification, client, mocker
 ):
@@ -366,6 +388,7 @@ def test_process_mmg_response_status_4_updates_notification_with_temporary_faile
     assert get_notification_by_id(sample_notification.id).status == 'temporary-failure'
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_process_mmg_response_unknown_status_updates_notification_with_technical_failure(
         sample_notification, client, mocker
 ):
@@ -385,6 +408,7 @@ def test_process_mmg_response_unknown_status_updates_notification_with_technical
     assert send_mock.called
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_process_mmg_response_returns_400_for_malformed_data(client):
     data = json.dumps({"reference": "mmg_reference",
                        "monkey": 'random thing',
@@ -401,6 +425,7 @@ def test_process_mmg_response_returns_400_for_malformed_data(client):
     assert "{} callback failed: {} missing".format('MMG', 'CID') in json_data['message']
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_mmg_callback_returns_200_when_notification_id_not_found_or_already_updated(client):
     data = '{"reference": "10100164", "CID": "send-sms-code", "MSISDN": "447775349060", "status": "3", \
              "deliverytime": "2016-04-05 16:01:07"}'
@@ -409,6 +434,7 @@ def test_mmg_callback_returns_200_when_notification_id_not_found_or_already_upda
     assert response.status_code == 200
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_mmg_callback_returns_400_when_notification_id_is_not_a_valid_uuid(client):
     data = '{"reference": "10100164", "CID": "1234", "MSISDN": "447775349060", "status": "3", \
              "deliverytime": "2016-04-05 16:01:07"}'
@@ -419,6 +445,7 @@ def test_mmg_callback_returns_400_when_notification_id_is_not_a_valid_uuid(clien
     assert json_resp['message'] == 'MMG callback with invalid reference 1234'
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_process_mmg_response_records_statsd(sample_notification, client, mocker):
     with freeze_time('2001-01-01T12:00:00'):
 
@@ -444,6 +471,7 @@ def test_process_mmg_response_records_statsd(sample_notification, client, mocker
         )
 
 
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_firetext_callback_should_record_statsd(client, sample_notification, mocker):
     with freeze_time('2001-01-01T12:00:00'):
 
