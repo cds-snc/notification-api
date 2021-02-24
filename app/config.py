@@ -358,7 +358,7 @@ class Config(object):
 
     # When a service is created, this gets saved as default sms_sender
     # We are using this for Pinpoint as default ORIGINATION NUMBER
-    FROM_NUMBER = '+18337021549'
+    FROM_NUMBER = '+12515727927'
 
     STATSD_HOST = os.getenv('STATSD_HOST')
     STATSD_PORT = 8125
@@ -474,6 +474,10 @@ class Development(Config):
             Queue(queue, Exchange('default'), routing_key=queue)
         )
 
+    # When a service is created, this gets saved as default sms_sender
+    # We are using this for Pinpoint as default ORIGINATION NUMBER
+    FROM_NUMBER = '+12515727927'
+
 
 class Test(Development):
     # When a service is created, this gets saved as default sms_sender
@@ -530,6 +534,12 @@ class Test(Development):
     AWS_SES_ENDPOINT_URL = "https://test.ses.endpoint"
 
 
+class Staging(Config):
+    # When a service is created, this gets saved as default sms_sender
+    # We are using this for Pinpoint as default ORIGINATION NUMBER
+    FROM_NUMBER = '+12194912099'
+
+
 class Production(Config):
     # CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'production-test-letters'
@@ -543,12 +553,12 @@ class Production(Config):
     CRONITOR_ENABLED = False
     # When a service is created, this gets saved as default sms_sender
     # We are using this for Pinpoint as default ORIGINATION NUMBER
-    FROM_NUMBER = '+18334981539'
+    FROM_NUMBER = '+12513189950'
 
 
 configs = {
     'development': Development,
     'test': Test,
-    'staging': Config,
+    'staging': Staging,
     'production': Production
 }
