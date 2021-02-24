@@ -88,11 +88,11 @@
         },
         {
           "name": "PROVIDER_STRATEGIES_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL",
-          "value": "HIGHEST_PRIORITY"
+          "value": "LOAD_BALANCING"
         },
         {
           "name": "SMS_PROVIDER_SELECTION_STRATEGY_LABEL",
