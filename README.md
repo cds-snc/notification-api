@@ -96,8 +96,8 @@ file. Copy that file to `.env` and customize it to your needs.
 `make test`
 
   * Ensure vars:
-    * SQLALCHEMY_DATABASE_READER_URI
-    * SQLALCHEMY_DATABASE_URI
+    * `SQLALCHEMY_DATABASE_READER_URI`
+    * `SQLALCHEMY_DATABASE_URI`
   * are both set either in .env or pytest.ini (precedence goes to .env) to your local db with user access
   for CREATE DATABASE access. Additionally the db in the URI should not be set to 'notification_api'.
 
@@ -195,4 +195,3 @@ __Solution__: Do not specify a database in your `.env`
 __Problem__: Messages are in the queue but not sending
 
 __Solution__: Check that `celery` is running. 
-
