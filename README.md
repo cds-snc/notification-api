@@ -26,7 +26,8 @@ Contains:
     - [Pre-commit hooks](#pre-commit-hooks)
     - [Installation for local development](#installation-for-local-development)
     - [Other useful commands](#other-useful-commands)
-  - [To run the queues](#to-run-the-queues)
+- [Deployment Workflow](#deployment-workflow)
+- [To run the queues](#to-run-the-queues)
   - [Running in Docker](#running-in-docker)
   - [AWS Configuration](#aws-configuration)
     - [Install tools](#install-tools)
@@ -253,6 +254,11 @@ To check if messages are queued up, run:
 AWS_ACCESS_KEY_ID=foo AWS_SECRET_ACCESS_KEY=bar aws --endpoint-url=http://localhost:{port} sqs receive-message --max-number-of-messages 10 --queue-url={queue url provided in from list-queues command}
 ```
 * Note that the max number (n) of messages can be 1 < n <= 10
+
+---
+
+## Deployment Workflow
+// TODO: coming soon
 
 ---
 
