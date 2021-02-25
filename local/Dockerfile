@@ -12,7 +12,7 @@ RUN set -ex && mkdir /app
 WORKDIR /app
 
 COPY . /app
-RUN set -ex && pip3 install -r requirements.txt
+RUN pip3 install -r requirements.txt
 
 ENV PORT=6011
 
