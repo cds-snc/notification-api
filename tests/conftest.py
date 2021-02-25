@@ -67,9 +67,9 @@ def create_test_db(writer_uri):
         postgres_db.dispose()
 
 
-def grant_test_db(writer_uri):
-    db_reader = 'reader'
+def grant_test_db(writer_uri, uri_db_reader):
     db_schema = 'public'
+    db_reader, db_reader_password = uri_db_reader.split('/')[2].split('@')[0].split(':')
 
     postgres_db = sqlalchemy.create_engine(
         writer_uri,
@@ -77,18 +77,18 @@ def grant_test_db(writer_uri):
         isolation_level='AUTOCOMMIT',
         client_encoding='utf8'
     )
-    try:
-        statements = [
-            f'GRANT USAGE ON SCHEMA {db_schema} TO {db_reader};',
-            f'GRANT SELECT ON ALL TABLES IN SCHEMA {db_schema} TO {db_reader};',
-            f'ALTER DEFAULT PRIVILEGES IN SCHEMA {db_schema} GRANT SELECT ON TABLES TO {db_reader};',
-        ]
-        for statement in statements:
+
+    statements = [
+        f"CREATE ROLE {db_reader} LOGIN PASSWORD '{db_reader_password}';",
+        f'GRANT USAGE ON SCHEMA {db_schema} TO {db_reader};',
+        f'GRANT SELECT ON ALL TABLES IN SCHEMA {db_schema} TO {db_reader};',
+    ]
+    for statement in statements:
+        try:
             postgres_db.execute(sqlalchemy.sql.text(statement)).close()
-    except sqlalchemy.exc.ProgrammingError:
-        pass
-    finally:
-        postgres_db.dispose()
+        except sqlalchemy.exc.ProgrammingError:
+            pass
+    postgres_db.dispose()
 
 
 @pytest.fixture(scope='session')
@@ -115,7 +115,7 @@ def notify_db(notify_api, worker_id):
     with notify_api.app_context():
         upgrade(config, 'head')
 
-    grant_test_db(uri_db_writer)
+    grant_test_db(uri_db_writer, uri_db_reader)
 
     yield db
 

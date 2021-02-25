@@ -18,8 +18,6 @@ jobs:
     - name: Install libcurl
       run: sudo apt-get install libssl-dev libcurl4-openssl-dev
     - uses: actions/checkout@v2
-    - name: Set up test database
-      run: psql -c "create user reader with encrypted password 'postgres';" postgresql://postgres:postgres@localhost:5432
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
       with:
@@ -34,6 +32,3 @@ jobs:
           ${{ runner.os }}-pip-
     - name: Run tests
       run: /bin/bash -c "pip install -r requirements_for_test.txt && make test"
-      env:
-        SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost:5432/test_notification_api
-        SQLALCHEMY_DATABASE_READER_URI: postgresql://reader:postgres@localhost:5432/test_notification_api
