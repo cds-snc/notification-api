@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 import os
+from urllib.parse import urlparse
 
 from flask import Flask
 from alembic.command import upgrade
@@ -69,7 +70,8 @@ def create_test_db(writer_uri):
 
 def grant_test_db(writer_uri, uri_db_reader):
     db_schema = 'public'
-    db_reader, db_reader_password = uri_db_reader.split('/')[2].split('@')[0].split(':')
+    db_reader = urlparse(uri_db_reader).username
+    db_reader_password = urlparse(uri_db_reader).password
 
     postgres_db = sqlalchemy.create_engine(
         writer_uri,
