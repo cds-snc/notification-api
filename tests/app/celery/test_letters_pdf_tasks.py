@@ -418,11 +418,11 @@ def test_process_letter_task_check_virus_scan_passed(
     source_bucket_name = current_app.config['LETTERS_SCAN_BUCKET_NAME']
     target_bucket_name = current_app.config[bucket_config_name]
 
-    conn = boto3.resource('s3', region_name='us-east-1')
+    conn = boto3.resource('s3', region_name='ca-central-1')
     conn.create_bucket(Bucket=source_bucket_name)
     conn.create_bucket(Bucket=target_bucket_name)
 
-    s3 = boto3.client('s3', region_name='us-east-1')
+    s3 = boto3.client('s3', region_name='ca-central-1')
     s3.put_object(Bucket=source_bucket_name, Key=filename, Body=b'old_pdf')
 
     mock_get_page_count = mocker.patch('app.celery.letters_pdf_tasks.get_page_count', return_value=1)
@@ -453,7 +453,7 @@ def test_process_letter_task_check_virus_scan_passed(
         bucket_name=target_bucket_name,
         filedata=b'new_pdf',
         file_location=destination_folder + filename,
-        region='us-east-1',
+        region='ca-central-1',
     )
     mock_get_page_count.assert_called_once_with(b'old_pdf')
 
@@ -468,11 +468,11 @@ def test_process_letter_task_check_virus_scan_passed_when_sanitise_fails(
     source_bucket_name = current_app.config['LETTERS_SCAN_BUCKET_NAME']
     target_bucket_name = current_app.config['INVALID_PDF_BUCKET_NAME']
 
-    conn = boto3.resource('s3', region_name='us-east-1')
+    conn = boto3.resource('s3', region_name='ca-central-1')
     conn.create_bucket(Bucket=source_bucket_name)
     conn.create_bucket(Bucket=target_bucket_name)
 
-    s3 = boto3.client('s3', region_name='us-east-1')
+    s3 = boto3.client('s3', region_name='ca-central-1')
     s3.put_object(Bucket=source_bucket_name, Key=filename, Body=b'pdf_content')
 
     sample_letter_notification.status = NOTIFICATION_PENDING_VIRUS_CHECK
@@ -562,11 +562,11 @@ def test_process_letter_task_check_virus_scan_passed_when_file_cannot_be_opened(
     source_bucket_name = current_app.config['LETTERS_SCAN_BUCKET_NAME']
     target_bucket_name = current_app.config['INVALID_PDF_BUCKET_NAME']
 
-    conn = boto3.resource('s3', region_name='us-east-1')
+    conn = boto3.resource('s3', region_name='ca-central-1')
     conn.create_bucket(Bucket=source_bucket_name)
     conn.create_bucket(Bucket=target_bucket_name)
 
-    s3 = boto3.client('s3', region_name='us-east-1')
+    s3 = boto3.client('s3', region_name='ca-central-1')
     s3.put_object(Bucket=source_bucket_name, Key=filename, Body=b'pdf_content')
 
     sample_letter_notification.status = NOTIFICATION_PENDING_VIRUS_CHECK
@@ -599,10 +599,10 @@ def test_process_virus_scan_passed_logs_error_and_sets_tech_failure_if_s3_error_
     filename = 'NOTIFY.{}'.format(sample_letter_notification.reference)
 
     source_bucket_name = current_app.config['LETTERS_SCAN_BUCKET_NAME']
-    conn = boto3.resource('s3', region_name='us-east-1')
+    conn = boto3.resource('s3', region_name='ca-central-1')
     conn.create_bucket(Bucket=source_bucket_name)
 
-    s3 = boto3.client('s3', region_name='us-east-1')
+    s3 = boto3.client('s3', region_name='ca-central-1')
     s3.put_object(Bucket=source_bucket_name, Key=filename, Body=b'pdf_content')
 
     mocker.patch('app.celery.letters_pdf_tasks.get_page_count', return_value=1)

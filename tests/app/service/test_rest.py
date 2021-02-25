@@ -3488,7 +3488,7 @@ def test_get_smtp_relay_for_service(mocker, client, notify_db, notify_db_session
 
     credentials = {
         "domain": "FOO",
-        "name": "email-smtp.us-east-1.amazonaws.com",
+        "name": "email-smtp.ca-central-1.amazonaws.com",
         "port": "465",
         "tls": "Yes",
         "username": "bar",
