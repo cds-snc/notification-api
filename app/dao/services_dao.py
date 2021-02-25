@@ -2,6 +2,7 @@ import uuid
 from datetime import date, datetime, timedelta
 
 from notifications_utils.statsd_decorators import statsd
+from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy.sql.expression import asc, case, and_, func
 from sqlalchemy.orm import joinedload
 from flask import current_app
@@ -444,7 +445,7 @@ def _stats_for_service_query(service_id):
 
 @statsd(namespace='dao')
 def dao_fetch_todays_stats_for_all_services(include_from_test_key=True, only_active=True):
-    today = date.today()
+    today = convert_utc_to_local_timezone(datetime.utcnow())
     start_date = get_local_timezone_midnight_in_utc(today)
     end_date = get_local_timezone_midnight_in_utc(today + timedelta(days=1))
 
