@@ -3,6 +3,7 @@ from uuid import UUID
 
 import pytest
 import mock
+from notifications_utils.timezones import convert_utc_to_local_timezone
 
 from app.dao.fact_notification_status_dao import (
     fetch_delivered_notification_stats_by_month,
@@ -48,6 +49,7 @@ from tests.app.db import (
 
 
 def test_update_fact_notification_status(notify_db_session):
+    local_now = convert_utc_to_local_timezone(datetime.utcnow())
     first_service = create_service(service_name='First Service')
     first_template = create_template(service=first_service)
     second_service = create_service(service_name='second Service')
@@ -56,14 +58,14 @@ def test_update_fact_notification_status(notify_db_session):
     third_template = create_template(service=third_service, template_type='letter')
 
     create_notification(template=first_template, status='delivered')
-    create_notification(template=first_template, created_at=datetime.utcnow() - timedelta(days=1))
+    create_notification(template=first_template, created_at=local_now - timedelta(days=1))
     # simulate a service with data retention - data has been moved to history and does not exist in notifications
     create_notification_history(template=second_template, status='temporary-failure')
-    create_notification_history(template=second_template, created_at=datetime.utcnow() - timedelta(days=1))
+    create_notification_history(template=second_template, created_at=local_now - timedelta(days=1))
     create_notification(template=third_template, status='created')
-    create_notification(template=third_template, created_at=datetime.utcnow() - timedelta(days=1))
+    create_notification(template=third_template, created_at=local_now - timedelta(days=1))
 
-    process_day = datetime.utcnow()
+    process_day = local_now
     data = fetch_notification_status_for_day(process_day=process_day)
     update_fact_notification_status(data=data, process_day=process_day.date())
 
@@ -102,7 +104,7 @@ def test__update_fact_notification_status_updates_row(notify_db_session):
     first_template = create_template(service=first_service)
     create_notification(template=first_template, status='delivered')
 
-    process_day = datetime.utcnow()
+    process_day = convert_utc_to_local_timezone(datetime.utcnow())
     data = fetch_notification_status_for_day(process_day=process_day)
     update_fact_notification_status(data=data, process_day=process_day.date())
 

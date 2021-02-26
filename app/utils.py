@@ -55,8 +55,10 @@ def get_local_timezone_midnight(date):
     if hasattr(date, 'astimezone') is False:
         date = datetime.combine(date, datetime.min.time())
     local = date.astimezone(local_timezone)
-    return local_timezone.localize(datetime.combine(
-        local, datetime.min.time())).astimezone(pytz.UTC).replace(tzinfo=None)
+    naive_min_time = datetime.combine(local, datetime.min.time())
+    local_min_time = local_timezone.localize(naive_min_time)
+    as_utc = local_min_time.astimezone(pytz.UTC)
+    return as_utc.replace(tzinfo=None)
 
 
 def get_local_timezone_midnight_in_utc(date):

@@ -185,6 +185,13 @@ __Solution__: Do not specify a database in your `.env`
 
 ---
 
+__Problem__: `sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) fe_sendauth: no password supplied`
+
+__Solution__: Ensure `SQLALCHEMY_DATABASE_URI` supplied in pytest.ini or your `.env` file is valid to your 
+local database with user access, (pytest.ini takes precedence)
+
+---
+
 __Problem__: Messages are in the queue but not sending
 
 __Solution__: Check that `celery` is running. 
