@@ -530,6 +530,12 @@ class Test(Development):
     AWS_SES_ENDPOINT_URL = "https://test.ses.endpoint"
 
 
+class Staging(Config):
+    # When a service is created, this gets saved as default sms_sender
+    # We are using this for Pinpoint as default ORIGINATION NUMBER
+    FROM_NUMBER = '+18555420534'
+
+
 class Production(Config):
     # CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = 'production-test-letters'
