@@ -21,27 +21,27 @@ from steps import (
 VALID_TEST_RECIPIENT_PHONE_NUMBER = "+16502532222"
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def environment(pytestconfig) -> str:
     return pytestconfig.getoption("environment")
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def notification_url(environment) -> str:
     return f"https://{environment}.api.notifications.va.gov"
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def admin_jwt_token(environment) -> bytes:
     return encode_jwt('notify-admin', get_admin_client_secret(environment))
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def get_services_response(notification_url, admin_jwt_token) -> Response:
     return get_authenticated_request(F"{notification_url}/service", admin_jwt_token)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def service_id(get_services_response) -> str:
     service = next(
         service for service in get_services_response.json()['data']
@@ -50,12 +50,12 @@ def service_id(get_services_response) -> str:
     return service['id']
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def get_templates_response(notification_url, admin_jwt_token, service_id) -> Response:
     return get_authenticated_request(F"{notification_url}/service/{service_id}/template", admin_jwt_token)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def template_id(get_templates_response) -> str:
     first_email_template = next(
         template for template in get_templates_response.json()['data']
@@ -64,7 +64,7 @@ def template_id(get_templates_response) -> str:
     return first_email_template["id"]
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def sms_template_id(get_templates_response) -> str:
     first_sms_template = next(
         template for template in get_templates_response.json()['data']
@@ -73,12 +73,12 @@ def sms_template_id(get_templates_response) -> str:
     return first_sms_template["id"]
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def get_users_response(notification_url, admin_jwt_token) -> Response:
     return get_authenticated_request(F"{notification_url}/user", admin_jwt_token)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def user_id(service_id, get_users_response) -> str:
     user = next(
         user for user in get_users_response.json()['data']
@@ -87,13 +87,13 @@ def user_id(service_id, get_users_response) -> str:
     return user['id']
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def service_api_key(notification_url, admin_jwt_token, service_id, user_id) -> str:
     revoke_service_api_keys(notification_url, admin_jwt_token, service_id)
     return create_service_api_key(notification_url, admin_jwt_token, user_id, "normal", service_id)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def service_test_api_key(notification_url, admin_jwt_token, service_id, user_id) -> str:
     revoke_service_api_keys(notification_url, admin_jwt_token, service_id)
     return create_service_api_key(notification_url, admin_jwt_token, user_id, "test", service_id)
