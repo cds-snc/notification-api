@@ -9,11 +9,11 @@ from app.clients.email import EmailClient, EmailClientException
 
 govdelivery_status_map = {
     'sending': 'sending',
-    'sent': 'sent',
+    'sent': 'delivered',
     'blacklisted': 'permanent-failure',
     'canceled': 'cancelled',
     'failed': 'failed',
-    'inconclusive': 'pending',
+    'inconclusive': 'temporary-failure',
 }
 
 

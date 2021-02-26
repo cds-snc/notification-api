@@ -33,7 +33,7 @@ def process_govdelivery_response():
             notification = notifications_dao.dao_get_notification_by_reference(reference)
 
         except (MultipleResultsFound, NoResultFound) as e:
-            exception_type = type(e)
+            exception_type = type(e).__name__
             current_app.logger.exception(
                 f'Govdelivery callback with sid {sid} for reference {reference} '
                 f'did not find exactly one notification: {exception_type}'

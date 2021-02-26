@@ -109,19 +109,22 @@ def test_govdelivery_callback_returns_200(
     assert response.status_code == 200
 
 
-@pytest.mark.parametrize("exception", [MultipleResultsFound(), NoResultFound()])
+@pytest.mark.parametrize("exception, exception_name", [
+    (MultipleResultsFound(), 'MultipleResultsFound'),
+    (NoResultFound(), 'NoResultFound')
+])
 def test_govdelivery_callback_always_returns_200_after_expected_exceptions(
         client,
         mock_dao_get_notification_by_reference,
         mock_map_govdelivery_status_to_notify_status,
-        mock_update_notification_status,
         mock_statsd,
-        exception
+        exception,
+        exception_name
 ):
     mock_dao_get_notification_by_reference.side_effect = exception
 
     response = post(client, get_govdelivery_request("123456", "sent"))
-    mock_statsd.incr.assert_called_with(f'callback.govdelivery.failure.{type(exception)}')
+    mock_statsd.incr.assert_called_with(f'callback.govdelivery.failure.{exception_name}')
 
     assert response.status_code == 200
 
