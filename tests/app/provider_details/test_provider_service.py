@@ -115,7 +115,7 @@ class TestGetProvider:
 
         mock_get_provider_details.assert_called_with('some-id')
 
-    def test_raises_exception_if_template_provider_cannot_be_found(self, mocker, provider_service):
+    def test_raises_exception_if_template_provider_is_inactive(self, mocker, provider_service):
 
         template_with_provider = mocker.Mock(Template, provider_id='some-id')
 
@@ -132,7 +132,7 @@ class TestGetProvider:
 
         mock_get_provider_details.assert_called_with('some-id')
 
-    def test_raises_exception_if_template_provider_is_inactive(self, mocker, provider_service):
+    def test_raises_exception_if_template_provider_cannot_be_found(self, mocker, provider_service):
 
         template_with_provider = mocker.Mock(Template, provider_id='some-id')
 
