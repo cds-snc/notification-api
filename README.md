@@ -258,8 +258,28 @@ AWS_ACCESS_KEY_ID=foo AWS_SECRET_ACCESS_KEY=bar aws --endpoint-url=http://localh
 ---
 
 ## Deployment Workflow
-// TODO: coming soon
 
+1. Ensure that the deploy to the development and staging environments passed. If that is the case, you should see a
+   workflow called __Create Git and Docker Tags__ in Github Actions associated with your commit.
+
+2. Click the __Create Git and Docker Tags__ workflow. You should see a commit hash next to _va-tw-bot_, which should
+   correspond to your commit.
+
+3. Click the __create-production-tags__ workflow. Open up the step titled __Tag Docker Image in VAEC__. The very first
+   line should be something like this:
+   `Run bash ./scripts/tag_docker_image.sh staging-v0.0.349 v0.0.349 us-gov-west-1`. The tag starting with "v"
+   (e.g., `v0.0.349`) is the tag attached to your commit and the docker image, and you'll use it to deploy.
+
+4. Back in Github Actions, navigate to the
+   [Trigger Workflow](https://github.com/department-of-veterans-affairs/notification-api/actions/workflows/deployment-trigger.yaml)
+   .
+
+5. Click the __Run workflow__ button. For the most part, you can keep the _Use workflow from branch selection_ as
+   `master`, but feel free to change it for your specific use case. For _Environment to provision_, enter the
+   appropriate environment you're trying to deploy to. For _Git and docker tag_, enter the tag you obtained from the
+   __Create Git and Docker Tags__ step (step 3).
+
+6. Click the __Run workflow__ button, and you're good to go!
 ---
 
 ##  To run the queues 
