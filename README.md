@@ -66,7 +66,7 @@ source  ~/.pyenv/versions/3.9.1/bin/virtualenvwrapper.sh
 11. Install the required environment variables via our LastPast Vault
 
 Within the team's *LastPass Vault*, you should find corresponding folders for this
-project containing the `.env` content that you should copy in your root folder. This
+project containing the `.env` content that you should copy in your project root folder. This
 will grant the application necessary access to our internal infrastructure. 
 
 If you don't have access to our *LastPass Vault* (as you evaluate our notification

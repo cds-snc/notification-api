@@ -10,7 +10,6 @@ set -x
 cd /app 
 
 make generate-version-file
-pip3 install -r requirements.txt
 
 # Upgrade schema of the notification_api database.
 flask db upgrade

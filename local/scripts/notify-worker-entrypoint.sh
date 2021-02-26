@@ -9,7 +9,5 @@ set -x
 
 cd /app 
 
-pip3 install -r requirements.txt
-
 # Bubble up the main Docker command to container.
 exec "$@"
