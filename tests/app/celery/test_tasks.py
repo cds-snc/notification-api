@@ -1628,6 +1628,7 @@ def test_send_notify_no_reply(mocker, no_reply_template):
     assert persist_call['personalisation'] == {
         'sending_email_address': 'service@notify.ca',
     }
+    assert persist_call["reply_to_text"] is None
 
     assert len(queue_mock.call_args_list) == 1
     queue_call = queue_mock.call_args_list[0][1]
