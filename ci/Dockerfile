@@ -7,7 +7,8 @@ RUN update-ca-certificates
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 ENV PYTHONDONTWRITEBYTECODE 1
-RUN apk add --no-cache bash build-base git gcc musl-dev postgresql-dev g++ make libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev && rm -rf /var/cache/apk/*
+RUN apk add --no-cache bash build-base git gcc musl-dev postgresql-dev g++ make libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev rust cargo && rm -rf /var/cache/apk/*
+RUN python -m pip install --upgrade pip==21.0.1
 RUN python -m pip install wheel
 
 RUN adduser -h /app -D vanotify
@@ -16,10 +17,7 @@ WORKDIR /app
 
 COPY --chown=vanotify requirements.txt /app/requirements.txt
 
-RUN pip install -r requirements.txt \
-    && rm -rf /usr/local/lib/python3.6/site-packages/Crypto/SelfTest/PublicKey/test_vectors/ECC/*\.pem \
-    && rm -rf /usr/local/lib/python3.6/site-packages/Crypto/SelfTest/PublicKey/test_vectors/RSA/*\.pem \
-    && rm -rf /usr/local/lib/python3.6/site-packages/future/backports/test/*\.pem
+RUN pip install -r requirements.txt
 
 USER vanotify
 
