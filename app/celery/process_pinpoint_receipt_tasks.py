@@ -37,7 +37,7 @@ def _map_event_type_record_status_to_notification_status(event_type):
     return _type_status_mapping[event_type]['notification_status']
 
 
-@notify_celery.task(bind=True, name="process-ses-result", max_retries=5, default_retry_delay=300)
+@notify_celery.task(bind=True, name="process-pinpoint-result", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def process_pinpoint_results(self, response):
     try:
