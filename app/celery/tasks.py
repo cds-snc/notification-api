@@ -646,7 +646,11 @@ def send_notify_no_reply(self, data):
             notification_type=template.template_type,
             api_key_id=None,
             key_type=KEY_TYPE_NORMAL,
-            reply_to_text=service.get_default_reply_to_email_address(),
+            # Ensure that the reply to is not set, if people reply
+            # to these emails, they will go to the GC Notify service
+            # email address, and we handle those on the SES inbound
+            # Lambda
+            reply_to_text=None,
         )
 
         send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
