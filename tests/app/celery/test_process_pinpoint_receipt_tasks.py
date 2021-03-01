@@ -5,12 +5,24 @@ import pytest
 
 from app.celery import process_pinpoint_receipt_tasks
 from app.dao import notifications_dao
+from app.feature_flags import FeatureFlag
 from app.models import (
     NOTIFICATION_SENT,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_TECHNICAL_FAILURE
 )
 from tests.app.db import create_notification
+
+
+def test_passes_if_toggle_disabled(mocker, db_session):
+    mock_toggle = mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=False)
+    mock_dao = mocker.patch('app.celery.process_pinpoint_receipt_tasks.notifications_dao')
+
+    process_pinpoint_receipt_tasks.process_pinpoint_results(response={})
+
+    mock_toggle.assert_called_with(FeatureFlag.PINPOINT_RECEIPTS_ENABLED)
+    mock_dao.dao_get_notification_by_reference.assert_not_called()
+    mock_dao.notifications_dao.update_notification_status_by_id.assert_not_called()
 
 
 @pytest.mark.parametrize('event_type, record_status, expected_notification_status', [
@@ -20,12 +32,15 @@ from tests.app.db import create_notification
     ('_SMS.OPTOUT', 'DELIVERED', NOTIFICATION_DELIVERED)
 ])
 def test_process_pinpoint_results_notification_final_status(
+        mocker,
         db_session,
         sample_template,
         event_type,
         record_status,
         expected_notification_status
 ):
+    mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
+
     test_reference = 'sms-reference-1'
     create_notification(sample_template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status='sending')
     process_pinpoint_receipt_tasks.process_pinpoint_results(

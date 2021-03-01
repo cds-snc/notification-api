@@ -93,6 +93,10 @@
         {
           "name": "SMS_PROVIDER_SELECTION_STRATEGY_LABEL",
           "value": "HIGHEST_PRIORITY"
+        },
+        {
+          "name": "PINPOINT_RECEIPTS_ENABLED",
+          "value": "False"
         }
       ],
       "secrets": [

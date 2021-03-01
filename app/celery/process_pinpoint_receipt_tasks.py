@@ -10,6 +10,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from app import notify_celery, statsd_client
 from app.config import QueueNames
 from app.dao import notifications_dao
+from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.models import (
     NOTIFICATION_SENT, NOTIFICATION_DELIVERED, NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_SENDING,
     NOTIFICATION_PENDING
@@ -40,6 +41,10 @@ def _map_event_type_record_status_to_notification_status(event_type):
 @notify_celery.task(bind=True, name="process-pinpoint-result", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def process_pinpoint_results(self, response):
+    if not is_feature_enabled(FeatureFlag.PINPOINT_RECEIPTS_ENABLED):
+        current_app.logger.info('Pinpoint receipts toggle is disabled, skipping callback task')
+        return True
+
     try:
         pinpoint_message = json.loads(response['Message'])
         event_type = pinpoint_message.get('event_type')
