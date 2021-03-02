@@ -184,7 +184,7 @@ def _service_allowed_to_send_to(notification, service):
                       f'- see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#team-and-safelist'
         else:
             message = (
-                'Can’t send to this recipient when service is in trial mode ' \
+                'Can’t send to this recipient when service is in trial mode '
                 f'– see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#live'
             )
         raise InvalidRequest(

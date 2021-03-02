@@ -269,8 +269,9 @@ def test_service_can_send_to_recipient_fails_when_ignoring_safelist(
             allow_safelisted_recipients=False,
         )
     assert exec_info.value.status_code == 400
-    assert exec_info.value.message == 'Can’t send to this recipient using a team-only API key ' \
-                                      f'- see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#team-and-safelist'
+    assert exec_info.value.message == 'Can’t send to this recipient using a team-only API key '\
+                                      f'- see {current_app.config["DOCUMENTATION_DOMAIN"]}'\
+                                      f'/en/keys.html#team-and-safelist'
     assert exec_info.value.fields == []
 
 

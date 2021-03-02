@@ -84,7 +84,7 @@ def service_can_send_to_recipient(send_to, key_type, service, allow_safelisted_r
                       f'- see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#team-and-safelist'
         else:
             message = (
-                'Can’t send to this recipient when service is in trial mode ' \
+                'Can’t send to this recipient when service is in trial mode '
                 f'– see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#live'
             )
         raise BadRequestError(message=message)
