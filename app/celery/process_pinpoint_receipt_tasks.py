@@ -48,7 +48,7 @@ def process_pinpoint_results(self, response):
         return True
 
     try:
-        current_app.logger.info(f"pinpoint response is: {response} with json: {json.loads(response)}")
+        current_app.logger.info(f"pinpoint response is: {response}")
         pinpoint_message = json.loads(response['Message'])
         event_type = pinpoint_message.get('event_type')
         notification_status = _map_event_type_record_status_to_notification_status(event_type)
