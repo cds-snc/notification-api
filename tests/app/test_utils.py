@@ -10,6 +10,7 @@ from app.utils import (
     midnight_n_days_ago,
     update_dct_to_str,
     get_logo_url,
+    get_document_url,
 )
 
 
@@ -92,3 +93,9 @@ def test_update_dct_to_str():
 def test_get_logo_url(notify_api):
     with notify_api.app_context():
         assert get_logo_url('foo.png') == "https://assets.notification.canada.ca/foo.png"
+
+
+def test_get_document_url(notify_api):
+    with notify_api.app_context() as ctx:
+        assert get_document_url('en', 'testpath.html') == \
+               f"https://{ctx.app.config['DOCUMENTATION_DOMAIN']}/en/testpath.html"
