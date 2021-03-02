@@ -178,12 +178,13 @@ def _service_can_send_internationally(service, number):
 
 def _service_allowed_to_send_to(notification, service):
     if not service_allowed_to_send_to(notification['to'], service, api_user.key_type):
+        # FIXME: hard code it for now until we can get en/fr specific links and text
         if api_user.key_type == KEY_TYPE_TEAM:
-            message = 'Can’t send to this recipient using a team-only API key'
+            message = 'Can’t send to this recipient using a team-only API key ' \
+                      f'- see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#team-and-safelist'
         else:
-            # FIXME: hard code it for now until we can get en/fr specific links and text
             message = (
-                'Can’t send to this recipient when service is in trial mode '
+                'Can’t send to this recipient when service is in trial mode ' \
                 f'– see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#live'
             )
         raise InvalidRequest(

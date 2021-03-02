@@ -78,12 +78,13 @@ def check_template_is_active(template):
 
 def service_can_send_to_recipient(send_to, key_type, service, allow_safelisted_recipients=True):
     if not service_allowed_to_send_to(send_to, service, key_type, allow_safelisted_recipients):
+        # FIXME: hard code it for now until we can get en/fr specific links and text
         if key_type == KEY_TYPE_TEAM:
-            message = 'Can’t send to this recipient using a team-only API key'
+            message = 'Can’t send to this recipient using a team-only API key ' \
+                      f'- see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#team-and-safelist'
         else:
-            # FIXME: hard code it for now until we can get en/fr specific links and text
             message = (
-                'Can’t send to this recipient when service is in trial mode '
+                'Can’t send to this recipient when service is in trial mode ' \
                 f'– see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#live'
             )
         raise BadRequestError(message=message)
