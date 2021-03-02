@@ -105,3 +105,7 @@ fileignoreconfig:
       checksum: b39ef7a0044d1e2ab82f622133b06eb62ac69caf4d0462e0bd8b7ebf61be6c28
     - filename: lambda_functions/two_way_sms/two_way_sms_lambda.py
       checksum: 7197ce16e4fab1bcfac696a586650ad98635796734c727040471662c32623550
+    - filename: scripts/postman/development.postman_environment.json
+      checksum: 9b843c8a5f3b8e46b9bd1579eced2f20101cf02fe57d1b00cfcb3124b7638e19
+    - filename: scripts/postman/staging.postman_environment.json
+      checksum: a6516139f1f50cc6be42e3b46aae3a8fa92ca91e3ff684eabc1b1e5df4a17372
