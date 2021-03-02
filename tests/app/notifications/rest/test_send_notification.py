@@ -254,7 +254,7 @@ def test_should_not_send_notification_if_restricted_and_not_a_service_user(notif
             assert response.status_code == 400
             assert [(
                 'Can’t send to this recipient when service is in trial mode '
-                '– see https://www.notifications.service.gov.uk/trial-mode'
+                f'– see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#live'
             )] == json_resp['message']['to']
 
 
@@ -890,7 +890,7 @@ def test_should_not_send_notification_to_non_safelist_recipient_in_trial_mode(
 
     expected_response_message = (
         'Can’t send to this recipient when service is in trial mode '
-        '– see https://www.notifications.service.gov.uk/trial-mode'
+        f'– see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#live'
     ) if key_type == KEY_TYPE_NORMAL else ('Can’t send to this recipient using a team-only API key')
 
     json_resp = json.loads(response.get_data(as_text=True))

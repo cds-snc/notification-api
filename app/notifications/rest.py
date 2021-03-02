@@ -181,9 +181,10 @@ def _service_allowed_to_send_to(notification, service):
         if api_user.key_type == KEY_TYPE_TEAM:
             message = 'Can’t send to this recipient using a team-only API key'
         else:
+            # FIXME: hard code it for now until we can get en/fr specific links and text
             message = (
                 'Can’t send to this recipient when service is in trial mode '
-                '– see https://www.notifications.service.gov.uk/trial-mode'
+                f'– see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#live'
             )
         raise InvalidRequest(
             {'to': [message]},

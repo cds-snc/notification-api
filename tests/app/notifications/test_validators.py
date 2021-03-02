@@ -1,6 +1,7 @@
 import pytest
 from freezegun import freeze_time
 from flask import current_app
+from app.dbsetup import RoutingSQLAlchemy
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 
 import app
@@ -276,16 +277,19 @@ def test_service_can_send_to_recipient_fails_when_ignoring_safelist(
 @pytest.mark.parametrize('key_type, error_message',
                          [('team', 'Can’t send to this recipient using a team-only API key'),
                           ('normal',
-                           "Can’t send to this recipient when service is in trial mode – see https://www.notifications.service.gov.uk/trial-mode")])  # noqa
-def test_service_can_send_to_recipient_fails_when_recipient_is_not_on_team(recipient, key_type, error_message,
-                                                                           notify_db, notify_db_session):
+                           "Can’t send to this recipient when service is in trial mode – see ")])  # noqa
+def test_service_can_send_to_recipient_fails_when_recipient_is_not_on_team(recipient: str,
+                                                                           key_type: str,
+                                                                           error_message: str,
+                                                                           notify_db: RoutingSQLAlchemy,
+                                                                           notify_db_session: RoutingSQLAlchemy):
     trial_mode_service = create_service(notify_db, notify_db_session, service_name='trial mode', restricted=True)
     with pytest.raises(BadRequestError) as exec_info:
         service_can_send_to_recipient(recipient,
                                       key_type,
                                       trial_mode_service)
     assert exec_info.value.status_code == 400
-    assert exec_info.value.message == error_message
+    assert error_message in exec_info.value.message, f'Unexpected error message: {exec_info.value.message}'
     assert exec_info.value.fields == []
 
 
