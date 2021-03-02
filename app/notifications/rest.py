@@ -37,7 +37,7 @@ from app.schemas import (
     notifications_filter_schema
 )
 from app.service.utils import service_allowed_to_send_to
-from app.utils import pagination_links, get_template_instance, get_public_notify_type_text
+from app.utils import get_document_url, get_public_notify_type_text, get_template_instance, pagination_links
 
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import get_international_phone_info
@@ -180,12 +180,12 @@ def _service_allowed_to_send_to(notification, service):
     if not service_allowed_to_send_to(notification['to'], service, api_user.key_type):
         # FIXME: hard code it for now until we can get en/fr specific links and text
         if api_user.key_type == KEY_TYPE_TEAM:
-            message = 'Can’t send to this recipient using a team-only API key ' \
-                      f'- see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#team-and-safelist'
+            message = 'Can’t send to this recipient using a team-only API key '\
+                      f'- see {get_document_url("en", "keys.html#team-and-safelist")}'
         else:
             message = (
                 'Can’t send to this recipient when service is in trial mode '
-                f'– see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#live'
+                f'– see {get_document_url("en", "keys.html#live")}'
             )
         raise InvalidRequest(
             {'to': [message]},

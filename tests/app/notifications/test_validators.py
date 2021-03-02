@@ -19,7 +19,7 @@ from app.notifications.validators import (
     check_service_letter_contact_id,
     check_reply_to,
 )
-
+from app.utils import get_document_url
 from app.v2.errors import (
     BadRequestError,
     TooManyRequestsError,
@@ -270,8 +270,7 @@ def test_service_can_send_to_recipient_fails_when_ignoring_safelist(
         )
     assert exec_info.value.status_code == 400
     assert exec_info.value.message == 'Can’t send to this recipient using a team-only API key '\
-                                      f'- see {current_app.config["DOCUMENTATION_DOMAIN"]}'\
-                                      f'/en/keys.html#team-and-safelist'
+                                      f'- see {get_document_url("en", "keys.html#team-and-safelist")}'
     assert exec_info.value.fields == []
 
 
@@ -305,7 +304,7 @@ def test_service_can_send_to_recipient_fails_when_mobile_number_is_not_on_team(n
                                       live_service)
     assert e.value.status_code == 400
     assert e.value.message == 'Can’t send to this recipient using a team-only API key ' \
-                              f'- see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#team-and-safelist'
+                              f'- see {get_document_url("en", "keys.html#team-and-safelist")}'
     assert e.value.fields == []
 
 

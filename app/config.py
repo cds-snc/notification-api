@@ -134,8 +134,8 @@ class Config(object):
     # PII check
     SCAN_FOR_PII = os.getenv("SCAN_FOR_PII", False)
 
-    # Documentation and Translation
-    DOCUMENTATION_DOMAIN = os.getenv('DOCUMENTATION_DOMAIN', f'https://documentation.{ADMIN_BASE_DOMAIN}')
+    # Documentation
+    DOCUMENTATION_DOMAIN = os.getenv('DOCUMENTATION_DOMAIN', f'documentation.{ADMIN_BASE_DOMAIN}')
 
     ###########################
     # Default config values ###

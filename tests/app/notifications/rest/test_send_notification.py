@@ -19,6 +19,7 @@ from app.dao.services_dao import dao_update_service
 from app.dao.api_key_dao import save_model_api_key
 from app.errors import InvalidRequest
 from app.models import Template
+from app.utils import get_document_url
 from app.v2.errors import RateLimitError, TooManyRequestsError
 
 from tests import create_authorization_header
@@ -254,7 +255,7 @@ def test_should_not_send_notification_if_restricted_and_not_a_service_user(notif
             assert response.status_code == 400
             assert [(
                 'Can’t send to this recipient when service is in trial mode '
-                f'– see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#live'
+                f'– see {get_document_url("en", "keys.html#live")}'
             )] == json_resp['message']['to']
 
 
@@ -555,7 +556,7 @@ def test_should_not_send_email_if_team_api_key_and_not_a_service_user(notify_api
         assert response.status_code == 400
         assert [
             'Can’t send to this recipient using a team-only API key '
-            f'- see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#team-and-safelist'
+            f'- see {get_document_url("en", "keys.html#team-and-safelist")}'
         ] == json_resp['message']['to']
 
 
@@ -581,7 +582,7 @@ def test_should_not_send_sms_if_team_api_key_and_not_a_service_user(notify_api, 
         assert response.status_code == 400
         assert [
             'Can’t send to this recipient using a team-only API key '
-            f'- see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#team-and-safelist'
+            f'- see {get_document_url("en", "keys.html#team-and-safelist")}'
         ] == json_resp['message']['to']
 
 
@@ -892,10 +893,9 @@ def test_should_not_send_notification_to_non_safelist_recipient_in_trial_mode(
 
     expected_response_message = (
         'Can’t send to this recipient when service is in trial mode '
-        f'– see {current_app.config["DOCUMENTATION_DOMAIN"]}/en/keys.html#live'
+        f'– see {get_document_url("en", "keys.html#live")}'
     ) if key_type == KEY_TYPE_NORMAL else ('Can’t send to this recipient using a team-only API key '
-                                           f'- see {current_app.config["DOCUMENTATION_DOMAIN"]}'
-                                           '/en/keys.html#team-and-safelist')
+                                           f'- see {get_document_url("en", "keys.html#team-and-safelist")}')
 
     json_resp = json.loads(response.get_data(as_text=True))
     assert response.status_code == 400
