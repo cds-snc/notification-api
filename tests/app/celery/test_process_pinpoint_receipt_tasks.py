@@ -1,3 +1,4 @@
+import base64
 import datetime
 import json
 
@@ -55,7 +56,7 @@ def test_process_pinpoint_results_notification_final_status(
 
 
 def pinpoint_notification_callback_record(reference, event_type='_SMS.SUCCESS', record_status='DELIVERED'):
-    pinpoint_message_body = {
+    pinpoint_message = {
         "event_type": event_type,
         "event_timestamp": 1553104954322,
         "arrival_timestamp": 1553104954064,
@@ -90,16 +91,8 @@ def pinpoint_notification_callback_record(reference, event_type='_SMS.SUCCESS', 
         "awsAccountId": "123456789012"
     }
 
-    return {
-        'Type': 'Notification',
-        'MessageId': '8e83c020-1234-1234-1234-92a8ee9baa0a',
-        'TopicArn': 'arn:aws:sns:eu-west-1:12341234:ses_notifications',
-        'Subject': None,
-        'Message': json.dumps(pinpoint_message_body),
-        'Timestamp': '2017-11-17T12:14:03.710Z',
-        'SignatureVersion': '1',
-        'Signature': '[REDACTED]',
-        'SigningCertUrl': 'https://sns.eu-west-1.amazonaws.com/SimpleNotificationService-[REDACTED].pem',
-        'UnsubscribeUrl': 'https://sns.eu-west-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=[REACTED]',
-        'MessageAttributes': {}
+    pinpoint_json = {
+        'Message': base64.b64encode(bytes(json.dumps(pinpoint_message), 'utf-8')).decode('utf-8')
     }
+
+    return base64.b64encode(bytes(json.dumps(pinpoint_json), 'utf-8')).decode('utf-8')

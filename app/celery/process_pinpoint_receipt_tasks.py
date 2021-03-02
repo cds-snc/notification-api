@@ -1,3 +1,4 @@
+import base64
 import datetime
 import json
 
@@ -49,7 +50,7 @@ def process_pinpoint_results(self, response):
 
     try:
         current_app.logger.info(f"pinpoint response is: {response}")
-        pinpoint_message = json.loads(response['Message'])
+        pinpoint_message = json.loads(base64.b64decode(json.loads(base64.b64decode(response))['Message']))
         event_type = pinpoint_message.get('event_type')
         notification_status = _map_event_type_record_status_to_notification_status(event_type)
 
