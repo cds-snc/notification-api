@@ -1051,16 +1051,17 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"name\": \"main service for Govdelivery\",\n    \"user_id\": \"{{user-id}}\",\n    \"organisation_id\": \"{{organization-id}}\",\n    \"message_limit\": 1000,\n    \"restricted\": false,\n    \"active\": true,\n    \"email-from\": \"{{email-from}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
+					"raw": "{\n    \"name\": \"Lighthouse\",\n    \"user_id\": \"{{user-id}}\",\n    \"organisation_id\": \"{{organization-id}}\",\n    \"message_limit\": 1000,\n    \"restricted\": false,\n    \"active\": true,\n    \"email-from\": \"{{email-from}}\",\n    \"created_by\": \"{{user-id}}\"\n}"
 				},
 				"url": {
-					"raw": "https://{{notification-api-url}}/service",
+					"raw": "https://{{notification-api-url}}/service/{{service-id}}",
 					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
 					"path": [
-						"service"
+						"service",
+						"{{service-id}}"
 					]
 				}
 			},
@@ -1159,6 +1160,310 @@
 					],
 					"path": [
 						"service"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get service",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// JWT generation script adapted from",
+							"// https://gist.github.com/corbanb/",
+							"",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
+							"",
+							"// Set headers for JWT",
+							"var header = {",
+							"\t'typ': 'JWT',",
+							"\t'alg': 'HS256'",
+							"};",
+							"",
+							"// Prepare timestamp in seconds",
+							"var currentTimestamp = Math.floor(Date.now() / 1000)",
+							"",
+							"var data = {",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
+							"\t'iat': currentTimestamp,",
+							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
+							"\t'jti': 'jwt_nonce'",
+							"}",
+							"",
+							"",
+							"function base64url(source) {",
+							"    // Encode in classical base64",
+							"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+							"    ",
+							"    // Remove padding equal characters",
+							"    encodedSource = encodedSource.replace(/=+$/, '')",
+							"    ",
+							"    // Replace characters according to base64url specifications",
+							"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+							"    encodedSource = encodedSource.replace(/\\//g, '_')",
+							"    ",
+							"    return encodedSource",
+							"}",
+							"",
+							"// encode header",
+							"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+							"var encodedHeader = base64url(stringifiedHeader)",
+							"",
+							"// encode data",
+							"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+							"var encodedData = base64url(stringifiedData)",
+							"",
+							"// build token",
+							"var token = `${encodedHeader}.${encodedData}`",
+							"",
+							"// sign token",
+							"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+							"signature = base64url(signature)",
+							"var signedToken = `${token}.${signature}`",
+							"",
+							"pm.environment.set('jwt_signed', signedToken)",
+							"console.log('Signed and encoded JWT', signedToken)"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_signed}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "https://{{notification-api-url}}/service/{{service-id}}",
+					"protocol": "https",
+					"host": [
+						"{{notification-api-url}}"
+					],
+					"path": [
+						"service",
+						"{{service-id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get services for sms",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// JWT generation script adapted from",
+							"// https://gist.github.com/corbanb/",
+							"",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
+							"",
+							"// Set headers for JWT",
+							"var header = {",
+							"\t'typ': 'JWT',",
+							"\t'alg': 'HS256'",
+							"};",
+							"",
+							"// Prepare timestamp in seconds",
+							"var currentTimestamp = Math.floor(Date.now() / 1000)",
+							"",
+							"var data = {",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
+							"\t'iat': currentTimestamp,",
+							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
+							"\t'jti': 'jwt_nonce'",
+							"}",
+							"",
+							"",
+							"function base64url(source) {",
+							"    // Encode in classical base64",
+							"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+							"    ",
+							"    // Remove padding equal characters",
+							"    encodedSource = encodedSource.replace(/=+$/, '')",
+							"    ",
+							"    // Replace characters according to base64url specifications",
+							"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+							"    encodedSource = encodedSource.replace(/\\//g, '_')",
+							"    ",
+							"    return encodedSource",
+							"}",
+							"",
+							"// encode header",
+							"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+							"var encodedHeader = base64url(stringifiedHeader)",
+							"",
+							"// encode data",
+							"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+							"var encodedData = base64url(stringifiedData)",
+							"",
+							"// build token",
+							"var token = `${encodedHeader}.${encodedData}`",
+							"",
+							"// sign token",
+							"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+							"signature = base64url(signature)",
+							"var signedToken = `${token}.${signature}`",
+							"",
+							"pm.environment.set('jwt_signed', signedToken)",
+							"console.log('Signed and encoded JWT', signedToken)"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_signed}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "https://{{notification-api-url}}/service/{{service-id}}/sms-sender",
+					"protocol": "https",
+					"host": [
+						"{{notification-api-url}}"
+					],
+					"path": [
+						"service",
+						"{{service-id}}",
+						"sms-sender"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "update sms service",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// JWT generation script adapted from",
+							"// https://gist.github.com/corbanb/",
+							"",
+							"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
+							"",
+							"// Set headers for JWT",
+							"var header = {",
+							"\t'typ': 'JWT',",
+							"\t'alg': 'HS256'",
+							"};",
+							"",
+							"// Prepare timestamp in seconds",
+							"var currentTimestamp = Math.floor(Date.now() / 1000)",
+							"",
+							"var data = {",
+							"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
+							"\t'iat': currentTimestamp,",
+							"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
+							"\t'jti': 'jwt_nonce'",
+							"}",
+							"",
+							"",
+							"function base64url(source) {",
+							"    // Encode in classical base64",
+							"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+							"    ",
+							"    // Remove padding equal characters",
+							"    encodedSource = encodedSource.replace(/=+$/, '')",
+							"    ",
+							"    // Replace characters according to base64url specifications",
+							"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+							"    encodedSource = encodedSource.replace(/\\//g, '_')",
+							"    ",
+							"    return encodedSource",
+							"}",
+							"",
+							"// encode header",
+							"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+							"var encodedHeader = base64url(stringifiedHeader)",
+							"",
+							"// encode data",
+							"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+							"var encodedData = base64url(stringifiedData)",
+							"",
+							"// build token",
+							"var token = `${encodedHeader}.${encodedData}`",
+							"",
+							"// sign token",
+							"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+							"signature = base64url(signature)",
+							"var signedToken = `${token}.${signature}`",
+							"",
+							"pm.environment.set('jwt_signed', signedToken)",
+							"console.log('Signed and encoded JWT', signedToken)"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_signed}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"sms_sender\": \"+18334981539\",\r\n    \"is_default\": true\r\n}"
+				},
+				"url": {
+					"raw": "https://{{notification-api-url}}/service/{{service-id}}/sms-sender/{{sms-sender-id}}",
+					"protocol": "https",
+					"host": [
+						"{{notification-api-url}}"
+					],
+					"path": [
+						"service",
+						"{{service-id}}",
+						"sms-sender",
+						"{{sms-sender-id}}"
 					]
 				}
 			},
