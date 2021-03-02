@@ -12,14 +12,16 @@ from app.config import QueueNames
 from app.dao import notifications_dao
 from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.models import (
-    NOTIFICATION_SENT, NOTIFICATION_DELIVERED, NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_SENDING,
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_TECHNICAL_FAILURE,
+    NOTIFICATION_SENDING,
     NOTIFICATION_PENDING
 )
 from app.notifications.notifications_ses_callback import _check_and_queue_callback_task
 
 _type_status_mapping = {
     '_SMS.BUFFERED': {
-        'notification_status': NOTIFICATION_SENT
+        'notification_status': NOTIFICATION_SENDING
     },
     '_SMS.SUCCESS': {
         'notification_status': NOTIFICATION_DELIVERED

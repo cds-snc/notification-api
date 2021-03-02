@@ -7,9 +7,9 @@ from app.celery import process_pinpoint_receipt_tasks
 from app.dao import notifications_dao
 from app.feature_flags import FeatureFlag
 from app.models import (
-    NOTIFICATION_SENT,
     NOTIFICATION_DELIVERED,
-    NOTIFICATION_TECHNICAL_FAILURE
+    NOTIFICATION_SENDING,
+    NOTIFICATION_TECHNICAL_FAILURE,
 )
 from tests.app.db import create_notification
 
@@ -26,7 +26,7 @@ def test_passes_if_toggle_disabled(mocker, db_session):
 
 
 @pytest.mark.parametrize('event_type, record_status, expected_notification_status', [
-    ('_SMS.BUFFERED', 'SUCCESSFUL', NOTIFICATION_SENT),
+    ('_SMS.BUFFERED', 'SUCCESSFUL', NOTIFICATION_SENDING),
     ('_SMS.SUCCESS', 'DELIVERED', NOTIFICATION_DELIVERED),
     ('_SMS.FAILURE', 'INVALID', NOTIFICATION_TECHNICAL_FAILURE),
     ('_SMS.OPTOUT', 'DELIVERED', NOTIFICATION_DELIVERED)
