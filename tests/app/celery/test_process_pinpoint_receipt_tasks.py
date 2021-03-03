@@ -91,8 +91,6 @@ def pinpoint_notification_callback_record(reference, event_type='_SMS.SUCCESS', 
         "awsAccountId": "123456789012"
     }
 
-    pinpoint_json = {
+    return {
         'Message': base64.b64encode(bytes(json.dumps(pinpoint_message), 'utf-8')).decode('utf-8')
     }
-
-    return base64.b64encode(bytes(json.dumps(pinpoint_json), 'utf-8')).decode('utf-8')
