@@ -54,7 +54,7 @@ def process_pinpoint_results(self, response):
         event_type = pinpoint_message.get('event_type')
         notification_status = _map_event_type_record_status_to_notification_status(event_type)
 
-        reference = pinpoint_message['attributes']['sender_request_id']
+        reference = pinpoint_message['attributes']['message_id']
 
         try:
             notification = notifications_dao.dao_get_notification_by_reference(reference)
