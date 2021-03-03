@@ -68,7 +68,6 @@ class TaskNames(object):
 class Config(object):
     # URL of admin app
     ADMIN_BASE_URL = os.getenv('ADMIN_BASE_URL', 'http://localhost:6012')
-    ADMIN_BASE_DOMAIN = ADMIN_BASE_URL.replace('http://', '').replace('https://', '')
 
     # URL of api app (on AWS this is the internal api endpoint)
     API_HOST_NAME = os.getenv('API_HOST_NAME')
@@ -135,7 +134,7 @@ class Config(object):
     SCAN_FOR_PII = os.getenv("SCAN_FOR_PII", False)
 
     # Documentation
-    DOCUMENTATION_DOMAIN = os.getenv('DOCUMENTATION_DOMAIN', f'documentation.{ADMIN_BASE_DOMAIN}')
+    DOCUMENTATION_DOMAIN = os.getenv('DOCUMENTATION_DOMAIN', 'documentation.notification.canada.ca')
 
     ###########################
     # Default config values ###
