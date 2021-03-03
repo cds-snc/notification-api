@@ -1,0 +1,28 @@
+@startuml
+
+[*] --> created
+
+created -right-> sending: PinPoint accepts
+
+created -up-> PermanentFailure: PinPoint rejects
+
+PermanentFailure --> [*]
+
+state "permanent-failure" as PermanentFailure
+
+sending -down-> sent: record_status: SUCCESSFUL
+
+sent --> delivered:  record_status: DELIVERED
+
+sending --> TechnicalFailure: record_status: INVALID
+sending -right-> sending: record_status in [UNREACHABLE, UNKNOWN, CARRIER_UNREACHABLE, TTL_EXPIRED]
+
+state "technical-failure" as TechnicalFailure
+
+sent --> TechnicalFailure: record_status in [BLOCKED, SPAM, CARRIER_BLOCKED, MAX_PRICE_EXCEEDED]
+
+TechnicalFailure --> [*]
+
+delivered --> [*]
+
+@enduml

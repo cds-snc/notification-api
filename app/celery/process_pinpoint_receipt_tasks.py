@@ -64,7 +64,7 @@ def process_pinpoint_results(self, response):
                 self.retry(queue=QueueNames.RETRY)
             else:
                 current_app.logger.warning(
-                    "notification not found for reference: {} (update to {})".format(reference, notification_status)
+                    f"notification not found for reference: {reference} (update to {notification_status})"
                 )
             return
 
