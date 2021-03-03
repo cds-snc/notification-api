@@ -2,27 +2,17 @@
 
 [*] --> created
 
-created -right-> sending: PinPoint accepts
+created -right-> sending: Pinpoint accepts
 
-created -up-> PermanentFailure: PinPoint rejects
-
-PermanentFailure --> [*]
-
-state "permanent-failure" as PermanentFailure
+created -down-> failure: Pinpoint rejects
 
 sending -down-> sent: record_status: SUCCESSFUL
 
-sent --> delivered:  record_status: DELIVERED
+sent -right-> delivered:  record_status: DELIVERED
 
-sending --> TechnicalFailure: record_status: INVALID
+sending --> failure: record_status: INVALID
 sending -right-> sending: record_status in [UNREACHABLE, UNKNOWN, CARRIER_UNREACHABLE, TTL_EXPIRED]
 
-state "technical-failure" as TechnicalFailure
-
-sent --> TechnicalFailure: record_status in [BLOCKED, SPAM, CARRIER_BLOCKED, MAX_PRICE_EXCEEDED]
-
-TechnicalFailure --> [*]
-
-delivered --> [*]
+sent --> failure: record_status in [BLOCKED, SPAM, CARRIER_BLOCKED, MAX_PRICE_EXCEEDED]
 
 @enduml

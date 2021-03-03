@@ -37,7 +37,6 @@ from app.models import (
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_VIRUS_SCAN_FAILED,
     NOTIFICATION_CONTAINS_PII,
-    NOTIFICATION_SENT,
     NOTIFICATION_SENDING,
     Notification, ProviderDetails
 )
@@ -182,9 +181,7 @@ def send_email_to_provider(notification):
 def update_notification_to_sending(notification, provider):
     notification.sent_at = datetime.utcnow()
     notification.sent_by = provider.get_name()
-    # We currently have no callback method for SNS
-    # notification.status = NOTIFICATION_SENT if notification.international else NOTIFICATION_SENDING
-    notification.status = NOTIFICATION_SENT if notification.notification_type == "sms" else NOTIFICATION_SENDING
+    notification.status = NOTIFICATION_SENDING
     dao_update_notification(notification)
 
 

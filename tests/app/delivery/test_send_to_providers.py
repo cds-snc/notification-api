@@ -26,7 +26,8 @@ from app.models import (
     KEY_TYPE_TEAM,
     BRANDING_ORG,
     BRANDING_BOTH,
-    BRANDING_ORG_BANNER, ProviderDetails, EMAIL_TYPE, TemplateBase, Service
+    BRANDING_ORG_BANNER, ProviderDetails, EMAIL_TYPE, TemplateBase, Service, NOTIFICATION_SENDING,
+    NOTIFICATION_DELIVERED
 )
 
 from tests.app.db import (
@@ -118,7 +119,7 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
 
     notification = Notification.query.filter_by(id=db_notification.id).one()
 
-    assert notification.status == 'sent'
+    assert notification.status == NOTIFICATION_SENDING
     assert notification.sent_at <= datetime.utcnow()
     assert notification.sent_by == mock_sms_client.get_name()
     assert notification.billable_units == 1
@@ -243,7 +244,7 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(
     assert persisted_notification.template_id == sample_template.id
     assert persisted_notification.template_version == version_on_notification
     assert persisted_notification.template_version != sample_template.version
-    assert persisted_notification.status == 'sent'
+    assert persisted_notification.status == NOTIFICATION_SENDING
     assert not persisted_notification.personalisation
 
 
@@ -276,7 +277,7 @@ def test_should_call_send_sms_response_task_if_research_mode(
     persisted_notification = notifications_dao.get_notification_by_id(sample_notification.id)
     assert persisted_notification.to == sample_notification.to
     assert persisted_notification.template_id == sample_notification.template_id
-    assert persisted_notification.status == 'sent'
+    assert persisted_notification.status == NOTIFICATION_SENDING
     assert persisted_notification.sent_at <= datetime.utcnow()
     assert persisted_notification.sent_by == mock_sms_client.get_name()
     assert persisted_notification.reference
@@ -292,7 +293,7 @@ def test_should_have_sent_status_if_fake_callback_function_fails(sample_notifica
         send_to_providers.send_sms_to_provider(
             sample_notification
         )
-    assert sample_notification.status == 'sent'
+    assert sample_notification.status == NOTIFICATION_SENDING
     assert sample_notification.sent_by == mock_sms_client.get_name()
 
 
@@ -572,12 +573,12 @@ def __update_notification(notification_to_update, research_mode, expected_status
 
 
 @pytest.mark.parametrize('research_mode,key_type, billable_units, expected_status', [
-    (True, KEY_TYPE_NORMAL, 0, 'delivered'),
-    (False, KEY_TYPE_NORMAL, 1, 'sent'),
-    (False, KEY_TYPE_TEST, 0, 'sent'),
-    (True, KEY_TYPE_TEST, 0, 'sent'),
-    (True, KEY_TYPE_TEAM, 0, 'delivered'),
-    (False, KEY_TYPE_TEAM, 1, 'sent')
+    (True, KEY_TYPE_NORMAL, 0, NOTIFICATION_DELIVERED),
+    (False, KEY_TYPE_NORMAL, 1, NOTIFICATION_SENDING),
+    (False, KEY_TYPE_TEST, 0, NOTIFICATION_SENDING),
+    (True, KEY_TYPE_TEST, 0, NOTIFICATION_SENDING),
+    (True, KEY_TYPE_TEAM, 0, NOTIFICATION_DELIVERED),
+    (False, KEY_TYPE_TEAM, 1, NOTIFICATION_SENDING)
 ])
 def test_should_update_billable_units_and_status_according_to_research_mode_and_key_type(
     sample_template,
