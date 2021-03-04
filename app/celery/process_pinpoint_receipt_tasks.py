@@ -16,29 +16,41 @@ from app.models import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_SENDING,
-    NOTIFICATION_PENDING
+    NOTIFICATION_PENDING,
+    NOTIFICATION_TEMPORARY_FAILURE,
+    NOTIFICATION_PERMANENT_FAILURE
 )
 from app.celery.service_callback_tasks import _check_and_queue_callback_task
 
-_type_status_mapping = {
-    '_SMS.BUFFERED': {
-        'notification_status': NOTIFICATION_SENDING
-    },
-    '_SMS.SUCCESS': {
-        'notification_status': NOTIFICATION_DELIVERED
-    },
-    '_SMS.FAILURE': {
-        'notification_status': NOTIFICATION_TECHNICAL_FAILURE
-    },
-    '_SMS.OPTOUT': {
-        'notification_status': NOTIFICATION_DELIVERED
-    }
+_record_status_status_mapping = {
+    'SUCCESSFUL': NOTIFICATION_SENDING,
+    'DELIVERED': NOTIFICATION_DELIVERED,
+    'PENDING': NOTIFICATION_SENDING,
+    'INVALID': NOTIFICATION_TECHNICAL_FAILURE,
+    'UNREACHABLE': NOTIFICATION_TEMPORARY_FAILURE,
+    'UNKNOWN': NOTIFICATION_TEMPORARY_FAILURE,
+    'BLOCKED': NOTIFICATION_PERMANENT_FAILURE,
+    'CARRIER_UNREACHABLE': NOTIFICATION_TEMPORARY_FAILURE,
+    'SPAM': NOTIFICATION_PERMANENT_FAILURE,
+    'INVALID_MESSAGE': NOTIFICATION_TECHNICAL_FAILURE,
+    'CARRIER_BLOCKED': NOTIFICATION_PERMANENT_FAILURE,
+    'TTL_EXPIRED': NOTIFICATION_TEMPORARY_FAILURE,
+    'MAX_PRICE_EXCEEDED': NOTIFICATION_PERMANENT_FAILURE
 }
 
 
-def _map_event_type_record_status_to_notification_status(event_type):
+def event_type_is_optout(event_type, reference):
+    is_optout = event_type == '_SMS.OPTOUT'
 
-    return _type_status_mapping[event_type]['notification_status']
+    if is_optout:
+        current_app.logger.info(
+            f"event type is OPTOUT for notification with reference {reference})"
+        )
+    return is_optout
+
+
+def _map_record_status_to_notification_status(record_status):
+    return _record_status_status_mapping[record_status]
 
 
 @notify_celery.task(bind=True, name="process-pinpoint-result", max_retries=5, default_retry_delay=300)
@@ -51,10 +63,12 @@ def process_pinpoint_results(self, response):
     try:
         current_app.logger.info(f"pinpoint response is: {response}")
         pinpoint_message = json.loads(base64.b64decode(response['Message']))
-        event_type = pinpoint_message.get('event_type')
-        notification_status = _map_event_type_record_status_to_notification_status(event_type)
-
         reference = pinpoint_message['attributes']['message_id']
+        event_type = pinpoint_message.get('event_type')
+        if event_type_is_optout(event_type, reference):
+            return
+        record_status = pinpoint_message['attributes']['record_status']
+        notification_status = _map_record_status_to_notification_status(record_status)
 
         try:
             notification = notifications_dao.dao_get_notification_by_reference(reference)
