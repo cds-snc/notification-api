@@ -133,6 +133,9 @@ class Config(object):
     # PII check
     SCAN_FOR_PII = os.getenv("SCAN_FOR_PII", False)
 
+    # Documentation
+    DOCUMENTATION_DOMAIN = os.getenv('DOCUMENTATION_DOMAIN', 'documentation.notification.canada.ca')
+
     ###########################
     # Default config values ###
     ###########################

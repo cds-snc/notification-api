@@ -179,3 +179,7 @@ def get_csv_max_rows(service_id):
 
 def get_logo_url(logo_file):
     return f"https://{current_app.config['ASSET_DOMAIN']}/{logo_file}"
+
+
+def get_document_url(lang: str, path: str):
+    return f'https://{current_app.config["DOCUMENTATION_DOMAIN"]}/{lang}/{path}'

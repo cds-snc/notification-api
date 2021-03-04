@@ -1,6 +1,7 @@
 from datetime import datetime, date, timezone
 
 import pytest
+from flask import Flask
 from freezegun import freeze_time
 
 
@@ -11,6 +12,7 @@ from app.utils import (
     midnight_n_days_ago,
     update_dct_to_str,
     get_logo_url,
+    get_document_url,
 )
 
 
@@ -105,3 +107,9 @@ def test_update_dct_to_str():
 def test_get_logo_url(notify_api):
     with notify_api.app_context():
         assert get_logo_url('foo.png') == "https://assets.notification.canada.ca/foo.png"
+
+
+def test_get_document_url(notify_api: Flask):
+    with notify_api.app_context():
+        assert get_document_url('en', 'test.html') == 'https://documentation.notification.canada.ca/en/test.html'
+        assert get_document_url(None, None) == 'https://documentation.notification.canada.ca/None/None'

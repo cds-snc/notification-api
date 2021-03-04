@@ -101,6 +101,7 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379/1
       - SQLALCHEMY_DATABASE_URI=postgres://postgres:chummy@db:5432/test_notification_api
+      - SQLALCHEMY_DATABASE_READER_URI=postgres://reader:chummy@db:5432/test_notification_api
     entrypoint: local/scripts/notify-worker-entrypoint.sh
     command: >
       bash -c "/app/scripts/run_tests.sh"
@@ -108,4 +109,3 @@ services:
       - .:/app
     depends_on:
       - db
-      - redis
