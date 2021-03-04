@@ -59,3 +59,14 @@ def test_build_ga_pixel_url_is_escaped(sample_notification_model_with_organizati
     assert f"cs={escaped_provider_name}" in img_src_url
     assert f"cm=email" in img_src_url
     assert f"ci={sample_notification_model_with_organization.template.id}" in img_src_url
+
+
+def test_build_ga_pixel_url_without_organization(sample_notification_model_with_organization, mock_email_client):
+
+    sample_notification_model_with_organization.service.organisation = None
+
+    img_src_url = gapixels.build_ga_pixel_url(sample_notification_model_with_organization, mock_email_client)
+
+    service_name = sample_notification_model_with_organization.service.name
+    template_name = sample_notification_model_with_organization.template.name
+    assert urllib.parse.quote_plus(f"/email/vanotify/{service_name}/{template_name}") in img_src_url

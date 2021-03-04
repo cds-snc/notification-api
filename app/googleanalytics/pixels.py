@@ -14,7 +14,8 @@ def build_ga_pixel_url(notification, provider):
         'ea': 'open',
         'el': notification.template.name,
         'dp':
-            f"/email/vanotify/{notification.service.organisation.name}"
+            f"/email/vanotify"
+            f"{'/' + notification.service.organisation.name if notification.service.organisation else ''}"
             f"/{notification.service.name}"
             f"/{notification.template.name}",
         'dt': notification.subject,
