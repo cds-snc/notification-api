@@ -16,7 +16,6 @@ from app.models import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_SENDING,
-    NOTIFICATION_PENDING,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE
 )
@@ -66,6 +65,7 @@ def process_pinpoint_results(self, response):
         reference = pinpoint_message['attributes']['message_id']
         event_type = pinpoint_message.get('event_type')
         if event_type_is_optout(event_type, reference):
+            statsd_client.incr(f"callback.pinpoint.optout")
             return
         record_status = pinpoint_message['attributes']['record_status']
         notification_status = _map_record_status_to_notification_status(record_status)
@@ -82,7 +82,7 @@ def process_pinpoint_results(self, response):
                 )
             return
 
-        if notification.status not in {NOTIFICATION_SENDING, NOTIFICATION_PENDING}:
+        if notification.status != NOTIFICATION_SENDING:
             notifications_dao._duplicate_update_warning(notification, notification_status)
             return
 
