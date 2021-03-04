@@ -86,7 +86,8 @@ def send_email_with_email_address(notification_url: str, service_jwt: bytes, tem
         "personalisation": {
             "claim_id": "600191990",
             "date_submitted": "October 30, 2020",
-            "full_name": "Test Subject"
+            "full_name": "Test Subject",
+            "first_name": "Subject"
         }
     })
     return send_email(notification_url, service_jwt, payload)
