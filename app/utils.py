@@ -48,7 +48,7 @@ def get_html_email_body_from_template(template_instance):
     )
 
 
-def get_local_timezone_midnight(date):
+def get_local_timezone_midnight(date: datetime):
     """
      Gets the local timezones midnight
     """

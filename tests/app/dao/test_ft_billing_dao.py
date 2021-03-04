@@ -247,9 +247,9 @@ def test_fetch_billing_data_for_day_uses_notification_history(notify_db_session)
     service = create_service()
     sms_template = create_template(service=service, template_type='sms')
     create_notification_history(template=sms_template, status='delivered',
-                                created_at=local_now - timedelta(days=8))
+                                created_at=datetime.utcnow() - timedelta(days=8))
     create_notification_history(template=sms_template, status='delivered',
-                                created_at=local_now - timedelta(days=8))
+                                created_at=datetime.utcnow() - timedelta(days=8))
 
     Notification.query.delete()
     db.session.commit()
