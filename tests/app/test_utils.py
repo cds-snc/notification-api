@@ -1,7 +1,8 @@
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 
 import pytest
 from freezegun import freeze_time
+
 
 from app.utils import (
     get_local_timezone_midnight,
@@ -13,16 +14,28 @@ from app.utils import (
 )
 
 
-@pytest.mark.parametrize('date, expected_date', [
-    (datetime(2016, 1, 15, 0, 30), datetime(2016, 1, 14, 5, 0)),
-    (datetime(2016, 6, 15, 0, 0), datetime(2016, 6, 14, 4, 0)),
-    (datetime(2016, 9, 16, 4, 0), datetime(2016, 9, 16, 4, 0)),
-    # works for both dates and datetimes
+# Naive date times are ambiguous and are treated different on Mac OS vs flavours of *nix
+# Mac OS treats naive datetime as local time to the host machine while *nix treats it as GMT time
+# We can see this when applying timezones "US/Eastern" of naive times to a datetime on the different platforms
+# they will result in different values. Within this test we normalize the naive datetime to UTC to properly
+# pass the test on both Mac and *nix
+@pytest.mark.parametrize('date_val, expected_date', [
+    (datetime(2016, 1, 15, 0, 30, tzinfo=timezone.utc), datetime(2016, 1, 14, 5, 0)),
+    (datetime(2016, 6, 15, 0, 0, tzinfo=timezone.utc), datetime(2016, 6, 14, 4, 0)),
+    (datetime(2016, 9, 16, 4, 0, tzinfo=timezone.utc), datetime(2016, 9, 16, 4, 0)),
+])
+def test_get_local_timezone_midnight_returns_expected_date_for_datetime(date_val: datetime, expected_date: datetime):
+    assert get_local_timezone_midnight(date_val) == expected_date
+
+
+@pytest.mark.parametrize('date_val, expected_date', [
     (date(2016, 1, 15), datetime(2016, 1, 14, 5, 0)),
     (date(2016, 6, 15), datetime(2016, 6, 14, 4, 0)),
 ])
-def test_get_local_timezone_midnight_returns_expected_date(date, expected_date):
-    assert get_local_timezone_midnight(date) == expected_date
+def test_get_local_timezone_midnight_returns_expected_date_for_date(date_val: date, expected_date: datetime):
+    # based upon the comment above we localize date to a datetime with a time of midnight with tz of utc
+    dt = datetime.combine(date_val, datetime.min.time(), tzinfo=timezone.utc)
+    assert get_local_timezone_midnight(dt) == expected_date
 
 
 @pytest.mark.parametrize('date, expected_date', [
