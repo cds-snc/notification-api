@@ -87,7 +87,7 @@ def send_email_with_email_address(notification_url: str, service_jwt: bytes, tem
             "claim_id": "600191990",
             "date_submitted": "October 30, 2020",
             "full_name": "Test Subject",
-            "first_name": "Subject"
+            "first_name": "Testfirstname"
         }
     })
     return send_email(notification_url, service_jwt, payload)
@@ -103,7 +103,8 @@ def send_email_with_va_profile_id(notification_url: str, service_jwt: bytes, tem
         "personalisation": {
             "claim_id": "600191990",
             "date_submitted": "October 30, 2020",
-            "full_name": "VA Profile ID Email"
+            "full_name": "VA Profile ID Email",
+            "first_name": "VAProfilefirstname"
         }
     })
     return send_email(notification_url, service_jwt, payload)
@@ -119,7 +120,8 @@ def send_email_with_icn(notification_url: str, service_jwt: bytes, template_id: 
         "personalisation": {
             "claim_id": "600191990",
             "date_submitted": "October 30, 2020",
-            "full_name": "ICN Email"
+            "full_name": "ICN Email",
+            "first_name": "ICNfirstname"
         }
     })
     return send_email(notification_url, service_jwt, payload)
