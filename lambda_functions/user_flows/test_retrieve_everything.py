@@ -3,6 +3,7 @@ import time
 
 from requests import Response, get
 
+from app.models import NOTIFICATION_SENDING
 from steps import (
     get_authenticated_request,
     send_email_with_email_address,
@@ -197,7 +198,7 @@ def test_send_text(notification_url, service_test_api_key, service_id, sms_templ
     assert sms_response.status_code == 201
     notification_id = get_notification_id(sms_response)
 
-    desired_status = 'sent'
+    desired_status = NOTIFICATION_SENDING
     notification_status_response = wait_for_status(
         notification_id,
         notification_url,
