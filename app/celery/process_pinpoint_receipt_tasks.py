@@ -18,7 +18,7 @@ from app.models import (
     NOTIFICATION_SENDING,
     NOTIFICATION_PENDING
 )
-from app.notifications.notifications_ses_callback import _check_and_queue_callback_task
+from app.celery.service_callback_tasks import _check_and_queue_callback_task
 
 _type_status_mapping = {
     '_SMS.BUFFERED': {

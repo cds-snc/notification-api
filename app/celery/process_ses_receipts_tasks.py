@@ -23,11 +23,12 @@ from app.notifications import process_notifications
 from app.notifications.notifications_ses_callback import (
     determine_notification_bounce_type,
     handle_complaint,
-    handle_smtp_complaint,
-    _check_and_queue_complaint_callback_task,
-    _check_and_queue_callback_task,
+    handle_smtp_complaint
 )
-
+from app.celery.service_callback_tasks import (
+    _check_and_queue_callback_task,
+    _check_and_queue_complaint_callback_task
+)
 from app.errors import (
     register_errors,
     InvalidRequest
