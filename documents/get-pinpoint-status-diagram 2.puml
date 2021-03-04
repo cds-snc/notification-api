@@ -1,0 +1,33 @@
+@startuml
+
+title
+    Notification states using PinPoint
+end title
+
+[*] -right-> created
+
+created -down-> sending: Pinpoint accepts
+
+created -up-> failure: Pinpoint rejects
+
+state failure #darkred
+state sent
+state delivered #green
+state report
+
+state sending {
+    state EventType <<sdlreceive>> #lightblue
+    state RecordStatus <<choice>>
+
+    EventType -down-> RecordStatus : RecordStatus
+    RecordStatus ---> wait : [UNREACHABLE, UNKNOWN, CARRIER_UNREACHABLE, TTL_EXPIRED]
+    RecordStatus --> report : [INVALID, BLOCKED, CARRIER_BLOCKED, SPAM]
+    RecordStatus --> sent : [SUCCESSFUL]
+    RecordStatus -down-> delivered : [DELIVERED]
+    wait --> failure: timeout
+    wait -down-> delivered: timeout and state=sent
+}
+
+report --> failure
+
+@enduml
