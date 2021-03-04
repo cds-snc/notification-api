@@ -17,6 +17,7 @@ from flask import json, current_app
 
 from app.models import Notification
 from app.schema_validation import validate
+from app.utils import get_document_url
 from app.v2.errors import RateLimitError
 from app.v2.notifications.notification_schemas import post_sms_response, post_email_response
 from tests import create_authorization_header
@@ -554,7 +555,8 @@ def test_post_sms_notification_returns_400_if_number_not_safelisted(
     error_json = json.loads(response.get_data(as_text=True))
     assert error_json['status_code'] == 400
     assert error_json['errors'] == [
-        {"error": "BadRequestError", "message": 'Can’t send to this recipient using a team-only API key'}
+        {"error": "BadRequestError", "message": 'Can’t send to this recipient using a team-only API key '
+                                                f'- see {get_document_url("en", "keys.html#team-and-safelist")}'}
     ]
 
 

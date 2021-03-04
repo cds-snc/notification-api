@@ -19,7 +19,7 @@ from app.service.utils import service_allowed_to_send_to
 from app.v2.errors import TooManyRequestsError, BadRequestError, RateLimitError
 from app import redis_store
 from app.notifications.process_notifications import create_content_for_notification
-from app.utils import get_public_notify_type_text
+from app.utils import get_document_url, get_public_notify_type_text
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_letter_contact_dao import dao_get_letter_contact_by_id
 
@@ -78,12 +78,14 @@ def check_template_is_active(template):
 
 def service_can_send_to_recipient(send_to, key_type, service, allow_safelisted_recipients=True):
     if not service_allowed_to_send_to(send_to, service, key_type, allow_safelisted_recipients):
+        # FIXME: hard code it for now until we can get en/fr specific links and text
         if key_type == KEY_TYPE_TEAM:
-            message = 'Can’t send to this recipient using a team-only API key'
+            message = 'Can’t send to this recipient using a team-only API key '\
+                      f'- see {get_document_url("en", "keys.html#team-and-safelist")}'
         else:
             message = (
                 'Can’t send to this recipient when service is in trial mode '
-                '– see https://www.notifications.service.gov.uk/trial-mode'
+                f'– see {get_document_url("en", "keys.html#live")}'
             )
         raise BadRequestError(message=message)
 
