@@ -171,7 +171,7 @@ def fetch_notification_stats_for_trial_services():
     ).join(
         Service, FactNotificationStatus.service_id == Service.id,
     ).join(
-        ServiceHistory == ServiceHistory.id == ServiceHistory.id,
+        ServiceHistory, ServiceHistory.id == ServiceHistory.id,
     ).join(
         User, User.id == ServiceHistory.created_by_id,
     ).filter(
