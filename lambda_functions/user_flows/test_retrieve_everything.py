@@ -197,7 +197,7 @@ def test_send_text(notification_url, service_test_api_key, service_id, sms_templ
     assert sms_response.status_code == 201
     notification_id = get_notification_id(sms_response)
 
-    desired_status = 'sending'
+    desired_status = 'delivered'
     notification_status_response = wait_for_status(
         notification_id,
         notification_url,
@@ -218,7 +218,7 @@ def test_send_text_with_profile_id(notification_url, service_test_api_key, servi
     assert sms_response.status_code == 201
     notification_id = get_notification_id(sms_response)
 
-    desired_status = 'sending'
+    desired_status = 'delivered'
     notification_status_response = wait_for_status(
         notification_id,
         notification_url,
