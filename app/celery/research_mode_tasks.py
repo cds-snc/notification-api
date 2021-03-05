@@ -1,3 +1,5 @@
+import base64
+
 from app.notifications.aws_sns_status_callback import SNS_STATUS_FAILURE, SNS_STATUS_SUCCESS
 import random
 from datetime import datetime, timedelta
@@ -12,7 +14,7 @@ from app import notify_celery
 from app.aws.s3 import file_exists
 from app.models import SMS_TYPE
 from app.config import QueueNames
-from app.celery import process_ses_receipts_tasks
+from app.celery import process_ses_receipts_tasks, process_pinpoint_receipt_tasks
 
 EMAIL_SIMULATOR_AMAZON_SES_COM = 'success@simulator.amazonses.com'
 EMAIL_TEST_NOTIFY_WORKS = 'TEST <TEST@notify.works>'
@@ -41,6 +43,14 @@ def send_sms_response(provider, notification_id, to, reference=None):
     elif provider == 'sns':
         body = sns_callback(reference, to)
         headers = {"Content-type": "application/json"}
+    elif provider == 'pinpoint':
+        current_app.logger.info("provider is pinpoint!")
+        body = pinpoint_notification_callback_record(reference)
+        process_pinpoint_receipt_tasks.process_pinpoint_results.apply_async(
+            [body],
+            queue=QueueNames.RESEARCH_MODE
+        )
+        return
     else:
         headers = {"Content-type": "application/x-www-form-urlencoded"}
         body = firetext_callback(notification_id, to)
@@ -176,6 +186,47 @@ def sns_callback(reference, to):
         },
         "status": status
     })
+
+
+def pinpoint_notification_callback_record(reference, event_type='_SMS.SUCCESS', record_status='DELIVERED'):
+    pinpoint_message = {
+        "event_type": event_type,
+        "event_timestamp": 1553104954322,
+        "arrival_timestamp": 1553104954064,
+        "event_version": "3.1",
+        "application": {
+            "app_id": "123",
+            "sdk": {}
+        },
+        "client": {
+            "client_id": "123456789012"
+        },
+        "device": {
+            "platform": {}
+        },
+        "session": {},
+        "attributes": {
+            "sender_request_id": 'e669df09-642b-4168-8563-3e5a4f9dcfbf',
+            "campaign_activity_id": "1234",
+            "origination_phone_number": "+15555555555",
+            "destination_phone_number": "+15555555555",
+            "record_status": record_status,
+            "iso_country_code": "US",
+            "treatment_id": "0",
+            "number_of_message_parts": "1",
+            "message_id": reference,
+            "message_type": "Transactional",
+            "campaign_id": "12345"
+        },
+        "metrics": {
+            "price_in_millicents_usd": 645.0
+        },
+        "awsAccountId": "123456789012"
+    }
+
+    return {
+        'Message': base64.b64encode(bytes(json.dumps(pinpoint_message), 'utf-8')).decode('utf-8')
+    }
 
 
 @notify_celery.task(bind=True, name="create-fake-letter-response-file", max_retries=5, default_retry_delay=300)
