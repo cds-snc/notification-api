@@ -57,7 +57,7 @@ source  ~/.pyenv/versions/3.9.1/bin/virtualenvwrapper.sh
 
 `workon notifications-api`
 
-9. Install [Postgres.app](http://postgresapp.com/).
+9. Install [Postgres.app](http://postgresapp.com/) (version 12.6, not the latest).
 
 10. Create the database for the application
 
@@ -156,6 +156,8 @@ execute the following command and retry the above afterward:
 createuser -l -s postgres
 ```
 
+---
+
 __Problem__ : `E999 SyntaxError: invalid syntax` when running `flake8`
 
 __Solution__ : Check that you are in your correct virtualenv, with python 3.9
@@ -196,3 +198,8 @@ __Problem__: Messages are in the queue but not sending
 
 __Solution__: Check that `celery` is running. 
 
+---
+
+__Problem__: Running tests, `test_create_service_and_history_is_transactional` is failing with this error: `assert 'column "name" violates not-null constraint' in '(psycopg2.errors.NotNullViolation) null value in column "name" of relation "services_history" violates not-null constraint`
+
+__Solution__: Ensure your PostgreSQL version is 12.6, this error happens with version 13+.
