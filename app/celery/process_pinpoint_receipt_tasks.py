@@ -17,12 +17,13 @@ from app.models import (
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_SENDING,
     NOTIFICATION_TEMPORARY_FAILURE,
-    NOTIFICATION_PERMANENT_FAILURE
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_SENT
 )
 from app.celery.service_callback_tasks import _check_and_queue_callback_task
 
 _record_status_status_mapping = {
-    'SUCCESSFUL': NOTIFICATION_SENDING,
+    'SUCCESSFUL': NOTIFICATION_SENT,
     'DELIVERED': NOTIFICATION_DELIVERED,
     'PENDING': NOTIFICATION_SENDING,
     'INVALID': NOTIFICATION_TECHNICAL_FAILURE,
@@ -82,7 +83,7 @@ def process_pinpoint_results(self, response):
                 )
             return
 
-        if notification.status != NOTIFICATION_SENDING:
+        if notification.status not in [NOTIFICATION_SENDING, NOTIFICATION_SENT]:
             notifications_dao._duplicate_update_warning(notification, notification_status)
             return
 
