@@ -94,7 +94,6 @@ jobs:
           docker push $ECR_REGISTRY/$IMAGE_REPOSITORY:$IMAGE_TAG
 
       - name: Perform twistlock scan
-        continue-on-error: true
         uses: ./.github/actions/run-commands-on-ec2
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-vaec.outputs.registry }}
