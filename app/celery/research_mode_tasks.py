@@ -44,7 +44,6 @@ def send_sms_response(provider, notification_id, to, reference=None):
         body = sns_callback(reference, to)
         headers = {"Content-type": "application/json"}
     elif provider == 'pinpoint':
-        current_app.logger.info("provider is pinpoint!")
         body = pinpoint_notification_callback_record(reference)
         process_pinpoint_receipt_tasks.process_pinpoint_results.apply_async(
             [body],
