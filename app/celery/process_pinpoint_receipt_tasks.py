@@ -66,9 +66,10 @@ def process_pinpoint_results(self, response):
         event_type = pinpoint_message.get('event_type')
         if event_type_is_optout(event_type, reference):
             statsd_client.incr(f"callback.pinpoint.optout")
-            return
-        record_status = pinpoint_message['attributes']['record_status']
-        notification_status = _map_record_status_to_notification_status(record_status)
+            notification_status = NOTIFICATION_PERMANENT_FAILURE
+        else:
+            record_status = pinpoint_message['attributes']['record_status']
+            notification_status = _map_record_status_to_notification_status(record_status)
 
         try:
             notification = notifications_dao.dao_get_notification_by_reference(reference)

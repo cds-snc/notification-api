@@ -42,7 +42,8 @@ def test_passes_if_toggle_disabled(mocker, db_session):
     ('_SMS.FAILURE', 'INVALID_MESSAGE', NOTIFICATION_TECHNICAL_FAILURE),
     ('_SMS.FAILURE', 'CARRIER_BLOCKED', NOTIFICATION_PERMANENT_FAILURE),
     ('_SMS.FAILURE', 'TTL_EXPIRED', NOTIFICATION_TEMPORARY_FAILURE),
-    ('_SMS.FAILURE', 'MAX_PRICE_EXCEEDED', NOTIFICATION_PERMANENT_FAILURE)
+    ('_SMS.FAILURE', 'MAX_PRICE_EXCEEDED', NOTIFICATION_PERMANENT_FAILURE),
+    ('_SMS.OPTOUT', 'dummy', NOTIFICATION_PERMANENT_FAILURE)
 ])
 def test_process_pinpoint_results_notification_final_status(
         mocker,
@@ -65,23 +66,6 @@ def test_process_pinpoint_results_notification_final_status(
     )
     notification = notifications_dao.dao_get_notification_by_reference(test_reference)
     assert notification.status == expected_notification_status
-
-
-def test_process_pinpoint_results_for_opt_out_event(mocker, sample_template):
-    mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
-    mocked_map_record_status_to_notification_status = mocker.patch(
-        'app.celery.process_pinpoint_receipt_tasks._map_record_status_to_notification_status'
-    )
-    test_reference = 'sms-reference-1'
-    create_notification(sample_template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status='sending')
-    process_pinpoint_receipt_tasks.process_pinpoint_results(
-        response=pinpoint_notification_callback_record(
-            reference=test_reference,
-            event_type='_SMS.OPTOUT',
-            record_status='some record status'
-        )
-    )
-    mocked_map_record_status_to_notification_status.assert_not_called()
 
 
 def pinpoint_notification_callback_record(reference, event_type='_SMS.SUCCESS', record_status='DELIVERED'):
