@@ -61,7 +61,6 @@ def process_pinpoint_results(self, response):
         return True
 
     try:
-        current_app.logger.info(f"pinpoint response is: {response}")
         pinpoint_message = json.loads(base64.b64decode(response['Message']))
         reference = pinpoint_message['attributes']['message_id']
         event_type = pinpoint_message.get('event_type')
