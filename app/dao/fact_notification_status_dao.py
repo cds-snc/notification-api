@@ -27,7 +27,6 @@ from app.models import (
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
     Service,
-    ServiceHistory,
     SMS_TYPE,
     Template,
     User,
@@ -160,6 +159,10 @@ def fetch_delivered_notification_stats_by_month():
 
 
 def fetch_notification_stats_for_trial_services():
+    ServiceHistory = Service.get_history_model().query.filter_by(
+        version=1
+    )
+
     return db.session.query(
         Service.id.label('service_id'),
         Service.name.label('service_name'),
@@ -176,7 +179,6 @@ def fetch_notification_stats_for_trial_services():
         User, User.id == ServiceHistory.created_by_id,
     ).filter(
         Service.restricted,
-        ServiceHistory, ServiceHistory.version == 1,
         FactNotificationStatus.notification_status.in_([NOTIFICATION_DELIVERED, NOTIFICATION_SENT]),
     ).group_by(
         Service.id,
