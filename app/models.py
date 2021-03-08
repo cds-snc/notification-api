@@ -549,7 +549,7 @@ class Service(db.Model, Versioned):
         }
 
 
-class ServiceHistory(db.model):
+class ServiceHistory(db.Model):
     __tablename__ = "services_history"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
