@@ -84,7 +84,7 @@ def process_pinpoint_results(self, response):
             return
 
         if notification.status not in [NOTIFICATION_SENDING, NOTIFICATION_SENT]:
-            notifications_dao._duplicate_update_warning(notification, notification_status)
+            log_notification_status_warning(notification, notification_status)
             return
 
         notifications_dao.update_notification_status_by_id(notification.id, notification_status)
@@ -109,3 +109,12 @@ def process_pinpoint_results(self, response):
     except Exception as e:
         current_app.logger.exception(f"Error processing PinPoint results: {type(e)}")
         self.retry(queue=QueueNames.RETRY)
+
+
+def log_notification_status_warning(notification, status: str) -> None:
+    time_diff = datetime.datetime.utcnow() - (notification.updated_at or notification.created_at)
+    current_app.logger.warning(
+        f'Invalid callback received. Notification id {notification.id} received a status update to {status}'
+        f'{time_diff} after being set to {notification.status}. {notification.notification_type} '
+        f'sent by {notification.sent_by}'
+    )
