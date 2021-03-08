@@ -159,10 +159,9 @@ def fetch_delivered_notification_stats_by_month():
 
 
 def fetch_notification_stats_for_trial_services():
-    ServiceHistory = Service.get_history_model()
-    history = ServiceHistory.query.filter_by(
+    ServiceHistory = Service.get_history_model().query.filter_by(
         version=1
-    )
+    ).all()
 
     return db.session.query(
         Service.id.label('service_id'),
