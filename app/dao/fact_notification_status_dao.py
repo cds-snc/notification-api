@@ -159,7 +159,8 @@ def fetch_delivered_notification_stats_by_month():
 
 
 def fetch_notification_stats_for_trial_services():
-    ServiceHistory = Service.get_history_model().query.filter_by(
+    ServiceHistory = Service.get_history_model()
+    history = ServiceHistory.query.filter_by(
         version=1
     )
 
@@ -174,9 +175,9 @@ def fetch_notification_stats_for_trial_services():
     ).join(
         Service, FactNotificationStatus.service_id == Service.id,
     ).join(
-        ServiceHistory, Service.id == ServiceHistory.id,
+        history, Service.id == history.id,
     ).join(
-        User, User.id == ServiceHistory.created_by_id,
+        User, User.id == history.created_by_id,
     ).filter(
         Service.restricted,
         FactNotificationStatus.notification_status.in_([NOTIFICATION_DELIVERED, NOTIFICATION_SENT]),
