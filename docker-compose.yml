@@ -2,7 +2,7 @@ version: '3'
 
 services:
   db:
-    image: postgres:11.2
+    image: postgres:11.9
     volumes:
       - ./local/initdb:/docker-entrypoint-initdb.d
     environment:
