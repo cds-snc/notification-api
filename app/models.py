@@ -549,53 +549,6 @@ class Service(db.Model, Versioned):
         }
 
 
-class ServiceHistory(db.Model):
-    __tablename__ = "services_history"
-
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = db.Column(db.String(255), nullable=False, unique=True)
-    created_at = db.Column(
-        db.DateTime,
-        index=False,
-        unique=False,
-        nullable=False,
-        default=datetime.datetime.utcnow)
-    updated_at = db.Column(
-        db.DateTime,
-        index=False,
-        unique=False,
-        nullable=True,
-        onupdate=datetime.datetime.utcnow)
-    active = db.Column(db.Boolean, index=False, unique=False, nullable=False, default=True)
-    message_limit = db.Column(db.BigInteger, index=False, unique=False, nullable=False)
-    restricted = db.Column(db.Boolean, index=False, unique=False, nullable=False)
-    email_from = db.Column(db.Text, index=False, unique=True, nullable=False)
-    created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), index=True, nullable=False)
-    version = db.Column(db.Integer, index=False, nullable=False)
-    research_mode = db.Column(db.Boolean, nullable=False)
-    organisation_type = db.Column(
-        db.String(255),
-        db.ForeignKey('organisation_types.name'),
-        unique=False,
-        nullable=True,
-    )
-    prefix_sms = db.Column(db.Boolean, nullable=False, default=True)
-    crown = db.Column(db.Boolean, index=False, nullable=True)
-    rate_limit = db.Column(db.Integer, index=False, nullable=False, default=1000)
-    contact_link = db.Column(db.String(255), nullable=True, unique=False)
-    consent_to_research = db.Column(db.Boolean, nullable=True)
-    volume_email = db.Column(db.Integer(), nullable=True, unique=False)
-    volume_letter = db.Column(db.Integer(), nullable=True, unique=False)
-    volume_sms = db.Column(db.Integer(), nullable=True, unique=False)
-    count_as_live = db.Column(db.Boolean, nullable=False, default=True)
-    go_live_at = db.Column(db.DateTime, nullable=True)
-    go_live_user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=True)
-    organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), index=True, nullable=True)
-    sending_domain = db.Column(db.String(255), nullable=True, unique=False)
-    smtp_user = db.Column(db.String(255), nullable=True, unique=False)
-    default_branding_is_french = db.Column(db.Boolean, index=False, unique=False, nullable=False, default=False)
-
-
 class AnnualBilling(db.Model):
     __tablename__ = "annual_billing"
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=False)
