@@ -551,7 +551,7 @@ class Service(db.Model, Versioned):
 
 class ServiceHistory(db.model):
     __tablename__ = "services_history"
-    
+
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = db.Column(db.String(255), nullable=False, unique=True)
     created_at = db.Column(
@@ -571,8 +571,8 @@ class ServiceHistory(db.model):
     restricted = db.Column(db.Boolean, index=False, unique=False, nullable=False)
     email_from = db.Column(db.Text, index=False, unique=True, nullable=False)
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), index=True, nullable=False)
-    version = (db.Integer, index=False, nullable=False),
-    research_mode = (db.Boolean, nullable=False),
+    version = (db.Integer, index=False, nullable=False)
+    research_mode = (db.Boolean, nullable=False)
     organisation_type = db.Column(
         db.String(255),
         db.ForeignKey('organisation_types.name'),
@@ -593,7 +593,8 @@ class ServiceHistory(db.model):
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), index=True, nullable=True)
     sending_domain = db.Column(db.String(255), nullable=True, unique=False)
     smtp_user = db.Column(db.String(255), nullable=True, unique=False)
-    default_branding_is_french = (),
+    default_branding_is_french = ()
+
 
 class AnnualBilling(db.Model):
     __tablename__ = "annual_billing"
