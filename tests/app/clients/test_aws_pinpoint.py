@@ -112,3 +112,36 @@ def test_send_sms_throws_aws_pinpoint_exception(aws_pinpoint_client, boto_mock):
 
     assert f"BadRequestException" in str(exception.value)
     aws_pinpoint_client.statsd_client.incr.assert_called_with("clients.pinpoint.error")
+
+
+@pytest.mark.parametrize('delivery_status', [
+    'DUPLICATE',
+    'OPT_OUT',
+    'PERMANENT_FAILURE',
+    'TEMPORARY_FAILURE',
+    'THROTTLED',
+    'TIMEOUT',
+    'UNKNOWN_FAILURE'
+])
+def test_send_sms_returns_result_with_error_delivery_status(aws_pinpoint_client, boto_mock, delivery_status):
+    opted_out_number = "+12222222222"
+
+    boto_mock.send_messages.return_value = {
+        'MessageResponse': {
+            'ApplicationId': TEST_ID,
+            'RequestId': 'request-id',
+            'Result': {
+                TEST_RECIPIENT_NUMBER: {
+                    'DeliveryStatus': delivery_status,
+                    'MessageId': TEST_MESSAGE_ID,
+                    'StatusCode': 400,
+                    'StatusMessage': 'Some Error Message',
+                }
+            }
+        }
+    }
+
+    with pytest.raises(AwsPinpointException):
+        aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE, sender=opted_out_number)
+
+    aws_pinpoint_client.statsd_client.incr.assert_called_with("clients.pinpoint.error")
