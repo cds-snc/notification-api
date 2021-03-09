@@ -199,7 +199,7 @@ jobs:
       - name: Invoke user flows lambda function
         shell: bash {0}
         run: |
-          RESULT=$(aws lambda invoke --invocation-type RequestResponse --function-name project-user-flows-lambda --payload '{"environment": "${{github.event.deployment.environment}}" }' --log-type Tail user_flows_exit_code.txt)
+          RESULT=$(aws lambda invoke --invocation-type RequestResponse --function-name project-user-flows-lambda --payload '{"environment": "${{github.event.deployment.environment}}"}' --log-type Tail user_flows_exit_code.txt)
           echo $RESULT | jq '.LogResult' -r | base64 --decode
           if [ `jq '.StatusCode' <<< $RESULT` -ne 200 ]; then echo -e "Handler Response: $RESULT" && exit 1; fi
           EXIT_CODE=$(cat user_flows_exit_code.txt)
