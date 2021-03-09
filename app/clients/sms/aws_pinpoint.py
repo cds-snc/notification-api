@@ -68,7 +68,9 @@ class AwsPinpointClient(SmsClient):
             MessageRequest=message_request_payload
         )
 
-    def _validate_response(self, result):
+    def _validate_response(self, result: dict) -> None:
+        # documentation of possible delivery statuses from Pinpoint can be found here:
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/pinpoint.html#Pinpoint.Client.send_messages
         delivery_status = result['DeliveryStatus']
         if delivery_status != 'SUCCESSFUL':
             self.statsd_client.incr(f"clients.pinpoint.delivery-status.{delivery_status.lower()}")
