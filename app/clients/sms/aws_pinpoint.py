@@ -1,6 +1,8 @@
 import boto3
 import botocore
 from time import monotonic
+
+from app.celery.exceptions import NonRetryableException
 from app.clients.sms import SmsClient, SmsClientResponseException
 
 
@@ -67,6 +69,13 @@ class AwsPinpointClient(SmsClient):
         )
 
     def _validate_response(self, result):
-        if result['DeliveryStatus'] != 'SUCCESSFUL':
-            self.statsd_client.incr(f"clients.pinpoint.delivery-status.{result['DeliveryStatus']}")
-            raise AwsPinpointException(f"StatusCode: {result['StatusCode']}, StatusMessage:{result['StatusMessage']}")
+        delivery_status = result['DeliveryStatus']
+        if delivery_status != 'SUCCESSFUL':
+            self.statsd_client.incr(f"clients.pinpoint.delivery-status.{delivery_status.lower()}")
+
+            error_message = f'StatusCode: {result["StatusCode"]}, StatusMessage:{result["StatusMessage"]}'
+
+            if delivery_status in ['DUPLICATE', 'OPT_OUT', 'PERMANENT_FAILURE']:
+                raise NonRetryableException(error_message)
+
+            raise AwsPinpointException(error_message)

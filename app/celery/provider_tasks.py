@@ -4,6 +4,7 @@ from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import notify_celery
+from app.celery.exceptions import NonRetryableException
 from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
 from app.config import QueueNames
 from app.dao import notifications_dao
@@ -27,6 +28,11 @@ def deliver_sms(self, notification_id):
         current_app.logger.exception(e)
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
         raise NotificationTechnicalFailureException(str(e))
+    except NonRetryableException:
+        current_app.logger.exception(
+            f'SMS notification delivery for id: {notification_id} failed. Not retrying.'
+        )
+        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
     except Exception:
         try:
             current_app.logger.exception(

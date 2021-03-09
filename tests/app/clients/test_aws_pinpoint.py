@@ -1,6 +1,7 @@
 import pytest
 import botocore
 
+from app.celery.exceptions import NonRetryableException
 from app.clients.sms.aws_pinpoint import AwsPinpointClient, AwsPinpointException
 
 
@@ -115,16 +116,15 @@ def test_send_sms_throws_aws_pinpoint_exception(aws_pinpoint_client, boto_mock):
 
 
 @pytest.mark.parametrize('delivery_status', [
-    'DUPLICATE',
-    'OPT_OUT',
-    'PERMANENT_FAILURE',
     'TEMPORARY_FAILURE',
     'THROTTLED',
     'TIMEOUT',
     'UNKNOWN_FAILURE'
 ])
-def test_send_sms_returns_result_with_error_delivery_status(aws_pinpoint_client, boto_mock, delivery_status):
-    opted_out_number = "+12222222222"
+def test_send_sms_returns_result_with_aws_pinpoint_error_delivery_status(
+        aws_pinpoint_client, boto_mock, delivery_status
+):
+    opted_out_number = '+12222222222'
 
     boto_mock.send_messages.return_value = {
         'MessageResponse': {
@@ -144,4 +144,39 @@ def test_send_sms_returns_result_with_error_delivery_status(aws_pinpoint_client,
     with pytest.raises(AwsPinpointException):
         aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE, sender=opted_out_number)
 
-    aws_pinpoint_client.statsd_client.incr.assert_called_with("clients.pinpoint.error")
+    aws_pinpoint_client.statsd_client.incr.assert_called_with(
+        f'clients.pinpoint.delivery-status.{delivery_status.lower()}'
+    )
+
+
+@pytest.mark.parametrize('delivery_status', [
+    'DUPLICATE',
+    'OPT_OUT',
+    'PERMANENT_FAILURE',
+])
+def test_send_sms_returns_result_with_non_retryable_error_delivery_status(
+        aws_pinpoint_client, boto_mock, delivery_status
+):
+    opted_out_number = "+12222222222"
+
+    boto_mock.send_messages.return_value = {
+        'MessageResponse': {
+            'ApplicationId': TEST_ID,
+            'RequestId': 'request-id',
+            'Result': {
+                TEST_RECIPIENT_NUMBER: {
+                    'DeliveryStatus': delivery_status,
+                    'MessageId': TEST_MESSAGE_ID,
+                    'StatusCode': 400,
+                    'StatusMessage': 'Some Error Message',
+                }
+            }
+        }
+    }
+
+    with pytest.raises(NonRetryableException):
+        aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE, sender=opted_out_number)
+
+    aws_pinpoint_client.statsd_client.incr.assert_called_with(
+        f'clients.pinpoint.delivery-status.{delivery_status.lower()}'
+    )
