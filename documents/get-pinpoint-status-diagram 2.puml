@@ -1,7 +1,7 @@
 @startuml
 
 title
-    Notification states using PinPoint
+    Notification states using Pinpoint
 end title
 
 [*] -right-> created

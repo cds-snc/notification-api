@@ -90,7 +90,7 @@ def process_pinpoint_results(self, response):
         notifications_dao.update_notification_status_by_id(notification.id, notification_status)
 
         current_app.logger.info(
-            f"PinPoint callback return status of {notification_status} for notification: {notification.id}"
+            f"Pinpoint callback return status of {notification_status} for notification: {notification.id}"
         )
 
         statsd_client.incr(f"callback.pinpoint.{notification_status}")
@@ -107,7 +107,7 @@ def process_pinpoint_results(self, response):
         raise
 
     except Exception as e:
-        current_app.logger.exception(f"Error processing PinPoint results: {type(e)}")
+        current_app.logger.exception(f"Error processing Pinpoint results: {type(e)}")
         self.retry(queue=QueueNames.RETRY)
 
 
