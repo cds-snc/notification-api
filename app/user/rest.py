@@ -14,6 +14,9 @@ from flask import (jsonify, request, Blueprint, current_app, abort)
 from sqlalchemy.exc import IntegrityError
 
 from app.clients.freshdesk import Freshdesk
+from app.clients.zendesk_sell_client import ZenDeskSellClient
+from app.user.contact_request import ContactRequest
+
 from app.config import QueueNames, Config
 from app.dao.fido2_key_dao import (
     save_fido2_key,
@@ -452,6 +455,26 @@ def send_support_email(user_id):
     status_code = Freshdesk.create_ticket(data)
 
     return jsonify({"status_code": status_code}), 204
+
+
+@user_blueprint.route('/<uuid:user_id>/contact-request', methods=['POST'])
+def send_contact_request(user_id):
+
+    try:
+        contact = ContactRequest(**request.json)
+        user = get_user_by_email(contact.email_address)
+        if not any([not s.restricted for s in user.services]):
+            contact.tags = ['z_skip_opsgenie', 'z_skip_urgent_escalation']
+
+        status_code = Freshdesk(contact).send_ticket()
+        if 200 <= status_code <= 299:
+            status_code = ZenDeskSellClient(contact).send_contact_request()
+
+        return jsonify({"status_code": status_code})
+    except (NoResultFound, TypeError) as e:
+        print(e)
+
+    return jsonify({}), 204
 
 
 @user_blueprint.route('/<uuid:user_id>/branding-request', methods=['POST'])

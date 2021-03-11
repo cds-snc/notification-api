@@ -108,6 +108,8 @@ class Config(object):
 
     # Zendesk
     ZENDESK_API_KEY = os.getenv('ZENDESK_API_KEY')
+    ZEN_DESK_SELL_API_URL = os.getenv('ZEN_DESK_SELL_API_URL')
+    ZEN_DESK_SELL_API_KEY = os.getenv('ZEN_DESK_SELL_API_KEY')
 
     # Freshdesk
     FRESH_DESK_PRODUCT_ID = os.getenv('FRESH_DESK_PRODUCT_ID')
