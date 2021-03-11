@@ -60,17 +60,17 @@ def test_contact_info_invalid_email():
     mock_dict_malformed_email = {'email_address': 'this_is_not_an_email_address'}
 
     try:
-        contact = ContactRequest(**mock_dict_empty)
+        ContactRequest(**mock_dict_empty)
     except Exception as e:
         assert isinstance(e, TypeError)
 
     try:
-        contact = ContactRequest(**mock_dict_email_empty)
+        ContactRequest(**mock_dict_email_empty)
     except Exception as e:
         assert isinstance(e, AssertionError)
 
     try:
-        contact = ContactRequest(**mock_dict_malformed_email)
+        ContactRequest(**mock_dict_malformed_email)
     except Exception as e:
         assert isinstance(e, InvalidEmailError)
 
@@ -82,7 +82,7 @@ def test_contact_info_additional_fields():
     }
 
     try:
-        contact = ContactRequest(**mock_dict_new_field)
+        ContactRequest(**mock_dict_new_field)
     except Exception as e:
         assert isinstance(e, TypeError)
 

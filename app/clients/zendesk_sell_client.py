@@ -3,7 +3,7 @@ import requests
 
 from typing import Dict, List, Union
 
-from flask import current_app, Flask
+from flask import current_app
 
 from app.authentication.bearer_auth import BearerAuth
 from app.user.contact_request import ContactRequest

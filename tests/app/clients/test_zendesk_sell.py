@@ -26,7 +26,7 @@ def test_create_lead(notify_api: Flask):
         }
 
         json_matches = request.json() == expected
-        basic_auth_header = request.headers.get('Authorization') == f"Bearer zendesksell-api-key"
+        basic_auth_header = request.headers.get('Authorization') == 'Bearer zendesksell-api-key'
 
         return json_matches and basic_auth_header
 
@@ -48,6 +48,6 @@ def test_create_lead(notify_api: Flask):
 def test_create_lead_missing_name(notify_api: Flask):
     with notify_api.app_context():
         try:
-            response = ZenDeskSellClient(ContactRequest(**{'email_address': "test@email.com"})).send_lead()
+            ZenDeskSellClient(ContactRequest(**{'email_address': 'test@email.com'})).send_lead()
         except Exception as e:
             assert isinstance(e, AssertionError)
