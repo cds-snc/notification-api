@@ -215,6 +215,7 @@ class Config(object):
     ACCOUNT_CHANGE_TEMPLATE_ID = '5b39e16a-9ff8-487c-9bfb-9e06bdb70f36'
     BRANDING_REQUEST_TEMPLATE_ID = '7d423d9e-e94e-4118-879d-d52f383206ae'
     SMTP_TEMPLATE_ID = '3a4cab41-c47d-4d49-96ba-f4c4fa91d44b'
+    EMAIL_COMPLAINT_TEMPLATE_ID = '064e85da-c238-47a3-b9a7-21493ea23dd3'
 
     CELERY_SETTINGS = {
         'broker_url': os.getenv("BROKER_URL", 'sqs://'),
