@@ -79,8 +79,6 @@ class Freshdesk(object):
             current_app.logger.warning('Did not send ticket to Freshdesk')
             return 200
 
-        return 400
-
     @staticmethod
     def create_ticket(data):
         ticket = {

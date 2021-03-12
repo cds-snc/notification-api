@@ -92,5 +92,3 @@ class ZenDeskSellClient(object):
             # because configuration is not defined, lets return a 200 OK
             self.app.logger.warning('Did not send lead to zendesk')
             return 200
-
-        return 400
