@@ -166,7 +166,7 @@ def process_ses_results(self, response):
         elif notification_type == 'Complaint':
             complaint, notification, recipient_email = handle_complaint(ses_message)
             _check_and_queue_complaint_callback_task(complaint, notification, recipient_email)
-            # service_callback_tasks.send_complaint_to_vanotify.apply_async(notification)
+            # service_callback_tasks.send_complaint_to_vanotify.apply_async(complaint)
             statsd_client.incr('callback.ses.complaint_count')
             return True
 

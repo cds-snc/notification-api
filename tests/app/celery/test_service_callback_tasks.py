@@ -162,7 +162,7 @@ def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(
 
 
 @pytest.fixture
-def notification_to_vanotify():
+def complaint_to_vanotify():
     service = create_service(service_name="Sample VANotify service", restricted=True)
     template = create_template(
         service=service,
@@ -171,26 +171,26 @@ def notification_to_vanotify():
         subject='Hello'
     )
     notification = create_notification(template=template)
-    create_complaint(service=template.service, notification=notification)
-    return notification
+    complaint = create_complaint(service=template.service, notification=notification)
+    return complaint
 
 
-def test_send_complaint_to_vanotify(notify_db_session, notification_to_vanotify):
-    assert send_complaint_to_vanotify(notification_to_vanotify) is None
+def test_send_complaint_to_vanotify(notify_db_session, complaint_to_vanotify):
+    assert send_complaint_to_vanotify(complaint_to_vanotify) is None
 
 
 @pytest.mark.skip(reason="wip")
 def test_send_complaint_to_vanotify_invokes_delivers_email_with_success(notify_db_session,
                                                                         mocker,
-                                                                        notification_to_vanotify):
+                                                                        complaint_to_vanotify):
     mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
-    send_complaint_to_vanotify(notification_to_vanotify)
+    send_complaint_to_vanotify(complaint_to_vanotify)
 
-    assert mocked.assert_called_once_with([str(notification_to_vanotify.id)], queue='send-email')
+    assert mocked.assert_called_once_with([str(complaint_to_vanotify.id)], queue='send-email')
 
 
 @pytest.mark.skip(reason="wip")
-def test_send_email_complaint_to_vanotify_fails(notify_db_session, mocker, notification_to_vanotify):
+def test_send_email_complaint_to_vanotify_fails(notify_db_session, mocker, complaint_to_vanotify):
     assert False
 
 

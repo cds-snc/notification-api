@@ -15,7 +15,7 @@ from app import (
 from app.config import QueueNames
 from app.dao.service_callback_api_dao import get_service_delivery_status_callback_api_for_service, \
     get_service_complaint_callback_api_for_service
-from app.models import Notification
+from app.models import Complaint
 
 
 @notify_celery.task(bind=True, name="send-delivery-status", max_retries=5, default_retry_delay=300)
@@ -68,7 +68,7 @@ def send_complaint_to_service(self, complaint_data):
 
 @notify_celery.task(bind=True, name="send-complaint-to-vanotify", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def send_complaint_to_vanotify(self, complaint_notification: Notification) -> None:
+def send_complaint_to_vanotify(self, complaint_to_vanotify: Complaint) -> None:
     # create migrations
     # template = None
     # service = current_app.config['NOTIFY_SERVICE_ID']
