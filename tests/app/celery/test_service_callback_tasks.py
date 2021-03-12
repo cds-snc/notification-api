@@ -6,7 +6,8 @@ import requests_mock
 from freezegun import freeze_time
 
 from app import (DATETIME_FORMAT, encryption)
-from app.celery.service_callback_tasks import send_delivery_status_to_service, send_complaint_to_service
+from app.celery.service_callback_tasks import send_delivery_status_to_service, send_complaint_to_service, \
+    send_complaint_to_vanotify
 from tests.app.db import (
     create_complaint,
     create_notification,
@@ -160,10 +161,43 @@ def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(
     assert mocked.call_count == 0
 
 
+@pytest.fixture
+def notification_to_vanotify():
+    service = create_service(service_name="Sample VANotify service", restricted=True)
+    template = create_template(
+        service=service,
+        template_name="Sample VANotify service",
+        template_type="email",
+        subject='Hello'
+    )
+    notification = create_notification(template=template)
+    create_complaint(service=template.service, notification=notification)
+    return notification
+
+
+def test_send_complaint_to_vanotify(notify_db_session, notification_to_vanotify):
+    assert send_complaint_to_vanotify(notification_to_vanotify) is None
+
+
+@pytest.mark.skip(reason="wip")
+def test_send_complaint_to_vanotify_invokes_delivers_email_with_success(notify_db_session,
+                                                                        mocker,
+                                                                        notification_to_vanotify):
+    mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
+    send_complaint_to_vanotify(notification_to_vanotify)
+
+    assert mocked.assert_called_once_with([str(notification_to_vanotify.id)], queue='send-email')
+
+
+@pytest.mark.skip(reason="wip")
+def test_send_email_complaint_to_vanotify_fails(notify_db_session, mocker, notification_to_vanotify):
+    assert False
+
+
 def _set_up_test_data(notification_type, callback_type):
     service = create_service(restricted=True)
     template = create_template(service=service, template_type=notification_type, subject='Hello')
-    callback_api = create_service_callback_api(service=service, url="https://some.service.gov.uk/",
+    callback_api = create_service_callback_api(service=service, url="https://some.service.gov.uk/",  # nosec
                                                bearer_token="something_unique", callback_type=callback_type)
     return callback_api, template
 

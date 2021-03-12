@@ -15,6 +15,7 @@ from app import (
 from app.config import QueueNames
 from app.dao.service_callback_api_dao import get_service_delivery_status_callback_api_for_service, \
     get_service_complaint_callback_api_for_service
+from app.models import Notification
 
 
 @notify_celery.task(bind=True, name="send-delivery-status", max_retries=5, default_retry_delay=300)
@@ -63,6 +64,45 @@ def send_complaint_to_service(self, complaint_data):
         complaint['service_callback_api_bearer_token'],
         'send_complaint_to_service'
     )
+
+
+@notify_celery.task(bind=True, name="send-complaint-to-vanotify", max_retries=5, default_retry_delay=300)
+@statsd(namespace="tasks")
+def send_complaint_to_vanotify(self, complaint_notification: Notification) -> None:
+    # create migrations
+    # template = None
+    # service = current_app.config['NOTIFY_SERVICE_ID']
+    # email_address = None
+
+    # happy path
+    try:
+        #   saved_notification = process_notifications.persist_notification(
+        #     template_id=template.id,
+        #     template_version=template.version,
+        #     recipient=email_address,
+        #     service=service,
+        #     personalisation={
+        #         'notification_id': complaint_notification.id
+        #         'service_name': complaint_notification.service.name
+        #         'template_name': complaint_notification.template.name
+        #     },
+        #     notification_type=EMAIL_TYPE,
+        #     api_key_id=None,
+        #     key_type=KEY_TYPE_NORMAL,
+        #     reply_to_text=email_address,
+        #     created_at=headers["date"],
+        #     status=complaint_notification.status,
+        #     reference=complaint_notification.reference
+        # )
+
+        # provider_tasks.deliver_email.apply_async(
+        #             [str(saved_notification.id)],
+        #             queue=QueueNames.SEND_EMAIL if not service.research_mode else QueueNames.RESEARCH_MODE
+        current_app.logger.info("Hurray")
+
+    # sad paths
+    except Exception as e:
+        current_app.logger.exception(f"Something went very wrong {e}")
 
 
 def _send_data_to_service_callback_api(self, data, service_callback_url, token, function_name):
