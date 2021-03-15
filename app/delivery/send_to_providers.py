@@ -99,14 +99,14 @@ def send_email_to_provider(notification):
 
         # Extract any file objects from the personalization
         file_keys = [
-            k for k, v in (notification.personalisation or {}).items() if isinstance(v, dict) and 'document' in v
+            k for k, v in (notification.personalisation or {}).items()
+            if isinstance(v, dict) and 'document' in v
         ]
         attachments = []
 
         personalisation_data = notification.personalisation.copy()
 
         for key in file_keys:
-
             # Check if a MLWR sid exists
             if (current_app.config["MLWR_HOST"] and
                     'mlwr_sid' in personalisation_data[key]['document'] and
