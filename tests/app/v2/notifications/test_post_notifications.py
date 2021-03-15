@@ -782,13 +782,15 @@ def test_post_notification_with_document_upload(client, notify_db_session, mocke
     )
 
     mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
-    document_download_mock = mocker.patch('app.v2.notifications.post_notifications.document_download_client')
-    document_download_mock.upload_document.return_value = 'https://document-url/'
+    document_download_mock = mocker.patch(
+        'app.v2.notifications.post_notifications.document_download_client.upload_document'
+    )
+    document_download_mock.return_value = 'https://document-url/'
 
     data = {
         "email_address": service.users[0].email_address,
         "template_id": template.id,
-        "personalisation": {"document": {"file": "abababab"}}
+        "personalisation": {"document": {"file": "abababab", "filename": "file.pdf"}}
     }
 
     auth_header = create_authorization_header(service_id=service.id)
@@ -800,6 +802,10 @@ def test_post_notification_with_document_upload(client, notify_db_session, mocke
     assert response.status_code == 201, response.get_data(as_text=True)
     resp_json = json.loads(response.get_data(as_text=True))
     assert validate(resp_json, post_email_response) == resp_json
+    document_download_mock.assert_called_once_with(
+        service.id,
+        {"file": "abababab", "filename": "file.pdf"}
+    )
 
     notification = Notification.query.one()
     assert notification.status == NOTIFICATION_CREATED
