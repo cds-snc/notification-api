@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "4ca47bad-c4ee-472e-82b5-960bf693bb1b",
+		"_postman_id": "55cc163a-f307-402d-a05a-7ebe832c4f85",
 		"name": "notification-api",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -601,7 +601,7 @@
 					}
 				],
 				"url": {
-					"raw": "http://{{notification-api-url}}/provider-details",
+					"raw": "https://{{notification-api-url}}/provider-details",
 					"protocol": "http",
 					"host": [
 						"{{notification-api-url}}"
