@@ -129,7 +129,11 @@ def send_email_to_provider(notification):
                     buffer = response.read()
                     mime_type = magic.from_buffer(buffer, mime=True)
                     if mime_type == 'application/pdf':
-                        attachments.append({"name": "{}.pdf".format(key), "data": buffer})
+                        filename = personalisation_data[key]['document'].get('filename')
+                        attachments.append({
+                            "name": filename or f'{key}.pdf',
+                            "data": buffer
+                        })
             except Exception:
                 current_app.logger.error(
                     "Could not download and attach {}".format(personalisation_data[key]['document']['direct_file_url'])

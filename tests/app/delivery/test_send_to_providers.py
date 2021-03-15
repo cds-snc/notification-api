@@ -867,21 +867,32 @@ def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_abov
     assert Notification.query.get(db_notification.id).status == 'virus-scan-failed'
 
 
+@pytest.mark.parametrize("filename_attribute_present, filename, expected_filename", [
+    (False, "whatever", "file.pdf"),
+    (True, None, "file.pdf"),
+    (True, "custom_filename.pdf", "custom_filename.pdf"),
+])
 def test_notification_document_with_pdf_attachment(
     mocker,
     notify_db,
     notify_db_session,
+    filename_attribute_present,
+    filename,
+    expected_filename,
 ):
     template = sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
-    db_notification = create_notification(
-        template=template,
-        personalisation={
-            "file": {"document": {
+    personalisation = {
+        "file": {
+            "document": {
                 "direct_file_url": "http://foo.bar/direct_file_url",
                 "url": "http://foo.bar/url",
-            }}
-        }
-    )
+            },
+        },
+    }
+    if filename_attribute_present:
+        personalisation["file"]["document"]["filename"] = filename
+
+    db_notification = create_notification(template=template, personalisation=personalisation)
 
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
     request_mock = mocker.patch('app.delivery.send_to_providers.urllib.request.Request', return_value='request_mock')
@@ -905,7 +916,7 @@ def test_notification_document_with_pdf_attachment(
         body=ANY,
         html_body=ANY,
         reply_to_address=ANY,
-        attachments=[{'data': 'request_content', 'name': 'file.pdf'}]
+        attachments=[{'data': 'request_content', 'name': expected_filename}]
     )
     assert 'http://foo.bar/url' in send_mock.call_args[1]['html_body']
 
