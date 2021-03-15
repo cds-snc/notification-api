@@ -6,7 +6,7 @@ import iso8601
 from celery.exceptions import Retry
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from app import notify_celery, statsd_client
 from app.config import QueueNames
@@ -79,8 +79,15 @@ def process_pinpoint_results(self, response):
                 self.retry(queue=QueueNames.RETRY)
             else:
                 current_app.logger.warning(
-                    f"notification not found for reference: {reference} (update to {notification_status})"
+                    f'notification not found for reference: {reference} (update to {notification_status})'
                 )
+            statsd_client.incr('callback.pinpoint.no_notification_found')
+            return
+        except MultipleResultsFound:
+            current_app.logger.warning(
+                f'multiple notifications found for reference: {reference} (update to {notification_status})'
+            )
+            statsd_client.incr('callback.pinpoint.multiple_notifications_found')
             return
 
         if notification.status not in [NOTIFICATION_SENDING, NOTIFICATION_SENT]:
