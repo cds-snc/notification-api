@@ -11,7 +11,7 @@ from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
 from app.delivery import send_to_providers
 from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException, InvalidProviderException
-from app.models import NOTIFICATION_TECHNICAL_FAILURE
+from app.models import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
 
 
 @notify_celery.task(bind=True, name="deliver_sms", max_retries=48, default_retry_delay=300)
@@ -32,7 +32,7 @@ def deliver_sms(self, notification_id):
         current_app.logger.exception(
             f'SMS notification delivery for id: {notification_id} failed. Not retrying.'
         )
-        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        update_notification_status_by_id(notification_id, NOTIFICATION_PERMANENT_FAILURE)
     except Exception:
         try:
             current_app.logger.exception(
