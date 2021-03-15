@@ -64,11 +64,14 @@ def process_pinpoint_results(self, response):
         pinpoint_message = json.loads(base64.b64decode(response['Message']))
         reference = pinpoint_message['attributes']['message_id']
         event_type = pinpoint_message.get('event_type')
+        record_status = pinpoint_message['attributes']['record_status']
+        current_app.logger.info(
+            f'received callback from Pinpoint with event_type of {event_type} and record_status of {record_status}'
+        )
         if event_type_is_optout(event_type, reference):
             statsd_client.incr(f"callback.pinpoint.optout")
             notification_status = NOTIFICATION_PERMANENT_FAILURE
         else:
-            record_status = pinpoint_message['attributes']['record_status']
             notification_status = _map_record_status_to_notification_status(record_status)
 
         try:
