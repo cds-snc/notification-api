@@ -109,3 +109,5 @@ fileignoreconfig:
       checksum: 9b843c8a5f3b8e46b9bd1579eced2f20101cf02fe57d1b00cfcb3124b7638e19
     - filename: scripts/postman/staging.postman_environment.json
       checksum: a6516139f1f50cc6be42e3b46aae3a8fa92ca91e3ff684eabc1b1e5df4a17372
+    - filename: scripts/postman/development.postman_environment.json
+      checksum: e8241f0b65159a875f285f288be114bf0933c5e44c4cafaf3e1ea08c9683e5ca

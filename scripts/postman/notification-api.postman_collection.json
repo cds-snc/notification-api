@@ -2243,7 +2243,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"url\": \"https://host.docker.internal:7005/\",\n    \"bearer_token\": \"some token\",\n    \"updated_by_id\": \"{{user-id}}\"\n}"
+					"raw": "{\n    \"url\": \"https://httpreq.com/{{unique-bucket-name}}/record\",\n    \"bearer_token\": \"some token\",\n    \"updated_by_id\": \"{{user-id}}\"\n}"
 				},
 				"url": {
 					"raw": "https://{{notification-api-url}}/service/{{service-id}}/delivery-receipt-api",
@@ -2329,19 +2329,6 @@
 					"listen": "test",
 					"script": {
 						"exec": [
-							"if (pm.response.code == 201) {",
-							"    var jsonData = pm.response.json(); ",
-							"    pm.environment.set(\"service-id\", jsonData.id);",
-							"} else {",
-							"    var url = \"https://\" + pm.environment.get(\"notification-api-url\") + \"/service/find-services-by-name?service_name=main service\";",
-							"    pm.sendRequest({",
-							"        url: url,",
-							"        method: 'GET',",
-							"        header: 'authorization: Bearer ' + pm.environment.get(\"jwt_signed\"),",
-							"    }, function (err, res) {",
-							"        pm.environment.set(\"service-id\", res.json().data[0].id);",
-							"    });",
-							"}",
 							""
 						],
 						"type": "text/javascript"
@@ -2369,16 +2356,19 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"name\": \"test service for local 2\",\n    \"user_id\": \"{{user-id}}\",\n    \"organisation_id\": \"{{organization-id}}\",\n    \"message_limit\": 1000,\n    \"restricted\": false,\n    \"active\": true,\n    \"created_by\": \"{{user-id}}\"\n}"
+					"raw": "{\n    \"url\": \"https://httpreq.com/{{unique-bucket-name}}/record\",\n    \"bearer_token\": \"some token\",\n    \"updated_by_id\": \"{{user-id}}\"\n}"
 				},
 				"url": {
-					"raw": "https://{{notification-api-url}}/service",
-					"protocol": "http",
+					"raw": "https://{{notification-api-url}}/service/{{service-id}}/delivery-receipt-api/{{callback-id}}",
+					"protocol": "https",
 					"host": [
 						"{{notification-api-url}}"
 					],
 					"path": [
-						"service"
+						"service",
+						"{{service-id}}",
+						"delivery-receipt-api",
+						"{{callback-id}}"
 					]
 				}
 			},
