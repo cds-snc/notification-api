@@ -75,7 +75,7 @@ class ZenDeskSell(object):
                 data=json.dumps(ZenDeskSell._generate_lead_data(contact)),
                 headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
                 auth=BearerAuth(token=self.token),
-                timeout=30.0
+                timeout=5
             )
             response.raise_for_status()
 

@@ -65,7 +65,7 @@ class Freshdesk(object):
                 urljoin(api_url, '/api/v2/tickets'),
                 json=self._generate_ticket(),
                 auth=HTTPBasicAuth(current_app.config['FRESH_DESK_API_KEY'], "x"),
-                timeout=30.0
+                timeout=5
             )
             response.raise_for_status()
 
