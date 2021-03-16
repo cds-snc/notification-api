@@ -1,3 +1,7 @@
+import pytest
+
+from typing import Dict
+
 from app.user.contact_request import ContactRequest
 from notifications_utils.recipients import InvalidEmailError
 
@@ -38,41 +42,28 @@ def test_contact_info_defaults():
         'email_address': 'test@email.com',
     }
     contact = ContactRequest(**mock_dict)
-    empty_str = ''
     assert mock_dict['email_address'] == contact.email_address
     assert contact.language == 'en'
     assert contact.support_type == 'Support Request'
-    assert contact.name == empty_str
-    assert contact.department_org_name == empty_str
-    assert contact.program_service_name == empty_str
-    assert contact.intended_recipients == empty_str
-    assert contact.main_use_case == empty_str
-    assert contact.main_use_case_details == empty_str
-    assert contact.friendly_support_type == empty_str
-    assert contact.message == empty_str
-    assert contact.user_profile == empty_str
+    assert contact.name == ''
+    assert contact.department_org_name == ''
+    assert contact.program_service_name == ''
+    assert contact.intended_recipients == ''
+    assert contact.main_use_case == ''
+    assert contact.main_use_case_details == ''
+    assert contact.friendly_support_type == ''
+    assert contact.message == ''
+    assert contact.user_profile == ''
 
 
-def test_contact_info_invalid_email():
-
-    mock_dict_empty = dict()
-    mock_dict_email_empty = {'email_address': ''}
-    mock_dict_malformed_email = {'email_address': 'this_is_not_an_email_address'}
-
-    try:
-        ContactRequest(**mock_dict_empty)
-    except Exception as e:
-        assert isinstance(e, TypeError)
-
-    try:
-        ContactRequest(**mock_dict_email_empty)
-    except Exception as e:
-        assert isinstance(e, AssertionError)
-
-    try:
-        ContactRequest(**mock_dict_malformed_email)
-    except Exception as e:
-        assert isinstance(e, InvalidEmailError)
+@pytest.mark.parametrize('mock_dict', [
+    dict(),
+    {'email_address': ''},
+    {'email_address': 'this_is_not_an_email_address'}
+])
+def test_contact_info_invalid_email(mock_dict: Dict[str, str]):
+    with pytest.raises((TypeError, AssertionError, InvalidEmailError)):
+        ContactRequest(**mock_dict)
 
 
 def test_contact_info_additional_fields():
@@ -81,10 +72,8 @@ def test_contact_info_additional_fields():
         'invalid_additional_field': 'new_field'
     }
 
-    try:
+    with pytest.raises(TypeError):
         ContactRequest(**mock_dict_new_field)
-    except Exception as e:
-        assert isinstance(e, TypeError)
 
 
 def test_contact_info_sanitize_input():

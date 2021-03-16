@@ -1,8 +1,9 @@
+import pytest
 import requests_mock
 
 from flask import Flask
 
-from app.clients.zendesk_sell_client import ZenDeskSellClient
+from app.clients.zendesk_sell import ZenDeskSell
 from app.user.contact_request import ContactRequest
 
 
@@ -33,7 +34,7 @@ def test_create_lead(notify_api: Flask):
     with requests_mock.mock() as rmock:
         rmock.request(
             "POST",
-            url='https://example.com/zendesksell/v2/leads/upsert?email=test@email.com',
+            url='https://zendesksell-test.com/v2/leads/upsert?email=test@email.com',
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
             additional_matcher=match_json,
             status_code=201
@@ -41,13 +42,13 @@ def test_create_lead(notify_api: Flask):
 
         with notify_api.app_context():
             data = {'email_address': "test@email.com", 'name': 'Test User'}
-            response = ZenDeskSellClient(ContactRequest(**data)).send_lead()
+            response = ZenDeskSell().send_lead(ContactRequest(**data))
             assert response == 201
 
 
 def test_create_lead_missing_name(notify_api: Flask):
+
+    # Name field is a requirement for the zendesk sell API interface
     with notify_api.app_context():
-        try:
-            ZenDeskSellClient(ContactRequest(**{'email_address': 'test@email.com'})).send_lead()
-        except Exception as e:
-            assert isinstance(e, AssertionError)
+        with pytest.raises(AssertionError):
+            ZenDeskSell().send_lead(ContactRequest(**{'email_address': 'test@email.com'}))

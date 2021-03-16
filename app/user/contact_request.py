@@ -38,3 +38,6 @@ class ContactRequest:
                     setattr(self, f.name, str(escape(getattr(self, f.name))))
             except TypeError:
                 pass
+
+    def is_demo_request(self):
+        return 'demo' in self.support_type.lower()

@@ -23,6 +23,7 @@ from app.dao.fido2_key_dao import save_fido2_key, create_fido2_session
 from app.dao.login_event_dao import save_login_event
 from app.dao.permissions_dao import default_service_permissions
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
+from app.user.contact_request import ContactRequest
 from tests import create_authorization_header
 from tests.app.db import create_service, create_template_folder, create_organisation, create_user, create_reply_to_email
 
@@ -774,6 +775,30 @@ def test_send_support_email_no_live_service(client, sample_user, mocker):
     assert resp.status_code == 204
 
     mocked.assert_called_once_with(data | {'tags': ['z_skip_opsgenie', 'z_skip_urgent_escalation']})
+
+
+def test_send_contact_request(client, sample_user, mocker):
+    data = {
+        'name': sample_user.name,
+        'email_address': sample_user.email_address,
+        'support_type': 'demo'
+    }
+
+    mocked_freshdesk = mocker.patch('app.user.rest.Freshdesk.send_ticket', return_value=201)
+    mocked_zendesk = mocker.patch('app.user.rest.ZenDeskSell.send_contact_request', return_value=200)
+
+    resp = client.post(
+        url_for('user.send_contact_request', user_id=str(sample_user.id)),
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), create_authorization_header()]
+    )
+    assert resp.status_code == 204
+
+    mocked_freshdesk.assert_called_once_with()
+
+    contact = ContactRequest(**data)
+    contact.tags  = ['z_skip_opsgenie', 'z_skip_urgent_escalation']
+    mocked_zendesk.assert_called_once_with(contact)
 
 
 def test_send_support_email_with_live_service(client, sample_service, mocker):

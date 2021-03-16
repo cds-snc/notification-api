@@ -29,7 +29,7 @@ def test_create_ticket_legacy(notify_api: Flask):
     with requests_mock.mock() as rmock:
         rmock.request(
             "POST",
-            'https://example.com/freshdesk/api/v2/tickets',
+            'https://freshdesk-test.com/api/v2/tickets',
             additional_matcher=match_json,
             status_code=201
         )
@@ -49,12 +49,12 @@ def test_create_ticket_demo(notify_api: Flask):
         expected = {
             'product_id': 42,
             'subject': 'demo',
-            "description": '- user:  test@email.com<br><br>'
-                           '- department/org: <br><br>'
-                           '- program/service: <br><br>'
-                           '- intended_recipients: <br><br>'
-                           '- main use case: <br><br>'
-                           '- main use case details: ',
+            "description": '- user: name-test test@email.com<br><br>'
+                           '- department/org: dept-test<br><br>'
+                           '- program/service: service-test<br><br>'
+                           '- intended recipients: internal<br><br>'
+                           '- main use case: main-use-case-test<br><br>'
+                           '- main use case details: main-use-case-details-test',
             'email': 'test@email.com',
             'priority': 1,
             'status': 2,
@@ -70,14 +70,26 @@ def test_create_ticket_demo(notify_api: Flask):
     with requests_mock.mock() as rmock:
         rmock.request(
             "POST",
-            'https://example.com/freshdesk/api/v2/tickets',
+            'https://freshdesk-test.com/api/v2/tickets',
             additional_matcher=match_json,
             status_code=201
         )
 
+        contact_request = {
+            'email_address': 'test@email.com',
+            'name': 'name-test',
+            'department_org_name': 'dept-test',
+            'program_service_name': 'service-test',
+            'intended_recipients': 'internal',
+            'main_use_case': 'main-use-case-test',
+            'main_use_case_details': 'main-use-case-details-test',
+            'friendly_support_type': 'friendly-support-type-test',
+            'language': 'en',
+            'support_type': 'demo'
+        }
+
         with notify_api.app_context():
-            response = Freshdesk(ContactRequest(**{'email_address': 'test@email.com',
-                                                   'support_type': 'demo'})).send_ticket()
+            response = Freshdesk(ContactRequest(**contact_request)).send_ticket()
             assert response == 201
 
 
@@ -102,7 +114,7 @@ def test_create_ticket_other(notify_api: Flask):
     with requests_mock.mock() as rmock:
         rmock.request(
             "POST",
-            'https://example.com/freshdesk/api/v2/tickets',
+            'https://freshdesk-test.com/api/v2/tickets',
             additional_matcher=match_json,
             status_code=201
         )
@@ -133,7 +145,7 @@ def test_create_ticket_user_profile(notify_api: Flask):
     with requests_mock.mock() as rmock:
         rmock.request(
             "POST",
-            'https://example.com/freshdesk/api/v2/tickets',
+            'https://freshdesk-test.com/api/v2/tickets',
             additional_matcher=match_json,
             status_code=201
         )

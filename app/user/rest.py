@@ -14,7 +14,7 @@ from flask import (jsonify, request, Blueprint, current_app, abort)
 from sqlalchemy.exc import IntegrityError
 
 from app.clients.freshdesk import Freshdesk
-from app.clients.zendesk_sell_client import ZenDeskSellClient
+from app.clients.zendesk_sell import ZenDeskSell
 from app.user.contact_request import ContactRequest
 
 from app.config import QueueNames, Config
@@ -460,21 +460,27 @@ def send_support_email(user_id):
 @user_blueprint.route('/<uuid:user_id>/contact-request', methods=['POST'])
 def send_contact_request(user_id):
 
+    contact = None
+    user = None
+
     try:
         contact = ContactRequest(**request.json)
         user = get_user_by_email(contact.email_address)
         if not any([not s.restricted for s in user.services]):
             contact.tags = ['z_skip_opsgenie', 'z_skip_urgent_escalation']
 
-        status_code = Freshdesk(contact).send_ticket()
-        if 200 <= status_code <= 299:
-            status_code = ZenDeskSellClient(contact).send_contact_request()
+    except TypeError as e:
+        current_app.logger.error(e)
+        return jsonify({}), 400
+    except NoResultFound as e:
+        # This is perfectly normal if get_user_by_email raises
+        pass
 
-        return jsonify({"status_code": status_code})
-    except (NoResultFound, TypeError) as e:
-        print(e)
+    # FIXME: Since this is a POC, do not include the status code for zendesk as a part of the return code
+    ZenDeskSell().send_contact_request(contact)
 
-    return jsonify({}), 204
+    status_code = Freshdesk(contact).send_ticket()
+    return jsonify({"status_code": status_code}), 204
 
 
 @user_blueprint.route('/<uuid:user_id>/branding-request', methods=['POST'])

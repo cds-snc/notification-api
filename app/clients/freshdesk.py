@@ -3,6 +3,7 @@ import requests
 
 from requests.auth import HTTPBasicAuth
 from typing import Dict, List, Union
+from urllib.parse import urljoin
 
 from flask import current_app
 
@@ -16,26 +17,27 @@ __all__ = [
 
 class Freshdesk(object):
 
+    def __init__(self, contact: ContactRequest):
+        self.contact = contact
+
     def _generate_description(self):
-        message = ''
-        if 'demo' in self.contact.support_type.lower():
+        message = self.contact.message
+        if self.contact.is_demo_request():
             message = '<br><br>'.join([
                 f'- user: {self.contact.name} {self.contact.email_address}',
                 f'- department/org: {self.contact.department_org_name}',
                 f'- program/service: {self.contact.program_service_name}',
-                f'- intended_recipients: {self.contact.intended_recipients}',
+                f'- intended recipients: {self.contact.intended_recipients}',
                 f'- main use case: {self.contact.main_use_case}',
                 f'- main use case details: {self.contact.main_use_case_details}',
             ])
-        else:
-            message = self.contact.message
 
         if len(self.contact.user_profile):
             message += f"<br><br>---<br><br> {self.contact.user_profile}"
 
         return message
 
-    def _generate_zd_ticket(self) -> Dict[str, Union[str, int, List[str]]]:
+    def _generate_ticket(self) -> Dict[str, Union[str, int, List[str]]]:
 
         product_id = current_app.config['FRESH_DESK_PRODUCT_ID']
         if not product_id:
@@ -51,20 +53,19 @@ class Freshdesk(object):
             'tags': self.contact.tags
         }
 
-    def __init__(self, contact: ContactRequest):
-        self.contact = contact
-
     def send_ticket(self) -> int:
         try:
             api_url = current_app.config['FRESH_DESK_API_URL']
             if not api_url:
                 raise NotImplementedError
 
-            ticket = self._generate_zd_ticket()
+            # The API and field definitions are defined here:
+            # https://developer.zendesk.com/rest_api/docs/support/tickets
             response = requests.post(
-                f"{api_url}/api/v2/tickets",
-                json=ticket,
-                auth=HTTPBasicAuth(current_app.config['FRESH_DESK_API_KEY'], "x")
+                urljoin(api_url, '/api/v2/tickets'),
+                json=self._generate_ticket(),
+                auth=HTTPBasicAuth(current_app.config['FRESH_DESK_API_KEY'], "x"),
+                timeout=30.0
             )
             response.raise_for_status()
 
