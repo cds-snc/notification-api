@@ -67,6 +67,7 @@ def process_pinpoint_results(self, response):
         record_status = pinpoint_message['attributes']['record_status']
         current_app.logger.info(
             f'received callback from Pinpoint with event_type of {event_type} and record_status of {record_status}'
+            f'with reference {reference}'
         )
         if event_type_is_optout(event_type, reference):
             statsd_client.incr(f"callback.pinpoint.optout")
