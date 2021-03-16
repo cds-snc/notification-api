@@ -797,7 +797,7 @@ def test_send_contact_request(client, sample_user, mocker):
     mocked_freshdesk.assert_called_once_with()
 
     contact = ContactRequest(**data)
-    contact.tags  = ['z_skip_opsgenie', 'z_skip_urgent_escalation']
+    contact.tags = ['z_skip_opsgenie', 'z_skip_urgent_escalation']
     mocked_zendesk.assert_called_once_with(contact)
 
 

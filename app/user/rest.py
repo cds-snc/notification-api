@@ -472,7 +472,7 @@ def send_contact_request(user_id):
     except TypeError as e:
         current_app.logger.error(e)
         return jsonify({}), 400
-    except NoResultFound as e:
+    except NoResultFound:
         # This is perfectly normal if get_user_by_email raises
         pass
 
