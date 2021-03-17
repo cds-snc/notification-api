@@ -1,7 +1,13 @@
 from flask import request, _request_ctx_stack, current_app, g
-from notifications_python_client.authentication import decode_jwt_token, get_token_issuer
+from notifications_python_client.authentication import (
+    decode_jwt_token,
+    decode_token,
+    epoch_seconds,
+    get_token_issuer,
+)
 from notifications_python_client.errors import TokenDecodeError, TokenExpiredError, TokenIssuerError
 from notifications_utils import request_helper
+from jwt import PyJWTError
 from sqlalchemy.exc import DataError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -102,6 +108,13 @@ def requires_auth():
         except TokenDecodeError:
             continue
         except TokenExpiredError:
+            try:
+                decoded_token = decode_token(auth_token)
+            except PyJWTError:
+                continue
+            current_app.logger.info(
+                f'JWT: iat value was {decoded_token["iat"]} while server clock is {epoch_seconds()}'
+            )
             err_msg = (
                 "Error: Your system clock must be accurate to within 30 seconds"
             )
