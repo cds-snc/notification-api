@@ -25,28 +25,32 @@ complaint_template_subject = 'received email complaint for ((notification_id))'
 def upgrade():
     content = """An email has been marked as spam. Here is the complaint info: 
 
-
     \t notification_id: ((notification_id))
 
     \t service_name: ((service_name))
 
     \t template_name: ((template_name))
-
+    
+    \t complaint_id: ((complaint_id))
+    
+    \t complaint_type: ((complaint_type))
+    
+    \t complaint_date: ((complaint_date))
 
     """
     template_history_insert = f"""INSERT INTO templates_history (id, name, template_type, created_at,
                                                                 content, archived, service_id, hidden,
                                                                 subject, created_by_id, process_type, version)
-                                 VALUES ('{complaint_template_id}', '{complaint_template_name}',
-                                 '{EMAIL_TYPE}', '{datetime.utcnow()}', '{content}', False, '{service_id}', '{False}',
-                                 '{complaint_template_subject}', '{user_id}', '{NORMAL}', 1)
+                                 VALUES ('{complaint_template_id}', '{complaint_template_name}', '{EMAIL_TYPE}', '{datetime.utcnow()}',
+                                        '{content}', False, '{service_id}', '{False}',
+                                        '{complaint_template_subject}', '{user_id}', '{NORMAL}', 1)
                               """
     template_insert = f"""INSERT INTO templates (id, name, template_type, created_at,
                                                                 content, archived, service_id, hidden,
                                                                 subject, created_by_id, process_type, version)
-                                 VALUES ('{complaint_template_id}', '{complaint_template_name}',
-                                 '{EMAIL_TYPE}', '{datetime.utcnow()}', '{content}', False, '{service_id}', '{False}',
-                                 '{complaint_template_subject}', '{user_id}', '{NORMAL}', 1)
+                                 VALUES ('{complaint_template_id}', '{complaint_template_name}', '{EMAIL_TYPE}', '{datetime.utcnow()}',
+                                        '{content}', False, '{service_id}', '{False}',
+                                        '{complaint_template_subject}', '{user_id}', '{NORMAL}', 1)
                               """
 
     op.get_bind()
