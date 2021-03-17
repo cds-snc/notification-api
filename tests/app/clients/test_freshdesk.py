@@ -48,7 +48,7 @@ def test_create_ticket_demo(notify_api: Flask):
     def match_json(request):
         expected = {
             'product_id': 42,
-            'subject': 'demo',
+            'subject': 'friendly-support-type-test',
             "description": '- user: name-test test@email.com<br><br>'
                            '- department/org: dept-test<br><br>'
                            '- program/service: service-test<br><br>'
@@ -85,7 +85,7 @@ def test_create_ticket_demo(notify_api: Flask):
             'main_use_case_details': 'main-use-case-details-test',
             'friendly_support_type': 'friendly-support-type-test',
             'language': 'en',
-            'support_type': 'demo'
+            'support_type': 'demo',
         }
 
         with notify_api.app_context():
