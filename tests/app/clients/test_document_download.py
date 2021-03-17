@@ -57,6 +57,26 @@ def test_upload_document_with_filename_arg_passed(document_download):
     assert response == {'document': {'url': 'https://document-download/services/service-id/documents/uploaded-url'}}
 
 
+def test_upload_document_without_filename(document_download):
+    def match_request(request):
+        # filename field is not passed
+        return b'name="filename"' not in request.body
+
+    with requests_mock.Mocker() as request_mock:
+        request_mock.post(
+            'https://document-download/services/service-id/documents',
+            json={
+                'document': {'url': 'https://document-download/services/service-id/documents/uploaded-url'}
+            },
+            request_headers={'Authorization': 'Bearer test-key'},
+            status_code=201,
+            additional_matcher=match_request
+        )
+        response = document_download.upload_document('service-id', {'file': 'abababab'})
+
+    assert response == {'document': {'url': 'https://document-download/services/service-id/documents/uploaded-url'}}
+
+
 def test_should_raise_for_status(document_download):
     with pytest.raises(DocumentDownloadError) as excinfo, requests_mock.Mocker() as request_mock:
         request_mock.post('https://document-download/services/service-id/documents', json={
