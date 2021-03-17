@@ -44,14 +44,14 @@ def test_contact_info_defaults():
     contact = ContactRequest(**mock_dict)
     assert mock_dict['email_address'] == contact.email_address
     assert contact.language == 'en'
-    assert contact.support_type == 'Support Request'
+    assert contact.friendly_support_type == 'Support Request'
     assert contact.name == ''
     assert contact.department_org_name == ''
     assert contact.program_service_name == ''
     assert contact.intended_recipients == ''
     assert contact.main_use_case == ''
     assert contact.main_use_case_details == ''
-    assert contact.friendly_support_type == ''
+    assert contact.support_type == ''
     assert contact.message == ''
     assert contact.user_profile == ''
 
