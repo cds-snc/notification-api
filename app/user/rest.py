@@ -14,6 +14,9 @@ from flask import (jsonify, request, Blueprint, current_app, abort)
 from sqlalchemy.exc import IntegrityError
 
 from app.clients.freshdesk import Freshdesk
+from app.clients.zendesk_sell import ZenDeskSell
+from app.user.contact_request import ContactRequest
+
 from app.config import QueueNames, Config
 from app.dao.fido2_key_dao import (
     save_fido2_key,
@@ -451,6 +454,32 @@ def send_support_email(user_id):
 
     status_code = Freshdesk.create_ticket(data)
 
+    return jsonify({"status_code": status_code}), 204
+
+
+@user_blueprint.route('/<uuid:user_id>/contact-request', methods=['POST'])
+def send_contact_request(user_id):
+
+    contact = None
+    user = None
+
+    try:
+        contact = ContactRequest(**request.json)
+        user = get_user_by_email(contact.email_address)
+        if not any([not s.restricted for s in user.services]):
+            contact.tags = ['z_skip_opsgenie', 'z_skip_urgent_escalation']
+
+    except TypeError as e:
+        current_app.logger.error(e)
+        return jsonify({}), 400
+    except NoResultFound:
+        # This is perfectly normal if get_user_by_email raises
+        pass
+
+    # FIXME: Since this is a POC, do not include the status code for zendesk as a part of the return code
+    ZenDeskSell().send_contact_request(contact)
+
+    status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
 
 
