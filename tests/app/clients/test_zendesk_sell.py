@@ -16,7 +16,7 @@ def test_create_lead(notify_api: Flask):
                 'organization_name': '',
                 'email': 'test@email.com',
                 'description': 'Program: \n: ',
-                'tags': ["Support Request", "en"],
+                'tags': ["", "en"],
                 'status': 'New',
                 'custom_fields': {
                     'Product': ['Notify'],
