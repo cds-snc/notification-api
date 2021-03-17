@@ -99,14 +99,14 @@ def send_email_to_provider(notification):
 
         # Extract any file objects from the personalization
         file_keys = [
-            k for k, v in (notification.personalisation or {}).items() if isinstance(v, dict) and 'document' in v
+            k for k, v in (notification.personalisation or {}).items()
+            if isinstance(v, dict) and 'document' in v
         ]
         attachments = []
 
         personalisation_data = notification.personalisation.copy()
 
         for key in file_keys:
-
             # Check if a MLWR sid exists
             if (current_app.config["MLWR_HOST"] and
                     'mlwr_sid' in personalisation_data[key]['document'] and
@@ -129,7 +129,11 @@ def send_email_to_provider(notification):
                     buffer = response.read()
                     mime_type = magic.from_buffer(buffer, mime=True)
                     if mime_type == 'application/pdf':
-                        attachments.append({"name": "{}.pdf".format(key), "data": buffer})
+                        filename = personalisation_data[key]['document'].get('filename')
+                        attachments.append({
+                            "name": filename or f'{key}.pdf',
+                            "data": buffer
+                        })
             except Exception:
                 current_app.logger.error(
                     "Could not download and attach {}".format(personalisation_data[key]['document']['direct_file_url'])
