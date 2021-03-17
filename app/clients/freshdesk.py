@@ -45,7 +45,7 @@ class Freshdesk(object):
 
         return {
             'product_id': int(product_id),
-            'subject': self.contact.support_type,
+            'subject': self.contact.friendly_support_type,
             'description': self._generate_description(),
             'email': self.contact.email_address,
             'priority': 1,
