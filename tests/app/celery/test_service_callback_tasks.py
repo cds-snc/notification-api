@@ -6,8 +6,10 @@ import requests_mock
 from freezegun import freeze_time
 
 from app import (DATETIME_FORMAT, encryption)
-from app.celery.service_callback_tasks import send_delivery_status_to_service, send_complaint_to_service, \
+from app.celery.service_callback_tasks import (
+    send_complaint_to_service,
     send_complaint_to_vanotify
+)
 from tests.app.db import (
     create_complaint,
     create_notification,
@@ -21,7 +23,7 @@ from tests.app.db import (
                          ["email", "letter", "sms"])
 def test_send_delivery_status_to_service_post_https_request_to_service_with_encrypted_data(
         notify_db_session, notification_type):
-
+    from app.celery.service_callback_tasks import send_delivery_status_to_service
     callback_api, template = _set_up_test_data(notification_type, "delivery_status")
     datestr = datetime(2017, 6, 20)
 
@@ -92,6 +94,7 @@ def test_send_complaint_to_service_posts_https_request_to_service_with_encrypted
 def test__send_data_to_service_callback_api_retries_if_request_returns_500_with_encrypted_data(
         notify_db_session, mocker, notification_type
 ):
+    from app.celery.service_callback_tasks import send_delivery_status_to_service
     callback_api, template = _set_up_test_data(notification_type, "delivery_status")
     datestr = datetime(2017, 6, 20)
     notification = create_notification(template=template,
@@ -119,6 +122,7 @@ def test__send_data_to_service_callback_api_does_not_retry_if_request_returns_40
         mocker,
         notification_type
 ):
+    from app.celery.service_callback_tasks import send_delivery_status_to_service
     callback_api, template = _set_up_test_data(notification_type, "delivery_status")
     datestr = datetime(2017, 6, 20)
     notification = create_notification(template=template,
@@ -142,6 +146,7 @@ def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(
         notify_db_session,
         mocker
 ):
+    from app.celery.service_callback_tasks import send_delivery_status_to_service
     callback_api, template = _set_up_test_data('email', "delivery_status")
     datestr = datetime(2017, 6, 20)
     notification = create_notification(template=template,
@@ -175,16 +180,28 @@ def complaint_to_vanotify():
     return complaint
 
 
+@pytest.mark.skip(reason="wip")
 def test_send_complaint_to_vanotify(notify_db_session, complaint_to_vanotify):
-    assert send_complaint_to_vanotify(complaint_to_vanotify) is None
+    assert send_complaint_to_vanotify(complaint_to_vanotify, 'template name') is None
 
 
 @pytest.mark.skip(reason="wip")
 def test_send_complaint_to_vanotify_invokes_delivers_email_with_success(notify_db_session,
                                                                         mocker,
                                                                         complaint_to_vanotify):
+    # mock_template = mocker.Mock()
+    # mock_template.id = uuid.uuid4()
+    # mock_template.version = 1
+    #
+    # mocker.patch('app.celery.service_callback_tasks.dao_get_template_by_id', return_value=mock_template)
+    #
+    # mock_service = mocker.Mock()
+    # mock_service.id = uuid.uuid4()
+    #
+    # mocker.patch('app.celery.service_callback_tasks.dao_fetch_service_by_id', return_value=mock_service)
+
     mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
-    send_complaint_to_vanotify(complaint_to_vanotify)
+    send_complaint_to_vanotify(complaint_to_vanotify, 'template name')
 
     assert mocked.assert_called_once_with([str(complaint_to_vanotify.id)], queue='send-email')
 

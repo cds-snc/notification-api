@@ -15,7 +15,9 @@ from app import (
 from app.config import QueueNames
 from app.dao.service_callback_api_dao import get_service_delivery_status_callback_api_for_service, \
     get_service_complaint_callback_api_for_service
-from app.models import Complaint
+from app.dao.services_dao import dao_fetch_service_by_id
+from app.dao.templates_dao import dao_get_template_by_id
+from app.models import Complaint, EMAIL_TYPE, KEY_TYPE_NORMAL
 
 
 @notify_celery.task(bind=True, name="send-delivery-status", max_retries=5, default_retry_delay=300)
@@ -68,36 +70,39 @@ def send_complaint_to_service(self, complaint_data):
 
 @notify_celery.task(bind=True, name="send-complaint-to-vanotify", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def send_complaint_to_vanotify(self, complaint_to_vanotify: Complaint) -> None:
+def send_complaint_to_vanotify(self, complaint_to_vanotify: Complaint, complaint_template_name: str) -> None:
+    from app.celery.provider_tasks import deliver_email
+    from app.notifications.process_notifications import persist_notification
     # create migrations
-    # template = None
-    # service = current_app.config['NOTIFY_SERVICE_ID']
-    # email_address = None
+    template = dao_get_template_by_id(current_app.config['EMAIL_COMPLAINT_TEMPLATE_ID'])
+    service = dao_fetch_service_by_id(current_app.config['NOTIFY_SERVICE_ID'])
+    email_address = None
 
     # happy path
     try:
-        #   saved_notification = process_notifications.persist_notification(
-        #     template_id=template.id,
-        #     template_version=template.version,
-        #     recipient=email_address,
-        #     service=service,
-        #     personalisation={
-        #         'notification_id': complaint_notification.id
-        #         'service_name': complaint_notification.service.name
-        #         'template_name': complaint_notification.template.name
-        #     },
-        #     notification_type=EMAIL_TYPE,
-        #     api_key_id=None,
-        #     key_type=KEY_TYPE_NORMAL,
-        #     reply_to_text=email_address,
-        #     created_at=headers["date"],
-        #     status=complaint_notification.status,
-        #     reference=complaint_notification.reference
-        # )
+        saved_notification = persist_notification(
+            template_id=template.id,
+            template_version=template.version,
+            recipient=email_address,
+            service=service,
+            personalisation={
+                'notification_id': str(complaint_to_vanotify.id),
+                'service_name': complaint_to_vanotify.service.name,
+                'template_name': complaint_template_name
+            },
+            notification_type=EMAIL_TYPE,
+            api_key_id=None,
+            key_type=KEY_TYPE_NORMAL,
+            reply_to_text=email_address,
+            created_at=complaint_to_vanotify.complaint_date,
+            # status=complaint_to_vanotify.status,  # complaint doesn't have status!
+            # reference=complaint_to_vanotify.reference  # complaint doesn't have reference!
+        )
 
-        # provider_tasks.deliver_email.apply_async(
-        #             [str(saved_notification.id)],
-        #             queue=QueueNames.SEND_EMAIL if not service.research_mode else QueueNames.RESEARCH_MODE
+        deliver_email.apply_async(
+            [str(saved_notification.id)],
+            queue=QueueNames.SEND_EMAIL if not service.research_mode else QueueNames.RESEARCH_MODE
+        )
         current_app.logger.info("Hurray")
 
     # sad paths
