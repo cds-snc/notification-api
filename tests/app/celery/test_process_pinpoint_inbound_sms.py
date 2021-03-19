@@ -7,8 +7,9 @@ from freezegun import freeze_time
 
 from app.celery.process_pinpoint_inbound_sms import process_pinpoint_inbound_sms, CeleryEvent, \
     PinpointInboundSmsMessage, NoSuitableServiceForInboundSms
+from app.config import QueueNames
 from app.feature_flags import FeatureFlag
-from app.models import Service
+from app.models import Service, InboundSms
 
 
 @pytest.fixture
@@ -43,9 +44,8 @@ def test_creates_inbound_sms_object_with_correct_fields(mocker, db_session, togg
     mock_service = mocker.Mock(Service)
     mocker.patch('app.celery.process_pinpoint_inbound_sms.fetch_potential_service', return_value=mock_service)
 
-    mock_create_inbound_sms_object = mocker.patch(
-        'app.celery.process_pinpoint_inbound_sms.create_inbound_sms_object'
-    )
+    mock_create_inbound_sms_object = mocker.patch('app.celery.process_pinpoint_inbound_sms.create_inbound_sms_object')
+    mocker.patch('app.celery.process_pinpoint_inbound_sms.send_inbound_sms_to_service.apply_async')
 
     message_body = 'hello this is a message body'
     origination_number = '555'
@@ -65,6 +65,24 @@ def test_creates_inbound_sms_object_with_correct_fields(mocker, db_session, togg
     assert kwargs['provider_ref'] == inbound_message_id
     assert kwargs['date_received'] == datetime(2016, 11, 12, 11, 23, 47)
     assert kwargs['provider_name'] == 'pinpoint'
+
+
+def test_sends_inbound_sms_to_service(mocker, db_session, toggle_enabled):
+    service_id = 'some service id'
+    mock_service = mocker.Mock(Service, id=service_id)
+    mocker.patch('app.celery.process_pinpoint_inbound_sms.fetch_potential_service', return_value=mock_service)
+
+    inbound_sms_id = 'some inbound sms id'
+    mock_inbound_sms = mocker.Mock(InboundSms, id=inbound_sms_id)
+    mocker.patch('app.celery.process_pinpoint_inbound_sms.create_inbound_sms_object', return_value=mock_inbound_sms)
+
+    mock_send_inbound_sms_to_service = mocker.patch(
+        'app.celery.process_pinpoint_inbound_sms.send_inbound_sms_to_service.apply_async'
+    )
+
+    process_pinpoint_inbound_sms(event=(_pinpoint_inbound_sms_event()))
+
+    mock_send_inbound_sms_to_service.assert_called_with([inbound_sms_id, service_id], queue=QueueNames.NOTIFY)
 
 
 def _pinpoint_inbound_sms_event(

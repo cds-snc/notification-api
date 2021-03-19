@@ -7,8 +7,10 @@ from typing_extensions import TypedDict
 from notifications_utils.statsd_decorators import statsd
 
 from app import notify_celery
+from app.config import QueueNames
 from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.notifications.receive_notifications import fetch_potential_service, create_inbound_sms_object
+from app.celery.tasks import send_inbound_sms_to_service
 
 
 class PinpointInboundSmsMessage(TypedDict):
@@ -41,7 +43,7 @@ def process_pinpoint_inbound_sms(self, event: CeleryEvent):
     if not service:
         raise NoSuitableServiceForInboundSms
 
-    create_inbound_sms_object(
+    inbound_sms = create_inbound_sms_object(
         service=service,
         content=pinpoint_message['messageBody'],
         from_number=pinpoint_message['originationNumber'],
@@ -49,3 +51,5 @@ def process_pinpoint_inbound_sms(self, event: CeleryEvent):
         date_received=datetime.utcnow(),
         provider_name=provider_name
     )
+
+    send_inbound_sms_to_service.apply_async([str(inbound_sms.id), str(service.id)], queue=QueueNames.NOTIFY)
