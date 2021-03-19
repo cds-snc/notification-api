@@ -10,6 +10,7 @@ from app.celery.service_callback_tasks import (
     send_complaint_to_service,
     send_complaint_to_vanotify
 )
+from app.config import QueueNames
 from tests.app.db import (
     create_complaint,
     create_notification,
@@ -17,6 +18,8 @@ from tests.app.db import (
     create_service,
     create_template
 )
+
+from tests.app.conftest import notify_service as create_notify_service, create_custom_template
 
 
 @pytest.mark.parametrize("notification_type",
@@ -177,33 +180,49 @@ def complaint_to_vanotify():
     )
     notification = create_notification(template=template)
     complaint = create_complaint(service=template.service, notification=notification)
-    return complaint
+    return complaint, template.name
 
 
-@pytest.mark.skip(reason="wip")
-def test_send_complaint_to_vanotify(notify_db_session, complaint_to_vanotify):
-    assert send_complaint_to_vanotify(complaint_to_vanotify, 'template name') is None
-
-
-@pytest.mark.skip(reason="wip")
-def test_send_complaint_to_vanotify_invokes_delivers_email_with_success(notify_db_session,
+def test_send_complaint_to_vanotify_invokes_delivers_email_with_success(notify_db,
+                                                                        notify_db_session,
                                                                         mocker,
                                                                         complaint_to_vanotify):
-    # mock_template = mocker.Mock()
-    # mock_template.id = uuid.uuid4()
-    # mock_template.version = 1
-    #
-    # mocker.patch('app.celery.service_callback_tasks.dao_get_template_by_id', return_value=mock_template)
-    #
-    # mock_service = mocker.Mock()
-    # mock_service.id = uuid.uuid4()
-    #
-    # mocker.patch('app.celery.service_callback_tasks.dao_fetch_service_by_id', return_value=mock_service)
-
+    _set_up_data_for_complaint_to_vanotify(notify_db, notify_db_session)
     mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
-    send_complaint_to_vanotify(complaint_to_vanotify, 'template name')
+    saved_notification = send_complaint_to_vanotify(*complaint_to_vanotify)
 
-    assert mocked.assert_called_once_with([str(complaint_to_vanotify.id)], queue='send-email')
+    mocked.assert_called_once_with([str(saved_notification.id)], queue=QueueNames.SEND_EMAIL)
+
+
+def test_send_complaint_to_vanotify_saves_notification_with_correct_personalization_parameters(
+        notify_db, notify_db_session, mocker, complaint_to_vanotify):
+    service, template = _set_up_data_for_complaint_to_vanotify(notify_db, notify_db_session)
+    mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
+    mocked = mocker.patch('app.notifications.process_notifications.persist_notification')
+    complaint, complaint_template_name = complaint_to_vanotify
+    personalization_parameters = {
+        'notification_id': str(complaint.notification_id),
+        'service_name': complaint.service.name,
+        'template_name': complaint_template_name,
+        'complaint_id': str(complaint.id),
+        'complaint_type': complaint.complaint_type,
+        'complaint_date': complaint.complaint_date
+    }
+
+    send_complaint_to_vanotify(*complaint_to_vanotify)
+
+    mocked.assert_called_once_with(
+        template_id=template.id,
+        template_version=template.version,
+        recipient=None,
+        service=service,
+        personalisation=personalization_parameters,
+        notification_type='email',
+        api_key_id=None,
+        key_type='normal',
+        reply_to_text=None,
+        created_at=complaint.complaint_date,
+    )
 
 
 @pytest.mark.skip(reason="wip")
@@ -249,3 +268,9 @@ def _set_up_data_for_complaint(callback_api, complaint, notification):
     }
     obscured_status_update = encryption.encrypt(data)
     return obscured_status_update
+
+
+def _set_up_data_for_complaint_to_vanotify(notify_db, notify_db_session) -> tuple:
+    service, user = create_notify_service(notify_db, notify_db_session)
+    template = create_custom_template(service, user, 'EMAIL_COMPLAINT_TEMPLATE_ID', "email", "content")
+    return service, template
