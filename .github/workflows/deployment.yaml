@@ -172,10 +172,15 @@ jobs:
           zip -j two_way_sms_lambda two_way_sms/two_way_sms_lambda.py
           aws lambda update-function-code --function-name project-${{ github.event.deployment.environment }}-two-way-sms-lambda --zip-file fileb://two_way_sms_lambda.zip
 
-      - name: Package and deploy pinpoint lambda function
+      - name: Package and deploy pinpoint callback lambda function
         run: |
           zip -j pinpoint_callback_lambda pinpoint_callback/pinpoint_callback_lambda.py
           aws lambda update-function-code --function-name project-${{ github.event.deployment.environment }}-pinpoint-callback-lambda --zip-file fileb://pinpoint_callback_lambda.zip
+
+      - name: Package and deploy pinpoint inbound sms lambda function
+        run: |
+          zip -j pinpoint_inbound_sms_lambda pinpoint_inbound_sms/pinpoint_inbound_sms_lambda.py
+          aws lambda update-function-code --function-name project-${{ github.event.deployment.environment }}-pinpoint-inbound_sms-lambda --zip-file fileb://pinpoint_inbound_sms_lambda.zip
 
   run-user-flows:
     runs-on: ubuntu-latest
