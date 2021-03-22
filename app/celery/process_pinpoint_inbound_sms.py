@@ -1,16 +1,16 @@
 import base64
-from datetime import datetime
 import json
+from datetime import datetime
 
 from flask import current_app
-from typing_extensions import TypedDict
 from notifications_utils.statsd_decorators import statsd
+from typing_extensions import TypedDict
 
 from app import notify_celery
+from app.celery.tasks import send_inbound_sms_to_service
 from app.config import QueueNames
 from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.notifications.receive_notifications import fetch_potential_service, create_inbound_sms_object
-from app.celery.tasks import send_inbound_sms_to_service
 
 
 class PinpointInboundSmsMessage(TypedDict):
@@ -52,4 +52,4 @@ def process_pinpoint_inbound_sms(self, event: CeleryEvent):
         provider_name=provider_name
     )
 
-    send_inbound_sms_to_service.apply_async([str(inbound_sms.id), str(service.id)], queue=QueueNames.NOTIFY)
+    send_inbound_sms_to_service.apply_async([inbound_sms.id, service.id], queue=QueueNames.NOTIFY)
