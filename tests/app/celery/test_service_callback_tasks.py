@@ -3,6 +3,7 @@ from datetime import datetime
 
 import pytest
 import requests_mock
+from flask import current_app
 from freezegun import freeze_time
 
 from app import (DATETIME_FORMAT, encryption)
@@ -10,7 +11,6 @@ from app.celery.service_callback_tasks import (
     send_complaint_to_service,
     send_complaint_to_vanotify
 )
-from app.config import QueueNames
 from tests.app.db import (
     create_complaint,
     create_notification,
@@ -183,45 +183,24 @@ def complaint_to_vanotify():
     return complaint, template.name
 
 
-def test_send_complaint_to_vanotify_invokes_delivers_email_with_success(notify_db,
-                                                                        notify_db_session,
-                                                                        mocker,
-                                                                        complaint_to_vanotify):
-    _set_up_data_for_complaint_to_vanotify(notify_db, notify_db_session)
-    mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
-    saved_notification = send_complaint_to_vanotify(*complaint_to_vanotify)
-
-    mocked.assert_called_once_with([str(saved_notification.id)], queue=QueueNames.SEND_EMAIL)
-
-
-def test_send_complaint_to_vanotify_saves_notification_with_correct_personalization_parameters(
-        notify_db, notify_db_session, mocker, complaint_to_vanotify):
-    service, template = _set_up_data_for_complaint_to_vanotify(notify_db, notify_db_session)
-    mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
-    mocked = mocker.patch('app.notifications.process_notifications.persist_notification')
-    complaint, complaint_template_name = complaint_to_vanotify
-    personalization_parameters = {
-        'notification_id': str(complaint.notification_id),
-        'service_name': complaint.service.name,
-        'template_name': complaint_template_name,
-        'complaint_id': str(complaint.id),
-        'complaint_type': complaint.complaint_type,
-        'complaint_date': complaint.complaint_date
-    }
-
+def test_send_complaint_to_vanotify_invokes_send_notification_to_service_users(
+        notify_db_session, mocker, complaint_to_vanotify
+):
+    mocked = mocker.patch('app.service.sender.send_notification_to_service_users')
     send_complaint_to_vanotify(*complaint_to_vanotify)
+    complaint, template_name = complaint_to_vanotify
 
     mocked.assert_called_once_with(
-        template_id=template.id,
-        template_version=template.version,
-        recipient=None,
-        service=service,
-        personalisation=personalization_parameters,
-        notification_type='email',
-        api_key_id=None,
-        key_type='normal',
-        reply_to_text=None,
-        created_at=complaint.complaint_date,
+        service_id=current_app.config['NOTIFY_SERVICE_ID'],
+        template_id=current_app.config['EMAIL_COMPLAINT_TEMPLATE_ID'],
+        personalisation={
+            'notification_id': str(complaint.notification_id),
+            'service_name': complaint.service.name,
+            'template_name': template_name,
+            'complaint_id': str(complaint.id),
+            'complaint_type': complaint.complaint_type,
+            'complaint_date': complaint.complaint_date
+        }
     )
 
 

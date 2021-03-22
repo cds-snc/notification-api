@@ -15,9 +15,7 @@ from app import (
 from app.config import QueueNames
 from app.dao.service_callback_api_dao import get_service_delivery_status_callback_api_for_service, \
     get_service_complaint_callback_api_for_service
-from app.dao.services_dao import dao_fetch_service_by_id
-from app.dao.templates_dao import dao_get_template_by_id
-from app.models import Complaint, EMAIL_TYPE, KEY_TYPE_NORMAL, Notification
+from app.models import Complaint
 
 
 @notify_celery.task(bind=True, name="send-delivery-status", max_retries=5, default_retry_delay=300)
@@ -70,21 +68,14 @@ def send_complaint_to_service(self, complaint_data):
 
 @notify_celery.task(bind=True, name="send-complaint-to-vanotify", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def send_complaint_to_vanotify(self, complaint_to_vanotify: Complaint, complaint_template_name: str) -> Notification:
-    from app.celery.provider_tasks import deliver_email
-    from app.notifications.process_notifications import persist_notification
-
-    template = dao_get_template_by_id(current_app.config['EMAIL_COMPLAINT_TEMPLATE_ID'])
-    service = dao_fetch_service_by_id(current_app.config['NOTIFY_SERVICE_ID'])
-    email_address = None
+def send_complaint_to_vanotify(self, complaint_to_vanotify: Complaint, complaint_template_name: str) -> None:
+    from app.service.sender import send_notification_to_service_users
 
     # happy path
     try:
-        saved_notification = persist_notification(
-            template_id=template.id,
-            template_version=template.version,
-            recipient=email_address,
-            service=service,
+        send_notification_to_service_users(
+            service_id=current_app.config['NOTIFY_SERVICE_ID'],
+            template_id=current_app.config['EMAIL_COMPLAINT_TEMPLATE_ID'],
             personalisation={
                 'notification_id': str(complaint_to_vanotify.notification_id),
                 'service_name': complaint_to_vanotify.service.name,
@@ -93,19 +84,7 @@ def send_complaint_to_vanotify(self, complaint_to_vanotify: Complaint, complaint
                 'complaint_type': complaint_to_vanotify.complaint_type,
                 'complaint_date': complaint_to_vanotify.complaint_date
             },
-            notification_type=EMAIL_TYPE,
-            api_key_id=None,
-            key_type=KEY_TYPE_NORMAL,
-            reply_to_text=email_address,
-            created_at=complaint_to_vanotify.complaint_date,
         )
-
-        deliver_email.apply_async(
-            [str(saved_notification.id)],
-            queue=QueueNames.SEND_EMAIL if not service.research_mode else QueueNames.RESEARCH_MODE
-        )
-        current_app.logger.info("Hurray")
-        return saved_notification
 
     # sad paths
     except Exception as e:
