@@ -45,8 +45,9 @@ def receive_mmg_sms():
 
     inbound_number = strip_leading_forty_four(post_data['Number'])
 
-    service = fetch_potential_service(inbound_number, 'mmg')
-    if not service:
+    try:
+        service = fetch_potential_service(inbound_number, 'mmg')
+    except NoSuitableServiceForInboundSms:
         # since this is an issue with our service <-> number mapping, or no inbound_sms service permission
         # we should still tell MMG that we received it successfully
         return 'RECEIVED', 200
@@ -83,8 +84,9 @@ def receive_firetext_sms():
 
     inbound_number = strip_leading_forty_four(post_data['destination'])
 
-    service = fetch_potential_service(inbound_number, 'firetext')
-    if not service:
+    try:
+        service = fetch_potential_service(inbound_number, 'firetext')
+    except NoSuitableServiceForInboundSms:
         return jsonify({
             "status": "ok"
         }), 200
@@ -130,9 +132,9 @@ def receive_twilio_sms():
         current_app.logger.warning("Inbound sms (Twilio) signature did not match request")
         abort(400)
 
-    service = fetch_potential_service(post_data['To'], 'twilio')
-
-    if not service:
+    try:
+        service = fetch_potential_service(post_data['To'], 'twilio')
+    except NoSuitableServiceForInboundSms:
         # Since this is an issue with our service <-> number mapping, or no
         # inbound_sms service permission we should still tell Twilio that we
         # received it successfully.
@@ -179,7 +181,7 @@ def create_inbound_sms_object(
         service: Service,
         content: str,
         from_number: str,
-        provider_ref: str,
+        provider_ref: Union[str, None],
         date_received: datetime,
         provider_name: str
 ) -> InboundSms:
@@ -202,22 +204,27 @@ def create_inbound_sms_object(
     return inbound
 
 
+class NoSuitableServiceForInboundSms(Exception):
+    pass
+
+
 def fetch_potential_service(inbound_number: str, provider_name: str) -> Union[Service, bool]:
     service = dao_fetch_service_by_inbound_number(inbound_number)
 
     if not service:
-        current_app.logger.error('Inbound number "{}" from {} not associated with a service'.format(
-            inbound_number, provider_name
-        ))
-        statsd_client.incr('inbound.{}.failed'.format(provider_name))
-        return False
+        statsd_client.incr(f"inbound.{provider_name}.failed")
+        message = f'Inbound number "{inbound_number}" from {provider_name} not associated with a service'
+        current_app.logger.error(message)
+        raise NoSuitableServiceForInboundSms(message)
 
-    if not has_inbound_sms_permissions(service.permissions):
-        current_app.logger.error(
-            'Service "{}" does not allow inbound SMS'.format(service.id))
-        return False
+    elif not has_inbound_sms_permissions(service.permissions):
+        statsd_client.incr(f"inbound.{provider_name}.failed")
+        message = f'Service "{service.id}" does not allow inbound SMS'
+        current_app.logger.error(message)
+        raise NoSuitableServiceForInboundSms(message)
 
-    return service
+    else:
+        return service
 
 
 def has_inbound_sms_permissions(permissions):

@@ -24,10 +24,6 @@ class CeleryEvent(TypedDict):
     Message: str
 
 
-class NoSuitableServiceForInboundSms(Exception):
-    pass
-
-
 @notify_celery.task(bind=True, name='process-pinpoint-inbound-sms', max_retries=5, default_retry_delay=300)
 @statsd(namespace='tasks')
 def process_pinpoint_inbound_sms(self, event: CeleryEvent):
@@ -40,8 +36,6 @@ def process_pinpoint_inbound_sms(self, event: CeleryEvent):
     pinpoint_message: PinpointInboundSmsMessage = json.loads(base64.b64decode(event['Message']))
 
     service = fetch_potential_service(pinpoint_message['destinationNumber'], provider_name)
-    if not service:
-        raise NoSuitableServiceForInboundSms
 
     statsd_client.incr(f"inbound.{provider_name}.successful")
 

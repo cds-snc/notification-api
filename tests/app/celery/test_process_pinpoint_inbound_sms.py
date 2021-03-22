@@ -6,7 +6,8 @@ import pytest
 from freezegun import freeze_time
 
 from app.celery.process_pinpoint_inbound_sms import process_pinpoint_inbound_sms, CeleryEvent, \
-    PinpointInboundSmsMessage, NoSuitableServiceForInboundSms
+    PinpointInboundSmsMessage
+from app.notifications.receive_notifications import NoSuitableServiceForInboundSms
 from app.config import QueueNames
 from app.feature_flags import FeatureFlag
 from app.models import Service, InboundSms
@@ -28,7 +29,7 @@ def test_passes_if_toggle_disabled(mocker, notify_api):
 def test_fails_if_no_matching_service(mocker, notify_api, toggle_enabled):
     mock_fetch_potential_service = mocker.patch(
         'app.celery.process_pinpoint_inbound_sms.fetch_potential_service',
-        return_value=False
+        side_effect=NoSuitableServiceForInboundSms
     )
 
     destination_number = "1234"

@@ -13,10 +13,10 @@ from app.notifications.receive_notifications import (
     create_inbound_sms_object,
     strip_leading_forty_four,
     has_inbound_sms_permissions,
-    unescape_string,
+    unescape_string, fetch_potential_service, NoSuitableServiceForInboundSms,
 )
 
-from app.models import InboundSms, EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE
+from app.models import InboundSms, EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE, Service, Permission
 from tests.conftest import set_config, set_config_values
 from tests.app.db import create_inbound_number, create_service, create_service_with_inbound_number
 
@@ -733,3 +733,36 @@ def test_create_inbound_sms_object_works_with_alphanumeric_sender(sample_service
     )
 
     assert inbound_sms.user_number == 'ALPHANUM3R1C'
+
+
+class TestFetchPotentialService:
+
+    def test_should_raise_if_no_matching_service(self, notify_api, mocker):
+        mocker.patch('app.notifications.receive_notifications.dao_fetch_service_by_inbound_number', return_value=None)
+
+        with pytest.raises(NoSuitableServiceForInboundSms):
+            fetch_potential_service('some-inbound-number', 'some-provider-name')
+
+    def test_should_raise_if_service_doesnt_have_permission(self, notify_api, mocker):
+        mocker.patch(
+            'app.notifications.receive_notifications.dao_fetch_service_by_inbound_number',
+            return_value=mocker.Mock(Service, permissions=[])
+        )
+
+        with pytest.raises(NoSuitableServiceForInboundSms):
+            fetch_potential_service('some-inbound-number', 'some-provider-name')
+
+    def test_should_return_service_with_permission(self, notify_api, mocker):
+        service = mocker.Mock(
+            Service,
+            permissions=[
+                mocker.Mock(Permission, permission=INBOUND_SMS_TYPE),
+                mocker.Mock(Permission, permission=SMS_TYPE),
+            ]
+        )
+        mocker.patch(
+            'app.notifications.receive_notifications.dao_fetch_service_by_inbound_number',
+            return_value=service
+        )
+
+        assert fetch_potential_service('some-inbound-number', 'some-provider-name') == service
