@@ -17,7 +17,7 @@ def toggle_enabled(mocker):
     mocker.patch('app.celery.process_pinpoint_inbound_sms.is_feature_enabled', return_value=True)
 
 
-def test_passes_if_toggle_disabled(mocker, db_session):
+def test_passes_if_toggle_disabled(mocker, notify_api):
     mock_toggle = mocker.patch('app.celery.process_pinpoint_inbound_sms.is_feature_enabled', return_value=False)
 
     process_pinpoint_inbound_sms(event={})
@@ -25,7 +25,7 @@ def test_passes_if_toggle_disabled(mocker, db_session):
     mock_toggle.assert_called_with(FeatureFlag.PINPOINT_INBOUND_SMS_ENABLED)
 
 
-def test_fails_if_no_matching_service(mocker, db_session, toggle_enabled):
+def test_fails_if_no_matching_service(mocker, notify_api, toggle_enabled):
     mock_fetch_potential_service = mocker.patch(
         'app.celery.process_pinpoint_inbound_sms.fetch_potential_service',
         return_value=False
@@ -40,7 +40,7 @@ def test_fails_if_no_matching_service(mocker, db_session, toggle_enabled):
 
 
 @freeze_time("2016-11-12 11:23:47")
-def test_creates_inbound_sms_object_with_correct_fields(mocker, db_session, toggle_enabled):
+def test_creates_inbound_sms_object_with_correct_fields(mocker, notify_api, toggle_enabled):
     mock_service = mocker.Mock(Service)
     mocker.patch('app.celery.process_pinpoint_inbound_sms.fetch_potential_service', return_value=mock_service)
 
@@ -67,7 +67,7 @@ def test_creates_inbound_sms_object_with_correct_fields(mocker, db_session, togg
     assert kwargs['provider_name'] == 'pinpoint'
 
 
-def test_sends_inbound_sms_to_service(mocker, db_session, toggle_enabled):
+def test_sends_inbound_sms_to_service(mocker, notify_api, toggle_enabled):
     service_id = 'some service id'
     mock_service = mocker.Mock(Service, id=service_id)
     mocker.patch('app.celery.process_pinpoint_inbound_sms.fetch_potential_service', return_value=mock_service)
