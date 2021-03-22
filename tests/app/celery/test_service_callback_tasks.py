@@ -19,7 +19,19 @@ from tests.app.db import (
     create_template
 )
 
-from tests.app.conftest import notify_service as create_notify_service, create_custom_template
+
+@pytest.fixture
+def complaint_to_vanotify():
+    service = create_service(service_name="Sample VANotify service", restricted=True)
+    template = create_template(
+        service=service,
+        template_name="Sample VANotify service",
+        template_type="email",
+        subject='Hello'
+    )
+    notification = create_notification(template=template)
+    complaint = create_complaint(service=template.service, notification=notification)
+    return complaint, template.name
 
 
 @pytest.mark.parametrize("notification_type",
@@ -169,20 +181,6 @@ def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(
     assert mocked.call_count == 0
 
 
-@pytest.fixture
-def complaint_to_vanotify():
-    service = create_service(service_name="Sample VANotify service", restricted=True)
-    template = create_template(
-        service=service,
-        template_name="Sample VANotify service",
-        template_type="email",
-        subject='Hello'
-    )
-    notification = create_notification(template=template)
-    complaint = create_complaint(service=template.service, notification=notification)
-    return complaint, template.name
-
-
 def test_send_complaint_to_vanotify_invokes_send_notification_to_service_users(
         notify_db_session, mocker, complaint_to_vanotify
 ):
@@ -247,9 +245,3 @@ def _set_up_data_for_complaint(callback_api, complaint, notification):
     }
     obscured_status_update = encryption.encrypt(data)
     return obscured_status_update
-
-
-def _set_up_data_for_complaint_to_vanotify(notify_db, notify_db_session) -> tuple:
-    service, user = create_notify_service(notify_db, notify_db_session)
-    template = create_custom_template(service, user, 'EMAIL_COMPLAINT_TEMPLATE_ID', "email", "content")
-    return service, template
