@@ -1,3 +1,4 @@
+from typing import Union
 from urllib.parse import unquote
 from datetime import datetime
 import iso8601
@@ -12,7 +13,7 @@ from app.celery import tasks
 from app.config import QueueNames
 from app.dao.services_dao import dao_fetch_service_by_inbound_number
 from app.dao.inbound_sms_dao import dao_create_inbound_sms
-from app.models import InboundSms, INBOUND_SMS_TYPE, SMS_TYPE
+from app.models import InboundSms, INBOUND_SMS_TYPE, SMS_TYPE, Service
 from app.errors import register_errors
 
 receive_notifications_blueprint = Blueprint('receive_notifications', __name__)
@@ -174,7 +175,14 @@ def format_mmg_datetime(date):
     return convert_local_timezone_to_utc(parsed_datetime)
 
 
-def create_inbound_sms_object(service, content, from_number, provider_ref, date_received, provider_name):
+def create_inbound_sms_object(
+        service: Service,
+        content: str,
+        from_number: str,
+        provider_ref: str,
+        date_received: datetime,
+        provider_name: str
+) -> InboundSms:
     user_number = try_validate_and_format_phone_number(
         from_number,
         international=True,
@@ -194,7 +202,7 @@ def create_inbound_sms_object(service, content, from_number, provider_ref, date_
     return inbound
 
 
-def fetch_potential_service(inbound_number, provider_name):
+def fetch_potential_service(inbound_number: str, provider_name: str) -> Union[Service, bool]:
     service = dao_fetch_service_by_inbound_number(inbound_number)
 
     if not service:
