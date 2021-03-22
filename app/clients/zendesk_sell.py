@@ -46,9 +46,9 @@ class ZenDeskSell(object):
                                f'{contact.main_use_case_details}',
                 'tags': [contact.support_type, contact.language],
                 'status': 'New',
+                'source_id': 2085874,  # hard coded value defined by Zendesk for 'Demo request form'
                 'custom_fields': {
                     'Product': ['Notify'],
-                    'Source': 'Demo request form',
                     'Intended recipients': recipients[contact.intended_recipients]
                     if contact.intended_recipients in recipients else 'No value'
                 }

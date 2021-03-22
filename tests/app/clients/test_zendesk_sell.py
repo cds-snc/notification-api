@@ -18,9 +18,9 @@ def test_create_lead(notify_api: Flask):
                 'description': 'Program: \n: ',
                 'tags': ["", "en"],
                 'status': 'New',
+                'source_id': 2085874,
                 'custom_fields': {
                     'Product': ['Notify'],
-                    'Source': 'Demo request form',
                     'Intended recipients': 'No value'
                 }
             }
