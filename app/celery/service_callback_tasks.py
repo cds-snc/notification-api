@@ -71,7 +71,6 @@ def send_complaint_to_service(self, complaint_data):
 def send_complaint_to_vanotify(self, complaint_to_vanotify: Complaint, complaint_template_name: str) -> None:
     from app.service.sender import send_notification_to_service_users
 
-    # happy path
     try:
         send_notification_to_service_users(
             service_id=current_app.config['NOTIFY_SERVICE_ID'],
@@ -85,10 +84,14 @@ def send_complaint_to_vanotify(self, complaint_to_vanotify: Complaint, complaint
                 'complaint_date': complaint_to_vanotify.complaint_date
             },
         )
+        current_app.logger.info(
+            f'Successfully sent complaint email to va-notify. notification_id: {complaint_to_vanotify.notification_id}'
+        )
 
-    # sad paths
     except Exception as e:
-        current_app.logger.exception(f"Something went very wrong: {e}")
+        current_app.logger.exception(
+            f'Problem sending complaint to va-notify for notification {complaint_to_vanotify.notification_id}: {e}'
+        )
 
 
 def _send_data_to_service_callback_api(self, data, service_callback_url, token, function_name):

@@ -11,6 +11,7 @@ from app.celery.service_callback_tasks import (
     send_complaint_to_service,
     send_complaint_to_vanotify
 )
+from app.exceptions import NotificationTechnicalFailureException
 from tests.app.db import (
     create_complaint,
     create_notification,
@@ -203,12 +204,18 @@ def test_send_complaint_to_vanotify_invokes_send_notification_to_service_users(
 
 
 def test_send_email_complaint_to_vanotify_fails(notify_db_session, mocker, complaint_to_vanotify):
-    mocker.patch('app.service.sender.send_notification_to_service_users', side_effect=Exception('error!!!'))
+    mocker.patch(
+        'app.service.sender.send_notification_to_service_users',
+        side_effect=NotificationTechnicalFailureException('error!!!')
+    )
     mock_logger = mocker.patch('app.celery.service_callback_tasks.current_app.logger.exception')
+    complaint, _ = complaint_to_vanotify
 
     send_complaint_to_vanotify(*complaint_to_vanotify)
 
-    mock_logger.assert_called_once_with('Something went very wrong: error!!!')
+    mock_logger.assert_called_once_with(
+        f'Problem sending complaint to va-notify for notification {complaint.notification_id}: error!!!'
+    )
 
 
 def _set_up_test_data(notification_type, callback_type):
