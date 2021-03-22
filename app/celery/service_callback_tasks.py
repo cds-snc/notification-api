@@ -88,7 +88,7 @@ def send_complaint_to_vanotify(self, complaint_to_vanotify: Complaint, complaint
 
     # sad paths
     except Exception as e:
-        current_app.logger.exception(f"Something went very wrong {e}")
+        current_app.logger.exception(f"Something went very wrong: {e}")
 
 
 def _send_data_to_service_callback_api(self, data, service_callback_url, token, function_name):

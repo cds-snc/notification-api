@@ -202,9 +202,13 @@ def test_send_complaint_to_vanotify_invokes_send_notification_to_service_users(
     )
 
 
-@pytest.mark.skip(reason="wip")
 def test_send_email_complaint_to_vanotify_fails(notify_db_session, mocker, complaint_to_vanotify):
-    assert False
+    mocker.patch('app.service.sender.send_notification_to_service_users', side_effect=Exception('error!!!'))
+    mock_logger = mocker.patch('app.celery.service_callback_tasks.current_app.logger.exception')
+
+    send_complaint_to_vanotify(*complaint_to_vanotify)
+
+    mock_logger.assert_called_once_with('Something went very wrong: error!!!')
 
 
 def _set_up_test_data(notification_type, callback_type):
