@@ -6,7 +6,7 @@ from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from typing_extensions import TypedDict
 
-from app import notify_celery
+from app import notify_celery, statsd_client
 from app.celery.tasks import send_inbound_sms_to_service
 from app.config import QueueNames
 from app.feature_flags import FeatureFlag, is_feature_enabled
@@ -42,6 +42,8 @@ def process_pinpoint_inbound_sms(self, event: CeleryEvent):
     service = fetch_potential_service(pinpoint_message['destinationNumber'], provider_name)
     if not service:
         raise NoSuitableServiceForInboundSms
+
+    statsd_client.incr(f"inbound.{provider_name}.successful")
 
     inbound_sms = create_inbound_sms_object(
         service=service,
