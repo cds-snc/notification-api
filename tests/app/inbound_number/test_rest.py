@@ -62,3 +62,33 @@ def test_get_available_inbound_numbers(admin_request, sample_inbound_numbers):
     assert len(result['data']) == 1
     assert result['data'] == [i.serialize() for i in sample_inbound_numbers if
                               i.service_id is None]
+
+
+class TestCreateInboundNumber:
+
+    def test_rejects_invalid_request(self, admin_request):
+        admin_request.post(
+            'inbound_number.create_inbound_number',
+            _data={},
+            _expected_status=400
+        )
+
+    def test_creates_inbound_number(self, admin_request, mocker):
+        mock_add_inbound_number = mocker.patch('app.inbound_number.rest.dao_add_inbound_number')
+
+        data = {
+            'number': 'some-number',
+            'provider': 'some-provider',
+            'service_id': 'some-service-id'
+        }
+        admin_request.post(
+            'inbound_number.create_inbound_number',
+            _data=data,
+            _expected_status=201
+        )
+
+        args, _ = mock_add_inbound_number.call_args
+        (created_inbound_number,) = args
+        assert created_inbound_number.number == 'some-number'
+        assert created_inbound_number.provider == 'some-provider'
+        assert created_inbound_number.service_id == 'some-service-id'

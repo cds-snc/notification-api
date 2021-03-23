@@ -622,9 +622,7 @@ class InboundNumber(db.Model):
             "number": self.number,
             "provider": self.provider,
             "service": serialize_service() if self.service else None,
-            "active": self.active,
-            "created_at": self.created_at.strftime(DATETIME_FORMAT),
-            "updated_at": self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None,
+            "active": self.active
         }
 
 
