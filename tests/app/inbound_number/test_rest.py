@@ -74,7 +74,7 @@ class TestCreateInboundNumber:
         )
 
     def test_creates_inbound_number(self, admin_request, mocker):
-        mock_add_inbound_number = mocker.patch('app.inbound_number.rest.dao_add_inbound_number')
+        mock_add_inbound_number = mocker.patch('app.inbound_number.rest.dao_create_inbound_number')
 
         data = {
             'number': 'some-number',
