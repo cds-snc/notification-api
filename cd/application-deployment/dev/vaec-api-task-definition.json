@@ -101,6 +101,10 @@
         {
           "name": "PINPOINT_RECEIPTS_ENABLED",
           "value": "True"
+        },
+        {
+          "name": "PINPOINT_INBOUND_SMS_ENABLED",
+          "value": "True"
         }
       ],
       "secrets": [
