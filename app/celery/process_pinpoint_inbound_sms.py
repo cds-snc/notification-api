@@ -1,4 +1,3 @@
-import base64
 import json
 from datetime import datetime
 
@@ -33,7 +32,7 @@ def process_pinpoint_inbound_sms(self, event: CeleryEvent):
         current_app.logger.info('Pinpoint inbound SMS toggle is disabled, skipping task')
         return True
 
-    pinpoint_message: PinpointInboundSmsMessage = json.loads(base64.b64decode(event['Message']))
+    pinpoint_message: PinpointInboundSmsMessage = json.loads(event['Message'])
 
     service = fetch_potential_service(pinpoint_message['destinationNumber'], provider_name)
 

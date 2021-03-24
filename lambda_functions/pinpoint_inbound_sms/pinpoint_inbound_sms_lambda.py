@@ -58,6 +58,6 @@ def lambda_handler(event, context):
         msg = base64.b64encode(bytes(json.dumps(envelope), 'utf-8')).decode("utf-8")
         queue.send_message(MessageBody=msg)
 
-        return {
-            'statusCode': 200
-        }
+    return {
+        'statusCode': 200
+    }

@@ -1,4 +1,3 @@
-import base64
 import json
 from datetime import datetime
 
@@ -100,5 +99,5 @@ def _pinpoint_inbound_sms_event(
         'inboundMessageId': inbound_message_id
     }
     return {
-        'Message': base64.b64encode(bytes(json.dumps(pinpoint_message), 'utf-8')).decode('utf-8')
+        'Message': json.dumps(pinpoint_message)
     }
