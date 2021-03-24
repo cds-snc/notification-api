@@ -14,7 +14,7 @@ from sqlalchemy.orm.exc import NoResultFound
 import enum
 import requests
 from app import notify_celery, statsd_client
-from app.celery import service_callback_tasks
+from app.celery.service_callback_tasks import send_complaint_to_vanotify
 from app.config import QueueNames
 from app.clients.email.aws_ses import get_aws_responses
 from app.dao import notifications_dao, services_dao, templates_dao
@@ -167,10 +167,10 @@ def process_ses_results(self, response):
         elif notification_type == 'Complaint':
             complaint, notification, recipient_email = handle_complaint(ses_message)
             _check_and_queue_complaint_callback_task(complaint, notification, recipient_email)
-            service_callback_tasks.send_complaint_to_vanotify.apply_async(
+            send_complaint_to_vanotify.apply_async(
                 [complaint, notification.template.name],
-                QueueNames.NOTIFY
-            )  # TODO: write tests
+                queue=QueueNames.NOTIFY
+            )
 
             statsd_client.incr('callback.ses.complaint_count')
             return True

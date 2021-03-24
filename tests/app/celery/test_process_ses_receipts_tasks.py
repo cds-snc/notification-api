@@ -12,7 +12,7 @@ from app.celery.research_mode_tasks import (
 )
 from app.celery.service_callback_tasks import create_delivery_status_callback_data
 from app.dao.notifications_dao import get_notification_by_id
-from app.models import Complaint, Notification
+from app.models import Complaint, Notification, Template, Service
 from app.notifications.notifications_ses_callback import remove_emails_from_complaint, remove_emails_from_bounce
 
 from tests.app.db import (
@@ -122,12 +122,45 @@ def test_process_ses_results_retry_called(sample_email_template, notify_db, mock
 def test_process_ses_results_in_complaint(sample_email_template, mocker):
     notification = create_notification(template=sample_email_template, reference='ref1')
     mocked = mocker.patch("app.dao.notifications_dao.update_notification_status_by_reference")
-    mocker.patch('app.celery.service_callback_tasks.send_complaint_to_vanotify')
+    mocker.patch('app.celery.process_ses_receipts_tasks.send_complaint_to_vanotify.apply_async')
     process_ses_receipts_tasks.process_ses_results(response=ses_complaint_callback())
     assert mocked.call_count == 0
     complaints = Complaint.query.all()
     assert len(complaints) == 1
     assert complaints[0].notification_id == notification.id
+
+
+def test_process_ses_results_in_complaint_notifies_vanotify(mocker, notify_api):
+    service = mocker.Mock(Service, id='service_id', name='Service Name')
+    template = mocker.Mock(Template,
+                           id='template_id',
+                           name='Email Template Name',
+                           service=service,
+                           template_type='email')
+    notification = mocker.Mock(Notification,
+                               service_id=template.service.id,
+                               service=template.service,
+                               template_id=template.id,
+                               template=template,
+                               reference='ref1')
+    complaint = mocker.Mock(Complaint,
+                            service_id=notification.service_id,
+                            notification_id=notification.id,
+                            ses_feedback_id='ses_feedback_id',
+                            complaint_type='complaint',
+                            complaint_date=datetime.utcnow(),
+                            created_at=datetime.now())
+
+    mocker.patch('app.celery.process_ses_receipts_tasks._check_and_queue_complaint_callback_task')
+    complaint_handler = mocker.patch('app.celery.process_ses_receipts_tasks.handle_complaint',
+                                     return_value=(complaint, notification, 'recipient1@example.com'))
+
+    send_complaint = mocker.patch('app.celery.process_ses_receipts_tasks.send_complaint_to_vanotify.apply_async')
+
+    process_ses_receipts_tasks.process_ses_results(response=ses_complaint_callback())
+
+    complaint_handler.assert_called_once()
+    send_complaint.assert_called_once_with([complaint, notification.template.name], queue='notify-internal-tasks')
 
 
 def test_remove_emails_from_complaint():
@@ -314,7 +347,8 @@ def test_ses_callback_should_send_on_complaint_to_user_callback_api(sample_email
     send_mock = mocker.patch(
         'app.celery.service_callback_tasks.send_complaint_to_service.apply_async'
     )
-    mocker.patch('app.celery.service_callback_tasks.send_complaint_to_vanotify')
+    mocker.patch('app.celery.process_ses_receipts_tasks.send_complaint_to_vanotify.apply_async')
+
     create_service_callback_api(
         service=sample_email_template.service, url="https://original_url.com", callback_type="complaint"
     )
