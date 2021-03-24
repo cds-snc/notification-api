@@ -1,4 +1,7 @@
+import uuid
+
 from app.dao.inbound_numbers_dao import dao_get_inbound_number_for_service
+from app.models import InboundNumber
 
 from tests.app.db import create_service, create_inbound_number
 
@@ -66,29 +69,80 @@ def test_get_available_inbound_numbers(admin_request, sample_inbound_numbers):
 
 class TestCreateInboundNumber:
 
-    def test_rejects_invalid_request(self, admin_request):
+    def test_rejects_request_with_missing_data(self, admin_request):
         admin_request.post(
             'inbound_number.create_inbound_number',
             _data={},
             _expected_status=400
         )
 
-    def test_creates_inbound_number(self, admin_request, mocker):
-        mock_add_inbound_number = mocker.patch('app.inbound_number.rest.dao_create_inbound_number')
-
-        data = {
-            'number': 'some-number',
-            'provider': 'some-provider',
-            'service_id': 'some-service-id'
-        }
+    def test_rejects_request_with_unexpected_data(self, admin_request):
         admin_request.post(
             'inbound_number.create_inbound_number',
-            _data=data,
+            _data={
+                'number': 'some-number',
+                'provider': 'some-provider',
+                'service_id': 'some-service-id',
+                'some_attribute_that_does_not_exist': 'blah'
+            },
+            _expected_status=400
+        )
+
+    def test_creates_inbound_number(self, admin_request, mocker):
+        dao_create_inbound_number = mocker.patch('app.inbound_number.rest.dao_create_inbound_number')
+
+        admin_request.post(
+            'inbound_number.create_inbound_number',
+            _data={
+                'number': 'some-number',
+                'provider': 'some-provider',
+                'service_id': 'some-service-id'
+            },
             _expected_status=201
         )
 
-        args, _ = mock_add_inbound_number.call_args
+        args, _ = dao_create_inbound_number.call_args
         (created_inbound_number,) = args
         assert created_inbound_number.number == 'some-number'
         assert created_inbound_number.provider == 'some-provider'
         assert created_inbound_number.service_id == 'some-service-id'
+
+
+class TestUpdateInboundNumber:
+
+    def test_rejects_invalid_request(self, admin_request):
+        admin_request.post(
+            'inbound_number.update_inbound_number',
+            _data={
+                'some_attribute_that_does_not_exist': 'blah'
+            },
+            _expected_status=400,
+            inbound_number_id=uuid.uuid4()
+        )
+
+    def test_updates_inbound_number(self, admin_request, mocker):
+        inbound_number_id = uuid.uuid4()
+
+        updated_inbound_number = mocker.Mock(InboundNumber)
+        updated_inbound_number.serialize.return_value = {'some-serialized-property': 'value'}
+
+        dao_update_inbound_number = mocker.patch(
+            'app.inbound_number.rest.dao_update_inbound_number',
+            return_value=updated_inbound_number
+        )
+
+        update_dictionary = {
+            'number': 'some-number',
+            'provider': 'some-provider',
+            'service_id': 'some-service-id'
+        }
+        response = admin_request.post(
+            'inbound_number.update_inbound_number',
+            _data=update_dictionary,
+            _expected_status=201,
+            inbound_number_id=inbound_number_id
+        )
+
+        dao_update_inbound_number.assert_called_with(inbound_number_id, update_dictionary)
+
+        assert response['data'] == updated_inbound_number.serialize()

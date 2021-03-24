@@ -1,3 +1,5 @@
+from typing import Optional
+
 from app import db
 from app.dao.dao_utils import transactional
 from app.models import InboundNumber
@@ -15,7 +17,7 @@ def dao_get_inbound_number_for_service(service_id):
     return InboundNumber.query.filter(InboundNumber.service_id == service_id).first()
 
 
-def dao_get_inbound_number(inbound_number_id):
+def dao_get_inbound_number(inbound_number_id: str) -> Optional[InboundNumber]:
     return InboundNumber.query.filter(InboundNumber.id == inbound_number_id).first()
 
 
@@ -50,3 +52,10 @@ def dao_allocate_number_for_service(service_id, inbound_number_id):
 @transactional
 def dao_create_inbound_number(inbound_number: InboundNumber):
     db.session.add(inbound_number)
+
+
+@transactional
+def dao_update_inbound_number(inbound_number_id: str, **kwargs) -> Optional[InboundNumber]:
+    inbound_number_query = InboundNumber.query.filter_by(id=inbound_number_id)
+    inbound_number_query.update(kwargs)
+    return inbound_number_query.one()

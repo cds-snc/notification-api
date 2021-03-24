@@ -8,7 +8,8 @@ from app.dao.inbound_numbers_dao import (
     dao_set_inbound_number_to_service,
     dao_set_inbound_number_active_flag,
     dao_allocate_number_for_service,
-    dao_create_inbound_number
+    dao_create_inbound_number,
+    dao_update_inbound_number
 )
 from app.models import InboundNumber
 
@@ -121,3 +122,47 @@ def test_create_inbound_number(db_session):
 
     created_in_database = db_session.query(InboundNumber).one()
     assert created_in_database == inbound_number
+
+
+class TestUpdateInboundNumber:
+
+    @pytest.fixture
+    def existing_inbound_number(self, db_session):
+        inbound_number = InboundNumber(
+            number='1234',
+            provider='some-provider',
+            service_id=create_service().id,
+            active=True
+        )
+        db_session.add(inbound_number)
+        db_session.commit()
+        return inbound_number
+
+    def test_updates_number(self, existing_inbound_number):
+        dao_update_inbound_number(existing_inbound_number.id, number='new-number')
+
+        assert InboundNumber.query.get(existing_inbound_number.id).number == 'new-number'
+
+    def test_updates_provider(self, existing_inbound_number):
+        dao_update_inbound_number(existing_inbound_number.id, provider='new-provider')
+
+        assert InboundNumber.query.get(existing_inbound_number.id).provider == 'new-provider'
+
+    def test_updates_service_id(self, existing_inbound_number):
+        new_service_id = create_service(service_name="new service").id
+        dao_update_inbound_number(existing_inbound_number.id, service_id=new_service_id)
+
+        assert InboundNumber.query.get(existing_inbound_number.id).service_id == new_service_id
+
+    def test_updates_active(self, existing_inbound_number):
+        dao_update_inbound_number(existing_inbound_number.id, active=False)
+
+        assert not InboundNumber.query.get(existing_inbound_number.id).active
+
+    def test_does_not_update_unknown_attribute(self, existing_inbound_number):
+        with pytest.raises(Exception):
+            dao_update_inbound_number(existing_inbound_number.id, some_attribute_that_does_not_exist='value')
+
+    def test_returns_updated_inbound_number(self, existing_inbound_number):
+        updated = dao_update_inbound_number(existing_inbound_number.id, number='new-number')
+        assert updated.number == 'new-number'

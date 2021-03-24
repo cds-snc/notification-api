@@ -5,10 +5,12 @@ from app.dao.inbound_numbers_dao import (
     dao_get_inbound_numbers,
     dao_get_inbound_number_for_service,
     dao_get_available_inbound_numbers,
-    dao_set_inbound_number_active_flag
+    dao_set_inbound_number_active_flag,
+    dao_update_inbound_number
 )
 from app.errors import register_errors
-from app.inbound_number.inbound_number_schema import post_create_inbound_number_schema
+from app.inbound_number.inbound_number_schema import post_create_inbound_number_schema, \
+    post_update_inbound_number_schema
 from app.models import InboundNumber
 from app.schema_validation import validate
 
@@ -31,6 +33,16 @@ def create_inbound_number():
 
     inbound_number = InboundNumber(**data)
     dao_create_inbound_number(inbound_number)
+    return jsonify(data=inbound_number.serialize()), 201
+
+
+@inbound_number_blueprint.route('/<uuid:inbound_number_id>', methods=['POST'])
+def update_inbound_number(inbound_number_id):
+    data = request.get_json()
+
+    validate(data, post_update_inbound_number_schema)
+
+    inbound_number = dao_update_inbound_number(inbound_number_id, data)
     return jsonify(data=inbound_number.serialize()), 201
 
 
