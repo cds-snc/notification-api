@@ -343,7 +343,8 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
     notification_type,
     sample_email_template,
     sample_template,
-    mocker):
+    mocker
+):
     apply_async = mocker.patch('app.celery.provider_tasks.deliver_{}.apply_async'.format(notification_type))
 
     if notification_type == 'sms':
@@ -500,7 +501,7 @@ def test_post_sms_notification_with_archived_reply_to_id_returns_400(client, sam
     assert response.status_code == 400
     resp_json = json.loads(response.get_data(as_text=True))
     assert 'sms_sender_id {} does not exist in database for service id {}'. \
-               format(archived_sender.id, sample_template.service_id) in resp_json['errors'][0]['message']
+           format(archived_sender.id, sample_template.service_id) in resp_json['errors'][0]['message']
     assert 'BadRequestError' in resp_json['errors'][0]['error']
 
 
@@ -641,7 +642,8 @@ def test_post_notification_with_scheduled_for(
                           ("email", "email_address", "sample@email.com")])
 @freeze_time("2017-05-14 14:00:00")
 def test_post_notification_raises_bad_request_if_service_not_invited_to_schedule(
-    client, sample_template, sample_email_template, notification_type, key_send_to, send_to):
+    client, sample_template, sample_email_template, notification_type, key_send_to, send_to
+):
     data = {
         key_send_to: send_to,
         'template_id': str(sample_email_template.id) if notification_type == EMAIL_TYPE else str(sample_template.id),
@@ -677,7 +679,8 @@ def test_post_notification_with_wrong_type_of_sender(
     sample_template,
     sample_email_template,
     notification_type,
-    fake_uuid):
+    fake_uuid
+):
     if notification_type == EMAIL_TYPE:
         template = sample_email_template
         form_label = 'sms_sender_id'
@@ -746,7 +749,7 @@ def test_post_email_notification_with_invalid_reply_to_id_returns_400(client, sa
     assert response.status_code == 400
     resp_json = json.loads(response.get_data(as_text=True))
     assert 'email_reply_to_id {} does not exist in database for service id {}'. \
-               format(fake_uuid, sample_email_template.service_id) in resp_json['errors'][0]['message']
+           format(fake_uuid, sample_email_template.service_id) in resp_json['errors'][0]['message']
     assert 'BadRequestError' in resp_json['errors'][0]['error']
 
 
@@ -770,7 +773,7 @@ def test_post_email_notification_with_archived_reply_to_id_returns_400(client, s
     assert response.status_code == 400
     resp_json = json.loads(response.get_data(as_text=True))
     assert 'email_reply_to_id {} does not exist in database for service id {}'. \
-               format(archived_reply_to.id, sample_email_template.service_id) in resp_json['errors'][0]['message']
+           format(archived_reply_to.id, sample_email_template.service_id) in resp_json['errors'][0]['message']
     assert 'BadRequestError' in resp_json['errors'][0]['error']
 
 
@@ -903,7 +906,6 @@ def test_post_notification_with_document_upload_long_filename(
     assert response.status_code == 400, response.get_data(as_text=True)
     resp_json = json.loads(response.get_data(as_text=True))
     assert 'too long' in resp_json['errors'][0]['message']
-
 
 
 @pytest.mark.parametrize("file_data, sending_method",
