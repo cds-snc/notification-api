@@ -1,3 +1,6 @@
+import base64
+import binascii
+
 from sqlalchemy.orm.exc import NoResultFound
 from flask import current_app
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
@@ -189,3 +192,16 @@ def check_service_letter_contact_id(service_id, letter_contact_id, notification_
             message = 'letter_contact_id {} does not exist in database for service id {}'\
                 .format(letter_contact_id, service_id)
             raise BadRequestError(message=message)
+
+
+def decode_personalisation_files(personalisation_data):
+    errors = []
+    file_keys = [k for k, v in (personalisation_data or {}).items() if isinstance(v, dict) and 'file' in v]
+    for key in file_keys:
+        try:
+            personalisation_data[key]['file'] = base64.b64decode(personalisation_data[key]['file'])
+        except binascii.Error as e:
+            errors.append({
+                key: str(e)
+            })
+    return personalisation_data, errors

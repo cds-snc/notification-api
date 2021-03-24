@@ -45,6 +45,7 @@ from app.notifications.validators import (
     check_service_sms_sender_id
 )
 from app.schema_validation import validate
+from app.utils import strip_keys_from_personalisation_if_send_attach
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
@@ -124,7 +125,7 @@ def post_notification(notification_type):
 
     template, template_with_content = validate_template(
         form['template_id'],
-        form.get('personalisation', {}),
+        strip_keys_from_personalisation_if_send_attach(form.get('personalisation', {})),
         authenticated_service,
         notification_type,
     )
