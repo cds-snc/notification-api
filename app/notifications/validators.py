@@ -202,6 +202,7 @@ def decode_personalisation_files(personalisation_data):
             personalisation_data[key]['file'] = base64.b64decode(personalisation_data[key]['file'])
         except binascii.Error as e:
             errors.append({
-                key: str(e)
+                "error": "ValidationError",
+                "message": f"{key} : {str(e)}"
             })
     return personalisation_data, errors

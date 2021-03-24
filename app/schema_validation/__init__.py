@@ -66,11 +66,11 @@ def validate(json_to_validate, schema):
             json_to_validate.get('personalisation', {})
         )
         if errors.__len__() > 0:
-            message = json.dumps({
+            error_message = json.dumps({
                 "status_code": 400,
                 "errors": errors
             })
-            raise ValidationError(message)
+            raise ValidationError(error_message)
     return json_to_validate
 
 
