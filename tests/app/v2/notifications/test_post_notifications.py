@@ -65,7 +65,7 @@ def test_post_sms_notification_returns_201(client, sample_template_with_placehol
     assert resp_json['template']['id'] == str(sample_template_with_placeholders.id)
     assert resp_json['template']['version'] == sample_template_with_placeholders.version
     assert 'services/{}/templates/{}'.format(sample_template_with_placeholders.service_id,
-                                             sample_template_with_placeholders.id) \
+        sample_template_with_placeholders.id) \
            in resp_json['template']['uri']
     assert not resp_json["scheduled_for"]
     assert mocked.called
@@ -199,9 +199,9 @@ def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after
         headers=[('Content-Type', 'application/json'), auth_header])
 
     dao_update_service_sms_sender(service_id=sample_template.service_id,
-                                  service_sms_sender_id=sms_sender.id,
-                                  is_default=sms_sender.is_default,
-                                  sms_sender='updated')
+        service_sms_sender_id=sms_sender.id,
+        is_default=sms_sender.is_default,
+        sms_sender='updated')
 
     assert response.status_code == 201
     notifications = Notification.query.all()
@@ -210,10 +210,10 @@ def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after
 
 
 @pytest.mark.parametrize("notification_type, key_send_to, send_to",
-                         [("sms", "phone_number", "+16502532222"),
-                          ("email", "email_address", "sample@email.com")])
+    [("sms", "phone_number", "+16502532222"),
+        ("email", "email_address", "sample@email.com")])
 def test_post_notification_returns_400_and_missing_template(client, sample_service,
-                                                            notification_type, key_send_to, send_to):
+    notification_type, key_send_to, send_to):
     data = {
         key_send_to: send_to,
         'template_id': str(uuid.uuid4())
@@ -231,7 +231,7 @@ def test_post_notification_returns_400_and_missing_template(client, sample_servi
     error_json = json.loads(response.get_data(as_text=True))
     assert error_json['status_code'] == 400
     assert error_json['errors'] == [{"error": "BadRequestError",
-                                     "message": 'Template not found'}]
+        "message": 'Template not found'}]
 
 
 @pytest.mark.parametrize("notification_type, key_send_to, send_to", [
@@ -240,7 +240,7 @@ def test_post_notification_returns_400_and_missing_template(client, sample_servi
     ("letter", "personalisation", {"address_line_1": "The queen", "postcode": "SW1 1AA"})
 ])
 def test_post_notification_returns_401_and_well_formed_auth_error(client, sample_template,
-                                                                  notification_type, key_send_to, send_to):
+    notification_type, key_send_to, send_to):
     data = {
         key_send_to: send_to,
         'template_id': str(sample_template.id)
@@ -256,14 +256,14 @@ def test_post_notification_returns_401_and_well_formed_auth_error(client, sample
     error_resp = json.loads(response.get_data(as_text=True))
     assert error_resp['status_code'] == 401
     assert error_resp['errors'] == [{'error': "AuthError",
-                                     'message': 'Unauthorized, authentication token must be provided'}]
+        'message': 'Unauthorized, authentication token must be provided'}]
 
 
 @pytest.mark.parametrize("notification_type, key_send_to, send_to",
-                         [("sms", "phone_number", "+16502532222"),
-                          ("email", "email_address", "sample@email.com")])
+    [("sms", "phone_number", "+16502532222"),
+        ("email", "email_address", "sample@email.com")])
 def test_notification_returns_400_and_for_schema_problems(client, sample_template, notification_type, key_send_to,
-                                                          send_to):
+    send_to):
     data = {
         key_send_to: send_to,
         'template': str(sample_template.id)
@@ -280,12 +280,12 @@ def test_notification_returns_400_and_for_schema_problems(client, sample_templat
     error_resp = json.loads(response.get_data(as_text=True))
     assert error_resp['status_code'] == 400
     assert {'error': 'ValidationError',
-            'message': "template_id is a required property"
-            } in error_resp['errors']
+               'message': "template_id is a required property"
+           } in error_resp['errors']
     assert {'error': 'ValidationError',
-            'message':
-                'Additional properties are not allowed (template was unexpected)'
-            } in error_resp['errors']
+               'message':
+                   'Additional properties are not allowed (template was unexpected)'
+           } in error_resp['errors']
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
@@ -323,7 +323,7 @@ def test_post_email_notification_returns_201(client, sample_email_template_with_
     assert resp_json['template']['id'] == str(sample_email_template_with_placeholders.id)
     assert resp_json['template']['version'] == sample_email_template_with_placeholders.version
     assert 'services/{}/templates/{}'.format(str(sample_email_template_with_placeholders.service_id),
-                                             str(sample_email_template_with_placeholders.id)) \
+        str(sample_email_template_with_placeholders.id)) \
            in resp_json['template']['uri']
     assert not resp_json["scheduled_for"]
     assert mocked.called
@@ -372,8 +372,8 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
 
 
 @pytest.mark.parametrize("notification_type, key_send_to, send_to",
-                         [("sms", "phone_number", "6502532222"),
-                          ("email", "email_address", "sample@email.com")])
+    [("sms", "phone_number", "6502532222"),
+        ("email", "email_address", "sample@email.com")])
 def test_send_notification_uses_priority_queue_when_template_is_marked_as_priority(
     client,
     sample_service,
@@ -501,7 +501,7 @@ def test_post_sms_notification_with_archived_reply_to_id_returns_400(client, sam
     assert response.status_code == 400
     resp_json = json.loads(response.get_data(as_text=True))
     assert 'sms_sender_id {} does not exist in database for service id {}'. \
-           format(archived_sender.id, sample_template.service_id) in resp_json['errors'][0]['message']
+               format(archived_sender.id, sample_template.service_id) in resp_json['errors'][0]['message']
     assert 'BadRequestError' in resp_json['errors'][0]['error']
 
 
@@ -610,14 +610,14 @@ def test_post_sms_should_persist_supplied_sms_number(client, sample_template_wit
 
 
 @pytest.mark.parametrize("notification_type, key_send_to, send_to",
-                         [("sms", "phone_number", "6502532222"),
-                          ("email", "email_address", "sample@email.com")])
+    [("sms", "phone_number", "6502532222"),
+        ("email", "email_address", "sample@email.com")])
 @freeze_time("2017-05-14 14:00:00")
 def test_post_notification_with_scheduled_for(
     client, notify_db_session, notification_type, key_send_to, send_to
 ):
     service = create_service(service_name=str(uuid.uuid4()),
-                             service_permissions=[EMAIL_TYPE, SMS_TYPE, SCHEDULE_NOTIFICATIONS])
+        service_permissions=[EMAIL_TYPE, SMS_TYPE, SCHEDULE_NOTIFICATIONS])
     template = create_template(service=service, template_type=notification_type)
     data = {
         key_send_to: send_to,
@@ -627,8 +627,8 @@ def test_post_notification_with_scheduled_for(
     auth_header = create_authorization_header(service_id=service.id)
 
     response = client.post('/v2/notifications/{}'.format(notification_type),
-                           data=json.dumps(data),
-                           headers=[('Content-Type', 'application/json'), auth_header])
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header])
     assert response.status_code == 201
     resp_json = json.loads(response.get_data(as_text=True))
     scheduled_notification = ScheduledNotification.query.filter_by(notification_id=resp_json["id"]).all()
@@ -638,8 +638,8 @@ def test_post_notification_with_scheduled_for(
 
 
 @pytest.mark.parametrize("notification_type, key_send_to, send_to",
-                         [("sms", "phone_number", "6502532222"),
-                          ("email", "email_address", "sample@email.com")])
+    [("sms", "phone_number", "6502532222"),
+        ("email", "email_address", "sample@email.com")])
 @freeze_time("2017-05-14 14:00:00")
 def test_post_notification_raises_bad_request_if_service_not_invited_to_schedule(
     client, sample_template, sample_email_template, notification_type, key_send_to, send_to
@@ -652,8 +652,8 @@ def test_post_notification_raises_bad_request_if_service_not_invited_to_schedule
     auth_header = create_authorization_header(service_id=sample_template.service_id)
 
     response = client.post('/v2/notifications/{}'.format(notification_type),
-                           data=json.dumps(data),
-                           headers=[('Content-Type', 'application/json'), auth_header])
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header])
     assert response.status_code == 400
     error_json = json.loads(response.get_data(as_text=True))
     assert error_json['errors'] == [
@@ -673,7 +673,7 @@ def test_post_notification_raises_bad_request_if_not_valid_notification_type(cli
 
 
 @pytest.mark.parametrize("notification_type",
-                         ['sms', 'email'])
+    ['sms', 'email'])
 def test_post_notification_with_wrong_type_of_sender(
     client,
     sample_template,
@@ -749,7 +749,7 @@ def test_post_email_notification_with_invalid_reply_to_id_returns_400(client, sa
     assert response.status_code == 400
     resp_json = json.loads(response.get_data(as_text=True))
     assert 'email_reply_to_id {} does not exist in database for service id {}'. \
-           format(fake_uuid, sample_email_template.service_id) in resp_json['errors'][0]['message']
+               format(fake_uuid, sample_email_template.service_id) in resp_json['errors'][0]['message']
     assert 'BadRequestError' in resp_json['errors'][0]['error']
 
 
@@ -773,14 +773,14 @@ def test_post_email_notification_with_archived_reply_to_id_returns_400(client, s
     assert response.status_code == 400
     resp_json = json.loads(response.get_data(as_text=True))
     assert 'email_reply_to_id {} does not exist in database for service id {}'. \
-           format(archived_reply_to.id, sample_email_template.service_id) in resp_json['errors'][0]['message']
+               format(archived_reply_to.id, sample_email_template.service_id) in resp_json['errors'][0]['message']
     assert 'BadRequestError' in resp_json['errors'][0]['error']
 
 
 @pytest.mark.parametrize("filename, file_data, sending_method",
-                         [("good name.txt", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
-                          ("good name.txt", "VGV4dCBjb250ZW50IGhlcmU=", "link"),
-                          ])
+    [("good name.txt", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
+        ("good name.txt", "VGV4dCBjb250ZW50IGhlcmU=", "link"),
+    ])
 def test_post_notification_with_document_upload(
     client,
     notify_db_session,
@@ -837,9 +837,9 @@ def test_post_notification_with_document_upload(
 
 
 @pytest.mark.parametrize("filename, file_data, sending_method",
-                         [("", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
-                          ("1", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
-                          ])
+    [("", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
+        ("1", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
+    ])
 def test_post_notification_with_document_upload_bad_filename(
     client,
     notify_db_session,
@@ -866,20 +866,16 @@ def test_post_notification_with_document_upload_bad_filename(
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), auth_header])
 
-    assert response.status_code == 400, response.get_data(as_text=True)
+    assert response.status_code == 400
     resp_json = json.loads(response.get_data(as_text=True))
+    assert 'ValidationError' in resp_json['errors'][0]['error']
+    assert filename in resp_json['errors'][0]['message']
     assert 'too short' in resp_json['errors'][0]['message']
 
 
-@pytest.mark.parametrize("filename, file_data, sending_method",
-                         [("0123456789", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
-                          ])
 def test_post_notification_with_document_upload_long_filename(
     client,
     notify_db_session,
-    filename,
-    file_data,
-    sending_method
 ):
     service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
     content = "See attached file."
@@ -888,8 +884,9 @@ def test_post_notification_with_document_upload_long_filename(
         template_type='email',
         content=content
     )
-    while len(filename) < 256:
-        filename += filename
+    file_data = 'VGV4dCBjb250ZW50IGhlcmU='
+    filename = 'a' * 256
+    sending_method = 'attach'
 
     data = {
         "email_address": service.users[0].email_address,
@@ -903,14 +900,16 @@ def test_post_notification_with_document_upload_long_filename(
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), auth_header])
 
-    assert response.status_code == 400, response.get_data(as_text=True)
+    assert response.status_code == 400
     resp_json = json.loads(response.get_data(as_text=True))
+    assert 'ValidationError' in resp_json['errors'][0]['error']
+    assert filename in resp_json['errors'][0]['message']
     assert 'too long' in resp_json['errors'][0]['message']
 
 
 @pytest.mark.parametrize("file_data, sending_method",
-                         [("VGV4dCBjb250ZW50IGhlcmU=", "attach"),
-                          ])
+    [("VGV4dCBjb250ZW50IGhlcmU=", "attach"),
+    ])
 def test_post_notification_with_document_upload_filename_required_check(
     client,
     notify_db_session,
@@ -936,14 +935,15 @@ def test_post_notification_with_document_upload_filename_required_check(
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), auth_header])
 
-    assert response.status_code == 400, response.get_data(as_text=True)
+    assert response.status_code == 400
     resp_json = json.loads(response.get_data(as_text=True))
+    assert 'ValidationError' in resp_json['errors'][0]['error']
     assert 'filename is a required property' in resp_json['errors'][0]['message']
 
 
 @pytest.mark.parametrize("file_data",
-                         [("VGV4dCBjb250ZW50IGhlcmU="),
-                          ])
+    [("VGV4dCBjb250ZW50IGhlcmU="),
+    ])
 def test_post_notification_with_document_upload_missing_sending_method(
     client,
     notify_db_session,
@@ -968,14 +968,15 @@ def test_post_notification_with_document_upload_missing_sending_method(
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), auth_header])
 
-    assert response.status_code == 400, response.get_data(as_text=True)
+    assert response.status_code == 400
     resp_json = json.loads(response.get_data(as_text=True))
+    assert 'ValidationError' in resp_json['errors'][0]['error']
     assert 'sending_method is a required property' in resp_json['errors'][0]['message']
 
 
 @pytest.mark.parametrize("file_data, sending_method, filename",
-                         [("VGV4dCBjb250ZW50IGhlcmU=", 'attch', '1.txt'),
-                          ])
+    [("VGV4dCBjb250ZW50IGhlcmU=", 'attch', '1.txt'),
+    ])
 def test_post_notification_with_document_upload_bad_sending_method(
     client,
     notify_db_session,
@@ -1002,14 +1003,14 @@ def test_post_notification_with_document_upload_bad_sending_method(
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), auth_header])
 
-    assert response.status_code == 400, response.get_data(as_text=True)
+    assert response.status_code == 400
     resp_json = json.loads(response.get_data(as_text=True))
     assert f'personalisation {sending_method} is not one of [attach, link]' in resp_json['errors'][0]['message']
 
 
 @pytest.mark.parametrize("file_data",
-                         [("abc"),
-                          ])
+    [("abc"),
+    ])
 def test_post_notification_with_document_upload_not_base64_file(
     client,
     notify_db_session,
@@ -1034,7 +1035,7 @@ def test_post_notification_with_document_upload_not_base64_file(
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), auth_header])
 
-    assert response.status_code == 400, response.get_data(as_text=True)
+    assert response.status_code == 400
     resp_json = json.loads(response.get_data(as_text=True))
     assert 'Incorrect padding' in resp_json['errors'][0]['message']
 
@@ -1063,7 +1064,7 @@ def test_post_notification_with_document_upload_simulated(client, notify_db_sess
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), auth_header])
 
-    assert response.status_code == 201, response.get_data(as_text=True)
+    assert response.status_code == 201
     resp_json = json.loads(response.get_data(as_text=True))
     assert validate(resp_json, post_email_response) == resp_json
 
@@ -1094,7 +1095,7 @@ def test_post_notification_without_document_upload_permission(client, notify_db_
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), auth_header])
 
-    assert response.status_code == 400, response.get_data(as_text=True)
+    assert response.status_code == 400
 
 
 def test_post_notification_returns_400_when_get_json_throws_exception(client, sample_email_template):

@@ -38,7 +38,7 @@ class DocumentDownloadClient:
                 },
                 data={
                     'filename': personalisation_key.get('filename'),
-                    'sending_method': personalisation_key.get('sending_method'),
+                    'sending_method': personalisation_key['sending_method'],
                 },
                 files={
                     'document': personalisation_key['file'],

@@ -45,7 +45,6 @@ from app.notifications.validators import (
     check_service_sms_sender_id
 )
 from app.schema_validation import validate
-from app.utils import strip_keys_from_personalisation_if_send_attach
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
@@ -346,3 +345,8 @@ def get_reply_to_text(notification_type, form, template):
         reply_to = template.get_reply_to_text()
 
     return reply_to
+
+
+def strip_keys_from_personalisation_if_send_attach(personalisation):
+    return {k: v for (k, v) in personalisation.items() if
+            not (type(v) is dict and v.get('sending_method') == 'attach')}

@@ -196,13 +196,13 @@ def check_service_letter_contact_id(service_id, letter_contact_id, notification_
 
 def decode_personalisation_files(personalisation_data):
     errors = []
-    file_keys = [k for k, v in (personalisation_data or {}).items() if isinstance(v, dict) and 'file' in v]
+    file_keys = [k for k, v in personalisation_data.items() if isinstance(v, dict) and 'file' in v]
     for key in file_keys:
         try:
             personalisation_data[key]['file'] = base64.b64decode(personalisation_data[key]['file'])
         except binascii.Error as e:
             errors.append({
                 "error": "ValidationError",
-                "message": f"{key} : {str(e)}"
+                "message": f"{key} : {str(e)} : Error decoding base64 field"
             })
     return personalisation_data, errors

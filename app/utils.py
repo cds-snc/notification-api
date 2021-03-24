@@ -185,6 +185,3 @@ def get_document_url(lang: str, path: str):
     return f'https://{current_app.config["DOCUMENTATION_DOMAIN"]}/{lang}/{path}'
 
 
-def strip_keys_from_personalisation_if_send_attach(personalisation):
-    return {k: v for (k, v) in personalisation.items() if
-            not (type(v) is dict and v.get('sending_method') == 'attach')}
