@@ -54,24 +54,6 @@ jobs:
         run: |
           docker build -t $IMAGE_REPOSITORY:$IMAGE_TAG -f ci/Dockerfile .
 
-      - name: Configure TW AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
-
-      - name: Login to TW ECR
-        id: login-ecr-tw
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Publish to TW ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr-tw.outputs.registry }}
-        run: |
-          docker tag $IMAGE_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$IMAGE_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$IMAGE_REPOSITORY:$IMAGE_TAG
-
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -108,23 +90,6 @@ jobs:
             "STATUS_CODE=$?",
             "docker image prune -a -f 1>/dev/null",
             "exit $STATUS_CODE"
-
-  start-tw-dev-deployment:
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    steps:
-    - uses: actions/github-script@v3
-      with:
-        github-token: ${{secrets.GH_ACCESS_TOKEN}}
-        script: |
-          github.repos.createDeployment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            ref: context.sha,
-            environment: 'tw-dev',
-            required_contexts: [],
-            auto_merge: false,
-          });
 
   start-vaec-dev-deployment:
     runs-on: ubuntu-latest
