@@ -1036,7 +1036,7 @@ def test_post_notification_with_document_upload_not_base64_file(
 
     assert response.status_code == 400, response.get_data(as_text=True)
     resp_json = json.loads(response.get_data(as_text=True))
-    assert 'Incorrect padding' in resp_json['errors'][0]['document']
+    assert 'Incorrect padding' in resp_json['errors'][0]['message']
 
 
 def test_post_notification_with_document_upload_simulated(client, notify_db_session, mocker):
