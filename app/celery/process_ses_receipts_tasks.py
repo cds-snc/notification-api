@@ -27,7 +27,7 @@ from app.notifications.notifications_ses_callback import (
     handle_smtp_complaint
 )
 from app.celery.service_callback_tasks import (
-    _check_and_queue_callback_task,
+    check_and_queue_callback_task,
     _check_and_queue_complaint_callback_task
 )
 from app.errors import (
@@ -214,7 +214,7 @@ def process_ses_results(self, response):
         if notification.sent_at:
             statsd_client.timing_with_dates('callback.ses.elapsed-time', datetime.utcnow(), notification.sent_at)
 
-        _check_and_queue_callback_task(notification)
+        check_and_queue_callback_task(notification)
 
         return True
 
@@ -284,7 +284,7 @@ def process_ses_smtp_results(self, response):
                 if notification_type == 'Complaint':
                     _check_and_queue_complaint_callback_task(*handle_smtp_complaint(ses_message))
                 else:
-                    _check_and_queue_callback_task(notification)
+                    check_and_queue_callback_task(notification)
 
         except NoResultFound:
             reference = ses_message['mail']['messageId']

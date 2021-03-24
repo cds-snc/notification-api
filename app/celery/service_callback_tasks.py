@@ -13,8 +13,10 @@ from app import (
     encryption
 )
 from app.config import QueueNames
-from app.dao.service_callback_api_dao import get_service_delivery_status_callback_api_for_service, \
+from app.dao.service_callback_api_dao import (
+    get_service_delivery_status_callback_api_for_service,
     get_service_complaint_callback_api_for_service
+)
 from app.models import Complaint
 
 
@@ -168,7 +170,7 @@ def create_complaint_callback_data(complaint, notification, service_callback_api
     return encryption.encrypt(data)
 
 
-def _check_and_queue_callback_task(notification):
+def check_and_queue_callback_task(notification):
     # queue callback task only if the service_callback_api exists
     service_callback_api = get_service_delivery_status_callback_api_for_service(service_id=notification.service_id)
     if service_callback_api:

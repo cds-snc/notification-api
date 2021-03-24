@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import datetime
 
 import pytest
@@ -9,9 +10,11 @@ from freezegun import freeze_time
 from app import (DATETIME_FORMAT, encryption)
 from app.celery.service_callback_tasks import (
     send_complaint_to_service,
-    send_complaint_to_vanotify
+    send_complaint_to_vanotify, check_and_queue_callback_task
 )
+from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
+from app.models import Notification, ServiceCallbackApi
 from tests.app.db import (
     create_complaint,
     create_notification,
@@ -216,6 +219,57 @@ def test_send_email_complaint_to_vanotify_fails(notify_db_session, mocker, compl
     mock_logger.assert_called_once_with(
         f'Problem sending complaint to va-notify for notification {complaint.notification_id}: error!!!'
     )
+
+
+def test_check_and_queue_callback_task_does_not_queue_task_if_service_callback_api_does_not_exist(mocker):
+    mock_notification = create_mock_notification(mocker)
+
+    mocker.patch(
+        'app.celery.service_callback_tasks.get_service_delivery_status_callback_api_for_service',
+        return_value=None
+    )
+
+    mock_send_delivery_status = mocker.patch(
+        'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
+    )
+
+    check_and_queue_callback_task(mock_notification)
+
+    mock_send_delivery_status.assert_not_called()
+
+
+def test_check_and_queue_callback_task_queues_task_if_service_callback_api_exists(mocker):
+    mock_notification = create_mock_notification(mocker)
+    mock_service_callback_api = mocker.Mock(ServiceCallbackApi)
+    mock_notification_data = mocker.Mock()
+
+    mocker.patch(
+        'app.celery.service_callback_tasks.get_service_delivery_status_callback_api_for_service',
+        return_value=mock_service_callback_api
+    )
+
+    mock_create_callback_data = mocker.patch(
+        'app.celery.service_callback_tasks.create_delivery_status_callback_data',
+        return_value=mock_notification_data
+    )
+    mock_send_delivery_status = mocker.patch(
+        'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
+    )
+
+    check_and_queue_callback_task(mock_notification)
+
+    mock_create_callback_data.assert_called_once_with(mock_notification, mock_service_callback_api)
+    mock_send_delivery_status.assert_called_once_with(
+        [str(mock_notification.id), mock_notification_data],
+        queue=QueueNames.CALLBACKS
+    )
+
+
+def create_mock_notification(mocker):
+    notification = mocker.Mock(Notification)
+    notification.id = uuid.uuid4()
+    notification.service_id = uuid.uuid4()
+    return notification
 
 
 def _set_up_test_data(notification_type, callback_type):

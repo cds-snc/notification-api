@@ -10,7 +10,7 @@ from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from app import notify_celery, statsd_client
 from app.config import QueueNames
-from app.dao import notifications_dao
+from app.dao.notifications_dao import update_notification_status_by_id, dao_get_notification_by_reference
 from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.models import (
     NOTIFICATION_DELIVERED,
@@ -20,7 +20,7 @@ from app.models import (
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENT
 )
-from app.celery.service_callback_tasks import _check_and_queue_callback_task
+from app.celery.service_callback_tasks import check_and_queue_callback_task
 
 _record_status_status_mapping = {
     'SUCCESSFUL': NOTIFICATION_SENT,
@@ -76,7 +76,7 @@ def process_pinpoint_results(self, response):
             notification_status = _map_record_status_to_notification_status(record_status)
 
         try:
-            notification = notifications_dao.dao_get_notification_by_reference(reference)
+            notification = dao_get_notification_by_reference(reference)
         except NoResultFound:
             message_time = iso8601.parse_date(pinpoint_message['event_timestamp']).replace(tzinfo=None)
             if datetime.datetime.utcnow() - message_time < datetime.timedelta(minutes=5):
@@ -98,7 +98,7 @@ def process_pinpoint_results(self, response):
             log_notification_status_warning(notification, notification_status)
             return
 
-        notifications_dao.update_notification_status_by_id(notification.id, notification_status)
+        update_notification_status_by_id(notification.id, notification_status)
 
         current_app.logger.info(
             f"Pinpoint callback return status of {notification_status} for notification: {notification.id}"
@@ -110,7 +110,7 @@ def process_pinpoint_results(self, response):
             statsd_client.timing_with_dates(
                 'callback.pinpoint.elapsed-time', datetime.datetime.utcnow(), notification.sent_at)
 
-        _check_and_queue_callback_task(notification)
+        check_and_queue_callback_task(notification)
 
         return True
 

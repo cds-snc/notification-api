@@ -54,6 +54,7 @@ def test_process_pinpoint_results_notification_final_status(
         expected_notification_status
 ):
     mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
+    mock_callback = mocker.patch('app.celery.process_pinpoint_receipt_tasks.check_and_queue_callback_task')
 
     test_reference = 'sms-reference-1'
     create_notification(sample_template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status='sending')
@@ -66,6 +67,7 @@ def test_process_pinpoint_results_notification_final_status(
     )
     notification = notifications_dao.dao_get_notification_by_reference(test_reference)
     assert notification.status == expected_notification_status
+    mock_callback.assert_called_once()
 
 
 def pinpoint_notification_callback_record(reference, event_type='_SMS.SUCCESS', record_status='DELIVERED'):
