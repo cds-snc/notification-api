@@ -139,7 +139,7 @@ class TestUpdateInboundNumber:
         response = admin_request.post(
             'inbound_number.update_inbound_number',
             _data=update_dictionary,
-            _expected_status=201,
+            _expected_status=200,
             inbound_number_id=inbound_number_id
         )
 
