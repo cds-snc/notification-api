@@ -25,7 +25,7 @@ from tests.app.db import (
 
 
 @pytest.fixture
-def complaint_to_vanotify():
+def complaint_and_template_name_to_vanotify():
     service = create_service(service_name="Sample VANotify service", restricted=True)
     template = create_template(
         service=service,
@@ -186,11 +186,11 @@ def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(
 
 
 def test_send_complaint_to_vanotify_invokes_send_notification_to_service_users(
-        notify_db_session, mocker, complaint_to_vanotify
+        notify_db_session, mocker, complaint_and_template_name_to_vanotify
 ):
     mocked = mocker.patch('app.service.sender.send_notification_to_service_users')
-    send_complaint_to_vanotify(*complaint_to_vanotify)
-    complaint, template_name = complaint_to_vanotify
+    complaint, template_name = complaint_and_template_name_to_vanotify
+    send_complaint_to_vanotify(complaint.id, template_name)
 
     mocked.assert_called_once_with(
         service_id=current_app.config['NOTIFY_SERVICE_ID'],
@@ -206,15 +206,15 @@ def test_send_complaint_to_vanotify_invokes_send_notification_to_service_users(
     )
 
 
-def test_send_email_complaint_to_vanotify_fails(notify_db_session, mocker, complaint_to_vanotify):
+def test_send_email_complaint_to_vanotify_fails(notify_db_session, mocker, complaint_and_template_name_to_vanotify):
     mocker.patch(
         'app.service.sender.send_notification_to_service_users',
         side_effect=NotificationTechnicalFailureException('error!!!')
     )
     mock_logger = mocker.patch('app.celery.service_callback_tasks.current_app.logger.exception')
-    complaint, _ = complaint_to_vanotify
+    complaint, template_name = complaint_and_template_name_to_vanotify
 
-    send_complaint_to_vanotify(*complaint_to_vanotify)
+    send_complaint_to_vanotify(complaint.id, template_name)
 
     mock_logger.assert_called_once_with(
         f'Problem sending complaint to va-notify for notification {complaint.notification_id}: error!!!'

@@ -13,11 +13,11 @@ from app import (
     encryption
 )
 from app.config import QueueNames
+from app.dao.complaint_dao import fetch_complaint_by_id
 from app.dao.service_callback_api_dao import (
     get_service_delivery_status_callback_api_for_service,
     get_service_complaint_callback_api_for_service
 )
-from app.models import Complaint
 
 
 @notify_celery.task(bind=True, name="send-delivery-status", max_retries=5, default_retry_delay=300)
@@ -70,29 +70,30 @@ def send_complaint_to_service(self, complaint_data):
 
 @notify_celery.task(bind=True, name="send-complaint-to-vanotify", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def send_complaint_to_vanotify(self, complaint_to_vanotify: Complaint, complaint_template_name: str) -> None:
+def send_complaint_to_vanotify(self, complaint_id: str, complaint_template_name: str) -> None:
     from app.service.sender import send_notification_to_service_users
+    complaint = fetch_complaint_by_id(complaint_id).one()
 
     try:
         send_notification_to_service_users(
             service_id=current_app.config['NOTIFY_SERVICE_ID'],
             template_id=current_app.config['EMAIL_COMPLAINT_TEMPLATE_ID'],
             personalisation={
-                'notification_id': str(complaint_to_vanotify.notification_id),
-                'service_name': complaint_to_vanotify.service.name,
+                'notification_id': str(complaint.notification_id),
+                'service_name': complaint.service.name,
                 'template_name': complaint_template_name,
-                'complaint_id': str(complaint_to_vanotify.id),
-                'complaint_type': complaint_to_vanotify.complaint_type,
-                'complaint_date': complaint_to_vanotify.complaint_date
+                'complaint_id': str(complaint.id),
+                'complaint_type': complaint.complaint_type,
+                'complaint_date': complaint.complaint_date
             },
         )
         current_app.logger.info(
-            f'Successfully sent complaint email to va-notify. notification_id: {complaint_to_vanotify.notification_id}'
+            f'Successfully sent complaint email to va-notify. notification_id: {complaint.notification_id}'
         )
 
     except Exception as e:
         current_app.logger.exception(
-            f'Problem sending complaint to va-notify for notification {complaint_to_vanotify.notification_id}: {e}'
+            f'Problem sending complaint to va-notify for notification {complaint.notification_id}: {e}'
         )
 
 

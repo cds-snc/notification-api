@@ -6,7 +6,7 @@ from app.dao.complaint_dao import (
     fetch_complaints_by_service,
     fetch_count_of_complaints,
     fetch_paginated_complaints,
-    save_complaint,
+    save_complaint, fetch_complaint_by_id,
 )
 from app.models import Complaint
 from tests.app.db import create_service, create_template, create_notification, create_complaint
@@ -120,3 +120,21 @@ def test_fetch_count_of_complaints_returns_zero(notify_db):
     count_of_complaints = fetch_count_of_complaints(start_date=datetime(2018, 6, 7),
                                                     end_date=datetime(2018, 6, 7))
     assert count_of_complaints == 0
+
+
+def test_fetch_complaint_by_id(sample_email_notification):
+    complaint = create_complaint(
+        service=sample_email_notification.service,
+        notification=sample_email_notification,
+        created_at=datetime(2018, 1, 1)
+    )
+
+    complaints_from_db = fetch_complaint_by_id(complaint.id)
+
+    assert complaints_from_db[0].id == complaint.id
+
+
+def test_fetch_complaint_by_id_does_not_return_anything(sample_email_notification):
+    complaints_from_db = fetch_complaint_by_id(uuid.uuid4())
+
+    assert complaints_from_db.count() == 0

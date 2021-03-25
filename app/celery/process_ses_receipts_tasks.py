@@ -168,7 +168,7 @@ def process_ses_results(self, response):
             complaint, notification, recipient_email = handle_complaint(ses_message)
             _check_and_queue_complaint_callback_task(complaint, notification, recipient_email)
             send_complaint_to_vanotify.apply_async(
-                [complaint, notification.template.name],
+                [str(complaint.id), notification.template.name],
                 queue=QueueNames.NOTIFY
             )
 

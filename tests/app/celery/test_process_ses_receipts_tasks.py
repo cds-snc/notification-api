@@ -160,7 +160,9 @@ def test_process_ses_results_in_complaint_notifies_vanotify(mocker, notify_api):
     process_ses_receipts_tasks.process_ses_results(response=ses_complaint_callback())
 
     complaint_handler.assert_called_once()
-    send_complaint.assert_called_once_with([complaint, notification.template.name], queue='notify-internal-tasks')
+    send_complaint.assert_called_once_with(
+        [str(complaint.id), notification.template.name], queue='notify-internal-tasks'
+    )
 
 
 def test_remove_emails_from_complaint():

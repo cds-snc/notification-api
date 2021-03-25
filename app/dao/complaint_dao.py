@@ -23,6 +23,10 @@ def fetch_paginated_complaints(page=1):
     )
 
 
+def fetch_complaint_by_id(complaint_id):
+    return Complaint.query.filter_by(id=complaint_id)
+
+
 def fetch_complaints_by_service(service_id):
     return Complaint.query.filter_by(service_id=service_id).order_by(desc(Complaint.created_at)).all()
 
