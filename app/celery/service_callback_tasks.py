@@ -10,7 +10,7 @@ from requests import (
 
 from app import (
     notify_celery,
-    encryption
+    encryption, DATETIME_FORMAT
 )
 from app.config import QueueNames
 from app.dao.complaint_dao import fetch_complaint_by_id
@@ -84,7 +84,7 @@ def send_complaint_to_vanotify(self, complaint_id: str, complaint_template_name:
                 'template_name': complaint_template_name,
                 'complaint_id': str(complaint.id),
                 'complaint_type': complaint.complaint_type,
-                'complaint_date': complaint.complaint_date
+                'complaint_date': complaint.complaint_date.strftime(DATETIME_FORMAT)
             },
         )
         current_app.logger.info(

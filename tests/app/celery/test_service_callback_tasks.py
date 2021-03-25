@@ -201,7 +201,7 @@ def test_send_complaint_to_vanotify_invokes_send_notification_to_service_users(
             'template_name': template_name,
             'complaint_id': str(complaint.id),
             'complaint_type': complaint.complaint_type,
-            'complaint_date': complaint.complaint_date
+            'complaint_date': complaint.complaint_date.strftime(DATETIME_FORMAT)
         }
     )
 
