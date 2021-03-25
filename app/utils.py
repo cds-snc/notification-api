@@ -183,5 +183,3 @@ def get_logo_url(logo_file):
 
 def get_document_url(lang: str, path: str):
     return f'https://{current_app.config["DOCUMENTATION_DOMAIN"]}/{lang}/{path}'
-
-
