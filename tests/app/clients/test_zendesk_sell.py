@@ -180,7 +180,7 @@ def deal_match_json(request):
     return json_matches and basic_auth_header
 
 
-def test_create_deal(notify_api: Flask, sample_service: Service,):
+def test_create_deal(notify_api: Flask, sample_service: Service):
     with requests_mock.mock() as rmock:
         contact_id = 123456789
         expected_deal_id = 987654321
