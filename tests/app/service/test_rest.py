@@ -1,4 +1,5 @@
 import json
+import requests_mock
 import uuid
 from datetime import datetime, timedelta, date
 from functools import partial
@@ -340,31 +341,41 @@ def test_create_service(
         'created_by': str(sample_user.id)
     }
 
-    json_resp = admin_request.post('service.create_service', _data=data, _expected_status=201)
+    with requests_mock.Mocker() as mock:
+        mock.register_uri('POST',
+                          f'https://zendesksell-test.com/v2/contacts/upsert?email={sample_user.email_address}',
+                          status_code=200,
+                          text='{"data": {"id":"1", "created_at":"1", "updated_at":"1"}}')
+        mock.register_uri('POST',
+                          f'https://zendesksell-test.com/v2/deals/upsert?contact_id={1}&name=created+service',
+                          status_code=200,
+                          text='{"data": {"id":"1", "contact_id":"1"}}')
 
-    assert json_resp['data']['id']
-    assert json_resp['data']['name'] == 'created service'
-    assert json_resp['data']['email_from'] == 'created.service'
-    assert not json_resp['data']['research_mode']
-    assert json_resp['data']['rate_limit'] == 1000
-    assert json_resp['data']['letter_branding'] is None
-    assert json_resp['data']['count_as_live'] is expected_count_as_live
+        json_resp = admin_request.post('service.create_service', _data=data, _expected_status=201)
 
-    service_db = Service.query.get(json_resp['data']['id'])
-    assert service_db.name == 'created service'
+        assert json_resp['data']['id']
+        assert json_resp['data']['name'] == 'created service'
+        assert json_resp['data']['email_from'] == 'created.service'
+        assert not json_resp['data']['research_mode']
+        assert json_resp['data']['rate_limit'] == 1000
+        assert json_resp['data']['letter_branding'] is None
+        assert json_resp['data']['count_as_live'] is expected_count_as_live
 
-    json_resp = admin_request.get(
-        'service.get_service_by_id',
-        service_id=json_resp['data']['id'],
-        user_id=sample_user.id
-    )
+        service_db = Service.query.get(json_resp['data']['id'])
+        assert service_db.name == 'created service'
 
-    assert json_resp['data']['name'] == 'created service'
-    assert not json_resp['data']['research_mode']
+        json_resp = admin_request.get(
+            'service.get_service_by_id',
+            service_id=json_resp['data']['id'],
+            user_id=sample_user.id
+        )
 
-    service_sms_senders = ServiceSmsSender.query.filter_by(service_id=service_db.id).all()
-    assert len(service_sms_senders) == 1
-    assert service_sms_senders[0].sms_sender == current_app.config['FROM_NUMBER']
+        assert json_resp['data']['name'] == 'created service'
+        assert not json_resp['data']['research_mode']
+
+        service_sms_senders = ServiceSmsSender.query.filter_by(service_id=service_db.id).all()
+        assert len(service_sms_senders) == 1
+        assert service_sms_senders[0].sms_sender == current_app.config['FROM_NUMBER']
 
 
 @pytest.mark.parametrize('domain, expected_org', (
@@ -408,12 +419,22 @@ def test_create_service_with_domain_sets_organisation(
         'service_domain': domain,
     }
 
-    json_resp = admin_request.post('service.create_service', _data=data, _expected_status=201)
+    with requests_mock.Mocker() as mock:
+        mock.register_uri('POST',
+                          f'https://zendesksell-test.com/v2/contacts/upsert?email={sample_user.email_address}',
+                          status_code=200,
+                          text='{"data": {"id":"1", "created_at":"1", "updated_at":"1"}}')
+        mock.register_uri('POST',
+                          f'https://zendesksell-test.com/v2/deals/upsert?contact_id={1}&name=created+service',
+                          status_code=200,
+                          text='{"data": {"id":"1", "contact_id":"1"}}')
 
-    if expected_org:
-        assert json_resp['data']['organisation'] == str(org.id)
-    else:
-        assert json_resp['data']['organisation'] is None
+        json_resp = admin_request.post('service.create_service', _data=data, _expected_status=201)
+
+        if expected_org:
+            assert json_resp['data']['organisation'] == str(org.id)
+        else:
+            assert json_resp['data']['organisation'] is None
 
 
 def test_create_service_inherits_branding_from_organisation(
@@ -429,22 +450,32 @@ def test_create_service_inherits_branding_from_organisation(
     create_domain('example.gov.uk', org.id)
     sample_user.email_address = 'test@example.gov.uk'
 
-    json_resp = admin_request.post(
-        'service.create_service',
-        _data={
-            'name': 'created service',
-            'user_id': str(sample_user.id),
-            'message_limit': 1000,
-            'restricted': False,
-            'active': False,
-            'email_from': 'created.service',
-            'created_by': str(sample_user.id),
-        },
-        _expected_status=201
-    )
+    with requests_mock.Mocker() as mock:
+        mock.register_uri('POST',
+                          f'https://zendesksell-test.com/v2/contacts/upsert?email={sample_user.email_address}',
+                          status_code=200,
+                          text='{"data": {"id":"1", "created_at":"1", "updated_at":"1"}}')
+        mock.register_uri('POST',
+                          f'https://zendesksell-test.com/v2/deals/upsert?contact_id={1}&name=created+service',
+                          status_code=200,
+                          text='{"data": {"id":"1", "contact_id":"1"}}')
 
-    assert json_resp['data']['email_branding'] == str(email_branding.id)
-    assert json_resp['data']['letter_branding'] == str(letter_branding.id)
+        json_resp = admin_request.post(
+            'service.create_service',
+            _data={
+                'name': 'created service',
+                'user_id': str(sample_user.id),
+                'message_limit': 1000,
+                'restricted': False,
+                'active': False,
+                'email_from': 'created.service',
+                'created_by': str(sample_user.id),
+            },
+            _expected_status=201
+        )
+
+        assert json_resp['data']['email_branding'] == str(email_branding.id)
+        assert json_resp['data']['letter_branding'] == str(letter_branding.id)
 
 
 def test_should_not_create_service_with_missing_user_id_field(notify_api, fake_uuid):
@@ -1129,43 +1160,53 @@ def test_default_permissions_are_added_for_user_service(notify_api,
                                                         sample_user):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
-            data = {
-                'name': 'created service',
-                'user_id': str(sample_user.id),
-                'message_limit': 1000,
-                'restricted': False,
-                'active': False,
-                'email_from': 'created.service',
-                'created_by': str(sample_user.id)
-            }
-            auth_header = create_authorization_header()
-            headers = [('Content-Type', 'application/json'), auth_header]
-            resp = client.post(
-                '/service',
-                data=json.dumps(data),
-                headers=headers)
-            json_resp = resp.json
-            assert resp.status_code == 201
-            assert json_resp['data']['id']
-            assert json_resp['data']['name'] == 'created service'
-            assert json_resp['data']['email_from'] == 'created.service'
+            with requests_mock.Mocker() as mock:
+                mock.register_uri('POST',
+                                  f'https://zendesksell-test.com/v2/contacts/upsert?email={sample_user.email_address}',
+                                  status_code=200,
+                                  text='{"data": {"id":"1", "created_at":"1", "updated_at":"1"}}')
+                mock.register_uri('POST',
+                                  f'https://zendesksell-test.com/v2/deals/upsert?contact_id={1}&name=created+service',
+                                  status_code=200,
+                                  text='{"data": {"id":"1", "contact_id":"1"}}')
 
-            auth_header_fetch = create_authorization_header()
+                data = {
+                    'name': 'created service',
+                    'user_id': str(sample_user.id),
+                    'message_limit': 1000,
+                    'restricted': False,
+                    'active': False,
+                    'email_from': 'created.service',
+                    'created_by': str(sample_user.id)
+                }
+                auth_header = create_authorization_header()
+                headers = [('Content-Type', 'application/json'), auth_header]
+                resp = client.post(
+                    '/service',
+                    data=json.dumps(data),
+                    headers=headers)
+                json_resp = resp.json
+                assert resp.status_code == 201
+                assert json_resp['data']['id']
+                assert json_resp['data']['name'] == 'created service'
+                assert json_resp['data']['email_from'] == 'created.service'
 
-            resp = client.get(
-                '/service/{}?user_id={}'.format(json_resp['data']['id'], sample_user.id),
-                headers=[auth_header_fetch]
-            )
-            assert resp.status_code == 200
-            header = create_authorization_header()
-            response = client.get(
-                url_for('user.get_user', user_id=sample_user.id),
-                headers=[header])
-            assert response.status_code == 200
-            json_resp = json.loads(response.get_data(as_text=True))
-            service_permissions = json_resp['data']['permissions'][str(sample_service.id)]
-            from app.dao.permissions_dao import default_service_permissions
-            assert sorted(default_service_permissions) == sorted(service_permissions)
+                auth_header_fetch = create_authorization_header()
+
+                resp = client.get(
+                    '/service/{}?user_id={}'.format(json_resp['data']['id'], sample_user.id),
+                    headers=[auth_header_fetch]
+                )
+                assert resp.status_code == 200
+                header = create_authorization_header()
+                response = client.get(
+                    url_for('user.get_user', user_id=sample_user.id),
+                    headers=[header])
+                assert response.status_code == 200
+                json_resp = json.loads(response.get_data(as_text=True))
+                service_permissions = json_resp['data']['permissions'][str(sample_service.id)]
+                from app.dao.permissions_dao import default_service_permissions
+                assert sorted(default_service_permissions) == sorted(service_permissions)
 
 
 def test_add_existing_user_to_another_service_with_all_permissions(
