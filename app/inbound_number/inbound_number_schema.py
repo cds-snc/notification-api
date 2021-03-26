@@ -8,7 +8,7 @@ post_create_inbound_number_schema = {
         "service_id": {"type": "string"},
         "active": {"type": ["boolean", "null"]}
     },
-    "required": ["number", "provider", "service_id"],
+    "required": ["number", "provider"],
     "additionalProperties": False
 }
 
