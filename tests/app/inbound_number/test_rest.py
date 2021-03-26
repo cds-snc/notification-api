@@ -123,8 +123,7 @@ class TestUpdateInboundNumber:
     def test_updates_inbound_number(self, admin_request, mocker):
         inbound_number_id = uuid.uuid4()
 
-        updated_inbound_number = mocker.Mock(InboundNumber)
-        updated_inbound_number.serialize.return_value = {'some-serialized-property': 'value'}
+        updated_inbound_number = InboundNumber()
 
         dao_update_inbound_number = mocker.patch(
             'app.inbound_number.rest.dao_update_inbound_number',
