@@ -5,10 +5,7 @@ import requests
 import requests_mock
 from notifications_utils.recipients import InvalidEmailError
 
-from app.clients.email.govdelivery_client import GovdeliveryClient, GovdeliveryClientException, \
-    map_govdelivery_status_to_notify_status
-from app.models import NOTIFICATION_DELIVERED, NOTIFICATION_SENDING, NOTIFICATION_CANCELLED, NOTIFICATION_FAILED, \
-    NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TEMPORARY_FAILURE
+from app.clients.email.govdelivery_client import GovdeliveryClient, GovdeliveryClientException
 
 
 @pytest.fixture(scope='function')
@@ -155,15 +152,3 @@ def test_should_return_message_id(client):
         response = client.send_email("source", "recipient@email.com", "subject", "body", "html body")
 
     assert response == message_id
-
-
-@pytest.mark.parametrize('govdelivery_status, notify_status', [
-    ('sending', NOTIFICATION_SENDING),
-    ('sent', NOTIFICATION_DELIVERED),
-    ('blacklisted', NOTIFICATION_PERMANENT_FAILURE),
-    ('canceled', NOTIFICATION_CANCELLED),
-    ('failed', NOTIFICATION_FAILED),
-    ('inconclusive', NOTIFICATION_TEMPORARY_FAILURE)
-])
-def test_should_map_status(govdelivery_status, notify_status):
-    assert map_govdelivery_status_to_notify_status(govdelivery_status) == notify_status

@@ -4,7 +4,7 @@ from jsonschema.exceptions import ValidationError
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 from app import statsd_client
-from app.clients.email.govdelivery_client import map_govdelivery_status_to_notify_status
+from app.clients.email.govdelivery_client import govdelivery_status_map
 from app.dao import notifications_dao
 from app.errors import register_errors, InvalidRequest
 from app.schema_validation import validate
@@ -21,7 +21,7 @@ def process_govdelivery_response():
         sid = data['sid']
         reference = data['message_url'].split("/")[-1]
         govdelivery_status = data['status']
-        notify_status = map_govdelivery_status_to_notify_status(govdelivery_status)
+        notify_status = govdelivery_status_map[govdelivery_status]
 
     except ValidationError as e:
         raise e
@@ -44,6 +44,11 @@ def process_govdelivery_response():
                 f'Govdelivery callback for notification {notification.id} has status {govdelivery_status},'
                 f' which maps to notification-api status {notify_status}'
             )
+            if data.get('error_message'):
+                current_app.logger.info(
+                    f"Govdelivery error_message for notification {notification.id}: "
+                    f"{data['error_message']}"
+                )
 
             notifications_dao._update_notification_status(notification, notify_status)
 

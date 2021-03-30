@@ -11,7 +11,8 @@ govdelivery_webhook_schema = {
         "recipient_url": {"type": "string", "format": "uri"},
         "status": {"enum": govdelivery_status_map.keys()},
         "message_type": {"enum": ["sms", "email"]},
-        "completed_at": {"type": "string"}
+        "completed_at": {"type": "string"},
+        "error_message": {"type": "string"}
     },
     "required": ["message_url", "status", "sid", "message_type"]
 }

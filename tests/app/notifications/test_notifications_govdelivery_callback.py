@@ -3,20 +3,14 @@ from datetime import datetime
 
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
-from app.models import Notification
+from app.models import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, Notification
+from app.clients.email.govdelivery_client import govdelivery_status_map
 
 
 @pytest.fixture
 def mock_dao_get_notification_by_reference(mocker):
     return mocker.patch(
         'app.notifications.notifications_govdelivery_callback.notifications_dao.dao_get_notification_by_reference'
-    )
-
-
-@pytest.fixture
-def mock_map_govdelivery_status_to_notify_status(mocker):
-    return mocker.patch(
-        'app.notifications.notifications_govdelivery_callback.map_govdelivery_status_to_notify_status'
     )
 
 
@@ -34,14 +28,15 @@ def mock_statsd(mocker):
     )
 
 
-def get_govdelivery_request(reference, status):
+def get_govdelivery_request(reference, status, error_message=None):
     return {
         "sid": "some_sid",
         "message_url": "https://tms.govdelivery.com/messages/sms/{0}".format(reference),
         "recipient_url": "https://tms.govdelivery.com/messages/sms/{0}/recipients/373810".format(reference),
         "status": status,
         "message_type": "sms",
-        "completed_at": "2015-08-05 18:47:18 UTC"
+        "completed_at": "2015-08-05 18:47:18 UTC",
+        "error_message": error_message
     }
 
 
@@ -56,7 +51,6 @@ def post(client, data):
 def test_gets_reference_from_payload(
         client,
         mock_dao_get_notification_by_reference,
-        mock_map_govdelivery_status_to_notify_status,
         mock_update_notification_status
 ):
     reference = "123456"
@@ -66,34 +60,23 @@ def test_gets_reference_from_payload(
     mock_dao_get_notification_by_reference.assert_called_with(reference)
 
 
-def test_maps_govdelivery_status_to_notify_status(
-        client,
-        mock_dao_get_notification_by_reference,
-        mock_map_govdelivery_status_to_notify_status,
-        mock_update_notification_status
-):
-    govdelivery_status = "sent"
-
-    post(client, get_govdelivery_request("123456", govdelivery_status))
-
-    mock_map_govdelivery_status_to_notify_status.assert_called_with(govdelivery_status)
-
-
+@pytest.mark.parametrize("govdelivery_status, notify_status", [
+    ("sent", NOTIFICATION_DELIVERED),
+    ("failed", NOTIFICATION_PERMANENT_FAILURE)
+])
 def test_should_update_notification_status(
         client,
         mocker,
         mock_dao_get_notification_by_reference,
-        mock_map_govdelivery_status_to_notify_status,
-        mock_update_notification_status
+        mock_update_notification_status,
+        govdelivery_status,
+        notify_status
 ):
     notification = mocker.Mock(Notification)
     notification.sent_at = datetime.utcnow()
     mock_dao_get_notification_by_reference.return_value = notification
 
-    notify_status = "sent"
-    mock_map_govdelivery_status_to_notify_status.return_value = notify_status
-
-    post(client, get_govdelivery_request("123456", "sent"))
+    post(client, get_govdelivery_request("123456", govdelivery_status))
 
     mock_update_notification_status.assert_called_with(notification, notify_status)
 
@@ -101,7 +84,6 @@ def test_should_update_notification_status(
 def test_govdelivery_callback_returns_200(
         client,
         mock_dao_get_notification_by_reference,
-        mock_map_govdelivery_status_to_notify_status,
         mock_update_notification_status,
 ):
     response = post(client, get_govdelivery_request("123456", "sent"))
@@ -116,7 +98,6 @@ def test_govdelivery_callback_returns_200(
 def test_govdelivery_callback_always_returns_200_after_expected_exceptions(
         client,
         mock_dao_get_notification_by_reference,
-        mock_map_govdelivery_status_to_notify_status,
         mock_statsd,
         exception,
         exception_name
@@ -144,8 +125,6 @@ def test_govdelivery_callback_raises_invalid_request_if_unrecognised_status(clie
 def test_govdelivery_callback_raises_exceptions_after_unexpected_exceptions(
         client,
         mock_dao_get_notification_by_reference,
-        mock_map_govdelivery_status_to_notify_status,
-        mock_update_notification_status
 ):
     mock_dao_get_notification_by_reference.side_effect = Exception("Bad stuff happened")
 
@@ -154,26 +133,42 @@ def test_govdelivery_callback_raises_exceptions_after_unexpected_exceptions(
         assert response.status_code == 500
 
 
-@pytest.mark.parametrize("notification_status", ["sent", "failed", "other"])
+@pytest.mark.parametrize("govdelivery_status", ["sent", "failed", "canceled"])
 def test_should_store_statistics_when_successful(
         client,
         mocker,
         mock_dao_get_notification_by_reference,
-        mock_map_govdelivery_status_to_notify_status,
         mock_update_notification_status,
         mock_statsd,
-        notification_status
+        govdelivery_status
 ):
     notification = mocker.Mock(Notification)
     notification.sent_at = datetime.utcnow()
     mock_dao_get_notification_by_reference.return_value = notification
-    mock_map_govdelivery_status_to_notify_status.return_value = notification_status
 
-    post(client, get_govdelivery_request("123456", "sent"))
+    post(client, get_govdelivery_request("123456", govdelivery_status))
 
-    mock_statsd.incr.assert_called_with(f'callback.govdelivery.{notification_status}')
+    mock_statsd.incr.assert_called_with(f'callback.govdelivery.{govdelivery_status_map[govdelivery_status]}')
     mock_statsd.timing_with_dates.assert_called_with(
         'callback.govdelivery.elapsed-time',
         mocker.ANY,
         notification.sent_at
     )
+
+
+def test_should_log_failure_reason(
+    client,
+    mocker,
+    mock_dao_get_notification_by_reference,
+    mock_update_notification_status,
+    mock_statsd
+):
+    notification = mocker.Mock(Notification)
+    mock_dao_get_notification_by_reference.return_value = notification
+    logger = mocker.spy(client.application.logger, 'info')
+    error_message = "Some failure message"
+
+    post(client, get_govdelivery_request("123456", "failed", error_message))
+
+    logs = [args[0] for args, kwargs in logger.call_args_list]
+    assert any(error_message in log for log in logs)

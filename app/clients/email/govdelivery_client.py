@@ -1,3 +1,5 @@
+from app.models import (NOTIFICATION_CANCELLED, NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE,
+                        NOTIFICATION_SENDING, NOTIFICATION_TEMPORARY_FAILURE)
 from time import monotonic
 
 import requests
@@ -8,17 +10,13 @@ from requests import HTTPError
 from app.clients.email import EmailClient, EmailClientException
 
 govdelivery_status_map = {
-    'sending': 'sending',
-    'sent': 'delivered',
-    'blacklisted': 'permanent-failure',
-    'canceled': 'cancelled',
-    'failed': 'failed',
-    'inconclusive': 'temporary-failure',
+    'sending': NOTIFICATION_SENDING,
+    'sent': NOTIFICATION_DELIVERED,
+    'blacklisted': NOTIFICATION_PERMANENT_FAILURE,
+    'canceled': NOTIFICATION_CANCELLED,
+    'failed': NOTIFICATION_PERMANENT_FAILURE,
+    'inconclusive': NOTIFICATION_TEMPORARY_FAILURE,
 }
-
-
-def map_govdelivery_status_to_notify_status(govdelivery_status):
-    return govdelivery_status_map[govdelivery_status]
 
 
 class GovdeliveryClientException(EmailClientException):

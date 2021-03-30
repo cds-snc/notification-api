@@ -20,7 +20,6 @@ from app.celery.celery import NotifyCelery
 from app.clients import Clients
 from app.clients.document_download import DocumentDownloadClient
 from app.clients.email.aws_ses import AwsSesClient
-from app.clients.email.govdelivery_client import GovdeliveryClient
 from app.clients.email.sendgrid_client import SendGridClient
 from app.clients.sms.firetext import FiretextClient
 from app.clients.sms.loadtesting import LoadtestingClient
@@ -55,10 +54,13 @@ db = SQLAlchemy()
 migrate = Migrate()
 ma = Marshmallow()
 notify_celery = NotifyCelery()
+encryption = Encryption()
 firetext_client = FiretextClient()
 loadtest_client = LoadtestingClient()
 mmg_client = MMGClient()
 aws_ses_client = AwsSesClient()
+
+from app.clients.email.govdelivery_client import GovdeliveryClient  # noqa
 govdelivery_client = GovdeliveryClient()
 send_grid_client = SendGridClient()
 aws_sns_client = AwsSnsClient()
@@ -68,7 +70,6 @@ twilio_sms_client = TwilioSMSClient(
     from_number=os.getenv('TWILIO_FROM_NUMBER'),
 )
 aws_pinpoint_client = AwsPinpointClient()
-encryption = Encryption()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
 redis_store = RedisClient()
