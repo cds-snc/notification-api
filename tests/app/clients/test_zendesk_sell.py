@@ -76,7 +76,6 @@ def test_create_contact(notify_api: Flask, sample_service: Service):
             }
         }
 
-        # Can not match fields in custom_fields as they are unique each test run
         json_matches = request.json() == expected
         basic_auth_header = request.headers.get('Authorization') == 'Bearer zendesksell-api-key'
 
@@ -122,7 +121,6 @@ def test_upsert_contact(notify_api: Flask, sample_service: Service):
             }
         }
 
-        # Can not match fields in custom_fields as they are unique each test run
         json_matches = request.json() == expected
         basic_auth_header = request.headers.get('Authorization') == 'Bearer zendesksell-api-key'
 
@@ -176,7 +174,6 @@ def test_create_contact_invalid_response(notify_api: Flask,
             }
         }
 
-        # Can not match fields in custom_fields as they are unique each test run
         json_matches = request.json() == expected
         basic_auth_header = request.headers.get('Authorization') == 'Bearer zendesksell-api-key'
 
@@ -230,7 +227,6 @@ def test_create_deal(notify_api: Flask, sample_service: Service):
             }
         }
 
-        # can not compare custom_fields as service_id is different for each run
         json_matches = request.json() == expected
         basic_auth_header = request.headers.get('Authorization') == 'Bearer zendesksell-api-key'
 
@@ -275,7 +271,6 @@ def test_create_deal_invalid_response(notify_api: Flask,
             }
         }
 
-        # can not compare custom_fields as service_id is different for each run
         json_matches = request.json() == expected
         basic_auth_header = request.headers.get('Authorization') == 'Bearer zendesksell-api-key'
 
