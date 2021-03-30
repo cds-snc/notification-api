@@ -328,6 +328,7 @@ def test_create_service(
     sample_user,
     platform_admin,
     expected_count_as_live,
+    mocker
 ):
     sample_user.platform_admin = platform_admin
     data = {
@@ -340,8 +341,10 @@ def test_create_service(
         'created_by': str(sample_user.id)
     }
 
+    zd_send_create_service_mock = mocker.patch('app.user.rest.ZenDeskSell.send_create_service', return_value=True)
     json_resp = admin_request.post('service.create_service', _data=data, _expected_status=201)
 
+    zd_send_create_service_mock.assert_called()
     assert json_resp['data']['id']
     assert json_resp['data']['name'] == 'created service'
     assert json_resp['data']['email_from'] == 'created.service'
@@ -381,6 +384,7 @@ def test_create_service_with_domain_sets_organisation(
     sample_user,
     domain,
     expected_org,
+    mocker
 ):
 
     red_herring_org = create_organisation(name='Sub example')
@@ -407,9 +411,10 @@ def test_create_service_with_domain_sets_organisation(
         'created_by': str(sample_user.id),
         'service_domain': domain,
     }
-
+    zd_send_create_service_mock = mocker.patch('app.user.rest.ZenDeskSell.send_create_service', return_value=True)
     json_resp = admin_request.post('service.create_service', _data=data, _expected_status=201)
 
+    zd_send_create_service_mock.assert_called()
     if expected_org:
         assert json_resp['data']['organisation'] == str(org.id)
     else:
@@ -419,6 +424,7 @@ def test_create_service_with_domain_sets_organisation(
 def test_create_service_inherits_branding_from_organisation(
     admin_request,
     sample_user,
+    mocker
 ):
 
     org = create_organisation()
@@ -429,6 +435,7 @@ def test_create_service_inherits_branding_from_organisation(
     create_domain('example.gov.uk', org.id)
     sample_user.email_address = 'test@example.gov.uk'
 
+    zd_send_create_service_mock = mocker.patch('app.user.rest.ZenDeskSell.send_create_service', return_value=True)
     json_resp = admin_request.post(
         'service.create_service',
         _data={
@@ -443,6 +450,7 @@ def test_create_service_inherits_branding_from_organisation(
         _expected_status=201
     )
 
+    zd_send_create_service_mock.assert_called()
     assert json_resp['data']['email_branding'] == str(email_branding.id)
     assert json_resp['data']['letter_branding'] == str(letter_branding.id)
 
@@ -1126,9 +1134,13 @@ def test_default_permissions_are_added_for_user_service(notify_api,
                                                         notify_db,
                                                         notify_db_session,
                                                         sample_service,
-                                                        sample_user):
+                                                        sample_user,
+                                                        mocker):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
+
+            zd_send_create_service_mock = mocker.patch('app.user.rest.ZenDeskSell.send_create_service',
+                                                       return_value=True)
             data = {
                 'name': 'created service',
                 'user_id': str(sample_user.id),
@@ -1144,6 +1156,8 @@ def test_default_permissions_are_added_for_user_service(notify_api,
                 '/service',
                 data=json.dumps(data),
                 headers=headers)
+
+            zd_send_create_service_mock.assert_called()
             json_resp = resp.json
             assert resp.status_code == 201
             assert json_resp['data']['id']

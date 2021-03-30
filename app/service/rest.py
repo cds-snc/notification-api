@@ -13,6 +13,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
+from app.clients.zendesk_sell import ZenDeskSell
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
 from app.dao.dao_utils import dao_rollback
@@ -233,6 +234,12 @@ def create_service():
     valid_service = Service.from_json(data)
 
     dao_create_service(valid_service, user)
+
+    try:
+        # try-catch; just in case, we don't want to error here
+        ZenDeskSell().send_create_service(valid_service, user)
+    except Exception as e:
+        current_app.logger.exception(e)
 
     return jsonify(data=service_schema.dump(valid_service).data), 201
 
