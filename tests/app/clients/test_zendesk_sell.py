@@ -59,27 +59,29 @@ def test_create_lead_missing_name(notify_api: Flask):
             ZenDeskSell().upsert_lead(ContactRequest(**{'email_address': 'test@email.com'}))
 
 
-def contact_match_json(request):
-    expected = {
-        'data': {
-            'last_name': 'User',
-            'first_name': 'Test',
-            'email': 'notify@digital.cabinet-office.gov.uk',
-            'mobile': '+16502532222',
-            'owner_id': ZenDeskSell.OWNER_ID
-        }
-    }
-
-    # Can not match fields in custom_fields as they are unique each test run
-    resp_data = request.json()
-    del resp_data['data']['custom_fields']
-    json_matches = resp_data == expected
-    basic_auth_header = request.headers.get('Authorization') == 'Bearer zendesksell-api-key'
-
-    return json_matches and basic_auth_header
-
-
 def test_create_contact(notify_api: Flask, sample_service: Service):
+
+    def match_json(request):
+        expected = {
+            'data': {
+                'last_name': 'User',
+                'first_name': 'Test',
+                'email': 'notify@digital.cabinet-office.gov.uk',
+                'mobile': '+16502532222',
+                'owner_id': ZenDeskSell.OWNER_ID,
+                'custom_fields': {
+                    'notify_user_id': str(sample_service.users[0].id)
+                }
+
+            }
+        }
+
+        # Can not match fields in custom_fields as they are unique each test run
+        json_matches = request.json() == expected
+        basic_auth_header = request.headers.get('Authorization') == 'Bearer zendesksell-api-key'
+
+        return json_matches and basic_auth_header
+
     with requests_mock.mock() as rmock:
         resp_data = {
             'data': {
@@ -92,7 +94,7 @@ def test_create_contact(notify_api: Flask, sample_service: Service):
             "POST",
             url=f'https://zendesksell-test.com/v2/contacts/upsert?email={sample_service.users[0].email_address}',
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
-            additional_matcher=contact_match_json,
+            additional_matcher=match_json,
             status_code=200,
             text=json.dumps(resp_data)
 
@@ -104,6 +106,28 @@ def test_create_contact(notify_api: Flask, sample_service: Service):
 
 
 def test_upsert_contact(notify_api: Flask, sample_service: Service):
+
+    def match_json(request):
+        expected = {
+            'data': {
+                'last_name': 'User',
+                'first_name': 'Test',
+                'email': 'notify@digital.cabinet-office.gov.uk',
+                'mobile': '+16502532222',
+                'owner_id': ZenDeskSell.OWNER_ID,
+                'custom_fields': {
+                    'notify_user_id': str(sample_service.users[0].id)
+                }
+
+            }
+        }
+
+        # Can not match fields in custom_fields as they are unique each test run
+        json_matches = request.json() == expected
+        basic_auth_header = request.headers.get('Authorization') == 'Bearer zendesksell-api-key'
+
+        return json_matches and basic_auth_header
+
     with requests_mock.mock() as rmock:
         # the created_at and updated_at values are different
         resp_data = {
@@ -117,7 +141,7 @@ def test_upsert_contact(notify_api: Flask, sample_service: Service):
             "POST",
             url=f'https://zendesksell-test.com/v2/contacts/upsert?email={sample_service.users[0].email_address}',
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
-            additional_matcher=contact_match_json,
+            additional_matcher=match_json,
             status_code=200,
             text=json.dumps(resp_data)
 
@@ -137,12 +161,33 @@ def test_upsert_contact(notify_api: Flask, sample_service: Service):
 def test_create_contact_invalid_response(notify_api: Flask,
                                          sample_service: Service,
                                          expected_resp_data: Dict[str, Dict[str, Union[int, str]]]):
+    def match_json(request):
+        expected = {
+            'data': {
+                'last_name': 'User',
+                'first_name': 'Test',
+                'email': 'notify@digital.cabinet-office.gov.uk',
+                'mobile': '+16502532222',
+                'owner_id': ZenDeskSell.OWNER_ID,
+                'custom_fields': {
+                    'notify_user_id': str(sample_service.users[0].id)
+                }
+
+            }
+        }
+
+        # Can not match fields in custom_fields as they are unique each test run
+        json_matches = request.json() == expected
+        basic_auth_header = request.headers.get('Authorization') == 'Bearer zendesksell-api-key'
+
+        return json_matches and basic_auth_header
+
     with requests_mock.mock() as rmock:
         rmock.request(
             "POST",
             url=f'https://zendesksell-test.com/v2/contacts/upsert?email={sample_service.users[0].email_address}',
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
-            additional_matcher=contact_match_json,
+            additional_matcher=match_json,
             status_code=200,
             text=json.dumps(expected_resp_data)
 
@@ -171,26 +216,26 @@ def test_delete_contact(notify_api: Flask):
             ZenDeskSell().delete_contact(contact_id)
 
 
-def deal_match_json(request):
-    expected = {
-        'data': {
-            'contact_id': 123456789,
-            'name': 'Sample service',
-            'stage_id': 123456789,
-            'owner_id': ZenDeskSell.OWNER_ID
-        }
-    }
-
-    # can not compare custom_fields as service_id is different for each run
-    resp_data = request.json()
-    del resp_data['data']['custom_fields']
-    json_matches = resp_data == expected
-    basic_auth_header = request.headers.get('Authorization') == 'Bearer zendesksell-api-key'
-
-    return json_matches and basic_auth_header
-
-
 def test_create_deal(notify_api: Flask, sample_service: Service):
+    def match_json(request):
+        expected = {
+            'data': {
+                'contact_id': 123456789,
+                'name': 'Sample service',
+                'stage_id': 123456789,
+                'owner_id': ZenDeskSell.OWNER_ID,
+                'custom_fields': {
+                    'notify_service_id': str(sample_service.id)
+                }
+            }
+        }
+
+        # can not compare custom_fields as service_id is different for each run
+        json_matches = request.json() == expected
+        basic_auth_header = request.headers.get('Authorization') == 'Bearer zendesksell-api-key'
+
+        return json_matches and basic_auth_header
+
     with requests_mock.mock() as rmock:
         contact_id = 123456789
         expected_deal_id = 987654321
@@ -198,9 +243,9 @@ def test_create_deal(notify_api: Flask, sample_service: Service):
         rmock.request(
             "POST",
             url=f'https://zendesksell-test.com/v2/deals/upsert?contact_id={contact_id}'
-                f'&custom_fields%5Bservice_id%5D={str(sample_service.id)}',
+                f'&custom_fields%5Bnotify_service_id%5D={str(sample_service.id)}',
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
-            additional_matcher=deal_match_json,
+            additional_matcher=match_json,
             status_code=200,
             text=json.dumps(resp_data)
         )
@@ -212,20 +257,38 @@ def test_create_deal(notify_api: Flask, sample_service: Service):
 
 @pytest.mark.parametrize('expected_resp_data', [
     {'blank': 'blank'},
-    {'data': {'id': 987654321}},
-    {'data': {'contact_id': 123456789}},
+    {'data': {'blank': 'blank'}},
 ])
 def test_create_deal_invalid_response(notify_api: Flask,
                                       sample_service: Service,
                                       expected_resp_data: Dict[str, Dict[str, Union[int, str]]]):
+    def match_json(request):
+        expected = {
+            'data': {
+                'contact_id': 123456789,
+                'name': 'Sample service',
+                'stage_id': 123456789,
+                'owner_id': ZenDeskSell.OWNER_ID,
+                'custom_fields': {
+                    'notify_service_id': str(sample_service.id)
+                }
+            }
+        }
+
+        # can not compare custom_fields as service_id is different for each run
+        json_matches = request.json() == expected
+        basic_auth_header = request.headers.get('Authorization') == 'Bearer zendesksell-api-key'
+
+        return json_matches and basic_auth_header
+
     with requests_mock.mock() as rmock:
         contact_id = 123456789
         rmock.request(
             "POST",
             url=f'https://zendesksell-test.com/v2/deals/upsert?contact_id={contact_id}'
-                f'&custom_fields%5Bservice_id%5D={str(sample_service.id)}',
+                f'&custom_fields%5Bnotify_service_id%5D={str(sample_service.id)}',
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
-            additional_matcher=deal_match_json,
+            additional_matcher=match_json,
             status_code=200,
             text=json.dumps(expected_resp_data)
         )

@@ -2,7 +2,7 @@ import json
 import requests
 
 from typing import Any, Dict, List, Optional, Union
-from urllib.parse import urljoin, quote
+from urllib.parse import urljoin
 
 from flask import current_app
 
@@ -21,8 +21,6 @@ class ZenDeskSell(object):
     OWNER_ID = 2693899
 
     STATUS_CREATE_TRAIL = 11826762
-    VERB_POST = 'post'
-    VERB_DELETE = 'delete'
 
     def __init__(self):
         self.api_url = current_app.config['ZENDESK_SELL_API_URL']
@@ -83,7 +81,7 @@ class ZenDeskSell(object):
                 'mobile': user.mobile_number,
                 'owner_id': ZenDeskSell.OWNER_ID,
                 'custom_fields': {
-                    'notify_id': str(user.id),
+                    'notify_user_id': str(user.id),
                 }
             }
         }
@@ -97,14 +95,14 @@ class ZenDeskSell(object):
                 'stage_id': stage_id,
                 'owner_id': ZenDeskSell.OWNER_ID,
                 'custom_fields': {
-                    'service_id': str(service.id),
+                    'notify_service_id': str(service.id),
                 }
             }
         }
 
     def _send_request(
             self,
-            verb: str,
+            method: str,
             relative_url: str,
             data: str = None) -> (Optional[Any], Optional[Exception]):
 
@@ -112,8 +110,8 @@ class ZenDeskSell(object):
             raise NotImplementedError
 
         try:
-            action = getattr(requests, verb, None)
-            response = action(
+            response = requests.request(
+                method=method,
                 url=urljoin(self.api_url, relative_url),
                 data=data,
                 headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
@@ -132,8 +130,8 @@ class ZenDeskSell(object):
         # name is mandatory for zen desk sell API
         assert len(contact.name), 'Zendesk sell requires a name for its API'
 
-        resp, e = self._send_request(verb=ZenDeskSell.VERB_POST,
-                                     relative_url=f'/v2/leads/upsert?email={quote(contact.email_address)}',
+        resp, e = self._send_request(method='POST',
+                                     relative_url=f'/v2/leads/upsert?email={contact.email_address}',
                                      data=json.dumps(ZenDeskSell._generate_lead_data(contact)))
         if e:
             content = json.loads(resp.content)
@@ -145,8 +143,8 @@ class ZenDeskSell(object):
     def upsert_contact(self, user: User) -> (Optional[int], bool):
 
         # The API and field definitions are defined here: https://developers.getbase.com/docs/rest/reference/contacts
-        resp, e = self._send_request(verb=ZenDeskSell.VERB_POST,
-                                     relative_url=f'/v2/contacts/upsert?email={quote(user.email_address)}',
+        resp, e = self._send_request(method='POST',
+                                     relative_url=f'/v2/contacts/upsert?email={user.email_address}',
                                      data=json.dumps(ZenDeskSell._generate_contact_data(user)))
         if e:
             current_app.logger.warning('Failed to create zendesk sell contact')
@@ -164,7 +162,7 @@ class ZenDeskSell(object):
     def delete_contact(self, contact_id: int) -> None:
 
         # The API and field definitions are defined here: https://developers.getbase.com/docs/rest/reference/contacts
-        resp, e = self._send_request(verb=ZenDeskSell.VERB_DELETE,
+        resp, e = self._send_request(method='DELETE',
                                      relative_url=f'/v2/contacts/{contact_id}')
         if e:
             current_app.logger.warning(f'Failed to delete zendesk sell contact: {contact_id}')
@@ -173,9 +171,9 @@ class ZenDeskSell(object):
         # The API and field definitions are defined here: https://developers.getbase.com/docs/rest/reference/deals
 
         resp, e = self._send_request(
-            verb=ZenDeskSell.VERB_POST,
+            method='POST',
             relative_url=f'/v2/deals/upsert?contact_id={contact_id}&'
-                         f'custom_fields%5Bservice_id%5D={quote(str(service.id))}',
+                         f'custom_fields%5Bnotify_service_id%5D={str(service.id)}',
             data=json.dumps(ZenDeskSell._generate_deal_data(contact_id, service, stage_id)))
 
         if e:
@@ -185,13 +183,9 @@ class ZenDeskSell(object):
         # response validation
         try:
             resp_data = resp.json()
-            assert 'data' in resp_data, 'Missing "data" field in response'
-            assert 'id' in resp_data['data'], 'Missing "id" field in response'
-            assert 'contact_id' in resp_data['data'], 'Missing "contact_id" field in response'
-
             return resp_data['data']['id']
 
-        except (json.JSONDecodeError, AssertionError):
+        except (json.JSONDecodeError, KeyError):
             current_app.logger.warning(f'Invalid response: {resp.text}')
             return None
 
