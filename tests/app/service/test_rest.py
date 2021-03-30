@@ -1,5 +1,4 @@
 import json
-import requests_mock
 import uuid
 from datetime import datetime, timedelta, date
 from functools import partial
