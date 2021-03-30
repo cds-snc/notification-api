@@ -1,10 +1,10 @@
 import json
 import requests
 
-from typing import Dict, List, Union, Optional
-from urllib.parse import urljoin
+from typing import Any, Dict, List, Optional, Union
+from urllib.parse import urljoin, quote
 
-from flask import current_app, escape
+from flask import current_app
 
 from app.authentication.bearer_auth import BearerAuth
 from app.user.contact_request import ContactRequest
@@ -16,6 +16,13 @@ __all__ = [
 
 
 class ZenDeskSell(object):
+
+    # FIXME: consider making this an environment variable
+    OWNER_ID = 2693899
+
+    STATUS_CREATE_TRAIL = 11826762
+    VERB_POST = 'post'
+    VERB_DELETE = 'delete'
 
     def __init__(self):
         self.api_url = current_app.config['ZENDESK_SELL_API_URL']
@@ -46,6 +53,7 @@ class ZenDeskSell(object):
                 'last_name': last_name,
                 'first_name': first_name,
                 'organization_name': contact.department_org_name,
+                'owner_id': ZenDeskSell.OWNER_ID,
                 'email': contact.email_address,
                 'description': f'Program: {contact.program_service_name}\n{contact.main_use_case}: '
                                f'{contact.main_use_case_details}',
@@ -73,6 +81,10 @@ class ZenDeskSell(object):
                 'first_name': first_name,
                 'email': user.email_address,
                 'mobile': user.mobile_number,
+                'owner_id': ZenDeskSell.OWNER_ID,
+                'custom_fields': {
+                    'notify_id': str(user.id),
+                }
             }
         }
 
@@ -83,110 +95,96 @@ class ZenDeskSell(object):
                 'contact_id': contact_id,
                 'name': service.name,
                 'stage_id': stage_id,
+                'owner_id': ZenDeskSell.OWNER_ID,
+                'custom_fields': {
+                    'service_id': str(service.id),
+                }
             }
         }
 
-    def upsert_lead(self, contact: ContactRequest) -> int:
+    def _send_request(
+            self,
+            verb: str,
+            relative_url: str,
+            data: str = None) -> (Optional[Any], Optional[Exception]):
 
         if not self.api_url or not self.token:
-            current_app.logger.warning('Did not upsert lead to zendesk')
-            return 200
+            raise NotImplementedError
+
+        try:
+            action = getattr(requests, verb, None)
+            response = action(
+                url=urljoin(self.api_url, relative_url),
+                data=data,
+                headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
+                auth=BearerAuth(token=self.token),
+                timeout=5
+            )
+            response.raise_for_status()
+            return response, None
+        except requests.RequestException as e:
+            return response, e
+
+    def upsert_lead(self, contact: ContactRequest) -> int:
 
         # The API and field definitions are defined here: https://developers.getbase.com/docs/rest/reference/leads
 
         # name is mandatory for zen desk sell API
         assert len(contact.name), 'Zendesk sell requires a name for its API'
 
-        try:
-            response = requests.post(
-                url=urljoin(self.api_url, f'/v2/leads/upsert?email={contact.email_address}'),
-                data=json.dumps(ZenDeskSell._generate_lead_data(contact)),
-                headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
-                auth=BearerAuth(token=self.token),
-                timeout=5
-            )
-            response.raise_for_status()
-
-            return response.status_code
-        except requests.RequestException as e:
-            content = json.loads(response.content)
+        resp, e = self._send_request(verb=ZenDeskSell.VERB_POST,
+                                     relative_url=f'/v2/leads/upsert?email={quote(contact.email_address)}',
+                                     data=json.dumps(ZenDeskSell._generate_lead_data(contact)))
+        if e:
+            content = json.loads(resp.content)
             current_app.logger.warning(f"Failed to create zendesk sell lead: {content['errors']}")
             raise e
+
+        return resp.status_code
 
     def upsert_contact(self, user: User) -> (Optional[int], bool):
 
         # The API and field definitions are defined here: https://developers.getbase.com/docs/rest/reference/contacts
-        if not self.api_url or not self.token:
-            current_app.logger.warning('Did not upsert contact to zendesk')
-            return None, False
-
-        try:
-            response = requests.post(
-                url=urljoin(self.api_url, f'/v2/contacts/upsert?email={user.email_address}'),
-                data=json.dumps(ZenDeskSell._generate_contact_data(user)),
-                headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
-                auth=BearerAuth(token=self.token),
-                timeout=5
-            )
-            response.raise_for_status()
-        except requests.RequestException:
+        resp, e = self._send_request(verb=ZenDeskSell.VERB_POST,
+                                     relative_url=f'/v2/contacts/upsert?email={quote(user.email_address)}',
+                                     data=json.dumps(ZenDeskSell._generate_contact_data(user)))
+        if e:
             current_app.logger.warning('Failed to create zendesk sell contact')
             return None, False
 
         # response validation
         try:
-            resp_data = json.loads(response.text)
-            assert 'data' in resp_data, 'Missing "data" field in response'
-            assert 'id' in resp_data['data'], 'Missing "id" field in response'
-            assert 'created_at' in resp_data['data'], 'Missing "created_at" field in response'
-            assert 'updated_at' in resp_data['data'], 'Missing "updated_at" field in response'
-
+            resp_data = resp.json()
             return resp_data['data']['id'], resp_data['data']['created_at'] == resp_data['data']['updated_at']
 
-        except (json.JSONDecodeError, AssertionError):
-            current_app.logger.warning(f'Invalid response: {response.text}')
+        except (json.JSONDecodeError, KeyError):
+            current_app.logger.warning(f'Invalid response: {resp.text}')
             return None, False
 
     def delete_contact(self, contact_id: int) -> None:
 
-        if not self.api_url or not self.token:
-            current_app.logger.warning(f'Did not delete contact[{contact_id}] from zendesk')
-            return
-
         # The API and field definitions are defined here: https://developers.getbase.com/docs/rest/reference/contacts
-        try:
-            response = requests.delete(
-                url=urljoin(self.api_url, f'/v2/contacts/{contact_id}'),
-                headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
-                auth=BearerAuth(token=self.token),
-                timeout=5
-            )
-            response.raise_for_status()
-        except requests.RequestException:
+        resp, e = self._send_request(verb=ZenDeskSell.VERB_DELETE,
+                                     relative_url=f'/v2/contacts/{contact_id}')
+        if e:
             current_app.logger.warning(f'Failed to delete zendesk sell contact: {contact_id}')
 
     def upsert_deal(self, contact_id: int, service: Service, stage_id: int) -> Optional[int]:
         # The API and field definitions are defined here: https://developers.getbase.com/docs/rest/reference/deals
-        if not self.api_url or not self.token:
-            current_app.logger.warning('Did not upsert deal to zendesk')
-            return None
 
-        try:
-            response = requests.post(
-                url=urljoin(self.api_url, f'/v2/deals/upsert?contact_id={contact_id}&name={escape(service.name)}'),
-                data=json.dumps(ZenDeskSell._generate_deal_data(contact_id, service, stage_id)),
-                headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
-                auth=BearerAuth(token=self.token),
-                timeout=5
-            )
-            response.raise_for_status()
-        except requests.RequestException:
+        resp, e = self._send_request(
+            verb=ZenDeskSell.VERB_POST,
+            relative_url=f'/v2/deals/upsert?contact_id={contact_id}&'
+                         f'custom_fields%5Bservice_id%5D={quote(str(service.id))}',
+            data=json.dumps(ZenDeskSell._generate_deal_data(contact_id, service, stage_id)))
+
+        if e:
             current_app.logger.warning('Failed to create zendesk sell deal')
             return None
 
         # response validation
         try:
-            resp_data = json.loads(response.text)
+            resp_data = resp.json()
             assert 'data' in resp_data, 'Missing "data" field in response'
             assert 'id' in resp_data['data'], 'Missing "id" field in response'
             assert 'contact_id' in resp_data['data'], 'Missing "contact_id" field in response'
@@ -194,7 +192,7 @@ class ZenDeskSell(object):
             return resp_data['data']['id']
 
         except (json.JSONDecodeError, AssertionError):
-            current_app.logger.warning(f'Invalid response: {response.text}')
+            current_app.logger.warning(f'Invalid response: {resp.text}')
             return None
 
     def send_create_service(self, service: Service, user: User) -> bool:
@@ -205,14 +203,13 @@ class ZenDeskSell(object):
         if not contact_id:
             return False
 
-        # 11826762 is a zendesk number to signify "Created Trial"
-        deal_id = self.upsert_deal(contact_id, service, 11826762)
+        deal_id = self.upsert_deal(contact_id, service, ZenDeskSell.STATUS_CREATE_TRAIL)
         if not deal_id and is_created:
             # best effort here
-            self.upsert_contact(contact_id)
+            self.delete_contact(contact_id)
             return False
 
-        return True
+        return deal_id is not None
 
     def send_contact_request(self, contact: ContactRequest) -> int:
         ret = 200
