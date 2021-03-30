@@ -1,6 +1,7 @@
 import json
 
 from flask import current_app
+from typing import Callable, Tuple
 from notifications_utils.statsd_decorators import statsd
 from requests import (
     HTTPError,
@@ -10,7 +11,9 @@ from requests import (
 
 from app import (
     notify_celery,
-    encryption, DATETIME_FORMAT
+    encryption,
+    statsd_client,
+    DATETIME_FORMAT
 )
 from app.config import QueueNames
 from app.dao.complaint_dao import fetch_complaint_by_id
@@ -18,6 +21,7 @@ from app.dao.service_callback_api_dao import (
     get_service_delivery_status_callback_api_for_service,
     get_service_complaint_callback_api_for_service
 )
+from app.models import Complaint, Notification
 
 
 @notify_celery.task(bind=True, name="send-delivery-status", max_retries=5, default_retry_delay=300)
@@ -186,3 +190,16 @@ def _check_and_queue_complaint_callback_task(complaint, notification, recipient)
     if service_callback_api:
         complaint_data = create_complaint_callback_data(complaint, notification, service_callback_api, recipient)
         send_complaint_to_service.apply_async([complaint_data], queue=QueueNames.CALLBACKS)
+
+
+def publish_complaint(provider_message: dict,
+                      provider_complaint_parser: Callable[[dict], Tuple[Complaint, Notification, str]]) -> bool:
+    complaint, notification, recipient_email = provider_complaint_parser(provider_message)
+    provider_name = notification.sent_by
+    _check_and_queue_complaint_callback_task(complaint, notification, recipient_email)
+    send_complaint_to_vanotify.apply_async(
+        [str(complaint.id), notification.template.name],
+        queue=QueueNames.NOTIFY
+    )
+    statsd_client.incr(f'callback.{provider_name}.complaint_count')
+    return True

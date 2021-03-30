@@ -14,7 +14,7 @@ from sqlalchemy.orm.exc import NoResultFound
 import enum
 import requests
 from app import notify_celery, statsd_client
-from app.celery.service_callback_tasks import send_complaint_to_vanotify
+from app.celery.service_callback_tasks import publish_complaint
 from app.config import QueueNames
 from app.clients.email.aws_ses import get_aws_responses
 from app.dao import notifications_dao, services_dao, templates_dao
@@ -23,7 +23,7 @@ from json import decoder
 from app.notifications import process_notifications
 from app.notifications.notifications_ses_callback import (
     determine_notification_bounce_type,
-    handle_complaint,
+    handle_ses_complaint,
     handle_smtp_complaint
 )
 from app.celery.service_callback_tasks import (
@@ -165,15 +165,7 @@ def process_ses_results(self, response):
         if notification_type == 'Bounce':
             notification_type = determine_notification_bounce_type(notification_type, ses_message)
         elif notification_type == 'Complaint':
-            complaint, notification, recipient_email = handle_complaint(ses_message)
-            _check_and_queue_complaint_callback_task(complaint, notification, recipient_email)
-            send_complaint_to_vanotify.apply_async(
-                [str(complaint.id), notification.template.name],
-                queue=QueueNames.NOTIFY
-            )
-
-            statsd_client.incr('callback.ses.complaint_count')
-            return True
+            return publish_complaint(provider_message=ses_message, provider_complaint_parser=handle_ses_complaint)
 
         aws_response_dict = get_aws_responses(notification_type)
 

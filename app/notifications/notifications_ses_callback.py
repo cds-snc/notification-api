@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from flask import (
     current_app,
     json
@@ -5,7 +7,7 @@ from flask import (
 
 from app.dao.complaint_dao import save_complaint
 from app.dao.notifications_dao import dao_get_notification_history_by_reference
-from app.models import Complaint
+from app.models import Complaint, Notification
 
 
 def determine_notification_bounce_type(notification_type, ses_message):
@@ -14,7 +16,7 @@ def determine_notification_bounce_type(notification_type, ses_message):
     return 'Permanent' if ses_message['bounce']['bounceType'] == 'Permanent' else 'Temporary'
 
 
-def handle_complaint(ses_message):
+def handle_ses_complaint(ses_message: dict) -> Tuple[Complaint, Notification, str]:
     recipient_email = remove_emails_from_complaint(ses_message)[0]
     current_app.logger.info(
         "Complaint from SES: \n{}".format(json.dumps(ses_message).replace('{', '(').replace('}', ')')))

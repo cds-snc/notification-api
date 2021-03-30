@@ -10,17 +10,20 @@ from freezegun import freeze_time
 from app import (DATETIME_FORMAT, encryption)
 from app.celery.service_callback_tasks import (
     send_complaint_to_service,
-    send_complaint_to_vanotify, check_and_queue_callback_task
+    send_complaint_to_vanotify,
+    check_and_queue_callback_task,
+    publish_complaint
 )
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import Notification, ServiceCallbackApi
+from app.models import Notification, ServiceCallbackApi, Complaint, Service, Template, User
 from tests.app.db import (
     create_complaint,
     create_notification,
     create_service_callback_api,
     create_service,
-    create_template
+    create_template,
+    ses_complaint_callback
 )
 
 
@@ -263,6 +266,70 @@ def test_check_and_queue_callback_task_queues_task_if_service_callback_api_exist
         [str(mock_notification.id), mock_notification_data],
         queue=QueueNames.CALLBACKS
     )
+
+
+def test_publish_complaint_results_in_invoking_handler(mocker, notify_api):
+    ses_handler = mocker.patch("app.notifications.notifications_ses_callback.handle_ses_complaint",
+                               return_value=mock_complaint_handler(mocker))
+    notification_db = mocker.patch("app.dao.notifications_dao.update_notification_status_by_reference")
+
+    mocker.patch('app.celery.service_callback_tasks._check_and_queue_complaint_callback_task')
+    mocker.patch('app.celery.service_callback_tasks.send_complaint_to_vanotify.apply_async')
+
+    assert publish_complaint(provider_message=ses_complaint_callback(), provider_complaint_parser=ses_handler)
+    assert notification_db.call_count == 0
+    ses_handler.assert_called_once()
+
+
+def test_publish_complaint_notifies_vanotify(mocker, notify_api):
+    mocker.patch('app.celery.service_callback_tasks._check_and_queue_complaint_callback_task')
+    complaint, notification, recipient_email = mock_complaint_handler(mocker)
+    ses_handler = mocker.patch('app.notifications.notifications_ses_callback.handle_ses_complaint',
+                               return_value=(complaint, notification, recipient_email))
+    send_complaint = mocker.patch('app.celery.service_callback_tasks.send_complaint_to_vanotify.apply_async')
+
+    publish_complaint(provider_message=ses_complaint_callback(), provider_complaint_parser=ses_handler)
+
+    send_complaint.assert_called_once_with(
+        [str(complaint.id), notification.template.name], queue='notify-internal-tasks'
+    )
+
+
+def test_ses_callback_should_call_user_complaint_callback_task(mocker, notify_api):
+    complaint, notification, recipient_email = mock_complaint_handler(mocker)
+    ses_handler = mocker.patch('app.notifications.notifications_ses_callback.handle_ses_complaint',
+                               return_value=(complaint, notification, recipient_email))
+    complaint_callback_task = mocker.patch('app.celery.service_callback_tasks._check_and_queue_complaint_callback_task')
+    mocker.patch('app.celery.service_callback_tasks.send_complaint_to_vanotify.apply_async')
+
+    publish_complaint(provider_message=ses_complaint_callback(), provider_complaint_parser=ses_handler)
+
+    complaint_callback_task.assert_called_once_with(complaint, notification, recipient_email)
+
+
+def mock_complaint_handler(mocker):
+    service = mocker.Mock(Service, id='service_id', name='Service Name', users=[mocker.Mock(User, id="user_id")])
+    template = mocker.Mock(Template,
+                           id='template_id',
+                           name='Email Template Name',
+                           service=service,
+                           template_type='email')
+    notification = mocker.Mock(Notification,
+                               service_id=template.service.id,
+                               service=template.service,
+                               template_id=template.id,
+                               template=template,
+                               status='sending',
+                               reference='ref1')
+    complaint = mocker.Mock(Complaint,
+                            service_id=notification.service_id,
+                            notification_id=notification.id,
+                            ses_feedback_id='ses_feedback_id',
+                            complaint_type='complaint',
+                            complaint_date=datetime.utcnow(),
+                            created_at=datetime.now())
+    recipient_email = 'recipient1@example.com'
+    return complaint, notification, recipient_email
 
 
 def create_mock_notification(mocker):
