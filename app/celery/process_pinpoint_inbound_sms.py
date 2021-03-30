@@ -41,6 +41,7 @@ def process_pinpoint_inbound_sms(self, event: CeleryEvent):
     inbound_sms = create_inbound_sms_object(
         service=service,
         content=pinpoint_message['messageBody'],
+        notify_number=pinpoint_message['destinationNumber'],
         from_number=pinpoint_message['originationNumber'],
         provider_ref=pinpoint_message['inboundMessageId'],
         date_received=datetime.utcnow(),

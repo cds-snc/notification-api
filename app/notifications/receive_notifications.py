@@ -56,6 +56,7 @@ def receive_mmg_sms():
 
     inbound = create_inbound_sms_object(service,
                                         content=format_mmg_message(post_data["Message"]),
+                                        notify_number=inbound_number,
                                         from_number=post_data['MSISDN'],
                                         provider_ref=post_data["ID"],
                                         date_received=format_mmg_datetime(post_data.get('DateRecieved')),
@@ -93,6 +94,7 @@ def receive_firetext_sms():
 
     inbound = create_inbound_sms_object(service=service,
                                         content=post_data["message"],
+                                        notify_number=inbound_number,
                                         from_number=post_data['source'],
                                         provider_ref=None,
                                         date_received=format_mmg_datetime(post_data['time']),
@@ -144,6 +146,7 @@ def receive_twilio_sms():
 
     inbound = create_inbound_sms_object(service,
                                         content=post_data["Body"],
+                                        notify_number=post_data['To'],
                                         from_number=post_data['From'],
                                         provider_ref=post_data["MessageSid"],
                                         date_received=datetime.utcnow(),
@@ -180,6 +183,7 @@ def format_mmg_datetime(date):
 def create_inbound_sms_object(
         service: Service,
         content: str,
+        notify_number: str,
         from_number: str,
         provider_ref: Union[str, None],
         date_received: datetime,
@@ -193,7 +197,7 @@ def create_inbound_sms_object(
 
     inbound = InboundSms(
         service=service,
-        notify_number=service.get_inbound_number(),
+        notify_number=notify_number,
         user_number=user_number,
         provider_date=date_received,
         provider_reference=provider_ref,

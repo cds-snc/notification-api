@@ -450,7 +450,7 @@ def test_format_mmg_datetime(provider_date, expected_output):
 def test_create_inbound_mmg_sms_object(sample_service_full_permissions):
     data = {
         'Message': 'hello+there+%F0%9F%93%A9',
-        'Number': sample_service_full_permissions.get_inbound_number(),
+        'Number': '+15551234567',
         'MSISDN': '447700900001',
         'DateRecieved': '2017-01-02+03%3A04%3A05',
         'ID': 'bar',
@@ -459,6 +459,7 @@ def test_create_inbound_mmg_sms_object(sample_service_full_permissions):
     inbound_sms = create_inbound_sms_object(
         sample_service_full_permissions,
         format_mmg_message(data["Message"]),
+        data["Number"],
         data["MSISDN"],
         data["ID"],
         format_mmg_datetime(data["DateRecieved"]),
@@ -466,38 +467,13 @@ def test_create_inbound_mmg_sms_object(sample_service_full_permissions):
     )
 
     assert inbound_sms.service_id == sample_service_full_permissions.id
-    assert inbound_sms.notify_number == sample_service_full_permissions.get_inbound_number()
+    assert inbound_sms.notify_number == '+15551234567'
     assert inbound_sms.user_number == '447700900001'
     assert inbound_sms.provider_date == datetime(2017, 1, 2, 8, 4, 5)
     assert inbound_sms.provider_reference == 'bar'
     assert inbound_sms._content != 'hello there 📩'
     assert inbound_sms.content == 'hello there 📩'
     assert inbound_sms.provider == 'mmg'
-
-
-def test_create_inbound_mmg_sms_object_uses_inbound_number_if_set(sample_service_full_permissions):
-    sample_service_full_permissions.sms_sender = 'foo'
-    inbound_number = sample_service_full_permissions.get_inbound_number()
-
-    data = {
-        'Message': 'hello+there+%F0%9F%93%A9',
-        'Number': sample_service_full_permissions.get_inbound_number(),
-        'MSISDN': '07700 900 001',
-        'DateRecieved': '2017-01-02+03%3A04%3A05',
-        'ID': 'bar',
-    }
-
-    inbound_sms = create_inbound_sms_object(
-        sample_service_full_permissions,
-        format_mmg_message(data["Message"]),
-        data["MSISDN"],
-        data["ID"],
-        format_mmg_datetime(data["DateRecieved"]),
-        "mmg"
-    )
-
-    assert inbound_sms.service_id == sample_service_full_permissions.id
-    assert inbound_sms.notify_number == inbound_number
 
 
 @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
@@ -698,6 +674,7 @@ def test_create_inbound_sms_object(sample_service_full_permissions):
     inbound_sms = create_inbound_sms_object(
         service=sample_service_full_permissions,
         content='hello there 📩',
+        notify_number='+15551234567',
         from_number='+61412345678',
         provider_ref='bar',
         date_received=datetime.utcnow(),
@@ -705,7 +682,7 @@ def test_create_inbound_sms_object(sample_service_full_permissions):
     )
 
     assert inbound_sms.service_id == sample_service_full_permissions.id
-    assert inbound_sms.notify_number == sample_service_full_permissions.get_inbound_number()
+    assert inbound_sms.notify_number == '+15551234567'
     assert inbound_sms.user_number == '+61412345678'
     assert inbound_sms.provider_date == datetime(2017, 1, 1, 16, 00, 00)
     assert inbound_sms.provider_reference == 'bar'
@@ -717,7 +694,7 @@ def test_create_inbound_sms_object(sample_service_full_permissions):
 def test_create_inbound_sms_object_works_with_alphanumeric_sender(sample_service_full_permissions):
     data = {
         'Message': 'hello',
-        'Number': sample_service_full_permissions.get_inbound_number(),
+        'Number': '+15551234567',
         'MSISDN': 'ALPHANUM3R1C',
         'DateRecieved': '2017-01-02+03%3A04%3A05',
         'ID': 'bar',
@@ -726,6 +703,7 @@ def test_create_inbound_sms_object_works_with_alphanumeric_sender(sample_service
     inbound_sms = create_inbound_sms_object(
         service=sample_service_full_permissions,
         content=format_mmg_message(data["Message"]),
+        notify_number='+15551234567',
         from_number='ALPHANUM3R1C',
         provider_ref='foo',
         date_received=None,
