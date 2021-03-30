@@ -1,13 +1,11 @@
 import json
 
+from celery import Task
 from flask import current_app
 from typing import Callable, Tuple
 from notifications_utils.statsd_decorators import statsd
-from requests import (
-    HTTPError,
-    request,
-    RequestException
-)
+from requests.api import request
+from requests.exceptions import RequestException, HTTPError
 
 from app import (
     notify_celery,
@@ -17,10 +15,12 @@ from app import (
 )
 from app.config import QueueNames
 from app.dao.complaint_dao import fetch_complaint_by_id
+from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
 from app.dao.service_callback_api_dao import (
     get_service_delivery_status_callback_api_for_service,
     get_service_complaint_callback_api_for_service
 )
+from app.dao.service_inbound_api_dao import get_service_inbound_api_for_service
 from app.models import Complaint, Notification
 
 
@@ -31,7 +31,7 @@ def send_delivery_status_to_service(
 ):
     status_update = encryption.decrypt(encrypted_status_update)
 
-    data = {
+    payload = {
         "id": str(notification_id),
         "reference": status_update['notification_client_reference'],
         "to": status_update['notification_to'],
@@ -41,12 +41,14 @@ def send_delivery_status_to_service(
         "sent_at": status_update['notification_sent_at'],
         "notification_type": status_update['notification_type']
     }
-    _send_data_to_service_callback_api(
+    _send_to_service_callback_api(
         self,
-        data,
+        payload,
         status_update['service_callback_api_url'],
         status_update['service_callback_api_bearer_token'],
-        'send_delivery_status_to_service'
+        logging_tags={
+            'notification_id': str(notification_id)
+        }
     )
 
 
@@ -55,7 +57,7 @@ def send_delivery_status_to_service(
 def send_complaint_to_service(self, complaint_data):
     complaint = encryption.decrypt(complaint_data)
 
-    data = {
+    payload = {
         "notification_id": complaint['notification_id'],
         "complaint_id": complaint['complaint_id'],
         "reference": complaint['reference'],
@@ -63,12 +65,15 @@ def send_complaint_to_service(self, complaint_data):
         "complaint_date": complaint['complaint_date']
     }
 
-    _send_data_to_service_callback_api(
+    _send_to_service_callback_api(
         self,
-        data,
+        payload,
         complaint['service_callback_api_url'],
         complaint['service_callback_api_bearer_token'],
-        'send_complaint_to_service'
+        logging_tags={
+            'notification_id': complaint['notification_id'],
+            'complaint_id': complaint['complaint_id']
+        }
     )
 
 
@@ -101,46 +106,61 @@ def send_complaint_to_vanotify(self, complaint_id: str, complaint_template_name:
         )
 
 
-def _send_data_to_service_callback_api(self, data, service_callback_url, token, function_name):
-    notification_id = (data["notification_id"] if "notification_id" in data else data["id"])
+@notify_celery.task(bind=True, name="send-inbound-sms", max_retries=5, default_retry_delay=300)
+@statsd(namespace="tasks")
+def send_inbound_sms_to_service(self, inbound_sms_id, service_id):
+    inbound_api = get_service_inbound_api_for_service(service_id=service_id)
+    if not inbound_api:
+        current_app.logger.error(
+            f'could not send inbound sms to service "{service_id}" because it does not have a callback API configured'
+        )
+        return
+
+    inbound_sms = dao_get_inbound_sms_by_id(service_id=service_id, inbound_id=inbound_sms_id)
+
+    payload = {
+        "id": str(inbound_sms.id),
+        # TODO: should we be validating and formatting the phone number here?
+        "source_number": inbound_sms.user_number,
+        "destination_number": inbound_sms.notify_number,
+        "message": inbound_sms.content,
+        "date_received": inbound_sms.provider_date.strftime(DATETIME_FORMAT)
+    }
+
+    _send_to_service_callback_api(
+        self,
+        payload,
+        inbound_api.url,
+        inbound_api.bearer_token,
+        logging_tags={
+            'inbound_sms_id': str(inbound_sms_id),
+            'service_id': str(service_id)
+        }
+    )
+
+
+def _send_to_service_callback_api(self: Task, payload: dict, url: str, token: str, logging_tags: dict) -> None:
+    tags = ', '.join([f"{key}: {value}" for key, value in logging_tags.items()])
     try:
         response = request(
             method="POST",
-            url=service_callback_url,
-            data=json.dumps(data),
+            url=url,
+            data=json.dumps(payload),
             headers={
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer {}'.format(token)
             },
             timeout=60
         )
-        current_app.logger.info('{} sending {} to {}, response {}'.format(
-            function_name,
-            notification_id,
-            service_callback_url,
-            response.status_code
-        ))
+        current_app.logger.info(f"{self.name} sending to {url}, response {response.status_code}, {tags}")
         response.raise_for_status()
     except RequestException as e:
-        current_app.logger.warning(
-            "{} request failed for notification_id: {} and url: {}. exc: {}".format(
-                function_name,
-                notification_id,
-                service_callback_url,
-                e
-            )
-        )
+        current_app.logger.warning(f"{self.name} request failed for url: {url}. exc: {e}, {tags}")
         if not isinstance(e, HTTPError) or e.response.status_code >= 500:
             try:
                 self.retry(queue=QueueNames.RETRY)
             except self.MaxRetriesExceededError:
-                current_app.logger.warning(
-                    "Retry: {} has retried the max num of times for callback url {} and notification_id: {}".format(
-                        function_name,
-                        service_callback_url,
-                        notification_id
-                    )
-                )
+                current_app.logger.warning(f"Retry: {self.name} has retried the max num of times for url {url}, {tags}")
 
 
 def create_delivery_status_callback_data(notification, service_callback_api):

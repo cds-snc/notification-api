@@ -9,7 +9,7 @@ from twilio.twiml.messaging_response import MessagingResponse
 from twilio.request_validator import RequestValidator
 
 from app import statsd_client
-from app.celery import tasks
+from app.celery.service_callback_tasks import send_inbound_sms_to_service
 from app.config import QueueNames
 from app.dao.services_dao import dao_fetch_service_by_inbound_number
 from app.dao.inbound_sms_dao import dao_create_inbound_sms
@@ -61,7 +61,7 @@ def receive_mmg_sms():
                                         date_received=format_mmg_datetime(post_data.get('DateRecieved')),
                                         provider_name="mmg")
 
-    tasks.send_inbound_sms_to_service.apply_async([str(inbound.id), str(service.id)], queue=QueueNames.NOTIFY)
+    send_inbound_sms_to_service.apply_async([str(inbound.id), str(service.id)], queue=QueueNames.NOTIFY)
 
     current_app.logger.debug(
         '{} received inbound SMS with reference {} from MMG'.format(service.id, inbound.provider_reference))
@@ -100,7 +100,7 @@ def receive_firetext_sms():
 
     statsd_client.incr('inbound.firetext.successful')
 
-    tasks.send_inbound_sms_to_service.apply_async([str(inbound.id), str(service.id)], queue=QueueNames.NOTIFY)
+    send_inbound_sms_to_service.apply_async([str(inbound.id), str(service.id)], queue=QueueNames.NOTIFY)
     current_app.logger.debug(
         '{} received inbound SMS with reference {} from Firetext'.format(service.id, inbound.provider_reference))
     return jsonify({
@@ -149,7 +149,7 @@ def receive_twilio_sms():
                                         date_received=datetime.utcnow(),
                                         provider_name="twilio")
 
-    tasks.send_inbound_sms_to_service.apply_async([str(inbound.id), str(service.id)], queue=QueueNames.NOTIFY)
+    send_inbound_sms_to_service.apply_async([str(inbound.id), str(service.id)], queue=QueueNames.NOTIFY)
 
     current_app.logger.debug('{} received inbound SMS with reference {} from Twilio'.format(
         service.id,

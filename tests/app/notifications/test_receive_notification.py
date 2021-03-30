@@ -72,7 +72,7 @@ def twilio_post(client, data, auth='username:password', signature='signature'):
 
 @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_receive_notification_returns_received_to_mmg(client, mocker, sample_service_full_permissions):
-    mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+    mocked = mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
     data = {
         "ID": "1234",
         "MSISDN": "447700900855",
@@ -120,7 +120,7 @@ def test_receive_notification_from_twilio_without_permissions_does_not_persist(
     mocker.patch("app.notifications.receive_notifications.dao_fetch_service_by_inbound_number",
                  return_value=service)
     mocked_send_inbound_sms = mocker.patch(
-        "app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+        "app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
     mocker.patch("app.notifications.receive_notifications.has_inbound_sms_permissions", return_value=False)
 
     data = urllib.parse.urlencode(
@@ -148,7 +148,7 @@ def test_twilio_receive_notification_without_permissions_does_not_create_inbound
     create_inbound_number('+61412345678', service_id=sample_service.id, active=True)
 
     mocked_send_inbound_sms = mocker.patch(
-        "app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+        "app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
     mocked_has_permissions = mocker.patch(
         "app.notifications.receive_notifications.has_inbound_sms_permissions", return_value=False)
 
@@ -180,7 +180,7 @@ def test_receive_notification_from_mmg_without_permissions_does_not_persist(
         notify_db_session,
         permissions
 ):
-    mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+    mocked = mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
     create_service_with_inbound_number(inbound_number='07111111111', service_permissions=permissions)
     data = {
         "ID": "1234",
@@ -202,7 +202,7 @@ def test_receive_notification_from_mmg_without_permissions_does_not_persist(
 @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_receive_notification_from_twilio_responds(notify_db_session, client, mocker):
     mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
-    mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+    mocked = mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
     mock = mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
 
     service = create_service_with_inbound_number(
@@ -224,7 +224,7 @@ def test_receive_notification_from_twilio_responds(notify_db_session, client, mo
 @freeze_time('2017-01-01T01:00:00')
 def test_receive_notification_from_twilio_persists_message(notify_db_session, client, mocker):
     mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
-    mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+    mocked = mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
     mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
 
     service = create_service_with_inbound_number(
@@ -258,7 +258,7 @@ def test_receive_notification_from_twilio_persists_message(notify_db_session, cl
 @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_twilio_no_service_matches_inbound_number(notify_db_session, client, mocker):
     mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
-    mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+    mocked = mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
     mock = mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
 
     create_service_with_inbound_number(
@@ -316,7 +316,7 @@ def test_twilio_inbound_sms_fails_if_incorrect_signature(notify_db_session, noti
 def test_twilio_inbound_sms_auth(notify_db_session, notify_api, client, mocker, auth, usernames, passwords,
                                  status_code):
     mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
-    mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+    mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
 
     create_service_with_inbound_number(
         service_name='b', inbound_number='+61412345678', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
@@ -354,7 +354,7 @@ def test_receive_notification_from_firetext_without_permissions_does_not_persist
     mocker.patch("app.notifications.receive_notifications.dao_fetch_service_by_inbound_number",
                  return_value=service)
     mocked_send_inbound_sms = mocker.patch(
-        "app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+        "app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
     mocker.patch("app.notifications.receive_notifications.has_inbound_sms_permissions", return_value=False)
 
     data = "source=07999999999&destination=07111111111&message=this is a message&time=2017-01-01 12:00:00"
@@ -374,7 +374,7 @@ def test_receive_notification_without_permissions_does_not_create_inbound_even_w
     inbound_number = create_inbound_number('1', service_id=sample_service.id, active=True)
 
     mocked_send_inbound_sms = mocker.patch(
-        "app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+        "app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
     mocked_has_permissions = mocker.patch(
         "app.notifications.receive_notifications.has_inbound_sms_permissions", return_value=False)
 
@@ -531,7 +531,7 @@ def test_mmg_receive_notification_error_if_not_single_matching_service(client, n
 
 @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_receive_notification_returns_received_to_firetext(notify_db_session, client, mocker):
-    mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+    mocked = mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
     mock = mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
 
     service = create_service_with_inbound_number(
@@ -554,7 +554,7 @@ def test_receive_notification_returns_received_to_firetext(notify_db_session, cl
 # This test assumes the local timezone is EST
 @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_receive_notification_from_firetext_persists_message(notify_db_session, client, mocker):
-    mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+    mocked = mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
     mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
 
     service = create_service_with_inbound_number(
@@ -582,7 +582,7 @@ def test_receive_notification_from_firetext_persists_message(notify_db_session, 
 
 @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_receive_notification_from_firetext_persists_message_with_normalized_phone(notify_db_session, client, mocker):
-    mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+    mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
     mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
 
     create_service_with_inbound_number(
@@ -603,7 +603,7 @@ def test_receive_notification_from_firetext_persists_message_with_normalized_pho
 
 @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_returns_ok_to_firetext_if_mismatched_sms_sender(notify_db_session, client, mocker):
-    mocked = mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+    mocked = mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
     mock = mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
 
     create_service_with_inbound_number(
@@ -647,7 +647,7 @@ def test_strip_leading_country_code(number, expected):
     ["testkey", [], 403],
 ])
 def test_firetext_inbound_sms_auth(notify_db_session, notify_api, client, mocker, auth, keys, status_code):
-    mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+    mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
 
     create_service_with_inbound_number(
         service_name='b', inbound_number='07111111111', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
@@ -672,7 +672,7 @@ def test_firetext_inbound_sms_auth(notify_db_session, notify_api, client, mocker
     ["testkey", [], 403],
 ])
 def test_mmg_inbound_sms_auth(notify_db_session, notify_api, client, mocker, auth, keys, status_code):
-    mocker.patch("app.notifications.receive_notifications.tasks.send_inbound_sms_to_service.apply_async")
+    mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
 
     create_service_with_inbound_number(
         service_name='b', inbound_number='07111111111', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]

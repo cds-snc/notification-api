@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 from collections import namedtuple, defaultdict
 
@@ -12,17 +11,11 @@ from notifications_utils.template import (
     WithSubjectTemplate,
 )
 from notifications_utils.timezones import convert_utc_to_local_timezone
-from requests import (
-    HTTPError,
-    request,
-    RequestException
-)
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import (
     create_uuid,
     create_random_identifier,
-    DATETIME_FORMAT,
     encryption,
     notify_celery,
 )
@@ -30,7 +23,6 @@ from app.aws import s3
 from app.celery import provider_tasks, letters_pdf_tasks, research_mode_tasks
 from app.config import QueueNames
 from app.dao.daily_sorted_letter_dao import dao_create_or_update_daily_sorted_letter
-from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
 from app.dao.jobs_dao import (
     dao_update_job,
     dao_get_job_by_id,
@@ -44,7 +36,6 @@ from app.dao.notifications_dao import (
 )
 from app.dao.provider_details_dao import get_current_provider
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
-from app.dao.service_inbound_api_dao import get_service_inbound_api_for_service
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
 from app.dao.services_dao import dao_fetch_service_by_id, fetch_todays_total_message_count
 from app.dao.templates_dao import dao_get_template_by_id
@@ -505,66 +496,6 @@ def check_billable_units(notification_update):
             raise DVLAException(msg)
         except DVLAException:
             current_app.logger.exception(msg)
-
-
-@notify_celery.task(bind=True, name="send-inbound-sms", max_retries=5, default_retry_delay=300)
-@statsd(namespace="tasks")
-def send_inbound_sms_to_service(self, inbound_sms_id, service_id):
-    inbound_api = get_service_inbound_api_for_service(service_id=service_id)
-    if not inbound_api:
-        current_app.logger.error(
-            f'could not send inbound sms to service "{service_id}" because it does not have a callback API configured'
-        )
-        return
-
-    inbound_sms = dao_get_inbound_sms_by_id(service_id=service_id,
-                                            inbound_id=inbound_sms_id)
-    data = {
-        "id": str(inbound_sms.id),
-        # TODO: should we be validating and formatting the phone number here?
-        "source_number": inbound_sms.user_number,
-        "destination_number": inbound_sms.notify_number,
-        "message": inbound_sms.content,
-        "date_received": inbound_sms.provider_date.strftime(DATETIME_FORMAT)
-    }
-
-    try:
-        response = request(
-            method="POST",
-            url=inbound_api.url,
-            data=json.dumps(data),
-            headers={
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer {}'.format(inbound_api.bearer_token)
-            },
-            timeout=60
-        )
-        current_app.logger.debug('send_inbound_sms_to_service sending {} to {}, response {}'.format(
-            inbound_sms_id,
-            inbound_api.url,
-            response.status_code
-        ))
-        response.raise_for_status()
-    except RequestException as e:
-        current_app.logger.warning(
-            "send_inbound_sms_to_service failed for service_id: {} for inbound_sms_id: {} and url: {}. exc: {}".format(
-                service_id,
-                inbound_sms_id,
-                inbound_api.url,
-                e
-            )
-        )
-        if not isinstance(e, HTTPError) or e.response.status_code >= 500:
-            try:
-                self.retry(queue=QueueNames.RETRY)
-            except self.MaxRetriesExceededError:
-                current_app.logger.error(
-                    """Retry: send_inbound_sms_to_service has retried the max number of
-                     times for service: {} and  inbound_sms {}""".format(
-                        service_id,
-                        inbound_sms_id
-                    )
-                )
 
 
 @notify_celery.task(name='process-incomplete-jobs')

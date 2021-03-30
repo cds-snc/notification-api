@@ -6,7 +6,7 @@ from notifications_utils.statsd_decorators import statsd
 from typing_extensions import TypedDict
 
 from app import notify_celery, statsd_client
-from app.celery.tasks import send_inbound_sms_to_service
+from app.celery.service_callback_tasks import send_inbound_sms_to_service
 from app.config import QueueNames
 from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.notifications.receive_notifications import fetch_potential_service, create_inbound_sms_object
