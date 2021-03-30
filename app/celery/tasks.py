@@ -512,7 +512,9 @@ def check_billable_units(notification_update):
 def send_inbound_sms_to_service(self, inbound_sms_id, service_id):
     inbound_api = get_service_inbound_api_for_service(service_id=service_id)
     if not inbound_api:
-        # No API data has been set for this service
+        current_app.logger.error(
+            f'could not send inbound sms to service "{service_id}" because it does not have a callback API configured'
+        )
         return
 
     inbound_sms = dao_get_inbound_sms_by_id(service_id=service_id,
