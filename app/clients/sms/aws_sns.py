@@ -1,4 +1,5 @@
 import re
+from flask import current_app
 from time import monotonic
 
 import boto3
@@ -59,7 +60,7 @@ class AwsSnsClient(SmsClient):
                 }
 
             # If the number is US based, we must use a US Toll Free number to send the message
-            if phonenumbers.region_code_for_number == 'US':
+            if phonenumbers.region_code_for_number(to) == 'US':
                 client = self._us_client
                 attributes['AWS.MM.SMS.OriginationNumber'] = {
                     'DataType': 'String',
