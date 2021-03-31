@@ -96,7 +96,7 @@
         },
         {
           "name": "PINPOINT_RECEIPTS_ENABLED",
-          "value": "False"
+          "value": "True"
         }
       ],
       "secrets": [
