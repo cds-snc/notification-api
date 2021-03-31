@@ -58,6 +58,14 @@ class AwsSnsClient(SmsClient):
                     'StringValue': sender
                 }
 
+            # If the number is US based, we must use a US Toll Free number to send the message
+            if phonenumbers.region_code_for_number == 'US':
+                client = self._us_client
+                attributes['AWS.MM.SMS.OriginationNumber'] = {
+                    'DataType': 'String',
+                    'StringValue': current_app.config['AWS_US_TOLL_FREE_NUMBER']
+                }
+
             try:
                 start_time = monotonic()
                 response = client.publish(
