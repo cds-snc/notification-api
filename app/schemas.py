@@ -244,7 +244,8 @@ class ServiceSchema(BaseSchema):
             'letter_contacts',
             'complaints',
             'email_provider',
-            'sms_provider'
+            'sms_provider',
+            'inbound_sms'
         )
         strict = True
 
