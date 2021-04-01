@@ -275,9 +275,12 @@ def create_random_identifier():
 def process_user_agent(user_agent_string):
     if user_agent_string and user_agent_string.lower().startswith("notify"):
         components = user_agent_string.split("/")
-        client_name = components[0].lower()
-        client_version = components[1].replace(".", "-")
-        return "{}.{}".format(client_name, client_version)
+        try:
+            client_name = components[0].lower()
+            client_version = components[1].replace(".", "-")
+            return "{}.{}".format(client_name, client_version)
+        except IndexError:
+            return "unknown"
     elif user_agent_string and not user_agent_string.lower().startswith("notify"):
         return "non-notify-user-agent"
     else:
