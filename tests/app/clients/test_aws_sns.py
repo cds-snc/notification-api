@@ -2,6 +2,7 @@ import pytest
 from app import aws_sns_client
 from flask import current_app
 
+
 def test_send_sms_successful_returns_aws_sns_response(notify_api, mocker):
     boto_mock = mocker.patch.object(aws_sns_client, '_client', create=True)
     mocker.patch.object(aws_sns_client, 'statsd_client', create=True)
