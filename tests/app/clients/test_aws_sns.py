@@ -2,7 +2,6 @@ import pytest
 from app import aws_sns_client
 from flask import current_app
 
-
 def test_send_sms_successful_returns_aws_sns_response(notify_api, mocker):
     boto_mock = mocker.patch.object(aws_sns_client, '_client', create=True)
     mocker.patch.object(aws_sns_client, 'statsd_client', create=True)
@@ -58,6 +57,7 @@ def test_send_sms_to_us_number_successful_returns_aws_sns_response(notify_api, m
     boto_mock = mocker.patch.object(aws_sns_client, '_long_codes_client', create=True)
     mocker.patch.object(aws_sns_client, 'statsd_client', create=True)
 
+    us_toll_free_number = current_app.config["AWS_US_TOLL_FREE_NUMBER"]
     to = "7185555555"  # New York City Area Code
     content = reference = 'foo'
 
@@ -71,7 +71,7 @@ def test_send_sms_to_us_number_successful_returns_aws_sns_response(notify_api, m
             'AWS.SNS.SMS.SMSType': {'DataType': 'String', 'StringValue': 'Transactional'},
             'AWS.MM.SMS.OriginationNumber': {
                 'DataType': 'String',
-                'StringValue': current_app.config['AWS_US_TOLL_FREE_NUMBER']
+                'StringValue': us_toll_free_number,
             },
         }
     )
