@@ -1,5 +1,4 @@
 import re
-from flask import current_app
 from time import monotonic
 
 import boto3
@@ -60,11 +59,12 @@ class AwsSnsClient(SmsClient):
                 }
 
             # If the number is US based, we must use a US Toll Free number to send the message
-            if phonenumbers.region_code_for_number(to) == 'US':
-                client = self._us_client
+            country = phonenumbers.region_code_for_number(phonenumbers.parse(to))
+            if country == 'US':
+                client = self._long_codes_client
                 attributes['AWS.MM.SMS.OriginationNumber'] = {
                     'DataType': 'String',
-                    'StringValue': current_app.config['AWS_US_TOLL_FREE_NUMBER']
+                    'StringValue': self.current_app.config['AWS_US_TOLL_FREE_NUMBER']
                 }
 
             try:
