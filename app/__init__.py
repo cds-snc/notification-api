@@ -2,6 +2,7 @@ import os
 import random
 import string
 import uuid
+import re
 from dotenv import load_dotenv
 
 from flask import _request_ctx_stack, request, g, jsonify, make_response
@@ -273,12 +274,14 @@ def create_random_identifier():
 
 
 def process_user_agent(user_agent_string):
-    if user_agent_string and user_agent_string.lower().startswith("notify"):
-        components = user_agent_string.split("/")
-        client_name = components[0].lower()
-        client_version = components[1].replace(".", "-")
-        return "{}.{}".format(client_name, client_version)
-    elif user_agent_string and not user_agent_string.lower().startswith("notify"):
-        return "non-notify-user-agent"
-    else:
-        return "unknown"
+    if user_agent_string is None:
+        return 'unknown'
+
+    m = re.search(
+        r'^(?P<name>notify.*)/(?P<version>\d+.\d+.\d+)$',
+        user_agent_string,
+        re.IGNORECASE
+    )
+    if m:
+        return f'{m.group("name").lower()}.{m.group("version").replace(".", "-")}'
+    return 'non-notify-user-agent'
