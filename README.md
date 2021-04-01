@@ -539,3 +539,23 @@ __Solution__: Do not specify a database in your `.env`
 __Problem__: Messages are in the queue but not sending
 
 __Solution__: Check that `celery` is running. 
+
+---
+
+__Problem__: Github Actions is failing when running the 'Perform twistlock scan' step of the 'build-and-push' job
+
+__Solution__:
+
+1. Navigate to [Twistlock UI](https://twistlock.devops.va.gov/#!/login)
+
+2. Click Monitor -> Vulnerabilities -> Images -> CI
+
+3. You should see your failing scan. Click on it to see what's going on. Usually the issue is due to a vulnerability
+   that will be fixed soon in the alpine linux version that we're using; Twistlock will tell you the version with the
+   fix if applicable.
+
+4. If there is a fix, we can just ignore the Twistlock alert for a week because our alpine linux version will probably
+   update to have the fix soon. Go to Defend -> Vulnerabilities -> CI to pull up the Vulnerability Rules.
+
+5. Click on the existing Rule and scroll down to Exceptions. You can add your exception and set the expiration date to a
+   week from now.
