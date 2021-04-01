@@ -59,7 +59,7 @@ class AwsSnsClient(SmsClient):
                 }
 
             # If the number is US based, we must use a US Toll Free number to send the message
-            country = phonenumbers.region_code_for_number(phonenumbers.parse(to))
+            country = phonenumbers.region_code_for_number(match.number)
             if country == 'US':
                 client = self._long_codes_client
                 attributes['AWS.MM.SMS.OriginationNumber'] = {
