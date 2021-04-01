@@ -13,6 +13,8 @@ import pytest
         ("NOTIFY-API-PYTHON-CLIENT/3.0.0", "notify-api-python-client.3-0-0"),
         (None, "unknown"),
         ("NotifyApiKeyClient", "non-notify-user-agent"),
+        ("nearlyNOTIFY-API-PYTHON-CLIENT/3.0.0", "non-notify-user-agent"),
+        ("NOTIFY-API-PYTHON-CLIENT/3.0.0almost", "non-notify-user-agent"),
     ],
 )
 def test_process_user_agent(input, expected):

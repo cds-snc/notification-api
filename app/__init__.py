@@ -278,7 +278,7 @@ def process_user_agent(user_agent_string):
         return 'unknown'
 
     m = re.search(
-        r'(?P<name>notify.*)/(?P<version>\d+.\d+.\d+)',
+        r'^(?P<name>notify.*)/(?P<version>\d+.\d+.\d+)$',
         user_agent_string,
         re.IGNORECASE
     )
