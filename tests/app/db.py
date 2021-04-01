@@ -436,7 +436,7 @@ def create_inbound_sms(
         provider="mmg",
         created_at=None
 ):
-    if not service.inbound_number:
+    if not service.inbound_numbers:
         create_inbound_number(
             # create random inbound number
             notify_number or '1{:10}'.format(random.randint(0, 1e9 - 1)),  # nosec
@@ -447,7 +447,7 @@ def create_inbound_sms(
     inbound = InboundSms(
         service=service,
         created_at=created_at or datetime.utcnow(),
-        notify_number=service.get_inbound_number(),
+        notify_number=service.inbound_numbers[0].number,
         user_number=user_number,
         provider_date=provider_date or datetime.utcnow(),
         provider_reference=provider_reference or 'foo',

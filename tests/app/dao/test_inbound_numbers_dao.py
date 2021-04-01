@@ -1,11 +1,9 @@
 import pytest
-from sqlalchemy.exc import IntegrityError
 
 from app.dao.inbound_numbers_dao import (
     dao_get_inbound_numbers,
-    dao_get_inbound_number_for_service,
+    dao_get_inbound_numbers_for_service,
     dao_get_available_inbound_numbers,
-    dao_set_inbound_number_to_service,
     dao_set_inbound_number_active_flag,
     dao_allocate_number_for_service,
     dao_create_inbound_number,
@@ -14,74 +12,63 @@ from app.dao.inbound_numbers_dao import (
 from app.models import InboundNumber
 
 from tests.app.db import create_service, create_inbound_number
+from tests.app.factories.inbound_number import sample_inbound_number
 
 
-def test_get_inbound_numbers(notify_db, notify_db_session, sample_inbound_numbers):
-    res = dao_get_inbound_numbers()
+def test_get_inbound_numbers(db_session):
+    db_session.query(InboundNumber).delete()
 
-    assert len(res) == len(sample_inbound_numbers)
-    assert res == sample_inbound_numbers
+    inbound_number_one = sample_inbound_number()
+    inbound_number_two = sample_inbound_number()
 
+    db_session.add(inbound_number_one)
+    db_session.add(inbound_number_two)
+    db_session.commit()
 
-def test_get_available_inbound_numbers(notify_db, notify_db_session):
-    inbound_number = create_inbound_number(number='1')
+    inbound_numbers = dao_get_inbound_numbers()
 
-    res = dao_get_available_inbound_numbers()
-
-    assert len(res) == 1
-    assert res[0] == inbound_number
-
-
-def test_set_service_id_on_inbound_number(notify_db, notify_db_session, sample_inbound_numbers):
-    service = create_service(service_name='test service')
-    numbers = dao_get_available_inbound_numbers()
-
-    dao_set_inbound_number_to_service(service.id, numbers[0])
-
-    res = InboundNumber.query.filter(InboundNumber.service_id == service.id).all()
-
-    assert len(res) == 1
-    assert res[0].service_id == service.id
+    assert inbound_number_one in inbound_numbers
+    assert inbound_number_two in inbound_numbers
 
 
-def test_after_setting_service_id_that_inbound_number_is_unavailable(
-        notify_db, notify_db_session, sample_inbound_numbers):
-    service = create_service(service_name='test service')
-    numbers = dao_get_available_inbound_numbers()
+class TestGetAvailableInboundNumbers:
 
-    assert len(numbers) == 1
+    def test_gets_available_inbound_number(self, notify_db, notify_db_session):
+        inbound_number = create_inbound_number(number='1')
 
-    dao_set_inbound_number_to_service(service.id, numbers[0])
+        res = dao_get_available_inbound_numbers()
 
-    res = dao_get_available_inbound_numbers()
+        assert len(res) == 1
+        assert res[0] == inbound_number
 
-    assert len(res) == 0
+    def test_after_setting_service_id_that_inbound_number_is_unavailable(
+            self, notify_db, notify_db_session, sample_inbound_numbers
+    ):
+        service = create_service(service_name='test service')
+        numbers = dao_get_available_inbound_numbers()
 
+        assert len(numbers) == 1
 
-def test_setting_a_service_twice_will_raise_an_error(notify_db, notify_db_session):
-    create_inbound_number(number='1')
-    create_inbound_number(number='2')
-    service = create_service(service_name='test service')
-    numbers = dao_get_available_inbound_numbers()
+        numbers[0].service = service
 
-    dao_set_inbound_number_to_service(service.id, numbers[0])
+        res = dao_get_available_inbound_numbers()
 
-    with pytest.raises(IntegrityError) as e:
-        dao_set_inbound_number_to_service(service.id, numbers[1])
-
-    assert 'duplicate key value violates unique constraint' in str(e.value)
+        assert len(res) == 0
 
 
-@pytest.mark.parametrize("active", [True, False])
-def test_set_inbound_number_active_flag(notify_db, notify_db_session, sample_service, active):
-    inbound_number = create_inbound_number(number='1')
-    dao_set_inbound_number_to_service(sample_service.id, inbound_number)
+class TestSetInboundNumberActiveFlag:
 
-    dao_set_inbound_number_active_flag(sample_service.id, active=active)
+    @pytest.mark.parametrize("active", [True, False])
+    def test_set_inbound_number_active_flag(self, db_session, active):
+        inbound_number = sample_inbound_number()
+        db_session.add(inbound_number)
+        db_session.commit()
 
-    inbound_number = dao_get_inbound_number_for_service(sample_service.id)
+        dao_set_inbound_number_active_flag(inbound_number.id, active=active)
 
-    assert inbound_number.active is active
+        inbound_number_from_db = InboundNumber.query.filter(InboundNumber.id == inbound_number.id).first()
+
+        assert inbound_number_from_db.active is active
 
 
 def test_dao_allocate_number_for_service(notify_db_session):
@@ -90,7 +77,7 @@ def test_dao_allocate_number_for_service(notify_db_session):
     service = create_service()
 
     updated_inbound_number = dao_allocate_number_for_service(service_id=service.id, inbound_number_id=inbound_number.id)
-    assert service.get_inbound_number() == number
+    assert inbound_number in service.inbound_numbers
     assert updated_inbound_number.service_id == service.id
 
 
@@ -113,11 +100,7 @@ def test_dao_allocate_number_for_service_raises_if_invalid_inbound_number(notify
 def test_create_inbound_number(db_session):
     db_session.query(InboundNumber).delete()
 
-    inbound_number = InboundNumber(
-        number='1234',
-        provider='some-provider',
-        service_id=create_service().id
-    )
+    inbound_number = sample_inbound_number()
     dao_create_inbound_number(inbound_number)
 
     created_in_database = db_session.query(InboundNumber).one()
@@ -128,12 +111,7 @@ class TestUpdateInboundNumber:
 
     @pytest.fixture
     def existing_inbound_number(self, db_session):
-        inbound_number = InboundNumber(
-            number='1234',
-            provider='some-provider',
-            service_id=create_service().id,
-            active=True
-        )
+        inbound_number = sample_inbound_number()
         db_session.add(inbound_number)
         db_session.commit()
         return inbound_number
@@ -166,3 +144,19 @@ class TestUpdateInboundNumber:
     def test_returns_updated_inbound_number(self, existing_inbound_number):
         updated = dao_update_inbound_number(existing_inbound_number.id, number='new-number')
         assert updated.number == 'new-number'
+
+
+class TestGetInboundNumbersForService:
+
+    def test_gets_empty_list_when_no_inbound_numbers_for_service(self, db_session, sample_service):
+        db_session.query(InboundNumber).delete()
+        assert dao_get_inbound_numbers_for_service(sample_service.id) == []
+
+    def test_gets_inbound_numbers_for_service(self, db_session, sample_service):
+        db_session.query(InboundNumber).delete()
+        inbound_number_one = sample_inbound_number(number='555', service=sample_service)
+        inbound_number_two = sample_inbound_number(number='111', service=sample_service)
+
+        retrieved_inbound_numbers = dao_get_inbound_numbers_for_service(sample_service.id)
+        assert inbound_number_one in retrieved_inbound_numbers
+        assert inbound_number_two in retrieved_inbound_numbers

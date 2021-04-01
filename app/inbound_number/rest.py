@@ -3,7 +3,7 @@ from flask import Blueprint, jsonify, request
 from app.dao.inbound_numbers_dao import (
     dao_create_inbound_number,
     dao_get_inbound_numbers,
-    dao_get_inbound_number_for_service,
+    dao_get_inbound_numbers_for_service,
     dao_get_available_inbound_numbers,
     dao_set_inbound_number_active_flag,
     dao_update_inbound_number
@@ -47,15 +47,15 @@ def update_inbound_number(inbound_number_id):
 
 
 @inbound_number_blueprint.route('/service/<uuid:service_id>', methods=['GET'])
-def get_inbound_number_for_service(service_id):
-    inbound_number = dao_get_inbound_number_for_service(service_id)
+def get_inbound_numbers_for_service(service_id):
+    inbound_numbers = dao_get_inbound_numbers_for_service(service_id)
 
-    return jsonify(data=inbound_number.serialize() if inbound_number else {})
+    return jsonify(data=[inbound_number.serialize() for inbound_number in inbound_numbers])
 
 
-@inbound_number_blueprint.route('/service/<uuid:service_id>/off', methods=['POST'])
-def post_set_inbound_number_off(service_id):
-    dao_set_inbound_number_active_flag(service_id, active=False)
+@inbound_number_blueprint.route('/<uuid:inbound_number_id>/off', methods=['POST'])
+def post_set_inbound_number_off(inbound_number_id):
+    dao_set_inbound_number_active_flag(inbound_number_id, active=False)
     return jsonify(), 204
 
 

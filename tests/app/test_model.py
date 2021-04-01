@@ -281,13 +281,13 @@ def test_inbound_number_returns_inbound_number(client, notify_db_session):
     service = create_service()
     inbound_number = create_inbound_number(number='1', service_id=service.id)
 
-    assert service.get_inbound_number() == inbound_number.number
+    assert inbound_number in service.inbound_numbers
 
 
 def test_inbound_number_returns_none_when_no_inbound_number(client, notify_db_session):
     service = create_service()
 
-    assert not service.get_inbound_number()
+    assert service.inbound_numbers == []
 
 
 def test_service_get_default_reply_to_email_address(sample_service):

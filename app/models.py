@@ -534,10 +534,6 @@ class Service(db.Model, Versioned):
 
         return cls(**fields)
 
-    def get_inbound_number(self):
-        if self.inbound_number and self.inbound_number.active:
-            return self.inbound_number.number
-
     def get_default_sms_sender(self):
         default_sms_sender = [x for x in self.service_sms_senders if x.is_default]
         return default_sms_sender[0].sms_sender
@@ -604,8 +600,8 @@ class InboundNumber(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     number = db.Column(db.String(12), unique=True, nullable=False)
     provider = db.Column(db.String(), nullable=False)
-    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), unique=True, index=True, nullable=True)
-    service = db.relationship(Service, backref=db.backref("inbound_number", uselist=False))
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), index=True, nullable=True)
+    service = db.relationship(Service, backref=db.backref("inbound_numbers", uselist=True))
     active = db.Column(db.Boolean, index=False, unique=False, nullable=False, default=True)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)

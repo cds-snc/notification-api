@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from app import db
 from app.dao.dao_utils import transactional
@@ -13,8 +13,8 @@ def dao_get_available_inbound_numbers():
     return InboundNumber.query.filter(InboundNumber.active, InboundNumber.service_id.is_(None)).all()
 
 
-def dao_get_inbound_number_for_service(service_id):
-    return InboundNumber.query.filter(InboundNumber.service_id == service_id).first()
+def dao_get_inbound_numbers_for_service(service_id: str) -> List[InboundNumber]:
+    return InboundNumber.query.filter(InboundNumber.service_id == service_id).all()
 
 
 def dao_get_inbound_number(inbound_number_id: str) -> Optional[InboundNumber]:
@@ -22,14 +22,8 @@ def dao_get_inbound_number(inbound_number_id: str) -> Optional[InboundNumber]:
 
 
 @transactional
-def dao_set_inbound_number_to_service(service_id, inbound_number):
-    inbound_number.service_id = service_id
-    db.session.add(inbound_number)
-
-
-@transactional
-def dao_set_inbound_number_active_flag(service_id, active):
-    inbound_number = InboundNumber.query.filter(InboundNumber.service_id == service_id).first()
+def dao_set_inbound_number_active_flag(inbound_number_id: str, active: bool) -> None:
+    inbound_number = InboundNumber.query.filter_by(id=inbound_number_id).first()
     inbound_number.active = active
 
     db.session.add(inbound_number)

@@ -78,7 +78,7 @@ def test_receive_notification_returns_received_to_mmg(client, mocker, sample_ser
         "MSISDN": "447700900855",
         "Message": "Some message to notify",
         "Trigger": "Trigger?",
-        "Number": sample_service_full_permissions.get_inbound_number(),
+        "Number": sample_service_full_permissions.inbound_numbers[0].number,
         "Channel": "SMS",
         "DateRecieved": "2012-06-27 12:33:00"
     }

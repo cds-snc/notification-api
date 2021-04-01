@@ -1,56 +1,67 @@
 import uuid
 
-from app.dao.inbound_numbers_dao import dao_get_inbound_number_for_service
 from app.models import InboundNumber
 
-from tests.app.db import create_service, create_inbound_number
+
+class TestGetInboundNumbers:
+
+    def test_returns_empty_list_when_no_inbound_numbers(self, admin_request, mocker):
+        mocker.patch('app.inbound_number.rest.dao_get_inbound_numbers', return_value=[])
+
+        result = admin_request.get('inbound_number.get_inbound_numbers')
+
+        assert result['data'] == []
+
+    def test_returns_inbound_numbers(self, admin_request, mocker):
+        inbound_number = InboundNumber()
+        mocker.patch('app.inbound_number.rest.dao_get_inbound_numbers', return_value=[inbound_number])
+
+        result = admin_request.get('inbound_number.get_inbound_numbers')
+
+        assert result['data'] == [inbound_number.serialize()]
 
 
-def test_rest_get_inbound_numbers_when_none_set_returns_empty_list(admin_request):
-    result = admin_request.get('inbound_number.get_inbound_numbers')
+class TestGetInboundNumbersForService:
 
-    assert result['data'] == []
+    def test_gets_empty_list(self, admin_request, mocker):
+        dao_get_inbound_numbers_for_service = mocker.patch(
+            'app.inbound_number.rest.dao_get_inbound_numbers_for_service',
+            return_value=[]
+        )
 
+        service_id = uuid.uuid4()
+        result = admin_request.get('inbound_number.get_inbound_numbers_for_service', service_id=service_id)
 
-def test_rest_get_inbound_numbers(admin_request, sample_inbound_numbers):
-    result = admin_request.get('inbound_number.get_inbound_numbers')
+        assert result['data'] == []
+        dao_get_inbound_numbers_for_service.assert_called_with(service_id)
 
-    assert len(result['data']) == len(sample_inbound_numbers)
-    assert result['data'] == [i.serialize() for i in sample_inbound_numbers]
+    def test_gets_inbound_numbers(self, admin_request, mocker):
+        inbound_number = InboundNumber()
+        mocker.patch(
+            'app.inbound_number.rest.dao_get_inbound_numbers_for_service',
+            return_value=[inbound_number]
+        )
 
+        result = admin_request.get(
+            'inbound_number.get_inbound_numbers_for_service',
+            service_id=uuid.uuid4()
+        )
 
-def test_rest_get_inbound_number(admin_request, notify_db_session, sample_service):
-    inbound_number = create_inbound_number(number='1', provider='mmg', active=False, service_id=sample_service.id)
-
-    result = admin_request.get(
-        'inbound_number.get_inbound_number_for_service',
-        service_id=sample_service.id
-    )
-    assert result['data'] == inbound_number.serialize()
-
-
-def test_rest_get_inbound_number_when_service_is_not_assigned_returns_empty_dict(
-        admin_request, notify_db_session, sample_service):
-    result = admin_request.get(
-        'inbound_number.get_inbound_number_for_service',
-        service_id=sample_service.id
-    )
-    assert result['data'] == {}
+        assert result['data'] == [inbound_number.serialize()]
 
 
-def test_rest_set_inbound_number_active_flag_off(
-        admin_request, notify_db_session):
-    service = create_service(service_name='test service 1')
-    create_inbound_number(number='1', provider='mmg', active=True, service_id=service.id)
+class TestSetInboundNumberOff:
 
-    admin_request.post(
-        'inbound_number.post_set_inbound_number_off',
-        _expected_status=204,
-        service_id=service.id
-    )
+    def test_sets_inbound_number_active_flag_off(self, admin_request, mocker):
+        dao_set_inbound_number_active_flag = mocker.patch('app.inbound_number.rest.dao_set_inbound_number_active_flag')
 
-    inbound_number_from_db = dao_get_inbound_number_for_service(service.id)
-    assert not inbound_number_from_db.active
+        inbound_number_id = uuid.uuid4()
+        admin_request.post(
+            'inbound_number.post_set_inbound_number_off',
+            _expected_status=204,
+            inbound_number_id=inbound_number_id
+        )
+        dao_set_inbound_number_active_flag.assert_called_with(inbound_number_id, active=False)
 
 
 def test_get_available_inbound_numbers_returns_empty_list(admin_request):

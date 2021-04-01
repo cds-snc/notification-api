@@ -7,11 +7,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
-from app.dao.inbound_numbers_dao import (
-    dao_set_inbound_number_to_service,
-    dao_get_available_inbound_numbers,
-    dao_set_inbound_number_active_flag
-)
 from app.dao.organisation_dao import dao_add_service_to_organisation
 from app.dao.service_permissions_dao import dao_add_service_permission, dao_remove_service_permission
 from app.dao.services_dao import (
@@ -1148,24 +1143,11 @@ def test_dao_fetch_service_by_inbound_number_with_unknown_number(notify_db_sessi
 
 def test_dao_fetch_service_by_inbound_number_with_inactive_number_returns_empty(notify_db_session):
     service = create_service_with_inbound_number(inbound_number='1', service_name='a')
-    dao_set_inbound_number_active_flag(service_id=service.id, active=False)
+    service.inbound_numbers[0].active = False
 
     service = dao_fetch_service_by_inbound_number('1')
 
     assert service is None
-
-
-def test_dao_allocating_inbound_number_shows_on_service(notify_db_session):
-    create_service_with_inbound_number()
-    create_inbound_number(number='07700900003')
-
-    inbound_numbers = dao_get_available_inbound_numbers()
-
-    service = create_service(service_name='test service')
-
-    dao_set_inbound_number_to_service(service.id, inbound_numbers[0])
-
-    assert service.inbound_number.number == inbound_numbers[0].number
 
 
 def _assert_service_permissions(service_permissions, expected):
