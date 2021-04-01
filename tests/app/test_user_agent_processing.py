@@ -11,3 +11,7 @@ def test_can_handle_non_notify_api_user_agent():
 
 def test_handles_null_user_agent():
     assert "unknown" == process_user_agent(None)
+
+
+def test_handles_invalid_notify_user_agent():
+    assert "unknown" == process_user_agent("NotifyApiKeyClient")
