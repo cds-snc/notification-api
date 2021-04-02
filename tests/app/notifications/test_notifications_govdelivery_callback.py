@@ -1,10 +1,14 @@
+import uuid
+
 import pytest
 from datetime import datetime
+from dateutil import parser
 
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
-from app.models import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, Notification
+from app.models import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, Notification, Complaint
 from app.clients.email.govdelivery_client import govdelivery_status_map
+from app.notifications.notifications_govdelivery_callback import handle_govdelivery_blacklist
 
 
 @pytest.fixture
@@ -172,3 +176,39 @@ def test_should_log_failure_reason(
 
     logs = [args[0] for args, kwargs in logger.call_args_list]
     assert any(error_message in log for log in logs)
+
+
+def test_handle_govdelivery_blacklist_should_return_complaint_notification_recipient(notify_api):
+    request = get_govdelivery_request('1111', 'blacklisted')
+
+    test_email = 'some_email@gov.gov'
+
+    test_notification = Notification(
+        id=uuid.uuid4(),
+        to=test_email,
+        service_id=uuid.uuid4()
+    )
+
+    expected_complaint = Complaint(
+        notification_id=test_notification.id,
+        service_id=test_notification.service_id,
+        feedback_id=request['sid'],
+        complaint_type=request['message_type'],
+        complaint_date=parser.parse(request['completed_at'])
+    )
+
+    with notify_api.app_context():
+        complaint, notification, email = handle_govdelivery_blacklist(request, test_notification)
+
+        assert_complaints_are_equal(expected_complaint, complaint)
+
+        assert notification == test_notification
+        assert email == test_email
+
+
+def assert_complaints_are_equal(expected_complaint, actual_complaint):
+    assert expected_complaint.notification_id == actual_complaint.notification_id
+    assert expected_complaint.service_id == actual_complaint.service_id
+    assert expected_complaint.feedback_id == actual_complaint.feedback_id
+    assert expected_complaint.complaint_type == actual_complaint.complaint_type
+    assert expected_complaint.complaint_date == actual_complaint.complaint_date
