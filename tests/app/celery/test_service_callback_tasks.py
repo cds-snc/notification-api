@@ -329,7 +329,7 @@ def mock_complaint_handler(mocker):
     complaint = mocker.Mock(Complaint,
                             service_id=notification.service_id,
                             notification_id=notification.id,
-                            ses_feedback_id='ses_feedback_id',
+                            feedback_id='feedback_id',
                             complaint_type='complaint',
                             complaint_date=datetime.utcnow(),
                             created_at=datetime.now())

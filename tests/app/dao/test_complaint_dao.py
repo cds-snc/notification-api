@@ -39,7 +39,7 @@ def test_fetch_paginated_complaints(mocker, sample_email_notification):
 def test_fetch_complaint_by_service_returns_one(sample_service, sample_email_notification):
     complaint = Complaint(notification_id=sample_email_notification.id,
                           service_id=sample_service.id,
-                          ses_feedback_id=str(uuid.uuid4()),
+                          feedback_id=str(uuid.uuid4()),
                           complaint_type='abuse',
                           complaint_date=datetime.utcnow()
                           )
@@ -66,19 +66,19 @@ def test_fetch_complaint_by_service_return_many(notify_db_session):
     notification_3 = create_notification(template=template_2)
     complaint_1 = Complaint(notification_id=notification_1.id,
                             service_id=service_1.id,
-                            ses_feedback_id=str(uuid.uuid4()),
+                            feedback_id=str(uuid.uuid4()),
                             complaint_type='abuse',
                             complaint_date=datetime.utcnow()
                             )
     complaint_2 = Complaint(notification_id=notification_2.id,
                             service_id=service_2.id,
-                            ses_feedback_id=str(uuid.uuid4()),
+                            feedback_id=str(uuid.uuid4()),
                             complaint_type='abuse',
                             complaint_date=datetime.utcnow()
                             )
     complaint_3 = Complaint(notification_id=notification_3.id,
                             service_id=service_2.id,
-                            ses_feedback_id=str(uuid.uuid4()),
+                            feedback_id=str(uuid.uuid4()),
                             complaint_type='abuse',
                             complaint_date=datetime.utcnow(),
                             created_at=datetime.utcnow() + timedelta(minutes=1)

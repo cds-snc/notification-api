@@ -31,7 +31,7 @@ def handle_ses_complaint(ses_message: dict) -> Tuple[Complaint, Notification, st
     complaint = Complaint(
         notification_id=notification.id,
         service_id=notification.service_id,
-        ses_feedback_id=ses_complaint.get('feedbackId', None) if ses_complaint else None,
+        feedback_id=ses_complaint.get('feedbackId', None) if ses_complaint else None,
         complaint_type=ses_complaint.get('complaintFeedbackType', None) if ses_complaint else None,
         complaint_date=ses_complaint.get('timestamp', None) if ses_complaint else None
     )
@@ -54,7 +54,7 @@ def handle_smtp_complaint(ses_message):
     complaint = Complaint(
         notification_id=notification.id,
         service_id=notification.service_id,
-        ses_feedback_id=ses_complaint.get('feedbackId', None) if ses_complaint else None,
+        feedback_id=ses_complaint.get('feedbackId', None) if ses_complaint else None,
         complaint_type=ses_complaint.get('complaintFeedbackType', None) if ses_complaint else None,
         complaint_date=ses_complaint.get('timestamp', None) if ses_complaint else None
     )

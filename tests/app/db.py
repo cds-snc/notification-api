@@ -786,7 +786,7 @@ def create_complaint(service=None,
 
     complaint = Complaint(notification_id=notification.id,
                           service_id=service.id,
-                          ses_feedback_id=str(uuid.uuid4()),
+                          feedback_id=str(uuid.uuid4()),
                           complaint_type='abuse',
                           complaint_date=datetime.utcnow(),
                           created_at=created_at if created_at else datetime.now()

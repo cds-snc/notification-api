@@ -2088,7 +2088,7 @@ class Complaint(db.Model):
                                 index=True, nullable=False)
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), unique=False, index=True, nullable=False)
     service = db.relationship(Service, backref=db.backref('complaints'))
-    ses_feedback_id = db.Column(db.Text, nullable=True)
+    feedback_id = db.Column(db.Text, nullable=True)
     complaint_type = db.Column(db.Text, nullable=True)
     complaint_date = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
@@ -2099,7 +2099,7 @@ class Complaint(db.Model):
             'notification_id': str(self.notification_id),
             'service_id': str(self.service_id),
             'service_name': self.service.name,
-            'ses_feedback_id': str(self.ses_feedback_id),
+            'feedback_id': str(self.feedback_id),
             'complaint_type': self.complaint_type,
             'complaint_date': self.complaint_date.strftime(DATETIME_FORMAT) if self.complaint_date else None,
             'created_at': self.created_at.strftime(DATETIME_FORMAT),
