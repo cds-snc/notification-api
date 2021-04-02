@@ -1,3 +1,5 @@
+from typing import Optional
+
 from sqlalchemy import desc
 
 from app import db
@@ -30,6 +32,14 @@ def dao_get_sms_senders_by_service_id(service_id):
         service_id=service_id,
         archived=False
     ).order_by(desc(ServiceSmsSender.is_default)).all()
+
+
+def dao_get_sms_sender_by_service_id_and_number(service_id: str, number: str) -> Optional[ServiceSmsSender]:
+    return ServiceSmsSender.query.filter_by(
+        service_id=service_id,
+        sms_sender=number,
+        archived=False
+    ).first()
 
 
 @transactional

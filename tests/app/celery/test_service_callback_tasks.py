@@ -28,7 +28,7 @@ from tests.app.db import (
     create_template,
     create_inbound_sms,
     create_service_inbound_api,
-    ses_complaint_callback
+    ses_complaint_callback, create_service_sms_sender
 )
 
 
@@ -399,12 +399,17 @@ class TestSendInboundSmsToService:
             provider_date=datetime(2017, 6, 20),
             content="Here is some content"
         )
+        sms_sender = create_service_sms_sender(
+            service=sample_service,
+            sms_sender="0751421"
+        )
         expected_data = {
             "id": str(inbound_sms.id),
             "source_number": inbound_sms.user_number,
             "destination_number": inbound_sms.notify_number,
             "message": inbound_sms.content,
-            "date_received": inbound_sms.provider_date.strftime(DATETIME_FORMAT)
+            "date_received": inbound_sms.provider_date.strftime(DATETIME_FORMAT),
+            "sms_sender_id": str(sms_sender.id)
         }
 
         with requests_mock.Mocker() as request_mock:
