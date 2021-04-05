@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to provision (dev|staging|prod)'
+        description: 'Environment to provision (dev|staging|perf|prod)'
         required: true
         default: 'dev'
       ref:

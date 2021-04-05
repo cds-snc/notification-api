@@ -25,6 +25,7 @@ ses_configuration_sets = {
     'development': 'dev-configuration-set',
     'staging': 'staging-configuration-set',
     'production': 'prod-configuration-set',
+    'performance': 'perf-configuration-set'
 }
 
 
@@ -559,5 +560,6 @@ configs = {
     'development': Development,
     'test': Test,
     'staging': Staging,
-    'production': Production
+    'production': Production,
+    'performance': Production
 }

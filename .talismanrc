@@ -111,3 +111,9 @@ fileignoreconfig:
       checksum: a6516139f1f50cc6be42e3b46aae3a8fa92ca91e3ff684eabc1b1e5df4a17372
     - filename: scripts/postman/development.postman_environment.json
       checksum: e8241f0b65159a875f285f288be114bf0933c5e44c4cafaf3e1ea08c9683e5ca
+    - filename: cd/application-deployment/perf/vaec-celery-beat-task-definition.json
+      checksum: fcf1951af4ebff100eaaac98a756f4871afa9a2196cc7d43036302eaa11478eb
+    - filename: cd/application-deployment/perf/vaec-celery-task-definition.json
+      checksum: 3bc3d74352df2b45e77fb0e86208ea617cce84efa6313849ac818c387e03ddf2
+    - filename: cd/application-deployment/perf/vaec-api-task-definition.json
+      checksum: 73f1d4d11390b67d479c826a229a6c406c91d561b2a79ebfc5d12bd058f62f92
