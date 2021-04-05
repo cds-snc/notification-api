@@ -12,7 +12,7 @@ from app.celery.research_mode_tasks import (
 )
 from app.celery.service_callback_tasks import create_delivery_status_callback_data
 from app.dao.notifications_dao import get_notification_by_id
-from app.models import Complaint, Notification
+from app.models import Complaint, Notification, Service, Template, User
 from app.notifications.notifications_ses_callback import remove_emails_from_complaint, remove_emails_from_bounce
 
 from tests.app.db import (
@@ -122,13 +122,18 @@ def test_process_ses_results_retry_called(sample_email_template, notify_db, mock
 def test_process_ses_results_call_to_publish_complaint(mocker, notify_api):
     publish_complaint = mocker.patch('app.celery.process_ses_receipts_tasks.publish_complaint')
     provider_message = ses_complaint_callback()
-    ses_handler = mocker.patch('app.celery.process_ses_receipts_tasks.handle_ses_complaint')
+
+    complaint, notification, email = get_complaint_notification_and_email(mocker)
+
+    mocker.patch(
+        'app.celery.process_ses_receipts_tasks.handle_ses_complaint', return_value=(complaint, notification, email)
+    )
 
     process_ses_receipts_tasks.process_ses_results(response=provider_message)
 
     publish_complaint.assert_called_once_with(
-        provider_message=json.loads(provider_message['Message']),
-        provider_complaint_parser=ses_handler)
+        complaint, notification, email
+    )
 
 
 def test_remove_emails_from_complaint():
@@ -451,3 +456,28 @@ def test_ses_smtp_callback_should_send_on_complaint_to_user_callback_api(smtp_te
     assert process_ses_receipts_tasks.process_ses_smtp_results(response)
 
     assert send_mock.call_count == 1
+
+
+def get_complaint_notification_and_email(mocker):
+    service = mocker.Mock(Service, id='service_id', name='Service Name', users=[mocker.Mock(User, id="user_id")])
+    template = mocker.Mock(Template,
+                           id='template_id',
+                           name='Email Template Name',
+                           service=service,
+                           template_type='email')
+    notification = mocker.Mock(Notification,
+                               service_id=template.service.id,
+                               service=template.service,
+                               template_id=template.id,
+                               template=template,
+                               status='sending',
+                               reference='ref1')
+    complaint = mocker.Mock(Complaint,
+                            service_id=notification.service_id,
+                            notification_id=notification.id,
+                            feedback_id='feedback_id',
+                            complaint_type='complaint',
+                            complaint_date=datetime.utcnow(),
+                            created_at=datetime.now())
+    recipient_email = 'recipient1@example.com'
+    return complaint, notification, recipient_email

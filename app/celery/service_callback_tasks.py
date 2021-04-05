@@ -2,7 +2,6 @@ import json
 
 from celery import Task
 from flask import current_app
-from typing import Callable, Tuple
 from notifications_utils.statsd_decorators import statsd
 from requests.api import request
 from requests.exceptions import RequestException, HTTPError
@@ -217,9 +216,7 @@ def _check_and_queue_complaint_callback_task(complaint, notification, recipient)
         send_complaint_to_service.apply_async([complaint_data], queue=QueueNames.CALLBACKS)
 
 
-def publish_complaint(provider_message: dict,
-                      provider_complaint_parser: Callable[[dict], Tuple[Complaint, Notification, str]]) -> bool:
-    complaint, notification, recipient_email = provider_complaint_parser(provider_message)
+def publish_complaint(complaint: Complaint, notification: Notification, recipient_email: str) -> bool:
     provider_name = notification.sent_by
     _check_and_queue_complaint_callback_task(complaint, notification, recipient_email)
     send_complaint_to_vanotify.apply_async(

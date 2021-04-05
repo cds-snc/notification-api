@@ -165,7 +165,8 @@ def process_ses_results(self, response):
         if notification_type == 'Bounce':
             notification_type = determine_notification_bounce_type(notification_type, ses_message)
         elif notification_type == 'Complaint':
-            return publish_complaint(provider_message=ses_message, provider_complaint_parser=handle_ses_complaint)
+            complaint, notification, recipient_email = handle_ses_complaint(ses_message)
+            return publish_complaint(complaint, notification, recipient_email)
 
         aws_response_dict = get_aws_responses(notification_type)
 
