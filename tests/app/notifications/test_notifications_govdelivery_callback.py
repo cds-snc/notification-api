@@ -8,7 +8,7 @@ from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 from app.models import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, Notification, Complaint
 from app.clients.email.govdelivery_client import govdelivery_status_map
-from app.notifications.notifications_govdelivery_callback import handle_govdelivery_blacklist
+from app.notifications.notifications_govdelivery_callback import create_complaint
 
 
 @pytest.fixture
@@ -83,6 +83,32 @@ def test_should_update_notification_status(
     post(client, get_govdelivery_request("123456", govdelivery_status))
 
     mock_update_notification_status.assert_called_with(notification, notify_status)
+
+
+def test_should_call_publish_complaint_when_govdelivery_status_is_blacklisted(
+        client,
+        mocker,
+        mock_dao_get_notification_by_reference,
+        mock_update_notification_status
+):
+    notification = mocker.Mock(Notification)
+    notification.sent_at = datetime.utcnow()
+    test_email = 'some@email'
+    notification.to = test_email
+    mock_dao_get_notification_by_reference.return_value = notification
+
+    mock_publish_complaint = mocker.patch('app.notifications.notifications_govdelivery_callback.publish_complaint')
+    mock_complaint = mocker.Mock(Complaint)
+
+    mocker.patch(
+        'app.notifications.notifications_govdelivery_callback.create_complaint',
+        return_value=mock_complaint
+    )
+
+    post(client, get_govdelivery_request("123456", 'blacklisted'))
+
+    mock_update_notification_status.assert_called_with(notification, NOTIFICATION_PERMANENT_FAILURE)
+    mock_publish_complaint.assert_called_once_with(mock_complaint, notification, test_email)
 
 
 def test_govdelivery_callback_returns_200(
@@ -178,7 +204,7 @@ def test_should_log_failure_reason(
     assert any(error_message in log for log in logs)
 
 
-def test_handle_govdelivery_blacklist_should_return_complaint_notification_recipient(notify_api):
+def test_create_complaint_should_return_complaint_with_correct_info(notify_api):
     request = get_govdelivery_request('1111', 'blacklisted')
 
     test_email = 'some_email@gov.gov'
@@ -198,12 +224,9 @@ def test_handle_govdelivery_blacklist_should_return_complaint_notification_recip
     )
 
     with notify_api.app_context():
-        complaint, notification, email = handle_govdelivery_blacklist(request, test_notification)
+        complaint = create_complaint(request, test_notification)
 
         assert_complaints_are_equal(expected_complaint, complaint)
-
-        assert notification == test_notification
-        assert email == test_email
 
 
 def assert_complaints_are_equal(expected_complaint, actual_complaint):
