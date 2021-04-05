@@ -105,6 +105,8 @@ def test_should_call_publish_complaint_when_govdelivery_status_is_blacklisted(
         return_value=mock_complaint
     )
 
+    mocker.patch('app.notifications.notifications_govdelivery_callback.save_complaint')
+
     post(client, get_govdelivery_request("123456", 'blacklisted'))
 
     mock_update_notification_status.assert_called_with(notification, NOTIFICATION_PERMANENT_FAILURE)
@@ -204,10 +206,12 @@ def test_should_log_failure_reason(
     assert any(error_message in log for log in logs)
 
 
-def test_create_complaint_should_return_complaint_with_correct_info(notify_api):
+def test_create_complaint_should_return_complaint_with_correct_info(mocker, notify_api):
     request = get_govdelivery_request('1111', 'blacklisted')
 
     test_email = 'some_email@gov.gov'
+
+    mocker.patch('app.notifications.notifications_govdelivery_callback.save_complaint')
 
     test_notification = Notification(
         id=uuid.uuid4(),

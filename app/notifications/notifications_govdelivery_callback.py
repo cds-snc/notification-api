@@ -12,6 +12,7 @@ from app.errors import register_errors, InvalidRequest
 from app.schema_validation import validate
 from .govelivery_schema import govdelivery_webhook_schema
 from ..celery.service_callback_tasks import publish_complaint
+from ..dao.complaint_dao import save_complaint
 from ..models import Notification, Complaint
 
 govdelivery_callback_blueprint = Blueprint("govdelivery_callback", __name__, url_prefix="/notifications/govdelivery")
@@ -74,10 +75,16 @@ def create_complaint(data: dict, notification: Notification) -> Complaint:
         f'Govdelivery sent to blacklisted email. Creating complaint for notification {notification.id}'
     )
 
-    return Complaint(
+    complaint_date = data.get('completed_at', None)
+
+    complaint = Complaint(
         notification_id=notification.id,
         service_id=notification.service_id,
         feedback_id=data['sid'],
         complaint_type=data['message_type'],
-        complaint_date=parser.parse(data['completed_at'])
+        complaint_date=parser.parse(complaint_date) if complaint_date else datetime.now()
     )
+
+    save_complaint(complaint)
+
+    return complaint
