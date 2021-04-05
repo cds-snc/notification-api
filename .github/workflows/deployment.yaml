@@ -6,7 +6,8 @@ on:
 jobs:
   run-migrations:
     runs-on: ubuntu-latest
-    if: ${{ 'dev' == github.event.deployment.environment || 'staging' == github.event.deployment.environment || 'prod' == github.event.deployment.environment }}
+    if: |
+      ${{ 'dev' == github.event.deployment.environment || 'staging' == github.event.deployment.environment || 'perf' == github.event.deployment.environment || 'prod' == github.event.deployment.environment }}
     steps:
       - uses: actions/checkout@v2
         with:
