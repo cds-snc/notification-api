@@ -36,7 +36,7 @@ from app.dao.notifications_dao import (
 )
 from app.dao.provider_details_dao import get_current_provider
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
-from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
+from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
 from app.dao.services_dao import dao_fetch_service_by_id, fetch_todays_total_message_count
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import DVLAException, NotificationTechnicalFailureException
@@ -182,7 +182,7 @@ def save_sms(self,
     template = dao_get_template_by_id(notification['template'], version=notification['template_version'])
 
     if sender_id:
-        reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
+        reply_to_text = dao_get_service_sms_sender_by_id(service_id, sender_id).sms_sender
     else:
         reply_to_text = template.get_reply_to_text()
 

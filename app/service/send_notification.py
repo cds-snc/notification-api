@@ -6,7 +6,7 @@ from app import create_random_identifier
 from app.config import QueueNames
 from app.dao.notifications_dao import _update_notification_status
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
-from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
+from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
 from app.notifications.validators import (
     check_service_has_permission,
     check_service_over_daily_message_limit,
@@ -124,7 +124,7 @@ def get_reply_to_text(notification_type, sender_id, service, template):
                 reply_to = dao_get_reply_to_by_id(service.id, sender_id).email_address
             elif notification_type == SMS_TYPE:
                 message = 'SMS sender not found'
-                reply_to = dao_get_service_sms_senders_by_id(service.id, sender_id).get_reply_to_text()
+                reply_to = dao_get_service_sms_sender_by_id(service.id, sender_id).get_reply_to_text()
         except NoResultFound:
             raise BadRequestError(message=message)
     else:

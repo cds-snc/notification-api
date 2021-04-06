@@ -7,7 +7,7 @@ from app.dao.service_sms_sender_dao import (
     archive_sms_sender,
     dao_add_sms_sender_for_service,
     dao_update_service_sms_sender,
-    dao_get_service_sms_senders_by_id,
+    dao_get_service_sms_sender_by_id,
     dao_get_sms_senders_by_service_id,
     update_existing_sms_sender_with_inbound_number, dao_get_sms_sender_by_service_id_and_number)
 from app.exceptions import ArchiveValidationError
@@ -19,23 +19,23 @@ from tests.app.db import (
     create_service_with_inbound_number)
 
 
-def test_dao_get_service_sms_senders_id(notify_db_session):
+def test_dao_get_service_sms_sender_by_id(notify_db_session):
     service = create_service()
     second_sender = dao_add_sms_sender_for_service(service_id=service.id,
                                                    sms_sender='second',
                                                    is_default=False,
                                                    inbound_number_id=None)
-    result = dao_get_service_sms_senders_by_id(service_id=service.id,
-                                               service_sms_sender_id=second_sender.id)
+    result = dao_get_service_sms_sender_by_id(service_id=service.id,
+                                              service_sms_sender_id=second_sender.id)
     assert result.sms_sender == "second"
     assert not result.is_default
 
 
-def test_dao_get_service_sms_senders_id_raise_exception_when_not_found(notify_db_session):
+def test_dao_get_service_sms_sender_by_id_raise_exception_when_not_found(notify_db_session):
     service = create_service()
     with pytest.raises(expected_exception=SQLAlchemyError):
-        dao_get_service_sms_senders_by_id(service_id=service.id,
-                                          service_sms_sender_id=uuid.uuid4())
+        dao_get_service_sms_sender_by_id(service_id=service.id,
+                                         service_sms_sender_id=uuid.uuid4())
 
 
 def test_dao_get_service_sms_senders_id_raises_exception_with_archived_sms_sender(notify_db_session):
@@ -46,8 +46,8 @@ def test_dao_get_service_sms_senders_id_raises_exception_with_archived_sms_sende
         is_default=False,
         archived=True)
     with pytest.raises(expected_exception=SQLAlchemyError):
-        dao_get_service_sms_senders_by_id(service_id=service.id,
-                                          service_sms_sender_id=archived_sms_sender.id)
+        dao_get_service_sms_sender_by_id(service_id=service.id,
+                                         service_sms_sender_id=archived_sms_sender.id)
 
 
 def test_dao_get_sms_senders_by_service_id(notify_db_session):

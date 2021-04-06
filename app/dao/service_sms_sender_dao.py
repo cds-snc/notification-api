@@ -19,7 +19,7 @@ def insert_service_sms_sender(service, sms_sender):
     db.session.add(new_sms_sender)
 
 
-def dao_get_service_sms_senders_by_id(service_id, service_sms_sender_id):
+def dao_get_service_sms_sender_by_id(service_id, service_sms_sender_id):
     return ServiceSmsSender.query.filter_by(
         id=service_sms_sender_id,
         service_id=service_id,

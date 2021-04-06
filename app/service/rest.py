@@ -40,7 +40,7 @@ from app.dao.service_sms_sender_dao import (
     archive_sms_sender,
     dao_add_sms_sender_for_service,
     dao_update_service_sms_sender,
-    dao_get_service_sms_senders_by_id,
+    dao_get_service_sms_sender_by_id,
     dao_get_sms_senders_by_service_id,
     update_existing_sms_sender_with_inbound_number
 )
@@ -804,8 +804,8 @@ def add_service_sms_sender(service_id):
 def update_service_sms_sender(service_id, sms_sender_id):
     form = validate(request.get_json(), add_service_sms_sender_request)
 
-    sms_sender_to_update = dao_get_service_sms_senders_by_id(service_id=service_id,
-                                                             service_sms_sender_id=sms_sender_id)
+    sms_sender_to_update = dao_get_service_sms_sender_by_id(service_id=service_id,
+                                                            service_sms_sender_id=sms_sender_id)
     if sms_sender_to_update.inbound_number_id and form['sms_sender'] != sms_sender_to_update.sms_sender:
         raise InvalidRequest("You can not change the inbound number for service {}".format(service_id),
                              status_code=400)
@@ -827,8 +827,8 @@ def delete_service_sms_sender(service_id, sms_sender_id):
 
 @service_blueprint.route('/<uuid:service_id>/sms-sender/<uuid:sms_sender_id>', methods=['GET'])
 def get_service_sms_sender_by_id(service_id, sms_sender_id):
-    sms_sender = dao_get_service_sms_senders_by_id(service_id=service_id,
-                                                   service_sms_sender_id=sms_sender_id)
+    sms_sender = dao_get_service_sms_sender_by_id(service_id=service_id,
+                                                  service_sms_sender_id=sms_sender_id)
     return jsonify(sms_sender.serialize()), 200
 
 
