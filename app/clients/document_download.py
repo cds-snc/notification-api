@@ -1,5 +1,3 @@
-import base64
-
 import requests
 
 from flask import current_app
@@ -40,9 +38,10 @@ class DocumentDownloadClient:
                 },
                 data={
                     'filename': personalisation_key.get('filename'),
+                    'sending_method': personalisation_key['sending_method'],
                 },
                 files={
-                    'document': base64.b64decode(personalisation_key['file']),
+                    'document': personalisation_key['file'],
                 }
             )
 

@@ -28,7 +28,7 @@ def test_upload_document(document_download):
             'Authorization': 'Bearer test-key',
         }, status_code=201)
 
-        resp = document_download.upload_document('service-id', {'file': 'abababab'})
+        resp = document_download.upload_document('service-id', {'file': 'abababab', 'sending_method': 'attach'})
 
     assert resp == {'document': {'url': 'https://document-download/services/service-id/documents/uploaded-url'}}
 
@@ -51,7 +51,7 @@ def test_upload_document_with_filename_arg_passed(document_download):
         )
         response = document_download.upload_document(
             'service-id',
-            {'file': 'abababab', 'filename': 'file.pdf'}
+            {'file': 'abababab', 'filename': 'file.pdf', 'sending_method': 'attach'}
         )
 
     assert response == {'document': {'url': 'https://document-download/services/service-id/documents/uploaded-url'}}
@@ -72,7 +72,7 @@ def test_upload_document_without_filename(document_download):
             status_code=201,
             additional_matcher=match_request
         )
-        response = document_download.upload_document('service-id', {'file': 'abababab'})
+        response = document_download.upload_document('service-id', {'file': 'abababab', 'sending_method': 'attach'})
 
     assert response == {'document': {'url': 'https://document-download/services/service-id/documents/uploaded-url'}}
 
@@ -83,7 +83,7 @@ def test_should_raise_for_status(document_download):
             'error': 'Invalid encoding'
         }, status_code=403)
 
-        document_download.upload_document('service-id', {'file': 'abababab'})
+        document_download.upload_document('service-id', {'file': 'abababab', 'sending_method': 'attach'})
 
     assert excinfo.value.message == 'Invalid encoding'
     assert excinfo.value.status_code == 403
@@ -96,7 +96,7 @@ def test_should_raise_for_connection_errors(document_download):
             exc=requests.exceptions.ConnectTimeout
         )
 
-        document_download.upload_document('service-id', {'file': 'abababab'})
+        document_download.upload_document('service-id', {'file': 'abababab', 'sending_method': 'attach'})
 
     assert excinfo.value.message == 'connection error'
     assert excinfo.value.status_code == 503
