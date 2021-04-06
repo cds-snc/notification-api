@@ -125,7 +125,7 @@ def post_notification(notification_type):
 
     template, template_with_content = validate_template(
         form['template_id'],
-        form.get('personalisation', {}),
+        strip_keys_from_personalisation_if_send_attach(form.get('personalisation', {})),
         authenticated_service,
         notification_type,
     )
@@ -281,7 +281,7 @@ def process_document_uploads(personalisation_data, service, simulated=False):
         else:
             try:
                 personalisation_data[key] = document_download_client.upload_document(
-                    service.id, personalisation_data[key]['file']
+                    service.id, personalisation_data[key]
                 )
             except DocumentDownloadError as e:
                 raise BadRequestError(message=e.message, status_code=e.status_code)
@@ -387,3 +387,8 @@ def get_reply_to_text(notification_type, form, template):
         reply_to = template.get_reply_to_text()
 
     return reply_to
+
+
+def strip_keys_from_personalisation_if_send_attach(personalisation):
+    return {k: v for (k, v) in personalisation.items() if
+            not (type(v) is dict and v.get('sending_method') == 'attach')}

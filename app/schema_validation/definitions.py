@@ -19,13 +19,43 @@ nullable_uuid = {
     "link": "link to our error documentation not yet implemented"
 }
 
-
 personalisation = {
     "type": "object",
-    "code": "1001",  # yet to be implemented
-    "link": "link to our error documentation not yet implemented"
+    "patternProperties": {
+        "^.*$": {
+            "type:": "object",
+            "properties": {
+                "file": {
+                    "type": "string",
+                    "binaryEncoding": "base64",
+                },
+                "sending_method": {
+                    "type": "string",
+                    "enum": ["attach", "link"]
+                }
+            },
+            "required": [
+                "file", "sending_method"
+            ],
+            "if": {
+                "properties": {
+                    "sending_method": {
+                        "const": "attach"
+                    }
+                }
+            },
+            "then": {
+                "required": ["filename"],
+                "properties": {
+                    "filename": {
+                        "minLength": 3,
+                        "maxLength": 255
+                    }
+                }
+            }
+        }
+    }
 }
-
 
 letter_personalisation = dict(
     personalisation,
@@ -48,7 +78,6 @@ letter_personalisation = dict(
     },
     required=["address_line_1", "address_line_2", "postcode"],
 )
-
 
 https_url = {
     "type": "string",

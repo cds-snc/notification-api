@@ -110,6 +110,7 @@ def send_email_to_provider(notification):
         personalisation_data = notification.personalisation.copy()
 
         for key in file_keys:
+            sending_method = personalisation_data[key]['document'].get('sending_method')
 
             # Check if a MLWR sid exists
             if (current_app.config["MLWR_HOST"]
@@ -127,16 +128,25 @@ def send_email_to_provider(notification):
                     # Throw error so celery will retry in sixty seconds
                     raise MalwarePendingException
 
-            try:
-                response = requests.get(personalisation_data[key]['document']['direct_file_url'])
-                if response.headers['Content-Type'] == 'application/pdf':
-                    attachments.append({"name": "{}.pdf".format(key), "data": response.content})
-            except Exception:
-                current_app.logger.error(
-                    "Could not download and attach {}".format(personalisation_data[key]['document']['direct_file_url'])
-                )
+            if sending_method == 'attach':
+                try:
+                    response = requests.get(personalisation_data[key]['document']['direct_file_url'])
 
-            personalisation_data[key] = personalisation_data[key]['document']['url']
+                    buffer = response.content
+                    filename = personalisation_data[key]['document'].get('filename')
+                    attachments.append({
+                        "name": filename,
+                        "data": buffer
+                    })
+
+                except Exception:
+                    current_app.logger.error(
+                        "Could not download and attach {}".format(
+                            personalisation_data[key]['document']['direct_file_url'])
+                    )
+                del personalisation_data[key]
+            else:
+                personalisation_data[key] = personalisation_data[key]['document']['url']
 
         template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
 

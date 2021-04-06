@@ -4,6 +4,8 @@ from unittest.mock import ANY
 
 import pytest
 import os
+
+import requests_mock
 from flask import current_app
 from notifications_utils.recipients import validate_and_format_phone_number
 from requests import HTTPError
@@ -873,6 +875,62 @@ def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_abov
     send_mock.assert_not_called()
 
     assert Notification.query.get(db_notification.id).status == 'virus-scan-failed'
+
+
+@pytest.mark.parametrize("filename_attribute_present, filename, expected_filename", [
+    (False, "whatever", None),
+    (True, None, None),
+    (True, "custom_filename.pdf", "custom_filename.pdf"),
+])
+def test_notification_document_with_pdf_attachment(
+    mock_email_client,
+    sample_service_full_permissions,
+    filename_attribute_present,
+    filename,
+    expected_filename,
+):
+    template = create_template(
+        template_type='email',
+        content='Here is your ((file))',
+        service=sample_service_full_permissions
+    )
+    personalisation = {
+        "file": {
+            "document": {
+                "direct_file_url": "http://foo.bar/direct_file_url",
+                "url": "http://foo.bar/url",
+            },
+        },
+    }
+    if filename_attribute_present:
+        personalisation["file"]["document"]["filename"] = filename
+        personalisation["file"]["document"]["sending_method"] = 'attach'
+    else:
+        personalisation["file"]["document"]["sending_method"] = 'link'
+
+    db_notification = create_notification(template=template, personalisation=personalisation)
+
+    with requests_mock.Mocker() as request_mock:
+        request_mock.get(
+            'http://foo.bar/direct_file_url',
+            content='request_content'.encode(),
+            status_code=200
+        )
+
+        send_to_providers.send_email_to_provider(db_notification)
+
+    attachments = []
+    if filename_attribute_present:
+        assert request_mock.request_history[0].url == 'http://foo.bar/direct_file_url'
+        attachments = [{'data': 'request_content'.encode(), 'name': expected_filename}]
+
+    _, kwargs = mock_email_client.send_email.call_args
+    assert kwargs['attachments'] == attachments
+
+    if not filename_attribute_present:
+        assert 'http://foo.bar/url' in kwargs['html_body']
+
+    assert Notification.query.get(db_notification.id).status == 'sending'
 
 
 def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(

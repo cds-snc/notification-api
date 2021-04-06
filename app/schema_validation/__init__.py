@@ -7,6 +7,7 @@ from jsonschema import (Draft7Validator, ValidationError, FormatChecker)
 from notifications_utils.recipients import (validate_phone_number, validate_email_address, InvalidPhoneError,
                                             InvalidEmailError)
 
+from app.notifications.validators import decode_personalisation_files
 
 format_checker = FormatChecker()
 
@@ -60,6 +61,16 @@ def validate(json_to_validate, schema):
     errors = list(validator.iter_errors(json_to_validate))
     if errors.__len__() > 0:
         raise ValidationError(build_error_message(errors))
+    if json_to_validate.get('personalisation', None):
+        json_to_validate['personalisation'], errors = decode_personalisation_files(
+            json_to_validate.get('personalisation', {})
+        )
+        if errors.__len__() > 0:
+            error_message = json.dumps({
+                "status_code": 400,
+                "errors": errors
+            })
+            raise ValidationError(error_message)
     return json_to_validate
 
 
