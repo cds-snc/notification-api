@@ -477,7 +477,10 @@ def send_contact_request(user_id):
         pass
 
     # FIXME: Since this is a POC, do not include the status code for zendesk as a part of the return code
-    ZenDeskSell().send_contact_request(contact)
+    try:
+        ZenDeskSell().send_contact_request(contact)
+    except Exception as e:
+        current_app.logger.exception(e)
 
     status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
