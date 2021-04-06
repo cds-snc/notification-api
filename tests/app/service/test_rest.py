@@ -7,6 +7,7 @@ from unittest.mock import ANY
 import pytest
 from flask import url_for, current_app
 from freezegun import freeze_time
+from notifications_utils.clients.redis import daily_limit_cache_key
 
 from app.dao.organisation_dao import dao_add_service_to_organisation
 from app.dao.service_sms_sender_dao import dao_get_sms_senders_by_service_id
@@ -2161,6 +2162,23 @@ def test_update_service_calls_send_notification_as_service_becomes_live(notify_d
         },
         include_user_fields=['name']
     )
+
+
+def test_update_service_updating_daily_limit_clears_redis_cache(
+    admin_request,
+    sample_service,
+    mocker
+):
+    redis_delete = mocker.patch('app.service.rest.redis_store.delete')
+
+    admin_request.post(
+        'service.update_service',
+        service_id=sample_service.id,
+        _data={"message_limit": 1_000},
+        _expected_status=200
+    )
+
+    redis_delete.assert_called_once_with(daily_limit_cache_key(sample_service.id))
 
 
 def test_update_service_does_not_call_send_notification_for_live_service(sample_service, client, mocker):
