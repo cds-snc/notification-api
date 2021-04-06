@@ -2164,21 +2164,35 @@ def test_update_service_calls_send_notification_as_service_becomes_live(notify_d
     )
 
 
+@pytest.mark.parametrize('current_limit, new_limit, expected_call', [
+    (1_000, 1_000, False),
+    (1_000, 2_000, True),
+    (1_000, 50, True),
+])
 def test_update_service_updating_daily_limit_clears_redis_cache(
+    notify_db,
+    notify_db_session,
     admin_request,
-    sample_service,
-    mocker
+    mocker,
+    current_limit,
+    new_limit,
+    expected_call,
 ):
     redis_delete = mocker.patch('app.service.rest.redis_store.delete')
 
+    service = create_service(message_limit=current_limit)
+
     admin_request.post(
         'service.update_service',
-        service_id=sample_service.id,
-        _data={"message_limit": 1_000},
+        service_id=service.id,
+        _data={"message_limit": new_limit},
         _expected_status=200
     )
 
-    redis_delete.assert_called_once_with(daily_limit_cache_key(sample_service.id))
+    if expected_call:
+        redis_delete.assert_called_once_with(daily_limit_cache_key(service.id))
+    else:
+        redis_delete.assert_not_called()
 
 
 def test_update_service_does_not_call_send_notification_for_live_service(sample_service, client, mocker):

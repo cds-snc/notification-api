@@ -252,6 +252,7 @@ def update_service(service_id):
     fetched_service = dao_fetch_service_by_id(service_id)
     # Capture the status change here as Marshmallow changes this later
     service_going_live = fetched_service.restricted and not req_json.get('restricted', True)
+    message_limit_changed = fetched_service.message_limit != req_json.get('message_limit', None)
     current_data = dict(service_schema.dump(fetched_service).data.items())
 
     current_data.update(request.get_json())
@@ -265,7 +266,7 @@ def update_service(service_id):
         letter_branding_id = req_json['letter_branding']
         service.letter_branding = None if not letter_branding_id else LetterBranding.query.get(letter_branding_id)
 
-    if 'message_limit' in req_json:
+    if message_limit_changed:
         redis_store.delete(daily_limit_cache_key(service_id))
 
     dao_update_service(service)
