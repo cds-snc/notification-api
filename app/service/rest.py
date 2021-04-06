@@ -7,12 +7,14 @@ from flask import (
     current_app,
     Blueprint
 )
+from notifications_utils.clients.redis import daily_limit_cache_key
 from notifications_utils.letter_timings import letter_can_be_cancelled
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
+from app import redis_store
 from app.clients.zendesk_sell import ZenDeskSell
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
@@ -250,6 +252,9 @@ def update_service(service_id):
     fetched_service = dao_fetch_service_by_id(service_id)
     # Capture the status change here as Marshmallow changes this later
     service_going_live = fetched_service.restricted and not req_json.get('restricted', True)
+    message_limit_changed = (
+        fetched_service.message_limit != req_json.get('message_limit', fetched_service.message_limit)
+    )
     current_data = dict(service_schema.dump(fetched_service).data.items())
 
     current_data.update(request.get_json())
@@ -262,10 +267,11 @@ def update_service(service_id):
     if 'letter_branding' in req_json:
         letter_branding_id = req_json['letter_branding']
         service.letter_branding = None if not letter_branding_id else LetterBranding.query.get(letter_branding_id)
-    dao_update_service(service)
 
-    if 'default_email_is_french' in req_json:
-        service.default_email_is_french = req_json['default_email_is_french']
+    if message_limit_changed:
+        redis_store.delete(daily_limit_cache_key(service_id))
+
+    dao_update_service(service)
 
     if service_going_live:
         send_notification_to_service_users(
