@@ -64,19 +64,26 @@ def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_n
 
 
 @transactional
-def dao_update_service_sms_sender(service_id, service_sms_sender_id, is_default, sms_sender=None):
-    default_sms_sender = _get_default_sms_sender_for_service(service_id)
+def dao_update_service_sms_sender(service_id, service_sms_sender_id, **kwargs):
 
-    if service_sms_sender_id == default_sms_sender.id and not is_default:
-        raise Exception("You must have at least one SMS sender as the default")
+    if 'is_default' in kwargs:
+        default_sms_sender = _get_default_sms_sender_for_service(service_id)
+        is_default = kwargs['is_default']
 
-    if is_default:
-        _set_default_sms_sender_to_not_default(default_sms_sender)
+        if service_sms_sender_id == default_sms_sender.id and not is_default:
+            raise Exception("You must have at least one SMS sender as the default")
+
+        if is_default:
+            _set_default_sms_sender_to_not_default(default_sms_sender)
 
     sms_sender_to_update = ServiceSmsSender.query.get(service_sms_sender_id)
-    sms_sender_to_update.is_default = is_default
-    if sms_sender and not sms_sender_to_update.inbound_number_id:
-        sms_sender_to_update.sms_sender = sms_sender
+
+    if 'sms_sender' in kwargs and sms_sender_to_update.inbound_number_id:
+        raise Exception('You cannot update the number for an SMS sender if it already has an associated Inbound Number')
+
+    for key, value in kwargs.items():
+        setattr(sms_sender_to_update, key, value)
+
     db.session.add(sms_sender_to_update)
     return sms_sender_to_update
 

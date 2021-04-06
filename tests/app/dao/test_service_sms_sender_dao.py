@@ -122,17 +122,18 @@ class TestDaoUpdateServiceUpdateSmsSender:
         service = create_service()
         existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
 
+        inbound_number = create_inbound_number('+5551234567')
         dao_update_service_sms_sender(
             service_id=service.id,
             service_sms_sender_id=existing_sms_sender.id,
-            is_default=True,
-            sms_sender='updated'
+            sms_sender='updated',
+            inbound_number_id=inbound_number.id
         )
 
         existing_sms_sender_after_updates = ServiceSmsSender.query.filter_by(service_id=service.id).one()
         assert existing_sms_sender_after_updates.is_default
         assert existing_sms_sender_after_updates.sms_sender == 'updated'
-        assert not existing_sms_sender_after_updates.inbound_number_id
+        assert existing_sms_sender_after_updates.inbound_number_id == inbound_number.id
 
     def test_switches_default(self, notify_db_session):
         service = create_service()
@@ -148,8 +149,7 @@ class TestDaoUpdateServiceUpdateSmsSender:
         dao_update_service_sms_sender(
             service_id=service.id,
             service_sms_sender_id=new_sms_sender.id,
-            is_default=True,
-            sms_sender="updated"
+            is_default=True
         )
 
         existing_sms_sender_after_updates = ServiceSmsSender.query.filter_by(id=existing_sms_sender.id).one()
@@ -162,7 +162,7 @@ class TestDaoUpdateServiceUpdateSmsSender:
         service = create_service()
         existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
 
-        with pytest.raises(expected_exception=Exception) as e:
+        with pytest.raises(Exception) as e:
             dao_update_service_sms_sender(
                 service_id=service.id,
                 service_sms_sender_id=existing_sms_sender.id,
@@ -171,6 +171,27 @@ class TestDaoUpdateServiceUpdateSmsSender:
             )
 
         assert 'You must have at least one SMS sender as the default' in str(e.value)
+
+    def test_raises_exception_if_updating_number_with_inbound_number_already_set(self, notify_db_session):
+        service = create_service()
+        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
+
+        inbound_number = create_inbound_number('+5551234567')
+        dao_update_service_sms_sender(
+            service_id=service.id,
+            service_sms_sender_id=existing_sms_sender.id,
+            inbound_number_id=inbound_number.id
+        )
+
+        with pytest.raises(Exception) as e:
+            dao_update_service_sms_sender(
+                service_id=service.id,
+                service_sms_sender_id=existing_sms_sender.id,
+                sms_sender='new-number'
+            )
+
+        expected_msg = 'You cannot update the number for an SMS sender if it already has an associated Inbound Number'
+        assert expected_msg in str(e.value)
 
 
 def test_update_existing_sms_sender_with_inbound_number(notify_db_session):
