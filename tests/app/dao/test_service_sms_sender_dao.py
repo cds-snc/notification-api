@@ -78,82 +78,99 @@ def test_dao_get_sms_senders_by_service_id_does_not_return_archived_senders(noti
     assert archived_sms_sender not in results
 
 
-def test_dao_add_sms_sender_for_service(notify_db_session):
-    service = create_service()
-    new_sms_sender = dao_add_sms_sender_for_service(service_id=service.id,
-                                                    sms_sender='new_sms',
-                                                    is_default=False,
-                                                    inbound_number_id=None)
+class TestDaoAddSmsSenderForService:
 
-    service_sms_senders = ServiceSmsSender.query.order_by(ServiceSmsSender.created_at).all()
-    assert len(service_sms_senders) == 2
-    assert service_sms_senders[0].sms_sender == 'testing'
-    assert service_sms_senders[0].is_default
-    assert not service_sms_senders[0].archived
-    assert service_sms_senders[1] == new_sms_sender
+    def test_dao_add_sms_sender_for_service(self, notify_db_session):
+        service = create_service()
 
+        service_sms_senders = ServiceSmsSender.query.filter_by(service_id=service.id).all()
+        assert len(service_sms_senders) == 1
 
-def test_dao_add_sms_sender_for_service_switches_default(notify_db_session):
-    service = create_service()
-    new_sms_sender = dao_add_sms_sender_for_service(service_id=service.id,
-                                                    sms_sender='new_sms',
-                                                    is_default=True,
-                                                    inbound_number_id=None)
+        new_sms_sender = dao_add_sms_sender_for_service(
+            service_id=service.id,
+            sms_sender='new_sms',
+            is_default=False,
+            inbound_number_id=None
+        )
 
-    service_sms_senders = ServiceSmsSender.query.order_by(ServiceSmsSender.created_at).all()
-    assert len(service_sms_senders) == 2
-    assert service_sms_senders[0].sms_sender == 'testing'
-    assert not service_sms_senders[0].is_default
-    assert service_sms_senders[1] == new_sms_sender
+        service_sms_senders_after_updates = ServiceSmsSender.query.filter_by(service_id=service.id).all()
+        assert len(service_sms_senders_after_updates) == 2
 
+        assert new_sms_sender in service_sms_senders_after_updates
 
-def test_dao_update_service_sms_sender(notify_db_session):
-    service = create_service()
-    service_sms_senders = ServiceSmsSender.query.filter_by(service_id=service.id).all()
-    assert len(service_sms_senders) == 1
-    sms_sender_to_update = service_sms_senders[0]
+    def test_dao_switches_default(self, notify_db_session):
+        service = create_service()
+        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
 
-    dao_update_service_sms_sender(service_id=service.id,
-                                  service_sms_sender_id=sms_sender_to_update.id,
-                                  is_default=True,
-                                  sms_sender="updated")
-    sms_senders = ServiceSmsSender.query.filter_by(service_id=service.id).all()
-    assert len(sms_senders) == 1
-    assert sms_senders[0].is_default
-    assert sms_senders[0].sms_sender == 'updated'
-    assert not sms_senders[0].inbound_number_id
+        new_sms_sender = dao_add_sms_sender_for_service(
+            service_id=service.id,
+            sms_sender='new_sms',
+            is_default=True,
+            inbound_number_id=None
+        )
+
+        existing_sms_sender_after_updates = ServiceSmsSender.query.filter_by(id=existing_sms_sender.id).one()
+        assert not existing_sms_sender_after_updates.is_default
+
+        new_sms_sender_after_updates = ServiceSmsSender.query.filter_by(id=new_sms_sender.id).one()
+        assert new_sms_sender_after_updates.is_default
 
 
-def test_dao_update_service_sms_sender_switches_default(notify_db_session):
-    service = create_service()
-    sms_sender = dao_add_sms_sender_for_service(service_id=service.id,
-                                                sms_sender='new_sms',
-                                                is_default=False,
-                                                inbound_number_id=None)
-    dao_update_service_sms_sender(service_id=service.id,
-                                  service_sms_sender_id=sms_sender.id,
-                                  is_default=True,
-                                  sms_sender="updated")
-    sms_senders = ServiceSmsSender.query.filter_by(service_id=service.id).order_by(ServiceSmsSender.created_at).all()
-    assert len(sms_senders) == 2
-    assert sms_senders[0].sms_sender == 'testing'
-    assert not sms_senders[0].is_default
-    assert sms_senders[1].sms_sender == 'updated'
-    assert sms_senders[1].is_default
+class TestDaoUpdateServiceUpdateSmsSender:
 
+    def test_dao_update_service_sms_sender(self, notify_db_session):
+        service = create_service()
+        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
 
-def test_dao_update_service_sms_sender_raises_exception_when_no_default_after_update(notify_db_session):
-    service = create_service()
-    sms_sender = dao_add_sms_sender_for_service(service_id=service.id,
-                                                sms_sender='new_sms',
-                                                is_default=True,
-                                                inbound_number_id=None)
-    with pytest.raises(expected_exception=Exception) as e:
-        dao_update_service_sms_sender(service_id=service.id,
-                                      service_sms_sender_id=sms_sender.id,
-                                      is_default=False,
-                                      sms_sender="updated")
-    assert 'You must have at least one SMS sender as the default' in str(e.value)
+        dao_update_service_sms_sender(
+            service_id=service.id,
+            service_sms_sender_id=existing_sms_sender.id,
+            is_default=True,
+            sms_sender='updated'
+        )
+
+        existing_sms_sender_after_updates = ServiceSmsSender.query.filter_by(service_id=service.id).one()
+        assert existing_sms_sender_after_updates.is_default
+        assert existing_sms_sender_after_updates.sms_sender == 'updated'
+        assert not existing_sms_sender_after_updates.inbound_number_id
+
+    def test_switches_default(self, notify_db_session):
+        service = create_service()
+        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
+
+        new_sms_sender = dao_add_sms_sender_for_service(
+            service_id=service.id,
+            sms_sender='new_sms',
+            is_default=False,
+            inbound_number_id=None
+        )
+
+        dao_update_service_sms_sender(
+            service_id=service.id,
+            service_sms_sender_id=new_sms_sender.id,
+            is_default=True,
+            sms_sender="updated"
+        )
+
+        existing_sms_sender_after_updates = ServiceSmsSender.query.filter_by(id=existing_sms_sender.id).one()
+        assert not existing_sms_sender_after_updates.is_default
+
+        new_sms_sender_after_updates = ServiceSmsSender.query.filter_by(id=new_sms_sender.id).one()
+        assert new_sms_sender_after_updates.is_default
+
+    def test_raises_exception_if_update_would_result_in_no_default_sms_sender(self, notify_db_session):
+        service = create_service()
+        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
+
+        with pytest.raises(expected_exception=Exception) as e:
+            dao_update_service_sms_sender(
+                service_id=service.id,
+                service_sms_sender_id=existing_sms_sender.id,
+                is_default=False,
+                sms_sender="updated"
+            )
+
+        assert 'You must have at least one SMS sender as the default' in str(e.value)
 
 
 def test_update_existing_sms_sender_with_inbound_number(notify_db_session):
