@@ -2168,6 +2168,7 @@ def test_update_service_calls_send_notification_as_service_becomes_live(notify_d
     (1_000, 1_000, False),
     (1_000, 2_000, True),
     (1_000, 50, True),
+    (1_000, None, False),
 ])
 def test_update_service_updating_daily_limit_clears_redis_cache(
     notify_db,
@@ -2185,7 +2186,7 @@ def test_update_service_updating_daily_limit_clears_redis_cache(
     admin_request.post(
         'service.update_service',
         service_id=service.id,
-        _data={"message_limit": new_limit},
+        _data={"message_limit": new_limit} if new_limit else {},
         _expected_status=200
     )
 
