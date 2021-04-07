@@ -5,6 +5,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import notify_celery
 from app.celery.exceptions import NonRetryableException
+from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
 from app.config import QueueNames
 from app.dao import notifications_dao
@@ -33,6 +34,8 @@ def deliver_sms(self, notification_id):
             f'SMS notification delivery for id: {notification_id} failed. Not retrying.'
         )
         update_notification_status_by_id(notification_id, NOTIFICATION_PERMANENT_FAILURE)
+        notification = notifications_dao.get_notification_by_id(notification_id)
+        check_and_queue_callback_task(notification)
     except Exception:
         try:
             current_app.logger.exception(

@@ -5,9 +5,11 @@ from notifications_utils.recipients import InvalidEmailError
 
 import app
 from app.celery import provider_tasks
+from app.celery.exceptions import NonRetryableException
 from app.celery.provider_tasks import deliver_sms, deliver_email
 from app.clients.email.aws_ses import AwsSesClientException, AwsSesClientThrottlingSendRateException
 from app.exceptions import NotificationTechnicalFailureException, InvalidProviderException
+from app.models import NOTIFICATION_PERMANENT_FAILURE
 
 
 def test_should_have_decorated_tasks_functions():
@@ -81,6 +83,20 @@ def test_should_technical_error_and_not_retry_if_invalid_email(sample_notificati
 
     assert provider_tasks.deliver_email.retry.called is False
     assert sample_notification.status == 'technical-failure'
+
+
+def test_should_queue_callback_task_if_non_retryable_exception_is_thrown(sample_notification, mocker):
+    mocker.patch(
+        'app.celery.provider_tasks.send_to_providers.send_sms_to_provider',
+        side_effect=NonRetryableException('Exception')
+    )
+
+    mock_callback = mocker.patch('app.celery.provider_tasks.check_and_queue_callback_task')
+
+    deliver_sms(sample_notification.id)
+
+    assert sample_notification.status == NOTIFICATION_PERMANENT_FAILURE
+    mock_callback.assert_called_once_with(sample_notification)
 
 
 @pytest.mark.parametrize(
