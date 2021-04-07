@@ -54,6 +54,7 @@ def test_get_notification_by_id_returns_200(
     expected_response = {
         'id': '{}'.format(sample_notification.id),
         'reference': None,
+        'provider_reference': None,
         'email_address': None,
         'phone_number': '{}'.format(sample_notification.to),
         'line_1': None,
@@ -113,6 +114,7 @@ def test_get_notification_by_id_with_placeholders_and_recipient_identifiers_retu
     expected_response = {
         'id': '{}'.format(sample_notification.id),
         'reference': None,
+        'provider_reference': None,
         'email_address': '{}'.format(sample_notification.to),
         'phone_number': None,
         'line_1': None,
