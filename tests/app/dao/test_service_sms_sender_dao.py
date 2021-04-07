@@ -9,9 +9,11 @@ from app.dao.service_sms_sender_dao import (
     dao_update_service_sms_sender,
     dao_get_service_sms_sender_by_id,
     dao_get_sms_senders_by_service_id,
-    update_existing_sms_sender_with_inbound_number, dao_get_sms_sender_by_service_id_and_number)
+    dao_get_sms_sender_by_service_id_and_number
+)
+from app.service.exceptions import SmsSenderDefaultValidationException, SmsSenderInboundNumberIntegrityException
 from app.exceptions import ArchiveValidationError
-from app.models import ServiceSmsSender
+from app.models import ServiceSmsSender, InboundNumber
 from tests.app.db import (
     create_inbound_number,
     create_service,
@@ -162,7 +164,7 @@ class TestDaoUpdateServiceUpdateSmsSender:
         service = create_service()
         existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
 
-        with pytest.raises(Exception) as e:
+        with pytest.raises(SmsSenderDefaultValidationException) as e:
             dao_update_service_sms_sender(
                 service_id=service.id,
                 service_sms_sender_id=existing_sms_sender.id,
@@ -183,39 +185,32 @@ class TestDaoUpdateServiceUpdateSmsSender:
             inbound_number_id=inbound_number.id
         )
 
-        with pytest.raises(Exception) as e:
+        with pytest.raises(SmsSenderInboundNumberIntegrityException) as e:
             dao_update_service_sms_sender(
                 service_id=service.id,
                 service_sms_sender_id=existing_sms_sender.id,
                 sms_sender='new-number'
             )
 
-        expected_msg = 'You cannot update the number for an SMS sender if it already has an associated Inbound Number'
+        expected_msg = 'You cannot update the number for this SMS sender as it has an associated Inbound Number'
         assert expected_msg in str(e.value)
 
+    def test_raises_exception_if_updating_number_to_use_already_allocated_inbound_number(self, notify_db_session):
+        service_with_inbound_number = create_service_with_inbound_number()
+        inbound_number = InboundNumber.query.filter_by(service_id=service_with_inbound_number.id).one()
 
-def test_update_existing_sms_sender_with_inbound_number(notify_db_session):
-    service = create_service()
-    inbound_number = create_inbound_number(number='12345', service_id=service.id)
+        new_service = create_service(service_name='new service')
+        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service_with_inbound_number.id).one()
 
-    existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
-    sms_sender = update_existing_sms_sender_with_inbound_number(
-        service_sms_sender=existing_sms_sender, sms_sender=inbound_number.number, inbound_number_id=inbound_number.id)
+        with pytest.raises(SmsSenderInboundNumberIntegrityException) as e:
+            dao_update_service_sms_sender(
+                service_id=new_service.id,
+                service_sms_sender_id=existing_sms_sender.id,
+                inbound_number_id=inbound_number.id
+            )
 
-    assert sms_sender.inbound_number_id == inbound_number.id
-    assert sms_sender.sms_sender == inbound_number.number
-    assert sms_sender.is_default
-
-
-def test_update_existing_sms_sender_with_inbound_number_raises_exception_if_inbound_number_does_not_exist(
-        notify_db_session
-):
-    service = create_service()
-    existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
-    with pytest.raises(expected_exception=SQLAlchemyError):
-        update_existing_sms_sender_with_inbound_number(service_sms_sender=existing_sms_sender,
-                                                       sms_sender='blah',
-                                                       inbound_number_id=uuid.uuid4())
+        expected_msg = f'Inbound number: {inbound_number.id} is not available'
+        assert expected_msg in str(e.value)
 
 
 def test_archive_sms_sender(notify_db_session):

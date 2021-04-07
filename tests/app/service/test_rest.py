@@ -8,14 +8,12 @@ from flask import url_for, current_app
 from freezegun import freeze_time
 
 from app.dao.organisation_dao import dao_add_service_to_organisation
-from app.dao.service_sms_sender_dao import dao_get_sms_senders_by_service_id
-from app.dao.services_dao import dao_add_user_to_service, dao_remove_user_from_service
 from app.dao.service_user_dao import dao_get_service_user
+from app.dao.services_dao import dao_add_user_to_service, dao_remove_user_from_service
 from app.dao.templates_dao import dao_redact_template
 from app.dao.users_dao import save_model_user
 from app.models import (
     EmailBranding,
-    InboundNumber,
     Notification,
     Permission,
     Service,
@@ -33,15 +31,11 @@ from tests.app.db import (
     create_ft_billing,
     create_ft_notification_status,
     create_service,
-    create_service_with_inbound_number,
     create_template,
     create_template_folder,
     create_notification,
     create_reply_to_email,
     create_letter_contact,
-    create_inbound_number,
-    create_service_sms_sender,
-    create_service_with_defined_sms_sender,
     create_letter_branding,
     create_organisation,
     create_domain,
@@ -3168,264 +3162,6 @@ def test_delete_service_letter_contact_returns_200_if_archiving_template_default
         _expected_status=200
     )
     assert response['data']['archived'] is True
-
-
-def test_add_service_sms_sender_can_add_multiple_senders(client, notify_db_session):
-    service = create_service()
-    data = {
-        "sms_sender": 'second',
-        "is_default": False,
-    }
-    response = client.post('/service/{}/sms-sender'.format(service.id),
-                           data=json.dumps(data),
-                           headers=[('Content-Type', 'application/json'), create_authorization_header()]
-                           )
-    assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert resp_json['sms_sender'] == 'second'
-    assert not resp_json['is_default']
-    senders = ServiceSmsSender.query.all()
-    assert len(senders) == 2
-
-
-def test_add_service_sms_sender_when_it_is_an_inbound_number_updates_the_only_existing_non_archived_sms_sender(
-        client, notify_db_session):
-    service = create_service_with_defined_sms_sender(sms_sender_value='GOVUK')
-    create_service_sms_sender(service=service, sms_sender="archived", is_default=False, archived=True)
-    inbound_number = create_inbound_number(number='12345')
-    data = {
-        "sms_sender": str(inbound_number.id),
-        "is_default": True,
-        "inbound_number_id": str(inbound_number.id)
-    }
-    response = client.post('/service/{}/sms-sender'.format(service.id),
-                           data=json.dumps(data),
-                           headers=[('Content-Type', 'application/json'), create_authorization_header()]
-                           )
-    assert response.status_code == 201
-    updated_number = InboundNumber.query.get(inbound_number.id)
-    assert updated_number.service_id == service.id
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert resp_json['sms_sender'] == inbound_number.number
-    assert resp_json['inbound_number_id'] == str(inbound_number.id)
-    assert resp_json['is_default']
-
-    senders = dao_get_sms_senders_by_service_id(service.id)
-    assert len(senders) == 1
-
-
-def test_add_service_sms_sender_when_it_is_an_inbound_number_inserts_new_sms_sender_when_more_than_one(
-        client, notify_db_session):
-    service = create_service_with_defined_sms_sender(sms_sender_value='GOVUK')
-    create_service_sms_sender(service=service, sms_sender="second", is_default=False)
-    inbound_number = create_inbound_number(number='12345')
-    data = {
-        "sms_sender": str(inbound_number.id),
-        "is_default": True,
-        "inbound_number_id": str(inbound_number.id)
-    }
-    response = client.post('/service/{}/sms-sender'.format(service.id),
-                           data=json.dumps(data),
-                           headers=[('Content-Type', 'application/json'), create_authorization_header()]
-                           )
-    assert response.status_code == 201
-    updated_number = InboundNumber.query.get(inbound_number.id)
-    assert updated_number.service_id == service.id
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert resp_json['sms_sender'] == inbound_number.number
-    assert resp_json['inbound_number_id'] == str(inbound_number.id)
-    assert resp_json['is_default']
-
-    senders = ServiceSmsSender.query.filter_by(service_id=service.id).all()
-    assert len(senders) == 3
-
-
-def test_add_service_sms_sender_switches_default(client, notify_db_session):
-    service = create_service_with_defined_sms_sender(sms_sender_value='first')
-    data = {
-        "sms_sender": 'second',
-        "is_default": True,
-    }
-    response = client.post('/service/{}/sms-sender'.format(service.id),
-                           data=json.dumps(data),
-                           headers=[('Content-Type', 'application/json'), create_authorization_header()]
-                           )
-    assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert resp_json['sms_sender'] == 'second'
-    assert not resp_json['inbound_number_id']
-    assert resp_json['is_default']
-    sms_senders = ServiceSmsSender.query.filter_by(sms_sender='first').first()
-    assert not sms_senders.is_default
-
-
-def test_add_service_sms_sender_return_404_when_service_does_not_exist(client):
-    data = {
-        "sms_sender": '12345',
-        "is_default": False
-    }
-    response = client.post('/service/{}/sms-sender'.format(uuid.uuid4()),
-                           data=json.dumps(data),
-                           headers=[('Content-Type', 'application/json'), create_authorization_header()]
-                           )
-    assert response.status_code == 404
-    result = json.loads(response.get_data(as_text=True))
-    assert result['result'] == 'error'
-    assert result['message'] == 'No result found'
-
-
-def test_update_service_sms_sender(client, notify_db_session):
-    service = create_service()
-    service_sms_sender = create_service_sms_sender(service=service, sms_sender='1235', is_default=False)
-    data = {
-        "sms_sender": 'second',
-        "is_default": False,
-    }
-    response = client.post('/service/{}/sms-sender/{}'.format(service.id, service_sms_sender.id),
-                           data=json.dumps(data),
-                           headers=[('Content-Type', 'application/json'), create_authorization_header()]
-                           )
-    assert response.status_code == 200
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert resp_json['sms_sender'] == 'second'
-    assert not resp_json['inbound_number_id']
-    assert not resp_json['is_default']
-
-
-def test_update_service_sms_sender_switches_default(client, notify_db_session):
-    service = create_service_with_defined_sms_sender(sms_sender_value='first')
-    service_sms_sender = create_service_sms_sender(service=service, sms_sender='1235', is_default=False)
-    data = {
-        "sms_sender": 'second',
-        "is_default": True,
-    }
-    response = client.post('/service/{}/sms-sender/{}'.format(service.id, service_sms_sender.id),
-                           data=json.dumps(data),
-                           headers=[('Content-Type', 'application/json'), create_authorization_header()]
-                           )
-    assert response.status_code == 200
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert resp_json['sms_sender'] == 'second'
-    assert not resp_json['inbound_number_id']
-    assert resp_json['is_default']
-    sms_senders = ServiceSmsSender.query.filter_by(sms_sender='first').first()
-    assert not sms_senders.is_default
-
-
-def test_update_service_sms_sender_does_not_allow_sender_update_for_inbound_number(client, notify_db_session):
-    service = create_service()
-    inbound_number = create_inbound_number('12345', service_id=service.id)
-    service_sms_sender = create_service_sms_sender(service=service,
-                                                   sms_sender='1235',
-                                                   is_default=False,
-                                                   inbound_number_id=inbound_number.id)
-    data = {
-        "sms_sender": 'second',
-        "is_default": True,
-        "inbound_number_id": str(inbound_number.id)
-    }
-    response = client.post('/service/{}/sms-sender/{}'.format(service.id, service_sms_sender.id),
-                           data=json.dumps(data),
-                           headers=[('Content-Type', 'application/json'), create_authorization_header()]
-                           )
-    assert response.status_code == 400
-
-
-def test_update_service_sms_sender_return_404_when_service_does_not_exist(client):
-    data = {
-        "sms_sender": '12345',
-        "is_default": False
-    }
-    response = client.post('/service/{}/sms-sender/{}'.format(uuid.uuid4(), uuid.uuid4()),
-                           data=json.dumps(data),
-                           headers=[('Content-Type', 'application/json'), create_authorization_header()]
-                           )
-    assert response.status_code == 404
-    result = json.loads(response.get_data(as_text=True))
-    assert result['result'] == 'error'
-    assert result['message'] == 'No result found'
-
-
-def test_delete_service_sms_sender_can_archive_sms_sender(admin_request, notify_db_session):
-    service = create_service()
-    service_sms_sender = create_service_sms_sender(service=service,
-                                                   sms_sender='5678',
-                                                   is_default=False)
-
-    admin_request.post(
-        'service.delete_service_sms_sender',
-        service_id=service.id,
-        sms_sender_id=service_sms_sender.id,
-    )
-
-    assert service_sms_sender.archived is True
-
-
-def test_delete_service_sms_sender_returns_400_if_archiving_inbound_number(admin_request, notify_db_session):
-    service = create_service_with_inbound_number(inbound_number='7654321')
-    inbound_number = service.service_sms_senders[0]
-
-    response = admin_request.post(
-        'service.delete_service_sms_sender',
-        service_id=service.id,
-        sms_sender_id=service.service_sms_senders[0].id,
-        _expected_status=400
-    )
-    assert response == {'message': 'You cannot delete an inbound number', 'result': 'error'}
-    assert inbound_number.archived is False
-
-
-def test_get_service_sms_sender_by_id(client, notify_db_session):
-    service_sms_sender = create_service_sms_sender(service=create_service(),
-                                                   sms_sender='1235',
-                                                   is_default=False)
-    response = client.get('/service/{}/sms-sender/{}'.format(service_sms_sender.service_id, service_sms_sender.id),
-                          headers=[('Content-Type', 'application/json'), create_authorization_header()]
-                          )
-    assert response.status_code == 200
-    assert json.loads(response.get_data(as_text=True)) == service_sms_sender.serialize()
-
-
-def test_get_service_sms_sender_by_id_returns_404_when_service_does_not_exist(client, notify_db_session):
-    service_sms_sender = create_service_sms_sender(service=create_service(),
-                                                   sms_sender='1235',
-                                                   is_default=False)
-    response = client.get('/service/{}/sms-sender/{}'.format(uuid.uuid4(), service_sms_sender.id),
-                          headers=[('Content-Type', 'application/json'), create_authorization_header()]
-                          )
-    assert response.status_code == 404
-
-
-def test_get_service_sms_sender_by_id_returns_404_when_sms_sender_does_not_exist(client, notify_db_session):
-    service = create_service()
-    response = client.get('/service/{}/sms-sender/{}'.format(service.id, uuid.uuid4()),
-                          headers=[('Content-Type', 'application/json'), create_authorization_header()]
-                          )
-    assert response.status_code == 404
-
-
-def test_get_service_sms_senders_for_service(client, notify_db_session):
-    service_sms_sender = create_service_sms_sender(service=create_service(),
-                                                   sms_sender='second',
-                                                   is_default=False)
-    response = client.get('/service/{}/sms-sender'.format(service_sms_sender.service_id),
-                          headers=[('Content-Type', 'application/json'), create_authorization_header()]
-                          )
-    assert response.status_code == 200
-    json_resp = json.loads(response.get_data(as_text=True))
-    assert len(json_resp) == 2
-    assert json_resp[0]['is_default']
-    assert json_resp[0]['sms_sender'] == current_app.config['FROM_NUMBER']
-    assert not json_resp[1]['is_default']
-    assert json_resp[1]['sms_sender'] == 'second'
-
-
-def test_get_service_sms_senders_for_service_returns_empty_list_when_service_does_not_exist(client):
-    response = client.get('/service/{}/sms-sender'.format(uuid.uuid4()),
-                          headers=[('Content-Type', 'application/json'), create_authorization_header()]
-                          )
-    assert response.status_code == 200
-    assert json.loads(response.get_data(as_text=True)) == []
 
 
 def test_get_organisation_for_service_id(admin_request, sample_service, sample_organisation):

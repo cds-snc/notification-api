@@ -38,3 +38,16 @@ add_service_sms_sender_request = {
     },
     "required": ["sms_sender", "is_default"]
 }
+
+
+update_service_sms_sender_request = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "POST update service SMS sender",
+    "type": "object",
+    "title": "Update SMS sender for service",
+    "properties": {
+        "sms_sender": {"type": "string"},
+        "is_default": {"type": "boolean"},
+        "inbound_number_id": uuid
+    }
+}

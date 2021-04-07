@@ -19,7 +19,7 @@ from app.dao.service_callback_api_dao import save_service_callback_api
 from app.dao.service_data_retention_dao import insert_service_data_retention
 from app.dao.service_inbound_api_dao import save_service_inbound_api
 from app.dao.service_permissions_dao import dao_add_service_permission
-from app.dao.service_sms_sender_dao import update_existing_sms_sender_with_inbound_number, dao_update_service_sms_sender
+from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.dao.services_dao import dao_create_service, dao_add_user_to_service
 from app.dao.templates_dao import dao_create_template, dao_update_template
 from app.dao.users_dao import save_model_user
@@ -153,10 +153,13 @@ def create_service_with_inbound_number(
     service = create_service(*args, **kwargs)
 
     sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).first()
-    inbound = create_inbound_number(number=inbound_number, service_id=service.id)
-    update_existing_sms_sender_with_inbound_number(service_sms_sender=sms_sender,
-                                                   sms_sender=inbound_number,
-                                                   inbound_number_id=inbound.id)
+    inbound = create_inbound_number(number=inbound_number)
+    dao_update_service_sms_sender(
+        service_id=service.id,
+        service_sms_sender_id=sms_sender.id,
+        sms_sender=inbound_number,
+        inbound_number_id=inbound.id
+    )
 
     return service
 

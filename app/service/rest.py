@@ -27,7 +27,6 @@ from app.dao.fact_notification_status_dao import (
     fetch_notification_status_for_service_for_today_and_7_previous_days,
     fetch_stats_for_all_services_by_date_range, fetch_monthly_template_usage_for_service
 )
-from app.dao.inbound_numbers_dao import dao_allocate_number_for_service
 from app.dao.organisation_dao import dao_get_organisation_by_service_id
 from app.dao.service_data_retention_dao import (
     fetch_service_data_retention,
@@ -35,14 +34,6 @@ from app.dao.service_data_retention_dao import (
     fetch_service_data_retention_by_notification_type,
     insert_service_data_retention,
     update_service_data_retention,
-)
-from app.dao.service_sms_sender_dao import (
-    archive_sms_sender,
-    dao_add_sms_sender_for_service,
-    dao_update_service_sms_sender,
-    dao_get_service_sms_sender_by_id,
-    dao_get_sms_senders_by_service_id,
-    update_existing_sms_sender_with_inbound_number
 )
 from app.dao.services_dao import (
     dao_add_user_to_service,
@@ -99,8 +90,7 @@ from app.service.service_data_retention_schema import (
 )
 from app.service.service_senders_schema import (
     add_service_email_reply_to_request,
-    add_service_letter_contact_block_request,
-    add_service_sms_sender_request
+    add_service_letter_contact_block_request
 )
 from app.service.utils import get_whitelist_objects
 from app.service.sender import send_notification_to_service_users
@@ -768,74 +758,6 @@ def delete_service_letter_contact(service_id, letter_contact_id):
     archived_letter_contact = archive_letter_contact(service_id, letter_contact_id)
 
     return jsonify(data=archived_letter_contact.serialize()), 200
-
-
-@service_blueprint.route('/<uuid:service_id>/sms-sender', methods=['POST'])
-def add_service_sms_sender(service_id):
-    dao_fetch_service_by_id(service_id)
-    form = validate(request.get_json(), add_service_sms_sender_request)
-    inbound_number_id = form.get('inbound_number_id', None)
-    sms_sender = form.get('sms_sender')
-
-    if inbound_number_id:
-        updated_number = dao_allocate_number_for_service(service_id=service_id, inbound_number_id=inbound_number_id)
-        # the sms_sender in the form is not set, use the inbound number
-        sms_sender = updated_number.number
-        existing_sms_sender = dao_get_sms_senders_by_service_id(service_id)
-        # we don't want to create a new sms sender for the service if we are allocating an inbound number.
-        if len(existing_sms_sender) == 1:
-            update_existing_sms_sender = existing_sms_sender[0]
-            new_sms_sender = update_existing_sms_sender_with_inbound_number(
-                service_sms_sender=update_existing_sms_sender,
-                sms_sender=sms_sender,
-                inbound_number_id=inbound_number_id)
-
-            return jsonify(new_sms_sender.serialize()), 201
-
-    new_sms_sender = dao_add_sms_sender_for_service(service_id=service_id,
-                                                    sms_sender=sms_sender,
-                                                    is_default=form['is_default'],
-                                                    inbound_number_id=inbound_number_id
-                                                    )
-    return jsonify(new_sms_sender.serialize()), 201
-
-
-@service_blueprint.route('/<uuid:service_id>/sms-sender/<uuid:sms_sender_id>', methods=['POST'])
-def update_service_sms_sender(service_id, sms_sender_id):
-    form = validate(request.get_json(), add_service_sms_sender_request)
-
-    sms_sender_to_update = dao_get_service_sms_sender_by_id(service_id=service_id,
-                                                            service_sms_sender_id=sms_sender_id)
-    if sms_sender_to_update.inbound_number_id and form['sms_sender'] != sms_sender_to_update.sms_sender:
-        raise InvalidRequest("You can not change the inbound number for service {}".format(service_id),
-                             status_code=400)
-
-    new_sms_sender = dao_update_service_sms_sender(service_id=service_id,
-                                                   service_sms_sender_id=sms_sender_id,
-                                                   is_default=form['is_default'],
-                                                   sms_sender=form['sms_sender']
-                                                   )
-    return jsonify(new_sms_sender.serialize()), 200
-
-
-@service_blueprint.route('/<uuid:service_id>/sms-sender/<uuid:sms_sender_id>/archive', methods=['POST'])
-def delete_service_sms_sender(service_id, sms_sender_id):
-    sms_sender = archive_sms_sender(service_id, sms_sender_id)
-
-    return jsonify(data=sms_sender.serialize()), 200
-
-
-@service_blueprint.route('/<uuid:service_id>/sms-sender/<uuid:sms_sender_id>', methods=['GET'])
-def get_service_sms_sender_by_id(service_id, sms_sender_id):
-    sms_sender = dao_get_service_sms_sender_by_id(service_id=service_id,
-                                                  service_sms_sender_id=sms_sender_id)
-    return jsonify(sms_sender.serialize()), 200
-
-
-@service_blueprint.route('/<uuid:service_id>/sms-sender', methods=['GET'])
-def get_service_sms_senders_for_service(service_id):
-    sms_senders = dao_get_sms_senders_by_service_id(service_id=service_id)
-    return jsonify([sms_sender.serialize() for sms_sender in sms_senders]), 200
 
 
 @service_blueprint.route('/<uuid:service_id>/organisation', methods=['GET'])

@@ -2,6 +2,7 @@ from typing import Optional, List
 
 from app import db
 from app.dao.dao_utils import transactional
+from app.service.exceptions import SmsSenderInboundNumberIntegrityException
 from app.models import InboundNumber
 
 
@@ -39,7 +40,7 @@ def dao_allocate_number_for_service(service_id, inbound_number_id):
         {"service_id": service_id}
     )
     if not updated:
-        raise Exception("Inbound number: {} is not available".format(inbound_number_id))
+        raise SmsSenderInboundNumberIntegrityException(f"Inbound number: {inbound_number_id} is not available")
     return InboundNumber.query.get(inbound_number_id)
 
 

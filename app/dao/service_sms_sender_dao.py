@@ -4,8 +4,10 @@ from sqlalchemy import desc
 
 from app import db
 from app.dao.dao_utils import transactional
+from app.dao.inbound_numbers_dao import dao_allocate_number_for_service
 from app.exceptions import ArchiveValidationError
 from app.models import ServiceSmsSender
+from app.service.exceptions import SmsSenderDefaultValidationException, SmsSenderInboundNumberIntegrityException
 
 
 def insert_service_sms_sender(service, sms_sender):
@@ -47,10 +49,13 @@ def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_n
     default_sms_sender = _get_default_sms_sender_for_service(service_id=service_id)
 
     if not default_sms_sender and not is_default:
-        raise Exception("You must have at least one SMS sender as the default.", 400)
+        raise SmsSenderDefaultValidationException('You must have at least one SMS sender as the default.')
 
     if is_default:
         _set_default_sms_sender_to_not_default(default_sms_sender)
+
+    if inbound_number_id:
+        dao_allocate_number_for_service(service_id, inbound_number_id)
 
     new_sms_sender = ServiceSmsSender(
         service_id=service_id,
@@ -71,29 +76,26 @@ def dao_update_service_sms_sender(service_id, service_sms_sender_id, **kwargs):
         is_default = kwargs['is_default']
 
         if service_sms_sender_id == default_sms_sender.id and not is_default:
-            raise Exception("You must have at least one SMS sender as the default")
+            raise SmsSenderDefaultValidationException('You must have at least one SMS sender as the default')
 
         if is_default:
             _set_default_sms_sender_to_not_default(default_sms_sender)
 
+    if 'inbound_number_id' in kwargs:
+        dao_allocate_number_for_service(service_id, kwargs['inbound_number_id'])
+
     sms_sender_to_update = ServiceSmsSender.query.get(service_sms_sender_id)
 
     if 'sms_sender' in kwargs and sms_sender_to_update.inbound_number_id:
-        raise Exception('You cannot update the number for an SMS sender if it already has an associated Inbound Number')
+        raise SmsSenderInboundNumberIntegrityException(
+            'You cannot update the number for this SMS sender as it has an associated Inbound Number'
+        )
 
     for key, value in kwargs.items():
         setattr(sms_sender_to_update, key, value)
 
     db.session.add(sms_sender_to_update)
     return sms_sender_to_update
-
-
-@transactional
-def update_existing_sms_sender_with_inbound_number(service_sms_sender, sms_sender, inbound_number_id):
-    service_sms_sender.sms_sender = sms_sender
-    service_sms_sender.inbound_number_id = inbound_number_id
-    db.session.add(service_sms_sender)
-    return service_sms_sender
 
 
 @transactional
@@ -121,11 +123,9 @@ def _get_default_sms_sender_for_service(service_id) -> Optional[ServiceSmsSender
         if len(old_default) == 1:
             return old_default[0]
         else:
-            raise Exception(
-                "There should only be one default sms sender for each service. Service {} has {}".format(
-                    service_id,
-                    len(old_default)
-                )
+            raise SmsSenderDefaultValidationException(
+                f"There should only be one default sms sender for each service. "
+                f"Service {service_id} has {len(old_default)}"
             )
     return None
 
