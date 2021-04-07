@@ -868,8 +868,8 @@ def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_abov
 
 
 @pytest.mark.parametrize("filename_attribute_present, filename, expected_filename", [
-    (False, "whatever", "file.pdf"),
-    (True, None, "file.pdf"),
+    (False, "whatever", None),
+    (True, None, None),
     (True, "custom_filename.pdf", "custom_filename.pdf"),
 ])
 def test_notification_document_with_pdf_attachment(
@@ -891,6 +891,9 @@ def test_notification_document_with_pdf_attachment(
     }
     if filename_attribute_present:
         personalisation["file"]["document"]["filename"] = filename
+        personalisation["file"]["document"]["sending_method"] = 'attach'
+    else:
+        personalisation["file"]["document"]["sending_method"] = 'link'
 
     db_notification = create_notification(template=template, personalisation=personalisation)
 
@@ -902,13 +905,14 @@ def test_notification_document_with_pdf_attachment(
     cm.__enter__.return_value = cm
     urlopen_mock = mocker.patch('app.delivery.send_to_providers.urllib.request.urlopen')
     urlopen_mock.return_value = cm
-    mime_mock = mocker.patch('app.delivery.send_to_providers.magic.from_buffer', return_value='application/pdf')
 
     send_to_providers.send_email_to_provider(db_notification)
 
-    request_mock.assert_called_once_with('http://foo.bar/direct_file_url')
-    urlopen_mock.assert_called_once_with('request_mock')
-    mime_mock.assert_called_once_with('request_content', mime=True)
+    attachments = []
+    if filename_attribute_present:
+        request_mock.assert_called_once_with('http://foo.bar/direct_file_url')
+        urlopen_mock.assert_called_once_with('request_mock')
+        attachments = [{'data': 'request_content', 'name': expected_filename}]
     send_mock.assert_called_once_with(
         ANY,
         ANY,
@@ -916,9 +920,10 @@ def test_notification_document_with_pdf_attachment(
         body=ANY,
         html_body=ANY,
         reply_to_address=ANY,
-        attachments=[{'data': 'request_content', 'name': expected_filename}]
+        attachments=attachments
     )
-    assert 'http://foo.bar/url' in send_mock.call_args[1]['html_body']
+    if not filename_attribute_present:
+        assert 'http://foo.bar/url' in send_mock.call_args[1]['html_body']
 
     assert Notification.query.get(db_notification.id).status == 'sending'
 

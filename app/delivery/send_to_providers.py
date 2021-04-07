@@ -1,7 +1,6 @@
 from datetime import datetime
 import os
 import urllib.request
-import magic
 import re
 
 from flask import current_app
@@ -107,9 +106,10 @@ def send_email_to_provider(notification):
         personalisation_data = notification.personalisation.copy()
 
         for key in file_keys:
+            sending_method = personalisation_data[key]['document'].get('sending_method')
             # Check if a MLWR sid exists
             if (current_app.config["MLWR_HOST"] and
-                    'mlwr_sid' in personalisation_data[key]['document'] and
+                'mlwr_sid' in personalisation_data[key]['document'] and
                     personalisation_data[key]['document']['mlwr_sid'] != "false"):
 
                 mlwr_result = check_mlwr(personalisation_data[key]['document']['mlwr_sid'])
@@ -123,23 +123,25 @@ def send_email_to_provider(notification):
                     # Throw error so celery will retry in sixty seconds
                     raise MalwarePendingException
 
-            try:
-                req = urllib.request.Request(personalisation_data[key]['document']['direct_file_url'])
-                with urllib.request.urlopen(req) as response:
-                    buffer = response.read()
-                    mime_type = magic.from_buffer(buffer, mime=True)
-                    if mime_type == 'application/pdf':
+            if sending_method == 'attach':
+                try:
+
+                    req = urllib.request.Request(personalisation_data[key]['document']['direct_file_url'])
+                    with urllib.request.urlopen(req) as response:
+                        buffer = response.read()
                         filename = personalisation_data[key]['document'].get('filename')
                         attachments.append({
-                            "name": filename or f'{key}.pdf',
+                            "name": filename,
                             "data": buffer
                         })
-            except Exception:
-                current_app.logger.error(
-                    "Could not download and attach {}".format(personalisation_data[key]['document']['direct_file_url'])
-                )
-
-            personalisation_data[key] = personalisation_data[key]['document']['url']
+                except Exception:
+                    current_app.logger.error(
+                        "Could not download and attach {}".format(
+                            personalisation_data[key]['document']['direct_file_url'])
+                    )
+                del personalisation_data[key]
+            else:
+                personalisation_data[key] = personalisation_data[key]['document']['url']
 
         template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
 
