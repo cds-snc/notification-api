@@ -1,5 +1,6 @@
 import base64
 import uuid
+from unittest.mock import call
 
 import pytest
 from freezegun import freeze_time
@@ -34,6 +35,27 @@ from tests.app.db import (
     create_service_with_inbound_number,
     create_api_key,
 )
+
+
+def document_download_response(override={}):
+    # See response from
+    # https://github.com/cds-snc/notification-document-download-api/blob/master/app/upload/views.py
+    base = {
+        'id': 'document-id',
+        'direct_file_url': 'http://direct-file-url.localdomain',
+        'url': 'http://frontend-url.localdomain',
+        'mlwr_sid': 'mlwr-sid',
+        'filename': 'filename',
+        'sending_method': 'sending_method',
+        'mime_type': 'mime_type',
+        'file_size': 42,
+        'file_extension': 'pdf',
+    }
+
+    return {
+        'status': 'ok',
+        'document': base | override
+    }
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
@@ -961,11 +983,16 @@ def test_post_notification_with_document_upload(
         content = "Document: ((document))"
     template = create_template(service=service, template_type="email", content=content)
 
+    statsd_mock = mocker.patch("app.v2.notifications.post_notifications.statsd_client")
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     document_download_mock = mocker.patch(
         "app.v2.notifications.post_notifications.document_download_client.upload_document"
     )
-    document_download_mock.return_value = "https://document-url/"
+    document_response = document_download_response({
+        "sending_method": sending_method,
+        "mime_type": "text/plain"
+    })
+    document_download_mock.return_value = document_response
     decoded_file = base64.b64decode(file_data)
 
     data = {
@@ -997,12 +1024,22 @@ def test_post_notification_with_document_upload(
 
     notification = Notification.query.one()
     assert notification.status == NOTIFICATION_CREATED
-    assert notification.personalisation == {"document": "https://document-url/"}
+    assert notification.personalisation == {"document": document_response}
 
     if sending_method == "link":
-        assert resp_json["content"]["body"] == "Document: https://document-url/"
+        assert resp_json["content"]["body"] == f"Document: {document_response}"
     else:
         assert resp_json["content"]["body"] == "See attached file."
+
+    assert statsd_mock.incr.call_args_list == [
+        call('attachments.nb-attachments.count-1'),
+        call('attachments.nb-attachments', count=1),
+        call(f'attachments.services.{service.id}', count=1),
+        call(f'attachments.templates.{template.id}', count=1),
+        call(f'attachments.sending-method.{sending_method}'),
+        call('attachments.file-type.text/plain'),
+        call('attachments.file-size.0-1mb')
+    ]
 
 
 @pytest.mark.parametrize(
@@ -1272,7 +1309,7 @@ def test_post_notification_without_document_upload_permission(
     document_download_mock = mocker.patch(
         "app.v2.notifications.post_notifications.document_download_client"
     )
-    document_download_mock.upload_document.return_value = "https://document-url/"
+    document_download_mock.upload_document.return_value = document_download_response()
 
     data = {
         "email_address": service.users[0].email_address,
