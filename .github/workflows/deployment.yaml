@@ -230,14 +230,12 @@ jobs:
               if (value.result === "skipped") return state;
               return state;
             }, "success");
-            if (['dev', 'staging', 'prod'].includes(context.payload.deployment.environment)) {
-              github.repos.createDeploymentStatus({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                deployment_id: context.payload.deployment.id,
-                state: deploymentState,
-                auto_inactive: true,
-                log_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}/checks`,
-                environment: "${{ github.event.deployment.environment }}"
-              });
-            }
+            github.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: context.payload.deployment.id,
+              state: deploymentState,
+              auto_inactive: true,
+              log_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}/checks`,
+              environment: "${{ github.event.deployment.environment }}"
+            });
