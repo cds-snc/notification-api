@@ -251,7 +251,7 @@ def process_document_uploads(personalisation_data, service, simulated, template_
 
     if not simulated:
         save_stats_for_attachments(
-            {k: v for k, v in personalisation_data.items() if k in file_keys},
+            [v for k, v in personalisation_data.items() if k in file_keys],
             service.id,
             template_id
         )
@@ -259,17 +259,18 @@ def process_document_uploads(personalisation_data, service, simulated, template_
     return personalisation_data
 
 
-def save_stats_for_attachments(file_dict, service_id, template_id):
-    statsd_client.incr(f"attachments.nb-attachments.count-{len(file_dict)}")
-    statsd_client.incr('attachments.nb-attachments', count=len(file_dict))
-    statsd_client.incr(f"attachments.services.{service_id}", count=len(file_dict))
-    statsd_client.incr(f"attachments.templates.{template_id}", count=len(file_dict))
+def save_stats_for_attachments(files_data, service_id, template_id):
+    nb_files = len(files_data)
+    statsd_client.incr(f"attachments.nb-attachments.count-{nb_files}")
+    statsd_client.incr('attachments.nb-attachments', count=nb_files)
+    statsd_client.incr(f"attachments.services.{service_id}", count=nb_files)
+    statsd_client.incr(f"attachments.templates.{template_id}", count=nb_files)
 
-    for value in file_dict.values():
-        statsd_client.incr(f"attachments.sending-method.{value['document']['sending_method']}")
-        statsd_client.incr(f"attachments.file-type.{value['document']['mime_type']}")
+    for document in [f['document'] for f in files_data]:
+        statsd_client.incr(f"attachments.sending-method.{document['sending_method']}")
+        statsd_client.incr(f"attachments.file-type.{document['mime_type']}")
         # File size is in bytes, convert to whole megabytes
-        nb_mb = value['document']['file_size'] // (1_024 * 1_024)
+        nb_mb = document['file_size'] // (1_024 * 1_024)
         file_size_bucket = f"{nb_mb}-{nb_mb+1}mb"
         statsd_client.incr(f"attachments.file-size.{file_size_bucket}")
 
