@@ -5,7 +5,7 @@ import werkzeug
 from flask import request, jsonify, current_app, abort
 from notifications_utils.recipients import try_validate_and_format_phone_number
 
-from app import api_user, authenticated_service, notify_celery, document_download_client
+from app import api_user, authenticated_service, notify_celery, document_download_client, statsd_client
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.clients.document_download import DocumentDownloadError
@@ -191,7 +191,12 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
     # Do not persist or send notification to the queue if it is a simulated recipient
     simulated = simulated_recipient(send_to, notification_type)
 
-    personalisation = process_document_uploads(form.get('personalisation'), service, simulated=simulated)
+    personalisation = process_document_uploads(
+        form.get('personalisation'),
+        service,
+        simulated,
+        template.id
+    )
 
     notification = persist_notification(
         template_id=template.id,
@@ -224,7 +229,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
     return notification
 
 
-def process_document_uploads(personalisation_data, service, simulated=False):
+def process_document_uploads(personalisation_data, service, simulated, template_id):
     file_keys = [k for k, v in (personalisation_data or {}).items() if isinstance(v, dict) and 'file' in v]
     if not file_keys:
         return personalisation_data
@@ -244,7 +249,30 @@ def process_document_uploads(personalisation_data, service, simulated=False):
             except DocumentDownloadError as e:
                 raise BadRequestError(message=e.message, status_code=e.status_code)
 
+    if not simulated:
+        save_stats_for_attachments(
+            [v for k, v in personalisation_data.items() if k in file_keys],
+            service.id,
+            template_id
+        )
+
     return personalisation_data
+
+
+def save_stats_for_attachments(files_data, service_id, template_id):
+    nb_files = len(files_data)
+    statsd_client.incr(f"attachments.nb-attachments.count-{nb_files}")
+    statsd_client.incr('attachments.nb-attachments', count=nb_files)
+    statsd_client.incr(f"attachments.services.{service_id}", count=nb_files)
+    statsd_client.incr(f"attachments.templates.{template_id}", count=nb_files)
+
+    for document in [f['document'] for f in files_data]:
+        statsd_client.incr(f"attachments.sending-method.{document['sending_method']}")
+        statsd_client.incr(f"attachments.file-type.{document['mime_type']}")
+        # File size is in bytes, convert to whole megabytes
+        nb_mb = document['file_size'] // (1_024 * 1_024)
+        file_size_bucket = f"{nb_mb}-{nb_mb+1}mb"
+        statsd_client.incr(f"attachments.file-size.{file_size_bucket}")
 
 
 def process_letter_notification(*, letter_data, api_key, template, reply_to_text, precompiled=False):
