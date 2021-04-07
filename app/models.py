@@ -1612,6 +1612,7 @@ class Notification(db.Model):
         serialized = {
             "id": self.id,
             "reference": self.client_reference,
+            "provider_reference": self.reference,
             "email_address": self.to if self.notification_type == EMAIL_TYPE else None,
             "phone_number": self.to if self.notification_type == SMS_TYPE else None,
             "line_1": None,
