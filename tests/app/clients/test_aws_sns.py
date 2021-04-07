@@ -54,35 +54,13 @@ def test_send_sms_with_long_code_successful_returns_aws_sns_response(notify_api,
     )
 
 
-def test_send_sms_to_us_number_successful_returns_aws_sns_response(notify_api, mocker):
+@pytest.mark.parametrize('sender', [None, '+19025551234'])
+def test_send_sms_to_us_number_successful_returns_aws_sns_response(
+    notify_api, mocker, sender
+):
     boto_mock = mocker.patch.object(aws_sns_client, '_long_codes_client', create=True)
     mocker.patch.object(aws_sns_client, 'statsd_client', create=True)
 
-    us_toll_free_number = current_app.config["AWS_US_TOLL_FREE_NUMBER"]
-    to = "7185555555"  # New York City Area Code
-    content = reference = 'foo'
-
-    with notify_api.app_context():
-        aws_sns_client.send_sms(to, content, reference)
-
-    boto_mock.publish.assert_called_once_with(
-        PhoneNumber=f"+1{to}",
-        Message=content,
-        MessageAttributes={
-            'AWS.SNS.SMS.SMSType': {'DataType': 'String', 'StringValue': 'Transactional'},
-            'AWS.MM.SMS.OriginationNumber': {
-                'DataType': 'String',
-                'StringValue': us_toll_free_number,
-            },
-        }
-    )
-
-
-def test_send_sms_to_us_number_with_sender_successful_returns_aws_sns_response(notify_api, mocker):
-    boto_mock = mocker.patch.object(aws_sns_client, '_long_codes_client', create=True)
-    mocker.patch.object(aws_sns_client, 'statsd_client', create=True)
-
-    sender = "+19025551234"
     us_toll_free_number = current_app.config["AWS_US_TOLL_FREE_NUMBER"]
     to = "7185555555"  # New York City Area Code
     content = reference = 'foo'
