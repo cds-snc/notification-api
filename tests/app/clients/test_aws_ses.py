@@ -5,7 +5,11 @@ import pytest
 from notifications_utils.recipients import InvalidEmailError
 
 from app import aws_ses_client
-from app.clients.email.aws_ses import get_aws_responses, AwsSesClientException
+from app.clients.email.aws_ses import (
+    AwsSesClientException,
+    get_aws_responses,
+    punycode_encode_email,
+)
 
 
 def test_should_return_correct_details_for_delivery():
@@ -134,3 +138,11 @@ def test_send_email_raises_other_errs_as_AwsSesClientException(mocker):
         )
 
     assert 'some error message from amazon' in str(excinfo.value)
+
+
+@pytest.mark.parametrize('input, expected_output', [
+    ('foo@domain.tld', 'foo@domain.tld'),
+    ('føøøø@bååååår.com', 'føøøø@xn--br-yiaaaaa.com'),
+])
+def test_punycode_encode_email(input, expected_output):
+    assert punycode_encode_email(input) == expected_output
