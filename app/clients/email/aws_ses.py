@@ -71,14 +71,20 @@ class AwsSesClient(EmailClient):
         reply_to_address=None,
         attachments=None,
     ):
-        def create_mime_base(type):
-            msg = MIMEMultipart(type)
-            msg['Subject'] = subject
-            msg['From'] = source
-            msg['To'] = ",".join([punycode_encode_email(addr) for addr in to_addresses])
-            if reply_to_addresses != []:
-                msg.add_header('reply-to', ",".join([punycode_encode_email(addr) for addr in reply_to_addresses]))
-            return msg
+        def create_mime_base(attachments, html):
+            msg_type = 'mixed' if attachments or (not attachments and not html) else 'alternative'
+            ret = MIMEMultipart(msg_type)
+            ret['Subject'] = subject
+            ret['From'] = source
+            ret['To'] = ",".join([punycode_encode_email(addr) for addr in to_addresses])
+            if reply_to_addresses:
+                ret.add_header('reply-to', ",".join([punycode_encode_email(addr) for addr in reply_to_addresses]))
+            return ret
+
+        def attach_html(m, content):
+            if content:
+                parts = MIMEText(content, 'html')
+                m.attach(parts)
 
         attachments = attachments or []
         if isinstance(to_addresses, str):
@@ -100,31 +106,22 @@ class AwsSesClient(EmailClient):
         #       - Attachment(s)
 
         try:
+            msg = create_mime_base(attachments, html_body)
             txt_part = MIMEText(body, 'plain')
-            if html_body:
-                html_part = MIMEText(html_body, 'html')
 
-            if not attachments:
-                multipart_content_subtype = 'alternative' if html_body else 'mixed'
-                msg = create_mime_base(multipart_content_subtype)
-                msg.attach(txt_part)
-                if html_body:
-                    msg.attach(html_part)
+            if attachments and html_body:
+                msg_alternative = MIMEMultipart('alternative')
+                msg_alternative.attach(txt_part)
+                attach_html(msg_alternative, html_body)
+                msg.attach(msg_alternative)
             else:
-                msg = create_mime_base('mixed')
-                if html_body:
-                    msg_alternative = MIMEMultipart('alternative')
-                    msg_alternative.attach(txt_part)
-                    msg_alternative.attach(html_part)
+                msg.attach(txt_part)
+                attach_html(msg, html_body)
 
-                    msg.attach(msg_alternative)
-                else:
-                    msg.attach(txt_part)
-
-                for attachment in attachments:
-                    attachment_part = MIMEApplication(attachment["data"])
-                    attachment_part.add_header('Content-Disposition', 'attachment', filename=attachment["name"])
-                    msg.attach(attachment_part)
+            for attachment in attachments:
+                attachment_part = MIMEApplication(attachment["data"])
+                attachment_part.add_header('Content-Disposition', 'attachment', filename=attachment["name"])
+                msg.attach(attachment_part)
 
             start_time = monotonic()
             response = self._client.send_raw_email(
