@@ -50,10 +50,14 @@ def test_should_be_none_if_unrecognised_status_code():
     assert '99' in str(e.value)
 
 
+def email_b64_encoding(input):
+    return f"=?utf-8?b?{b64encode(input.encode('utf-8')).decode('utf-8')}?="
+
+
 @pytest.mark.parametrize('reply_to_address, expected_value', [
     (None, []),
     ('foo@bar.com', 'foo@bar.com'),
-    ('føøøø@bååååår.com', f"=?utf-8?b?{b64encode('føøøø@xn--br-yiaaaaa.com'.encode('utf-8')).decode('utf-8')}?=")
+    ('føøøø@bååååår.com', email_b64_encoding(punycode_encode_email('føøøø@bååååår.com')))
 ], ids=['empty', 'single_email', 'punycode'])
 def test_send_email_handles_reply_to_address(notify_api, mocker, reply_to_address, expected_value):
     boto_mock = mocker.patch.object(aws_ses_client, '_client', create=True)
@@ -89,6 +93,9 @@ def test_send_email_handles_punycode_to_address(notify_api, mocker):
         )
 
     boto_mock.send_raw_email.assert_called()
+    raw_message = boto_mock.send_raw_email.call_args.kwargs['RawMessage']['Data']
+    expected_to = email_b64_encoding(punycode_encode_email('føøøø@bååååår.com'))
+    assert f"To: {expected_to}" in raw_message
 
 
 def test_send_email_raises_bad_email_as_InvalidEmailError(mocker):
