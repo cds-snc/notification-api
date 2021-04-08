@@ -1,3 +1,5 @@
+from base64 import b64encode
+
 import re
 from unittest.mock import ANY
 
@@ -8,6 +10,7 @@ from notifications_utils.recipients import InvalidEmailError
 from app import aws_ses_client, config
 from app.clients.email.aws_ses import (
     get_aws_responses,
+    punycode_encode_email,
     AwsSesClientException,
     AwsSesClient,
     AwsSesClientThrottlingSendRateException
@@ -135,10 +138,15 @@ def test_send_email_uses_configuration_set_from_config(notify_api, ses_client, b
     assert actual == config.Test.AWS_SES_CONFIGURATION_SET
 
 
+def email_b64_encoding(input):
+    return f"=?utf-8?b?{b64encode(input.encode('utf-8')).decode('utf-8')}?="
+
+
 @pytest.mark.parametrize('reply_to_address, expected_value', [
     (None, config.Test.AWS_SES_DEFAULT_REPLY_TO),
-    (FOO_BAR_COM, FOO_BAR_COM)
-], ids=['empty', 'single_email'])
+    (FOO_BAR_COM, FOO_BAR_COM),
+    ('føøøø@bååååår.com', email_b64_encoding(punycode_encode_email('føøøø@bååååår.com')))
+], ids=['empty', 'single_email', 'punycode'])
 def test_send_email_handles_reply_to_address(ses_client, boto_mock, reply_to_address, expected_value):
     ses_client.send_email(
         source=FROM_ADDRESS_COM,
@@ -149,7 +157,7 @@ def test_send_email_handles_reply_to_address(ses_client, boto_mock, reply_to_add
     )
 
     raw_message = boto_mock.send_raw_email.call_args[1]['RawMessage']['Data']
-    assert re.findall(r'reply-to: (.+@\w+.\w+)', raw_message)[0] == expected_value
+    assert f"reply-to: {expected_value}" in raw_message
 
 
 def test_send_email_encodes_to_address(ses_client, boto_mock):
@@ -296,3 +304,11 @@ def test_send_email_does_not_call_statsd_if_boto_is_not_called(client, mocker, s
 
     ses_client.statsd_client.incr.assert_not_called()
     ses_client.statsd_client.timing.assert_not_called()
+
+
+@pytest.mark.parametrize('input, expected_output', [
+    ('foo@domain.tld', 'foo@domain.tld'),
+    ('føøøø@bååååår.com', 'føøøø@xn--br-yiaaaaa.com'),
+])
+def test_punycode_encode_email(input, expected_output):
+    assert punycode_encode_email(input) == expected_output
