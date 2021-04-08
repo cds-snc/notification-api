@@ -31,7 +31,7 @@ def dao_set_inbound_number_active_flag(inbound_number_id: str, active: bool) -> 
 
 
 @transactional
-def dao_allocate_number_for_service(service_id, inbound_number_id):
+def dao_allocate_number_for_service(service_id, inbound_number_id) -> InboundNumber:
     updated = InboundNumber.query.filter_by(
         id=inbound_number_id,
         active=True,

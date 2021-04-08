@@ -117,6 +117,35 @@ class TestDaoAddSmsSenderForService:
         new_sms_sender_after_updates = ServiceSmsSender.query.filter_by(id=new_sms_sender.id).one()
         assert new_sms_sender_after_updates.is_default
 
+    def test_raises_exception_if_adding_number_to_use_already_allocated_inbound_number(self, notify_db_session):
+        service_with_inbound_number = create_service_with_inbound_number()
+        inbound_number = InboundNumber.query.filter_by(service_id=service_with_inbound_number.id).one()
+
+        new_service = create_service(service_name='new service')
+
+        with pytest.raises(SmsSenderInboundNumberIntegrityException) as e:
+            dao_add_sms_sender_for_service(
+                service_id=new_service.id,
+                sms_sender='new-number',
+                is_default=False,
+                inbound_number_id=inbound_number.id
+            )
+
+        expected_msg = f'Inbound number: {inbound_number.id} is not available'
+        assert expected_msg in str(e.value)
+
+    def test_raises_exception_if_adding_number_different_to_inbound_number(self, notify_db_session):
+        service = create_service()
+        inbound_number = create_inbound_number(number='+15551234567')
+
+        with pytest.raises(SmsSenderInboundNumberIntegrityException):
+            dao_add_sms_sender_for_service(
+                service_id=service.id,
+                sms_sender='+15557654321',
+                is_default=False,
+                inbound_number_id=inbound_number.id
+            )
+
 
 class TestDaoUpdateServiceUpdateSmsSender:
 

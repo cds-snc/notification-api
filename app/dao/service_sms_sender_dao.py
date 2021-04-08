@@ -55,7 +55,13 @@ def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_n
         _set_default_sms_sender_to_not_default(default_sms_sender)
 
     if inbound_number_id:
-        dao_allocate_number_for_service(service_id, inbound_number_id)
+        inbound_number = dao_allocate_number_for_service(service_id, inbound_number_id)
+
+        if inbound_number.number != sms_sender:
+            raise SmsSenderInboundNumberIntegrityException(
+                f"You cannot create an SMS sender with the number '{sms_sender}' "
+                f"and the Inbound Number '{inbound_number.id}' ('{inbound_number.number}')"
+            )
 
     new_sms_sender = ServiceSmsSender(
         service_id=service_id,
