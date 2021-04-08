@@ -69,7 +69,7 @@ class AwsSesClient(EmailClient):
         body,
         html_body='',
         reply_to_address=None,
-        attachments=[],
+        attachments=None,
     ):
         def create_mime_base(type):
             msg = MIMEMultipart(type)
@@ -80,6 +80,7 @@ class AwsSesClient(EmailClient):
                 msg.add_header('reply-to', ",".join([punycode_encode_email(addr) for addr in reply_to_addresses]))
             return msg
 
+        attachments = attachments or []
         if isinstance(to_addresses, str):
             to_addresses = [to_addresses]
         source = unidecode(source)
