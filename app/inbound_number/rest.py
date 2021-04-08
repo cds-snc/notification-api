@@ -42,7 +42,7 @@ def update_inbound_number(inbound_number_id):
 
     validate(data, post_update_inbound_number_schema)
 
-    inbound_number = dao_update_inbound_number(inbound_number_id, data)
+    inbound_number = dao_update_inbound_number(inbound_number_id, **data)
     return jsonify(data=inbound_number.serialize()), 200
 
 

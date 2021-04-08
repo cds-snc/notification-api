@@ -153,6 +153,6 @@ class TestUpdateInboundNumber:
             inbound_number_id=inbound_number_id
         )
 
-        dao_update_inbound_number.assert_called_with(inbound_number_id, update_dictionary)
+        dao_update_inbound_number.assert_called_with(inbound_number_id, **update_dictionary)
 
         assert response['data'] == updated_inbound_number.serialize()
