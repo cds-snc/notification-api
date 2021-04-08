@@ -150,6 +150,9 @@ def attempt_to_get_notification(
 def check_notification_status(notification: Notification, notification_status: str, should_exit: bool) -> bool:
     # do not update if status has not changed
     if notification_status == notification.status:
+        current_app.logger.info(
+            f'Pinpoint callback received the same status for notification {notification_status})'
+        )
         should_exit = True
     # do not update if notification status is in a final state
     if notification.status in FINAL_STATUS_STATES:
