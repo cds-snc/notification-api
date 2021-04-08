@@ -1,3 +1,5 @@
+from base64 import b64encode
+
 import botocore
 import pytest
 from notifications_utils.recipients import InvalidEmailError
@@ -46,8 +48,8 @@ def test_should_be_none_if_unrecognised_status_code():
 
 @pytest.mark.parametrize('reply_to_address, expected_value', [
     (None, []),
-    ('foo@bar.com', ['foo@bar.com']),
-    ('føøøø@bååååår.com', ['føøøø@xn--br-yiaaaaa.com'])
+    ('foo@bar.com', 'foo@bar.com'),
+    ('føøøø@bååååår.com', f"=?utf-8?b?{b64encode('føøøø@xn--br-yiaaaaa.com'.encode('utf-8')).decode('utf-8')}?=")
 ], ids=['empty', 'single_email', 'punycode'])
 def test_send_email_handles_reply_to_address(notify_api, mocker, reply_to_address, expected_value):
     boto_mock = mocker.patch.object(aws_ses_client, '_client', create=True)
@@ -63,6 +65,11 @@ def test_send_email_handles_reply_to_address(notify_api, mocker, reply_to_addres
         )
 
     boto_mock.send_raw_email.assert_called()
+    raw_message = boto_mock.send_raw_email.call_args.kwargs['RawMessage']['Data']
+    if not expected_value:
+        assert "reply-to" not in raw_message
+    else:
+        assert f"reply-to: {expected_value}" in raw_message
 
 
 def test_send_email_handles_punycode_to_address(notify_api, mocker):

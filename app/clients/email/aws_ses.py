@@ -157,4 +157,4 @@ class AwsSesClient(EmailClient):
 def punycode_encode_email(email_address):
     # only the hostname should ever be punycode encoded.
     local, hostname = email_address.split('@')
-    return '{}@{}'.format(local, hostname.encode('idna').decode('utf-8'))
+    return '{}@{}'.format(local, hostname.encode('idna').decode('ascii'))
