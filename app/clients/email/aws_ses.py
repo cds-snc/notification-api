@@ -61,40 +61,70 @@ class AwsSesClient(EmailClient):
     def get_name(self):
         return self.name
 
-    def send_email(self,
-                   source,
-                   to_addresses,
-                   subject,
-                   body,
-                   html_body='',
-                   reply_to_address=None,
-                   attachments=[]):
-        try:
-            if isinstance(to_addresses, str):
-                to_addresses = [to_addresses]
-
-            source = unidecode(source)
-
-            reply_to_addresses = [reply_to_address] if reply_to_address else []
-
-            multipart_content_subtype = 'alternative' if html_body else 'mixed'
-            msg = MIMEMultipart(multipart_content_subtype)
+    def send_email(
+        self,
+        source,
+        to_addresses,
+        subject,
+        body,
+        html_body='',
+        reply_to_address=None,
+        attachments=None,
+    ):
+        def create_mime_base(type):
+            msg = MIMEMultipart(type)
             msg['Subject'] = subject
             msg['From'] = source
             msg['To'] = ",".join([punycode_encode_email(addr) for addr in to_addresses])
             if reply_to_addresses != []:
                 msg.add_header('reply-to', ",".join([punycode_encode_email(addr) for addr in reply_to_addresses]))
-            part = MIMEText(body, 'plain')
-            msg.attach(part)
+            return msg
 
+        attachments = attachments or []
+        if isinstance(to_addresses, str):
+            to_addresses = [to_addresses]
+        source = unidecode(source)
+        reply_to_addresses = [reply_to_address] if reply_to_address else []
+
+        # - If sending a TXT email without attachments:
+        #   => Multipart mixed
+        #
+        # - If sending a TXT + HTML email without attachments:
+        #   => Multipart alternative
+        #
+        # - If sending a TXT + HTML email with attachments
+        # =>  Multipart Mixed (enclosing)
+        #       - Multipart alternative
+        #         - TXT
+        #         - HTML
+        #       - Attachment(s)
+
+        try:
+            txt_part = MIMEText(body, 'plain')
             if html_body:
-                part = MIMEText(html_body, 'html')
-                msg.attach(part)
+                html_part = MIMEText(html_body, 'html')
 
-            for attachment in attachments or []:
-                part = MIMEApplication(attachment["data"])
-                part.add_header('Content-Disposition', 'attachment', filename=attachment["name"])
-                msg.attach(part)
+            if not attachments:
+                multipart_content_subtype = 'alternative' if html_body else 'mixed'
+                msg = create_mime_base(multipart_content_subtype)
+                msg.attach(txt_part)
+                if html_body:
+                    msg.attach(html_part)
+            else:
+                msg = create_mime_base('mixed')
+                if html_body:
+                    msg_alternative = MIMEMultipart('alternative')
+                    msg_alternative.attach(txt_part)
+                    msg_alternative.attach(html_part)
+
+                    msg.attach(msg_alternative)
+                else:
+                    msg.attach(txt_part)
+
+                for attachment in attachments:
+                    attachment_part = MIMEApplication(attachment["data"])
+                    attachment_part.add_header('Content-Disposition', 'attachment', filename=attachment["name"])
+                    msg.attach(attachment_part)
 
             start_time = monotonic()
             response = self._client.send_raw_email(
@@ -127,4 +157,4 @@ class AwsSesClient(EmailClient):
 def punycode_encode_email(email_address):
     # only the hostname should ever be punycode encoded.
     local, hostname = email_address.split('@')
-    return '{}@{}'.format(local, hostname.encode('idna').decode('utf-8'))
+    return '{}@{}'.format(local, hostname.encode('idna').decode('ascii'))
