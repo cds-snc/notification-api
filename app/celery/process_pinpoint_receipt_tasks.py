@@ -1,6 +1,7 @@
 import base64
 import datetime
 import json
+from typing import Tuple
 
 import iso8601
 from celery.exceptions import Retry
@@ -18,9 +19,11 @@ from app.models import (
     NOTIFICATION_SENDING,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_SENT
+    NOTIFICATION_SENT, Notification
 )
 from app.celery.service_callback_tasks import check_and_queue_callback_task
+
+FINAL_STATUS_STATES = [NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE]
 
 _record_status_status_mapping = {
     'SUCCESSFUL': NOTIFICATION_SENT,
@@ -69,33 +72,16 @@ def process_pinpoint_results(self, response):
             f'received callback from Pinpoint with event_type of {event_type} and record_status of {record_status}'
             f'with reference {reference}'
         )
-        if event_type_is_optout(event_type, reference):
-            statsd_client.incr(f"callback.pinpoint.optout")
-            notification_status = NOTIFICATION_PERMANENT_FAILURE
-        else:
-            notification_status = _map_record_status_to_notification_status(record_status)
+        notification_status = get_notification_status(event_type, record_status, reference)
 
-        try:
-            notification = dao_get_notification_by_reference(reference)
-        except NoResultFound:
-            message_time = iso8601.parse_date(pinpoint_message['event_timestamp']).replace(tzinfo=None)
-            if datetime.datetime.utcnow() - message_time < datetime.timedelta(minutes=5):
-                self.retry(queue=QueueNames.RETRY)
-            else:
-                current_app.logger.warning(
-                    f'notification not found for reference: {reference} (update to {notification_status})'
-                )
-            statsd_client.incr('callback.pinpoint.no_notification_found')
-            return
-        except MultipleResultsFound:
-            current_app.logger.warning(
-                f'multiple notifications found for reference: {reference} (update to {notification_status})'
-            )
-            statsd_client.incr('callback.pinpoint.multiple_notifications_found')
-            return
+        notification, should_retry, should_exit = attempt_to_get_notification(
+            reference, notification_status, pinpoint_message['event_timestamp']
+        )
 
-        if notification.status not in [NOTIFICATION_SENDING, NOTIFICATION_SENT]:
-            log_notification_status_warning(notification, notification_status)
+        if should_retry:
+            self.retry(queue=QueueNames.RETRY)
+
+        if should_exit:
             return
 
         update_notification_status_by_id(notification.id, notification_status)
@@ -120,6 +106,56 @@ def process_pinpoint_results(self, response):
     except Exception as e:
         current_app.logger.exception(f"Error processing Pinpoint results: {type(e)}")
         self.retry(queue=QueueNames.RETRY)
+
+
+def get_notification_status(event_type: str, record_status: str, reference: str) -> str:
+    if event_type_is_optout(event_type, reference):
+        statsd_client.incr(f"callback.pinpoint.optout")
+        notification_status = NOTIFICATION_PERMANENT_FAILURE
+    else:
+        notification_status = _map_record_status_to_notification_status(record_status)
+    return notification_status
+
+
+def attempt_to_get_notification(
+        reference: str, notification_status: str, event_timestamp: str
+) -> Tuple[Notification, bool, bool]:
+    should_retry = False
+    should_exit = False
+    notification = None
+
+    try:
+        notification = dao_get_notification_by_reference(reference)
+        should_exit = check_notification_status(notification, notification_status, should_exit)
+    except NoResultFound:
+        message_time = iso8601.parse_date(event_timestamp).replace(tzinfo=None)
+        if datetime.datetime.utcnow() - message_time < datetime.timedelta(minutes=5):
+            should_retry = True
+        else:
+            current_app.logger.warning(
+                f'notification not found for reference: {reference} (update to {notification_status})'
+            )
+        statsd_client.incr('callback.pinpoint.no_notification_found')
+        should_exit = True
+    except MultipleResultsFound:
+        current_app.logger.warning(
+            f'multiple notifications found for reference: {reference} (update to {notification_status})'
+        )
+        statsd_client.incr('callback.pinpoint.multiple_notifications_found')
+        should_exit = True
+
+    return notification, should_retry, should_exit
+
+
+def check_notification_status(notification: Notification, notification_status: str, should_exit: bool) -> bool:
+    # do not update if status has not changed
+    if notification_status == notification.status:
+        should_exit = True
+    # do not update if notification status is in a final state
+    if notification.status in FINAL_STATUS_STATES:
+        log_notification_status_warning(notification, notification_status)
+        should_exit = True
+    return should_exit
 
 
 def log_notification_status_warning(notification, status: str) -> None:

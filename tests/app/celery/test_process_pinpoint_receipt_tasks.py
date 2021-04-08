@@ -37,7 +37,6 @@ def test_passes_if_toggle_disabled(mocker, db_session):
 @pytest.mark.parametrize('event_type, record_status, expected_notification_status', [
     ('_SMS.BUFFERED', 'SUCCESSFUL', NOTIFICATION_SENT),
     ('_SMS.SUCCESS', 'DELIVERED', NOTIFICATION_DELIVERED),
-    ('_SMS.BUFFERED', 'PENDING', NOTIFICATION_SENDING),
     ('_SMS.FAILURE', 'INVALID', NOTIFICATION_TECHNICAL_FAILURE),
     ('_SMS.FAILURE', 'UNREACHABLE', NOTIFICATION_TEMPORARY_FAILURE),
     ('_SMS.FAILURE', 'UNKNOWN', NOTIFICATION_TEMPORARY_FAILURE),
@@ -73,6 +72,31 @@ def test_process_pinpoint_results_notification_final_status(
     notification = notifications_dao.dao_get_notification_by_reference(test_reference)
     assert notification.status == expected_notification_status
     mock_callback.assert_called_once()
+
+
+def test_process_pinpoint_results_should_not_update_notification_status_if_unchanged(
+        mocker, db_session, sample_template
+):
+    mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
+    mock_callback = mocker.patch('app.celery.process_pinpoint_receipt_tasks.check_and_queue_callback_task')
+    update_notification_status = mocker.patch(
+        'app.celery.process_pinpoint_receipt_tasks.update_notification_status_by_id'
+    )
+
+    test_reference = 'sms-reference-1'
+    create_notification(sample_template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status='sending')
+    process_pinpoint_receipt_tasks.process_pinpoint_results(
+        response=pinpoint_notification_callback_record(
+            reference=test_reference,
+            event_type='_SMS.BUFFERED',
+            record_status='PENDING'
+        )
+    )
+    notification = notifications_dao.dao_get_notification_by_reference(test_reference)
+    assert notification.status == NOTIFICATION_SENDING
+
+    update_notification_status.assert_not_called()
+    mock_callback.assert_not_called()
 
 
 def pinpoint_notification_callback_record(reference, event_type='_SMS.SUCCESS', record_status='DELIVERED'):

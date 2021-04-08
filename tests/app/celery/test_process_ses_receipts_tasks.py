@@ -181,7 +181,7 @@ def test_ses_callback_should_update_notification_status(
 
 
 def test_ses_callback_should_not_update_notification_status_if_already_delivered(sample_email_template, mocker):
-    mock_dup = mocker.patch('app.celery.process_ses_receipts_tasks.notifications_dao._duplicate_update_warning')
+    mock_dup = mocker.patch('app.celery.process_ses_receipts_tasks.notifications_dao.duplicate_update_warning')
     mock_upd = mocker.patch('app.celery.process_ses_receipts_tasks.notifications_dao._update_notification_status')
     notification = create_notification(template=sample_email_template, reference='ref', status='delivered')
 

@@ -116,9 +116,10 @@ def update_notification_status_by_id(notification_id, status, sent_by=None):
         NOTIFICATION_SENDING,
         NOTIFICATION_PENDING,
         NOTIFICATION_SENT,
-        NOTIFICATION_PENDING_VIRUS_CHECK
+        NOTIFICATION_PENDING_VIRUS_CHECK,
+        NOTIFICATION_TEMPORARY_FAILURE
     }:
-        _duplicate_update_warning(notification, status)
+        duplicate_update_warning(notification, status)
         return None
 
     if notification.international and not country_records_delivery(notification.phone_prefix):
@@ -145,7 +146,7 @@ def update_notification_status_by_reference(reference, status):
         NOTIFICATION_SENDING,
         NOTIFICATION_PENDING
     }:
-        _duplicate_update_warning(notification, status)
+        duplicate_update_warning(notification, status)
         return None
 
     return _update_notification_status(
@@ -719,18 +720,14 @@ def guess_notification_type(search_term):
         return SMS_TYPE
 
 
-def _duplicate_update_warning(notification, status):
+def duplicate_update_warning(notification, status):
     # This is a log, so this is not SQL injection
+    time_diff = datetime.utcnow() - (notification.updated_at or notification.created_at)
+
     current_app.logger.info(
         (
-            'Duplicate callback received. Notification id {id} received a status update to {new_status}'  # nosec
-            '{time_diff} after being set to {old_status}. {type} sent by {sent_by}'
-        ).format(
-            id=notification.id,
-            old_status=notification.status,
-            new_status=status,
-            time_diff=datetime.utcnow() - (notification.updated_at or notification.created_at),
-            type=notification.notification_type,
-            sent_by=notification.sent_by
+            f'Duplicate callback received. Notification id {notification.id} received a status update to '  # nosec
+            f'{status} {time_diff} after being set to {notification.status}. {notification.notification_type} '
+            f'sent by {notification.sent_by}'
         )
     )
