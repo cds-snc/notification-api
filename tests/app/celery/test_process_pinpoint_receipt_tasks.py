@@ -99,6 +99,37 @@ def test_process_pinpoint_results_should_not_update_notification_status_if_uncha
     mock_callback.assert_not_called()
 
 
+@pytest.mark.parametrize('status', [
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_TECHNICAL_FAILURE
+
+])
+def test_process_pinpoint_results_should_not_update_notification_status_if_status_already_final(
+        mocker, db_session, sample_template, status
+):
+    mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
+    mock_callback = mocker.patch('app.celery.process_pinpoint_receipt_tasks.check_and_queue_callback_task')
+    update_notification_status = mocker.patch(
+        'app.celery.process_pinpoint_receipt_tasks.update_notification_status_by_id'
+    )
+
+    test_reference = 'sms-reference-1'
+    create_notification(sample_template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status=status)
+    process_pinpoint_receipt_tasks.process_pinpoint_results(
+        response=pinpoint_notification_callback_record(
+            reference=test_reference,
+            event_type='_SMS.BUFFERED',
+            record_status='PENDING'
+        )
+    )
+    notification = notifications_dao.dao_get_notification_by_reference(test_reference)
+    assert notification.status == status
+
+    update_notification_status.assert_not_called()
+    mock_callback.assert_not_called()
+
+
 def pinpoint_notification_callback_record(reference, event_type='_SMS.SUCCESS', record_status='DELIVERED'):
     pinpoint_message = {
         "event_type": event_type,
