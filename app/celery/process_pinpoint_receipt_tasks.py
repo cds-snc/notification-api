@@ -121,12 +121,11 @@ def attempt_to_get_notification(
         reference: str, notification_status: str, event_timestamp: str
 ) -> Tuple[Notification, bool, bool]:
     should_retry = False
-    should_exit = False
     notification = None
 
     try:
         notification = dao_get_notification_by_reference(reference)
-        should_exit = check_notification_status(notification, notification_status, should_exit)
+        should_exit = check_notification_status(notification, notification_status)
     except NoResultFound:
         message_time = iso8601.parse_date(event_timestamp).replace(tzinfo=None)
         if datetime.datetime.utcnow() - message_time < datetime.timedelta(minutes=5):
@@ -147,7 +146,8 @@ def attempt_to_get_notification(
     return notification, should_retry, should_exit
 
 
-def check_notification_status(notification: Notification, notification_status: str, should_exit: bool) -> bool:
+def check_notification_status(notification: Notification, notification_status: str) -> bool:
+    should_exit = False
     # do not update if status has not changed
     if notification_status == notification.status:
         current_app.logger.info(
