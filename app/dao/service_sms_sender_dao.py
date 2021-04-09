@@ -4,9 +4,8 @@ from sqlalchemy import desc
 
 from app import db
 from app.dao.dao_utils import transactional
-from app.dao.inbound_numbers_dao import dao_allocate_number_for_service
 from app.exceptions import ArchiveValidationError
-from app.models import ServiceSmsSender
+from app.models import ServiceSmsSender, InboundNumber
 from app.service.exceptions import SmsSenderDefaultValidationException, SmsSenderInboundNumberIntegrityException
 
 
@@ -55,7 +54,7 @@ def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_n
         _set_default_sms_sender_to_not_default(default_sms_sender)
 
     if inbound_number_id:
-        inbound_number = dao_allocate_number_for_service(service_id, inbound_number_id)
+        inbound_number = _allocate_inbound_number_for_service(service_id, inbound_number_id)
 
         if inbound_number.number != sms_sender:
             raise SmsSenderInboundNumberIntegrityException(
@@ -88,7 +87,7 @@ def dao_update_service_sms_sender(service_id, service_sms_sender_id, **kwargs):
             _set_default_sms_sender_to_not_default(default_sms_sender)
 
     if 'inbound_number_id' in kwargs:
-        dao_allocate_number_for_service(service_id, kwargs['inbound_number_id'])
+        _allocate_inbound_number_for_service(service_id, kwargs['inbound_number_id'])
 
     sms_sender_to_update = ServiceSmsSender.query.get(service_sms_sender_id)
 
@@ -140,3 +139,16 @@ def _set_default_sms_sender_to_not_default(existing_default_sms_sender: Optional
     if existing_default_sms_sender:
         existing_default_sms_sender.is_default = False
         db.session.add(existing_default_sms_sender)
+
+
+def _allocate_inbound_number_for_service(service_id, inbound_number_id) -> InboundNumber:
+    updated = InboundNumber.query.filter_by(
+        id=inbound_number_id,
+        active=True,
+        service_id=None
+    ).update(
+        {"service_id": service_id}
+    )
+    if not updated:
+        raise SmsSenderInboundNumberIntegrityException(f"Inbound number: {inbound_number_id} is not available")
+    return InboundNumber.query.get(inbound_number_id)

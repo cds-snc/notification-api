@@ -2,7 +2,6 @@ from typing import Optional, List
 
 from app import db
 from app.dao.dao_utils import transactional
-from app.service.exceptions import SmsSenderInboundNumberIntegrityException
 from app.models import InboundNumber
 
 
@@ -28,20 +27,6 @@ def dao_set_inbound_number_active_flag(inbound_number_id: str, active: bool) -> 
     inbound_number.active = active
 
     db.session.add(inbound_number)
-
-
-@transactional
-def dao_allocate_number_for_service(service_id, inbound_number_id) -> InboundNumber:
-    updated = InboundNumber.query.filter_by(
-        id=inbound_number_id,
-        active=True,
-        service_id=None
-    ).update(
-        {"service_id": service_id}
-    )
-    if not updated:
-        raise SmsSenderInboundNumberIntegrityException(f"Inbound number: {inbound_number_id} is not available")
-    return InboundNumber.query.get(inbound_number_id)
 
 
 @transactional
