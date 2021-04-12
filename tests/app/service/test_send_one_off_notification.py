@@ -6,7 +6,6 @@ from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import InvalidPhoneError
 
 from app.v2.errors import BadRequestError, TooManyRequestsError
-from app.config import QueueNames
 from app.dao.service_safelist_dao import dao_add_and_commit_safelisted_contacts
 from app.service.send_notification import send_one_off_notification
 from app.models import (
@@ -14,7 +13,6 @@ from app.models import (
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
     MOBILE_TYPE,
-    PRIORITY,
     SMS_TYPE,
     Notification,
     ServiceSafelist,

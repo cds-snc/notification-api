@@ -6,7 +6,6 @@ from flask import (
 )
 
 from app import api_user, authenticated_service
-from app.config import QueueNames
 from app.dao import (
     templates_dao,
     notifications_dao
@@ -17,7 +16,7 @@ from app.errors import (
 )
 from app.models import (
     EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, SMS_TYPE,
-    KEY_TYPE_TEAM, PRIORITY,
+    KEY_TYPE_TEAM,
     LETTER_TYPE)
 from app.notifications.process_notifications import (
     persist_notification,

@@ -18,7 +18,6 @@ from app.models import (
     EMAIL_TYPE,
     LETTER_TYPE,
     UPLOAD_DOCUMENT,
-    PRIORITY,
     KEY_TYPE_TEST,
     KEY_TYPE_TEAM,
     NOTIFICATION_CREATED,

@@ -3,7 +3,6 @@ from notifications_utils.s3 import S3ObjectNotFound, s3download as utils_s3downl
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import create_random_identifier
-from app.config import QueueNames
 from app.dao.notifications_dao import _update_notification_status
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
@@ -19,7 +18,6 @@ from app.notifications.process_notifications import (
 )
 from app.models import (
     KEY_TYPE_NORMAL,
-    PRIORITY,
     SMS_TYPE,
     EMAIL_TYPE,
     LETTER_TYPE,
