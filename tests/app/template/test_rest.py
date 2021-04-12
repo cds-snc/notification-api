@@ -725,18 +725,17 @@ def test_update_does_not_create_new_version_when_there_is_no_change(client, samp
     assert template.version == 1
 
 
-def test_update_set_process_type_on_template(client, sample_template):
+@pytest.mark.parametrize("process_type", ['priority', 'bulk'])
+def test_update_set_process_type_on_template(client, sample_template, process_type):
     auth_header = create_authorization_header()
-    data = {
-        'process_type': 'priority'
-    }
+    data = {'process_type': process_type}
     resp = client.post('/service/{}/template/{}'.format(sample_template.service_id, sample_template.id),
                        data=json.dumps(data),
                        headers=[('Content-Type', 'application/json'), auth_header])
     assert resp.status_code == 200
 
     template = dao_get_template_by_id(sample_template.id)
-    assert template.process_type == 'priority'
+    assert template.process_type == process_type
 
 
 def test_create_a_template_with_reply_to(admin_request, sample_user):

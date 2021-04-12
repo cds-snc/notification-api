@@ -217,11 +217,10 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         persist_scheduled_notification(notification.id, form["scheduled_for"])
     else:
         if not simulated:
-            queue_name = QueueNames.PRIORITY if template.process_type == PRIORITY else None
             send_notification_to_queue(
                 notification=notification,
                 research_mode=service.research_mode,
-                queue=queue_name
+                queue=template.queue_to_use()
             )
         else:
             current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
