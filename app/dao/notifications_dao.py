@@ -51,6 +51,17 @@ from app.models import (
 from app.utils import get_local_timezone_midnight_in_utc
 from app.utils import midnight_n_days_ago, escape_special_characters
 
+TRANSIENT_NOTIFICATION_STATUSES = {
+    NOTIFICATION_CREATED,
+    NOTIFICATION_SENDING,
+    NOTIFICATION_PENDING,
+    NOTIFICATION_SENT,
+    NOTIFICATION_PENDING_VIRUS_CHECK,
+    NOTIFICATION_TEMPORARY_FAILURE
+}
+
+PERMANENT_FAILURE_STATUSES = [NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE]
+
 
 @statsd(namespace="dao")
 def dao_get_last_template_usage(template_id, template_type, service_id):
@@ -101,7 +112,7 @@ def _update_notification_status(notification, status):
 
 @statsd(namespace="dao")
 @transactional
-def update_notification_status_by_id(notification_id, status, sent_by=None):
+def update_notification_status_by_id(notification_id, status, sent_by=None, exception=None):
     notification = Notification.query.with_for_update().filter(Notification.id == notification_id).first()
 
     if not notification:
@@ -111,14 +122,7 @@ def update_notification_status_by_id(notification_id, status, sent_by=None):
         ))
         return None
 
-    if notification.status not in {
-        NOTIFICATION_CREATED,
-        NOTIFICATION_SENDING,
-        NOTIFICATION_PENDING,
-        NOTIFICATION_SENT,
-        NOTIFICATION_PENDING_VIRUS_CHECK,
-        NOTIFICATION_TEMPORARY_FAILURE
-    }:
+    if notification.status not in TRANSIENT_NOTIFICATION_STATUSES:
         duplicate_update_warning(notification, status)
         return None
 
@@ -126,6 +130,10 @@ def update_notification_status_by_id(notification_id, status, sent_by=None):
         return None
     if not notification.sent_by and sent_by:
         notification.sent_by = sent_by
+
+    if exception and status in PERMANENT_FAILURE_STATUSES:
+        notification.failure_reason = exception.failure_reason
+
     return _update_notification_status(
         notification=notification,
         status=status
