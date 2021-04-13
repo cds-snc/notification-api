@@ -1,4 +1,7 @@
-class VAProfileException(Exception):
+from app.exceptions import ExceptionWithFailureReason
+
+
+class VAProfileException(ExceptionWithFailureReason):
     pass
 
 

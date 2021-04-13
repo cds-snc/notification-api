@@ -17,3 +17,8 @@ class MalwarePendingException(Exception):
 
 class InvalidProviderException(Exception):
     pass
+
+
+class ExceptionWithFailureReason(Exception):
+    def __init__(self, failure_reason):
+        self.failure_reason = failure_reason
