@@ -1246,3 +1246,24 @@ def app_statsd(mocker):
 
 def datetime_in_past(days=0, seconds=0):
     return datetime.now(tz=pytz.utc) - timedelta(days=days, seconds=seconds)
+
+
+def document_download_response(override={}):
+    # See response from
+    # https://github.com/cds-snc/notification-document-download-api/blob/master/app/upload/views.py
+    base = {
+        'id': 'document-id',
+        'direct_file_url': 'http://direct-file-url.localdomain',
+        'url': 'http://frontend-url.localdomain',
+        'mlwr_sid': 'mlwr-sid',
+        'filename': 'filename',
+        'sending_method': 'sending_method',
+        'mime_type': 'mime_type',
+        'file_size': 42,
+        'file_extension': 'pdf',
+    }
+
+    return {
+        'status': 'ok',
+        'document': base | override
+    }

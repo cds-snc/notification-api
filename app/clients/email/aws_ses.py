@@ -119,7 +119,10 @@ class AwsSesClient(EmailClient):
                 attach_html(msg, html_body)
 
             for attachment in attachments:
+                # See https://docs.aws.amazon.com/ses/latest/DeveloperGuide/send-email-raw.html#send-email-raw-mime
                 attachment_part = MIMEApplication(attachment["data"])
+                if attachment.get('mime_type'):
+                    attachment_part.add_header('Content-Type', attachment["mime_type"], name=attachment["name"])
                 attachment_part.add_header('Content-Disposition', 'attachment', filename=attachment["name"])
                 msg.attach(attachment_part)
 
