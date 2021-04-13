@@ -130,9 +130,11 @@ def send_email_to_provider(notification):
                     with urllib.request.urlopen(req) as response:
                         buffer = response.read()
                         filename = personalisation_data[key]['document'].get('filename')
+                        mime_type = personalisation_data[key]['document'].get('mime_type')
                         attachments.append({
                             "name": filename,
-                            "data": buffer
+                            "data": buffer,
+                            "mime_type": mime_type,
                         })
                 except Exception:
                     current_app.logger.error(

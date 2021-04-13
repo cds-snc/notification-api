@@ -137,7 +137,7 @@ def test_send_email_txt_and_html_email_with_attachment(notify_api, mocker):
             subject='Subject',
             body='email body',
             html_body='<p>email body</p>',
-            attachments=[{'data': 'Canada', 'name': 'file.txt'}],
+            attachments=[{'data': 'Canada', 'name': 'file.txt', 'mime_type': 'text/plain'}],
             reply_to_address='reply@example.com',
         )
 
@@ -174,6 +174,7 @@ def test_send_email_txt_and_html_email_with_attachment(notify_api, mocker):
         Content-Type: application/octet-stream
         MIME-Version: 1\.0
         Content-Transfer-Encoding: base64
+        Content-Type: text/plain; name="file\.txt"
         Content-Disposition: attachment; filename="file\.txt"
 
         Q2FuYWRh
