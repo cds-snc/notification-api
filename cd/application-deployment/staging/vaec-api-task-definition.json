@@ -59,6 +59,10 @@
           "value": "True"
         },
         {
+          "name": "NOTIFICATION_FAILURE_REASON_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "VA_PROFILE_URL",
           "value": "https://qa.vaprofile.va.gov"
         },

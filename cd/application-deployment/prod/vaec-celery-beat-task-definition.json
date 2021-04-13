@@ -45,6 +45,10 @@
           "value": "True"
         },
         {
+          "name": "NOTIFICATION_FAILURE_REASON_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "GOOGLE_ANALYTICS_TID",
           "value": "UA-50123418-16"
         },

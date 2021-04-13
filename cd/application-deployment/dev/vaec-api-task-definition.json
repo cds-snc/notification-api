@@ -105,6 +105,10 @@
         {
           "name": "PINPOINT_INBOUND_SMS_ENABLED",
           "value": "True"
+        },
+        {
+          "name": "NOTIFICATION_FAILURE_REASON_ENABLED",
+          "value": "True"
         }
       ],
       "secrets": [
