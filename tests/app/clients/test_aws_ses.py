@@ -1,4 +1,6 @@
+import re
 from base64 import b64encode
+from textwrap import dedent
 
 import botocore
 import pytest
@@ -78,6 +80,111 @@ def test_send_email_handles_reply_to_address(notify_api, mocker, reply_to_addres
         assert "reply-to" not in raw_message
     else:
         assert f"reply-to: {expected_value}" in raw_message
+
+
+def test_send_email_txt_and_html_email(notify_api, mocker):
+    boto_mock = mocker.patch.object(aws_ses_client, '_client', create=True)
+    mocker.patch.object(aws_ses_client, 'statsd_client', create=True)
+
+    with notify_api.app_context():
+        aws_ses_client.send_email(
+            'from@example.com',
+            to_addresses='destination@example.com',
+            subject='Subject',
+            body='email body',
+            html_body='<p>email body</p>',
+            reply_to_address='reply@example.com',
+        )
+
+    boto_mock.send_raw_email.assert_called_once()
+    raw_message = boto_mock.send_raw_email.call_args.kwargs['RawMessage']['Data']
+
+    regex = dedent(r"""
+        Content-Type: multipart\/alternative; boundary="===============(?P<boundary>.+)=="
+        MIME-Version: 1\.0
+        Subject: Subject
+        From: from@example\.com
+        To: destination@example\.com
+        reply-to: reply@example\.com
+
+        --===============(?P<b1>.+)==
+        Content-Type: text/plain; charset="us-ascii"
+        MIME-Version: 1\.0
+        Content-Transfer-Encoding: 7bit
+
+        email body
+        --===============(?P<b2>.+)==
+        Content-Type: text/html; charset="us-ascii"
+        MIME-Version: 1\.0
+        Content-Transfer-Encoding: 7bit
+
+        <p>email body</p>
+        --===============(?P<b3>.+)==--
+    """).strip()
+
+    assert len(set(re.findall(regex, raw_message))) == 1
+    assert re.match(regex, raw_message)
+
+
+def test_send_email_txt_and_html_email_with_attachment(notify_api, mocker):
+    boto_mock = mocker.patch.object(aws_ses_client, '_client', create=True)
+    mocker.patch.object(aws_ses_client, 'statsd_client', create=True)
+
+    with notify_api.app_context():
+        aws_ses_client.send_email(
+            'from@example.com',
+            to_addresses='destination@example.com',
+            subject='Subject',
+            body='email body',
+            html_body='<p>email body</p>',
+            attachments=[{'data': 'Canada', 'name': 'file.txt'}],
+            reply_to_address='reply@example.com',
+        )
+
+    boto_mock.send_raw_email.assert_called_once()
+    raw_message = boto_mock.send_raw_email.call_args.kwargs['RawMessage']['Data']
+
+    regex = dedent(r"""
+        Content-Type: multipart/mixed; boundary="===============(?P<boundary>.+)=="
+        MIME-Version: 1\.0
+        Subject: Subject
+        From: from@example\.com
+        To: destination@example\.com
+        reply-to: reply@example\.com
+
+        --===============(?P<b1>.+)==
+        Content-Type: multipart/alternative; boundary="===============(?P<b2>.+)=="
+        MIME-Version: 1\.0
+
+        --===============(?P<b3>.+)==
+        Content-Type: text/plain; charset="us-ascii"
+        MIME-Version: 1\.0
+        Content-Transfer-Encoding: 7bit
+
+        email body
+        --===============(?P<b4>.+)==
+        Content-Type: text/html; charset="us-ascii"
+        MIME-Version: 1\.0
+        Content-Transfer-Encoding: 7bit
+
+        <p>email body</p>
+        --===============(?P<b5>.+)==--
+
+        --===============(?P<b6>.+)==
+        Content-Type: application/octet-stream
+        MIME-Version: 1\.0
+        Content-Transfer-Encoding: base64
+        Content-Disposition: attachment; filename="file\.txt"
+
+        Q2FuYWRh
+
+        --===============(?P<b7>.+)==--
+    """).strip()
+
+    groups = re.match(regex, raw_message).groupdict()
+    assert groups['boundary'] == groups['b7'] == groups['b6'] == groups['b1']
+    assert groups['b2'] == groups['b3'] == groups['b4'] == groups['b5']
+    assert re.match(regex, raw_message)
 
 
 def test_send_email_handles_punycode_to_address(notify_api, mocker):
