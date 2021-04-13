@@ -2,6 +2,7 @@ from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 
 from app import notify_celery, va_profile_client
+from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.va.identifier import IdentifierType
 from app.va.va_profile import VAProfileRetryableException, VAProfileNonRetryableException, NoContactInfoException
 from app.config import QueueNames
@@ -19,6 +20,8 @@ def lookup_contact_info(self, notification_id):
 
     va_profile_id = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value
 
+    exception = None
+
     try:
         if EMAIL_TYPE == notification.notification_type:
             recipient = va_profile_client.get_email(va_profile_id)
@@ -34,27 +37,48 @@ def lookup_contact_info(self, notification_id):
         try:
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
-            message = "RETRY FAILED: Max retries reached. " \
-                      f"The task lookup_contact_info failed for notification {notification_id}. " \
-                      "Notification has been updated to technical-failure"
-            update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+            message = (
+                'RETRY FAILED: Max retries reached. '
+                f'The task lookup_contact_info failed for notification {notification_id}. '
+                'Notification has been updated to technical-failure'
+            )
+
+            exception = set_failure_reason(e, exception, message)
+
+            update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE, exception=exception)
             raise NotificationTechnicalFailureException(message) from e
 
     except NoContactInfoException as e:
-        message = f"{e.__class__.__name__} - {str(e)}: " \
-                  f"Can't proceed after querying VA Profile for contact information for {notification_id}. " \
-                  "Stopping execution of following tasks. Notification has been updated to permanent-failure."
-        current_app.logger.warning(message)
+        message = (
+            f'Can\'t proceed after querying VA Profile for contact information for {notification_id}. '
+            'Stopping execution of following tasks. Notification has been updated to permanent-failure.'
+        )
+        current_app.logger.warning(f'{e.__class__.__name__} - {str(e)}: ' + message)
         self.request.chain = None
-        update_notification_status_by_id(notification_id, NOTIFICATION_PERMANENT_FAILURE)
+
+        exception = set_failure_reason(e, exception, message)
+
+        update_notification_status_by_id(notification_id, NOTIFICATION_PERMANENT_FAILURE, exception=exception)
 
     except VAProfileNonRetryableException as e:
         current_app.logger.exception(e)
-        message = f"The task lookup_contact_info failed for notification {notification_id}. " \
-                  "Notification has been updated to technical-failure"
-        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        message = (
+            f'The task lookup_contact_info failed for notification {notification_id}. '
+            'Notification has been updated to technical-failure'
+        )
+
+        exception = set_failure_reason(e, exception, message)
+
+        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE, exception=exception)
         raise NotificationTechnicalFailureException(message) from e
 
     else:
         notification.to = recipient
         dao_update_notification(notification)
+
+
+def set_failure_reason(e, exception, message):
+    if is_feature_enabled(FeatureFlag.NOTIFICATION_FAILURE_REASON_ENABLED):
+        e.failure_reason = message
+        exception = e
+    return exception
