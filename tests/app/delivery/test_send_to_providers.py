@@ -37,7 +37,7 @@ from tests.app.db import (
 )
 
 from tests.conftest import set_config_values
-from tests.app.conftest import sample_email_template
+from tests.app.conftest import document_download_response, sample_email_template
 
 
 @pytest.mark.skip(reason="Currently using only 1 SMS provider")
@@ -770,8 +770,9 @@ def test_send_email_to_provider_should_format_email_address(sample_email_notific
 def test_notification_can_have_document_attachment_without_mlwr_sid(sample_email_template, mocker):
     send_mock = mocker.patch('app.aws_ses_client.send_email', return_value='reference')
     mlwr_mock = mocker.patch('app.delivery.send_to_providers.check_mlwr')
-    personalisation = {
-        "file": {"document": {"id": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
+    response = document_download_response()
+    del response['document']['mlwr_sid']
+    personalisation = {"file": response}
 
     db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
 
@@ -786,10 +787,7 @@ def test_notification_can_have_document_attachment_without_mlwr_sid(sample_email
 def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(sample_email_template, mocker):
     send_mock = mocker.patch('app.aws_ses_client.send_email', return_value='reference')
     mlwr_mock = mocker.patch('app.delivery.send_to_providers.check_mlwr')
-    personalisation = {
-        "file": {
-            "document":
-                {"id": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar", "mlwr_sid": "false"}}}
+    personalisation = {"file": document_download_response({'mlwr_sid': 'false'})}
 
     db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
 
@@ -804,8 +802,7 @@ def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(sample_e
 def test_notification_raises_a_retry_exception_if_mlwr_state_is_missing(sample_email_template, mocker):
     mocker.patch('app.aws_ses_client.send_email', return_value='reference')
     mocker.patch('app.delivery.send_to_providers.check_mlwr', return_value={})
-    personalisation = {
-        "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
+    personalisation = {"file": document_download_response()}
 
     db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
 
@@ -820,8 +817,7 @@ def test_notification_raises_a_retry_exception_if_mlwr_state_is_not_complete(sam
     mocker.patch(
         'app.delivery.send_to_providers.check_mlwr',
         return_value={"state": "foo"})
-    personalisation = {
-        "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
+    personalisation = {"file": document_download_response()}
 
     db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
 
@@ -836,8 +832,7 @@ def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_is_5
     mocker.patch(
         'app.delivery.send_to_providers.check_mlwr',
         return_value={"state": "completed", "submission": {"max_score": 500}})
-    personalisation = {
-        "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
+    personalisation = {"file": document_download_response()}
 
     db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
 
@@ -854,8 +849,7 @@ def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_abov
     mocker.patch(
         'app.delivery.send_to_providers.check_mlwr',
         return_value={"state": "completed", "submission": {"max_score": 501}})
-    personalisation = {
-        "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
+    personalisation = {"file": document_download_response()}
 
     db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
 
@@ -882,12 +876,12 @@ def test_notification_document_with_pdf_attachment(
 ):
     template = sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
     personalisation = {
-        "file": {
-            "document": {
-                "direct_file_url": "http://foo.bar/direct_file_url",
-                "url": "http://foo.bar/url",
-            },
-        },
+        "file": document_download_response({
+            "direct_file_url": "http://foo.bar/direct_file_url",
+            "url": "http://foo.bar/url",
+            "mime_type": "application/pdf",
+            "mlwr_sid": "false",
+        })
     }
     if filename_attribute_present:
         personalisation["file"]["document"]["filename"] = filename
@@ -912,7 +906,7 @@ def test_notification_document_with_pdf_attachment(
     if filename_attribute_present:
         request_mock.assert_called_once_with('http://foo.bar/direct_file_url')
         urlopen_mock.assert_called_once_with('request_mock')
-        attachments = [{'data': 'request_content', 'name': expected_filename}]
+        attachments = [{'data': 'request_content', 'name': expected_filename, 'mime_type': 'application/pdf'}]
     send_mock.assert_called_once_with(
         ANY,
         ANY,
