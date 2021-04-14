@@ -60,6 +60,7 @@ from app.dao.services_dao import (
     dao_fetch_service_by_id,
     dao_fetch_todays_stats_for_service,
     dao_fetch_todays_stats_for_all_services,
+    dao_fetch_service_creator,
     dao_resume_service,
     dao_remove_user_from_service,
     dao_suspend_service,
@@ -295,7 +296,7 @@ def update_service(service_id):
             if service.go_live_user_id:
                 user = get_user_by_id(service.go_live_user_id)
             else:
-                user = get_user_by_id(service.created_by_id)
+                user = dao_fetch_service_creator(service.id)
 
             ZenDeskSell().send_go_live_service(service, user)
         except Exception as e:

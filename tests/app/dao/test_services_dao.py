@@ -33,6 +33,7 @@ from app.dao.services_dao import (
     dao_resume_service,
     dao_fetch_active_users_for_service,
     dao_fetch_service_by_inbound_number,
+    dao_fetch_service_creator,
     get_services_by_partial_name,
     dao_services_by_partial_smtp_name
 )
@@ -1078,6 +1079,33 @@ def test_dao_fetch_service_by_inbound_number_with_inactive_number_returns_empty(
     service = dao_fetch_service_by_inbound_number('1')
 
     assert service is None
+
+
+def test_dao_fetch_service_creator(notify_db_session):
+    active_user_1 = create_user(email='active1@foo.com', state='active')
+    active_user_2 = create_user(email='active2@foo.com', state='active')
+    service = Service(name="service_name",
+                      email_from="email_from",
+                      message_limit=1000,
+                      restricted=False,
+                      created_by=active_user_1)
+    dao_create_service(service, active_user_1, service_permissions=[
+        SMS_TYPE,
+        EMAIL_TYPE,
+        INTERNATIONAL_SMS_TYPE,
+    ])
+
+    service.created_by_id = active_user_2.id
+    service.name = "New Name"
+    dao_update_service(service)
+
+    assert Service.query.count() == 1
+
+    history_model = Service.get_history_model()
+    entries = history_model.query.all()
+    assert len(entries) == 2
+    assert entries[1].created_by_id == active_user_2.id
+    assert active_user_1 == dao_fetch_service_creator(service.id)
 
 
 def test_dao_allocating_inbound_number_shows_on_service(notify_db_session):
