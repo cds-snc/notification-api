@@ -1426,6 +1426,8 @@ class Notification(db.Model):
     reply_to_text = db.Column(db.String, nullable=True)
 
     postage = db.Column(db.String, nullable=True)
+    provider_response = db.Column(db.Text, nullable=True)
+
     CheckConstraint("""
         CASE WHEN notification_type = 'letter' THEN
             postage is not null and postage in ('first', 'second')
@@ -1623,6 +1625,7 @@ class Notification(db.Model):
             "postcode": None,
             "type": self.notification_type,
             "status": self.get_letter_status() if self.notification_type == LETTER_TYPE else self.status,
+            "provider_response": self.provider_response,
             "template": template_dict,
             "body": self.content,
             "subject": self.subject,
