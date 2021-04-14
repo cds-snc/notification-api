@@ -20,7 +20,8 @@ class ZenDeskSell(object):
     # FIXME: consider making this an environment variable
     OWNER_ID = 2693899
 
-    STATUS_CREATE_TRAIL = 11826762
+    STATUS_CREATE_TRIAL = 11826762
+    STATUS_CLOSE_LIVE = 11826764
 
     def __init__(self):
         self.api_url = current_app.config['ZENDESK_SELL_API_URL']
@@ -144,7 +145,8 @@ class ZenDeskSell(object):
 
         # The API and field definitions are defined here: https://developers.getbase.com/docs/rest/reference/contacts
         resp, e = self._send_request(method='POST',
-                                     relative_url=f'/v2/contacts/upsert?email={user.email_address}',
+                                     relative_url=f'/v2/contacts/upsert?'
+                                                  f'custom_fields%5Bnotify_user_id%5D={str(user.id)}',
                                      data=json.dumps(ZenDeskSell._generate_contact_data(user)))
         if e:
             current_app.logger.warning('Failed to create zendesk sell contact')
@@ -189,7 +191,7 @@ class ZenDeskSell(object):
             current_app.logger.warning(f'Invalid response: {resp.text}')
             return None
 
-    def send_create_service(self, service: Service, user: User) -> bool:
+    def _common_create_or_go_live(self, service: Service, user: User, status: int) -> bool:
         # Upsert a contact (create/update). Only when this is successful does the software upsert a deal
         # and link the deal to the contact.
         # If upsert deal fails go back and delete the contact ONLY if it never existed before
@@ -197,13 +199,19 @@ class ZenDeskSell(object):
         if not contact_id:
             return False
 
-        deal_id = self.upsert_deal(contact_id, service, ZenDeskSell.STATUS_CREATE_TRAIL)
+        deal_id = self.upsert_deal(contact_id, service, status)
         if not deal_id and is_created:
             # best effort here
             self.delete_contact(contact_id)
             return False
 
         return deal_id is not None
+
+    def send_go_live_service(self, service: Service, user: User) -> bool:
+        return self._common_create_or_go_live(service, user, ZenDeskSell.STATUS_CLOSE_LIVE)
+
+    def send_create_service(self, service: Service, user: User) -> bool:
+        return self._common_create_or_go_live(service, user, ZenDeskSell.STATUS_CREATE_TRIAL)
 
     def send_contact_request(self, contact: ContactRequest) -> int:
         ret = 200

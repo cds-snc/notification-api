@@ -2141,6 +2141,7 @@ def test_update_service_calls_send_notification_as_service_becomes_live(notify_d
         "restricted": False
     }
 
+    zd_send_go_live_service_mock = mocker.patch('app.user.rest.ZenDeskSell.send_go_live_service', return_value=True)
     auth_header = create_authorization_header()
     resp = client.post(
         'service/{}'.format(restricted_service.id),
@@ -2149,6 +2150,7 @@ def test_update_service_calls_send_notification_as_service_becomes_live(notify_d
         content_type='application/json'
     )
 
+    zd_send_go_live_service_mock.assert_called()
     assert resp.status_code == 200
     send_notification_mock.assert_called_once_with(
         service_id=restricted_service.id,
