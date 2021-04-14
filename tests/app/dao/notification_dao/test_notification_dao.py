@@ -1598,7 +1598,7 @@ def test_update_notification_status_updates_failure_reason_if_status_is_final_fa
         notification.id, status, exception=exception
     )
 
-    assert updated_notification.failure_reason == failure_message
+    assert updated_notification.status_reason == failure_message
 
 
 @pytest.mark.parametrize('status', [
@@ -1624,4 +1624,4 @@ def test_do_not_update_notification_status_updates_failure_reason_if_status_is_n
         notification.id, status, exception=exception
     )
 
-    assert updated_notification.failure_reason is None
+    assert updated_notification.status_reason is None

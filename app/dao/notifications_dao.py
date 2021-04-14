@@ -132,7 +132,7 @@ def update_notification_status_by_id(notification_id, status, sent_by=None, exce
         notification.sent_by = sent_by
 
     if exception and status in PERMANENT_FAILURE_STATUSES:
-        notification.failure_reason = exception.failure_reason
+        notification.status_reason = exception.failure_reason
 
     return _update_notification_status(
         notification=notification,
