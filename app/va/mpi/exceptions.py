@@ -3,24 +3,24 @@ class MpiException(Exception):
 
 
 class MpiRetryableException(MpiException):
-    pass
+    failure_reason = 'Retryable MPI error occurred'
 
 
 class MpiNonRetryableException(MpiException):
-    pass
+    failure_reason = 'Non-retryable MPI error occurred'
 
 
 class IncorrectNumberOfIdentifiersException(MpiNonRetryableException):
-    pass
+    failure_reason = 'Incorrect number of identifiers when getting VA Profile id from MPI'
 
 
 class IdentifierNotFound(MpiNonRetryableException):
-    pass
+    failure_reason = 'Identifier not found when getting VA Profile id from MPI'
 
 
 class MultipleActiveVaProfileIdsException(MpiNonRetryableException):
-    pass
+    failure_reason = 'Multiple active VA Profile ids found from MPI'
 
 
 class BeneficiaryDeceasedException(MpiException):
-    pass
+    failure_reason = 'Beneficiary found to be deceased after getting VA Profile id from MPI'
