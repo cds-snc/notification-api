@@ -1625,6 +1625,7 @@ class Notification(db.Model):
             "postcode": None,
             "type": self.notification_type,
             "status": self.get_letter_status() if self.notification_type == LETTER_TYPE else self.status,
+            "status_reason": self.status_reason,
             "template": template_dict,
             "body": self.content,
             "subject": self.subject,
