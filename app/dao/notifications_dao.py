@@ -28,6 +28,7 @@ from app import db, create_uuid
 from app.aws.s3 import remove_s3_object, get_s3_bucket_objects
 from app.dao.dao_utils import transactional
 from app.errors import InvalidRequest
+from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.letters.utils import LETTERS_PDF_FILE_LOCATION_STRUCTURE
 from app.models import (
     Notification,
@@ -132,7 +133,7 @@ def update_notification_status_by_id(
     if not notification.sent_by and sent_by:
         notification.sent_by = sent_by
 
-    if status_reason:
+    if is_feature_enabled(FeatureFlag.NOTIFICATION_FAILURE_REASON_ENABLED) and status_reason:
         notification.status_reason = status_reason
 
     return _update_notification_status(

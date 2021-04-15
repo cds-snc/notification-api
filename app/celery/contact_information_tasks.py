@@ -2,7 +2,6 @@ from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 
 from app import notify_celery, va_profile_client
-from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.va.identifier import IdentifierType
 from app.va.va_profile import VAProfileRetryableException, VAProfileNonRetryableException, NoContactInfoException
 from app.config import QueueNames
@@ -19,8 +18,6 @@ def lookup_contact_info(self, notification_id):
     notification = get_notification_by_id(notification_id)
 
     va_profile_id = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value
-
-    exception = None
 
     try:
         if EMAIL_TYPE == notification.notification_type:
@@ -43,10 +40,10 @@ def lookup_contact_info(self, notification_id):
                 'Notification has been updated to technical-failure'
             )
 
-            exception = set_failure_reason(e, exception, message)
+            e.failure_reason = 'Max retries reached for getting VAProfile info'
 
             update_notification_status_by_id(
-                notification_id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=exception.failure_reason
+                notification_id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=e.failure_reason
             )
             raise NotificationTechnicalFailureException(message) from e
 
@@ -58,10 +55,8 @@ def lookup_contact_info(self, notification_id):
         current_app.logger.warning(f'{e.__class__.__name__} - {str(e)}: ' + message)
         self.request.chain = None
 
-        exception = set_failure_reason(e, exception, message)
-
         update_notification_status_by_id(
-            notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=exception.failure_reason
+            notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.failure_reason
         )
 
     except VAProfileNonRetryableException as e:
@@ -70,21 +65,11 @@ def lookup_contact_info(self, notification_id):
             f'The task lookup_contact_info failed for notification {notification_id}. '
             'Notification has been updated to technical-failure'
         )
-
-        exception = set_failure_reason(e, exception, message)
-
         update_notification_status_by_id(
-            notification_id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=exception.failure_reason
+            notification_id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=e.failure_reason
         )
         raise NotificationTechnicalFailureException(message) from e
 
     else:
         notification.to = recipient
         dao_update_notification(notification)
-
-
-def set_failure_reason(e, exception, message):
-    if is_feature_enabled(FeatureFlag.NOTIFICATION_FAILURE_REASON_ENABLED):
-        e.failure_reason = message
-        exception = e
-    return exception

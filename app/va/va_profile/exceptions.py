@@ -1,17 +1,14 @@
-from app.exceptions import ExceptionWithFailureReason
-
-
-class VAProfileException(ExceptionWithFailureReason):
+class VAProfileException(Exception):
     pass
 
 
 class VAProfileRetryableException(VAProfileException):
-    pass
+    failure_reason = 'Retryable VAProfile error occurred'
 
 
 class VAProfileNonRetryableException(VAProfileException):
-    pass
+    failure_reason = 'Non-retryable VAProfile error occurred'
 
 
 class NoContactInfoException(VAProfileNonRetryableException):
-    pass
+    failure_reason = 'No contact info found from VA Profile'

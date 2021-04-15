@@ -34,7 +34,6 @@ from app.dao.notifications_dao import (
     dao_get_notification_history_by_reference,
     notifications_not_yet_sent,
 )
-from app.exceptions import ExceptionWithFailureReason
 from app.models import (
     Job,
     Notification,
@@ -1577,15 +1576,15 @@ def test_notifications_not_yet_sent_return_no_rows(sample_service, notification_
     assert len(results) == 0
 
 
-def test_update_notification_status_updates_failure_reason(sample_job):
+def test_update_notification_status_updates_failure_reason(sample_job, mocker):
+    mocker.patch('app.dao.notifications_dao.is_feature_enabled', return_value=True)
     notification = create_notification(
         template=sample_job.template, status=NOTIFICATION_SENT, reference='reference', job=sample_job
     )
 
     failure_message = 'some failure'
-    exception = ExceptionWithFailureReason(failure_reason=failure_message)
     updated_notification = update_notification_status_by_id(
-        notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=exception.failure_reason
+        notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=failure_message
     )
 
     assert updated_notification.status_reason == failure_message

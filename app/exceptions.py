@@ -20,5 +20,4 @@ class InvalidProviderException(Exception):
 
 
 class ExceptionWithFailureReason(Exception):
-    def __init__(self, failure_reason):
-        self.failure_reason = failure_reason
+    failure_reason = None
