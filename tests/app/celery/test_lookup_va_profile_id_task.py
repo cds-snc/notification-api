@@ -88,7 +88,9 @@ def test_should_not_retry_on_other_exception_and_should_update_to_technical_fail
     mocked_get_notification_by_id.assert_called()
     mocked_lookup_contact_info.assert_not_called()
 
-    mocked_update_notification_status_by_id.assert_called_with(notification.id, NOTIFICATION_TECHNICAL_FAILURE)
+    mocked_update_notification_status_by_id.assert_called_with(
+        notification.id, NOTIFICATION_TECHNICAL_FAILURE, status_reason='Unknown error from MPI'
+    )
     mocked_retry.assert_not_called()
 
 
@@ -138,20 +140,25 @@ def test_should_update_notification_to_technical_failure_on_max_retries(client, 
     with pytest.raises(NotificationTechnicalFailureException):
         lookup_va_profile_id(notification.id)
 
-    mocked_update_notification_status_by_id.assert_called_with(notification.id, NOTIFICATION_TECHNICAL_FAILURE)
+    mocked_update_notification_status_by_id.assert_called_with(
+        notification.id, NOTIFICATION_TECHNICAL_FAILURE, status_reason='Max retries reached for MPI'
+    )
 
 
 @pytest.mark.parametrize(
-    "exception",
-    [BeneficiaryDeceasedException('some error'),
-     IdentifierNotFound('some error'),
-     MultipleActiveVaProfileIdsException('some error')]
+    "exception, reason",
+    [
+        (BeneficiaryDeceasedException('some error'), BeneficiaryDeceasedException.failure_reason),
+        (IdentifierNotFound('some error'), IdentifierNotFound.failure_reason),
+        (MultipleActiveVaProfileIdsException('some error'), MultipleActiveVaProfileIdsException.failure_reason)
+    ]
 )
 def test_should_permanently_fail_and_clear_chain_when_permanent_failure_exception(
         client,
         mocker,
         notification,
-        exception
+        exception,
+        reason
 ):
     mocker.patch(
         'app.celery.lookup_va_profile_id_task.notifications_dao.get_notification_by_id',
@@ -180,6 +187,8 @@ def test_should_permanently_fail_and_clear_chain_when_permanent_failure_exceptio
 
     lookup_va_profile_id(notification.id)
 
-    mocked_update_notification_status_by_id.assert_called_with(notification.id, NOTIFICATION_PERMANENT_FAILURE)
+    mocked_update_notification_status_by_id.assert_called_with(
+        notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=reason
+    )
 
     mocked_chain.assert_called_with(None)
