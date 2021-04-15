@@ -146,7 +146,7 @@ class ZenDeskSell(object):
         # The API and field definitions are defined here: https://developers.getbase.com/docs/rest/reference/contacts
         resp, e = self._send_request(method='POST',
                                      relative_url=f'/v2/contacts/upsert?'
-                                                  f'custom_fields%5Bnotify_user_id%5D={str(user.id)}',
+                                                  f'custom_fields[notify_user_id]={str(user.id)}',
                                      data=json.dumps(ZenDeskSell._generate_contact_data(user)))
         if e:
             current_app.logger.warning('Failed to create zendesk sell contact')
@@ -175,7 +175,7 @@ class ZenDeskSell(object):
         resp, e = self._send_request(
             method='POST',
             relative_url=f'/v2/deals/upsert?contact_id={contact_id}&'
-                         f'custom_fields%5Bnotify_service_id%5D={str(service.id)}',
+                         f'custom_fields[notify_service_id]={str(service.id)}',
             data=json.dumps(ZenDeskSell._generate_deal_data(contact_id, service, stage_id)))
 
         if e:

@@ -5,10 +5,12 @@ from functools import partial
 from unittest.mock import ANY
 
 import pytest
-from flask import url_for, current_app
+import pytest_mock
+from flask import url_for, current_app, Flask
 from freezegun import freeze_time
 from notifications_utils.clients.redis import daily_limit_cache_key
 
+from app.dbsetup import RoutingSQLAlchemy
 from app.dao.organisation_dao import dao_add_service_to_organisation
 from app.dao.service_sms_sender_dao import dao_get_sms_senders_by_service_id
 from app.dao.services_dao import dao_remove_user_from_service
@@ -2132,16 +2134,27 @@ def test_search_for_notification_by_to_field_return_400_for_letter_type(
     assert error_message['message'] == 'Only email and SMS can use search by recipient'
 
 
-def test_update_service_calls_send_notification_as_service_becomes_live(notify_db, notify_db_session, client, mocker):
-    send_notification_mock = mocker.patch('app.service.rest.send_notification_to_service_users')
+@pytest.mark.parametrize("set_go_live_user", [True, False])
+def test_update_service_calls_send_notification_as_service_becomes_live(
+        notify_db: RoutingSQLAlchemy,
+        notify_db_session: RoutingSQLAlchemy,
+        client: Flask,
+        mocker: pytest_mock.MockFixture,
+        set_go_live_user: bool
+):
+    user_1 = create_user(email='active1@foo.com', state='active')
+    user_2 = create_user(email='active2@foo.com', state='active') if set_go_live_user else None
 
-    restricted_service = create_service(restricted=True)
+    send_notification_mock = mocker.patch('app.service.rest.send_notification_to_service_users')
+    restricted_service = create_service(user=user_1, go_live_user=user_2, restricted=True)
 
     data = {
         "restricted": False
     }
 
     zd_send_go_live_service_mock = mocker.patch('app.user.rest.ZenDeskSell.send_go_live_service', return_value=True)
+    fetch_service_creator_mock = mocker.patch('app.service.rest.dao_fetch_service_creator', return_value=user_1)
+    get_user_by_id_mock = mocker.patch('app.service.rest.get_user_by_id', return_value=user_2)
     auth_header = create_authorization_header()
     resp = client.post(
         'service/{}'.format(restricted_service.id),
@@ -2150,7 +2163,14 @@ def test_update_service_calls_send_notification_as_service_becomes_live(notify_d
         content_type='application/json'
     )
 
-    zd_send_go_live_service_mock.assert_called()
+    zd_send_go_live_service_mock.assert_called_once_with(restricted_service, user_2 if set_go_live_user else user_1)
+    if set_go_live_user:
+        fetch_service_creator_mock.assert_not_called()
+        get_user_by_id_mock.assert_called_once_with(restricted_service.go_live_user_id)
+    else:
+        get_user_by_id_mock.assert_not_called()
+        fetch_service_creator_mock.assert_called_once_with(restricted_service.id)
+
     assert resp.status_code == 200
     send_notification_mock.assert_called_once_with(
         service_id=restricted_service.id,
