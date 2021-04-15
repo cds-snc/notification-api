@@ -26,7 +26,7 @@ FHIR_FORMAT_SUFFIXES = {
 
 
 class UnsupportedIdentifierException(Exception):
-    pass
+    failure_reason = 'Unsupported identifier'
 
 
 def transform_to_fhir_format(recipient_identifier):

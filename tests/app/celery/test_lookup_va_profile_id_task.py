@@ -47,18 +47,19 @@ def test_should_call_mpi_client_and_save_va_profile_id(notify_api, mocker, notif
 
 
 @pytest.mark.parametrize(
-    "exception",
+    "exception, reason",
     [
-        UnsupportedIdentifierException('some error'),
-        IncorrectNumberOfIdentifiersException('some error'),
-        Exception('some error')
+        (UnsupportedIdentifierException('some error'), UnsupportedIdentifierException.failure_reason),
+        (IncorrectNumberOfIdentifiersException('some error'), IncorrectNumberOfIdentifiersException.failure_reason),
+        (Exception('some error'), 'Unknown error from MPI')
     ]
 )
 def test_should_not_retry_on_other_exception_and_should_update_to_technical_failure(
         client,
         mocker,
         notification,
-        exception
+        exception,
+        reason
 ):
     mocked_get_notification_by_id = mocker.patch(
         'app.celery.lookup_va_profile_id_task.notifications_dao.get_notification_by_id',
@@ -89,7 +90,7 @@ def test_should_not_retry_on_other_exception_and_should_update_to_technical_fail
     mocked_lookup_contact_info.assert_not_called()
 
     mocked_update_notification_status_by_id.assert_called_with(
-        notification.id, NOTIFICATION_TECHNICAL_FAILURE, status_reason='Unknown error from MPI'
+        notification.id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=reason
     )
     mocked_retry.assert_not_called()
 
