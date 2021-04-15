@@ -53,13 +53,6 @@ from app.models import (
     JOB_STATUS_IN_PROGRESS,
     RecipientIdentifier,
     NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_CANCELLED,
-    NOTIFICATION_FAILED,
-    NOTIFICATION_VALIDATION_FAILED,
-    NOTIFICATION_VIRUS_SCAN_FAILED,
-    NOTIFICATION_RETURNED_LETTER,
-    NOTIFICATION_CONTAINS_PII
 )
 from app.notifications.process_notifications import persist_notification
 from app.va.identifier import IdentifierType
@@ -1584,10 +1577,7 @@ def test_notifications_not_yet_sent_return_no_rows(sample_service, notification_
     assert len(results) == 0
 
 
-@pytest.mark.parametrize('status', [NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE])
-def test_update_notification_status_updates_failure_reason_if_status_is_final_failure(
-        sample_job, status
-):
+def test_update_notification_status_updates_failure_reason(sample_job):
     notification = create_notification(
         template=sample_job.template, status=NOTIFICATION_SENT, reference='reference', job=sample_job
     )
@@ -1595,33 +1585,7 @@ def test_update_notification_status_updates_failure_reason_if_status_is_final_fa
     failure_message = 'some failure'
     exception = ExceptionWithFailureReason(failure_reason=failure_message)
     updated_notification = update_notification_status_by_id(
-        notification.id, status, exception=exception
+        notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=exception.failure_reason
     )
 
     assert updated_notification.status_reason == failure_message
-
-
-@pytest.mark.parametrize('status', [
-    NOTIFICATION_TEMPORARY_FAILURE,
-    NOTIFICATION_CANCELLED,
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_FAILED,
-    NOTIFICATION_VALIDATION_FAILED,
-    NOTIFICATION_VIRUS_SCAN_FAILED,
-    NOTIFICATION_RETURNED_LETTER,
-    NOTIFICATION_CONTAINS_PII
-])
-def test_do_not_update_notification_status_updates_failure_reason_if_status_is_not_final_failure(
-        sample_job, status
-):
-    notification = create_notification(
-        template=sample_job.template, status=NOTIFICATION_SENT, reference='reference', job=sample_job
-    )
-
-    failure_message = 'some failure'
-    exception = ExceptionWithFailureReason(failure_reason=failure_message)
-    updated_notification = update_notification_status_by_id(
-        notification.id, status, exception=exception
-    )
-
-    assert updated_notification.status_reason is None

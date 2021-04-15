@@ -45,7 +45,9 @@ def lookup_contact_info(self, notification_id):
 
             exception = set_failure_reason(e, exception, message)
 
-            update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE, exception=exception)
+            update_notification_status_by_id(
+                notification_id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=exception.failure_reason
+            )
             raise NotificationTechnicalFailureException(message) from e
 
     except NoContactInfoException as e:
@@ -58,7 +60,9 @@ def lookup_contact_info(self, notification_id):
 
         exception = set_failure_reason(e, exception, message)
 
-        update_notification_status_by_id(notification_id, NOTIFICATION_PERMANENT_FAILURE, exception=exception)
+        update_notification_status_by_id(
+            notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=exception.failure_reason
+        )
 
     except VAProfileNonRetryableException as e:
         current_app.logger.exception(e)
@@ -69,7 +73,9 @@ def lookup_contact_info(self, notification_id):
 
         exception = set_failure_reason(e, exception, message)
 
-        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE, exception=exception)
+        update_notification_status_by_id(
+            notification_id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=exception.failure_reason
+        )
         raise NotificationTechnicalFailureException(message) from e
 
     else:

@@ -1,5 +1,6 @@
 import functools
 import string
+import uuid
 from datetime import (
     datetime,
     timedelta,
@@ -60,8 +61,6 @@ TRANSIENT_NOTIFICATION_STATUSES = {
     NOTIFICATION_TEMPORARY_FAILURE
 }
 
-PERMANENT_FAILURE_STATUSES = [NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE]
-
 
 @statsd(namespace="dao")
 def dao_get_last_template_usage(template_id, template_type, service_id):
@@ -112,7 +111,9 @@ def _update_notification_status(notification, status):
 
 @statsd(namespace="dao")
 @transactional
-def update_notification_status_by_id(notification_id, status, sent_by=None, exception=None):
+def update_notification_status_by_id(
+        notification_id: uuid, status: str, sent_by: str = None, status_reason: str = None
+) -> Notification:
     notification = Notification.query.with_for_update().filter(Notification.id == notification_id).first()
 
     if not notification:
@@ -131,8 +132,8 @@ def update_notification_status_by_id(notification_id, status, sent_by=None, exce
     if not notification.sent_by and sent_by:
         notification.sent_by = sent_by
 
-    if exception and status in PERMANENT_FAILURE_STATUSES:
-        notification.status_reason = exception.failure_reason
+    if status_reason:
+        notification.status_reason = status_reason
 
     return _update_notification_status(
         notification=notification,

@@ -113,7 +113,7 @@ def test_should_not_retry_on_non_retryable_exception(client, mocker, notificatio
     mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
 
     mocked_update_notification_status_by_id.assert_called_with(
-        notification.id, NOTIFICATION_TECHNICAL_FAILURE, exception=exception
+        notification.id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=exception.failure_reason
     )
 
     mocked_retry.assert_not_called()
@@ -177,7 +177,7 @@ def test_should_update_notification_to_technical_failure_on_max_retries(client, 
     mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
 
     mocked_update_notification_status_by_id.assert_called_with(
-        notification.id, NOTIFICATION_TECHNICAL_FAILURE, exception=exception
+        notification.id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=exception.failure_reason
     )
 
 
@@ -219,7 +219,7 @@ def test_should_update_notification_to_permanent_failure_on_no_contact_info_exce
     mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
 
     mocked_update_notification_status_by_id.assert_called_with(
-        notification.id, NOTIFICATION_PERMANENT_FAILURE, exception=exception
+        notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=exception.failure_reason
     )
 
     mocked_chain.assert_called_with(None)
@@ -289,5 +289,5 @@ def test_exception_sets_failure_reason_if_thrown(
         lookup_contact_info(notification.id)
 
     mocked_update_notification_status_by_id.assert_called_once_with(
-        notification.id, notification_status, exception=exception
+        notification.id, notification_status, status_reason=exception.failure_reason
     )
