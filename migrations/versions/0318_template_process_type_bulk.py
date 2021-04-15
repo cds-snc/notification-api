@@ -1,14 +1,14 @@
 """
 
-Revision ID: 0317_template_process_type_bulk
-Revises: 0316_now_live_template
+Revision ID: 0318_template_process_type_bulk
+Revises: 0317_add_provider_response
 Create Date: 2021-04-12 13:37:42
 
 """
 from alembic import op
 
-revision = '0317_template_process_type_bulk'
-down_revision = '0316_now_live_template'
+revision = '0318_template_process_type_bulk'
+down_revision = '0317_add_provider_response'
 
 
 def upgrade():
