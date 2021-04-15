@@ -459,15 +459,16 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
         ("email", "email_address", "sample@email.com"),
     ],
 )
-def test_send_notification_uses_priority_queue_when_template_is_marked_as_priority(
-    client, sample_service, mocker, notification_type, key_send_to, send_to
+@pytest.mark.parametrize("process_type", ['priority', 'bulk'])
+def test_send_notification_uses_appropriate_queue_according_to_template_process_type(
+    client, sample_service, mocker, notification_type, key_send_to, send_to, process_type
 ):
     mocker.patch(
         "app.celery.provider_tasks.deliver_{}.apply_async".format(notification_type)
     )
 
     sample = create_template(
-        service=sample_service, template_type=notification_type, process_type="priority"
+        service=sample_service, template_type=notification_type, process_type=process_type
     )
     mocked = mocker.patch(
         "app.celery.provider_tasks.deliver_{}.apply_async".format(notification_type)
@@ -486,7 +487,7 @@ def test_send_notification_uses_priority_queue_when_template_is_marked_as_priori
     notification_id = json.loads(response.data)["id"]
 
     assert response.status_code == 201
-    mocked.assert_called_once_with([notification_id], queue="priority-tasks")
+    mocked.assert_called_once_with([notification_id], queue=f"{process_type}-tasks")
 
 
 @pytest.mark.parametrize(
@@ -1203,16 +1204,15 @@ def test_post_notification_with_document_upload_bad_sending_method(
     )
 
 
-@pytest.mark.parametrize(
-    "file_data",
-    [
-        ("abc"),
-    ],
-)
+@pytest.mark.parametrize("file_data, message", [
+    ("abc", "Incorrect padding"),
+    ("🤡", "string argument should contain only ASCII characters"),
+])
 def test_post_notification_with_document_upload_not_base64_file(
     client,
     notify_db_session,
     file_data,
+    message,
 ):
     service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
     content = "See attached file."
@@ -1238,7 +1238,7 @@ def test_post_notification_with_document_upload_not_base64_file(
 
     assert response.status_code == 400
     resp_json = json.loads(response.get_data(as_text=True))
-    assert "Incorrect padding" in resp_json["errors"][0]["message"]
+    assert f"{message} : Error decoding base64 field" in resp_json["errors"][0]["message"]
 
 
 def test_post_notification_with_document_upload_simulated(

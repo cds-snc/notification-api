@@ -3,7 +3,6 @@ from notifications_utils.s3 import S3ObjectNotFound, s3download as utils_s3downl
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import create_random_identifier
-from app.config import QueueNames
 from app.dao.notifications_dao import _update_notification_status
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
@@ -19,7 +18,6 @@ from app.notifications.process_notifications import (
 )
 from app.models import (
     KEY_TYPE_NORMAL,
-    PRIORITY,
     SMS_TYPE,
     EMAIL_TYPE,
     LETTER_TYPE,
@@ -98,8 +96,6 @@ def send_one_off_notification(service_id, post_data):
         reference=create_one_off_reference(template.template_type),
     )
 
-    queue_name = QueueNames.PRIORITY if template.process_type == PRIORITY else None
-
     if template.template_type == LETTER_TYPE and service.research_mode:
         _update_notification_status(
             notification,
@@ -109,7 +105,7 @@ def send_one_off_notification(service_id, post_data):
         send_notification_to_queue(
             notification=notification,
             research_mode=service.research_mode,
-            queue=queue_name,
+            queue=template.queue_to_use(),
         )
 
     return {'id': str(notification.id)}
