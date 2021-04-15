@@ -19,6 +19,7 @@ from app.models import (
     INTERNATIONAL_SMS_TYPE, SMS_TYPE, EMAIL_TYPE, LETTER_TYPE,
     KEY_TYPE_TEST, KEY_TYPE_TEAM, SCHEDULE_NOTIFICATIONS
 )
+from app.service.sender import send_notification_to_service_users
 from app.service.utils import service_allowed_to_send_to
 from app.v2.errors import TooManyRequestsError, BadRequestError, RateLimitError
 from app import redis_store
@@ -45,9 +46,9 @@ def check_service_over_daily_message_limit(key_type, service):
         messages_sent = redis_store.get(cache_key)
         if not messages_sent:
             messages_sent = services_dao.fetch_todays_total_message_count(service.id)
-            redis_store.set(cache_key, int(messages_sent), ex=3600)
+            redis_store.set(cache_key, messages_sent, ex=3600)
 
-        warn_about_daily_message_limit(service, messages_sent)
+        warn_about_daily_message_limit(service, int(messages_sent))
 
 
 def check_rate_limiting(service, api_key):
@@ -67,14 +68,34 @@ def warn_about_daily_message_limit(service, messages_sent):
         cache_key = f"nearing-{daily_limit_cache_key(service.id)}"
         if not redis_store.get(cache_key):
             redis_store.set(cache_key, current_time, ex=cache_expiration)
-            # TODO send notifications
+            send_notification_to_service_users(
+                service_id=service.id,
+                template_id=current_app.config['SERVICE_NOW_LIVE_TEMPLATE_ID'],
+                personalisation={
+                    'service_name': service.name,
+                    'contact_us_url': f"{current_app.config['ADMIN_BASE_URL']}/contact",
+                    'message_limit_en': '{:,}'.format(service.message_limit),
+                    'message_limit_fr': '{:,}'.format(service.message_limit).replace(',', ' ')
+                },
+                include_user_fields=['name']
+            )
 
     # Send a warning when reaching the daily message limit
     if over_daily_message_limit:
         cache_key = f"over-{daily_limit_cache_key(service.id)}"
         if not redis_store.get(cache_key):
             redis_store.set(cache_key, current_time, ex=cache_expiration)
-            # TODO send notifications
+            send_notification_to_service_users(
+                service_id=service.id,
+                template_id=current_app.config['SERVICE_NOW_LIVE_TEMPLATE_ID'],
+                personalisation={
+                    'service_name': service.name,
+                    'contact_us_url': f"{current_app.config['ADMIN_BASE_URL']}/contact",
+                    'message_limit_en': '{:,}'.format(service.message_limit),
+                    'message_limit_fr': '{:,}'.format(service.message_limit).replace(',', ' ')
+                },
+                include_user_fields=['name']
+            )
 
         current_app.logger.info(
             "service {} has been rate limited for daily use sent {} limit {}".format(

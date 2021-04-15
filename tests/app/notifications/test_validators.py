@@ -106,8 +106,9 @@ def test_should_not_access_database_if_redis_disabled(notify_api, sample_service
 @pytest.mark.parametrize('key_type', ['team', 'normal'])
 def test_check_service_message_limit_over_message_limit_fails(key_type, notify_db, notify_db_session, mocker):
     with freeze_time("2016-01-01 12:00:00.000000"):
-        mocker.patch('app.redis_store.get', return_value=None)
-        redis_mock = mocker.patch('app.notifications.validators.redis_store.set')
+        redis_get = mocker.patch('app.redis_store.get', side_effect=['5', True, None])
+        redis_set = mocker.patch('app.redis_store.set')
+        send_notification = mocker.patch('app.notifications.validators.send_notification_to_service_users')
 
         service = create_service(notify_db, notify_db_session, restricted=True, limit=4)
         for x in range(5):
@@ -117,11 +118,15 @@ def test_check_service_message_limit_over_message_limit_fails(key_type, notify_d
         assert e.value.status_code == 429
         assert e.value.message == 'Exceeded send limits (4) for today'
         assert e.value.fields == []
-        assert redis_mock.call_args_list == [
-            call(f'{service.id}-2016-01-01-count', 5, ex=3600),
-            call(f'nearing-{service.id}-2016-01-01-count', '2016-01-01T12:00:00', ex=86400),
+        assert redis_get.call_args_list == [
+            call(f'{service.id}-2016-01-01-count'),
+            call(f'nearing-{service.id}-2016-01-01-count'),
+            call(f'over-{service.id}-2016-01-01-count')
+        ]
+        assert redis_set.call_args_list == [
             call(f'over-{service.id}-2016-01-01-count', '2016-01-01T12:00:00', ex=86400)
         ]
+        send_notification.assert_called_once()
 
 
 def test_check_service_message_limit_records_nearing_daily_limit(
@@ -131,7 +136,8 @@ def test_check_service_message_limit_records_nearing_daily_limit(
 ):
     with freeze_time("2016-01-01 12:00:00.000000"):
         redis_get = mocker.patch('app.redis_store.get', side_effect=[4, None])
-        redis_set = mocker.patch('app.notifications.validators.redis_store.set')
+        redis_set = mocker.patch('app.redis_store.set')
+        send_notification = mocker.patch('app.notifications.validators.send_notification_to_service_users')
 
         service = create_service(notify_db, notify_db_session, restricted=True, limit=5)
         for x in range(4):
@@ -146,6 +152,7 @@ def test_check_service_message_limit_records_nearing_daily_limit(
         assert redis_set.call_args_list == [
             call(f'nearing-{service.id}-2016-01-01-count', '2016-01-01T12:00:00', ex=86400),
         ]
+        send_notification.assert_called_once()
 
 
 @pytest.mark.parametrize('key_type', ['team', 'normal'])
