@@ -1204,16 +1204,15 @@ def test_post_notification_with_document_upload_bad_sending_method(
     )
 
 
-@pytest.mark.parametrize(
-    "file_data",
-    [
-        ("abc"),
-    ],
-)
+@pytest.mark.parametrize("file_data, message", [
+    ("abc", "Incorrect padding"),
+    ("🤡", "string argument should contain only ASCII characters"),
+])
 def test_post_notification_with_document_upload_not_base64_file(
     client,
     notify_db_session,
     file_data,
+    message,
 ):
     service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
     content = "See attached file."
@@ -1239,7 +1238,7 @@ def test_post_notification_with_document_upload_not_base64_file(
 
     assert response.status_code == 400
     resp_json = json.loads(response.get_data(as_text=True))
-    assert "Incorrect padding" in resp_json["errors"][0]["message"]
+    assert f"{message} : Error decoding base64 field" in resp_json["errors"][0]["message"]
 
 
 def test_post_notification_with_document_upload_simulated(
