@@ -17,7 +17,3 @@ class MalwarePendingException(Exception):
 
 class InvalidProviderException(Exception):
     pass
-
-
-class ExceptionWithFailureReason(Exception):
-    failure_reason = None

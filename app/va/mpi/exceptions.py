@@ -1,7 +1,4 @@
-from app.exceptions import ExceptionWithFailureReason
-
-
-class MpiException(ExceptionWithFailureReason):
+class MpiException(Exception):
     pass
 
 
