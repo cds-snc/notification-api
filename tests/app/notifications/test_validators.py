@@ -3,6 +3,7 @@ from freezegun import freeze_time
 from flask import current_app
 from app.dbsetup import RoutingSQLAlchemy
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
+from unittest.mock import call
 
 import app
 from app.models import INTERNATIONAL_SMS_TYPE, SMS_TYPE, EMAIL_TYPE, LETTER_TYPE
@@ -106,7 +107,7 @@ def test_should_not_access_database_if_redis_disabled(notify_api, sample_service
 def test_check_service_message_limit_over_message_limit_fails(key_type, notify_db, notify_db_session, mocker):
     with freeze_time("2016-01-01 12:00:00.000000"):
         mocker.patch('app.redis_store.get', return_value=None)
-        mocker.patch('app.notifications.validators.redis_store.set')
+        redis_mock = mocker.patch('app.notifications.validators.redis_store.set')
 
         service = create_service(notify_db, notify_db_session, restricted=True, limit=4)
         for x in range(5):
@@ -116,9 +117,35 @@ def test_check_service_message_limit_over_message_limit_fails(key_type, notify_d
         assert e.value.status_code == 429
         assert e.value.message == 'Exceeded send limits (4) for today'
         assert e.value.fields == []
-        app.notifications.validators.redis_store.set.assert_called_with(
-            str(service.id) + "-2016-01-01-count", 5, ex=3600
-        )
+        assert redis_mock.call_args_list == [
+            call(f'{service.id}-2016-01-01-count', 5, ex=3600),
+            call(f'nearing-{service.id}-2016-01-01-count', '2016-01-01T12:00:00', ex=86400),
+            call(f'over-{service.id}-2016-01-01-count', '2016-01-01T12:00:00', ex=86400)
+        ]
+
+
+def test_check_service_message_limit_records_nearing_daily_limit(
+    notify_db,
+    notify_db_session,
+    mocker
+):
+    with freeze_time("2016-01-01 12:00:00.000000"):
+        redis_get = mocker.patch('app.redis_store.get', side_effect=[4, None])
+        redis_set = mocker.patch('app.notifications.validators.redis_store.set')
+
+        service = create_service(notify_db, notify_db_session, restricted=True, limit=5)
+        for x in range(4):
+            create_notification(notify_db, notify_db_session, service=service)
+
+        check_service_over_daily_message_limit("normal", service)
+
+        assert redis_get.call_args_list == [
+            call(f'{service.id}-2016-01-01-count'),
+            call(f'nearing-{service.id}-2016-01-01-count'),
+        ]
+        assert redis_set.call_args_list == [
+            call(f'nearing-{service.id}-2016-01-01-count', '2016-01-01T12:00:00', ex=86400),
+        ]
 
 
 @pytest.mark.parametrize('key_type', ['team', 'normal'])
