@@ -42,6 +42,7 @@ def test_send_delivery_status_to_service_post_https_request_to_service_with_encr
         "reference": notification.client_reference,
         "to": notification.to,
         "status": notification.status,
+        "provider_response": notification.provider_response,
         "created_at": datestr.strftime(DATETIME_FORMAT),
         "completed_at": datestr.strftime(DATETIME_FORMAT),
         "sent_at": datestr.strftime(DATETIME_FORMAT),
@@ -174,6 +175,7 @@ def _set_up_data_for_status_update(callback_api, notification):
         "notification_client_reference": notification.client_reference,
         "notification_to": notification.to,
         "notification_status": notification.status,
+        "notification_provider_response": notification.provider_response,
         "notification_created_at": notification.created_at.strftime(DATETIME_FORMAT),
         "notification_updated_at": notification.updated_at.strftime(
             DATETIME_FORMAT) if notification.updated_at else None,

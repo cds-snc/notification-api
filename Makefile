@@ -13,7 +13,7 @@ help:
 
 .PHONY: generate-version-file
 generate-version-file: ## Generates the app version file
-	@printf "__travis_commit__ = \"${GIT_COMMIT}\"\n__time__ = \"${DATE}\"\n__travis_job_number__ = \"0\"\n__travis_job_url__ = \"\"\n" > ${APP_VERSION_FILE}
+	@printf "__commit_sha__ = \"${GIT_COMMIT}\"\n__time__ = \"${DATE}\"\n" > ${APP_VERSION_FILE}
 
 .PHONY: test
 test: generate-version-file ## Run tests
