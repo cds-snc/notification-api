@@ -31,34 +31,17 @@ def process_sns_results(self, response):
         # Payload details: https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html
         sns_message = json.loads(response['Message'])
         reference = sns_message['notification']['messageId']
-        status = sns_message['status']
+        sns_status = sns_message['status']
         provider_response = sns_message['delivery']['providerResponse']
 
-        # See all the possible provider responses
-        # https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html#sms_stats_delivery_fail_reasons
-        reasons = {
-            'Blocked as spam by phone carrier': NOTIFICATION_TECHNICAL_FAILURE,
-            'Destination is on a blocked list': NOTIFICATION_TECHNICAL_FAILURE,
-            'Invalid phone number': NOTIFICATION_TECHNICAL_FAILURE,
-            'Message body is invalid': NOTIFICATION_TECHNICAL_FAILURE,
-            'Phone carrier has blocked this message': NOTIFICATION_TECHNICAL_FAILURE,
-            'Phone carrier is currently unreachable/unavailable': NOTIFICATION_TEMPORARY_FAILURE,
-            'Phone has blocked SMS': NOTIFICATION_TECHNICAL_FAILURE,
-            'Phone is on a blocked list': NOTIFICATION_TECHNICAL_FAILURE,
-            'Phone is currently unreachable/unavailable': NOTIFICATION_PERMANENT_FAILURE,
-            'Phone number is opted out': NOTIFICATION_TECHNICAL_FAILURE,
-            'This delivery would exceed max price': NOTIFICATION_TECHNICAL_FAILURE,
-            'Unknown error attempting to reach phone': NOTIFICATION_TECHNICAL_FAILURE,
-        }
-
-        if status == "SUCCESS":
-            notification_status = NOTIFICATION_DELIVERED
-        else:
-            if provider_response not in reasons:
-                current_app.logger.warning(
-                    f"unhandled provider response for reference {reference}, received '{provider_response}'"
-                )
-            notification_status = reasons.get(provider_response, NOTIFICATION_TECHNICAL_FAILURE)
+        try:
+            notification_status = determine_status(sns_status, provider_response)
+        except KeyError:
+            current_app.logger.warning(
+                f"unhandled provider response for reference {reference}, received '{provider_response}'"
+            )
+            notification_status = NOTIFICATION_TECHNICAL_FAILURE
+            provider_response = None
 
         try:
             notification = notifications_dao.dao_get_notification_by_reference(reference)
@@ -82,7 +65,8 @@ def process_sns_results(self, response):
 
         notifications_dao._update_notification_status(
             notification=notification,
-            status=notification_status
+            status=notification_status,
+            provider_response=provider_response
         )
 
         if notification_status != NOTIFICATION_DELIVERED:
@@ -110,3 +94,27 @@ def process_sns_results(self, response):
     except Exception as e:
         current_app.logger.exception(f'Error processing SNS results: {str(e)}')
         self.retry(queue=QueueNames.RETRY)
+
+
+def determine_status(sns_status, provider_response):
+    if sns_status == "SUCCESS":
+        return NOTIFICATION_DELIVERED
+
+    # See all the possible provider responses
+    # https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html#sms_stats_delivery_fail_reasons
+    reasons = {
+        'Blocked as spam by phone carrier': NOTIFICATION_TECHNICAL_FAILURE,
+        'Destination is on a blocked list': NOTIFICATION_TECHNICAL_FAILURE,
+        'Invalid phone number': NOTIFICATION_TECHNICAL_FAILURE,
+        'Message body is invalid': NOTIFICATION_TECHNICAL_FAILURE,
+        'Phone carrier has blocked this message': NOTIFICATION_TECHNICAL_FAILURE,
+        'Phone carrier is currently unreachable/unavailable': NOTIFICATION_TEMPORARY_FAILURE,
+        'Phone has blocked SMS': NOTIFICATION_TECHNICAL_FAILURE,
+        'Phone is on a blocked list': NOTIFICATION_TECHNICAL_FAILURE,
+        'Phone is currently unreachable/unavailable': NOTIFICATION_PERMANENT_FAILURE,
+        'Phone number is opted out': NOTIFICATION_TECHNICAL_FAILURE,
+        'This delivery would exceed max price': NOTIFICATION_TECHNICAL_FAILURE,
+        'Unknown error attempting to reach phone': NOTIFICATION_TECHNICAL_FAILURE,
+    }
+
+    return reasons[provider_response]

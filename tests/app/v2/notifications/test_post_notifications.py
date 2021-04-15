@@ -27,6 +27,7 @@ from app.v2.notifications.notification_schemas import (
 )
 from tests import create_authorization_header
 
+from tests.app.conftest import document_download_response
 from tests.app.db import (
     create_service,
     create_template,
@@ -35,27 +36,6 @@ from tests.app.db import (
     create_service_with_inbound_number,
     create_api_key,
 )
-
-
-def document_download_response(override={}):
-    # See response from
-    # https://github.com/cds-snc/notification-document-download-api/blob/master/app/upload/views.py
-    base = {
-        'id': 'document-id',
-        'direct_file_url': 'http://direct-file-url.localdomain',
-        'url': 'http://frontend-url.localdomain',
-        'mlwr_sid': 'mlwr-sid',
-        'filename': 'filename',
-        'sending_method': 'sending_method',
-        'mime_type': 'mime_type',
-        'file_size': 42,
-        'file_extension': 'pdf',
-    }
-
-    return {
-        'status': 'ok',
-        'document': base | override
-    }
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
