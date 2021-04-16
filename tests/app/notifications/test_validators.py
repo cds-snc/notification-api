@@ -126,7 +126,17 @@ def test_check_service_message_limit_over_message_limit_fails(key_type, notify_d
         assert redis_set.call_args_list == [
             call(f'over-{service.id}-2016-01-01-count', '2016-01-01T12:00:00', ex=86400)
         ]
-        send_notification.assert_called_once()
+        send_notification.assert_called_once_with(
+            service_id=service.id,
+            template_id=current_app.config['REACHED_DAILY_LIMIT_TEMPLATE_ID'],
+            personalisation={
+                'service_name': service.name,
+                'contact_url': f"{current_app.config['ADMIN_BASE_URL']}/contact",
+                'message_limit_en': '4',
+                'message_limit_fr': '4',
+            },
+            include_user_fields=['name']
+        )
 
 
 def test_check_service_message_limit_records_nearing_daily_limit(
@@ -152,7 +162,17 @@ def test_check_service_message_limit_records_nearing_daily_limit(
         assert redis_set.call_args_list == [
             call(f'nearing-{service.id}-2016-01-01-count', '2016-01-01T12:00:00', ex=86400),
         ]
-        send_notification.assert_called_once()
+        send_notification.assert_called_once_with(
+            service_id=service.id,
+            template_id=current_app.config['NEAR_DAILY_LIMIT_TEMPLATE_ID'],
+            personalisation={
+                'service_name': service.name,
+                'contact_url': f"{current_app.config['ADMIN_BASE_URL']}/contact",
+                'message_limit_en': '5',
+                'message_limit_fr': '5',
+            },
+            include_user_fields=['name']
+        )
 
 
 @pytest.mark.parametrize('key_type', ['team', 'normal'])

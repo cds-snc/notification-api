@@ -70,10 +70,10 @@ def warn_about_daily_message_limit(service, messages_sent):
             redis_store.set(cache_key, current_time, ex=cache_expiration)
             send_notification_to_service_users(
                 service_id=service.id,
-                template_id=current_app.config['SERVICE_NOW_LIVE_TEMPLATE_ID'],
+                template_id=current_app.config['NEAR_DAILY_LIMIT_TEMPLATE_ID'],
                 personalisation={
                     'service_name': service.name,
-                    'contact_us_url': f"{current_app.config['ADMIN_BASE_URL']}/contact",
+                    'contact_url': f"{current_app.config['ADMIN_BASE_URL']}/contact",
                     'message_limit_en': '{:,}'.format(service.message_limit),
                     'message_limit_fr': '{:,}'.format(service.message_limit).replace(',', ' ')
                 },
@@ -87,10 +87,10 @@ def warn_about_daily_message_limit(service, messages_sent):
             redis_store.set(cache_key, current_time, ex=cache_expiration)
             send_notification_to_service_users(
                 service_id=service.id,
-                template_id=current_app.config['SERVICE_NOW_LIVE_TEMPLATE_ID'],
+                template_id=current_app.config['REACHED_DAILY_LIMIT_TEMPLATE_ID'],
                 personalisation={
                     'service_name': service.name,
-                    'contact_us_url': f"{current_app.config['ADMIN_BASE_URL']}/contact",
+                    'contact_url': f"{current_app.config['ADMIN_BASE_URL']}/contact",
                     'message_limit_en': '{:,}'.format(service.message_limit),
                     'message_limit_fr': '{:,}'.format(service.message_limit).replace(',', ' ')
                 },
