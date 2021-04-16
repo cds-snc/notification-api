@@ -1,8 +1,8 @@
 """
 
-Revision ID: 0318_warn_daily_limits
-Revises: 0317_add_provider_response
-Create Date: 2019-05-22 16:58:52.929661
+Revision ID: 0319_warn_daily_limits
+Revises: 0318_template_process_type_bulk
+Create Date: 2021-04-16 13:37:42
 
 """
 from datetime import datetime
@@ -11,8 +11,8 @@ from alembic import op
 from flask import current_app
 
 
-revision = '0318_warn_daily_limits'
-down_revision = '0317_add_provider_response'
+revision = '0319_warn_daily_limits'
+down_revision = '0318_template_process_type_bulk'
 
 near_limit_template_id = current_app.config['NEAR_DAILY_LIMIT_TEMPLATE_ID']
 at_limit_template_id = current_app.config['REACHED_DAILY_LIMIT_TEMPLATE_ID']
