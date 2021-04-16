@@ -22,6 +22,7 @@ if os.getenv('VCAP_SERVICES'):
 class QueueNames(object):
     PERIODIC = 'periodic-tasks'
     PRIORITY = 'priority-tasks'
+    BULK = 'bulk-tasks'
     DATABASE = 'database-tasks'
     SEND_SMS = 'send-sms-tasks'
     SEND_THROTTLED_SMS = 'send-throttled-sms-tasks'
@@ -43,6 +44,7 @@ class QueueNames(object):
         return [
             QueueNames.PRIORITY,
             QueueNames.PERIODIC,
+            QueueNames.BULK,
             QueueNames.DATABASE,
             QueueNames.SEND_SMS,
             QueueNames.SEND_THROTTLED_SMS,

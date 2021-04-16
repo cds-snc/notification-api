@@ -1,5 +1,4 @@
 import base64
-import binascii
 from datetime import datetime, timedelta
 
 from sqlalchemy.orm.exc import NoResultFound
@@ -238,7 +237,7 @@ def decode_personalisation_files(personalisation_data):
     for key in file_keys:
         try:
             personalisation_data[key]['file'] = base64.b64decode(personalisation_data[key]['file'])
-        except binascii.Error as e:
+        except Exception as e:
             errors.append({
                 "error": "ValidationError",
                 "message": f"{key} : {str(e)} : Error decoding base64 field"
