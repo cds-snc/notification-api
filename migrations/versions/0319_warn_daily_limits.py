@@ -45,7 +45,7 @@ def upgrade():
         "",
         "Bonjour ((name)),",
         "",
-        "((service)) vient d’atteindre 80% de sa limite quotidienne de ((message_limit_fr)) messages. Votre service ne pourra plus envoyer de messages si vous allez au-delà de votre limite d’ici la fin de journée.",
+        "((service_name)) vient d’atteindre 80% de sa limite quotidienne de ((message_limit_fr)) messages. Votre service ne pourra plus envoyer de messages si vous allez au-delà de votre limite d’ici la fin de journée.",
         "",
         "Vous pouvez demander à augmenter cette limite en [nous contactant](((contact_url))).",
         "",
