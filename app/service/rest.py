@@ -60,6 +60,7 @@ from app.dao.services_dao import (
     dao_fetch_service_by_id,
     dao_fetch_todays_stats_for_service,
     dao_fetch_todays_stats_for_all_services,
+    dao_fetch_service_creator,
     dao_resume_service,
     dao_remove_user_from_service,
     dao_suspend_service,
@@ -286,6 +287,20 @@ def update_service(service_id):
             },
             include_user_fields=['name']
         )
+
+        try:
+            # Two scenarios, if there is a user that has requested to go live, we will use that user
+            # to create a user-service/contact-deal pair between notify and zendesk sell
+            # If by any chance there is no tracked request to a user, notify will try to identify the user
+            # that created the service and then create a user-service/contact-deal relationship
+            if service.go_live_user_id:
+                user = get_user_by_id(service.go_live_user_id)
+            else:
+                user = dao_fetch_service_creator(service.id)
+
+            ZenDeskSell().send_go_live_service(service, user)
+        except Exception as e:
+            current_app.logger.exception(e)
 
     return jsonify(data=service_schema.dump(fetched_service).data), 200
 
