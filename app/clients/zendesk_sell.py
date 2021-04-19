@@ -165,6 +165,10 @@ class ZenDeskSell(object):
             return None
 
     def convert_lead_to_contact(self, lead_id: int) -> Optional[Dict[str, Any]]:
+
+        # The API and field definitions are defined here:
+        # https://developers.getbase.com/docs/rest/reference/lead_conversions
+
         resp, e = self._send_request(method='POST',
                                      relative_url=f'/v2/lead_conversions',
                                      data=json.dumps(ZenDeskSell._generate_lead_conversion_data(lead_id)))
@@ -248,6 +252,8 @@ class ZenDeskSell(object):
         return self._common_create_or_go_live(service, user, ZenDeskSell.STATUS_CLOSE_LIVE)
 
     def send_create_service(self, service: Service, user: User) -> bool:
+        lead_id = self.search_lead(user)
+        self.convert_lead_to_contact(lead_id)
         return self._common_create_or_go_live(service, user, ZenDeskSell.STATUS_CREATE_TRIAL)
 
     def send_contact_request(self, contact: ContactRequest) -> int:
