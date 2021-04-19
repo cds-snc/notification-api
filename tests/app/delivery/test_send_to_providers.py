@@ -1,7 +1,7 @@
 import uuid
 from collections import namedtuple
 from datetime import datetime
-from unittest.mock import ANY, MagicMock
+from unittest.mock import call, ANY, MagicMock
 
 import pytest
 from flask import current_app
@@ -97,6 +97,7 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
                                           status='created',
                                           reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender())
 
+    statsd_mock = mocker.patch('app.delivery.send_to_providers.statsd_client')
     mocker.patch('app.aws_sns_client.send_sms', return_value='message_id_from_sns')
 
     send_to_providers.send_sms_to_provider(
@@ -119,6 +120,12 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
     assert notification.personalisation == {"name": "Jo"}
     assert notification.reference == 'message_id_from_sns'
 
+    statsd_timing_calls = statsd_mock.timing_with_dates.call_args_list
+
+    assert call("sms.total-time", notification.sent_at, notification.created_at) in statsd_timing_calls
+    assert call("sms.process_type-normal", notification.sent_at, notification.created_at) in statsd_timing_calls
+    assert call("sms.process_type-normal") in statsd_mock.incr.call_args_list
+
 
 def test_should_send_personalised_template_to_correct_email_provider_and_persist(
     sample_email_template_with_html,
@@ -131,6 +138,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     )
 
     mocker.patch('app.aws_ses_client.send_email', return_value='reference')
+    statsd_mock = mocker.patch('app.delivery.send_to_providers.statsd_client')
 
     send_to_providers.send_email_to_provider(
         db_notification
@@ -154,6 +162,12 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     assert notification.sent_at <= datetime.utcnow()
     assert notification.sent_by == 'ses'
     assert notification.personalisation == {"name": "Jo"}
+
+    statsd_timing_calls = statsd_mock.timing_with_dates.call_args_list
+    statsd_key = "email.no-attachments.process_type-normal"
+    assert call("email.total-time", notification.sent_at, notification.created_at) in statsd_timing_calls
+    assert call(statsd_key, notification.sent_at, notification.created_at) in statsd_timing_calls
+    assert call(statsd_key) in statsd_mock.incr.call_args_list
 
 
 def test_should_not_send_email_message_when_service_is_inactive_notifcation_is_in_tech_failure(
@@ -891,6 +905,7 @@ def test_notification_document_with_pdf_attachment(
 
     db_notification = create_notification(template=template, personalisation=personalisation)
 
+    statsd_mock = mocker.patch('app.delivery.send_to_providers.statsd_client')
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
     request_mock = mocker.patch('app.delivery.send_to_providers.urllib.request.Request', return_value='request_mock')
     # See https://stackoverflow.com/a/34929900
@@ -919,7 +934,14 @@ def test_notification_document_with_pdf_attachment(
     if not filename_attribute_present:
         assert 'http://foo.bar/url' in send_mock.call_args[1]['html_body']
 
-    assert Notification.query.get(db_notification.id).status == 'sending'
+    notification = Notification.query.get(db_notification.id)
+    assert notification.status == 'sending'
+
+    if attachments:
+        statsd_calls = statsd_mock.timing_with_dates.call_args_list
+        statsd_key = "email.with-attachments.process_type-normal"
+        assert call(statsd_key, notification.sent_at, notification.created_at) in statsd_calls
+        assert call(statsd_key) in statsd_mock.incr.call_args_list
 
 
 def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
