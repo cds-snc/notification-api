@@ -7,7 +7,11 @@ from flask import (
     current_app,
     Blueprint
 )
-from notifications_utils.clients.redis import daily_limit_cache_key
+from notifications_utils.clients.redis import (
+    daily_limit_cache_key,
+    near_daily_limit_cache_key,
+    over_daily_limit_cache_key,
+)
 from notifications_utils.letter_timings import letter_can_be_cancelled
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import func
@@ -271,8 +275,8 @@ def update_service(service_id):
 
     if message_limit_changed:
         redis_store.delete(daily_limit_cache_key(service_id))
-        redis_store.delete(f"nearing-{daily_limit_cache_key(service_id)}")
-        redis_store.delete(f"over-{daily_limit_cache_key(service_id)}")
+        redis_store.delete(near_daily_limit_cache_key(service_id))
+        redis_store.delete(over_daily_limit_cache_key(service_id))
 
     dao_update_service(service)
 

@@ -9,7 +9,12 @@ from notifications_utils.recipients import (
     validate_and_format_email_address,
     get_international_phone_info
 )
-from notifications_utils.clients.redis import rate_limit_cache_key, daily_limit_cache_key
+from notifications_utils.clients.redis import (
+    daily_limit_cache_key,
+    near_daily_limit_cache_key,
+    over_daily_limit_cache_key,
+    rate_limit_cache_key,
+)
 from notifications_utils.statsd_decorators import statsd_catch
 
 from app.dao import services_dao, templates_dao
@@ -26,6 +31,8 @@ from app.notifications.process_notifications import create_content_for_notificat
 from app.utils import get_document_url, get_public_notify_type_text
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_letter_contact_dao import dao_get_letter_contact_by_id
+
+NEAR_DAILY_LIMIT_PERCENTAGE = 80 / 100
 
 
 def check_service_over_api_rate_limit(service, api_key):
@@ -45,7 +52,7 @@ def check_service_over_daily_message_limit(key_type, service):
         messages_sent = redis_store.get(cache_key)
         if not messages_sent:
             messages_sent = services_dao.fetch_todays_total_message_count(service.id)
-            redis_store.set(cache_key, messages_sent, ex=3600)
+            redis_store.set(cache_key, messages_sent, ex=int(timedelta(hours=1).total_seconds()))
 
         warn_about_daily_message_limit(service, int(messages_sent))
 
@@ -56,7 +63,7 @@ def check_rate_limiting(service, api_key):
 
 
 def warn_about_daily_message_limit(service, messages_sent):
-    nearing_daily_message_limit = messages_sent >= .8 * service.message_limit
+    nearing_daily_message_limit = messages_sent >= NEAR_DAILY_LIMIT_PERCENTAGE * service.message_limit
     over_daily_message_limit = messages_sent >= service.message_limit
 
     current_time = datetime.utcnow().isoformat()
@@ -64,7 +71,7 @@ def warn_about_daily_message_limit(service, messages_sent):
 
     # Send a warning when reaching 80% of the daily limit
     if nearing_daily_message_limit:
-        cache_key = f"nearing-{daily_limit_cache_key(service.id)}"
+        cache_key = near_daily_limit_cache_key(service.id)
         if not redis_store.get(cache_key):
             redis_store.set(cache_key, current_time, ex=cache_expiration)
             send_notification_to_service_users(
@@ -81,7 +88,7 @@ def warn_about_daily_message_limit(service, messages_sent):
 
     # Send a warning when reaching the daily message limit
     if over_daily_message_limit:
-        cache_key = f"over-{daily_limit_cache_key(service.id)}"
+        cache_key = over_daily_limit_cache_key(service.id)
         if not redis_store.get(cache_key):
             redis_store.set(cache_key, current_time, ex=cache_expiration)
             send_notification_to_service_users(
