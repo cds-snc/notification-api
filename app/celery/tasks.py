@@ -25,6 +25,7 @@ from app import (
     DATETIME_FORMAT,
     encryption,
     notify_celery,
+    statsd_client,
 )
 from app.aws import s3
 from app.celery import (  # noqa: F401
@@ -104,6 +105,9 @@ def process_job(job_id, sender_id=None):
     job.job_status = JOB_STATUS_IN_PROGRESS
     job.processing_started = start
     dao_update_job(job)
+
+    # Record StatsD stats to compute SLOs
+    statsd_client.timing_with_dates('job.processing-start-delay', job.processing_started, job.scheduled_for)
 
     db_template = dao_get_template_by_id(job.template_id, job.template_version)
 

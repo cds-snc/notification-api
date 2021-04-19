@@ -103,6 +103,8 @@ def test_should_process_sms_job(sample_job, mocker):
     mocker.patch('app.encryption.encrypt', return_value="something_encrypted")
     mocker.patch('app.celery.tasks.create_uuid', return_value="uuid")
 
+    redis_mock = mocker.patch('app.celery.tasks.statsd_client.timing_with_dates')
+
     process_job(sample_job.id)
     s3.get_job_from_s3.assert_called_once_with(
         str(sample_job.service.id),
@@ -122,6 +124,7 @@ def test_should_process_sms_job(sample_job, mocker):
     )
     job = jobs_dao.dao_get_job_by_id(sample_job.id)
     assert job.job_status == 'finished'
+    redis_mock.assert_called_once_with('job.processing-start-delay', job.processing_started, job.scheduled_for)
 
 
 def test_should_process_sms_job_with_sender_id(sample_job, mocker, fake_uuid):
@@ -263,6 +266,7 @@ def test_should_process_email_job(email_job_with_placeholders, mocker):
     mocker.patch('app.celery.tasks.save_email.apply_async')
     mocker.patch('app.encryption.encrypt', return_value="something_encrypted")
     mocker.patch('app.celery.tasks.create_uuid', return_value="uuid")
+    redis_mock = mocker.patch('app.celery.tasks.statsd_client.timing_with_dates')
 
     process_job(email_job_with_placeholders.id)
 
@@ -285,6 +289,7 @@ def test_should_process_email_job(email_job_with_placeholders, mocker):
     )
     job = jobs_dao.dao_get_job_by_id(email_job_with_placeholders.id)
     assert job.job_status == 'finished'
+    redis_mock.assert_called_once_with('job.processing-start-delay', job.processing_started, job.scheduled_for)
 
 
 def test_should_process_email_job_with_sender_id(email_job_with_placeholders, mocker, fake_uuid):
