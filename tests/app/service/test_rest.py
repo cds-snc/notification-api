@@ -8,7 +8,11 @@ import pytest
 import pytest_mock
 from flask import url_for, current_app, Flask
 from freezegun import freeze_time
-from notifications_utils.clients.redis import daily_limit_cache_key
+from notifications_utils.clients.redis import (
+    daily_limit_cache_key,
+    near_daily_limit_cache_key,
+    over_daily_limit_cache_key,
+)
 
 from app.dbsetup import RoutingSQLAlchemy
 from app.dao.organisation_dao import dao_add_service_to_organisation
@@ -2215,8 +2219,8 @@ def test_update_service_updating_daily_limit_clears_redis_cache(
     if expected_call:
         redis_delete.call_args_list == [
             call(daily_limit_cache_key(service.id)),
-            call(f"nearing-{daily_limit_cache_key(service.id)}"),
-            call(f"over-{daily_limit_cache_key(service.id)}"),
+            call(near_daily_limit_cache_key(service.id)),
+            call(over_daily_limit_cache_key(service.id)),
         ]
     else:
         redis_delete.assert_not_called()
