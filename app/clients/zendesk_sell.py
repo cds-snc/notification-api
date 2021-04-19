@@ -101,6 +101,16 @@ class ZenDeskSell(object):
             }
         }
 
+    @staticmethod
+    def _generate_lead_conversion_data(lead_id: int):
+        return {
+            'data': {
+                'lead_id': lead_id,
+                'owner_id': ZenDeskSell.OWNER_ID,
+                'create_deal': False
+            }
+        }
+
     def _send_request(
             self,
             method: str,
@@ -140,6 +150,33 @@ class ZenDeskSell(object):
             raise e
 
         return resp.status_code
+
+    def search_lead(self, user: User) -> Optional[Dict[str, Any]]:
+        resp, e = self._send_request(method='GET',
+                                     relative_url=f'/v2/leads?email={user.email_address}')
+        if e:
+            current_app.logger.warning('Failed to create zendesk sell contact')
+            return None, False
+
+        try:
+            return resp.json()
+        except (json.JSONDecodeError, KeyError):
+            current_app.logger.warning(f'Invalid response: {resp.text}')
+            return None
+
+    def convert_lead_to_contact(self, lead_id: int) -> Optional[Dict[str, Any]]:
+        resp, e = self._send_request(method='POST',
+                                     relative_url=f'/v2/lead_conversions',
+                                     data=json.dumps(ZenDeskSell._generate_lead_conversion_data(lead_id)))
+        if e:
+            current_app.logger.warning('Failed to create zendesk sell contact')
+            return None, False
+
+        try:
+            return resp.json()
+        except (json.JSONDecodeError, KeyError):
+            current_app.logger.warning(f'Invalid response: {resp.text}')
+            return None
 
     def upsert_contact(self, user: User) -> (Optional[int], bool):
 
