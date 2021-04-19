@@ -53,10 +53,10 @@ def send_sms_to_provider(notification):
             notification.reply_to_text
         )
 
-        template_model = dao_get_template_by_id(notification.template_id, notification.template_version)
+        template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
 
         template = SMSMessageTemplate(
-            template_model.__dict__,
+            template_dict,
             values=notification.personalisation,
             prefix=service.name,
             show_prefix=service.prefix_sms,
@@ -84,8 +84,11 @@ def send_sms_to_provider(notification):
                 notification.billable_units = template.fragment_count
                 update_notification_to_sending(notification, provider)
 
-        delta_milliseconds = (datetime.utcnow() - notification.created_at).total_seconds() * 1000
-        statsd_client.timing("sms.total-time", delta_milliseconds)
+        # Record StatsD stats to compute SLOs
+        statsd_client.timing_with_dates("sms.total-time", notification.sent_at, notification.created_at)
+        statsd_key = f"sms.process_type-{template_dict['process_type']}"
+        statsd_client.timing_with_dates(statsd_key, notification.sent_at, notification.created_at)
+        statsd_client.incr(statsd_key)
 
 
 def send_email_to_provider(notification):
@@ -195,8 +198,12 @@ def send_email_to_provider(notification):
             notification.reference = reference
             update_notification_to_sending(notification, provider)
 
-        delta_milliseconds = (datetime.utcnow() - notification.created_at).total_seconds() * 1000
-        statsd_client.timing("email.total-time", delta_milliseconds)
+        # Record StatsD stats to compute SLOs
+        statsd_client.timing_with_dates("email.total-time", notification.sent_at, notification.created_at)
+        attachments_category = "with-attachments" if attachments else "no-attachments"
+        statsd_key = f"email.{attachments_category}.process_type-{template_dict['process_type']}"
+        statsd_client.timing_with_dates(statsd_key, notification.sent_at, notification.created_at)
+        statsd_client.incr(statsd_key)
 
 
 def update_notification_to_sending(notification, provider):
