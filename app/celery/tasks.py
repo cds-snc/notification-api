@@ -107,7 +107,8 @@ def process_job(job_id, sender_id=None):
     dao_update_job(job)
 
     # Record StatsD stats to compute SLOs
-    statsd_client.timing_with_dates('job.processing-start-delay', job.processing_started, job.scheduled_for)
+    job_start = job.scheduled_for or job.created_at
+    statsd_client.timing_with_dates('job.processing-start-delay', job.processing_started, job_start)
 
     db_template = dao_get_template_by_id(job.template_id, job.template_version)
 

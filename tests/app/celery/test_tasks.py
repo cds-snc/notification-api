@@ -124,7 +124,9 @@ def test_should_process_sms_job(sample_job, mocker):
     )
     job = jobs_dao.dao_get_job_by_id(sample_job.id)
     assert job.job_status == 'finished'
-    redis_mock.assert_called_once_with('job.processing-start-delay', job.processing_started, job.scheduled_for)
+    assert job.processing_started is not None
+    assert job.created_at is not None
+    redis_mock.assert_called_once_with('job.processing-start-delay', job.processing_started, job.created_at)
 
 
 def test_should_process_sms_job_with_sender_id(sample_job, mocker, fake_uuid):
@@ -289,7 +291,9 @@ def test_should_process_email_job(email_job_with_placeholders, mocker):
     )
     job = jobs_dao.dao_get_job_by_id(email_job_with_placeholders.id)
     assert job.job_status == 'finished'
-    redis_mock.assert_called_once_with('job.processing-start-delay', job.processing_started, job.scheduled_for)
+    assert job.processing_started is not None
+    assert job.created_at is not None
+    redis_mock.assert_called_once_with('job.processing-start-delay', job.processing_started, job.created_at)
 
 
 def test_should_process_email_job_with_sender_id(email_job_with_placeholders, mocker, fake_uuid):
