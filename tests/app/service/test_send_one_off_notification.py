@@ -6,7 +6,6 @@ from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import InvalidPhoneError
 
 from app.v2.errors import BadRequestError, TooManyRequestsError
-from app.config import QueueNames
 from app.dao.service_safelist_dao import dao_add_and_commit_safelisted_contacts
 from app.service.send_notification import send_one_off_notification
 from app.models import (
@@ -14,7 +13,6 @@ from app.models import (
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
     MOBILE_TYPE,
-    PRIORITY,
     SMS_TYPE,
     Notification,
     ServiceSafelist,
@@ -205,10 +203,11 @@ def test_send_one_off_notification_honors_research_mode(notify_db_session, persi
     assert celery_mock.call_args[1]['research_mode'] is True
 
 
-def test_send_one_off_notification_honors_priority(notify_db_session, persist_mock, celery_mock):
+@pytest.mark.parametrize("process_type", ['priority', 'bulk'])
+def test_send_one_off_notification_honors_process_type(notify_db_session, persist_mock, celery_mock, process_type):
     service = create_service()
     template = create_template(service=service)
-    template.process_type = PRIORITY
+    template.process_type = process_type
 
     post_data = {
         'template_id': str(template.id),
@@ -218,7 +217,7 @@ def test_send_one_off_notification_honors_priority(notify_db_session, persist_mo
 
     send_one_off_notification(service.id, post_data)
 
-    assert celery_mock.call_args[1]['queue'] == QueueNames.PRIORITY
+    assert celery_mock.call_args[1]['queue'] == f'{process_type}-tasks'
 
 
 def test_send_one_off_notification_raises_if_invalid_recipient(notify_db_session):

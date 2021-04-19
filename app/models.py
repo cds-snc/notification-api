@@ -37,6 +37,7 @@ from app import (
     encryption,
     DATETIME_FORMAT
 )
+from app.config import QueueNames
 
 from app.history_meta import Versioned
 
@@ -50,7 +51,8 @@ template_types = db.Enum(*TEMPLATE_TYPES, name='template_type')
 
 NORMAL = 'normal'
 PRIORITY = 'priority'
-TEMPLATE_PROCESS_TYPE = [NORMAL, PRIORITY]
+BULK = 'bulk'
+TEMPLATE_PROCESS_TYPE = [NORMAL, PRIORITY, BULK]
 
 
 SMS_AUTH_TYPE = 'sms_auth'
@@ -944,6 +946,13 @@ class TemplateBase(db.Model):
             nullable=False,
             default=NORMAL
         )
+
+    def queue_to_use(self):
+        return {
+            NORMAL: None,
+            PRIORITY: QueueNames.PRIORITY,
+            BULK: QueueNames.BULK,
+        }[self.process_type]
 
     redact_personalisation = association_proxy('template_redacted', 'redact_personalisation')
 

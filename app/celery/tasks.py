@@ -232,7 +232,11 @@ def save_sms(self,
             reply_to_text=reply_to_text
         )
 
-        send_notification_to_queue(saved_notification, service.research_mode)
+        send_notification_to_queue(
+            saved_notification,
+            service.research_mode,
+            queue=template.queue_to_use()
+        )
 
         current_app.logger.debug(
             "SMS {} created at {} for job {}".format(
@@ -283,7 +287,11 @@ def save_email(self,
             reply_to_text=reply_to_text
         )
 
-        send_notification_to_queue(saved_notification, service.research_mode)
+        send_notification_to_queue(
+            saved_notification,
+            service.research_mode,
+            queue=template.queue_to_use()
+        )
 
         current_app.logger.debug("Email {} created at {}".format(saved_notification.id, saved_notification.created_at))
     except SQLAlchemyError as e:

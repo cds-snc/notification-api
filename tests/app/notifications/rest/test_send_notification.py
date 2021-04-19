@@ -1043,17 +1043,25 @@ def test_create_template_raises_invalid_request_when_content_too_large(
             SMS_CHAR_COUNT_LIMIT)]}
 
 
-@pytest.mark.parametrize("notification_type, send_to",
-                         [("sms", "6502532222"),
-                          ("email", "sample@email.com")])
-def test_send_notification_uses_priority_queue_when_template_is_marked_as_priority(client, notify_db,
-                                                                                   notify_db_session, mocker,
-                                                                                   notification_type, send_to):
+@pytest.mark.parametrize("notification_type, send_to", [
+    ("sms", "6502532222"),
+    ("email", "sample@email.com")
+])
+@pytest.mark.parametrize("process_type", ['priority', 'bulk'])
+def test_send_notification_uses_appropriate_queue_when_template_has_process_type_set(
+    client,
+    notify_db,
+    notify_db_session,
+    mocker,
+    notification_type,
+    send_to,
+    process_type,
+):
     sample = create_sample_template(
         notify_db,
         notify_db_session,
         template_type=notification_type,
-        process_type='priority'
+        process_type=process_type
     )
     mocked = mocker.patch('app.celery.provider_tasks.deliver_{}.apply_async'.format(notification_type))
 
@@ -1073,7 +1081,7 @@ def test_send_notification_uses_priority_queue_when_template_is_marked_as_priori
     notification_id = response_data['notification']['id']
 
     assert response.status_code == 201
-    mocked.assert_called_once_with([notification_id], queue='priority-tasks')
+    mocked.assert_called_once_with([notification_id], queue=f'{process_type}-tasks')
 
 
 @pytest.mark.parametrize(

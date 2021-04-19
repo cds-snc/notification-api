@@ -91,7 +91,8 @@ def test_create_contact(notify_api: Flask, sample_service: Service):
         }
         rmock.request(
             "POST",
-            url=f'https://zendesksell-test.com/v2/contacts/upsert?email={sample_service.users[0].email_address}',
+            url=f'https://zendesksell-test.com/v2/contacts/upsert?'
+                f'custom_fields[notify_user_id]={str(sample_service.users[0].id)}',
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
             additional_matcher=match_json,
             status_code=200,
@@ -137,7 +138,8 @@ def test_upsert_contact(notify_api: Flask, sample_service: Service):
         }
         rmock.request(
             "POST",
-            url=f'https://zendesksell-test.com/v2/contacts/upsert?email={sample_service.users[0].email_address}',
+            url=f'https://zendesksell-test.com/v2/contacts/upsert?'
+                f'custom_fields[notify_user_id]={str(sample_service.users[0].id)}',
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
             additional_matcher=match_json,
             status_code=200,
@@ -182,7 +184,8 @@ def test_create_contact_invalid_response(notify_api: Flask,
     with requests_mock.mock() as rmock:
         rmock.request(
             "POST",
-            url=f'https://zendesksell-test.com/v2/contacts/upsert?email={sample_service.users[0].email_address}',
+            url=f'https://zendesksell-test.com/v2/contacts/upsert?'
+                f'custom_fields[notify_user_id]={str(sample_service.users[0].id)}',
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
             additional_matcher=match_json,
             status_code=200,
@@ -293,46 +296,66 @@ def test_create_deal_invalid_response(notify_api: Flask,
             assert not deal_id
 
 
-def test_send_create_service_contact_fail(
+@pytest.mark.parametrize('is_go_live', [False, True])
+def test_create_service_or_go_live_contact_fail(
         notify_api: Flask,
         sample_service: Service,
-        mocker: MockFixture):
+        mocker: MockFixture,
+        is_go_live: bool
+):
 
     upsert_contact_mock = mocker.patch('app.user.rest.ZenDeskSell.upsert_contact', return_value=(None, False))
     with notify_api.app_context():
-        assert not ZenDeskSell().send_create_service(sample_service, sample_service.users[0])
-        upsert_contact_mock.assert_called()
+        if is_go_live:
+            assert not ZenDeskSell().send_go_live_service(sample_service, sample_service.users[0])
+        else:
+            assert not ZenDeskSell().send_create_service(sample_service, sample_service.users[0])
+
+        upsert_contact_mock.assert_called_once_with(sample_service.users[0])
 
 
-def test_send_create_service_deal_fail(
+@pytest.mark.parametrize('is_go_live', [False, True])
+def test_create_service_or_go_live_deal_fail(
         notify_api: Flask,
         sample_service: Service,
-        mocker: MockFixture):
+        mocker: MockFixture,
+        is_go_live: bool
+):
 
     with requests_mock.mock() as rmock:
+        contact_id = 1
         rmock.request(
             "POST",
-            url=f'https://zendesksell-test.com/v2/contacts/upsert?email={sample_service.users[0].email_address}',
+            url=f'https://zendesksell-test.com/v2/contacts/upsert?'
+                f'custom_fields[notify_user_id]={str(sample_service.users[0].id)}',
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
             status_code=200,
-            text=json.dumps({'data': {'id': 1, 'created_at': '1', 'updated_at': '1'}})
+            text=json.dumps({'data': {'id': contact_id, 'created_at': '1', 'updated_at': '1'}})
         )
 
         mocker.patch('app.user.rest.ZenDeskSell.upsert_deal', return_value=None)
         contact_delete_mock = mocker.patch('app.user.rest.ZenDeskSell.delete_contact')
         with notify_api.app_context():
-            assert not ZenDeskSell().send_create_service(sample_service, sample_service.users[0])
-            contact_delete_mock.assert_called()
+            if is_go_live:
+                assert not ZenDeskSell().send_go_live_service(sample_service, sample_service.users[0])
+            else:
+                assert not ZenDeskSell().send_create_service(sample_service, sample_service.users[0])
+
+            contact_delete_mock.assert_called_once_with(contact_id)
 
 
-def test_send_create_service_deal_fail_contact_exists(
+@pytest.mark.parametrize('is_go_live', [False, True])
+def test_create_service_or_go_live_deal_fail_contact_exists(
         notify_api: Flask,
         sample_service: Service,
-        mocker: MockFixture):
+        mocker: MockFixture,
+        is_go_live: bool
+):
     with requests_mock.mock() as rmock:
         rmock.request(
             "POST",
-            url=f'https://zendesksell-test.com/v2/contacts/upsert?email={sample_service.users[0].email_address}',
+            url=f'https://zendesksell-test.com/v2/contacts/upsert?'
+                f'custom_fields[notify_user_id]={str(sample_service.users[0].id)}',
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
             status_code=200,
             text=json.dumps({'data': {'id': 1, 'created_at': '1', 'updated_at': '2'}})
@@ -341,7 +364,11 @@ def test_send_create_service_deal_fail_contact_exists(
         mocker.patch('app.user.rest.ZenDeskSell.upsert_deal', return_value=None)
         contact_delete_mock = mocker.patch('app.user.rest.ZenDeskSell.delete_contact')
         with notify_api.app_context():
-            assert not ZenDeskSell().send_create_service(sample_service, sample_service.users[0])
+            if is_go_live:
+                assert not ZenDeskSell().send_go_live_service(sample_service, sample_service.users[0])
+            else:
+                assert not ZenDeskSell().send_create_service(sample_service, sample_service.users[0])
+
             contact_delete_mock.assert_not_called()
 
 
@@ -350,9 +377,24 @@ def test_send_create_service(
         sample_service: Service,
         mocker: MockFixture):
 
-    upsert_contact_mock = mocker.patch('app.user.rest.ZenDeskSell.upsert_contact', return_value=(1, True))
+    contact_id = 1
+    upsert_contact_mock = mocker.patch('app.user.rest.ZenDeskSell.upsert_contact', return_value=(contact_id, True))
     upsert_deal_mock = mocker.patch('app.user.rest.ZenDeskSell.upsert_deal', return_value=1)
     with notify_api.app_context():
         assert ZenDeskSell().send_create_service(sample_service, sample_service.users[0])
-        upsert_contact_mock.assert_called()
-        upsert_deal_mock.assert_called()
+        upsert_contact_mock.assert_called_once_with(sample_service.users[0])
+        upsert_deal_mock.assert_called_once_with(contact_id, sample_service, ZenDeskSell.STATUS_CREATE_TRIAL)
+
+
+def test_send_go_live_service(
+        notify_api: Flask,
+        sample_service: Service,
+        mocker: MockFixture):
+
+    contact_id = 1
+    upsert_contact_mock = mocker.patch('app.user.rest.ZenDeskSell.upsert_contact', return_value=(contact_id, True))
+    upsert_deal_mock = mocker.patch('app.user.rest.ZenDeskSell.upsert_deal', return_value=1)
+    with notify_api.app_context():
+        assert ZenDeskSell().send_go_live_service(sample_service, sample_service.users[0])
+        upsert_contact_mock.assert_called_once_with(sample_service.users[0])
+        upsert_deal_mock.assert_called_once_with(contact_id, sample_service, ZenDeskSell.STATUS_CLOSE_LIVE)

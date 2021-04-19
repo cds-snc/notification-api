@@ -512,6 +512,34 @@ def test_should_put_save_sms_task_in_research_mode_queue_if_research_mode_servic
     assert mocked_deliver_sms.called
 
 
+@pytest.mark.parametrize("process_type", ['priority', 'bulk'])
+def test_should_route_save_sms_task_to_appropriate_queue_according_to_template_process_type(
+    notify_db,
+    notify_db_session,
+    mocker,
+    process_type
+):
+    service = create_service()
+    template = create_template(service=service, process_type=process_type)
+    notification = _notification_json(template, to="+1 650 253 2222")
+
+    mocked_deliver_sms = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+
+    notification_id = uuid.uuid4()
+
+    save_sms(
+        template.service_id,
+        notification_id,
+        encryption.encrypt(notification),
+    )
+    persisted_notification = Notification.query.one()
+    provider_tasks.deliver_sms.apply_async.assert_called_once_with(
+        [str(persisted_notification.id)],
+        queue=f"{process_type}-tasks"
+    )
+    assert mocked_deliver_sms.called
+
+
 def test_should_save_sms_if_restricted_service_and_valid_number(notify_db_session, mocker):
     user = create_user(mobile_number="6502532222")
     service = create_service(user=user, restricted=True)
@@ -639,6 +667,31 @@ def test_should_put_save_email_task_in_research_mode_queue_if_research_mode_serv
     provider_tasks.deliver_email.apply_async.assert_called_once_with(
         [str(persisted_notification.id)],
         queue="research-mode-tasks"
+    )
+
+
+@pytest.mark.parametrize("process_type", ['priority', 'bulk'])
+def test_should_route_save_email_task_to_appropriate_queue_according_to_template_process_type(
+    notify_db_session, mocker, process_type
+):
+    service = create_service()
+    template = create_template(service=service, template_type='email', process_type=process_type)
+    notification = _notification_json(template, to="test@test.com")
+
+    mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
+
+    notification_id = uuid.uuid4()
+
+    save_email(
+        template.service_id,
+        notification_id,
+        encryption.encrypt(notification),
+    )
+
+    persisted_notification = Notification.query.one()
+    provider_tasks.deliver_email.apply_async.assert_called_once_with(
+        [str(persisted_notification.id)],
+        queue=f"{process_type}-tasks"
     )
 
 

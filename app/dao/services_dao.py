@@ -527,3 +527,14 @@ def dao_fetch_active_users_for_service(service_id):
 def dao_services_by_partial_smtp_name(smtp_name):
     smtp_name = escape_special_characters(smtp_name)
     return Service.query.filter(Service.smtp_user.ilike("%{}%".format(smtp_name))).one()
+
+
+def dao_fetch_service_creator(service_id: uuid.UUID) -> User:
+    service_history = Service.get_history_model()
+    query = User.query.join(
+        service_history, User.id == service_history.created_by_id
+    ).filter(
+        service_history.id == service_id,
+        service_history.version == 1
+    ).one()
+    return query
