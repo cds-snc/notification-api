@@ -271,6 +271,8 @@ def update_service(service_id):
 
     if message_limit_changed:
         redis_store.delete(daily_limit_cache_key(service_id))
+        redis_store.delete(f"nearing-{daily_limit_cache_key(service_id)}")
+        redis_store.delete(f"over-{daily_limit_cache_key(service_id)}")
 
     dao_update_service(service)
 

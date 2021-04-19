@@ -2,7 +2,7 @@ import json
 import uuid
 from datetime import datetime, timedelta, date
 from functools import partial
-from unittest.mock import ANY
+from unittest.mock import call, ANY
 
 import pytest
 import pytest_mock
@@ -2213,7 +2213,11 @@ def test_update_service_updating_daily_limit_clears_redis_cache(
     )
 
     if expected_call:
-        redis_delete.assert_called_once_with(daily_limit_cache_key(service.id))
+        redis_delete.call_args_list == [
+            call(daily_limit_cache_key(service.id)),
+            call(f"nearing-{daily_limit_cache_key(service.id)}"),
+            call(f"over-{daily_limit_cache_key(service.id)}"),
+        ]
     else:
         redis_delete.assert_not_called()
 
