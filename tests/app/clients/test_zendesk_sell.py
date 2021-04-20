@@ -200,7 +200,7 @@ def test_convert_lead_to_contact(notify_api: Flask, sample_service: Service):
         )
         rmock.request(
             "POST",
-            url=f'https://zendesksell-test.com/v2/lead_conversions',
+            url='https://zendesksell-test.com/v2/lead_conversions',
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
             additional_matcher=match_json,
             status_code=200,
