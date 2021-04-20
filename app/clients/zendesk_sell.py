@@ -190,7 +190,7 @@ class ZenDeskSell(object):
             current_app.logger.warning(f'Invalid response: {resp.text}')
             return None
 
-    def upsert_contact(self, user: User, contact_id: str) -> (Optional[int], bool):
+    def upsert_contact(self, user: User, contact_id: Optional[str]) -> (Optional[int], bool):
 
         # The API and field definitions are defined here: https://developers.getbase.com/docs/rest/reference/contacts
         if contact_id:
