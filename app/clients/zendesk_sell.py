@@ -151,43 +151,55 @@ class ZenDeskSell(object):
 
         return resp.status_code
 
-    def search_lead(self, user: User) -> Optional[Dict[str, Any]]:
+    def search_lead_id(self, user: User) -> Optional[str]:
         resp, e = self._send_request(method='GET',
                                      relative_url=f'/v2/leads?email={user.email_address}')
         if e:
             current_app.logger.warning('Failed to create zendesk sell contact')
-            return None, False
+            return None
 
         try:
-            return resp.json()
+            # default to the first lead as we try to perform lead upsert
+            # There SHOULDN'T be any case where there is more than 1 entry
+            resp_dict = resp.json()
+            return resp_dict["items"][0]['data']['id']
         except (json.JSONDecodeError, KeyError):
             current_app.logger.warning(f'Invalid response: {resp.text}')
             return None
 
-    def convert_lead_to_contact(self, lead_id: int) -> Optional[Dict[str, Any]]:
+    def convert_lead_to_contact(self, user: User) -> Optional[str]:
+
+        lead_id = self.search_lead_id(user)
+        if not lead_id:
+            return None
 
         # The API and field definitions are defined here:
         # https://developers.getbase.com/docs/rest/reference/lead_conversions
 
         resp, e = self._send_request(method='POST',
-                                     relative_url=f'/v2/lead_conversions',
+                                     relative_url='/v2/lead_conversions',
                                      data=json.dumps(ZenDeskSell._generate_lead_conversion_data(lead_id)))
         if e:
             current_app.logger.warning('Failed to create zendesk sell contact')
-            return None, False
+            return None
 
         try:
-            return resp.json()
+            resp_dict = resp.json()
+            return resp_dict['data']['individual_id']
         except (json.JSONDecodeError, KeyError):
             current_app.logger.warning(f'Invalid response: {resp.text}')
             return None
 
-    def upsert_contact(self, user: User) -> (Optional[int], bool):
+    def upsert_contact(self, user: User, contact_id: str) -> (Optional[int], bool):
 
         # The API and field definitions are defined here: https://developers.getbase.com/docs/rest/reference/contacts
+        if contact_id:
+            rel_path = f'/v2/contacts/upsert?contact_id={contact_id}'
+        else:
+            rel_path = f'/v2/contacts/upsert?custom_fields[notify_user_id]={str(user.id)}'
+
         resp, e = self._send_request(method='POST',
-                                     relative_url=f'/v2/contacts/upsert?'
-                                                  f'custom_fields[notify_user_id]={str(user.id)}',
+                                     relative_url=rel_path,
                                      data=json.dumps(ZenDeskSell._generate_contact_data(user)))
         if e:
             current_app.logger.warning('Failed to create zendesk sell contact')
@@ -232,11 +244,11 @@ class ZenDeskSell(object):
             current_app.logger.warning(f'Invalid response: {resp.text}')
             return None
 
-    def _common_create_or_go_live(self, service: Service, user: User, status: int) -> bool:
+    def _common_create_or_go_live(self, service: Service, user: User, status: int, contact_id=None) -> bool:
         # Upsert a contact (create/update). Only when this is successful does the software upsert a deal
         # and link the deal to the contact.
         # If upsert deal fails go back and delete the contact ONLY if it never existed before
-        contact_id, is_created = self.upsert_contact(user)
+        contact_id, is_created = self.upsert_contact(user, contact_id)
         if not contact_id:
             return False
 
@@ -252,8 +264,19 @@ class ZenDeskSell(object):
         return self._common_create_or_go_live(service, user, ZenDeskSell.STATUS_CLOSE_LIVE)
 
     def send_create_service(self, service: Service, user: User) -> bool:
-        lead_id = self.search_lead(user)
-        self.convert_lead_to_contact(lead_id)
+        try:
+            contact_id = self.convert_lead_to_contact(user)
+            if contact_id:
+                return self._common_create_or_go_live(service,
+                                                      user,
+                                                      ZenDeskSell.STATUS_CREATE_TRIAL,
+                                                      contact_id=contact_id)
+            else:
+                return self._common_create_or_go_live(service, user, ZenDeskSell.STATUS_CREATE_TRIAL)
+        except Exception as e:
+            current_app.logger.warning(f'failed to convert a lead into a contact: {e}')
+
+        # still go through with upsert the contact and lead
         return self._common_create_or_go_live(service, user, ZenDeskSell.STATUS_CREATE_TRIAL)
 
     def send_contact_request(self, contact: ContactRequest) -> int:
