@@ -155,7 +155,7 @@ class ZenDeskSell(object):
         resp, e = self._send_request(method='GET',
                                      relative_url=f'/v2/leads?email={user.email_address}')
         if e:
-            current_app.logger.warning('Failed to create zendesk sell contact')
+            current_app.logger.warning('Failed to search for lead')
             return None
 
         try:
@@ -180,7 +180,7 @@ class ZenDeskSell(object):
                                      relative_url='/v2/lead_conversions',
                                      data=json.dumps(ZenDeskSell._generate_lead_conversion_data(lead_id)))
         if e:
-            current_app.logger.warning('Failed to create zendesk sell contact')
+            current_app.logger.warning('Failed to create convert a lead to a contact')
             return None
 
         try:

@@ -349,7 +349,7 @@ def test_create_service_or_go_live_contact_fail(
 
 @pytest.mark.parametrize('is_go_live,existing_contact_id', [
     (False, None),
-    (False, '1'),
+    (False, '2'),
     (True, None)
 ])
 def test_create_service_or_go_live_deal_fail(
@@ -416,7 +416,7 @@ def test_create_service_or_go_live_deal_fail_contact_exists(
             contact_delete_mock.assert_not_called()
 
 
-@pytest.mark.parametrize('existing_contact_id', [None, '1'])
+@pytest.mark.parametrize('existing_contact_id', [None, '2'])
 def test_send_create_service(
         notify_api: Flask,
         sample_service: Service,
