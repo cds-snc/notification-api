@@ -148,7 +148,7 @@ def test_should_update_notification_to_technical_failure_on_max_retries(client, 
         lookup_va_profile_id(notification.id)
 
     mocked_update_notification_status_by_id.assert_called_with(
-        notification.id, NOTIFICATION_TECHNICAL_FAILURE, status_reason='Max retries reached for MPI'
+        notification.id, NOTIFICATION_TECHNICAL_FAILURE, status_reason='Retryable MPI error occurred'
     )
 
 
@@ -206,7 +206,7 @@ def test_should_permanently_fail_and_clear_chain_when_permanent_failure_exceptio
         (
             MpiRetryableException('some error'),
             NOTIFICATION_TECHNICAL_FAILURE,
-            'Max retries reached for MPI',
+            MpiRetryableException.failure_reason,
             True
         ),
         (

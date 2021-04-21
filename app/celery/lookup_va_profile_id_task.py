@@ -40,7 +40,6 @@ def lookup_va_profile_id(self, notification_id):
                       f"The task lookup_va_profile_id failed for notification {notification_id}. " \
                       "Notification has been updated to technical-failure"
 
-            e.failure_reason = 'Max retries reached for MPI'
             notifications_dao.update_notification_status_by_id(
                 notification_id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=e.failure_reason
             )
