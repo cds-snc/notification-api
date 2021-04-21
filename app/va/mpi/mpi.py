@@ -1,5 +1,6 @@
 import requests
 from time import monotonic
+from http.client import responses
 from app.va.identifier import (
     IdentifierType,
     transform_to_fhir_format,
@@ -63,14 +64,26 @@ class MpiClient:
         except requests.HTTPError as e:
             self.statsd_client.incr(f"clients.mpi.error.{e.response.status_code}")
             message = f"MPI returned {str(e)} while querying for notification {notification_id}"
+
+            failure_reason = (
+                f'Received {responses[e.response.status_code]} HTTP error while making a request'
+                ' to obtain info from MPI'
+            )
+
             if e.response.status_code in [429, 500, 502, 503, 504]:
-                raise MpiRetryableException(message) from e
+                exception = MpiRetryableException(message)
+                exception.failure_reason = failure_reason
+                raise exception from e
             else:
-                raise MpiNonRetryableException(message) from e
+                exception = MpiNonRetryableException(message)
+                exception.failure_reason = failure_reason
+                raise exception from e
         except requests.RequestException as e:
             self.statsd_client.incr(f"clients.mpi.error.request_exception")
             message = f"MPI returned {str(e)} while querying for notification {notification_id}"
-            raise MpiRetryableException(message) from e
+            exception = MpiRetryableException(message)
+            exception.failure_reason = exception
+            raise exception from e
         else:
             self._validate_response(response.json(), notification_id, fhir_identifier)
             self.statsd_client.incr("clients.mpi.success")

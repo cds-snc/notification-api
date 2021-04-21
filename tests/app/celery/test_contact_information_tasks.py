@@ -222,7 +222,7 @@ def test_should_update_notification_to_permanent_failure_on_no_contact_info_exce
             VAProfileRetryableException,
             True,
             NOTIFICATION_TECHNICAL_FAILURE,
-            'Max retries reached for getting VAProfile info'
+            VAProfileRetryableException.failure_reason
         ),
         (
             NoContactInfoException,

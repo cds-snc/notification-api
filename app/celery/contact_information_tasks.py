@@ -40,8 +40,6 @@ def lookup_contact_info(self, notification_id):
                 'Notification has been updated to technical-failure'
             )
 
-            e.failure_reason = 'Max retries reached for getting VAProfile info'
-
             update_notification_status_by_id(
                 notification_id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=e.failure_reason
             )
