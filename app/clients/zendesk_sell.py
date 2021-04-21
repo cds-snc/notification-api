@@ -193,14 +193,19 @@ class ZenDeskSell(object):
     def upsert_contact(self, user: User, contact_id: Optional[str]) -> (Optional[int], bool):
 
         # The API and field definitions are defined here: https://developers.getbase.com/docs/rest/reference/contacts
+        data = json.dumps(ZenDeskSell._generate_contact_data(user))
         if contact_id:
-            rel_path = f'/v2/contacts/upsert?contact_id={contact_id}'
+            # explicit update as '/upsert?contact_id=<value>' is not reliable
+            resp, e = self._send_request(
+                method='PUT',
+                relative_url=f'/v2/contacts/{contact_id}',
+                data=data)
         else:
-            rel_path = f'/v2/contacts/upsert?custom_fields[notify_user_id]={str(user.id)}'
+            resp, e = self._send_request(
+                method='POST',
+                relative_url=f'/v2/contacts/upsert?custom_fields[notify_user_id]={str(user.id)}',
+                data=data)
 
-        resp, e = self._send_request(method='POST',
-                                     relative_url=rel_path,
-                                     data=json.dumps(ZenDeskSell._generate_contact_data(user)))
         if e:
             current_app.logger.warning('Failed to create zendesk sell contact')
             return None, False

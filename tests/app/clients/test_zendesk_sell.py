@@ -61,10 +61,14 @@ def test_create_lead_missing_name(notify_api: Flask):
 
 def generate_contact_url(existing_contact_id: Optional[str], service: Service) -> str:
     if existing_contact_id:
-        return f'https://zendesksell-test.com/v2/contacts/upsert?contact_id={existing_contact_id}'
+        return f'https://zendesksell-test.com/v2/contacts/{existing_contact_id}'
     else:
         return f'https://zendesksell-test.com/v2/contacts/upsert?' \
                f'custom_fields[notify_user_id]={str(service.users[0].id)}'
+
+
+def contact_http_method(existing_contact_id: Optional[str]):
+    return 'PUT' if existing_contact_id else 'POST'
 
 
 @pytest.mark.parametrize('existing_contact_id,created_at,updated_at,expected_created', [
@@ -110,13 +114,12 @@ def test_create_or_upsert_contact(
             }
         }
         rmock.request(
-            "POST",
+            contact_http_method(existing_contact_id),
             url=generate_contact_url(existing_contact_id, sample_service),
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
             additional_matcher=match_json,
             status_code=200,
             text=json.dumps(resp_data)
-
         )
         with notify_api.app_context():
             contact_id, is_created = ZenDeskSell().upsert_contact(sample_service.users[0], existing_contact_id)
@@ -159,7 +162,7 @@ def test_create_contact_invalid_response(notify_api: Flask,
 
     with requests_mock.mock() as rmock:
         rmock.request(
-            "POST",
+            contact_http_method(existing_contact_id),
             url=generate_contact_url(existing_contact_id, sample_service),
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
             additional_matcher=match_json,
@@ -363,7 +366,7 @@ def test_create_service_or_go_live_deal_fail(
     with requests_mock.mock() as rmock:
         contact_id = existing_contact_id or '1'
         rmock.request(
-            "POST",
+            contact_http_method(existing_contact_id),
             url=generate_contact_url(existing_contact_id, sample_service),
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
             status_code=200,
@@ -397,7 +400,7 @@ def test_create_service_or_go_live_deal_fail_contact_exists(
     with requests_mock.mock() as rmock:
         contact_id = existing_contact_id or '1'
         rmock.request(
-            "POST",
+            contact_http_method(existing_contact_id),
             url=generate_contact_url(existing_contact_id, sample_service),
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
             status_code=200,
