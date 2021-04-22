@@ -108,10 +108,15 @@ class VAProfileClient:
             response_status = response_json['status']
             if response_status != self.SUCCESS_STATUS:
                 self.statsd_client.incr(f"clients.va-profile.error.{response_status}")
-                raise VAProfileNonRetryableException(
-                    f"Response status was {response_status} for VA Profile ID {va_profile_id} "
-                    f"with AuditId {response_json.get(self.TX_AUDIT_ID)}"
+
+                message = (
+                    f'Response status was {response_status} for VA Profile ID {va_profile_id} '
+                    f'with AuditId {response_json.get(self.TX_AUDIT_ID)}'
                 )
+
+                exception = VAProfileNonRetryableException(message)
+                exception.failure_reason = message
+                raise exception
             self._validate_response(response_json, va_profile_id, bio_type)
 
             self.statsd_client.incr("clients.va-profile.success")
