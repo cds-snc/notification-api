@@ -212,7 +212,7 @@ def test_ses_callback_should_update_multiple_notification_status_sent(
 
 @pytest.mark.parametrize('bounce_subtype, provider_response', [
     ['General', None],
-    ['AttachmentRejected', 'Email was rejected because of its attachments'],
+    ['AttachmentRejected', 'The email was rejected because of its attachments'],
 ])
 def test_ses_callback_should_set_status_to_temporary_failure(
     notify_db,
@@ -245,8 +245,8 @@ def test_ses_callback_should_set_status_to_temporary_failure(
 
 @pytest.mark.parametrize('bounce_subtype, provider_response', [
     ['General', None],
-    ['Suppressed', 'Email address is on our email provider suppression list'],
-    ['OnAccountSuppressionList', 'Email address is on the GC Notify suppression list'],
+    ['Suppressed', 'The email address is on our email provider suppression list'],
+    ['OnAccountSuppressionList', 'The email address is on the GC Notify suppression list'],
 ])
 def test_ses_callback_should_set_status_to_permanent_failure(
     notify_db,

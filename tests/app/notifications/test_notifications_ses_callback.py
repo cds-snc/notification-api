@@ -59,7 +59,7 @@ from tests.app.db import (
             'message': 'Hard bounced',
             'success': False,
             'notification_status': 'permanent-failure',
-            'provider_response': 'Email address is on our email provider suppression list',
+            'provider_response': 'The email address is on our email provider suppression list',
         }
     ),
     (
@@ -69,7 +69,7 @@ from tests.app.db import (
             'message': 'Hard bounced',
             'success': False,
             'notification_status': 'permanent-failure',
-            'provider_response': 'Email address is on the GC Notify suppression list',
+            'provider_response': 'The email address is on the GC Notify suppression list',
         }
     ),
     (
@@ -79,7 +79,7 @@ from tests.app.db import (
             'message': 'Soft bounced',
             'success': False,
             'notification_status': 'temporary-failure',
-            'provider_response': 'Email was rejected because of its attachments',
+            'provider_response': 'The email was rejected because of its attachments',
         }
     ),
     (
