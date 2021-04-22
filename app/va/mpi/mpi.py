@@ -80,7 +80,7 @@ class MpiClient:
                 raise exception from e
         except requests.RequestException as e:
             self.statsd_client.incr(f"clients.mpi.error.request_exception")
-            message = f"MPI returned {str(e)} while querying for notification {notification_id}"
+            message = f"MPI returned RequestException while querying for notification {notification_id}"
             exception = MpiRetryableException(message)
             exception.failure_reason = exception
             raise exception from e

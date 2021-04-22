@@ -96,7 +96,7 @@ class VAProfileClient:
         except requests.RequestException as e:
             self.statsd_client.incr(f"clients.va-profile.error.request_exception")
 
-            failure_message = f'VA Profile returned {str(e)} while querying for VA Profile ID'
+            failure_message = f'VA Profile returned RequestException while querying for VA Profile ID'
 
             exception = VAProfileRetryableException(failure_message)
             exception.failure_reason = failure_message
