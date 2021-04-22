@@ -205,18 +205,18 @@ def ses_notification_callback(reference):
     }
 
 
-def ses_hard_bounce_callback(reference):
-    return _ses_bounce_callback(reference, 'Permanent')
+def ses_hard_bounce_callback(reference, bounce_subtype=None):
+    return _ses_bounce_callback(reference, 'Permanent', bounce_subtype)
 
 
-def ses_soft_bounce_callback(reference):
-    return _ses_bounce_callback(reference, 'Temporary')
+def ses_soft_bounce_callback(reference, bounce_subtype=None):
+    return _ses_bounce_callback(reference, 'Transient', bounce_subtype)
 
 
-def _ses_bounce_callback(reference, bounce_type):
+def _ses_bounce_callback(reference, bounce_type, bounce_subtype=None):
     ses_message_body = {
         'bounce': {
-            'bounceSubType': 'General',
+            'bounceSubType': bounce_subtype or 'General',
             'bounceType': bounce_type,
             'bouncedRecipients': [{
                 'action': 'failed',

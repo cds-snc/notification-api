@@ -5,42 +5,10 @@ from time import monotonic
 from notifications_utils.recipients import InvalidEmailError
 from unidecode import unidecode
 
-from app.clients import STATISTICS_DELIVERED, STATISTICS_FAILURE
 from app.clients.email import (EmailClientException, EmailClient)
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
-
-ses_response_map = {
-    'Permanent': {
-        "message": 'Hard bounced',
-        "success": False,
-        "notification_status": 'permanent-failure',
-        "notification_statistics_status": STATISTICS_FAILURE
-    },
-    'Temporary': {
-        "message": 'Soft bounced',
-        "success": False,
-        "notification_status": 'temporary-failure',
-        "notification_statistics_status": STATISTICS_FAILURE
-    },
-    'Delivery': {
-        "message": 'Delivered',
-        "success": True,
-        "notification_status": 'delivered',
-        "notification_statistics_status": STATISTICS_DELIVERED
-    },
-    'Complaint': {
-        "message": 'Complaint',
-        "success": True,
-        "notification_status": 'delivered',
-        "notification_statistics_status": STATISTICS_DELIVERED
-    }
-}
-
-
-def get_aws_responses(status):
-    return ses_response_map[status]
 
 
 class AwsSesClientException(EmailClientException):

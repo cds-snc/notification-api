@@ -6,7 +6,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.dao.notifications_dao import get_notification_by_id
 from app.models import Complaint
-from app.notifications.notifications_ses_callback import handle_complaint, handle_smtp_complaint
+from app.notifications.notifications_ses_callback import (
+    get_aws_responses,
+    handle_complaint,
+    handle_smtp_complaint,
+)
 
 from tests.app.conftest import sample_notification as create_sample_notification
 from tests.app.db import (
@@ -15,6 +19,96 @@ from tests.app.db import (
     ses_complaint_callback,
     create_notification_history
 )
+
+
+@pytest.mark.parametrize('notification_type, bounce_message, expected', [
+    (
+        'Delivery',
+        {},
+        {
+            'message': 'Delivered',
+            'success': True,
+            'notification_status': 'delivered',
+            'provider_response': None,
+        }
+    ),
+    (
+        'Complaint',
+        {},
+        {
+            'message': 'Complaint',
+            'success': True,
+            'notification_status': 'delivered',
+            'provider_response': None,
+        }
+    ),
+    (
+        'Bounce',
+        {'bounceType': 'Permanent', 'bounceSubType': 'NoEmail'},
+        {
+            'message': 'Hard bounced',
+            'success': False,
+            'notification_status': 'permanent-failure',
+            'provider_response': None,
+        }
+    ),
+    (
+        'Bounce',
+        {'bounceType': 'Permanent', 'bounceSubType': 'Suppressed'},
+        {
+            'message': 'Hard bounced',
+            'success': False,
+            'notification_status': 'permanent-failure',
+            'provider_response': 'The email address is on our email provider suppression list',
+        }
+    ),
+    (
+        'Bounce',
+        {'bounceType': 'Permanent', 'bounceSubType': 'OnAccountSuppressionList'},
+        {
+            'message': 'Hard bounced',
+            'success': False,
+            'notification_status': 'permanent-failure',
+            'provider_response': 'The email address is on the GC Notify suppression list',
+        }
+    ),
+    (
+        'Bounce',
+        {'bounceType': 'Transient', 'bounceSubType': 'AttachmentRejected'},
+        {
+            'message': 'Soft bounced',
+            'success': False,
+            'notification_status': 'temporary-failure',
+            'provider_response': 'The email was rejected because of its attachments',
+        }
+    ),
+    (
+        'Bounce',
+        {'bounceType': 'Transient', 'bounceSubType': 'MailboxFull'},
+        {
+            'message': 'Soft bounced',
+            'success': False,
+            'notification_status': 'temporary-failure',
+            'provider_response': None,
+        }
+    ),
+])
+def test_get_aws_responses(notify_api, notification_type, bounce_message, expected):
+    with notify_api.test_request_context():
+        assert get_aws_responses(
+            {
+                'notificationType': notification_type,
+                'bounce': {'bouncedRecipients': 'fake'} | bounce_message,
+                'mail': {'destination': "fake"},
+            }
+        ) == expected
+
+
+def test_get_aws_responses_should_be_none_if_unrecognised_status_code(notify_api):
+    with notify_api.test_request_context():
+        with pytest.raises(KeyError) as e:
+            get_aws_responses({'notificationType': '99'})
+        assert '99' in str(e.value)
 
 
 def test_ses_callback_should_not_set_status_once_status_is_delivered(client,

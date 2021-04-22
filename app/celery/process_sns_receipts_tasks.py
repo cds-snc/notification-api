@@ -66,7 +66,7 @@ def process_sns_results(self, response):
         notifications_dao._update_notification_status(
             notification=notification,
             status=notification_status,
-            provider_response=provider_response
+            provider_response=provider_response if notification_status == NOTIFICATION_TECHNICAL_FAILURE else None
         )
 
         if notification_status != NOTIFICATION_DELIVERED:

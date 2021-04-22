@@ -11,13 +11,12 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import notify_celery, statsd_client
 from app.config import QueueNames
-from app.clients.email.aws_ses import get_aws_responses
 from app.dao import notifications_dao, services_dao, templates_dao
 from app.models import NOTIFICATION_SENDING, NOTIFICATION_PENDING, EMAIL_TYPE, KEY_TYPE_NORMAL
 from app.notifications import process_notifications
 from app.notifications.callbacks import _check_and_queue_callback_task
 from app.notifications.notifications_ses_callback import (
-    determine_notification_bounce_type,
+    get_aws_responses,
     handle_complaint,
     handle_smtp_complaint,
     _check_and_queue_complaint_callback_task,
@@ -41,13 +40,11 @@ def process_ses_results(self, response):
         ses_message = json.loads(response['Message'])
         notification_type = ses_message['notificationType']
 
-        if notification_type == 'Bounce':
-            notification_type = determine_notification_bounce_type(notification_type, ses_message)
-        elif notification_type == 'Complaint':
+        if notification_type == 'Complaint':
             _check_and_queue_complaint_callback_task(*handle_complaint(ses_message))
             return True
 
-        aws_response_dict = get_aws_responses(notification_type)
+        aws_response_dict = get_aws_responses(ses_message)
 
         notification_status = aws_response_dict['notification_status']
         reference = ses_message['mail']['messageId']
@@ -68,7 +65,11 @@ def process_ses_results(self, response):
             notifications_dao._duplicate_update_warning(notification, notification_status)
             return
 
-        notifications_dao._update_notification_status(notification=notification, status=notification_status)
+        notifications_dao._update_notification_status(
+            notification=notification,
+            status=notification_status,
+            provider_response=aws_response_dict['provider_response'],
+        )
 
         if not aws_response_dict['success']:
             current_app.logger.info(
@@ -113,11 +114,7 @@ def process_ses_smtp_results(self, response):
         source = ses_message['mail']['source']
         recipients = ses_message['mail']['destination']
 
-        if notification_type == 'Bounce':
-            notification_type = determine_notification_bounce_type(notification_type, ses_message)
-
-        aws_response_dict = get_aws_responses(notification_type)
-
+        aws_response_dict = get_aws_responses(ses_message)
         notification_status = aws_response_dict['notification_status']
 
         try:
