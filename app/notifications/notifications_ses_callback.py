@@ -16,14 +16,68 @@ from app.celery.service_callback_tasks import (
 from app.config import QueueNames
 
 
-def determine_notification_bounce_type(notification_type, ses_message):
+def _determine_notification_bounce_type(ses_message):
+    notification_type = ses_message['notificationType']
+    if notification_type in ['Delivery', 'Complaint']:
+        return notification_type
+
+    if notification_type != 'Bounce':
+        raise KeyError(f"Unhandled notification type {notification_type}")
+
     remove_emails_from_bounce(ses_message)
     current_app.logger.info('SES bounce dict: {}'.format(json.dumps(ses_message).replace('{', '(').replace('}', ')')))
     if ses_message['bounce']['bounceType'] == 'Permanent':
-        notification_type = ses_message['bounce']['bounceType']  # permanent or not
-    else:
-        notification_type = 'Temporary'
-    return notification_type
+        return 'Permanent'
+    return 'Temporary'
+
+
+def _determine_provider_response(ses_message):
+    if ses_message['notificationType'] != 'Bounce':
+        return None
+
+    bounce_type = ses_message['bounce']['bounceType']
+    bounce_subtype = ses_message['bounce']['bounceSubType']
+
+    # See https://docs.aws.amazon.com/ses/latest/DeveloperGuide/event-publishing-retrieving-sns-contents.html
+    if bounce_type == 'Permanent' and bounce_subtype == 'Suppressed':
+        return 'Email address is on the Amazon suppression list'
+    elif bounce_type == 'Permanent' and bounce_subtype == 'OnAccountSuppressionList':
+        return 'Email address is on the GC Notify suppression list'
+    elif bounce_type == 'Transient' and bounce_subtype == 'AttachmentRejected':
+        return 'Email was rejected because of its attachments'
+
+    return None
+
+
+def get_aws_responses(ses_message):
+    status = _determine_notification_bounce_type(ses_message)
+
+    base = {
+        'Permanent': {
+            "message": 'Hard bounced',
+            "success": False,
+            "notification_status": 'permanent-failure',
+        },
+        'Temporary': {
+            "message": 'Soft bounced',
+            "success": False,
+            "notification_status": 'temporary-failure',
+        },
+        'Delivery': {
+            "message": 'Delivered',
+            "success": True,
+            "notification_status": 'delivered',
+        },
+        'Complaint': {
+            "message": 'Complaint',
+            "success": True,
+            "notification_status": 'delivered',
+        }
+    }[status]
+
+    base['provider_response'] = _determine_provider_response(ses_message)
+
+    return base
 
 
 def handle_complaint(ses_message):

@@ -3,6 +3,7 @@ from datetime import datetime
 
 
 from freezegun import freeze_time
+import pytest
 
 
 from app import statsd_client, encryption
@@ -86,7 +87,9 @@ def test_ses_callback_should_update_notification_status(
         assert get_notification_by_id(notification.id).status == 'sending'
 
         assert process_ses_results(ses_notification_callback(reference='ref'))
-        assert get_notification_by_id(notification.id).status == 'delivered'
+        notification = get_notification_by_id(notification.id)
+        assert notification.status == 'delivered'
+        assert notification.provider_response is None
         statsd_client.timing_with_dates.assert_any_call(
             "callback.ses.elapsed-time", datetime.utcnow(), notification.sent_at
         )
@@ -161,7 +164,9 @@ def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
         assert get_notification_by_id(notification.id).status == 'sending'
 
         assert process_ses_results(ses_notification_callback(reference='ref'))
-        assert get_notification_by_id(notification.id).status == 'delivered'
+        notification = get_notification_by_id(notification.id)
+        assert notification.status == 'delivered'
+        assert notification.provider_response is None
 
         send_mock.assert_not_called()
 
@@ -205,11 +210,17 @@ def test_ses_callback_should_update_multiple_notification_status_sent(
     assert send_mock.called
 
 
+@pytest.mark.parametrize('bounce_subtype, provider_response', [
+    ['General', None],
+    ['AttachmentRejected', 'Email was rejected because of its attachments'],
+])
 def test_ses_callback_should_set_status_to_temporary_failure(
     notify_db,
     notify_db_session,
     sample_email_template,
-    mocker
+    mocker,
+    bounce_subtype,
+    provider_response,
 ):
     send_mock = mocker.patch(
         'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
@@ -224,16 +235,26 @@ def test_ses_callback_should_set_status_to_temporary_failure(
     )
     create_service_callback_api(service=notification.service, url="https://original_url.com")
     assert get_notification_by_id(notification.id).status == 'sending'
-    assert process_ses_results(ses_soft_bounce_callback(reference='ref'))
-    assert get_notification_by_id(notification.id).status == 'temporary-failure'
+    assert process_ses_results(ses_soft_bounce_callback(reference='ref', bounce_subtype=bounce_subtype))
+
+    notification = get_notification_by_id(notification.id)
+    assert notification.status == 'temporary-failure'
+    assert notification.provider_response == provider_response
     assert send_mock.called
 
 
+@pytest.mark.parametrize('bounce_subtype, provider_response', [
+    ['General', None],
+    ['Suppressed', 'Email address is on the Amazon suppression list'],
+    ['OnAccountSuppressionList', 'Email address is on the GC Notify suppression list'],
+])
 def test_ses_callback_should_set_status_to_permanent_failure(
     notify_db,
     notify_db_session,
     sample_email_template,
-    mocker
+    mocker,
+    bounce_subtype,
+    provider_response,
 ):
     send_mock = mocker.patch(
         'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
@@ -249,8 +270,11 @@ def test_ses_callback_should_set_status_to_permanent_failure(
     create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
 
     assert get_notification_by_id(notification.id).status == 'sending'
-    assert process_ses_results(ses_hard_bounce_callback(reference='ref'))
-    assert get_notification_by_id(notification.id).status == 'permanent-failure'
+    assert process_ses_results(ses_hard_bounce_callback(reference='ref', bounce_subtype=bounce_subtype))
+
+    notification = get_notification_by_id(notification.id)
+    assert notification.status == 'permanent-failure'
+    assert notification.provider_response == provider_response
     assert send_mock.called
 
 

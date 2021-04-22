@@ -96,7 +96,7 @@ def country_records_delivery(phone_prefix):
 def _update_notification_status(notification, status, provider_response=None):
     status = _decide_permanent_temporary_failure(current_status=notification.status, status=status)
     notification.status = status
-    if status == NOTIFICATION_TECHNICAL_FAILURE and provider_response:
+    if provider_response:
         notification.provider_response = provider_response
     dao_update_notification(notification)
     return notification

@@ -12,11 +12,6 @@ class Client(object):
     pass
 
 
-STATISTICS_REQUESTED = 'requested'
-STATISTICS_DELIVERED = 'delivered'
-STATISTICS_FAILURE = 'failure'
-
-
 class Clients(object):
     sms_clients = {}
     email_clients = {}
