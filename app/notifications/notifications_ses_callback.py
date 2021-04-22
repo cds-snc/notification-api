@@ -40,7 +40,7 @@ def _determine_provider_response(ses_message):
 
     # See https://docs.aws.amazon.com/ses/latest/DeveloperGuide/event-publishing-retrieving-sns-contents.html
     if bounce_type == 'Permanent' and bounce_subtype == 'Suppressed':
-        return 'Email address is on the Amazon suppression list'
+        return 'Email address is on our email provider suppression list'
     elif bounce_type == 'Permanent' and bounce_subtype == 'OnAccountSuppressionList':
         return 'Email address is on the GC Notify suppression list'
     elif bounce_type == 'Transient' and bounce_subtype == 'AttachmentRejected':

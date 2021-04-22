@@ -59,7 +59,7 @@ from tests.app.db import (
             'message': 'Hard bounced',
             'success': False,
             'notification_status': 'permanent-failure',
-            'provider_response': 'Email address is on the Amazon suppression list',
+            'provider_response': 'Email address is on our email provider suppression list',
         }
     ),
     (

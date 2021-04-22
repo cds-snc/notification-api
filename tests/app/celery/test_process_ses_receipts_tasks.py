@@ -245,7 +245,7 @@ def test_ses_callback_should_set_status_to_temporary_failure(
 
 @pytest.mark.parametrize('bounce_subtype, provider_response', [
     ['General', None],
-    ['Suppressed', 'Email address is on the Amazon suppression list'],
+    ['Suppressed', 'Email address is on our email provider suppression list'],
     ['OnAccountSuppressionList', 'Email address is on the GC Notify suppression list'],
 ])
 def test_ses_callback_should_set_status_to_permanent_failure(
