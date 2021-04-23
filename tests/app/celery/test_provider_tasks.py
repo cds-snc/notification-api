@@ -1,3 +1,5 @@
+from unittest.mock import call
+
 import pytest
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
@@ -126,11 +128,15 @@ def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_email_task
 def test_should_technical_error_and_not_retry_if_invalid_email(sample_notification, mocker):
     mocker.patch('app.delivery.send_to_providers.send_email_to_provider', side_effect=InvalidEmailError('bad email'))
     mocker.patch('app.celery.provider_tasks.deliver_email.retry')
+    logger = mocker.patch('app.celery.provider_tasks.current_app.logger.info')
 
     deliver_email(sample_notification.id)
 
     assert provider_tasks.deliver_email.retry.called is False
     assert sample_notification.status == 'technical-failure'
+    assert call(
+        f'Cannot send notification {sample_notification.id}, got an invalid email address: bad email.'
+    ) in logger.call_args_list
 
 
 def test_should_retry_and_log_exception(sample_notification, mocker):
