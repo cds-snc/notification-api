@@ -103,6 +103,7 @@ def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_sms_task(
 ):
     mocker.patch('app.delivery.send_to_providers.send_sms_to_provider', side_effect=Exception("EXPECTED"))
     mocker.patch(f'app.celery.provider_tasks.{sms_method_name}.retry', side_effect=MaxRetriesExceededError())
+    queued_callback = mocker.patch('app.celery.provider_tasks._check_and_queue_callback_task')
 
     with pytest.raises(NotificationTechnicalFailureException) as e:
         sms_method(sample_notification.id)
@@ -111,11 +112,13 @@ def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_sms_task(
     getattr(provider_tasks, sms_method_name).retry.assert_called_with(queue="retry-tasks", countdown=0)
 
     assert sample_notification.status == 'technical-failure'
+    queued_callback.assert_called_once_with(sample_notification)
 
 
 def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_email_task(sample_notification, mocker):
     mocker.patch('app.delivery.send_to_providers.send_email_to_provider', side_effect=Exception("EXPECTED"))
     mocker.patch('app.celery.provider_tasks.deliver_email.retry', side_effect=MaxRetriesExceededError())
+    queued_callback = mocker.patch('app.celery.provider_tasks._check_and_queue_callback_task')
 
     with pytest.raises(NotificationTechnicalFailureException) as e:
         deliver_email(sample_notification.id)
@@ -123,12 +126,14 @@ def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_email_task
 
     provider_tasks.deliver_email.retry.assert_called_with(queue="retry-tasks")
     assert sample_notification.status == 'technical-failure'
+    queued_callback.assert_called_once_with(sample_notification)
 
 
 def test_should_technical_error_and_not_retry_if_invalid_email(sample_notification, mocker):
     mocker.patch('app.delivery.send_to_providers.send_email_to_provider', side_effect=InvalidEmailError('bad email'))
     mocker.patch('app.celery.provider_tasks.deliver_email.retry')
     logger = mocker.patch('app.celery.provider_tasks.current_app.logger.info')
+    queued_callback = mocker.patch('app.celery.provider_tasks._check_and_queue_callback_task')
 
     deliver_email(sample_notification.id)
 
@@ -137,6 +142,7 @@ def test_should_technical_error_and_not_retry_if_invalid_email(sample_notificati
     assert call(
         f'Cannot send notification {sample_notification.id}, got an invalid email address: bad email.'
     ) in logger.call_args_list
+    queued_callback.assert_called_once_with(sample_notification)
 
 
 def test_should_retry_and_log_exception(sample_notification, mocker):
