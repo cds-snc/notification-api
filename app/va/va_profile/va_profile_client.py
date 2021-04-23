@@ -78,8 +78,8 @@ class VAProfileClient:
             self.statsd_client.incr(f"clients.va-profile.error.{e.response.status_code}")
 
             failure_reason = (
-                f'Received {responses[e.response.status_code]} HTTP error while making a request'
-                f' to obtain contact info from VA Profile'
+                f'Received {responses[e.response.status_code]} HTTP error ({e.response.status_code}) while making a '
+                'request to obtain contact info from VA Profile'
             )
 
             if e.response.status_code in [429, 500, 502, 503, 504]:

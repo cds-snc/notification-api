@@ -66,8 +66,8 @@ class MpiClient:
             message = f"MPI returned {str(e)} while querying for notification {notification_id}"
 
             failure_reason = (
-                f'Received {responses[e.response.status_code]} HTTP error while making a request'
-                ' to obtain info from MPI'
+                f'Received {responses[e.response.status_code]} HTTP error ({e.response.status_code}) while '
+                'making a request to obtain info from MPI'
             )
 
             if e.response.status_code in [429, 500, 502, 503, 504]:
