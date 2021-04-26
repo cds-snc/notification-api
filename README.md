@@ -42,6 +42,7 @@ Contains:
     - [Bandit](#bandit)
     - [Safety](#safety)
   - [Testing template changes](#testing-template-changes)
+  - [Using Mountebank stubs for MPI/VAProfile](#using-mountebank-stubs)
   - [Frequent problems](#frequent-problems)
 
 ---
@@ -496,6 +497,38 @@ This will allow to easily revert local copy of notifications-utils in sites-pack
     ```commandline
     pip install -r requirements.txt
     ```
+
+---
+
+## Using Mountebank Stubs
+
+We have some stubs set up for making requests to MPI and VA Profile located in `scripts/mountebank/stubs`. In order to
+hit these, start up the app locally with Docker and make sure the mountebank container is running properly.
+
+To hit the MPI endpoints, make a POST request to send a notification with the following information instead of the
+email/phone number in the payload:
+
+```
+"recipient_identifier": {
+        "id_type": "PID",
+        "id_value": <id value in stub url>
+},
+```
+
+The ID value in the stub url is the number after `Patient/` and before the % sign (e.g., `400400` for
+`/psim_webservice/fhir/Patient/400400%5EPI%5E200CORP%5EUSVBA$`).
+
+For the VA Profile endpoints, make the same POST request to send a notification but use the following information
+instead of an email/phone number in the payload:
+
+```
+"recipient_identifier": {
+        "id_type": "VAPROFILEID",
+        "id_value": <id value in stub url>
+},
+```
+
+The ID value in the stub url is the number after `v1/` (e.g., `2003` for `/cuf/contact-information/v1/2003/emails$`).
 
 ---
 
