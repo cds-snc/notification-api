@@ -10,6 +10,7 @@ from app.dao.notifications_dao import update_notification_status_by_id
 from app.delivery import send_to_providers
 from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException
 from app.models import NOTIFICATION_TECHNICAL_FAILURE
+from app.notifications.callbacks import _check_and_queue_callback_task
 
 
 # Celery rate limits are per worker instance and not a global rate limit.
@@ -61,7 +62,8 @@ def deliver_email(self, notification_id):
         current_app.logger.info(
             f"Cannot send notification {notification_id}, got an invalid email address: {str(e)}."
         )
-        update_notification_status_by_id(notification_id, 'technical-failure')
+        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        _check_and_queue_callback_task(notification)
     except MalwarePendingException:
         current_app.logger.info(
             "RETRY: Email notification {} is pending malware scans".format(notification_id))
@@ -77,6 +79,7 @@ def deliver_email(self, notification_id):
                       "The task send_email_to_provider failed for notification {}. " \
                       "Notification has been updated to technical-failure".format(notification_id)
             update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+            _check_and_queue_callback_task(notification)
             raise NotificationTechnicalFailureException(message)
 
 
@@ -100,4 +103,5 @@ def _deliver_sms(self, notification_id):
             message = "RETRY FAILED: Max retries reached. The task send_sms_to_provider failed for notification {}. " \
                       "Notification has been updated to technical-failure".format(notification_id)
             update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+            _check_and_queue_callback_task(notification)
             raise NotificationTechnicalFailureException(message)
