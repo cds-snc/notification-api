@@ -7,7 +7,7 @@ import pytest
 
 
 from app import statsd_client, encryption
-from app.celery.process_ses_receipts_tasks import process_ses_results, process_ses_smtp_results
+from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.research_mode_tasks import ses_hard_bounce_callback, ses_soft_bounce_callback, ses_notification_callback
 from app.notifications.callbacks import create_delivery_status_callback_data
 from app.dao.notifications_dao import get_notification_by_id
@@ -17,11 +17,7 @@ from app.notifications.notifications_ses_callback import remove_emails_from_comp
 from tests.app.db import (
     create_notification,
     ses_complaint_callback,
-    ses_smtp_complaint_callback,
     create_service_callback_api,
-    ses_smtp_notification_callback,
-    ses_smtp_hard_bounce_callback,
-    ses_smtp_soft_bounce_callback
 )
 from tests.app.conftest import sample_notification as create_sample_notification
 
@@ -302,69 +298,3 @@ def test_ses_callback_should_send_on_complaint_to_user_callback_api(sample_email
         'service_callback_api_url': 'https://original_url.com',
         'to': 'recipient1@example.com'
     }
-
-
-def test_process_ses_smtp_results(sample_email_template, smtp_template):
-    create_notification(template=sample_email_template)
-    assert process_ses_smtp_results(response=ses_smtp_notification_callback())
-
-
-def test_process_ses_smtp_results_in_complaint(sample_email_template, mocker, smtp_template):
-    create_notification(template=sample_email_template, reference='ref1')
-    mocked = mocker.patch("app.dao.notifications_dao.update_notification_status_by_reference")
-    process_ses_smtp_results(response=ses_smtp_complaint_callback())
-    assert mocked.call_count == 0
-    complaints = Complaint.query.all()
-    assert len(complaints) == 1
-
-
-def test_ses_smtp_callback_should_set_status_to_temporary_failure(
-    notify_db,
-    notify_db_session,
-    sample_email_template,
-    smtp_template,
-    mocker
-):
-    send_mock = mocker.patch(
-        'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
-    )
-    notification = create_notification(template=sample_email_template, reference='ref1')
-
-    create_service_callback_api(service=notification.service, url="https://original_url.com")
-
-    assert process_ses_smtp_results(ses_smtp_soft_bounce_callback(reference='ref'))
-    assert send_mock.called
-
-
-def test_ses_smtp_callback_should_set_status_to_permanent_failure(
-    notify_db,
-    notify_db_session,
-    sample_email_template,
-    smtp_template,
-    mocker
-):
-    send_mock = mocker.patch(
-        'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
-    )
-    create_notification(template=sample_email_template, reference='ref1')
-
-    create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
-
-    assert process_ses_smtp_results(ses_smtp_hard_bounce_callback(reference='ref'))
-    assert send_mock.called
-
-
-def test_ses_smtp_callback_should_send_on_complaint_to_user_callback_api(smtp_template, sample_email_template, mocker):
-    send_mock = mocker.patch(
-        'app.celery.service_callback_tasks.send_complaint_to_service.apply_async'
-    )
-    create_service_callback_api(
-        service=sample_email_template.service, url="https://original_url.com", callback_type="complaint"
-    )
-
-    create_notification(template=sample_email_template, reference='ref1')
-
-    response = ses_smtp_complaint_callback()
-    assert process_ses_smtp_results(response)
-
-    assert send_mock.call_count == 1

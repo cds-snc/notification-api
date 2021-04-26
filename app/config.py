@@ -149,7 +149,6 @@ class Config(object):
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
     AWS_ROUTE53_ZONE = os.getenv("AWS_ROUTE53_ZONE", "Z2OW036USASMAK")
     AWS_SES_REGION = os.getenv("AWS_SES_REGION", "us-east-1")
-    AWS_SES_SMTP = os.getenv("AWS_SES_SMTP", "email-smtp.us-east-1.amazonaws.com")
     AWS_SES_ACCESS_KEY = os.getenv('AWS_SES_ACCESS_KEY')
     AWS_SES_SECRET_KEY = os.getenv('AWS_SES_SECRET_KEY')
     AWS_PINPOINT_REGION = os.getenv('AWS_PINPOINT_REGION', "us-west-2")
@@ -199,7 +198,6 @@ class Config(object):
     ACCOUNT_CHANGE_TEMPLATE_ID = '5b39e16a-9ff8-487c-9bfb-9e06bdb70f36'
     BRANDING_REQUEST_TEMPLATE_ID = '7d423d9e-e94e-4118-879d-d52f383206ae'
     NO_REPLY_TEMPLATE_ID = '86950840-6da4-4865-841b-16028110e980'
-    SMTP_TEMPLATE_ID = '3a4cab41-c47d-4d49-96ba-f4c4fa91d44b'
     NEAR_DAILY_LIMIT_TEMPLATE_ID = '5d3e4322-4ee6-457a-a710-c48755f6b643'
     REACHED_DAILY_LIMIT_TEMPLATE_ID = 'fd29f796-fcdc-471b-a0d4-0093880d9173'
 
