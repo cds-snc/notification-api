@@ -55,7 +55,7 @@ services:
       retries: 5
   mountebank:
     container_name: mountebank
-    image: bbyars/mountebank:latest
+    image: bbyars/mountebank:2.3.3
     volumes:
       - ../scripts/mountebank:/mountebank
     ports:
