@@ -113,7 +113,6 @@ def create_service(
         go_live_at=None,
         crown=True,
         organisation=None,
-        smtp_user=None
 ):
     if check_if_service_exists:
         service = Service.query.filter_by(name=service_name).first()
@@ -129,7 +128,6 @@ def create_service(
             go_live_user=go_live_user,
             go_live_at=go_live_at,
             crown=crown,
-            smtp_user=smtp_user
         )
         dao_create_service(service, service.created_by, service_id, service_permissions=service_permissions)
 
@@ -806,21 +804,6 @@ def ses_complaint_callback():
     }
 
 
-def ses_smtp_complaint_callback():
-    """
-    https://docs.aws.amazon.com/ses/latest/DeveloperGuide/notification-contents.html#complaint-object
-    """
-    return {
-        'Signature': 'bb',
-        'SignatureVersion': '1', 'MessageAttributes': {}, 'MessageId': '98c6e927-af5d-5f3b-9522-bab736f2cbde',
-        'UnsubscribeUrl': 'https://sns.eu-west-1.amazonaws.com',
-        'TopicArn': 'arn:ses_notifications', 'Type': 'Notification',
-        'Timestamp': '2018-06-05T14:00:15.952Z', 'Subject': None,
-        'Message':  "{\"notificationType\":\"Complaint\",\"complaint\":{\"complaintSubType\":null,\"complainedRecipients\":[{\"emailAddress\":\"complaint@simulator.amazonses.com\"}],\"timestamp\":\"2020-02-18T14:34:53.000Z\",\"feedbackId\":\"0100017058b9253c-10257f1d-9a33-4352-8b34-f6c9f0bd2c74-000000\",\"userAgent\":\"Amazon SES Mailbox Simulator\",\"complaintFeedbackType\":\"abuse\"},\"mail\":{\"timestamp\":\"2020-02-18T14:34:52.000Z\",\"source\":\"test@smtp_user\",\"sourceArn\":\"arn:aws:ses:ca-central-1:248983331664:identity/smtp_user\",\"sourceIp\":\"\",\"sendingAccountId\":\"\",\"messageId\":\"0100017058b9230e-6bd4bb0b-0d37-4690-97c7-ca25b4b40755-000000\",\"destination\":[\"complaint@simulator.amazonses.com\"],\"headersTruncated\":false,\"headers\":[{\"name\":\"Received\",\"value\":\"from Maxs-MacBook-Pro.local (CPE704ca52f06e7-CMf81d0fa26620.cpe.net.cable.rogers.com []) by email-smtp.amazonaws.com with SMTP (SimpleEmailService-d-P4XJ6SAG2) id Ayj6eL5Zy9bZQqaeWP88 for complaint@simulator.amazonses.com; Tue, 18 Feb 2020 14:34:52 +0000 (UTC)\"},{\"name\":\"Content-Type\",\"value\":\"multipart/alternative; boundary=\\\"--_NmP-959c1f6221c7e029-Part_1\\\"\"},{\"name\":\"From\",\"value\":\"Max Neuvians <test@smtp_user>\"},{\"name\":\"To\",\"value\":\"complaint@simulator.amazonses.com\"},{\"name\":\"Subject\",\"value\":\"Hello ✔\"},{\"name\":\"Message-ID\",\"value\":\"<b0c7ad2d-6eb6-04e6-797f-e22d63781b20@smtp_user>\"},{\"name\":\"Date\",\"value\":\"Tue, 18 Feb 2020 14:34:52 +0000\"},{\"name\":\"MIME-Version\",\"value\":\"1.0\"}],\"commonHeaders\":{\"from\":[\"Max Neuvians <test@smtp_user>\"],\"date\":\"Tue, 18 Feb 2020 14:34:52 +0000\",\"to\":[\"complaint@simulator.amazonses.com\"],\"messageId\":\"<b0c7ad2d-6eb6-04e6-797f-e22d63781b20@smtp_user>\",\"subject\":\"Hello ✔\"}}}",  # noqa
-        'SigningCertUrl': 'https://sns.pem'
-    }
-
-
 def ses_notification_callback():
     return '{\n  "Type" : "Notification",\n  "MessageId" : "ref1",' \
            '\n  "TopicArn" : "arn:aws:sns:eu-west-1:123456789012:testing",' \
@@ -842,26 +825,6 @@ def ses_notification_callback():
            'dd426d95ee9390147a5624348ee.pem",' \
            '\n  "UnsubscribeURL" : "https://sns.eu-west-1.amazonaws.com/?Action=Unsubscribe&S' \
            'subscriptionArn=arn:aws:sns:eu-west-1:302763885840:preview-emails:d6aad3ef-83d6-4cf3-a470-54e2e75916da"\n}'
-
-
-def ses_smtp_notification_callback():
-    return {
-        'Signature': 'bb',
-        'SignatureVersion': '1', 'MessageAttributes': {}, 'MessageId': '98c6e927-af5d-5f3b-9522-bab736f2cbde',
-        'UnsubscribeUrl': 'https://sns.eu-west-1.amazonaws.com',
-        'TopicArn': 'arn:ses_notifications', 'Type': 'Notification',
-        'Timestamp': '2018-06-05T14:00:15.952Z', 'Subject': None,
-        'Message':  "{\"notificationType\":\"Delivery\",\"mail\":{\"timestamp\":\"2020-02-18T14:34:53.070Z\",\"source\":\"test@smtp_user\",\"sourceArn\":\"arn:aws:ses:ca-central-1:248983331664:identity/smtp_user\",\"sourceIp\":\"\",\"sendingAccountId\":\"248983331664\",\"messageId\":\"0100017058b9230e-6bd4bb0b-0d37-4690-97c7-ca25b4b40755-000000\",\"destination\":[\"complaint@simulator.amazonses.com\"],\"headersTruncated\":false,\"headers\":[{\"name\":\"Received\",\"value\":\"from Maxs-MacBook-Pro.local () by email-smtp.amazonaws.com with SMTP (SimpleEmailService-d-P4XJ6SAG2) id Ayj6eL5Zy9bZQqaeWP88 for complaint@simulator.amazonses.com; Tue, 18 Feb 2020 14:34:52 +0000 (UTC)\"},{\"name\":\"Content-Type\",\"value\":\"multipart/alternative; boundary=\\\"--_NmP-959c1f6221c7e029-Part_1\\\"\"},{\"name\":\"From\",\"value\":\"Max Neuvians <test@smtp_user>\"},{\"name\":\"To\",\"value\":\"complaint@simulator.amazonses.com\"},{\"name\":\"Subject\",\"value\":\"Hello ✔\"},{\"name\":\"Message-ID\",\"value\":\"<b0c7ad2d-6eb6-04e6-797f-e22d63781b20@smtp_user>\"},{\"name\":\"Date\",\"value\":\"Tue, 18 Feb 2020 14:34:52 +0000\"},{\"name\":\"MIME-Version\",\"value\":\"1.0\"}],\"commonHeaders\":{\"from\":[\"Max Neuvians <test@smtp_user>\"],\"date\":\"Tue, 18 Feb 2020 14:34:52 +0000\",\"to\":[\"complaint@simulator.amazonses.com\"],\"messageId\":\"<b0c7ad2d-6eb6-04e6-797f-e22d63781b20@smtp_user>\",\"subject\":\"Hello ✔\"}},\"delivery\":{\"timestamp\":\"2020-02-18T14:34:53.519Z\",\"processingTimeMillis\":449,\"recipients\":[\"complaint@simulator.amazonses.com\"],\"smtpResponse\":\"250 2.6.0 Message received\",\"remoteMtaIp\":\"34.204.216.130\",\"reportingMTA\":\"a8-90.smtp-out.amazonses.com\"}}",  # noqa
-        'SigningCertUrl': 'https://sns.pem'
-    }
-
-
-def ses_smtp_hard_bounce_callback(reference):
-    return _ses_bounce_callback(reference, 'Permanent')
-
-
-def ses_smtp_soft_bounce_callback(reference):
-    return _ses_bounce_callback(reference, 'Temporary')
 
 
 def _ses_bounce_callback(reference, bounce_type):

@@ -307,7 +307,7 @@ def sample_email_template(
             user=user,
             service_permissions=permissions,
             check_if_service_exists=True,
-            smtp_user="smtp_user")
+        )
     data = {
         'name': template_name,
         'template_type': template_type,
@@ -993,19 +993,6 @@ def change_email_confirmation_template(notify_db,
         template_type='email'
     )
     return template
-
-
-@pytest.fixture(scope='function')
-def smtp_template(notify_db, notify_db_session):
-    service, user = notify_service(notify_db, notify_db_session)
-    return create_custom_template(
-        service=service,
-        user=user,
-        template_config_name='SMTP_TEMPLATE_ID',
-        content=('((message))'),
-        subject='((subject))',
-        template_type='email'
-    )
 
 
 @pytest.fixture(scope='function')

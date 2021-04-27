@@ -35,7 +35,6 @@ from app.dao.services_dao import (
     dao_fetch_service_by_inbound_number,
     dao_fetch_service_creator,
     get_services_by_partial_name,
-    dao_services_by_partial_smtp_name
 )
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from app.dao.users_dao import save_model_user, create_user_code
@@ -1132,9 +1131,3 @@ def create_email_sms_letter_template():
     template_two = create_template(service=service, template_name='2', template_type='sms')
     template_three = create_template(service=service, template_name='3', template_type='letter')
     return template_one, template_three, template_two
-
-
-def test_dao_services_by_partial_smtp_name(notify_db_session):
-    create_service(service_name="SMTP CHAMP", smtp_user="smtp_champ")
-    services_from_db = dao_services_by_partial_smtp_name("smtp")
-    assert services_from_db.name == "SMTP CHAMP"
