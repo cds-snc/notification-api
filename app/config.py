@@ -430,10 +430,9 @@ class Config(object):
 
     GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', '')
     GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '')
-    TEST_SECRET = os.getenv('TEST_SECRET', '')
 
     JWT_ACCESS_COOKIE_NAME = 'vanotify_api_access_token'
-    UI_HOST_NAME = 'http://dev.notifications.local:3000'
+    UI_HOST_NAME = os.getenv('UI_HOST_NAME', 'http://localhost:3000')
 
     SESSION_COOKIE_SECURE = False
 
