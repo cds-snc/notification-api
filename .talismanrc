@@ -50,7 +50,7 @@ fileignoreconfig:
     - filename: .env.example
       checksum: 6242425670a169d0b5698f38bf80379715ccc36710db21aeb19aef1d13802c8d
     - filename: ci/.docker-env.example
-      checksum: 34c06da71b332f852adcc79f4ec8597b066e6664a9c605be96db566563949d81
+      checksum: bcdc1399f1bead93f69578908271b493f6c66170b48a231a6dd330b33eb15a0d
     - filename: app/config.py
       checksum: fc23095eea0a9f6c4c1c7069e956dac3ccd11b2e5c1f68fff3d851a0ff468962
     - filename: load_testing/.envrc.example

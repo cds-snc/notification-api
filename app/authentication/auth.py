@@ -1,4 +1,6 @@
 from flask import request, _request_ctx_stack, current_app, g
+from flask_jwt_extended import verify_jwt_in_request, current_user
+from flask_jwt_extended.config import config
 from notifications_python_client.authentication import decode_jwt_token, get_token_issuer
 from notifications_python_client.errors import TokenDecodeError, TokenExpiredError, TokenIssuerError
 from notifications_utils import request_helper
@@ -59,6 +61,33 @@ def requires_admin_auth():
         return handle_admin_key(auth_token, current_app.config.get('ADMIN_CLIENT_SECRET'))
     else:
         raise AuthError('Unauthorized, admin authentication token required', 401)
+
+
+def requires_admin_auth_or_permission_for_service(permission: str):
+
+    def _requires_admin_auth_or_permission_for_service():
+
+        # when fetching data, the browser may send a pre-flight OPTIONS request.
+        # the W3 spec for CORS pre-flight requests states that user credentials should be excluded.
+        # hence, for OPTIONS requests, we should skip authentication
+        # see https://stackoverflow.com/a/15734032
+        if request.method in config.exempt_methods:
+            return
+
+        try:
+            service_id = request.view_args.get('service_id')
+            verify_jwt_in_request()
+            user_permissions = current_user.get_permissions(service_id)
+            if permission in user_permissions:
+                pass
+            else:
+                current_app.logger.info(f'{permission} not in permissions for service {service_id}')
+                requires_admin_auth()
+        except Exception as e:
+            current_app.logger.info(f'could not read claims from token: {e}')
+            requires_admin_auth()
+
+    return _requires_admin_auth_or_permission_for_service
 
 
 def requires_auth():

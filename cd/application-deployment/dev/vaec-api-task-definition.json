@@ -109,6 +109,14 @@
         {
           "name": "NOTIFICATION_FAILURE_REASON_ENABLED",
           "value": "True"
+        },
+        {
+          "name": "GITHUB_LOGIN_ENABLED",
+          "value": "True"
+        },
+        {
+          "name": "UI_HOST_NAME",
+          "value": "http://internal-dev-notification-ui-alb-909345191.us-gov-west-1.elb.amazonaws.com"
         }
       ],
       "secrets": [
@@ -151,6 +159,14 @@
         {
           "name": "VANOTIFY_SSL_KEY",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/cert/vanotify-va-key"
+        },
+        {
+          "name": "GITHUB_CLIENT_ID",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/github-client-id"
+        },
+        {
+          "name": "GITHUB_CLIENT_SECRET",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/github-client-secret"
         }
       ]
     },

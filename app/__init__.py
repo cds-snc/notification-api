@@ -5,6 +5,7 @@ import uuid
 from dotenv import load_dotenv
 
 from flask import _request_ctx_stack, request, g, jsonify, make_response
+from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy as _SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
@@ -28,6 +29,7 @@ from app.clients.sms.aws_sns import AwsSnsClient
 from app.clients.sms.twilio import TwilioSMSClient
 from app.clients.sms.aws_pinpoint import AwsPinpointClient
 from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
+from app.oauth.registry import oauth_registry
 from app.va.va_profile import VAProfileClient
 from app.va.mpi import MpiClient
 from app.encryption import Encryption
@@ -79,6 +81,8 @@ va_profile_client = VAProfileClient()
 mpi_client = MpiClient()
 
 clients = Clients()
+
+from app.oauth.jwt_manager import jwt  # noqa
 
 from app.provider_details.provider_service import ProviderService # noqa
 provider_service = ProviderService()
@@ -169,12 +173,18 @@ def create_app(application):
         sms_provider_selection_strategy_label=application.config['SMS_PROVIDER_SELECTION_STRATEGY_LABEL']
     )
 
+    oauth_registry.init_app(application)
+
+    jwt.init_app(application)
+
     register_blueprint(application)
     register_v2_blueprints(application)
 
     # avoid circular imports by importing this file later
     from app.commands import setup_commands
     setup_commands(application)
+
+    CORS(application)
 
     return application
 
@@ -198,7 +208,12 @@ def register_blueprint(application):
     from app.inbound_number.rest import inbound_number_blueprint
     from app.inbound_sms.rest import inbound_sms as inbound_sms_blueprint
     from app.notifications.notifications_govdelivery_callback import govdelivery_callback_blueprint
-    from app.authentication.auth import requires_admin_auth, requires_auth, requires_no_auth
+    from app.authentication.auth import (
+        requires_admin_auth,
+        requires_auth,
+        requires_no_auth,
+        requires_admin_auth_or_permission_for_service
+    )
     from app.letters.rest import letter_job
     from app.billing.rest import billing_blueprint
     from app.organisation.rest import organisation_blueprint
@@ -207,6 +222,7 @@ def register_blueprint(application):
     from app.platform_stats.rest import platform_stats_blueprint
     from app.template_folder.rest import template_folder_blueprint
     from app.letter_branding.letter_branding_rest import letter_branding_blueprint
+    from app.oauth.rest import oauth_blueprint
 
     service_blueprint.before_request(requires_admin_auth)
     application.register_blueprint(service_blueprint, url_prefix='/service')
@@ -214,11 +230,14 @@ def register_blueprint(application):
     user_blueprint.before_request(requires_admin_auth)
     application.register_blueprint(user_blueprint, url_prefix='/user')
 
-    template_blueprint.before_request(requires_admin_auth)
+    template_blueprint.before_request(requires_admin_auth_or_permission_for_service('manage_templates'))
     application.register_blueprint(template_blueprint)
 
     status_blueprint.before_request(requires_no_auth)
     application.register_blueprint(status_blueprint)
+
+    oauth_blueprint.before_request(requires_no_auth)
+    application.register_blueprint(oauth_blueprint)
 
     govdelivery_callback_blueprint.before_request(requires_no_auth)
     application.register_blueprint(govdelivery_callback_blueprint)
@@ -324,13 +343,6 @@ def init_app(app):
     def record_request_details():
         g.start = monotonic()
         g.endpoint = request.endpoint
-
-    @app.after_request
-    def after_request(response):
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
-        return response
 
     @app.errorhandler(Exception)
     def exception(error):

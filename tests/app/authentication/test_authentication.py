@@ -2,6 +2,10 @@ import jwt
 import uuid
 import time
 from datetime import datetime
+
+from flask_jwt_extended import create_access_token
+
+from tests.app.db import create_user, create_service
 from tests.conftest import set_config_values
 
 import pytest
@@ -12,7 +16,8 @@ from notifications_python_client.authentication import create_jwt_token
 from app import api_user
 from app.dao.api_key_dao import get_unsigned_secrets, save_model_api_key, get_unsigned_secret, expire_api_key
 from app.models import ApiKey, KEY_TYPE_NORMAL
-from app.authentication.auth import AuthError, requires_admin_auth, requires_auth
+from app.authentication.auth import AuthError, requires_admin_auth, requires_auth, \
+    requires_admin_auth_or_permission_for_service
 
 from tests.conftest import set_config
 
@@ -54,7 +59,7 @@ def test_should_not_allow_request_with_no_iss(client, auth_fn):
         'iat': int(time.time())
     }
 
-    token = jwt.encode(payload=claims, key=str(uuid.uuid4()), headers=headers).decode()
+    token = jwt.encode(payload=claims, key=str(uuid.uuid4()), headers=headers)
 
     request.headers = {'Authorization': 'Bearer {}'.format(token)}
     with pytest.raises(AuthError) as exc:
@@ -75,7 +80,7 @@ def test_auth_should_not_allow_request_with_no_iat(client, sample_api_key):
         # 'iat': not provided
     }
 
-    token = jwt.encode(payload=claims, key=str(uuid.uuid4()), headers=headers).decode()
+    token = jwt.encode(payload=claims, key=str(uuid.uuid4()), headers=headers)
 
     request.headers = {'Authorization': 'Bearer {}'.format(token)}
     with pytest.raises(AuthError) as exc:
@@ -97,7 +102,7 @@ def test_admin_auth_should_not_allow_request_with_no_iat(client, sample_api_key)
         # 'iat': not provided
     }
 
-    token = jwt.encode(payload=claims, key=str(uuid.uuid4()), headers=headers).decode()
+    token = jwt.encode(payload=claims, key=str(uuid.uuid4()), headers=headers)
 
     request.headers = {'Authorization': 'Bearer {}'.format(token)}
     with pytest.raises(AuthError) as exc:
@@ -106,7 +111,7 @@ def test_admin_auth_should_not_allow_request_with_no_iat(client, sample_api_key)
 
 
 def test_should_not_allow_invalid_secret(client, sample_api_key):
-    token = create_jwt_token(
+    token = create_jwt_token(  # nosec
         secret="not-so-secret",
         client_id=str(sample_api_key.service_id))
     response = client.get(
@@ -370,3 +375,17 @@ def test_proxy_key_on_admin_auth_endpoint(notify_api, check_proxy_header, header
                 ]
             )
         assert response.status_code == expected_status
+
+
+class TestRequiresAdminAuthOrPermissionForService:
+
+    def test_accepts_jwt_with_permission_for_service(self, client, db_session):
+
+        user = create_user()
+        service = create_service(service_name='some-service', user=user)
+
+        token = create_access_token(identity=user)
+
+        request.view_args['service_id'] = service.id
+        request.headers = {'Authorization': 'Bearer {}'.format(token)}
+        requires_admin_auth_or_permission_for_service('manage_templates')()

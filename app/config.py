@@ -428,6 +428,15 @@ class Config(object):
         RelyingParty(os.getenv('FIDO2_DOMAIN', 'localhost'), 'Notification'),
         verify_origin=lambda x: True)
 
+    GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', '')
+    GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '')
+    TEST_SECRET = os.getenv('TEST_SECRET', '')
+
+    JWT_ACCESS_COOKIE_NAME = 'vanotify_api_access_token'
+    UI_HOST_NAME = 'http://dev.notifications.local:3000'
+
+    SESSION_COOKIE_SECURE = False
+
     # Feature flags
     GOVDELIVERY_EMAIL_CLIENT_ENABLED = True
     API_RATE_LIMIT_ENABLED = False
@@ -539,6 +548,8 @@ class Staging(Config):
     # We are using this for Pinpoint as default ORIGINATION NUMBER
     FROM_NUMBER = '+18555420534'
 
+    SESSION_COOKIE_SECURE = True
+
 
 class Production(Config):
     # CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
@@ -554,6 +565,8 @@ class Production(Config):
     # When a service is created, this gets saved as default sms_sender
     # We are using this for Pinpoint as default ORIGINATION NUMBER
     FROM_NUMBER = '+18334981539'
+
+    SESSION_COOKIE_SECURE = True
 
 
 configs = {

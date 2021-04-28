@@ -1,0 +1,57 @@
+@startuml
+
+title Github Oauth2 Login
+
+participant "notification-ui\njust front-end JS\n(cannot have secret)" as ui
+participant "notification-api\n(can have secret)" as api
+participant Github
+
+activate ui
+
+ui -> api: Click "Login with Github"\n(""GET <api>/login"")
+
+activate api
+api -> Github: Request access token\n(must include secret)
+
+activate Github
+Github -> Github: Verify client
+Github -> Github: User consent
+Github -> api: Return access token
+
+api -> Github: Get Github profile info
+deactivate Github
+
+api -> api: Verify that user is part of VA organisation
+
+api -> api: Load or create user profile
+api -> api: Generate new JWT token for user
+
+api -> ui: Redirect to UI\n(set HTTP-only cookie for API domain with newly generated JWT token)\n(UI can't access the cookie because it's for a different domain)
+deactivate api
+
+ui -> api: ""GET <api>/redeem-token""\nbrowser automatically includes cookie (because it's for the API domain)
+activate api
+api -> api: Validate CORS\nso that only the UI can hit this endpoint
+api-> api: Validate token in cookies
+api -> ui: Respond with the token in body
+ui -> ui: Store token in application memory
+
+ui -> api: Get user info\n(including JWT token in header)
+
+api -> api: Validates token from request header
+api -> ui: Return user info
+deactivate api
+
+...
+
+ui -> api: Request resource\n(eg ""GET <api>/templates"")\n(including JWT token)
+
+activate api
+api -> api: Validate token
+
+api -> ui: Return resource
+
+deactivate api
+
+hide footbox
+@enduml
