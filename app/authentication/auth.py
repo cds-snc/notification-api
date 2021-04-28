@@ -155,6 +155,8 @@ def __get_token_issuer(auth_token):
         raise AuthError("Invalid token: iss field not provided", 403)
     except TokenDecodeError:
         raise AuthError("Invalid token: signature, api token is not valid", 403)
+    except PyJWTError as e:
+        raise AuthError(f"Invalid token: {str(e)}", 403)
     return client
 
 
