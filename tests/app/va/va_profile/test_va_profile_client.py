@@ -1,4 +1,5 @@
 import pytest
+from requests import RequestException
 from requests_mock import ANY
 
 from app.va.va_profile import (
@@ -566,3 +567,16 @@ def test_get_email_raises_non_retryable_exception(notify_api, rmock, test_va_pro
 
     with pytest.raises(VAProfileNonRetryableException):
         test_va_profile_client.get_email('1')
+
+
+def test_should_throw_va_retryable_exception_when_request_exception_is_thrown(
+        test_va_profile_client, mocker):
+    mocker.patch('app.va.va_profile.va_profile_client.requests.get', side_effect=RequestException)
+
+    with pytest.raises(VAProfileRetryableException) as e:
+        test_va_profile_client.get_email('1')
+
+        assert (
+            e.value.failure_reason
+            == 'VA Profile returned RequestException while querying for VA Profile ID'
+        )

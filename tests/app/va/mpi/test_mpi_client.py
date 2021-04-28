@@ -1,5 +1,7 @@
 import pytest
 from copy import deepcopy
+
+from requests import RequestException
 from requests_mock import ANY
 from requests.utils import quote
 
@@ -278,3 +280,15 @@ class TestGetVaProfileId:
 
         mpi_client.statsd_client.incr.assert_any_call("clients.mpi.success")
         mpi_client.statsd_client.incr.assert_called_with("clients.mpi.get_va_profile_id.beneficiary_deceased")
+
+    def test_should_throw_mpi_retryable_exception_when_request_exception_is_thrown(
+            self, mpi_client, notification_with_recipient_identifier, mocker):
+        mocker.patch('app.va.mpi.mpi.requests.get', side_effect=RequestException)
+
+        with pytest.raises(MpiRetryableException) as e:
+            mpi_client.get_va_profile_id(notification_with_recipient_identifier)
+
+            assert (
+                e.value.failure_reason
+                == 'MPI returned RequestException while querying for FHIR identifier'
+            )
