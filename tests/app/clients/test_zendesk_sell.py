@@ -331,18 +331,16 @@ def test_create_note(notify_api: Flask):
             'data': {
                 'resource_type': 'deal',
                 'resource_id': resource_id,
-                'content': '\n'.join([
-                    'Live Notes',
-                    'service_name just requested to go live.',
-                    '',
-                    '- Department/org: department_org_name',
-                    '- Intended recipients: intended_recipients',
-                    '- Purpose: main_use_case',
-                    '- Notification types: notification_types',
-                    '- Expected monthly volume: expected_volume',
-                    '---',
-                    'service_url'
-                    ])
+                'content': '\n'.join(['Live Notes',
+                                      'service_name just requested to go live.',
+                                      '',
+                                      '- Department/org: department_org_name',
+                                      '- Intended recipients: intended_recipients',
+                                      '- Purpose: main_use_case',
+                                      '- Notification types: notification_types',
+                                      '- Expected monthly volume: expected_volume',
+                                      '---',
+                                      'service_url'])
             }
         }
 
