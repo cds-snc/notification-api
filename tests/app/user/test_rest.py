@@ -803,6 +803,27 @@ def test_send_contact_request_with_live_service(client, sample_service, mocker):
     mocked_zendesk.assert_called_once_with(ContactRequest(**data))
 
 
+def test_send_contact_request_go_live(client, sample_service, mocker):
+    sample_user = sample_service.users[0]
+    data = {
+        'name': sample_user.name,
+        'email_address': sample_user.email_address,
+        'support_type': 'go_live_request',
+        'service_id': str(sample_service.id)
+    }
+    mocked_freshdesk = mocker.patch('app.user.rest.Freshdesk.send_ticket', return_value=201)
+    mocked_zendesk = mocker.patch('app.user.rest.ZenDeskSell.send_go_live_request', return_value='1')
+
+    resp = client.post(
+        url_for('user.send_contact_request', user_id=str(sample_user.id)),
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), create_authorization_header()]
+    )
+    assert resp.status_code == 204
+    mocked_freshdesk.assert_called_once_with()
+    mocked_zendesk.assert_called_once_with(sample_service, sample_user, ContactRequest(**data))
+
+
 def test_send_user_confirm_new_email_returns_204(client, sample_user, change_email_confirmation_template, mocker):
     mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
     new_email = 'new_address@dig.gov.uk'
