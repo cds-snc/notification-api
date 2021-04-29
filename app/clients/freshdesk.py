@@ -38,7 +38,7 @@ class Freshdesk(object):
                 f"- Department/org: {self.contact.department_org_name}",
                 f"- Intended recipients: {self.contact.intended_recipients}",
                 f"- Purpose: {self.contact.main_use_case}",
-                f"- Notification types: {self.contact.main_use_case}",
+                f"- Notification types: {self.contact.notification_types}",
                 f"- Expected monthly volume: {self.contact.expected_volume}",
                 "---",
                 self.contact.service_url
@@ -50,7 +50,6 @@ class Freshdesk(object):
         return message
 
     def _generate_ticket(self) -> Dict[str, Union[str, int, List[str]]]:
-
         product_id = current_app.config['FRESH_DESK_PRODUCT_ID']
         if not product_id:
             raise NotImplementedError
@@ -91,29 +90,3 @@ class Freshdesk(object):
             # because configuration is not defined, lets return a 200 OK
             current_app.logger.warning('Did not send ticket to Freshdesk')
             return 200
-
-    @staticmethod
-    def create_ticket(data):
-        ticket = {
-            'product_id': int(current_app.config['FRESH_DESK_PRODUCT_ID']),
-            'subject': data.get("support_type", "Support Request"),
-            'description': data["message"],
-            'email': data["email"],
-            'priority': 1,
-            'status': 2,
-            'tags': data.get("tags", []),
-        }
-
-        try:
-            response = requests.post(
-                f"{current_app.config['FRESH_DESK_API_URL']}/api/v2/tickets",
-                json=ticket,
-                auth=HTTPBasicAuth(current_app.config['FRESH_DESK_API_KEY'], "x")
-            )
-            response.raise_for_status()
-
-            return response.status_code
-        except requests.RequestException as e:
-            content = json.loads(response.content)
-            current_app.logger.warning(f"Failed to create Freshdesk ticket: {content['errors']}")
-            raise e

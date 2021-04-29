@@ -202,7 +202,7 @@ class ZenDeskSell(object):
         resp, e = self._send_request(method='GET',
                                      relative_url=f'/v2/deals?custom_fields[notify_service_id]={str(service.id)}')
         if e:
-            current_app.logger.warning('Failed to search for lead')
+            current_app.logger.warning('Failed to search for deal')
             return None
 
         try:
@@ -338,14 +338,16 @@ class ZenDeskSell(object):
 
         return deal_id is not None
 
-    def send_go_live_request(self, service: Service, user: User, contact: ContactRequest) -> bool:
+    def send_go_live_request(self, service: Service, user: User, contact: ContactRequest) -> Optional[str]:
         deal_id = self.search_deal_id(service)
         if not deal_id:
             # if no entry has been created, try to rehydrate the contact and deal from the user and service
             deal_id = self.send_create_service(service, user)
 
         if deal_id:
-            self.create_note(ZenDeskSell.NoteResourceType.DEAL, deal_id, contact)
+            return self.create_note(ZenDeskSell.NoteResourceType.DEAL, deal_id, contact)
+
+        return None
 
     def send_go_live_service(self, service: Service, user: User) -> bool:
         return self._common_create_or_go_live(service, user, ZenDeskSell.STATUS_CLOSE_LIVE)

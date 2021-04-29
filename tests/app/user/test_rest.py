@@ -759,24 +759,6 @@ def test_send_already_registered_email_returns_400_when_data_is_missing(client, 
     assert json.loads(resp.get_data(as_text=True))['message'] == {'email': ['Missing data for required field.']}
 
 
-def test_send_support_email_no_live_service(client, sample_user, mocker):
-    data = {
-        'name': sample_user.name,
-        'email': sample_user.email_address,
-        'message': "test"
-    }
-    mocked = mocker.patch('app.user.rest.Freshdesk.create_ticket', return_value=201)
-
-    resp = client.post(
-        url_for('user.send_support_email', user_id=str(sample_user.id)),
-        data=json.dumps(data),
-        headers=[('Content-Type', 'application/json'), create_authorization_header()]
-    )
-    assert resp.status_code == 204
-
-    mocked.assert_called_once_with(data | {'tags': ['z_skip_opsgenie', 'z_skip_urgent_escalation']})
-
-
 def test_send_contact_request_no_live_service(client, sample_user, mocker):
     data = {
         'name': sample_user.name,
@@ -819,44 +801,6 @@ def test_send_contact_request_with_live_service(client, sample_service, mocker):
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
     mocked_zendesk.assert_called_once_with(ContactRequest(**data))
-
-
-def test_send_support_email_with_live_service(client, sample_service, mocker):
-    sample_user = sample_service.users[0]
-    data = {
-        'name': sample_user.name,
-        'email': sample_user.email_address,
-        'message': "test"
-    }
-    mocked = mocker.patch('app.user.rest.Freshdesk.create_ticket', return_value=201)
-
-    resp = client.post(
-        url_for('user.send_support_email', user_id=str(sample_user.id)),
-        data=json.dumps(data),
-        headers=[('Content-Type', 'application/json'), create_authorization_header()]
-    )
-    assert resp.status_code == 204
-
-    mocked.assert_called_once_with(data | {'tags': []})
-
-
-def test_send_support_email_returns_400_when_data_is_missing(client, sample_user, mocker):
-    data = {}
-    mocked = mocker.patch('app.user.rest.Freshdesk.create_ticket')
-
-    resp = client.post(
-        url_for('user.send_support_email', user_id=str(sample_user.id)),
-        data=json.dumps(data),
-        headers=[('Content-Type', 'application/json'), create_authorization_header()]
-    )
-    assert resp.status_code == 400
-    assert json.loads(resp.get_data(as_text=True))['message'] == {
-        'name': ['Missing data for required field.'],
-        'email': ['Missing data for required field.'],
-        'message': ['Missing data for required field.'],
-    }
-
-    mocked.assert_not_called()
 
 
 def test_send_user_confirm_new_email_returns_204(client, sample_user, change_email_confirmation_template, mocker):
