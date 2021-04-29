@@ -1,6 +1,7 @@
 import json
 import requests
 
+from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urljoin
 
@@ -22,6 +23,11 @@ class ZenDeskSell(object):
 
     STATUS_CREATE_TRIAL = 11826762
     STATUS_CLOSE_LIVE = 11826764
+
+    class NoteResourceType(Enum):
+        LEAD = "lead"
+        CONTACT = "contact"
+        DEAL = "deal"
 
     def __init__(self):
         self.api_url = current_app.config['ZENDESK_SELL_API_URL']
@@ -111,6 +117,31 @@ class ZenDeskSell(object):
             }
         }
 
+    @staticmethod
+    def _generate_note_data(resource_type: str, resource_id: str, content: str) -> Dict[str, str]:
+        return {
+            'data': {
+                'resource_type': resource_type.value,
+                'resource_id': resource_id,
+                'content': content,
+            }
+        }
+
+    @staticmethod
+    def _generate_note_content(contact: ContactRequest) -> str:
+        return '\n'.join([
+            'Live Notes',
+            f'{contact.service_name} just requested to go live.',
+            '',
+            f"- Department/org: {contact.department_org_name}",
+            f"- Intended recipients: {contact.intended_recipients}",
+            f"- Purpose: {contact.main_use_case}",
+            f"- Notification types: {contact.notification_types}",
+            f"- Expected monthly volume: {contact.expected_volume}",
+            "---",
+            contact.service_url
+        ])
+
     def _send_request(
             self,
             method: str,
@@ -163,7 +194,23 @@ class ZenDeskSell(object):
             # There SHOULDN'T be any case where there is more than 1 entry
             resp_dict = resp.json()
             return resp_dict["items"][0]['data']['id']
-        except (json.JSONDecodeError, KeyError):
+        except (json.JSONDecodeError, KeyError, IndexError):
+            current_app.logger.warning(f'Invalid response: {resp.text}')
+            return None
+
+    def search_deal_id(self, service: Service) -> Optional[str]:
+        resp, e = self._send_request(method='GET',
+                                     relative_url=f'/v2/deals?custom_fields[notify_service_id]={str(service.id)}')
+        if e:
+            current_app.logger.warning('Failed to search for lead')
+            return None
+
+        try:
+            # default to the first deal as we try to perform deal upsert
+            # There SHOULDN'T be any case where there is more than 1 entry
+            resp_dict = resp.json()
+            return resp_dict["items"][0]['data']['id']
+        except (json.JSONDecodeError, KeyError, IndexError):
             current_app.logger.warning(f'Invalid response: {resp.text}')
             return None
 
@@ -249,6 +296,32 @@ class ZenDeskSell(object):
             current_app.logger.warning(f'Invalid response: {resp.text}')
             return None
 
+    def create_note(self,
+                    resource_type: NoteResourceType,
+                    resource_id: str,
+                    contact: ContactRequest) -> Optional[str]:
+
+        # The API and field definitions are defined here:
+        # https://developers.getbase.com/docs/rest/reference/notes
+        resp, e = self._send_request(
+            method='POST',
+            relative_url='/v2/notes',
+            data=json.dumps(
+                ZenDeskSell._generate_note_data(resource_type, resource_id, ZenDeskSell._generate_note_content(contact))
+            )
+        )
+        if e:
+            current_app.logger.warning(f'Failed to create note for {resource_type}')
+            return None
+
+        try:
+            resp_data = resp.json()
+            return resp_data['data']['id']
+
+        except (json.JSONDecodeError, KeyError):
+            current_app.logger.warning(f'Invalid response: {resp.text}')
+            return None
+
     def _common_create_or_go_live(self, service: Service, user: User, status: int, contact_id=None) -> bool:
         # Upsert a contact (create/update). Only when this is successful does the software upsert a deal
         # and link the deal to the contact.
@@ -264,6 +337,15 @@ class ZenDeskSell(object):
             return False
 
         return deal_id is not None
+
+    def send_go_live_request(self, service: Service, user: User, contact: ContactRequest) -> bool:
+        deal_id = self.search_deal_id(service)
+        if not deal_id:
+            # if no entry has been created, try to rehydrate the contact and deal from the user and service
+            deal_id = self.send_create_service(service, user)
+
+        if deal_id:
+            self.create_note(ZenDeskSell.NoteResourceType.DEAL, deal_id, contact)
 
     def send_go_live_service(self, service: Service, user: User) -> bool:
         return self._common_create_or_go_live(service, user, ZenDeskSell.STATUS_CLOSE_LIVE)

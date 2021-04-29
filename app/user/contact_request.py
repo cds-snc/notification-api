@@ -25,6 +25,11 @@ class ContactRequest:
     friendly_support_type: str = field(default='Support Request')
     support_type: str = field(default='')
     language: str = field(default='en')
+    service_name: str = field(default='')
+    service_id: str = field(default='')
+    service_url: str = field(default='')
+    notification_types: str = field(default='')
+    expected_volume: str = field(default='')
 
     def __post_init__(self):
         # email address is mandatory for us
@@ -41,3 +46,6 @@ class ContactRequest:
 
     def is_demo_request(self):
         return 'demo' in self.support_type.lower()
+
+    def is_go_live_request(self):
+        return 'go_live_request' in self.support_type.lower()

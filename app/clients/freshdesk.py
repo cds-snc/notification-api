@@ -31,6 +31,18 @@ class Freshdesk(object):
                 f'- main use case: {self.contact.main_use_case}',
                 f'- main use case details: {self.contact.main_use_case_details}',
             ])
+        elif self.contact.is_go_live_request():
+            message = '<br>'.join([
+                f'{self.contact.service_name} just requested to go live.',
+                '',
+                f"- Department/org: {self.contact.department_org_name}",
+                f"- Intended recipients: {self.contact.intended_recipients}",
+                f"- Purpose: {self.contact.main_use_case}",
+                f"- Notification types: {self.contact.main_use_case}",
+                f"- Expected monthly volume: {self.contact.expected_volume}",
+                "---",
+                self.contact.service_url
+            ])
 
         if len(self.contact.user_profile):
             message += f"<br><br>---<br><br> {self.contact.user_profile}"
