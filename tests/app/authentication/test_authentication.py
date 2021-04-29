@@ -83,6 +83,28 @@ def test_auth_should_not_allow_request_with_no_iat(client, sample_api_key):
     assert exc.value.short_message == 'Invalid token: signature, api token not found'
 
 
+@pytest.mark.parametrize('is_admin', [True, False], ids=['client', 'admin request'])
+def test_auth_should_not_allow_request_with_invalid_iat(client, sample_api_key, is_admin):
+    iss = str(sample_api_key.service_id) if not is_admin else current_app.config['ADMIN_CLIENT_USER_NAME']
+    # code copied from notifications_python_client.authentication.py::create_jwt_token
+    headers = {
+        "typ": 'JWT',
+        "alg": 'HS256'
+    }
+
+    claims = {
+        'iss': iss,
+        'iat': 'not an integer'
+    }
+
+    token = jwt.encode(payload=claims, key=str(uuid.uuid4()), headers=headers).decode()
+
+    request.headers = {'Authorization': f'Bearer {token}'}
+    with pytest.raises(AuthError) as exc:
+        requires_auth()
+    assert exc.value.short_message == 'Invalid token: Issued At claim (iat) must be an integer.'
+
+
 def test_admin_auth_should_not_allow_request_with_no_iat(client, sample_api_key):
     iss = current_app.config['ADMIN_CLIENT_USER_NAME']
 
