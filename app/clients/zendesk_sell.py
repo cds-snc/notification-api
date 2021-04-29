@@ -2,7 +2,7 @@ import json
 import requests
 
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 from flask import current_app
@@ -34,7 +34,7 @@ class ZenDeskSell(object):
         self.token = current_app.config['ZENDESK_SELL_API_KEY']
 
     @staticmethod
-    def _name_split(name: str) -> (str, str):
+    def _name_split(name: str) -> Tuple[str, str]:
         # FIXME: consider migrating to pypi/nameparser for proper name parsing to handle cases like:
         # 'Dr. Juan Q. Xavier de la Vega III (Doc Vega)'
         name_tokenised = name.split()
@@ -94,7 +94,7 @@ class ZenDeskSell(object):
         }
 
     @staticmethod
-    def _generate_deal_data(contact_id: int, service: Service, stage_id: int) -> Dict[str, Union[str, List[str], Dict]]:
+    def _generate_deal_data(contact_id: str, service: Service, stage_id: int) -> Dict[str, Union[str, List[str], Dict]]:
         return {
             'data': {
                 'contact_id': contact_id,
@@ -108,7 +108,7 @@ class ZenDeskSell(object):
         }
 
     @staticmethod
-    def _generate_lead_conversion_data(lead_id: int):
+    def _generate_lead_conversion_data(lead_id: str):
         return {
             'data': {
                 'lead_id': lead_id,
@@ -118,7 +118,8 @@ class ZenDeskSell(object):
         }
 
     @staticmethod
-    def _generate_note_data(resource_type: str, resource_id: str, content: str) -> Dict[str, str]:
+    def _generate_note_data(resource_type: NoteResourceType, resource_id: str, content: str) \
+            -> Dict[str, Dict[str, str]]:
         return {
             'data': {
                 'resource_type': resource_type.value,
@@ -146,7 +147,7 @@ class ZenDeskSell(object):
             self,
             method: str,
             relative_url: str,
-            data: str = None) -> (Optional[Any], Optional[Exception]):
+            data: str = None) -> Tuple[requests.models.Response, Optional[Exception]]:
 
         if not self.api_url or not self.token:
             raise NotImplementedError
@@ -237,7 +238,7 @@ class ZenDeskSell(object):
             current_app.logger.warning(f'Invalid response: {resp.text}')
             return None
 
-    def upsert_contact(self, user: User, contact_id: Optional[str]) -> (Optional[int], bool):
+    def upsert_contact(self, user: User, contact_id: Optional[str]) -> Tuple[Optional[str], bool]:
 
         # The API and field definitions are defined here: https://developers.getbase.com/docs/rest/reference/contacts
         data = json.dumps(ZenDeskSell._generate_contact_data(user))
@@ -266,7 +267,7 @@ class ZenDeskSell(object):
             current_app.logger.warning(f'Invalid response: {resp.text}')
             return None, False
 
-    def delete_contact(self, contact_id: int) -> None:
+    def delete_contact(self, contact_id: str) -> None:
 
         # The API and field definitions are defined here: https://developers.getbase.com/docs/rest/reference/contacts
         resp, e = self._send_request(method='DELETE',
@@ -274,7 +275,7 @@ class ZenDeskSell(object):
         if e:
             current_app.logger.warning(f'Failed to delete zendesk sell contact: {contact_id}')
 
-    def upsert_deal(self, contact_id: int, service: Service, stage_id: int) -> Optional[int]:
+    def upsert_deal(self, contact_id: str, service: Service, stage_id: int) -> Optional[str]:
         # The API and field definitions are defined here: https://developers.getbase.com/docs/rest/reference/deals
 
         resp, e = self._send_request(
@@ -322,21 +323,22 @@ class ZenDeskSell(object):
             current_app.logger.warning(f'Invalid response: {resp.text}')
             return None
 
-    def _common_create_or_go_live(self, service: Service, user: User, status: int, contact_id=None) -> bool:
+    def _common_create_or_go_live(self, service: Service, user: User, status: int, contact_id: Optional[str] = None) \
+            -> Optional[str]:
         # Upsert a contact (create/update). Only when this is successful does the software upsert a deal
         # and link the deal to the contact.
         # If upsert deal fails go back and delete the contact ONLY if it never existed before
         contact_id, is_created = self.upsert_contact(user, contact_id)
         if not contact_id:
-            return False
+            return None
 
         deal_id = self.upsert_deal(contact_id, service, status)
         if not deal_id and is_created:
             # best effort here
             self.delete_contact(contact_id)
-            return False
+            return None
 
-        return deal_id is not None
+        return deal_id
 
     def send_go_live_request(self, service: Service, user: User, contact: ContactRequest) -> Optional[str]:
         deal_id = self.search_deal_id(service)
@@ -349,10 +351,10 @@ class ZenDeskSell(object):
 
         return None
 
-    def send_go_live_service(self, service: Service, user: User) -> bool:
+    def send_go_live_service(self, service: Service, user: User) -> Optional[str]:
         return self._common_create_or_go_live(service, user, ZenDeskSell.STATUS_CLOSE_LIVE)
 
-    def send_create_service(self, service: Service, user: User) -> bool:
+    def send_create_service(self, service: Service, user: User) -> Optional[str]:
         try:
             contact_id = self.convert_lead_to_contact(user)
             if contact_id:
