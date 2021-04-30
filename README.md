@@ -592,3 +592,20 @@ __Solution__:
 
 5. Click on the existing Rule and scroll down to Exceptions. You can add your exception and set the expiration date to a
    week from now.
+
+---
+
+__Problem__: `./Modules/posixmodule.c:10432:5: warning: code will never be executed [-Wunreachable-code]
+Py_FatalError("abort() called from Python code didn't abort!");`
+
+This error may occur while attempting to install pyenv after updating to Big Sur.
+
+__Solution__: Referenced from [this](https://github.com/pyenv/pyenv/issues/1739) Github issue.
+
+Run the following command:
+
+```
+CFLAGS="-I$(brew --prefix openssl)/include -I$(brew --prefix bzip2)/include -I$(brew --prefix readline)/include -I$(xcrun --show-sdk-path)/usr/include" \
+LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix readline)/lib -L$(brew --prefix zlib)/lib -L$(brew --prefix bzip2)/lib" \
+pyenv install --patch 3.6.10 < <(curl -sSL https://github.com/python/cpython/commit/8ea6353.patch\?full_index\=1)
+```
