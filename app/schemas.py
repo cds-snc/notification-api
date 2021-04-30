@@ -63,7 +63,11 @@ def _validate_datetime_not_in_past(dte, msg="Date cannot be in the past"):
         raise ValidationError(msg)
 
 
-class BaseSchema(ma.ModelSchema):
+class BaseSchema(ma.SQLAlchemyAutoSchema):
+
+    class Meta:
+        load_instance = True
+        include_relationships = True
 
     def __init__(self, load_json=False, *args, **kwargs):
         self.load_json = load_json
@@ -97,7 +101,7 @@ class UserSchema(BaseSchema):
             retval[service_id].append(x.permission)
         return retval
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         model = models.User
         exclude = (
             "updated_at",
@@ -133,7 +137,7 @@ class UserSchema(BaseSchema):
 class UserUpdateAttributeSchema(BaseSchema):
     auth_type = field_for(models.User, 'auth_type')
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         model = models.User
         exclude = (
             'id', 'updated_at', 'created_at', 'user_to_service',
@@ -170,7 +174,7 @@ class UserUpdateAttributeSchema(BaseSchema):
 
 class UserUpdatePasswordSchema(BaseSchema):
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         model = models.User
         only = ('password')
         strict = True
@@ -185,7 +189,7 @@ class UserUpdatePasswordSchema(BaseSchema):
 class ProviderDetailsSchema(BaseSchema):
     created_by = fields.Nested(UserSchema, only=['id', 'name', 'email_address'], dump_only=True)
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         model = models.ProviderDetails
         exclude = ("provider_rates", "provider_stats")
         strict = True
@@ -194,7 +198,7 @@ class ProviderDetailsSchema(BaseSchema):
 class ProviderDetailsHistorySchema(BaseSchema):
     created_by = fields.Nested(UserSchema, only=['id', 'name', 'email_address'], dump_only=True)
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         model = models.ProviderDetailsHistory
         exclude = ("provider_rates", "provider_stats")
         strict = True
@@ -222,7 +226,7 @@ class ServiceSchema(BaseSchema):
     def get_letter_contact(self, service):
         return service.get_default_letter_contact()
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         model = models.Service
         dump_only = ['letter_contact_block']
         exclude = (
@@ -269,7 +273,7 @@ class DetailedServiceSchema(BaseSchema):
     statistics = fields.Dict()
     organisation_type = field_for(models.Service, 'organisation_type')
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         model = models.Service
         exclude = (
             'api_keys',
@@ -298,7 +302,7 @@ class DetailedServiceSchema(BaseSchema):
 
 
 class NotificationModelSchema(BaseSchema):
-    class Meta:
+    class Meta(BaseSchema.Meta):
         model = models.Notification
         strict = True
         exclude = ('_personalisation', 'job', 'service', 'template', 'api_key',)
@@ -316,7 +320,7 @@ class BaseTemplateSchema(BaseSchema):
     def get_reply_to_text(self, template):
         return template.get_reply_to_text()
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         model = models.Template
         exclude = ("service_id", "jobs", "service_letter_contact_id")
         strict = True
@@ -353,7 +357,7 @@ class TemplateHistorySchema(BaseSchema):
     def get_reply_to_text(self, template):
         return template.get_reply_to_text()
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         model = models.TemplateHistory
 
 
@@ -362,7 +366,7 @@ class ApiKeySchema(BaseSchema):
     created_by = field_for(models.ApiKey, 'created_by', required=True)
     key_type = field_for(models.ApiKey, 'key_type', required=True)
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         model = models.ApiKey
         exclude = ("service", "_secret")
         strict = True
@@ -384,7 +388,7 @@ class JobSchema(BaseSchema):
         _validate_datetime_not_in_past(value)
         _validate_datetime_not_more_than_96_hours_in_future(value)
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         model = models.Job
         exclude = (
             'notifications',
@@ -396,7 +400,7 @@ class JobSchema(BaseSchema):
 
 class NotificationSchema(ma.Schema):
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         strict = True
 
     status = fields.String(required=False)
@@ -451,7 +455,7 @@ class SmsAdminNotificationSchema(SmsNotificationSchema):
 
 
 class NotificationWithTemplateSchema(BaseSchema):
-    class Meta:
+    class Meta(BaseSchema.Meta):
         model = models.Notification
         strict = True
         exclude = ('_personalisation', 'scheduled_notification')
@@ -530,7 +534,7 @@ class NotificationWithPersonalisationSchema(NotificationWithTemplateSchema):
 class InvitedUserSchema(BaseSchema):
     auth_type = field_for(models.InvitedUser, 'auth_type')
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         model = models.InvitedUser
         strict = True
 
@@ -544,7 +548,7 @@ class InvitedUserSchema(BaseSchema):
 
 class EmailDataSchema(ma.Schema):
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         strict = True
 
     email = fields.Str(required=True)
@@ -565,7 +569,7 @@ class EmailDataSchema(ma.Schema):
 
 class SupportEmailDataSchema(ma.Schema):
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         strict = True
 
     name = fields.Str(required=True)
@@ -589,7 +593,7 @@ class SupportEmailDataSchema(ma.Schema):
 
 class BrandingRequestDataSchema(ma.Schema):
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         strict = True
 
     email = fields.Str(required=True)
@@ -613,7 +617,7 @@ class BrandingRequestDataSchema(ma.Schema):
 
 class NotificationsFilterSchema(ma.Schema):
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         strict = True
 
     template_type = fields.Nested(BaseTemplateSchema, only=['template_type'], many=True)
@@ -681,14 +685,14 @@ class ApiKeyHistorySchema(ma.Schema):
 
 
 class EventSchema(BaseSchema):
-    class Meta:
+    class Meta(BaseSchema.Meta):
         model = models.Event
         strict = True
 
 
 class DaySchema(ma.Schema):
 
-    class Meta:
+    class Meta(BaseSchema.Meta):
         strict = True
 
     day = fields.Date(required=True)
