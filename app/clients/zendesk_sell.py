@@ -280,7 +280,7 @@ class ZenDeskSell(object):
 
         resp, e = self._send_request(
             method='POST',
-            relative_url=f'/v2/deals/upsert?contact_id={contact_id}&'
+            relative_url=f'/v2/deals/upsert?'
                          f'custom_fields[notify_service_id]={str(service.id)}',
             data=json.dumps(ZenDeskSell._generate_deal_data(contact_id, service, stage_id)))
 
