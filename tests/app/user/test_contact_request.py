@@ -20,7 +20,12 @@ def test_contact_info():
         'language': 'en',
         'support_type': 'support_type',
         'message': 'message',
-        'user_profile': 'user_profile'
+        'user_profile': 'user_profile',
+        'service_name': 'service_name',
+        'service_id': 'service_id',
+        'service_url': 'service_url',
+        'notification_types': 'notification_types',
+        'expected_volume': 'expected_volume'
     }
     contact = ContactRequest(**mock_dict)
     assert mock_dict['email_address'] == contact.email_address
@@ -35,6 +40,11 @@ def test_contact_info():
     assert mock_dict['support_type'] == contact.support_type
     assert mock_dict['message'] == contact.message
     assert mock_dict['user_profile'] == contact.user_profile
+    assert mock_dict['service_name'] == contact.service_name
+    assert mock_dict['service_id'] == contact.service_id
+    assert mock_dict['service_url'] == contact.service_url
+    assert mock_dict['notification_types'] == contact.notification_types
+    assert mock_dict['expected_volume'] == contact.expected_volume
 
 
 def test_contact_info_defaults():
@@ -54,6 +64,11 @@ def test_contact_info_defaults():
     assert contact.support_type == ''
     assert contact.message == ''
     assert contact.user_profile == ''
+    assert contact.service_name == ''
+    assert contact.service_id == ''
+    assert contact.service_url == ''
+    assert contact.notification_types == ''
+    assert contact.expected_volume == ''
 
 
 @pytest.mark.parametrize('mock_dict', [

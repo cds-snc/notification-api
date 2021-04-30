@@ -8,43 +8,7 @@ from app.clients.freshdesk import Freshdesk
 from app.user.contact_request import ContactRequest
 
 
-def test_create_ticket_legacy(notify_api: Flask):
-    def match_json(request):
-        expected = {
-            'product_id': 42,
-            'subject': 'Ask a question',
-            'description': 'my message',
-            'email': 'test@example.com',
-            'priority': 1,
-            'status': 2,
-            'tags': []
-        }
-
-        encoded_auth = base64.b64encode(b'freshdesk-api-key:x').decode('ascii')
-        json_matches = request.json() == expected
-        basic_auth_header = request.headers.get('Authorization') == f"Basic {encoded_auth}"
-
-        return json_matches and basic_auth_header
-
-    with requests_mock.mock() as rmock:
-        rmock.request(
-            "POST",
-            'https://freshdesk-test.com/api/v2/tickets',
-            additional_matcher=match_json,
-            status_code=201
-        )
-
-        with notify_api.app_context():
-            response = Freshdesk.create_ticket({
-                'message': 'my message',
-                'email': 'test@example.com',
-                'support_type': 'Ask a question',
-            })
-
-            assert response == 201
-
-
-def test_create_ticket_demo(notify_api: Flask):
+def test_send_ticket_demo(notify_api: Flask):
     def match_json(request):
         expected = {
             'product_id': 42,
@@ -93,7 +57,58 @@ def test_create_ticket_demo(notify_api: Flask):
             assert response == 201
 
 
-def test_create_ticket_other(notify_api: Flask):
+def test_send_ticket_go_live_request(notify_api: Flask):
+    def match_json(request):
+        expected = {
+            'product_id': 42,
+            'subject': 'Support Request',
+            'description': 't6 just requested to go live.<br><br>'
+                           '- Department/org: department_org_name<br>'
+                           '- Intended recipients: internal, external, public<br>'
+                           '- Purpose: main_use_case<br>'
+                           '- Notification types: email, sms<br>'
+                           '- Expected monthly volume: 100k+<br>'
+                           '---<br>'
+                           'http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92',
+            'email': 'test@email.com',
+            'priority': 1,
+            'status': 2,
+            'tags': []
+        }
+
+        encoded_auth = base64.b64encode(b'freshdesk-api-key:x').decode('ascii')
+        json_matches = request.json() == expected
+        basic_auth_header = request.headers.get('Authorization') == f"Basic {encoded_auth}"
+
+        return json_matches and basic_auth_header
+
+    with requests_mock.mock() as rmock:
+        rmock.request(
+            "POST",
+            'https://freshdesk-test.com/api/v2/tickets',
+            additional_matcher=match_json,
+            status_code=201
+        )
+        data = {
+            'email_address': 'test@email.com',
+            'name': 'name',
+            'department_org_name': 'department_org_name',
+            'intended_recipients': 'internal, external, public',
+            'main_use_case': 'main_use_case',
+            'friendly_support_type': 'Support Request',
+            'support_type': 'go_live_request',
+            'service_name': 't6',
+            'service_id': '8624bd36-b70b-4d4b-a459-13e1f4770b92',
+            'service_url': 'http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92',
+            'notification_types': 'email, sms',
+            'expected_volume': '100k+'
+        }
+        with notify_api.app_context():
+            response = Freshdesk(ContactRequest(**data)).send_ticket()
+            assert response == 201
+
+
+def test_send_ticket_other(notify_api: Flask):
     def match_json(request):
         expected = {
             'product_id': 42,
@@ -124,7 +139,7 @@ def test_create_ticket_other(notify_api: Flask):
             assert response == 201
 
 
-def test_create_ticket_user_profile(notify_api: Flask):
+def test_send_ticket_user_profile(notify_api: Flask):
     def match_json(request):
         expected = {
             'product_id': 42,

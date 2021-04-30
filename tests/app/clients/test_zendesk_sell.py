@@ -323,6 +323,95 @@ def test_create_deal_invalid_response(notify_api: Flask,
             assert not deal_id
 
 
+def test_create_note(notify_api: Flask):
+    resource_id = '1'
+
+    def match_json(request):
+        expected = {
+            'data': {
+                'resource_type': 'deal',
+                'resource_id': resource_id,
+                'content': '\n'.join(['Live Notes',
+                                      'service_name just requested to go live.',
+                                      '',
+                                      '- Department/org: department_org_name',
+                                      '- Intended recipients: intended_recipients',
+                                      '- Purpose: main_use_case',
+                                      '- Notification types: notification_types',
+                                      '- Expected monthly volume: expected_volume',
+                                      '---',
+                                      'service_url'])
+            }
+        }
+
+        json_matches = request.json() == expected
+        basic_auth_header = request.headers.get('Authorization') == 'Bearer zendesksell-api-key'
+
+        return json_matches and basic_auth_header
+
+    with requests_mock.mock() as rmock:
+        expected_note_id = '1'
+        resp_data = {'data': {'id': expected_note_id}}
+        rmock.request(
+            "POST",
+            url='https://zendesksell-test.com/v2/notes',
+            headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
+            additional_matcher=match_json,
+            status_code=200,
+            text=json.dumps(resp_data)
+        )
+
+        data = {
+            'email_address': "test@email.com",
+            'service_name': 'service_name',
+            'department_org_name': 'department_org_name',
+            'intended_recipients': 'intended_recipients',
+            'main_use_case': 'main_use_case',
+            'notification_types': 'notification_types',
+            'expected_volume': 'expected_volume',
+            'service_url': 'service_url',
+            'support_type': 'go_live_request'
+        }
+
+        with notify_api.app_context():
+            note_id = ZenDeskSell().create_note(ZenDeskSell.NoteResourceType.DEAL, resource_id, ContactRequest(**data))
+            assert expected_note_id == note_id
+
+
+@pytest.mark.parametrize('expected_resp_data', [
+    {'blank': 'blank'},
+    {'data': {'blank': 'blank'}},
+])
+def test_create_note_invalid_response(notify_api: Flask,
+                                      sample_service: Service,
+                                      expected_resp_data: Dict[str, Dict[str, Union[int, str]]]):
+
+    with requests_mock.mock() as rmock:
+        rmock.request(
+            "POST",
+            url='https://zendesksell-test.com/v2/notes',
+            headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
+            status_code=200,
+            text=json.dumps(expected_resp_data)
+        )
+
+        data = {
+            'email_address': "test@email.com",
+            'service_name': 'service_name',
+            'department_org_name': 'department_org_name',
+            'intended_recipients': 'intended_recipients',
+            'main_use_case': 'main_use_case',
+            'notification_types': 'notification_types',
+            'expected_volume': 'expected_volume',
+            'service_url': 'service_url',
+            'support_type': 'go_live_request'
+        }
+
+        with notify_api.app_context():
+            note_id = ZenDeskSell().create_note(ZenDeskSell.NoteResourceType.DEAL, '1', ContactRequest(**data))
+            assert not note_id
+
+
 @pytest.mark.parametrize('is_go_live,existing_contact_id', [
     (False, None),
     (False, '1'),
@@ -436,6 +525,62 @@ def test_send_create_service(
         convert_lead_to_contact_mock.assert_called_once_with(sample_service.users[0])
         upsert_contact_mock.assert_called_once_with(sample_service.users[0], existing_contact_id)
         upsert_deal_mock.assert_called_once_with(contact_id, sample_service, ZenDeskSell.STATUS_CREATE_TRIAL)
+
+
+def test_send_go_live_request(
+        notify_api: Flask,
+        sample_service: Service,
+        mocker: MockFixture):
+    deal_id = '1'
+    search_deal_id_mock = mocker.patch('app.user.rest.ZenDeskSell.search_deal_id', return_value=deal_id)
+    send_create_service_mock = mocker.patch('app.user.rest.ZenDeskSell.send_create_service', return_value='1')
+    create_note_mock = mocker.patch('app.user.rest.ZenDeskSell.create_note', return_value='2')
+
+    contact = ContactRequest(**{
+        'email_address': "test@email.com",
+        'service_name': 'service_name',
+        'department_org_name': 'department_org_name',
+        'intended_recipients': 'intended_recipients',
+        'main_use_case': 'main_use_case',
+        'notification_types': 'notification_types',
+        'expected_volume': 'expected_volume',
+        'service_url': 'service_url',
+        'support_type': 'go_live_request'
+    })
+
+    with notify_api.app_context():
+        assert ZenDeskSell().send_go_live_request(sample_service, sample_service.users[0], contact)
+        search_deal_id_mock.assert_called_once_with(sample_service)
+        send_create_service_mock.assert_not_called()
+        create_note_mock.assert_called_once_with(ZenDeskSell.NoteResourceType.DEAL, deal_id, contact)
+
+
+def test_send_go_live_request_search_failed(
+        notify_api: Flask,
+        sample_service: Service,
+        mocker: MockFixture):
+    deal_id = '1'
+    search_deal_id_mock = mocker.patch('app.user.rest.ZenDeskSell.search_deal_id', return_value=None)
+    send_create_service_mock = mocker.patch('app.user.rest.ZenDeskSell.send_create_service', return_value=deal_id)
+    create_note_mock = mocker.patch('app.user.rest.ZenDeskSell.create_note', return_value='1')
+
+    contact = ContactRequest(**{
+        'email_address': "test@email.com",
+        'service_name': 'service_name',
+        'department_org_name': 'department_org_name',
+        'intended_recipients': 'intended_recipients',
+        'main_use_case': 'main_use_case',
+        'notification_types': 'notification_types',
+        'expected_volume': 'expected_volume',
+        'service_url': 'service_url',
+        'support_type': 'go_live_request'
+    })
+
+    with notify_api.app_context():
+        assert ZenDeskSell().send_go_live_request(sample_service, sample_service.users[0], contact)
+        search_deal_id_mock.assert_called_once_with(sample_service)
+        send_create_service_mock.assert_called_once_with(sample_service, sample_service.users[0])
+        create_note_mock.assert_called_once_with(ZenDeskSell.NoteResourceType.DEAL, deal_id, contact)
 
 
 def test_send_go_live_service(

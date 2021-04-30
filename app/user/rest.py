@@ -60,7 +60,6 @@ from app.notifications.process_notifications import (
 )
 from app.schemas import (
     email_data_request_schema,
-    support_email_data_schema,
     branding_request_data_schema,
     partial_email_data_request_schema,
     create_user_schema,
@@ -439,24 +438,6 @@ def send_already_registered_email(user_id):
     return jsonify({}), 204
 
 
-@user_blueprint.route('/<uuid:user_id>/support-email', methods=['POST'])
-def send_support_email(user_id):
-    data, errors = support_email_data_schema.load(request.get_json())
-
-    data['tags'] = ['z_skip_opsgenie', 'z_skip_urgent_escalation']
-    try:
-        user = get_user_by_email(data['email'])
-        has_live_services = any([not s.restricted for s in user.services])
-        if has_live_services:
-            data['tags'] = []
-    except NoResultFound:
-        pass
-
-    status_code = Freshdesk.create_ticket(data)
-
-    return jsonify({"status_code": status_code}), 204
-
-
 @user_blueprint.route('/<uuid:user_id>/contact-request', methods=['POST'])
 def send_contact_request(user_id):
 
@@ -476,9 +457,12 @@ def send_contact_request(user_id):
         # This is perfectly normal if get_user_by_email raises
         pass
 
-    # FIXME: Since this is a POC, do not include the status code for zendesk as a part of the return code
     try:
-        ZenDeskSell().send_contact_request(contact)
+        if contact.is_go_live_request():
+            service = dao_fetch_service_by_id(contact.service_id)
+            ZenDeskSell().send_go_live_request(service, user, contact)
+        else:
+            ZenDeskSell().send_contact_request(contact)
     except Exception as e:
         current_app.logger.exception(e)
 
