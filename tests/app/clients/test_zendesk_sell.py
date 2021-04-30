@@ -268,8 +268,8 @@ def test_create_deal(notify_api: Flask, sample_service: Service):
         resp_data = {'data': {'id': expected_deal_id, 'contact_id': contact_id}}
         rmock.request(
             "POST",
-            url=f'https://zendesksell-test.com/v2/deals/upsert?contact_id={contact_id}'
-                f'&custom_fields%5Bnotify_service_id%5D={str(sample_service.id)}',
+            url=f'https://zendesksell-test.com/v2/deals/upsert?'
+                f'custom_fields[notify_service_id]={str(sample_service.id)}',
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
             additional_matcher=match_json,
             status_code=200,
@@ -310,8 +310,8 @@ def test_create_deal_invalid_response(notify_api: Flask,
         contact_id = '123456789'
         rmock.request(
             "POST",
-            url=f'https://zendesksell-test.com/v2/deals/upsert?contact_id={contact_id}'
-                f'&custom_fields[notify_service_id]={str(sample_service.id)}',
+            url=f'https://zendesksell-test.com/v2/deals/upsert?'
+                f'custom_fields[notify_service_id]={str(sample_service.id)}',
             headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
             additional_matcher=match_json,
             status_code=200,
