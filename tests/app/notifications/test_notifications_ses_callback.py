@@ -4,7 +4,8 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.dao.notifications_dao import get_notification_by_id
 from app.models import Complaint
-from app.notifications.notifications_ses_callback import handle_ses_complaint, handle_smtp_complaint
+from app.notifications.notifications_ses_callback import handle_ses_complaint, handle_smtp_complaint, \
+    UNKNOWN_COMPLAINT_TYPE
 
 from tests.app.db import (
     create_notification, ses_complaint_callback_malformed_message_id,
@@ -63,7 +64,7 @@ def test_process_ses_results_in_complaint_save_complaint_with_null_complaint_typ
     complaints = Complaint.query.all()
     assert len(complaints) == 1
     assert complaints[0].notification_id == notification.id
-    assert not complaints[0].complaint_type
+    assert complaints[0].complaint_type == UNKNOWN_COMPLAINT_TYPE
 
 
 def test_process_ses_smtp_results_in_complaint(sample_email_template):
