@@ -6,6 +6,7 @@ RUN apk add --no-cache bash build-base git gcc musl-dev postgresql-dev g++ make 
 
 # update pip
 RUN python -m pip install wheel
+RUN python -m pip install --upgrade pip
 
 RUN set -ex && mkdir /app
 
