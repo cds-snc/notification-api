@@ -53,31 +53,21 @@ class TestAuthorize:
 
         assert response.status_code == 501
 
-    def test_should_redirect_to_login_failure_if_emails_do_not_contain_verified_thoughtworks_address(
+    @pytest.mark.parametrize('status_code', [403, 404])
+    def test_should_redirect_to_login_failure_if_organization_membership_verification_fails(
             self,
             client,
             notify_api,
             toggle_enabled,
-            mocker
+            mocker,
+            status_code
     ):
         mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
-        github_user_emails = [
-            {
-                "email": "some.user@not-thoughtworks.com",
-                "verified": True,
-                "primary": True,
-                "visibility": "public"
-            },
-            {
-                "email": "some.user@thoughtworks.com",
-                "verified": False,
-                "primary": False,
-                "visibility": "public"
-            }
-        ]
+        github_organization_membership_response = mocker.Mock(Response, status_code=status_code)
+
         mocker.patch(
             'app.oauth.rest.oauth_registry.github.get',
-            return_value=mocker.Mock(Response, json=mocker.Mock(return_value=github_user_emails))
+            return_value=github_organization_membership_response
         )
 
         with set_config_values(notify_api, {
@@ -93,7 +83,7 @@ class TestAuthorize:
             cookie.name == 'cookie-name' for cookie in client.cookie_jar
         )
 
-    def test_should_redirect_to_ui_if_toggle_is_enabled_and_access_token_is_authorized(
+    def test_should_redirect_to_ui_if_user_is_member_of_va_organization(
             self,
             client,
             notify_api,
@@ -101,6 +91,9 @@ class TestAuthorize:
             mocker
     ):
         mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
+
+        github_organization_membership_response = mocker.Mock(Response, status_code=200)
+
         github_user_emails = [
             {
                 "email": "some.user@thoughtworks.com",
@@ -109,9 +102,10 @@ class TestAuthorize:
                 "visibility": "public"
             }
         ]
+        github_user_emails_response = mocker.Mock(Response, json=mocker.Mock(return_value=github_user_emails))
         mocker.patch(
             'app.oauth.rest.oauth_registry.github.get',
-            return_value=mocker.Mock(Response, json=mocker.Mock(return_value=github_user_emails))
+            side_effect=[github_organization_membership_response, github_user_emails_response]
         )
 
         found_user = User()

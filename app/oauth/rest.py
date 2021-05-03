@@ -31,27 +31,21 @@ def login():
 def authorize():
     github_token = oauth_registry.github.authorize_access_token()
 
-    # just experimenting to see what happens on dev, when the oauth app is owned by the org
-    membership_response = oauth_registry.github.get(
+    org_membership_resp = oauth_registry.github.get(
         '/user/memberships/orgs/department-of-veterans-affairs',
         token=github_token
     )
-    current_app.logger.info('github org response:')
-    current_app.logger.info(membership_response)
-    current_app.logger.info(membership_response.json())
+    if org_membership_resp.status_code != 200:
+        return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
 
-    resp = oauth_registry.github.get('/user/emails', token=github_token)
-    resp.raise_for_status()
+    email_resp = oauth_registry.github.get('/user/emails', token=github_token)
+    email_resp.raise_for_status()
 
     # filter for emails only simply for p.o.c. purposes
     verified_thoughtworks_emails = [
-        email.get('email') for email in resp.json()
+        email.get('email') for email in email_resp.json()
         if '@thoughtworks.com' in email.get('email') and email.get('verified')
     ]
-
-    if not verified_thoughtworks_emails:
-        return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
-
     user = get_user_by_email(verified_thoughtworks_emails[0])
 
     response = make_response(redirect(current_app.config['UI_HOST_NAME']))
