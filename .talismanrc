@@ -121,3 +121,5 @@ fileignoreconfig:
       checksum: 1c91170d1341b212f9f706dab4ddd573c6513142220a5d87015cf9dd56a01aad
     - filename: Brewfile.lock.json
       checksum: b671603d8b3de2377b8ac1a2923e98d14c75c5c837ce4d1c207c83bd145c3ae4
+    - filename: migrations/versions/0328_identity_provider_user_id.py
+      checksum: 03762d9d407b131df9da23bc6056bbba7f13f902c0f18cb845fdb888e2bf4b31
