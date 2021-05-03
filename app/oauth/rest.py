@@ -30,6 +30,16 @@ def login():
 @oauth_blueprint.route('/authorize')
 def authorize():
     github_token = oauth_registry.github.authorize_access_token()
+
+    # just experimenting to see what happens on dev, when the oauth app is owned by the org
+    membership_response = oauth_registry.github.get(
+        '/user/memberships/orgs/department-of-veterans-affairs',
+        token=github_token
+    )
+    current_app.logger.info('github org response:')
+    current_app.logger.info(membership_response)
+    current_app.logger.info(membership_response.json())
+
     resp = oauth_registry.github.get('/user/emails', token=github_token)
     resp.raise_for_status()
 
