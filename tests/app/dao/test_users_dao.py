@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import uuid
 
 from freezegun import freeze_time
-from sqlalchemy.exc import DataError
+from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 import pytest
 
@@ -30,25 +30,73 @@ from app.models import EMAIL_AUTH_TYPE, User, VerifyCode
 from tests.app.db import create_permissions, create_service, create_template_folder, create_user
 
 
+@pytest.fixture
+def test_email():
+    return 'notify@digital.cabinet-office.gov.uk'
+
+
+@pytest.fixture
+def test_name():
+    return 'Test User'
+
+
 @pytest.mark.parametrize('phone_number', [
     '+447700900986',
     '+1-800-555-5555',
 ])
-def test_create_user(notify_db_session, phone_number):
-    email = 'notify@digital.cabinet-office.gov.uk'
+def test_create_user(notify_db_session, phone_number, test_name, test_email):
     data = {
-        'name': 'Test User',
-        'email_address': email,
+        'name': test_name,
+        'email_address': test_email,
         'password': 'password',
         'mobile_number': phone_number
     }
     user = User(**data)
     save_model_user(user)
     assert User.query.count() == 1
-    assert User.query.first().email_address == email
+    assert User.query.first().email_address == test_email
     assert User.query.first().id == user.id
     assert User.query.first().mobile_number == phone_number
     assert not user.platform_admin
+
+
+def test_create_user_with_identity_provider(notify_db_session, test_name, test_email):
+    identity_provider_user_id = 'test-user-id'
+    data = {
+        'name': test_name,
+        'email_address': test_email,
+        'identity_provider_user_id': identity_provider_user_id
+    }
+    user = User(**data)
+    save_model_user(user)
+    assert User.query.count() == 1
+    assert User.query.first().email_address == test_email
+    assert User.query.first().id == user.id
+    assert User.query.first().identity_provider_user_id == identity_provider_user_id
+    assert not user.platform_admin
+
+
+def test_create_user_fails_when_violates_password_or_identity_provider_constraint(
+        notify_db_session, test_email, test_name):
+    data = {
+        'name': test_name,
+        'email_address': test_email
+    }
+    with pytest.raises(IntegrityError):
+        user = User(**data)
+        save_model_user(user)
+
+
+def test_create_user_fails_when_violates_sms_auth_requires_mobile_number_constraint(
+        notify_db_session, test_email, test_name):
+    data = {
+        'name': test_name,
+        'email_address': test_email,
+        'auth_type': 'sms_auth'
+    }
+    with pytest.raises(IntegrityError):
+        user = User(**data)
+        save_model_user(user)
 
 
 def test_get_all_users(notify_db_session):

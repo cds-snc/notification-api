@@ -123,3 +123,5 @@ fileignoreconfig:
       checksum: b671603d8b3de2377b8ac1a2923e98d14c75c5c837ce4d1c207c83bd145c3ae4
     - filename: migrations/versions/0328_identity_provider_user_id.py
       checksum: 03762d9d407b131df9da23bc6056bbba7f13f902c0f18cb845fdb888e2bf4b31
+    - filename: app/models.py
+      checksum: 43ec10697a00a782a2969687f50a15e7aa1efadc9d0fe562c1b2d7c23a4f877c

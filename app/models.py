@@ -107,9 +107,9 @@ class User(db.Model):
         unique=False,
         nullable=True,
         onupdate=datetime.datetime.utcnow)
-    _password = db.Column(db.String, index=False, unique=False, nullable=False)
+    _password = db.Column(db.String, index=False, unique=False, nullable=True)
     mobile_number = db.Column(db.String, index=False, unique=False, nullable=True)
-    password_changed_at = db.Column(db.DateTime, index=False, unique=False, nullable=False,
+    password_changed_at = db.Column(db.DateTime, index=False, unique=False, nullable=True,
                                     default=datetime.datetime.utcnow)
     logged_in_at = db.Column(db.DateTime, nullable=True)
     failed_login_count = db.Column(db.Integer, nullable=False, default=0)
@@ -117,12 +117,22 @@ class User(db.Model):
     platform_admin = db.Column(db.Boolean, nullable=False, default=False)
     current_session_id = db.Column(UUID(as_uuid=True), nullable=True)
     auth_type = db.Column(
-        db.String, db.ForeignKey('auth_type.name'), index=True, nullable=False, default=EMAIL_AUTH_TYPE)
+        db.String, db.ForeignKey('auth_type.name'), index=True, nullable=True, default=EMAIL_AUTH_TYPE)
     blocked = db.Column(db.Boolean, nullable=False, default=False)
     additional_information = db.Column(JSONB(none_as_null=True), nullable=True, default={})
+    identity_provider_user_id = db.Column(db.String, index=False, unique=True, nullable=True)
 
-    # either email auth or a mobile number must be provided
-    CheckConstraint("auth_type = 'email_auth' or mobile_number is not null")
+    # a mobile number must be provided if using sms auth
+    CheckConstraint(
+        sqltext="auth_type != 'sms_auth' or mobile_number is not null",
+        name='ck_users_mobile_number_if_sms_auth'
+    )
+
+    # either a password or an identity_provider must exist
+    CheckConstraint(
+        sqltext="_password is not null or identity_provider_user_id is not null",
+        name='ck_users_password_or_identity_provider_user_id'
+    )
 
     services = db.relationship(
         'Service',
