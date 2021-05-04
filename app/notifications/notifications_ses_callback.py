@@ -7,7 +7,7 @@ from flask import (
 
 from app.dao.complaint_dao import save_complaint
 from app.dao.notifications_dao import dao_get_notification_history_by_reference
-from app.models import Complaint, Notification, UNKNOWN_COMPLAINT_TYPE
+from app.models import Complaint, Notification
 
 
 def determine_notification_bounce_type(notification_type, ses_message):
@@ -32,9 +32,7 @@ def handle_ses_complaint(ses_message: dict) -> Tuple[Complaint, Notification, st
         notification_id=notification.id,
         service_id=notification.service_id,
         feedback_id=ses_complaint.get('feedbackId', None) if ses_complaint else None,
-        complaint_type=ses_complaint.get(
-            'complaintFeedbackType', UNKNOWN_COMPLAINT_TYPE
-        ) if ses_complaint else UNKNOWN_COMPLAINT_TYPE,
+        complaint_type=ses_complaint.get('complaintFeedbackType', None) if ses_complaint else None,
         complaint_date=ses_complaint.get('timestamp', None) if ses_complaint else None
     )
     save_complaint(complaint)

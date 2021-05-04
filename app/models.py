@@ -2095,7 +2095,7 @@ class Complaint(db.Model):
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), unique=False, index=True, nullable=False)
     service = db.relationship(Service, backref=db.backref('complaints'))
     feedback_id = db.Column(db.Text, nullable=True)
-    complaint_type = db.Column(db.Text, nullable=True)
+    complaint_type = db.Column(db.Text, nullable=True, default=UNKNOWN_COMPLAINT_TYPE)
     complaint_date = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
 
