@@ -55,7 +55,8 @@ def authorize():
             identity=user
         ),
         httponly=True,
-        secure=current_app.config['SESSION_COOKIE_SECURE']
+        secure=current_app.config['SESSION_COOKIE_SECURE'],
+        samesite=current_app.config['SESSION_COOKIE_SAMESITE']
     )
     return response
 

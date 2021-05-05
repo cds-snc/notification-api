@@ -116,7 +116,11 @@
         },
         {
           "name": "UI_HOST_NAME",
-          "value": "http://internal-dev-notification-ui-alb-909345191.us-gov-west-1.elb.amazonaws.com"
+          "value": "https://dev.notifications.va.gov"
+        },
+        {
+          "name": "SESSION_COOKIE_SECURE",
+          "value": "True"
         }
       ],
       "secrets": [

@@ -434,7 +434,8 @@ class Config(object):
     JWT_ACCESS_COOKIE_NAME = 'vanotify_api_access_token'
     UI_HOST_NAME = os.getenv('UI_HOST_NAME', 'http://localhost:3000')
 
-    SESSION_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = str(True) == os.getenv('SESSION_COOKIE_SECURE', 'False')
+    SESSION_COOKIE_SAMESITE = 'Lax'
 
     # Feature flags
     GOVDELIVERY_EMAIL_CLIENT_ENABLED = True

@@ -103,6 +103,18 @@
         {
           "name": "PINPOINT_INBOUND_SMS_ENABLED",
           "value": "True"
+        },
+        {
+          "name": "GITHUB_LOGIN_ENABLED",
+          "value": "True"
+        },
+        {
+          "name": "UI_HOST_NAME",
+          "value": "https://dev.notifications.va.gov"
+        },
+        {
+          "name": "SESSION_COOKIE_SECURE",
+          "value": "True"
         }
       ],
       "secrets": [
