@@ -70,6 +70,7 @@ def create_user(
     email="notify@digital.cabinet-office.gov.uk",
     state='active',
     id_=None,
+    identity_provider_user_id="identity-provider-user-id",
     name="Test User",
     blocked=False,
 ):
@@ -78,6 +79,7 @@ def create_user(
         'name': name,
         'email_address': email,
         'password': 'password',
+        'identity_provider_user_id': identity_provider_user_id,
         'mobile_number': mobile_number,
         'state': state,
         'blocked': blocked

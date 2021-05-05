@@ -2,6 +2,7 @@ from random import (SystemRandom)
 from datetime import (datetime, timedelta)
 import uuid
 
+import sqlalchemy
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
@@ -118,6 +119,32 @@ def get_user_by_email(email):
 def get_users_by_partial_email(email):
     email = escape_special_characters(email)
     return User.query.filter(User.email_address.ilike("%{}%".format(email))).all()
+
+
+def get_user_by_identity_provider_user_id(identity_provider_user_id):
+    return User.query.filter(
+        func.lower(User.identity_provider_user_id) == func.lower(identity_provider_user_id)
+    ).one()
+
+
+def update_user_identity_provider_user_id(email, identity_provider_user_id):
+    user = get_user_by_email(email)
+    user.identity_provider_user_id = identity_provider_user_id
+    db.session.add(user)
+    db.session.commit()
+
+
+def create_or_update_user(email_address, identity_provider_user_id, name):
+    try:
+        update_user_identity_provider_user_id(email_address, identity_provider_user_id)
+    except sqlalchemy.orm.exc.NoResultFound:
+        data = {
+            'email_address': email_address,
+            'identity_provider_user_id': identity_provider_user_id,
+            'name': name
+        }
+        user = User(**data)
+        save_model_user(user)
 
 
 def increment_failed_login_count(user):

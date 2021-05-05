@@ -22,7 +22,8 @@ from app.dao.users_dao import (
     create_secret_code,
     user_can_be_archived,
     dao_archive_user,
-    verify_within_time
+    verify_within_time, get_user_by_identity_provider_user_id, update_user_identity_provider_user_id,
+    create_or_update_user
 )
 from app.errors import InvalidRequest
 from app.models import EMAIL_AUTH_TYPE, User, VerifyCode
@@ -351,3 +352,24 @@ def test_check_password_for_blocked_user(notify_api, notify_db, notify_db_sessio
 def test_check_password_for_allowed_user(notify_api, notify_db, notify_db_session, sample_user):
     allowed_user = create_user(email='allowed@test.com', blocked=False)
     assert allowed_user.check_password('password')
+
+
+def test_get_user_by_identity_provider_user_id(sample_user):
+    user_from_db = get_user_by_identity_provider_user_id(sample_user.identity_provider_user_id)
+    assert sample_user == user_from_db
+
+
+def test_update_user_with_identity_user_id(sample_user):
+    new_id = "test-id"
+    assert sample_user.identity_provider_user_id != new_id
+    update_user_identity_provider_user_id(sample_user.email_address, new_id)
+    assert sample_user.identity_provider_user_id == new_id
+
+
+def test_create_or_update_user_by_identity(sample_user):
+    create_or_update_user(
+        "newuser@email.com",
+        "new-test-id",
+        "New User Here")
+
+    assert User.query.count() == 2
