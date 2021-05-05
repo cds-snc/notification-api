@@ -354,22 +354,37 @@ def test_check_password_for_allowed_user(notify_api, notify_db, notify_db_sessio
     assert allowed_user.check_password('password')
 
 
-def test_get_user_by_identity_provider_user_id(sample_user):
-    user_from_db = get_user_by_identity_provider_user_id(sample_user.identity_provider_user_id)
-    assert sample_user == user_from_db
+def test_get_user_by_identity_provider_user_id(notify_db_session):
+    user = create_user(identity_provider_user_id="id-user-1")
+    user_from_db = get_user_by_identity_provider_user_id(user.identity_provider_user_id)
+    assert user == user_from_db
 
 
 def test_update_user_with_identity_user_id(sample_user):
+    assert sample_user.identity_provider_user_id is None
+
     new_id = "test-id"
-    assert sample_user.identity_provider_user_id != new_id
     update_user_identity_provider_user_id(sample_user.email_address, new_id)
+
     assert sample_user.identity_provider_user_id == new_id
 
 
-def test_create_or_update_user_by_identity(sample_user):
+def test_create_or_update_user_by_identity_provider_user_id_for_new_user(sample_user):
     create_or_update_user(
         "newuser@email.com",
         "new-test-id",
         "New User Here")
 
     assert User.query.count() == 2
+
+
+def test_create_or_update_user_by_identity_provider_user_id_for_existing_user(sample_user):
+    assert sample_user.identity_provider_user_id is None
+
+    create_or_update_user(
+        sample_user.email_address,
+        "new-test-id",
+        sample_user.name)
+
+    assert sample_user.identity_provider_user_id == "new-test-id"
+    assert User.query.count() == 1

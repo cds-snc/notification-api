@@ -70,7 +70,7 @@ def create_user(
     email="notify@digital.cabinet-office.gov.uk",
     state='active',
     id_=None,
-    identity_provider_user_id="identity-provider-user-id",
+    identity_provider_user_id=None,
     name="Test User",
     blocked=False,
 ):
@@ -128,7 +128,7 @@ def create_service(
             message_limit=message_limit,
             restricted=restricted,
             email_from=email_from if email_from else service_name.lower().replace(' ', '.'),
-            created_by=user if user else create_user(email='{}@digital.cabinet-office.gov.uk'.format(uuid.uuid4())),
+            created_by=user if user else create_user(email=f'{uuid.uuid4()}@digital.cabinet-office.gov.uk'),
             prefix_sms=prefix_sms,
             organisation_type=organisation_type,
             go_live_user=go_live_user,
