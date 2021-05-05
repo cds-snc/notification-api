@@ -109,4 +109,4 @@ def test_process_smtp_results_in_complaint_save_complaint_with_null_complaint_ty
     complaints = Complaint.query.all()
     assert len(complaints) == 1
     assert complaints[0].notification_id == notification.id
-    assert not complaints[0].complaint_type
+    assert complaints[0].complaint_type == UNKNOWN_COMPLAINT_TYPE
