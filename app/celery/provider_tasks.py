@@ -49,7 +49,7 @@ def deliver_sms(self, notification_id):
     _deliver_sms(self, notification_id)
 
 
-@notify_celery.task(bind=True, name="deliver_email", max_retries=48, default_retry_delay=300)
+@notify_celery.task(bind=True, name="deliver_email", max_retries=48, default_retry_delay=300, acks_late=True)
 @statsd(namespace="tasks")
 def deliver_email(self, notification_id):
     try:
