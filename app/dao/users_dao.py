@@ -3,7 +3,7 @@ from datetime import (datetime, timedelta)
 import uuid
 
 import sqlalchemy
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 
 from app import db
@@ -128,10 +128,20 @@ def get_user_by_identity_provider_user_id(identity_provider_user_id):
 
 
 def update_user_identity_provider_user_id(email, identity_provider_user_id):
-    user = get_user_by_email(email)
-    user.identity_provider_user_id = identity_provider_user_id
+    email_exists_condition = func.lower(User.email_address) == func.lower(email)
+    id_matches_condition = func.lower(User.identity_provider_user_id) == func.lower(identity_provider_user_id)
+    user = User.query.filter(or_(email_exists_condition, id_matches_condition)).one()
+    if user.identity_provider_user_id != identity_provider_user_id:
+        user.identity_provider_user_id = identity_provider_user_id
+    elif user.email_address != email:
+        user.email_address = email
+    else:
+        return user
+
     db.session.add(user)
     db.session.commit()
+
+    return user
 
 
 def create_or_update_user(email_address, identity_provider_user_id, name):
