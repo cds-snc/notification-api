@@ -54,11 +54,13 @@ def test_create_user(notify_db_session, phone_number, test_name, test_email):
     }
     user = User(**data)
     save_model_user(user)
-    assert User.query.count() == 1
-    assert User.query.first().email_address == test_email
-    assert User.query.first().id == user.id
-    assert User.query.first().mobile_number == phone_number
+    user_from_db = User.query.first()
+
     assert not user.platform_admin
+    assert User.query.count() == 1
+    assert user_from_db.email_address == test_email
+    assert user_from_db.id == user.id
+    assert user_from_db.mobile_number == phone_number
 
 
 def test_create_user_with_identity_provider(notify_db_session, test_name, test_email):
@@ -70,11 +72,13 @@ def test_create_user_with_identity_provider(notify_db_session, test_name, test_e
     }
     user = User(**data)
     save_model_user(user)
-    assert User.query.count() == 1
-    assert User.query.first().email_address == test_email
-    assert User.query.first().id == user.id
-    assert User.query.first().identity_provider_user_id == identity_provider_user_id
+    user_from_db = User.query.first()
+
     assert not user.platform_admin
+    assert user_from_db.email_address == test_email
+    assert user_from_db.id == user.id
+    assert user_from_db.identity_provider_user_id == identity_provider_user_id
+    assert User.query.count() == 1
 
 
 def test_create_user_fails_when_violates_password_or_identity_provider_constraint(
@@ -374,8 +378,8 @@ def test_create_or_update_user_by_identity_provider_user_id_for_new_user(sample_
         "newuser@email.com",
         "new-test-id",
         "New User Here")
-
-    assert User.query.count() == 2
+    number_of_users_increases_to_two = 2
+    assert User.query.count() == number_of_users_increases_to_two
 
 
 def test_create_or_update_user_by_identity_provider_user_id_for_existing_user(sample_user):
@@ -386,5 +390,6 @@ def test_create_or_update_user_by_identity_provider_user_id_for_existing_user(sa
         "new-test-id",
         sample_user.name)
 
+    number_of_users_stays_at_one = 1
     assert sample_user.identity_provider_user_id == "new-test-id"
-    assert User.query.count() == 1
+    assert User.query.count() == number_of_users_stays_at_one
