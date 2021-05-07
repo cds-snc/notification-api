@@ -20,7 +20,6 @@ from app.celery.celery import NotifyCelery
 from app.clients import Clients
 from app.clients.document_download import DocumentDownloadClient
 from app.clients.email.aws_ses import AwsSesClient
-from app.clients.email.sendgrid_client import SendGridClient
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
 from app.dbsetup import RoutingSQLAlchemy
@@ -36,7 +35,6 @@ migrate = Migrate()
 ma = Marshmallow()
 notify_celery = NotifyCelery()
 aws_ses_client = AwsSesClient()
-send_grid_client = SendGridClient()
 aws_sns_client = AwsSnsClient()
 encryption = Encryption()
 zendesk_client = ZendeskClient()
@@ -69,7 +67,6 @@ def create_app(application):
     logging.init_app(application, statsd_client)
     aws_sns_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config['AWS_REGION'], statsd_client=statsd_client)
-    send_grid_client.init_app(application.config['SENDGRID_API_KEY'], statsd_client=statsd_client)
     notify_celery.init_app(application)
     encryption.init_app(application)
     redis_store.init_app(application)
@@ -77,7 +74,7 @@ def create_app(application):
     document_download_client.init_app(application)
     clients.init_app(
         sms_clients=[aws_sns_client],
-        email_clients=[aws_ses_client, send_grid_client]
+        email_clients=[aws_ses_client]
     )
 
     register_blueprint(application)
@@ -108,7 +105,6 @@ def register_blueprint(application):
     from app.inbound_number.rest import inbound_number_blueprint
     from app.inbound_sms.rest import inbound_sms as inbound_sms_blueprint
     from app.notifications.notifications_letter_callback import letter_callback_blueprint
-    from app.notifications.notifications_email_callback import email_callback_blueprint
     from app.authentication.auth import requires_admin_auth, requires_auth, requires_no_auth
     from app.letters.rest import letter_job
     from app.billing.rest import billing_blueprint
@@ -130,9 +126,6 @@ def register_blueprint(application):
 
     status_blueprint.before_request(requires_no_auth)
     application.register_blueprint(status_blueprint)
-
-    email_callback_blueprint.before_request(requires_no_auth)
-    application.register_blueprint(email_callback_blueprint)
 
     notifications_blueprint.before_request(requires_auth)
     application.register_blueprint(notifications_blueprint)
