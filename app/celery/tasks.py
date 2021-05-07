@@ -77,6 +77,7 @@ from app.notifications.process_notifications import (
     persist_notification,
     send_notification_to_queue,
 )
+from app.notifications.validators import check_service_over_daily_message_limit
 from app.service.utils import service_allowed_to_send_to
 from app.utils import get_csv_max_rows
 
@@ -216,6 +217,8 @@ def save_sms(self,
         )
         return
 
+    check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
+
     try:
         saved_notification = persist_notification(
             template_id=notification['template'],
@@ -271,6 +274,8 @@ def save_email(self,
         current_app.logger.info("Email {} failed as restricted service".format(notification_id))
         return
 
+    check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
+
     try:
         saved_notification = persist_notification(
             template_id=notification['template'],
@@ -314,6 +319,8 @@ def save_letter(
 
     service = dao_fetch_service_by_id(service_id)
     template = dao_get_template_by_id(notification['template'], version=notification['template_version'])
+
+    check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
 
     try:
         # if we don't want to actually send the letter, then start it off in SENDING so we don't pick it up

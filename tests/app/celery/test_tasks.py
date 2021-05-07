@@ -706,6 +706,7 @@ def test_should_save_sms_template_to_and_persist_with_job_id(sample_job, mocker)
         job_id=sample_job.id,
         row_number=2)
     mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+    mock_over_daily_limit = mocker.patch('app.celery.tasks.check_service_over_daily_message_limit')
 
     notification_id = uuid.uuid4()
     now = datetime.utcnow()
@@ -731,6 +732,7 @@ def test_should_save_sms_template_to_and_persist_with_job_id(sample_job, mocker)
         [str(persisted_notification.id)],
         queue="send-sms-tasks"
     )
+    mock_over_daily_limit.assert_called_once_with('normal', sample_job.service)
 
 
 def test_should_not_save_sms_if_team_key_and_recipient_not_in_team(notify_db_session, mocker):
@@ -757,6 +759,7 @@ def test_should_not_save_sms_if_team_key_and_recipient_not_in_team(notify_db_ses
 
 def test_should_use_email_template_and_persist(sample_email_template_with_placeholders, sample_api_key, mocker):
     mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
+    mock_over_daily_limit = mocker.patch('app.celery.tasks.check_service_over_daily_message_limit')
 
     now = datetime(2016, 1, 1, 11, 9, 0)
     notification_id = uuid.uuid4()
@@ -792,6 +795,7 @@ def test_should_use_email_template_and_persist(sample_email_template_with_placeh
 
     provider_tasks.deliver_email.apply_async.assert_called_once_with(
         [str(persisted_notification.id)], queue='send-email-tasks')
+    mock_over_daily_limit.assert_called_once_with('normal', sample_email_template_with_placeholders.service)
 
 
 def test_save_email_should_use_template_version_from_job_not_latest(sample_email_template, mocker):
@@ -1004,6 +1008,7 @@ def test_save_letter_saves_letter_to_database(mocker, notify_db_session):
 
     mocker.patch('app.celery.tasks.create_random_identifier', return_value="this-is-random-in-real-life")
     mocker.patch('app.celery.tasks.letters_pdf_tasks.create_letters_pdf.apply_async')
+    mock_over_daily_limit = mocker.patch('app.celery.tasks.check_service_over_daily_message_limit')
 
     personalisation = {
         'addressline1': 'Foo',
@@ -1044,6 +1049,8 @@ def test_save_letter_saves_letter_to_database(mocker, notify_db_session):
     assert notification_db.personalisation == personalisation
     assert notification_db.reference == "this-is-random-in-real-life"
     assert notification_db.reply_to_text == contact_block.contact_block
+
+    mock_over_daily_limit.assert_called_once_with('normal', service)
 
 
 @pytest.mark.parametrize('postage', ['first', 'second'])
