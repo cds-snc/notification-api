@@ -35,6 +35,14 @@ class TooManyRequestsError(InvalidRequest):
         self.message = self.message_template.format(sending_limit)
 
 
+class LiveServiceTooManyRequestsError(TooManyRequestsError):
+    pass
+
+
+class TrialServiceTooManyRequestsError(TooManyRequestsError):
+    pass
+
+
 class RateLimitError(InvalidRequest):
     status_code = 429
     message_template = 'Exceeded rate limit for key type {} of {} requests per {} seconds'
