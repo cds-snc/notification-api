@@ -364,20 +364,19 @@ def test_get_user_by_identity_provider_user_id(notify_db_session):
     assert user == user_from_db
 
 
-@pytest.mark.parametrize('initial_id_provider, new_id_provider',
+@pytest.mark.parametrize('initial_id_provider, expected_id_provider',
                          [
                              (None, "test-id"),
-                             ("old-id", "new-id"),
-                             ("same-id", "same-id")
+                             ("old-id", "same-id")
                          ])
 def test_update_user_identity_provider_user_id_for_identity_provider(
-        notify_db_session, initial_id_provider, new_id_provider
+        notify_db_session, initial_id_provider, expected_id_provider
 ):
     user = create_user(identity_provider_user_id=initial_id_provider)
 
-    user_from_db = update_user_identity_provider_user_id(user.email_address, new_id_provider)
+    user_from_db = update_user_identity_provider_user_id(user.email_address, expected_id_provider)
 
-    assert user_from_db.identity_provider_user_id == new_id_provider
+    assert user_from_db.identity_provider_user_id == expected_id_provider
 
 
 @pytest.mark.parametrize('initial_email, new_email',
@@ -385,11 +384,11 @@ def test_update_user_identity_provider_user_id_for_identity_provider(
                              ("old-mail@email.com", "new-mail@email.com"),
                              ("same-mail@email.com", "same-mail@email.com")
                          ])
-def test_update_user_identity_provider_user_id_for_email(notify_db_session, initial_email, new_email):
+def test_update_user_identity_provider_user_id_do_not_update_email(notify_db_session, initial_email, new_email):
     user_id = "user-id"
     create_user(email=initial_email, identity_provider_user_id=user_id)
     user_from_db = update_user_identity_provider_user_id(new_email, user_id)
-    assert user_from_db.email_address == new_email
+    assert user_from_db.email_address == initial_email
 
 
 def test_create_or_update_user_by_identity_provider_user_id_for_new_user(sample_user):

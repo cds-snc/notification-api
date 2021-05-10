@@ -135,9 +135,6 @@ def update_user_identity_provider_user_id(email, identity_provider_user_id):
     if user.identity_provider_user_id != identity_provider_user_id:
         user.identity_provider_user_id = identity_provider_user_id
         db.session.add(user)
-    elif user.email_address != email:
-        user.email_address = email
-        db.session.add(user)
 
     return user
 

@@ -120,7 +120,7 @@ class User(db.Model):
         db.String, db.ForeignKey('auth_type.name'), index=True, nullable=True, default=EMAIL_AUTH_TYPE)
     blocked = db.Column(db.Boolean, nullable=False, default=False)
     additional_information = db.Column(JSONB(none_as_null=True), nullable=True, default={})
-    identity_provider_user_id = db.Column(db.String, index=False, unique=True, nullable=True)
+    identity_provider_user_id = db.Column(db.String, index=True, unique=True, nullable=True)
 
     # a mobile number must be provided if using sms auth
     CheckConstraint(
