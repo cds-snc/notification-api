@@ -12,7 +12,6 @@ from sqlalchemy.orm.exc import NoResultFound
 from app import notify_celery, statsd_client
 from app.config import QueueNames
 from app.dao import notifications_dao
-from app.models import NOTIFICATION_SENDING, NOTIFICATION_PENDING
 from app.notifications.callbacks import _check_and_queue_callback_task
 from app.notifications.notifications_ses_callback import (
     get_aws_responses,
@@ -57,10 +56,6 @@ def process_ses_results(self, response):
                 current_app.logger.warning(
                     "notification not found for reference: {} (update to {})".format(reference, notification_status)
                 )
-            return
-
-        if notification.status not in {NOTIFICATION_SENDING, NOTIFICATION_PENDING}:
-            notifications_dao._duplicate_update_warning(notification, notification_status)
             return
 
         notifications_dao._update_notification_status(
