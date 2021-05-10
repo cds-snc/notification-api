@@ -37,8 +37,6 @@ fileignoreconfig:
       checksum: 57b04f1806590423bbf4b48c1cc80c900aa77a51bb53acc5d0efe889f0972600
     - filename: Brewfile.lock.json
       checksum: a7a52a240fe957c16eff861e45b975704f05c3eb4b1299d568615ba5bef95350
-    - filename: .github/workflows/dev-ci.yaml
-      checksum: 46d029987e00a7c70a90c33fdde4c55a6dc06f7d1cfa1af139c61413e8b735f3
     - filename: .github/workflows/lambda-functions.yaml
       checksum: 98e291f97aaf0057998260270ff95649713fa35c718bb51f3042cc9ca59afd25
     - filename: .github/workflows/twistlock.yaml
@@ -85,8 +83,6 @@ fileignoreconfig:
       checksum: cd38660ab8d5d7672ad5bd141f93d1737ad967e260fafa613df844a2f3225fb1
     - filename: app/delivery/send_to_providers.py
       checksum: 231849229bc5e142d9e28e1f34338f63178d1f7ea357f2589acb84816055bdb7
-    - filename: .github/workflows/dev-ci.yaml
-      checksum: 46d029987e00a7c70a90c33fdde4c55a6dc06f7d1cfa1af139c61413e8b735f3
     - filename: .github/workflows/twistlock.yaml
       checksum: a1cb4548c2ef5b5df1195ad968e69a9e783c4b9f0f9ba98c4e92ca8f1a09f087
     - filename: load_testing/.envrc.example
@@ -139,3 +135,5 @@ fileignoreconfig:
       checksum: 0fadc7598f1dcb1b99766e6be295d07280a9fab43787f9f3db73c7f681e0d2c1
     - filename: app/dao/users_dao.py
       checksum: 62f1bbaa6ff7edf14fcf74576a76f4fd775b66d4b70e588959af8069f789e565
+    - filename: .github/workflows/dev-ci.yaml
+      checksum: f60538b9b8d488e44a54ddc62750b03fe543919949abc1ac516b98b2ef83f760
