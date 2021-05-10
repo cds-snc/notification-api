@@ -1,15 +1,15 @@
 FROM python:3.6-alpine
 
-RUN apk update && apk add --no-cache ca-certificates && rm -rf /var/cache/apk/*
-COPY ./certs/VA-Internal-S2-RCA1-v1.crt /usr/local/share/ca-certificates/VA-Internal-S2-RCA1-v1.crt
-RUN update-ca-certificates
-
+ENV PYTHONDONTWRITEBYTECODE 1
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
-ENV PYTHONDONTWRITEBYTECODE 1
-RUN apk add --no-cache bash build-base git gcc musl-dev postgresql-dev g++ make libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev rust cargo && rm -rf /var/cache/apk/*
-RUN python -m pip install --upgrade pip==21.0.1
-RUN python -m pip install wheel
+COPY ./certs/VA-Internal-S2-RCA1-v1.crt /usr/local/share/ca-certificates/VA-Internal-S2-RCA1-v1.crt
+
+RUN apk add --no-cache ca-certificates \
+  && update-ca-certificates \
+  && apk del --no-cache ca-certificates
+
+RUN apk add --no-cache bash build-base git postgresql-dev g++ make libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev
 
 RUN adduser -h /app -D vanotify
 
@@ -17,7 +17,15 @@ WORKDIR /app
 
 COPY --chown=vanotify requirements.txt /app/requirements.txt
 
-RUN pip install -r requirements.txt
+RUN apk add --no-cache --virtual .build-deps \
+    gcc \
+    musl-dev \
+    rust \
+    cargo \
+  && python -m pip install --upgrade pip==21.0.1 \
+  && python -m pip install wheel \
+  && pip install --no-cache-dir -r requirements.txt \
+  && apk del --no-cache .build-deps
 
 USER vanotify
 

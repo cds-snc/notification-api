@@ -1,15 +1,23 @@
 FROM python:3.6-alpine
 
 ENV PYTHONDONTWRITEBYTECODE 1
-RUN apk add --no-cache bash build-base git gcc musl-dev postgresql-dev g++ make libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev rust cargo && rm -rf /var/cache/apk/*
-RUN python -m pip install --upgrade pip==21.0.1
-RUN python -m pip install wheel
+
+RUN apk add --no-cache bash build-base git postgresql-dev g++ make libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev
 RUN set -ex && mkdir /app
 
 COPY requirements_for_test.txt /app/requirements_for_test.txt
 COPY requirements.txt /app/requirements.txt
 WORKDIR /app
-RUN pip install -r requirements_for_test.txt
+
+RUN apk add --no-cache --virtual .build-deps \
+    gcc \
+    musl-dev \
+    rust \
+    cargo \
+  && python -m pip install --upgrade pip==21.0.1 \
+  && python -m pip install wheel \
+  && pip install --no-cache-dir -r requirements_for_test.txt \
+  && apk del .build-deps
 
 COPY . /app
 CMD ["sh", "-c", "make test"]
