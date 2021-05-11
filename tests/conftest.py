@@ -157,7 +157,7 @@ def set_config(app, name, value):
 
 
 @contextmanager
-def set_config_values(app, dict):
+def set_config_values(app: object, dict: object) -> object:
     old_values = {}
 
     for key in dict:
