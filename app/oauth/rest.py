@@ -41,15 +41,15 @@ def authorize():
 
     email_resp = oauth_registry.github.get('/user/emails', token=github_token)
     email_resp.raise_for_status()
-    verified_thoughtworks_email = next(email.get('email') for email in email_resp.json()
-                                       if email.get('primary') and email.get('verified'))
+    verified_email = next(email.get('email') for email in email_resp.json()
+                          if email.get('primary') and email.get('verified'))
 
     name_resp = oauth_registry.github.get('/user', token=github_token)
     name_resp.raise_for_status()
     verified_name, verified_github_login = (name_resp.json().get('name'), name_resp.json().get('login'))
 
     user = create_or_update_user(
-        email_address=verified_thoughtworks_email,
+        email_address=verified_email,
         identity_provider_user_id=verified_github_login,
         name=verified_name)
 
