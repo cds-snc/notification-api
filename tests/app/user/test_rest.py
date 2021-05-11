@@ -168,6 +168,37 @@ def test_post_user_missing_attribute_email(client, notify_db, notify_db_session)
     assert {'email_address': ['Missing data for required field.']} == json_resp['message']
 
 
+def test_post_user_with_identity_provider_user_id_without_password(client, notify_db, notify_db_session):
+    """
+    Tests POST endpoint '/' to create a user with an identity_provider_user_id.
+    """
+    assert User.query.count() == 0
+    data = {
+        "name": "Test User",
+        "email_address": "user@digital.cabinet-office.gov.uk",
+        "mobile_number": "+16502532222",
+        "logged_in_at": None,
+        "state": "active",
+        "failed_login_count": 0,
+        "permissions": {},
+        "auth_type": EMAIL_AUTH_TYPE,
+        "identity_provider_user_id": "test-id",
+    }
+    auth_header = create_authorization_header()
+    headers = [('Content-Type', 'application/json'), auth_header]
+    resp = client.post(
+        url_for('user.create_user'),
+        data=json.dumps(data),
+        headers=headers)
+    assert resp.status_code == 201
+    user = User.query.filter_by(identity_provider_user_id='test-id').first()
+    json_resp = json.loads(resp.get_data(as_text=True))['data']
+    assert json_resp['identity_provider_user_id'] == user.identity_provider_user_id
+    assert json_resp['email_address'] == user.email_address
+    assert json_resp['id'] == str(user.id)
+    assert user.auth_type == EMAIL_AUTH_TYPE
+
+
 def test_create_user_missing_attribute_password(client, notify_db, notify_db_session):
     """
     Tests POST endpoint '/' missing attribute password.
@@ -273,7 +304,8 @@ def test_cannot_create_user_with_empty_strings(admin_request, notify_db_session)
 @pytest.mark.parametrize('user_attribute, user_value', [
     ('name', 'New User'),
     ('email_address', 'newuser@mail.com'),
-    ('mobile_number', '+16502532223')
+    ('mobile_number', '+16502532223'),
+    ('identity_provider_user_id', 'test-id')
 ])
 def test_post_user_attribute(client, mocker, sample_user, user_attribute, user_value, account_change_template):
     assert getattr(sample_user, user_attribute) != user_value
@@ -948,6 +980,25 @@ def test_cannot_update_user_password_using_attributes_method(
         _expected_status=400
     )
     assert resp['message']['_schema'] == ['Unknown field name password']
+
+
+def test_can_update_user_attribute_identity_provider_user_id_as_empty(
+        admin_request, sample_user, account_change_template, mocker
+):
+    mocker.patch('app.user.rest.persist_notification')
+    mocker.patch('app.user.rest.send_notification_to_queue')
+    sample_user.auth_type = SMS_AUTH_TYPE
+    sample_user.identity_provider_user_id = "test-id"
+
+    admin_request.post(
+        'user.update_user_attribute',
+        user_id=sample_user.id,
+        _data={
+            'identity_provider_user_id': None,
+        }
+    )
+
+    assert sample_user.identity_provider_user_id is None
 
 
 def test_get_orgs_and_services_nests_services(admin_request, sample_user):

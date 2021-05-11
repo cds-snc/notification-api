@@ -90,6 +90,7 @@ class UserSchema(BaseSchema):
     password_changed_at = field_for(models.User, 'password_changed_at', format=DATE_FORMAT)
     created_at = field_for(models.User, 'created_at', format=DATE_FORMAT)
     auth_type = field_for(models.User, 'auth_type')
+    identity_provider_user_id = field_for(models.User, 'identity_provider_user_id')
 
     def user_permissions(self, usr):
         retval = {}
@@ -135,6 +136,7 @@ class UserSchema(BaseSchema):
 
 class UserUpdateAttributeSchema(BaseSchema):
     auth_type = field_for(models.User, 'auth_type')
+    identity_provider_user_id = field_for(models.User, 'identity_provider_user_id')
 
     class Meta:
         model = models.User

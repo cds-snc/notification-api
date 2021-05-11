@@ -105,11 +105,13 @@ def create_user():
     user_to_create, errors = create_user_schema.load(request.get_json())
     req_json = request.get_json()
 
+    identity_provider_user_id = req_json.get('identity_provider_user_id', None)
     password = req_json.get('password', None)
-    if not password:
+
+    if not password and not identity_provider_user_id:
         errors.update({'password': ['Missing data for required field.']})
         raise InvalidRequest(errors, status_code=400)
-    else:
+    elif password:
         response = pwnedpasswords.check(password)
         if response > 0:
             errors.update({'password': ['Password is blacklisted.']})

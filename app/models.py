@@ -179,6 +179,7 @@ class User(db.Model):
             'name': self.name,
             'email_address': self.email_address,
             'auth_type': self.auth_type,
+            'identity_provider_user_id': self.identity_provider_user_id,
             'current_session_id': self.current_session_id,
             'failed_login_count': self.failed_login_count,
             'logged_in_at': self.logged_in_at.strftime(DATETIME_FORMAT) if self.logged_in_at else None,
