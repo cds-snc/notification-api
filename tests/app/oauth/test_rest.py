@@ -37,6 +37,115 @@ def cookie_config():
     }
 
 
+@pytest.fixture
+def mocked_success_github_org_membership(mocker):
+    github_org_membership = {
+        "url": "https://api.github.com/orgs/department-of-veterans-affairs/memberships/some-user",
+        "state": "pending",
+        "role": "user",
+        "organization_url": "https://api.github.com/orgs/department-of-veterans-affairs",
+        "organization": {
+            "login": "department-of-veterans-affairs",
+            "id": 1,
+            "node_id": "blahblahblah",
+            "url": "https://api.github.com/orgs/department-of-veterans-affairs",
+            "repos_url": "https://api.github.com/orgs/department-of-veterans-affairs/repos",
+            "events_url": "https://api.github.com/orgs/department-of-veterans-affairs/events",
+            "hooks_url": "https://api.github.com/orgs/department-of-veterans-affairs/hooks",
+            "issues_url": "https://api.github.com/orgs/department-of-veterans-affairs/issues",
+            "members_url": "https://api.github.com/orgs/department-of-veterans-affairs/members/someuser",
+            "public_members_url": "https://api.github.com/orgs/department-of-veterans-affairs/public_members/someuser",
+            "avatar_url": "https://github.com/images/error/octocat_happy.gif",
+            "description": "Some organization"
+        },
+        "user": {
+            "login": "someuser",
+            "id": 1,
+            "node_id": "MDQ6VXNlcjE=",
+            "avatar_url": "https://github.com/images/error/octocat_happy.gif",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/someuser",
+            "html_url": "https://github.com/someuser",
+            "followers_url": "https://api.github.com/users/someuser/followers",
+            "following_url": "https://api.github.com/users/someuser/following{/other_user}",
+            "gists_url": "https://api.github.com/users/someuser/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/someuser/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/someuser/subscriptions",
+            "organizations_url": "https://api.github.com/users/someuser/orgs",
+            "repos_url": "https://api.github.com/users/someuser/repos",
+            "events_url": "https://api.github.com/users/someuser/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/someuser/received_events",
+            "type": "User",
+            "site_admin": False
+        }
+    }
+    return mocker.Mock(Response, status_code=200, json=mocker.Mock(return_value=github_org_membership))
+
+
+@pytest.fixture
+def mocked_success_github_user(mocker):
+    github_user = {
+        "login": "someuser",
+        "id": 1,
+        "node_id": "MDQ6VXNlcjE=",
+        "avatar_url": "https://github.com/images/error/octocat_happy.gif",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/someuser",
+        "html_url": "https://github.com/someuser",
+        "followers_url": "https://api.github.com/users/someuser/followers",
+        "following_url": "https://api.github.com/users/someuser/following{/other_user}",
+        "gists_url": "https://api.github.com/users/someuser/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/someuser/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/someuser/octocat/subscriptions",
+        "organizations_url": "https://api.github.com/someuser/octocat/orgs",
+        "repos_url": "https://api.github.com/users/someuser/repos",
+        "events_url": "https://api.github.com/users/someuser/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/someuser/received_events",
+        "type": "User",
+        "site_admin": False,
+        "name": "monalisa someuser",
+        "company": "GitHub",
+        "blog": "https://github.com/blog",
+        "location": "San Francisco",
+        "email": "octocat@github.com",
+        "hireable": False,
+        "bio": "There once was...",
+        "twitter_username": "monatheoctocat",
+        "public_repos": 2,
+        "public_gists": 1,
+        "followers": 20,
+        "following": 0,
+        "created_at": "2008-01-14T04:33:35Z",
+        "updated_at": "2008-01-14T04:33:35Z",
+        "private_gists": 81,
+        "total_private_repos": 100,
+        "owned_private_repos": 100,
+        "disk_usage": 10000,
+        "collaborators": 8,
+        "two_factor_authentication": True,
+        "plan": {
+            "name": "Medium",
+            "space": 400,
+            "private_repos": 20,
+            "collaborators": 0
+        }
+    }
+    return mocker.Mock(Response, status_code=200, json=mocker.Mock(return_value=github_user))
+
+
+@pytest.fixture
+def mocked_success_github_user_emails(mocker):
+    github_user_emails = [
+        {
+            "email": "some.user@thoughtworks.com",
+            "verified": True,
+            "primary": True,
+            "visibility": "public"
+        }
+    ]
+    return mocker.Mock(Response, json=mocker.Mock(return_value=github_user_emails))
+
+
 class TestLogin:
 
     def test_should_return_501_if_toggle_is_disabled(self, client, toggle_disabled):
@@ -54,15 +163,6 @@ class TestLogin:
 
 
 class TestAuthorize:
-    github_user_emails = [
-        {
-            "email": "some.user@thoughtworks.com",
-            "verified": True,
-            "primary": True,
-            "visibility": "public"
-        }
-    ]
-
     def test_should_return_501_if_toggle_is_disabled(self, client, toggle_disabled):
         response = client.get('/authorize')
 
@@ -70,13 +170,7 @@ class TestAuthorize:
 
     @pytest.mark.parametrize('status_code', [403, 404])
     def test_should_redirect_to_login_failure_if_organization_membership_verification_fails(
-            self,
-            client,
-            notify_api,
-            toggle_enabled,
-            mocker,
-            status_code,
-            cookie_config
+            self, client, notify_api, toggle_enabled, mocker, status_code, cookie_config
     ):
         mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
         github_organization_membership_response = mocker.Mock(Response, status_code=status_code)
@@ -97,33 +191,19 @@ class TestAuthorize:
         )
 
     def test_should_redirect_to_ui_if_user_is_member_of_va_organization(
-            self,
-            client,
-            notify_api,
-            toggle_enabled,
-            mocker,
-            cookie_config
+            self, client, notify_api, toggle_enabled, mocker, cookie_config,
+            mocked_success_github_org_membership, mocked_success_github_user_emails, mocked_success_github_user
     ):
         mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
-
-        github_organization_membership_response = mocker.Mock(Response, status_code=200)
-
-        github_user_emails = [
-            {
-                "email": "some.user@thoughtworks.com",
-                "verified": True,
-                "primary": True,
-                "visibility": "public"
-            }
-        ]
-        github_user_emails_response = mocker.Mock(Response, json=mocker.Mock(return_value=github_user_emails))
         mocker.patch(
             'app.oauth.rest.oauth_registry.github.get',
-            side_effect=[github_organization_membership_response, github_user_emails_response]
+            side_effect=[mocked_success_github_org_membership,
+                         mocked_success_github_user_emails,
+                         mocked_success_github_user]
         )
 
         found_user = User()
-        mocker.patch('app.oauth.rest.get_user_by_email', return_value=found_user)
+        mocker.patch('app.oauth.rest.create_or_update_user', return_value=found_user)
         create_access_token = mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
 
         with set_config_values(notify_api, cookie_config):
@@ -139,6 +219,40 @@ class TestAuthorize:
             and cookie.value == 'some-access-token-value'
             for cookie in client.cookie_jar
         )
+
+    @pytest.mark.parametrize('test_identity_provider_user_id', [None, 'someuser'])
+    def test_should_create_or_update_existing_user_with_identity_provider_user_id_when_successfully_verified(
+            self, client, notify_api, toggle_enabled, mocker, cookie_config,
+            mocked_success_github_org_membership, mocked_success_github_user_emails, mocked_success_github_user,
+            test_identity_provider_user_id
+    ):
+        expected_email = mocked_success_github_user_emails.json()[0].get('email')
+        expected_login = mocked_success_github_org_membership.json().get("user").get("login")
+        expected_name = mocked_success_github_user.json().get('name')
+
+        mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
+        mocker.patch(
+            'app.oauth.rest.oauth_registry.github.get',
+            side_effect=[mocked_success_github_org_membership,
+                         mocked_success_github_user_emails,
+                         mocked_success_github_user])
+
+        found_user = User(
+            email_address=expected_email,
+            identity_provider_user_id=test_identity_provider_user_id,
+            name=expected_name
+        )
+        mock_create_or_update_user = mocker.patch('app.oauth.rest.create_or_update_user', return_value=found_user)
+
+        mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
+
+        with set_config_values(notify_api, cookie_config):
+            client.get('/authorize')
+
+        mock_create_or_update_user.assert_called_with(
+            email_address=expected_email,
+            identity_provider_user_id=expected_login,
+            name=expected_name)
 
 
 class TestRedeemToken:

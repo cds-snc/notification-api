@@ -4,7 +4,7 @@ from flask_jwt_extended import create_access_token, verify_jwt_in_request
 from flask_jwt_extended.exceptions import NoAuthorizationError
 from jwt import ExpiredSignatureError
 
-from app.dao.users_dao import get_user_by_email
+from app.dao.users_dao import create_or_update_user
 from app.errors import register_errors
 from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.oauth.registry import oauth_registry
@@ -35,18 +35,23 @@ def authorize():
         '/user/memberships/orgs/department-of-veterans-affairs',
         token=github_token
     )
+    org_membership_resp.raise_for_status()
     if org_membership_resp.status_code != 200:
         return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
 
     email_resp = oauth_registry.github.get('/user/emails', token=github_token)
     email_resp.raise_for_status()
+    verified_thoughtworks_email = next(email.get('email') for email in email_resp.json()
+                                       if email.get('primary') and email.get('verified'))
 
-    # filter for emails only simply for p.o.c. purposes
-    verified_thoughtworks_emails = [
-        email.get('email') for email in email_resp.json()
-        if '@thoughtworks.com' in email.get('email') and email.get('verified')
-    ]
-    user = get_user_by_email(verified_thoughtworks_emails[0])
+    name_resp = oauth_registry.github.get('/user', token=github_token)
+    name_resp.raise_for_status()
+    verified_name, verified_github_login = (name_resp.json().get('name'), name_resp.json().get('login'))
+
+    user = create_or_update_user(
+        email_address=verified_thoughtworks_email,
+        identity_provider_user_id=verified_github_login,
+        name=verified_name)
 
     response = make_response(redirect(current_app.config['UI_HOST_NAME']))
     response.set_cookie(
