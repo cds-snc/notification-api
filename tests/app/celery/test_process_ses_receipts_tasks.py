@@ -95,16 +95,14 @@ def test_ses_callback_should_update_notification_status(
         send_mock.assert_called_once_with([str(notification.id), encrypted_data], queue="service-callbacks")
 
 
-def test_ses_callback_should_not_update_notification_status_if_already_delivered(sample_email_template, mocker):
-    mock_dup = mocker.patch('app.celery.process_ses_receipts_tasks.notifications_dao._duplicate_update_warning')
-    mock_upd = mocker.patch('app.celery.process_ses_receipts_tasks.notifications_dao._update_notification_status')
+def test_ses_callback_should_update_notification_status_when_receiving_new_delivery_receipt(
+    sample_email_template,
+    mocker
+):
     notification = create_notification(template=sample_email_template, reference='ref', status='delivered')
 
-    assert process_ses_results(ses_notification_callback(reference='ref')) is None
-    assert get_notification_by_id(notification.id).status == 'delivered'
-
-    mock_dup.assert_called_once_with(notification, 'delivered')
-    assert mock_upd.call_count == 0
+    assert process_ses_results(ses_hard_bounce_callback(reference='ref'))
+    assert get_notification_by_id(notification.id).status == 'permanent-failure'
 
 
 def test_ses_callback_should_retry_if_notification_is_new(notify_db, mocker):
