@@ -25,7 +25,12 @@ from app.models import (
 )
 from app.service.sender import send_notification_to_service_users
 from app.service.utils import service_allowed_to_send_to
-from app.v2.errors import TooManyRequestsError, BadRequestError, RateLimitError
+from app.v2.errors import (
+    BadRequestError,
+    LiveServiceTooManyRequestsError,
+    RateLimitError,
+    TrialServiceTooManyRequestsError,
+)
 from app import redis_store
 from app.notifications.process_notifications import create_content_for_notification
 from app.utils import get_document_url, get_public_notify_type_text
@@ -45,7 +50,16 @@ def check_service_over_api_rate_limit(service, api_key):
             raise RateLimitError(rate_limit, interval, api_key.key_type)
 
 
-@statsd_catch(namespace="validators", counter_name="rate_limit.service_daily", exception=TooManyRequestsError)
+@statsd_catch(
+    namespace="validators",
+    counter_name="rate_limit.trial_service_daily",
+    exception=TrialServiceTooManyRequestsError
+)
+@statsd_catch(
+    namespace="validators",
+    counter_name="rate_limit.live_service_daily",
+    exception=LiveServiceTooManyRequestsError
+)
 def check_service_over_daily_message_limit(key_type, service):
     if key_type != KEY_TYPE_TEST and current_app.config['REDIS_ENABLED']:
         cache_key = daily_limit_cache_key(service.id)
@@ -107,7 +121,10 @@ def warn_about_daily_message_limit(service, messages_sent):
             "service {} has been rate limited for daily use sent {} limit {}".format(
                 service.id, int(messages_sent), service.message_limit)
         )
-        raise TooManyRequestsError(service.message_limit)
+        if service.restricted:
+            raise TrialServiceTooManyRequestsError(service.message_limit)
+        else:
+            raise LiveServiceTooManyRequestsError(service.message_limit)
 
 
 def check_template_is_for_notification_type(notification_type, template_type):

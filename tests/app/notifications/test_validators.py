@@ -228,22 +228,26 @@ def test_check_service_message_limit_in_cache_over_message_limit_fails(
         assert not app.notifications.validators.services_dao.mock_calls
 
 
+@pytest.mark.parametrize('is_trial_service, expected_counter', [
+    (True, 'validators.rate_limit.trial_service_daily'),
+    (False, 'validators.rate_limit.live_service_daily'),
+], ids=["trial service", "live service"])
 def test_check_service_message_limit_sends_statsd_over_message_limit_fails(
-        app_statsd,
-        notify_db,
-        notify_db_session,
-        mocker):
-    # Given
+    app_statsd,
+    notify_db,
+    notify_db_session,
+    mocker,
+    is_trial_service,
+    expected_counter,
+):
     mocker.patch('app.redis_store.get', return_value=5)
     mocker.patch('app.notifications.validators.redis_store.set')
 
-    # When
-    service = create_service(notify_db, notify_db_session, restricted=True, limit=4)
+    service = create_service(notify_db, notify_db_session, restricted=is_trial_service, limit=4)
     with pytest.raises(TooManyRequestsError):
         check_service_over_daily_message_limit("normal", service)
 
-    # Then
-    app_statsd.statsd_client.incr.assert_called_once_with("validators.rate_limit.service_daily")
+    app_statsd.statsd_client.incr.assert_called_once_with(expected_counter)
 
 
 def test_check_service_message_limit_skip_statsd_over_message_no_limit_fails(
