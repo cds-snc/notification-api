@@ -38,7 +38,7 @@ def cookie_config():
 
 
 @pytest.fixture
-def mocked_success_github_org_membership(mocker):
+def success_github_org_membership(mocker):
     github_org_membership = {
         "url": "https://api.github.com/orgs/department-of-veterans-affairs/memberships/some-user",
         "state": "pending",
@@ -83,7 +83,7 @@ def mocked_success_github_org_membership(mocker):
 
 
 @pytest.fixture
-def mocked_success_github_user(mocker):
+def success_github_user(mocker):
     github_user = {
         "login": "someuser",
         "id": 1,
@@ -134,7 +134,7 @@ def mocked_success_github_user(mocker):
 
 
 @pytest.fixture
-def mocked_success_github_user_emails(mocker):
+def success_github_user_emails(mocker):
     github_user_emails = [
         {
             "email": "some.user@thoughtworks.com",
@@ -144,6 +144,20 @@ def mocked_success_github_user_emails(mocker):
         }
     ]
     return mocker.Mock(Response, json=mocker.Mock(return_value=github_user_emails))
+
+
+@pytest.fixture
+def github_data(mocker, success_github_org_membership, success_github_user, success_github_user_emails):
+    mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
+    mocker.patch(
+        'app.oauth.rest.oauth_registry.github.get',
+        side_effect=[success_github_org_membership, success_github_user_emails, success_github_user])
+
+    email = success_github_user_emails.json()[0].get('email')
+    identity_provider_user_id = success_github_org_membership.json().get("user").get("login")
+    name = success_github_user.json().get('name')
+
+    return email, identity_provider_user_id, name
 
 
 class TestLogin:
@@ -163,6 +177,7 @@ class TestLogin:
 
 
 class TestAuthorize:
+
     def test_should_return_501_if_toggle_is_disabled(self, client, toggle_disabled):
         response = client.get('/authorize')
 
@@ -170,7 +185,7 @@ class TestAuthorize:
 
     @pytest.mark.parametrize('status_code', [403, 404])
     def test_should_redirect_to_login_failure_if_organization_membership_verification_fails(
-            self, client, notify_api, toggle_enabled, mocker, status_code, cookie_config
+            self, client, notify_api, toggle_enabled, mocker, cookie_config, status_code
     ):
         mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
         github_organization_membership_response = mocker.Mock(Response, status_code=status_code)
@@ -191,17 +206,8 @@ class TestAuthorize:
         )
 
     def test_should_redirect_to_ui_if_user_is_member_of_va_organization(
-            self, client, notify_api, toggle_enabled, mocker, cookie_config,
-            mocked_success_github_org_membership, mocked_success_github_user_emails, mocked_success_github_user
+            self, client, notify_api, toggle_enabled, mocker, cookie_config, github_data
     ):
-        mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
-        mocker.patch(
-            'app.oauth.rest.oauth_registry.github.get',
-            side_effect=[mocked_success_github_org_membership,
-                         mocked_success_github_user_emails,
-                         mocked_success_github_user]
-        )
-
         found_user = User()
         mocker.patch('app.oauth.rest.create_or_update_user', return_value=found_user)
         create_access_token = mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
@@ -220,36 +226,25 @@ class TestAuthorize:
             for cookie in client.cookie_jar
         )
 
-    @pytest.mark.parametrize('test_identity_provider_user_id', [None, 'someuser'])
+    @pytest.mark.parametrize('identity_provider_user_id', [None, 'someuser'])
     def test_should_create_or_update_existing_user_with_identity_provider_user_id_when_successfully_verified(
-            self, client, notify_api, toggle_enabled, mocker, cookie_config,
-            mocked_success_github_org_membership, mocked_success_github_user_emails, mocked_success_github_user,
-            test_identity_provider_user_id
+            self, client, notify_api, toggle_enabled, mocker, cookie_config, github_data, identity_provider_user_id
     ):
-        expected_email = mocked_success_github_user_emails.json()[0].get('email')
-        expected_login = mocked_success_github_org_membership.json().get("user").get("login")
-        expected_name = mocked_success_github_user.json().get('name')
-
-        mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
-        mocker.patch(
-            'app.oauth.rest.oauth_registry.github.get',
-            side_effect=[mocked_success_github_org_membership,
-                         mocked_success_github_user_emails,
-                         mocked_success_github_user])
+        expected_email, expected_login, expected_name = github_data
 
         found_user = User(
             email_address=expected_email,
-            identity_provider_user_id=test_identity_provider_user_id,
+            identity_provider_user_id=identity_provider_user_id,
             name=expected_name
         )
-        mock_create_or_update_user = mocker.patch('app.oauth.rest.create_or_update_user', return_value=found_user)
+        create_or_update_user = mocker.patch('app.oauth.rest.create_or_update_user', return_value=found_user)
 
         mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
 
         with set_config_values(notify_api, cookie_config):
             client.get('/authorize')
 
-        mock_create_or_update_user.assert_called_with(
+        create_or_update_user.assert_called_with(
             email_address=expected_email,
             identity_provider_user_id=expected_login,
             name=expected_name)
