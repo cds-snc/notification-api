@@ -31,7 +31,6 @@ newrelic==6.2.0.156
 notifications-python-client==6.0.2
 python-dotenv==0.17.1
 pwnedpasswords==2.0.0
-sendgrid==6.7.0
 tldextract==3.1.0
 nanoid==2.0.0
 unidecode==1.2.0
