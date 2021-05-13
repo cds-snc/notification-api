@@ -1,12 +1,17 @@
+import json
+from typing import Tuple
+
 from flask import Blueprint, url_for, make_response, redirect, jsonify, current_app, request
 from flask_cors.core import get_cors_options, set_cors_headers
 from flask_jwt_extended import create_access_token, verify_jwt_in_request
 from flask_jwt_extended.exceptions import NoAuthorizationError
 from jwt import ExpiredSignatureError
+from requests.exceptions import HTTPError
 
 from app.dao.users_dao import create_or_update_user
 from app.errors import register_errors
 from app.feature_flags import is_feature_enabled, FeatureFlag
+from app.oauth.exceptions import OAuthException
 from app.oauth.registry import oauth_registry
 
 oauth_blueprint = Blueprint('oauth', __name__, url_prefix='')
@@ -31,39 +36,56 @@ def login():
 def authorize():
     github_token = oauth_registry.github.authorize_access_token()
 
-    org_membership_resp = oauth_registry.github.get(
-        '/user/memberships/orgs/department-of-veterans-affairs',
+    try:
+        make_github_get_request('/user/memberships/orgs/department-of-veterans-affairs', github_token)
+        email_resp = make_github_get_request('/user/emails', github_token)
+        name_resp = make_github_get_request('/user', github_token)
+
+        verified_email, verified_github_login, verified_name = _extract_github_user_info(email_resp, name_resp)
+
+        user = create_or_update_user(
+            email_address=verified_email,
+            identity_provider_user_id=verified_github_login,
+            name=verified_name)
+
+    except (OAuthException, HTTPError) as e:
+        current_app.logger.error(f"Authorization exception raised:\n{e}\n")
+        return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
+    else:
+        response = make_response(redirect(current_app.config['UI_HOST_NAME']))
+        response.set_cookie(
+            current_app.config['JWT_ACCESS_COOKIE_NAME'],
+            create_access_token(
+                identity=user
+            ),
+            httponly=True,
+            secure=current_app.config['SESSION_COOKIE_SECURE'],
+            samesite=current_app.config['SESSION_COOKIE_SAMESITE']
+        )
+        return response
+
+
+def make_github_get_request(endpoint: str, github_token) -> json:
+    resp = oauth_registry.github.get(
+        endpoint,
         token=github_token
     )
-    org_membership_resp.raise_for_status()
-    if org_membership_resp.status_code != 200:
-        return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
+    resp.raise_for_status()
 
-    email_resp = oauth_registry.github.get('/user/emails', token=github_token)
-    email_resp.raise_for_status()
+    if resp.status_code == 304:
+        raise OAuthException(Exception("Fail to retrieve required information to complete authorization"))
+
+    return resp
+
+
+def _extract_github_user_info(email_resp: json, name_resp: json) -> Tuple[str, str, str]:
     verified_email = next(email.get('email') for email in email_resp.json()
                           if email.get('primary') and email.get('verified'))
 
-    name_resp = oauth_registry.github.get('/user', token=github_token)
-    name_resp.raise_for_status()
-    verified_name, verified_github_login = (name_resp.json().get('name'), name_resp.json().get('login'))
+    verified_name = name_resp.json().get('name')
+    verified_github_login = name_resp.json().get('login')
 
-    user = create_or_update_user(
-        email_address=verified_email,
-        identity_provider_user_id=verified_github_login,
-        name=verified_name)
-
-    response = make_response(redirect(current_app.config['UI_HOST_NAME']))
-    response.set_cookie(
-        current_app.config['JWT_ACCESS_COOKIE_NAME'],
-        create_access_token(
-            identity=user
-        ),
-        httponly=True,
-        secure=current_app.config['SESSION_COOKIE_SECURE'],
-        samesite=current_app.config['SESSION_COOKIE_SAMESITE']
-    )
-    return response
+    return verified_email, verified_github_login, verified_name
 
 
 @oauth_blueprint.route('/redeem-token', methods=['GET'])

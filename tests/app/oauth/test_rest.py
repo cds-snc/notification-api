@@ -4,9 +4,12 @@ import pytest
 from flask_jwt_extended.exceptions import NoAuthorizationError
 from jwt import ExpiredSignatureError
 from requests import Response
+from requests.exceptions import HTTPError
 
 from app.feature_flags import FeatureFlag
 from app.models import User
+from app.oauth.exceptions import OAuthException
+from app.oauth.rest import make_github_get_request
 from tests.conftest import set_config_values
 
 
@@ -150,7 +153,7 @@ def success_github_user_emails(mocker):
 def github_data(mocker, success_github_org_membership, success_github_user, success_github_user_emails):
     mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
     mocker.patch(
-        'app.oauth.rest.oauth_registry.github.get',
+        'app.oauth.rest.make_github_get_request',
         side_effect=[success_github_org_membership, success_github_user_emails, success_github_user])
 
     email = success_github_user_emails.json()[0].get('email')
@@ -183,16 +186,16 @@ class TestAuthorize:
 
         assert response.status_code == 501
 
-    @pytest.mark.parametrize('status_code', [403, 404])
-    def test_should_redirect_to_login_failure_if_organization_membership_verification_fails(
-            self, client, notify_api, toggle_enabled, mocker, cookie_config, status_code
+    @pytest.mark.parametrize('exception', [OAuthException, HTTPError])
+    def test_should_redirect_to_login_failure_if_organization_membership_verification_or_user_info_retrieval_fails(
+            self, client, notify_api, toggle_enabled, mocker, cookie_config,
+            exception
     ):
         mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
-        github_organization_membership_response = mocker.Mock(Response, status_code=status_code)
-
+        mock_logger = mocker.patch('app.oauth.rest.current_app.logger.error')
         mocker.patch(
-            'app.oauth.rest.oauth_registry.github.get',
-            return_value=github_organization_membership_response
+            'app.oauth.rest.make_github_get_request',
+            side_effect=exception
         )
 
         with set_config_values(notify_api, cookie_config):
@@ -200,10 +203,24 @@ class TestAuthorize:
 
         assert response.status_code == 302
         assert f"{cookie_config['UI_HOST_NAME']}/login/failure" in response.location
-
         assert not any(
             cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar
         )
+        mock_logger.assert_called_once()
+
+    def test_should_raise_exception_if_304_from_github_get(
+            self, client, notify_api, toggle_enabled, mocker
+    ):
+        github_access_token = mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
+        github_get_user_resp = mocker.Mock(Response, status_code=304)
+
+        mocker.patch(
+            'app.oauth.rest.oauth_registry.github.get',
+            return_value=github_get_user_resp,
+        )
+
+        with pytest.raises(OAuthException):
+            make_github_get_request('/user', github_access_token)
 
     def test_should_redirect_to_ui_if_user_is_member_of_va_organization(
             self, client, notify_api, toggle_enabled, mocker, cookie_config, github_data
