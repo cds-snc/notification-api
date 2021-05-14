@@ -157,7 +157,7 @@ def github_data(mocker, success_github_org_membership, success_github_user, succ
         side_effect=[success_github_org_membership, success_github_user_emails, success_github_user])
 
     email = success_github_user_emails.json()[0].get('email')
-    identity_provider_user_id = success_github_org_membership.json().get("user").get("login")
+    identity_provider_user_id = success_github_org_membership.json().get("user").get("id")
     name = success_github_user.json().get('name')
 
     return email, identity_provider_user_id, name
@@ -243,11 +243,11 @@ class TestAuthorize:
             for cookie in client.cookie_jar
         )
 
-    @pytest.mark.parametrize('identity_provider_user_id', [None, 'someuser'])
+    @pytest.mark.parametrize('identity_provider_user_id', [None, '1'])
     def test_should_create_or_update_existing_user_with_identity_provider_user_id_when_successfully_verified(
             self, client, notify_api, toggle_enabled, mocker, cookie_config, github_data, identity_provider_user_id
     ):
-        expected_email, expected_login, expected_name = github_data
+        expected_email, expected_user_id, expected_name = github_data
 
         found_user = User(
             email_address=expected_email,
@@ -263,7 +263,7 @@ class TestAuthorize:
 
         create_or_update_user.assert_called_with(
             email_address=expected_email,
-            identity_provider_user_id=expected_login,
+            identity_provider_user_id=expected_user_id,
             name=expected_name)
 
 

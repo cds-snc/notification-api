@@ -132,7 +132,7 @@ def update_user_identity_provider_user_id(email, identity_provider_user_id):
     email_matches_condition = func.lower(User.email_address) == func.lower(email)
     id_matches_condition = func.lower(User.identity_provider_user_id) == func.lower(identity_provider_user_id)
     user = User.query.filter(or_(email_matches_condition, id_matches_condition)).one()
-    if user.identity_provider_user_id != identity_provider_user_id:
+    if user.identity_provider_user_id is None:
         user.identity_provider_user_id = identity_provider_user_id
         db.session.add(user)
 

@@ -39,13 +39,13 @@ def authorize():
     try:
         make_github_get_request('/user/memberships/orgs/department-of-veterans-affairs', github_token)
         email_resp = make_github_get_request('/user/emails', github_token)
-        name_resp = make_github_get_request('/user', github_token)
+        user_resp = make_github_get_request('/user', github_token)
 
-        verified_email, verified_github_login, verified_name = _extract_github_user_info(email_resp, name_resp)
+        verified_email, verified_user_id, verified_name = _extract_github_user_info(email_resp, user_resp)
 
         user = create_or_update_user(
             email_address=verified_email,
-            identity_provider_user_id=verified_github_login,
+            identity_provider_user_id=verified_user_id,
             name=verified_name)
 
     except (OAuthException, HTTPError) as e:
@@ -78,12 +78,12 @@ def make_github_get_request(endpoint: str, github_token) -> json:
     return resp
 
 
-def _extract_github_user_info(email_resp: json, name_resp: json) -> Tuple[str, str, str]:
+def _extract_github_user_info(email_resp: json, user_resp: json) -> Tuple[str, str, str]:
     verified_email = next(email.get('email') for email in email_resp.json()
                           if email.get('primary') and email.get('verified'))
 
-    verified_name = name_resp.json().get('name')
-    verified_github_login = name_resp.json().get('login')
+    verified_name = user_resp.json().get('name')
+    verified_github_login = user_resp.json().get('id')
 
     return verified_email, verified_github_login, verified_name
 
