@@ -639,7 +639,6 @@ def queue_to_use(notifications_count: int) -> str:
     the notifications will be sent to the bulk queue so they don't slow down
     notifications that are transactional in nature.
     """
-    # TODO:Make the 1000 threshold configurable via env or file
     large_csv_threshold = current_app.config['CSV_BULK_REDIRECT_THRESHOLD']
     return QueueNames.BULK if notifications_count > large_csv_threshold else None
 
