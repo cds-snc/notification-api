@@ -222,6 +222,23 @@ class TestAuthorize:
         with pytest.raises(OAuthException):
             make_github_get_request('/user', github_access_token)
 
+    @pytest.mark.parametrize('status_code', [403, 404])
+    def test_should_raise_http_error_if_error_from_github_get(
+            self, client, notify_api, toggle_enabled, mocker, status_code
+    ):
+        github_access_token = mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
+        github_get_user_resp = mocker.Mock(Response, status_code=status_code)
+
+        mocker.patch(
+            'app.oauth.rest.oauth_registry.github.get',
+            return_value=github_get_user_resp,
+        )
+
+        github_get_user_resp.raise_for_status.side_effect = HTTPError
+
+        with pytest.raises(HTTPError):
+            make_github_get_request('/user', github_access_token)
+
     def test_should_redirect_to_ui_if_user_is_member_of_va_organization(
             self, client, notify_api, toggle_enabled, mocker, cookie_config, github_data
     ):

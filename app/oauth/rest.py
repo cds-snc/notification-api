@@ -83,9 +83,9 @@ def _extract_github_user_info(email_resp: json, user_resp: json) -> Tuple[str, s
                           if email.get('primary') and email.get('verified'))
 
     verified_name = user_resp.json().get('name')
-    verified_github_login = user_resp.json().get('id')
+    verified_user_id = user_resp.json().get('id')
 
-    return verified_email, verified_github_login, verified_name
+    return verified_email, verified_user_id, verified_name
 
 
 @oauth_blueprint.route('/redeem-token', methods=['GET'])
