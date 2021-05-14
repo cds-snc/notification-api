@@ -3,6 +3,7 @@ from datetime import datetime
 from collections import namedtuple, defaultdict
 
 from flask import current_app
+from notifications_utils.columns import Row
 from notifications_utils.recipients import (
     RecipientCSV
 )
@@ -62,6 +63,7 @@ from app.models import (
     JOB_STATUS_FINISHED,
     JOB_STATUS_IN_PROGRESS,
     JOB_STATUS_PENDING,
+    Job,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
     NOTIFICATION_CREATED,
@@ -72,6 +74,8 @@ from app.models import (
     NOTIFICATION_RETURNED_LETTER,
     SMS_TYPE,
     DailySortedLetter,
+    Service,
+    Template
 )
 from app.notifications.process_notifications import (
     persist_notification,
@@ -118,13 +122,10 @@ def process_job(job_id, sender_id=None):
 
     current_app.logger.debug("Starting job {} processing {} notifications".format(job_id, job.notification_count))
 
-    for row in RecipientCSV(
-            s3.get_job_from_s3(str(service.id), str(job_id)),
-            template_type=template.template_type,
-            placeholders=template.placeholders,
-            max_rows=get_csv_max_rows(service.id),
-    ).get_rows():
-        process_row(row, template, job, service, sender_id=sender_id)
+    csv = get_recipient_csv(job, template)
+    queue_override = queue_to_use(len(csv))
+    for row in csv.get_rows():
+        process_row(row, template, job, service, sender_id, queue_override)
 
     job_complete(job, start=start)
 
@@ -146,7 +147,8 @@ def job_complete(job, resumed=False, start=None):
         )
 
 
-def process_row(row, template, job, service, sender_id=None):
+def process_row(row: Row, template: Template, job: Job, service: Service,
+                sender_id: str = None, override_queue: str = None):
     template_type = template.template_type
     encrypted = encryption.encrypt({
         'template': str(template.id),
@@ -154,7 +156,8 @@ def process_row(row, template, job, service, sender_id=None):
         'job': str(job.id),
         'to': row.recipient,
         'row_number': row.index,
-        'personalisation': dict(row.personalisation)
+        'personalisation': dict(row.personalisation),
+        'queue': override_queue
     })
 
     send_fns = {
@@ -239,7 +242,7 @@ def save_sms(self,
         send_notification_to_queue(
             saved_notification,
             service.research_mode,
-            queue=template.queue_to_use()
+            queue=notification.get('queue', template.queue_to_use())
         )
 
         current_app.logger.debug(
@@ -296,7 +299,7 @@ def save_email(self,
         send_notification_to_queue(
             saved_notification,
             service.research_mode,
-            queue=template.queue_to_use()
+            queue=notification.get('queue', template.queue_to_use())
         )
 
         current_app.logger.debug("Email {} created at {}".format(saved_notification.id, saved_notification.created_at))
@@ -619,16 +622,26 @@ def process_incomplete_job(job_id):
     TemplateClass = get_template_class(db_template.template_type)
     template = TemplateClass(db_template.__dict__)
 
-    for row in RecipientCSV(
-            s3.get_job_from_s3(str(job.service_id), str(job.id)),
-            template_type=template.template_type,
-            placeholders=template.placeholders,
-            max_rows=get_csv_max_rows(job.service_id),
-    ).get_rows():
+    csv = get_recipient_csv(job, template)
+    queue_override = queue_to_use(len(csv))
+
+    for row in csv.get_rows():
         if row.index > resume_from_row:
-            process_row(row, template, job, job.service)
+            process_row(row, template, job, job.service, queue_override)
 
     job_complete(job, resumed=True)
+
+
+def queue_to_use(notifications_count: int) -> str:
+    """Determine which queue to use depending on given parameters.
+
+    We only check one rule at the moment: if the CSV file is big enough,
+    the notifications will be sent to the bulk queue so they don't down
+    notifications that are transactional in nature.
+    """
+    # TODO:Make the 1000 threshold configurable via env or file
+    large_csv_threshold = current_app.config['CSV_BULK_REDIRECT_THRESHOLD']
+    return QueueNames.BULK if notifications_count > large_csv_threshold else None
 
 
 @notify_celery.task(name='process-returned-letters-list')
@@ -683,3 +696,11 @@ def send_notify_no_reply(self, data):
                 Retry: send_notify_no_reply has retried the max number of
                  times for sender {payload['sender']}"""
             )
+
+
+def get_recipient_csv(job: Job, template: Template) -> RecipientCSV:
+    return RecipientCSV(
+        s3.get_job_from_s3(str(job.service_id), str(job.id)),
+        template_type=template.template_type,
+        placeholders=template.placeholders,
+        max_rows=get_csv_max_rows(job.service_id))
