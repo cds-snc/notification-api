@@ -299,7 +299,7 @@ def save_email(self,
         send_notification_to_queue(
             saved_notification,
             service.research_mode,
-            queue=notification.get('queue', template.queue_to_use())
+            queue=notification.get('queue') or template.queue_to_use()
         )
 
         current_app.logger.debug("Email {} created at {}".format(saved_notification.id, saved_notification.created_at))
