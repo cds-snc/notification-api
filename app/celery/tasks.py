@@ -242,7 +242,7 @@ def save_sms(self,
         send_notification_to_queue(
             saved_notification,
             service.research_mode,
-            queue=notification.get('queue', template.queue_to_use())
+            queue=notification.get('queue') or template.queue_to_use()
         )
 
         current_app.logger.debug(
