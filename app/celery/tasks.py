@@ -636,7 +636,7 @@ def queue_to_use(notifications_count: int) -> str:
     """Determine which queue to use depending on given parameters.
 
     We only check one rule at the moment: if the CSV file is big enough,
-    the notifications will be sent to the bulk queue so they don't down
+    the notifications will be sent to the bulk queue so they don't slow down
     notifications that are transactional in nature.
     """
     # TODO:Make the 1000 threshold configurable via env or file
