@@ -1,7 +1,7 @@
 import uuid
 import json
 from datetime import datetime, timedelta
-from unittest.mock import ANY, Mock, call
+from unittest.mock import Mock, call
 from notifications_utils.recipients import RecipientCSV
 
 import pytest
