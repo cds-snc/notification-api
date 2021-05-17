@@ -123,9 +123,8 @@ def process_job(job_id, sender_id=None):
     current_app.logger.debug("Starting job {} processing {} notifications".format(job_id, job.notification_count))
 
     csv = get_recipient_csv(job, template)
-    queue_override = queue_to_use(len(csv))
     for row in csv.get_rows():
-        process_row(row, template, job, service, sender_id, queue_override)
+        process_row(row, template, job, service, sender_id)
 
     job_complete(job, start=start)
 
@@ -148,7 +147,7 @@ def job_complete(job, resumed=False, start=None):
 
 
 def process_row(row: Row, template: Template, job: Job, service: Service,
-                sender_id: str = None, override_queue: str = None):
+                sender_id: str = None):
     template_type = template.template_type
     encrypted = encryption.encrypt({
         'template': str(template.id),
@@ -157,7 +156,7 @@ def process_row(row: Row, template: Template, job: Job, service: Service,
         'to': row.recipient,
         'row_number': row.index,
         'personalisation': dict(row.personalisation),
-        'queue': override_queue
+        'queue': queue_to_use(job.notification_count)
     })
 
     send_fns = {
@@ -623,11 +622,9 @@ def process_incomplete_job(job_id):
     template = TemplateClass(db_template.__dict__)
 
     csv = get_recipient_csv(job, template)
-    queue_override = queue_to_use(len(csv))
-
     for row in csv.get_rows():
         if row.index > resume_from_row:
-            process_row(row, template, job, job.service, queue_override)
+            process_row(row, template, job, job.service)
 
     job_complete(job, resumed=True)
 

@@ -2,6 +2,7 @@ import uuid
 import json
 from datetime import datetime, timedelta
 from unittest.mock import ANY, Mock, call
+from notifications_utils.recipients import RecipientCSV
 
 import pytest
 import requests_mock
@@ -45,6 +46,8 @@ from app.models import (
     JOB_STATUS_IN_PROGRESS,
     LETTER_TYPE,
     SMS_TYPE,
+    Service,
+    Template,
 )
 
 from tests.app import load_example_csv
@@ -151,26 +154,40 @@ def test_should_process_sms_job_with_sender_id(sample_job, mocker, fake_uuid):
     (0, 'bulk-tasks'),
     (1_000, None),
 ])
-def test_should_redirect_job_to_queue_depending_on_csv_threshold(notify_api, sample_job, mocker, fake_uuid,
-                                                                 csv_threshold, expected_queue):
-    mocker.patch('app.celery.tasks.s3.get_job_from_s3', return_value=load_example_csv('sms'))
-    mocker.patch('app.encryption.encrypt', return_value="something_encrypted")
-    mocker.patch('app.celery.tasks.create_uuid', return_value="uuid")
-    mocker.patch('app.celery.tasks.process_row')
+def test_should_redirect_job_to_queue_depending_on_csv_threshold(
+    notify_api, sample_job, mocker, fake_uuid, csv_threshold, expected_queue
+):
+    mock_save_email = mocker.patch('app.celery.tasks.save_email')
+
+    row = next(
+        RecipientCSV(
+            load_example_csv('email'),
+            template_type=EMAIL_TYPE,
+        ).get_rows()
+    )
+
+    template = Template()
+    template.id = 1
+    template.template_type = "email"
+
+    job = Job()
+    job.id = 1
+    job.notification_count = 1
+
+    service = Service()
+    service.id = 1
+    service.research_mode = False
 
     with set_config_values(notify_api, {
         'CSV_BULK_REDIRECT_THRESHOLD': csv_threshold
     }):
-        process_job(sample_job.id, sender_id=fake_uuid)
+        process_row(row, template, job, service, fake_uuid)
 
-    tasks.process_row.assert_called_once_with(
-        ANY,
-        ANY,
-        ANY,
-        ANY,
-        fake_uuid,
-        expected_queue
-    )
+    tasks.save_email.apply_async.assert_called_once()
+    args = mock_save_email.method_calls[0].args
+    encrypted_notification = args[0][2]
+    notification = encryption.decrypt(encrypted_notification)
+    assert expected_queue == notification.get('queue')
 
 
 @freeze_time("2016-01-01 11:09:00.061258")
