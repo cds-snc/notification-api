@@ -159,24 +159,16 @@ def test_should_redirect_job_to_queue_depending_on_csv_threshold(
 ):
     mock_save_email = mocker.patch('app.celery.tasks.save_email')
 
+    template = Mock(id=1, template_type=EMAIL_TYPE)
+    job = Mock(id=1, template_version='temp_vers', notification_count=1)
+    service = Mock(id=1, research_mode=False)
+
     row = next(
         RecipientCSV(
             load_example_csv('email'),
             template_type=EMAIL_TYPE,
         ).get_rows()
     )
-
-    template = Template()
-    template.id = 1
-    template.template_type = "email"
-
-    job = Job()
-    job.id = 1
-    job.notification_count = 1
-
-    service = Service()
-    service.id = 1
-    service.research_mode = False
 
     with set_config_values(notify_api, {
         'CSV_BULK_REDIRECT_THRESHOLD': csv_threshold
@@ -428,12 +420,14 @@ def test_should_process_all_sms_job(sample_job_with_placeholdered_template,
     (LETTER_TYPE, False, 'save_letter', 'database-tasks'),
     (LETTER_TYPE, True, 'save_letter', 'research-mode-tasks'),
 ])
-def test_process_row_sends_letter_task(template_type, research_mode, expected_function, expected_queue, mocker):
+def test_process_row_sends_letter_task(
+    notify_api, template_type, research_mode, expected_function, expected_queue, mocker
+):
     mocker.patch('app.celery.tasks.create_uuid', return_value='noti_uuid')
     task_mock = mocker.patch('app.celery.tasks.{}.apply_async'.format(expected_function))
     encrypt_mock = mocker.patch('app.celery.tasks.encryption.encrypt')
     template = Mock(id='template_id', template_type=template_type)
-    job = Mock(id='job_id', template_version='temp_vers')
+    job = Mock(id='job_id', template_version='temp_vers', notification_count=1)
     service = Mock(id='service_id', research_mode=research_mode)
 
     process_row(
@@ -456,7 +450,8 @@ def test_process_row_sends_letter_task(template_type, research_mode, expected_fu
         'job': 'job_id',
         'to': 'recip',
         'row_number': 'row_num',
-        'personalisation': {'foo': 'bar'}
+        'personalisation': {'foo': 'bar'},
+        'queue': None
     })
     task_mock.assert_called_once_with(
         (
@@ -470,12 +465,12 @@ def test_process_row_sends_letter_task(template_type, research_mode, expected_fu
     )
 
 
-def test_process_row_when_sender_id_is_provided(mocker, fake_uuid):
+def test_process_row_when_sender_id_is_provided(notify_api, mocker, fake_uuid):
     mocker.patch('app.celery.tasks.create_uuid', return_value='noti_uuid')
     task_mock = mocker.patch('app.celery.tasks.save_sms.apply_async')
     encrypt_mock = mocker.patch('app.celery.tasks.encryption.encrypt')
     template = Mock(id='template_id', template_type=SMS_TYPE)
-    job = Mock(id='job_id', template_version='temp_vers')
+    job = Mock(id='job_id', template_version='temp_vers', notification_count=1)
     service = Mock(id='service_id', research_mode=False)
 
     process_row(
