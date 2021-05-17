@@ -1,6 +1,10 @@
+import functools
+from typing import Callable
+
 from flask import request, _request_ctx_stack, current_app, g
 from flask_jwt_extended import verify_jwt_in_request, current_user
 from flask_jwt_extended.config import config
+from flask_jwt_extended.exceptions import NoAuthorizationError, InvalidHeaderError, JWTDecodeError
 from notifications_python_client.authentication import decode_jwt_token, get_token_issuer
 from notifications_python_client.errors import TokenDecodeError, TokenExpiredError, TokenIssuerError
 from notifications_utils import request_helper
@@ -63,9 +67,9 @@ def requires_admin_auth():
         raise AuthError('Unauthorized, admin authentication token required', 401)
 
 
-def requires_admin_auth_or_permission_for_service(permission: str):
+def create_validator_for_permission_for_service(permission: str) -> Callable:
 
-    def _requires_admin_auth_or_permission_for_service():
+    def _validate_permission_for_service():
 
         # when fetching data, the browser may send a pre-flight OPTIONS request.
         # the W3 spec for CORS pre-flight requests states that user credentials should be excluded.
@@ -81,13 +85,51 @@ def requires_admin_auth_or_permission_for_service(permission: str):
             if permission in user_permissions:
                 pass
             else:
-                current_app.logger.info(f'{permission} not in permissions for service {service_id}')
-                requires_admin_auth()
-        except Exception as e:
-            current_app.logger.info(f'could not read claims from token: {e}')
+                raise AuthError(f'User does not have permission {permission}', 403, service_id=service_id)
+        except (NoAuthorizationError, InvalidHeaderError, JWTDecodeError) as e:
+            raise AuthError('Could not decode valid JWT', 403) from e
+
+    return _validate_permission_for_service
+
+
+def create_validator_for_admin_auth_or_permission_for_service(permission: str) -> Callable:
+
+    def _validate_admin_auth_or_permission_for_service():
+        try:
+            validate_permission_for_service = create_validator_for_permission_for_service(permission)
+            validate_permission_for_service()
+        except AuthError:
             requires_admin_auth()
 
-    return _requires_admin_auth_or_permission_for_service
+    return _validate_admin_auth_or_permission_for_service
+
+
+def requires_permission_for_service(permission: str):
+    def decorator(function):
+        @functools.wraps(function)
+        def wrapper(*args, **kwargs):
+            validate_permission_for_service = create_validator_for_permission_for_service(
+                permission
+            )
+            validate_permission_for_service()
+
+            return function(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def requires_admin_auth_or_permission_for_service(permission: str):
+    def decorator(function):
+        @functools.wraps(function)
+        def wrapper(*args, **kwargs):
+            validate_admin_auth_or_permission_for_service = create_validator_for_admin_auth_or_permission_for_service(
+                permission
+            )
+            validate_admin_auth_or_permission_for_service()
+
+            return function(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 def requires_auth():
