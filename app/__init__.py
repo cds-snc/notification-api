@@ -224,7 +224,6 @@ def register_blueprint(application):
     from app.letter_branding.letter_branding_rest import letter_branding_blueprint
     from app.oauth.rest import oauth_blueprint
 
-    service_blueprint.before_request(validate_admin_auth)
     application.register_blueprint(service_blueprint, url_prefix='/service')
 
     user_blueprint.before_request(validate_admin_auth)

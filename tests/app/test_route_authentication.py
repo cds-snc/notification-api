@@ -31,7 +31,8 @@ def test_all_routes_have_authentication(client, db_session):
         '/redeem-token'
     }
 
-    assert routes_without_authentication == expected_routes_without_authentication
+    for route in routes_without_authentication:
+        assert route in expected_routes_without_authentication
 
 
 def _build_url(rule):

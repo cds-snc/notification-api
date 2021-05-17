@@ -129,6 +129,16 @@ def requires_admin_auth_or_user_with_permission_for_service(permission: str):
     return decorator
 
 
+def requires_admin_auth():
+    def decorator(function):
+        @functools.wraps(function)
+        def wrapper(*args, **kwargs):
+            validate_admin_auth()
+            return function(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
 def validate_service_api_key_auth():
     request_helper.check_proxy_header_before_request()
 

@@ -12,6 +12,7 @@ from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
+from app.authentication.auth import requires_admin_auth
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
 from app.dao.dao_utils import dao_rollback
@@ -136,6 +137,7 @@ def handle_integrity_error(exc):
 
 
 @service_blueprint.route('', methods=['GET'])
+@requires_admin_auth()
 def get_services():
     only_active = request.args.get('only_active') == 'True'
     detailed = request.args.get('detailed') == 'True'
@@ -163,6 +165,7 @@ def get_services():
 
 
 @service_blueprint.route('/find-services-by-name', methods=['GET'])
+@requires_admin_auth()
 def find_services_by_name():
     service_name = request.args.get('service_name')
     if not service_name:
@@ -174,12 +177,14 @@ def find_services_by_name():
 
 
 @service_blueprint.route('/live-services-data', methods=['GET'])
+@requires_admin_auth()
 def get_live_services_data():
     data = dao_fetch_live_services_data()
     return jsonify(data=data)
 
 
 @service_blueprint.route('/<uuid:service_id>', methods=['GET'])
+@requires_admin_auth()
 def get_service_by_id(service_id):
     if request.args.get('detailed') == 'True':
         data = get_detailed_service(service_id, today_only=request.args.get('today_only') == 'True')
@@ -191,6 +196,7 @@ def get_service_by_id(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/statistics')
+@requires_admin_auth()
 def get_service_notification_statistics(service_id):
     return jsonify(data=get_service_statistics(
         service_id,
@@ -200,6 +206,7 @@ def get_service_notification_statistics(service_id):
 
 
 @service_blueprint.route('', methods=['POST'])
+@requires_admin_auth()
 def create_service():
     data = request.get_json()
 
@@ -222,6 +229,7 @@ def create_service():
 
 
 @service_blueprint.route('/<uuid:service_id>', methods=['POST'])
+@requires_admin_auth()
 def update_service(service_id):
     req_json = request.get_json()
 
@@ -256,6 +264,7 @@ def update_service(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/api-key', methods=['POST'])
+@requires_admin_auth()
 def create_api_key(service_id=None):
     fetched_service = dao_fetch_service_by_id(service_id=service_id)
     valid_api_key = api_key_schema.load(request.get_json()).data
@@ -266,6 +275,7 @@ def create_api_key(service_id=None):
 
 
 @service_blueprint.route('/<uuid:service_id>/api-key/revoke/<uuid:api_key_id>', methods=['POST'])
+@requires_admin_auth()
 def revoke_api_key(service_id, api_key_id):
     expire_api_key(service_id=service_id, api_key_id=api_key_id)
     return jsonify(), 202
@@ -273,6 +283,7 @@ def revoke_api_key(service_id, api_key_id):
 
 @service_blueprint.route('/<uuid:service_id>/api-keys', methods=['GET'])
 @service_blueprint.route('/<uuid:service_id>/api-keys/<uuid:key_id>', methods=['GET'])
+@requires_admin_auth()
 def get_api_keys(service_id, key_id=None):
     dao_fetch_service_by_id(service_id=service_id)
 
@@ -289,12 +300,14 @@ def get_api_keys(service_id, key_id=None):
 
 
 @service_blueprint.route('/<uuid:service_id>/users', methods=['GET'])
+@requires_admin_auth()
 def get_users_for_service(service_id):
     fetched = dao_fetch_service_by_id(service_id)
     return jsonify(data=[x.serialize() for x in fetched.users])
 
 
 @service_blueprint.route('/<uuid:service_id>/users/<user_id>', methods=['POST'])
+@requires_admin_auth()
 def add_user_to_service(service_id, user_id):
     service = dao_fetch_service_by_id(service_id)
     user = get_user_by_id(user_id=user_id)
@@ -318,6 +331,7 @@ def add_user_to_service(service_id, user_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/users/<user_id>', methods=['DELETE'])
+@requires_admin_auth()
 def remove_user_from_service(service_id, user_id):
     service = dao_fetch_service_by_id(service_id)
     user = get_user_by_id(user_id=user_id)
@@ -337,6 +351,7 @@ def remove_user_from_service(service_id, user_id):
 # goes into how we want to fetch and view various items in history
 # tables. This is so product owner can pass stories as done
 @service_blueprint.route('/<uuid:service_id>/history', methods=['GET'])
+@requires_admin_auth()
 def get_service_history(service_id):
     from app.models import (Service, ApiKey, TemplateHistory)
     from app.schemas import (
@@ -363,6 +378,7 @@ def get_service_history(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/notifications', methods=['GET'])
+@requires_admin_auth()
 def get_all_notifications_for_service(service_id):
     data = notifications_filter_schema.load(request.args).data
     if data.get('to'):
@@ -412,6 +428,7 @@ def get_all_notifications_for_service(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/notifications/<uuid:notification_id>', methods=['GET'])
+@requires_admin_auth()
 def get_notification_for_service(service_id, notification_id):
 
     notification = notifications_dao.get_notification_with_personalisation(
@@ -425,6 +442,7 @@ def get_notification_for_service(service_id, notification_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/notifications/<uuid:notification_id>/cancel', methods=['POST'])
+@requires_admin_auth()
 def cancel_notification_for_service(service_id, notification_id):
     notification = notifications_dao.get_notification_by_id(notification_id, service_id)
 
@@ -462,6 +480,7 @@ def search_for_notification_by_to_field(service_id, search_term, statuses, notif
 
 
 @service_blueprint.route('/<uuid:service_id>/notifications/monthly', methods=['GET'])
+@requires_admin_auth()
 def get_monthly_notification_stats(service_id):
     # check service_id validity
     dao_fetch_service_by_id(service_id)
@@ -533,6 +552,7 @@ def get_detailed_services(start_date, end_date, only_active=False, include_from_
 
 
 @service_blueprint.route('/<uuid:service_id>/whitelist', methods=['GET'])
+@requires_admin_auth()
 def get_whitelist(service_id):
     from app.models import (EMAIL_TYPE, MOBILE_TYPE)
     service = dao_fetch_service_by_id(service_id)
@@ -550,6 +570,7 @@ def get_whitelist(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/whitelist', methods=['PUT'])
+@requires_admin_auth()
 def update_whitelist(service_id):
     # doesn't commit so if there are any errors, we preserve old values in db
     dao_remove_service_whitelist(service_id)
@@ -566,6 +587,7 @@ def update_whitelist(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/archive', methods=['POST'])
+@requires_admin_auth()
 def archive_service(service_id):
     """
     When a service is archived the service is made inactive, templates are archived and api keys are revoked.
@@ -582,6 +604,7 @@ def archive_service(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/suspend', methods=['POST'])
+@requires_admin_auth()
 def suspend_service(service_id):
     """
     Suspending a service will mark the service as inactive and revoke API keys.
@@ -597,6 +620,7 @@ def suspend_service(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/resume', methods=['POST'])
+@requires_admin_auth()
 def resume_service(service_id):
     """
     Resuming a service that has been suspended will mark the service as active.
@@ -613,6 +637,7 @@ def resume_service(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/notifications/templates_usage/monthly', methods=['GET'])
+@requires_admin_auth()
 def get_monthly_template_usage(service_id):
     try:
         start_date, end_date = get_financial_year(int(request.args.get('year', 'NaN')))
@@ -641,30 +666,35 @@ def get_monthly_template_usage(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/send-notification', methods=['POST'])
+@requires_admin_auth()
 def create_one_off_notification(service_id):
     resp = send_one_off_notification(service_id, request.get_json())
     return jsonify(resp), 201
 
 
 @service_blueprint.route('/<uuid:service_id>/send-pdf-letter', methods=['POST'])
+@requires_admin_auth()
 def create_pdf_letter(service_id):
     resp = send_pdf_letter_notification(service_id, request.get_json())
     return jsonify(resp), 201
 
 
 @service_blueprint.route('/<uuid:service_id>/email-reply-to', methods=["GET"])
+@requires_admin_auth()
 def get_email_reply_to_addresses(service_id):
     result = dao_get_reply_to_by_service_id(service_id)
     return jsonify([i.serialize() for i in result]), 200
 
 
 @service_blueprint.route('/<uuid:service_id>/email-reply-to/<uuid:reply_to_id>', methods=["GET"])
+@requires_admin_auth()
 def get_email_reply_to_address(service_id, reply_to_id):
     result = dao_get_reply_to_by_id(service_id=service_id, reply_to_id=reply_to_id)
     return jsonify(result.serialize()), 200
 
 
 @service_blueprint.route('/<uuid:service_id>/email-reply-to/verify', methods=['POST'])
+@requires_admin_auth()
 def verify_reply_to_email_address(service_id):
     email_address, errors = email_data_request_schema.load(request.get_json())
     check_if_reply_to_address_already_in_use(service_id, email_address["email"])
@@ -688,6 +718,7 @@ def verify_reply_to_email_address(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/email-reply-to', methods=['POST'])
+@requires_admin_auth()
 def add_service_reply_to_email_address(service_id):
     # validate the service exists, throws ResultNotFound exception.
     dao_fetch_service_by_id(service_id)
@@ -700,6 +731,7 @@ def add_service_reply_to_email_address(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/email-reply-to/<uuid:reply_to_email_id>', methods=['POST'])
+@requires_admin_auth()
 def update_service_reply_to_email_address(service_id, reply_to_email_id):
     # validate the service exists, throws ResultNotFound exception.
     dao_fetch_service_by_id(service_id)
@@ -712,6 +744,7 @@ def update_service_reply_to_email_address(service_id, reply_to_email_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/email-reply-to/<uuid:reply_to_email_id>/archive', methods=['POST'])
+@requires_admin_auth()
 def delete_service_reply_to_email_address(service_id, reply_to_email_id):
     archived_reply_to = archive_reply_to_email_address(service_id, reply_to_email_id)
 
@@ -719,18 +752,21 @@ def delete_service_reply_to_email_address(service_id, reply_to_email_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/letter-contact', methods=["GET"])
+@requires_admin_auth()
 def get_letter_contacts(service_id):
     result = dao_get_letter_contacts_by_service_id(service_id)
     return jsonify([i.serialize() for i in result]), 200
 
 
 @service_blueprint.route('/<uuid:service_id>/letter-contact/<uuid:letter_contact_id>', methods=["GET"])
+@requires_admin_auth()
 def get_letter_contact_by_id(service_id, letter_contact_id):
     result = dao_get_letter_contact_by_id(service_id=service_id, letter_contact_id=letter_contact_id)
     return jsonify(result.serialize()), 200
 
 
 @service_blueprint.route('/<uuid:service_id>/letter-contact', methods=['POST'])
+@requires_admin_auth()
 def add_service_letter_contact(service_id):
     # validate the service exists, throws ResultNotFound exception.
     dao_fetch_service_by_id(service_id)
@@ -742,6 +778,7 @@ def add_service_letter_contact(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/letter-contact/<uuid:letter_contact_id>', methods=['POST'])
+@requires_admin_auth()
 def update_service_letter_contact(service_id, letter_contact_id):
     # validate the service exists, throws ResultNotFound exception.
     dao_fetch_service_by_id(service_id)
@@ -754,6 +791,7 @@ def update_service_letter_contact(service_id, letter_contact_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/letter-contact/<uuid:letter_contact_id>/archive', methods=['POST'])
+@requires_admin_auth()
 def delete_service_letter_contact(service_id, letter_contact_id):
     archived_letter_contact = archive_letter_contact(service_id, letter_contact_id)
 
@@ -761,12 +799,14 @@ def delete_service_letter_contact(service_id, letter_contact_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/organisation', methods=['GET'])
+@requires_admin_auth()
 def get_organisation_for_service(service_id):
     organisation = dao_get_organisation_by_service_id(service_id=service_id)
     return jsonify(organisation.serialize() if organisation else {}), 200
 
 
 @service_blueprint.route('/unique', methods=["GET"])
+@requires_admin_auth()
 def is_service_name_unique():
     service_id, name, email_from = check_request_args(request)
 
@@ -782,24 +822,28 @@ def is_service_name_unique():
 
 
 @service_blueprint.route('/<uuid:service_id>/data-retention', methods=['GET'])
+@requires_admin_auth()
 def get_data_retention_for_service(service_id):
     data_retention_list = fetch_service_data_retention(service_id)
     return jsonify([data_retention.serialize() for data_retention in data_retention_list]), 200
 
 
 @service_blueprint.route('/<uuid:service_id>/data-retention/notification-type/<notification_type>', methods=['GET'])
+@requires_admin_auth()
 def get_data_retention_for_service_notification_type(service_id, notification_type):
     data_retention = fetch_service_data_retention_by_notification_type(service_id, notification_type)
     return jsonify(data_retention.serialize() if data_retention else {}), 200
 
 
 @service_blueprint.route('/<uuid:service_id>/data-retention/<uuid:data_retention_id>', methods=['GET'])
+@requires_admin_auth()
 def get_data_retention_for_service_by_id(service_id, data_retention_id):
     data_retention = fetch_service_data_retention_by_id(service_id, data_retention_id)
     return jsonify(data_retention.serialize() if data_retention else {}), 200
 
 
 @service_blueprint.route('/<uuid:service_id>/data-retention', methods=['POST'])
+@requires_admin_auth()
 def create_service_data_retention(service_id):
     form = validate(request.get_json(), add_service_data_retention_request)
     try:
@@ -818,6 +862,7 @@ def create_service_data_retention(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/data-retention/<uuid:data_retention_id>', methods=['POST'])
+@requires_admin_auth()
 def modify_service_data_retention(service_id, data_retention_id):
     form = validate(request.get_json(), update_service_data_retention_request)
 
@@ -836,6 +881,7 @@ def modify_service_data_retention(service_id, data_retention_id):
 
 
 @service_blueprint.route('/monthly-data-by-service')
+@requires_admin_auth()
 def get_monthly_notification_data_by_service():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
@@ -846,6 +892,7 @@ def get_monthly_notification_data_by_service():
 
 
 @service_blueprint.route('/<uuid:service_id>/smtp', methods=['DELETE'])
+@requires_admin_auth()
 def delete_smtp_relay(service_id):
     service = dao_fetch_service_by_id(service_id)
 
@@ -861,6 +908,7 @@ def delete_smtp_relay(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/smtp', methods=['GET'])
+@requires_admin_auth()
 def get_smtp_relay(service_id):
     service = dao_fetch_service_by_id(service_id)
     if service.smtp_user is not None:
@@ -877,6 +925,7 @@ def get_smtp_relay(service_id):
 
 
 @service_blueprint.route('/<uuid:service_id>/smtp', methods=['POST'])
+@requires_admin_auth()
 def create_smtp_relay(service_id):
     service = dao_fetch_service_by_id(service_id)
 
