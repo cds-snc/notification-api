@@ -17,13 +17,13 @@ from notifications_python_client.authentication import create_jwt_token
 from app import api_user
 from app.dao.api_key_dao import get_unsigned_secrets, save_model_api_key, get_unsigned_secret, expire_api_key
 from app.models import ApiKey, KEY_TYPE_NORMAL, PERMISSION_LIST
-from app.authentication.auth import AuthError, requires_admin_auth, requires_auth, \
-    requires_admin_auth_or_permission_for_service, requires_permission_for_service
+from app.authentication.auth import AuthError, validate_admin_auth, validate_service_api_key_auth, \
+    requires_admin_auth_or_user_with_permission_for_service, requires_user_with_permission_for_service
 
 from tests.conftest import set_config
 
 
-@pytest.mark.parametrize('auth_fn', [requires_auth, requires_admin_auth])
+@pytest.mark.parametrize('auth_fn', [validate_service_api_key_auth, validate_admin_auth])
 def test_should_not_allow_request_with_no_token(client, auth_fn):
     request.headers = {}
     with pytest.raises(AuthError) as exc:
@@ -31,7 +31,7 @@ def test_should_not_allow_request_with_no_token(client, auth_fn):
     assert exc.value.short_message == 'Unauthorized, authentication token must be provided'
 
 
-@pytest.mark.parametrize('auth_fn', [requires_auth, requires_admin_auth])
+@pytest.mark.parametrize('auth_fn', [validate_service_api_key_auth, validate_admin_auth])
 def test_should_not_allow_request_with_incorrect_header(client, auth_fn):
     request.headers = {'Authorization': 'Basic 1234'}
     with pytest.raises(AuthError) as exc:
@@ -39,7 +39,7 @@ def test_should_not_allow_request_with_incorrect_header(client, auth_fn):
     assert exc.value.short_message == 'Unauthorized, authentication bearer scheme must be used'
 
 
-@pytest.mark.parametrize('auth_fn', [requires_auth, requires_admin_auth])
+@pytest.mark.parametrize('auth_fn', [validate_service_api_key_auth, validate_admin_auth])
 def test_should_not_allow_request_with_incorrect_token(client, auth_fn):
     request.headers = {'Authorization': 'Bearer 1234'}
     with pytest.raises(AuthError) as exc:
@@ -47,7 +47,7 @@ def test_should_not_allow_request_with_incorrect_token(client, auth_fn):
     assert exc.value.short_message == 'Invalid token: signature, api token is not valid'
 
 
-@pytest.mark.parametrize('auth_fn', [requires_auth, requires_admin_auth])
+@pytest.mark.parametrize('auth_fn', [validate_service_api_key_auth, validate_admin_auth])
 def test_should_not_allow_request_with_no_iss(client, auth_fn):
     # code copied from notifications_python_client.authentication.py::create_jwt_token
     headers = {
@@ -85,7 +85,7 @@ def test_auth_should_not_allow_request_with_no_iat(client, sample_api_key):
 
     request.headers = {'Authorization': 'Bearer {}'.format(token)}
     with pytest.raises(AuthError) as exc:
-        requires_auth()
+        validate_service_api_key_auth()
     assert exc.value.short_message == 'Invalid token: signature, api token not found'
 
 
@@ -107,7 +107,7 @@ def test_admin_auth_should_not_allow_request_with_no_iat(client, sample_api_key)
 
     request.headers = {'Authorization': 'Bearer {}'.format(token)}
     with pytest.raises(AuthError) as exc:
-        requires_admin_auth()
+        validate_admin_auth()
     assert exc.value.short_message == 'Invalid token: signature, api token is not valid'
 
 
@@ -219,7 +219,7 @@ def test_authentication_returns_token_expired_when_service_uses_expired_key_and_
     expire_api_key(service_id=sample_api_key.service_id, api_key_id=expired_api_key.id)
     request.headers = {'Authorization': 'Bearer {}'.format(token)}
     with pytest.raises(AuthError) as exc:
-        requires_auth()
+        validate_service_api_key_auth()
     assert exc.value.short_message == 'Invalid token: API key revoked'
     assert exc.value.service_id == expired_api_key.service_id
     assert exc.value.api_key_id == expired_api_key.id
@@ -295,7 +295,7 @@ def test_authentication_returns_error_when_service_has_no_secrets(client,
 
     request.headers = {'Authorization': 'Bearer {}'.format(token)}
     with pytest.raises(AuthError) as exc:
-        requires_auth()
+        validate_service_api_key_auth()
     assert exc.value.short_message == 'Invalid token: service has no API keys'
     assert exc.value.service_id == sample_service.id
 
@@ -318,7 +318,7 @@ def test_should_return_403_when_token_is_expired(client,
     with freeze_time('2001-01-01T12:00:40'):
         with pytest.raises(AuthError) as exc:
             request.headers = {'Authorization': 'Bearer {}'.format(token)}
-            requires_auth()
+            validate_service_api_key_auth()
     assert exc.value.short_message == 'Error: Your system clock must be accurate to within 30 seconds'
     assert exc.value.service_id == sample_api_key.service_id
     assert exc.value.api_key_id == sample_api_key.id
@@ -378,12 +378,12 @@ def test_proxy_key_on_admin_auth_endpoint(notify_api, check_proxy_header, header
         assert response.status_code == expected_status
 
 
-class TestRequiresPermissionForService:
+class TestRequiresUserWithPermissionForService:
 
     @pytest.mark.parametrize('required_permission', PERMISSION_LIST)
     def test_accepts_jwt_with_permission_for_service(self, client, db_session, required_permission):
 
-        @requires_permission_for_service(required_permission)
+        @requires_user_with_permission_for_service(required_permission)
         def endpoint_that_requires_permission_for_service():
             pass
 
@@ -401,7 +401,7 @@ class TestRequiresPermissionForService:
 
     def test_rejects_jwt_without_permission_for_service(self, client, db_session):
 
-        @requires_permission_for_service('some-required-permission')
+        @requires_user_with_permission_for_service('some-required-permission')
         def endpoint_that_requires_permission_for_service():
             pass
 
@@ -421,12 +421,12 @@ class TestRequiresPermissionForService:
         assert error.value.code == 403
 
 
-class TestRequiresAdminAuthOrPermissionForService:
+class TestRequiresAdminAuthOrUserWithPermissionForService:
 
     @pytest.mark.parametrize('required_permission', PERMISSION_LIST)
     def test_accepts_jwt_with_permission_for_service(self, client, db_session, required_permission):
 
-        @requires_admin_auth_or_permission_for_service(required_permission)
+        @requires_admin_auth_or_user_with_permission_for_service(required_permission)
         def endpoint_that_requires_admin_auth_or_permission_for_service():
             pass
 
@@ -444,7 +444,7 @@ class TestRequiresAdminAuthOrPermissionForService:
 
     def test_rejects_jwt_without_permission_for_service(self, client, db_session):
 
-        @requires_admin_auth_or_permission_for_service('some-required-permission')
+        @requires_admin_auth_or_user_with_permission_for_service('some-required-permission')
         def endpoint_that_requires_admin_auth_or_permission_for_service():
             pass
 
@@ -466,7 +466,7 @@ class TestRequiresAdminAuthOrPermissionForService:
     @pytest.mark.parametrize('required_permission', PERMISSION_LIST)
     def test_accepts_admin_jwt(self, client, db_session, required_permission):
 
-        @requires_admin_auth_or_permission_for_service(required_permission)
+        @requires_admin_auth_or_user_with_permission_for_service(required_permission)
         def endpoint_that_requires_admin_auth_or_permission_for_service():
             pass
 

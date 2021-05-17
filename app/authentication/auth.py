@@ -50,11 +50,11 @@ def get_auth_token(req):
     return auth_header[7:]
 
 
-def requires_no_auth():
+def do_not_validate_auth():
     pass
 
 
-def requires_admin_auth():
+def validate_admin_auth():
     request_helper.check_proxy_header_before_request()
 
     auth_token = get_auth_token(request)
@@ -67,9 +67,9 @@ def requires_admin_auth():
         raise AuthError('Unauthorized, admin authentication token required', 401)
 
 
-def create_validator_for_permission_for_service(permission: str) -> Callable:
+def create_validator_for_user_with_permission_for_service(permission: str) -> Callable:
 
-    def _validate_permission_for_service():
+    def _validate_user_has_permission_for_service():
 
         # when fetching data, the browser may send a pre-flight OPTIONS request.
         # the W3 spec for CORS pre-flight requests states that user credentials should be excluded.
@@ -89,50 +89,46 @@ def create_validator_for_permission_for_service(permission: str) -> Callable:
         except (NoAuthorizationError, InvalidHeaderError, JWTDecodeError) as e:
             raise AuthError('Could not decode valid JWT', 403) from e
 
-    return _validate_permission_for_service
+    return _validate_user_has_permission_for_service
 
 
-def create_validator_for_admin_auth_or_permission_for_service(permission: str) -> Callable:
+def create_validator_for_admin_auth_or_user_with_permission_for_service(permission: str) -> Callable:
 
-    def _validate_admin_auth_or_permission_for_service():
+    def _validate_admin_auth_or_user_with_permission_for_service():
         try:
-            validate_permission_for_service = create_validator_for_permission_for_service(permission)
-            validate_permission_for_service()
+            validate = create_validator_for_user_with_permission_for_service(permission)
+            validate()
         except AuthError:
-            requires_admin_auth()
+            validate_admin_auth()
 
-    return _validate_admin_auth_or_permission_for_service
+    return _validate_admin_auth_or_user_with_permission_for_service
 
 
-def requires_permission_for_service(permission: str):
+def requires_user_with_permission_for_service(permission: str):
     def decorator(function):
         @functools.wraps(function)
         def wrapper(*args, **kwargs):
-            validate_permission_for_service = create_validator_for_permission_for_service(
-                permission
-            )
-            validate_permission_for_service()
+            validate = create_validator_for_user_with_permission_for_service(permission)
+            validate()
 
             return function(*args, **kwargs)
         return wrapper
     return decorator
 
 
-def requires_admin_auth_or_permission_for_service(permission: str):
+def requires_admin_auth_or_user_with_permission_for_service(permission: str):
     def decorator(function):
         @functools.wraps(function)
         def wrapper(*args, **kwargs):
-            validate_admin_auth_or_permission_for_service = create_validator_for_admin_auth_or_permission_for_service(
-                permission
-            )
-            validate_admin_auth_or_permission_for_service()
+            validate = create_validator_for_admin_auth_or_user_with_permission_for_service(permission)
+            validate()
 
             return function(*args, **kwargs)
         return wrapper
     return decorator
 
 
-def requires_auth():
+def validate_service_api_key_auth():
     request_helper.check_proxy_header_before_request()
 
     auth_token = get_auth_token(request)
