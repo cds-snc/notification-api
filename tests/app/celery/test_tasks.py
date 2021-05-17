@@ -46,8 +46,6 @@ from app.models import (
     JOB_STATUS_IN_PROGRESS,
     LETTER_TYPE,
     SMS_TYPE,
-    Service,
-    Template,
 )
 
 from tests.app import load_example_csv
