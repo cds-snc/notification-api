@@ -5,6 +5,7 @@ from flask import request, _request_ctx_stack, current_app, g
 from flask_jwt_extended import verify_jwt_in_request, current_user
 from flask_jwt_extended.config import config
 from flask_jwt_extended.exceptions import NoAuthorizationError, InvalidHeaderError, JWTDecodeError
+from jwt import InvalidSignatureError
 from notifications_python_client.authentication import decode_jwt_token, get_token_issuer
 from notifications_python_client.errors import TokenDecodeError, TokenExpiredError, TokenIssuerError
 from notifications_utils import request_helper
@@ -86,7 +87,7 @@ def create_validator_for_user_with_permission_for_service(permission: str) -> Ca
                 pass
             else:
                 raise AuthError(f'User does not have permission {permission}', 403, service_id=service_id)
-        except (NoAuthorizationError, InvalidHeaderError, JWTDecodeError) as e:
+        except (NoAuthorizationError, InvalidHeaderError, JWTDecodeError, InvalidSignatureError) as e:
             raise AuthError('Could not decode valid JWT', 403) from e
 
     return _validate_user_has_permission_for_service
