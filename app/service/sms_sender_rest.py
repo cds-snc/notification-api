@@ -1,5 +1,6 @@
 from flask import request, jsonify, Blueprint, current_app
 
+from app.authentication.auth import validate_admin_auth
 from app.dao.service_sms_sender_dao import (
     dao_add_sms_sender_for_service,
     dao_update_service_sms_sender,
@@ -14,8 +15,8 @@ from app.schema_validation import validate
 from app.service.service_senders_schema import add_service_sms_sender_request, update_service_sms_sender_request
 
 
-def _validate_service_exists(endpoint_name, url_values):
-    dao_fetch_service_by_id(url_values.get('service_id'))
+def _validate_service_exists():
+    dao_fetch_service_by_id(request.view_args.get('service_id'))
 
 
 service_sms_sender_blueprint = Blueprint(
@@ -23,7 +24,8 @@ service_sms_sender_blueprint = Blueprint(
     __name__,
     url_prefix='/service/<uuid:service_id>/sms-sender'
 )
-service_sms_sender_blueprint.url_value_preprocessor(_validate_service_exists)
+service_sms_sender_blueprint.before_request(validate_admin_auth)
+service_sms_sender_blueprint.before_request(_validate_service_exists)
 
 
 @service_sms_sender_blueprint.errorhandler(SmsSenderDefaultValidationException)

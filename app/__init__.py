@@ -286,7 +286,6 @@ def register_blueprint(application):
     service_callback_blueprint.before_request(validate_admin_auth)
     application.register_blueprint(service_callback_blueprint)
 
-    service_sms_sender_blueprint.before_request(validate_admin_auth)
     application.register_blueprint(service_sms_sender_blueprint)
 
     organisation_blueprint.before_request(validate_admin_auth)
