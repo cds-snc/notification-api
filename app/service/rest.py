@@ -12,7 +12,7 @@ from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app.authentication.auth import requires_admin_auth
+from app.authentication.auth import requires_admin_auth, requires_admin_auth_or_user_in_service
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
 from app.dao.dao_utils import dao_rollback
@@ -184,7 +184,7 @@ def get_live_services_data():
 
 
 @service_blueprint.route('/<uuid:service_id>', methods=['GET'])
-@requires_admin_auth()
+@requires_admin_auth_or_user_in_service()
 def get_service_by_id(service_id):
     if request.args.get('detailed') == 'True':
         data = get_detailed_service(service_id, today_only=request.args.get('today_only') == 'True')

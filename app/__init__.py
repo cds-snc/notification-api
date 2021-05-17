@@ -212,7 +212,7 @@ def register_blueprint(application):
         validate_admin_auth,
         validate_service_api_key_auth,
         do_not_validate_auth,
-        create_validator_for_admin_auth_or_user_with_permission_for_service
+        create_validator_for_admin_auth_or_user_in_service
     )
     from app.letters.rest import letter_job
     from app.billing.rest import billing_blueprint
@@ -229,9 +229,7 @@ def register_blueprint(application):
     user_blueprint.before_request(validate_admin_auth)
     application.register_blueprint(user_blueprint, url_prefix='/user')
 
-    template_blueprint.before_request(create_validator_for_admin_auth_or_user_with_permission_for_service(
-        'manage_templates'
-    ))
+    template_blueprint.before_request(create_validator_for_admin_auth_or_user_in_service('manage_templates'))
     application.register_blueprint(template_blueprint)
 
     status_blueprint.before_request(do_not_validate_auth)

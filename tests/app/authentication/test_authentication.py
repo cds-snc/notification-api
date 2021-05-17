@@ -5,8 +5,8 @@ from datetime import datetime
 
 from flask_jwt_extended import create_access_token
 
-from app.dao.permissions_dao import permission_dao
-from tests.app.db import create_user, create_service, create_permissions
+from app.dao.services_dao import dao_add_user_to_service
+from tests.app.db import create_user, create_service
 from tests.conftest import set_config_values
 
 import pytest
@@ -16,9 +16,9 @@ from notifications_python_client.authentication import create_jwt_token
 
 from app import api_user
 from app.dao.api_key_dao import get_unsigned_secrets, save_model_api_key, get_unsigned_secret, expire_api_key
-from app.models import ApiKey, KEY_TYPE_NORMAL, PERMISSION_LIST
+from app.models import ApiKey, KEY_TYPE_NORMAL, PERMISSION_LIST, Permission
 from app.authentication.auth import AuthError, validate_admin_auth, validate_service_api_key_auth, \
-    requires_admin_auth_or_user_with_permission_for_service, requires_user_with_permission_for_service
+    requires_admin_auth_or_user_in_service, requires_user_in_service
 
 from tests.conftest import set_config
 
@@ -378,19 +378,58 @@ def test_proxy_key_on_admin_auth_endpoint(notify_api, check_proxy_header, header
         assert response.status_code == expected_status
 
 
-class TestRequiresUserWithPermissionForService:
+class TestRequiresUserInService:
+
+    def test_accepts_jwt_for_user_in_service(self, client, db_session):
+
+        @requires_user_in_service()
+        def endpoint_that_requires_user_in_service():
+            pass
+
+        user = create_user()
+        service = create_service(service_name='some-service', user=user)
+
+        token = create_access_token(identity=user)
+
+        request.view_args['service_id'] = service.id
+        request.headers = {'Authorization': 'Bearer {}'.format(token)}
+
+        endpoint_that_requires_user_in_service()
+
+    def test_rejects_jwt_for_user_not_in_service(self, client, db_session):
+
+        @requires_user_in_service()
+        def endpoint_that_requires_user_in_service():
+            pass
+
+        user = create_user()
+        service = create_service(service_name='some-service')
+
+        token = create_access_token(identity=user)
+
+        request.view_args['service_id'] = service.id
+        request.headers = {'Authorization': 'Bearer {}'.format(token)}
+
+        with pytest.raises(AuthError) as error:
+            endpoint_that_requires_user_in_service()
+
+        assert error.value.code == 403
 
     @pytest.mark.parametrize('required_permission', PERMISSION_LIST)
     def test_accepts_jwt_with_permission_for_service(self, client, db_session, required_permission):
 
-        @requires_user_with_permission_for_service(required_permission)
+        @requires_user_in_service(required_permission=required_permission)
         def endpoint_that_requires_permission_for_service():
             pass
 
+        user = create_user()
         service = create_service(service_name='some-service')
 
-        user = create_user()
-        create_permissions(user, service, required_permission)
+        dao_add_user_to_service(
+            service,
+            user,
+            permissions=[Permission(service=service, user=user, permission=required_permission)]
+        )
 
         token = create_access_token(identity=user)
 
@@ -401,14 +440,14 @@ class TestRequiresUserWithPermissionForService:
 
     def test_rejects_jwt_without_permission_for_service(self, client, db_session):
 
-        @requires_user_with_permission_for_service('some-required-permission')
+        @requires_user_in_service(required_permission='some-required-permission')
         def endpoint_that_requires_permission_for_service():
             pass
 
+        user = create_user()
         service = create_service(service_name='some-service')
 
-        user = create_user()
-        permission_dao.set_user_service_permission(user, service, permissions=[], replace=True)
+        dao_add_user_to_service(service, user, permissions=[])
 
         token = create_access_token(identity=user)
 
@@ -421,19 +460,23 @@ class TestRequiresUserWithPermissionForService:
         assert error.value.code == 403
 
 
-class TestRequiresAdminAuthOrUserWithPermissionForService:
+class TestRequiresAdminAuthOrUserInService:
 
     @pytest.mark.parametrize('required_permission', PERMISSION_LIST)
     def test_accepts_jwt_with_permission_for_service(self, client, db_session, required_permission):
 
-        @requires_admin_auth_or_user_with_permission_for_service(required_permission)
+        @requires_admin_auth_or_user_in_service(required_permission=required_permission)
         def endpoint_that_requires_admin_auth_or_permission_for_service():
             pass
 
+        user = create_user()
         service = create_service(service_name='some-service')
 
-        user = create_user()
-        create_permissions(user, service, required_permission)
+        dao_add_user_to_service(
+            service,
+            user,
+            permissions=[Permission(service=service, user=user, permission=required_permission)]
+        )
 
         token = create_access_token(identity=user)
 
@@ -444,14 +487,14 @@ class TestRequiresAdminAuthOrUserWithPermissionForService:
 
     def test_rejects_jwt_without_permission_for_service(self, client, db_session):
 
-        @requires_admin_auth_or_user_with_permission_for_service('some-required-permission')
+        @requires_admin_auth_or_user_in_service(required_permission='some-required-permission')
         def endpoint_that_requires_admin_auth_or_permission_for_service():
             pass
 
+        user = create_user()
         service = create_service(service_name='some-service')
 
-        user = create_user()
-        permission_dao.set_user_service_permission(user, service, permissions=[], replace=True)
+        dao_add_user_to_service(service, user, permissions=[])
 
         token = create_access_token(identity=user)
 
@@ -466,7 +509,7 @@ class TestRequiresAdminAuthOrUserWithPermissionForService:
     @pytest.mark.parametrize('required_permission', PERMISSION_LIST)
     def test_accepts_admin_jwt(self, client, db_session, required_permission):
 
-        @requires_admin_auth_or_user_with_permission_for_service(required_permission)
+        @requires_admin_auth_or_user_in_service(required_permission=required_permission)
         def endpoint_that_requires_admin_auth_or_permission_for_service():
             pass
 

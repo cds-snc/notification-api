@@ -68,9 +68,9 @@ def validate_admin_auth():
         raise AuthError('Unauthorized, admin authentication token required', 401)
 
 
-def create_validator_for_user_with_permission_for_service(permission: str) -> Callable:
+def create_validator_for_user_in_service(required_permission: str = None) -> Callable:
 
-    def _validate_user_has_permission_for_service():
+    def _validate_user_in_service():
 
         # when fetching data, the browser may send a pre-flight OPTIONS request.
         # the W3 spec for CORS pre-flight requests states that user credentials should be excluded.
@@ -82,34 +82,39 @@ def create_validator_for_user_with_permission_for_service(permission: str) -> Ca
         try:
             service_id = request.view_args.get('service_id')
             verify_jwt_in_request()
-            user_permissions = current_user.get_permissions(service_id)
-            if permission in user_permissions:
-                pass
-            else:
-                raise AuthError(f'User does not have permission {permission}', 403, service_id=service_id)
+
         except (NoAuthorizationError, InvalidHeaderError, JWTDecodeError, InvalidSignatureError) as e:
             raise AuthError('Could not decode valid JWT', 403) from e
 
-    return _validate_user_has_permission_for_service
+        else:
+            if not any(service.id == service_id for service in current_user.services):
+                raise AuthError('User is not a member of the specified service', 403, service_id=service_id)
+
+            if required_permission:
+                user_permissions = current_user.get_permissions(service_id)
+                if required_permission not in user_permissions:
+                    raise AuthError(f'User does not have permission {required_permission}', 403, service_id=service_id)
+
+    return _validate_user_in_service
 
 
-def create_validator_for_admin_auth_or_user_with_permission_for_service(permission: str) -> Callable:
+def create_validator_for_admin_auth_or_user_in_service(required_permission: str = None) -> Callable:
 
-    def _validate_admin_auth_or_user_with_permission_for_service():
+    def _validate_admin_auth_or_user_in_service():
         try:
-            validate = create_validator_for_user_with_permission_for_service(permission)
+            validate = create_validator_for_user_in_service(required_permission)
             validate()
         except AuthError:
             validate_admin_auth()
 
-    return _validate_admin_auth_or_user_with_permission_for_service
+    return _validate_admin_auth_or_user_in_service
 
 
-def requires_user_with_permission_for_service(permission: str):
+def requires_user_in_service(required_permission: str = None):
     def decorator(function):
         @functools.wraps(function)
         def wrapper(*args, **kwargs):
-            validate = create_validator_for_user_with_permission_for_service(permission)
+            validate = create_validator_for_user_in_service(required_permission)
             validate()
 
             return function(*args, **kwargs)
@@ -117,11 +122,11 @@ def requires_user_with_permission_for_service(permission: str):
     return decorator
 
 
-def requires_admin_auth_or_user_with_permission_for_service(permission: str):
+def requires_admin_auth_or_user_in_service(required_permission: str = None):
     def decorator(function):
         @functools.wraps(function)
         def wrapper(*args, **kwargs):
-            validate = create_validator_for_admin_auth_or_user_with_permission_for_service(permission)
+            validate = create_validator_for_admin_auth_or_user_in_service(required_permission)
             validate()
 
             return function(*args, **kwargs)
