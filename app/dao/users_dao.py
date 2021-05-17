@@ -127,6 +127,10 @@ def get_user_by_identity_provider_user_id(identity_provider_user_id):
     ).one()
 
 
+# TODO:// update to store actual id, not login
+# TODO:// maybe have to separate the calls
+# TODO:// more inspection of user to understand what type of user it is? did we match by account id or email?
+# TODO:// if by email, this is an account creation
 @transactional
 def update_user_identity_provider_user_id(email, identity_provider_user_id):
     email_matches_condition = func.lower(User.email_address) == func.lower(email)
@@ -141,7 +145,7 @@ def update_user_identity_provider_user_id(email, identity_provider_user_id):
 
 def create_or_update_user(email_address, identity_provider_user_id, name):
     try:
-        update_user_identity_provider_user_id(email_address, identity_provider_user_id)
+        return update_user_identity_provider_user_id(email_address, identity_provider_user_id)
     except sqlalchemy.orm.exc.NoResultFound:
         data = {
             'email_address': email_address,
@@ -150,6 +154,8 @@ def create_or_update_user(email_address, identity_provider_user_id, name):
         }
         user = User(**data)
         save_model_user(user)
+
+        return user
 
 
 def increment_failed_login_count(user):
