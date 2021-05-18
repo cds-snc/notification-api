@@ -274,6 +274,17 @@ def update_service(service_id):
         redis_store.delete(daily_limit_cache_key(service_id))
         redis_store.delete(near_daily_limit_cache_key(service_id))
         redis_store.delete(over_daily_limit_cache_key(service_id))
+        if not fetched_service.restricted:
+            send_notification_to_service_users(
+                service_id=service_id,
+                template_id=current_app.config['DAILY_LIMIT_UPDATED_TEMPLATE_ID'],
+                personalisation={
+                    'service_name': current_data['name'],
+                    'message_limit_en': '{:,}'.format(current_data['message_limit']),
+                    'message_limit_fr': '{:,}'.format(current_data['message_limit']).replace(',', ' ')
+                },
+                include_user_fields=['name']
+            )
 
     dao_update_service(service)
 
