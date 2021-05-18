@@ -42,7 +42,7 @@ def upgrade():
         "",
         "Bonjour ((name)),",
         "",
-        "La limite quotidienne de ((service_name)) a été mise à jour. Vous pouvez désormais envoyer ((message_limit_fr)) messages par jour. Ce changement est effectif dès à présent.",
+        "La limite quotidienne de ((service_name)) a été mise à jour. Vous pouvez désormais envoyer ((message_limit_fr)) messages par jour. Ce changement est effectif dès maintenant.",
         "",
         "L’équipe GC Notification",
     ])
