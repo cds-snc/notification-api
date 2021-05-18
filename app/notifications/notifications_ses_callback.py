@@ -28,11 +28,16 @@ def handle_ses_complaint(ses_message: dict) -> Tuple[Complaint, Notification, st
     notification = dao_get_notification_history_by_reference(reference)
     ses_complaint = ses_message.get('complaint', None)
 
+    complaint_type = ses_complaint.get('complaintFeedbackType', None) if ses_complaint else None
+
+    if not complaint_type:
+        current_app.logger.info(f'Received null complaint type from SES for notification {notification.id}')
+
     complaint = Complaint(
         notification_id=notification.id,
         service_id=notification.service_id,
         feedback_id=ses_complaint.get('feedbackId', None) if ses_complaint else None,
-        complaint_type=ses_complaint.get('complaintFeedbackType', None) if ses_complaint else None,
+        complaint_type=complaint_type,
         complaint_date=ses_complaint.get('timestamp', None) if ses_complaint else None
     )
     save_complaint(complaint)
