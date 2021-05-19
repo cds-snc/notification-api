@@ -253,7 +253,7 @@ class TestAuthorize:
         create_access_token.assert_called_with(identity=found_user)
 
         assert response.status_code == 302
-        assert cookie_config['UI_HOST_NAME'] in response.location
+        assert response.location == f"{cookie_config['UI_HOST_NAME']}/login/success"
 
         assert any(
             cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME']

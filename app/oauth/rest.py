@@ -52,7 +52,7 @@ def authorize():
         current_app.logger.error(f"Authorization exception raised:\n{e}\n")
         return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
     else:
-        response = make_response(redirect(current_app.config['UI_HOST_NAME']))
+        response = make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/success"))
         response.set_cookie(
             current_app.config['JWT_ACCESS_COOKIE_NAME'],
             create_access_token(
