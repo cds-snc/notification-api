@@ -244,13 +244,13 @@ class TestAuthorize:
             self, client, notify_api, toggle_enabled, mocker, cookie_config, github_data
     ):
         found_user = User()
-        mocker.patch('app.oauth.rest.create_or_update_user', return_value=found_user)
+        mocker.patch('app.oauth.rest.create_or_retrieve_user', return_value=found_user)
         create_access_token = mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
 
         with set_config_values(notify_api, cookie_config):
             response = client.get('/authorize')
 
-        create_access_token.assert_called_with(identity=found_user)
+        create_access_token.assert_called_with(identity=found_user.serialize())
 
         assert response.status_code == 302
         assert response.location == f"{cookie_config['UI_HOST_NAME']}/login/success"
@@ -272,14 +272,16 @@ class TestAuthorize:
             identity_provider_user_id=identity_provider_user_id,
             name=expected_name
         )
-        create_or_update_user = mocker.patch('app.oauth.rest.create_or_update_user', return_value=found_user)
+        create_or_retrieve_user = mocker.patch(
+            'app.oauth.rest.create_or_retrieve_user', return_value=found_user
+        )
 
         mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
 
         with set_config_values(notify_api, cookie_config):
             client.get('/authorize')
 
-        create_or_update_user.assert_called_with(
+        create_or_retrieve_user.assert_called_with(
             email_address=expected_email,
             identity_provider_user_id=expected_user_id,
             name=expected_name)

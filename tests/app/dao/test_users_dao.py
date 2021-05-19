@@ -391,7 +391,7 @@ def test_update_user_identity_provider_user_id_do_not_update_email(notify_db_ses
     assert user_from_db.email_address == initial_email
 
 
-def test_create_or_update_user_by_identity_provider_user_id_for_new_user(sample_user):
+def test_create_or_retrieve_user_by_identity_provider_user_id_for_new_user(sample_user):
     create_or_retrieve_user(
         "newuser@email.com",
         "new-test-id",
