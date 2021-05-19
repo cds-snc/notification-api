@@ -58,7 +58,7 @@ def authorize():
         response.set_cookie(
             current_app.config['JWT_ACCESS_COOKIE_NAME'],
             create_access_token(
-                identity=user.serialize()
+                identity=user
             ),
             httponly=True,
             secure=current_app.config['SESSION_COOKIE_SECURE'],
