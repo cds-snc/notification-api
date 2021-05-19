@@ -148,7 +148,7 @@ def update_user_identity_provider_user_id(email, identity_provider_user_id):
     return user
 
 
-def create_or_update_user(email_address, identity_provider_user_id, name):
+def create_or_retrieve_user(email_address, identity_provider_user_id, name):
     try:
         return update_user_identity_provider_user_id(email_address, identity_provider_user_id)
     except sqlalchemy.orm.exc.NoResultFound:

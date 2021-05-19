@@ -8,7 +8,8 @@ from flask_jwt_extended.exceptions import NoAuthorizationError
 from jwt import ExpiredSignatureError
 from requests.exceptions import HTTPError
 
-from app.dao.users_dao import create_or_update_user
+from app import statsd_client
+from app.dao.users_dao import create_or_retrieve_user
 from app.errors import register_errors
 from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.oauth.exceptions import OAuthException
@@ -43,13 +44,14 @@ def authorize():
 
         verified_email, verified_user_id, verified_name = _extract_github_user_info(email_resp, user_resp)
 
-        user = create_or_update_user(
+        user = create_or_retrieve_user(
             email_address=verified_email,
             identity_provider_user_id=verified_user_id,
             name=verified_name)
 
     except (OAuthException, HTTPError) as e:
         current_app.logger.error(f"Authorization exception raised:\n{e}\n")
+        statsd_client.incr('oauth.authorization.failure')
         return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
     else:
         response = make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/success"))
@@ -62,6 +64,7 @@ def authorize():
             secure=current_app.config['SESSION_COOKIE_SECURE'],
             samesite=current_app.config['SESSION_COOKIE_SAMESITE']
         )
+        statsd_client.incr('oauth.authorization.success')
         return response
 
 

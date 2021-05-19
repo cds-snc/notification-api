@@ -23,7 +23,7 @@ from app.dao.users_dao import (
     user_can_be_archived,
     dao_archive_user,
     verify_within_time, get_user_by_identity_provider_user_id, update_user_identity_provider_user_id,
-    create_or_update_user
+    create_or_retrieve_user
 )
 from app.errors import InvalidRequest
 from app.models import EMAIL_AUTH_TYPE, User, VerifyCode
@@ -392,7 +392,7 @@ def test_update_user_identity_provider_user_id_do_not_update_email(notify_db_ses
 
 
 def test_create_or_update_user_by_identity_provider_user_id_for_new_user(sample_user):
-    create_or_update_user(
+    create_or_retrieve_user(
         "newuser@email.com",
         "new-test-id",
         "New User Here")
@@ -403,7 +403,7 @@ def test_create_or_update_user_by_identity_provider_user_id_for_new_user(sample_
 def test_create_or_update_user_by_identity_provider_user_id_for_existing_user(sample_user):
     assert sample_user.identity_provider_user_id is None
 
-    create_or_update_user(
+    create_or_retrieve_user(
         sample_user.email_address,
         "new-test-id",
         sample_user.name)
