@@ -101,7 +101,6 @@ def handle_integrity_error(exc):
 
 @user_blueprint.route('', methods=['POST'])
 def create_user():
-    # import pdb; pdb.set_trace()
     user_to_create, errors = create_user_schema.load(request.get_json())
     req_json = request.get_json()
 
