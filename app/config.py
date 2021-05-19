@@ -337,7 +337,7 @@ class Config(object):
     STATSD_PORT = 8125
     STATSD_ENABLED = bool(STATSD_HOST)
 
-    SENDING_NOTIFICATIONS_TIMEOUT_PERIOD = 259200  # 3 days
+    SENDING_NOTIFICATIONS_TIMEOUT_PERIOD = 259_200  # 3 days
 
     SIMULATED_EMAIL_ADDRESSES = (
         'simulate-delivered@notification.canada.ca',
@@ -377,8 +377,9 @@ class Config(object):
     HC_EN_SERVICE_ID = os.getenv('HC_EN_SERVICE_ID', '')
     HC_FR_SERVICE_ID = os.getenv('HC_FR_SERVICE_ID', '')
     BULK_SEND_TEST_SERVICE_ID = os.getenv('BULK_SEND_TEST_SERVICE_ID', '')
-    CSV_MAX_ROWS = os.getenv('CSV_MAX_ROWS', 50000)
-    CSV_MAX_ROWS_BULK_SEND = os.getenv('CSV_MAX_ROWS_BULK_SEND', 100000)
+    CSV_MAX_ROWS = os.getenv('CSV_MAX_ROWS', 50_000)
+    CSV_MAX_ROWS_BULK_SEND = os.getenv('CSV_MAX_ROWS_BULK_SEND', 100_000)
+    CSV_BULK_REDIRECT_THRESHOLD = os.getenv('CSV_BULK_REDIRECT_THRESHOLD', 200)
 
 
 ######################

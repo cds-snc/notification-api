@@ -2,6 +2,7 @@ import uuid
 import json
 from datetime import datetime, timedelta
 from unittest.mock import Mock, call
+from notifications_utils.recipients import RecipientCSV
 
 import pytest
 import requests_mock
@@ -70,7 +71,7 @@ class AnyStringWith(str):
         return self in other
 
 
-def _notification_json(template, to, personalisation=None, job_id=None, row_number=0):
+def _notification_json(template, to, personalisation=None, job_id=None, row_number=0, queue=None):
     return {
         "template": str(template.id),
         "template_version": template.version,
@@ -78,7 +79,8 @@ def _notification_json(template, to, personalisation=None, job_id=None, row_numb
         "notification_type": template.template_type,
         "personalisation": personalisation or {},
         "job": job_id and str(job_id),
-        "row_number": row_number
+        "row_number": row_number,
+        "queue": queue
     }
 
 
@@ -144,6 +146,38 @@ def test_should_process_sms_job_with_sender_id(sample_job, mocker, fake_uuid):
         {'sender_id': fake_uuid},
         queue="database-tasks"
     )
+
+
+@pytest.mark.parametrize('csv_threshold, expected_queue', [
+    (0, 'bulk-tasks'),
+    (1_000, None),
+])
+def test_should_redirect_job_to_queue_depending_on_csv_threshold(
+    notify_api, sample_job, mocker, fake_uuid, csv_threshold, expected_queue
+):
+    mock_save_email = mocker.patch('app.celery.tasks.save_email')
+
+    template = Mock(id=1, template_type=EMAIL_TYPE)
+    job = Mock(id=1, template_version='temp_vers', notification_count=1)
+    service = Mock(id=1, research_mode=False)
+
+    row = next(
+        RecipientCSV(
+            load_example_csv('email'),
+            template_type=EMAIL_TYPE,
+        ).get_rows()
+    )
+
+    with set_config_values(notify_api, {
+        'CSV_BULK_REDIRECT_THRESHOLD': csv_threshold
+    }):
+        process_row(row, template, job, service, fake_uuid)
+
+    tasks.save_email.apply_async.assert_called_once()
+    args = mock_save_email.method_calls[0].args
+    encrypted_notification = args[0][2]
+    notification = encryption.decrypt(encrypted_notification)
+    assert expected_queue == notification.get('queue')
 
 
 @freeze_time("2016-01-01 11:09:00.061258")
@@ -384,12 +418,14 @@ def test_should_process_all_sms_job(sample_job_with_placeholdered_template,
     (LETTER_TYPE, False, 'save_letter', 'database-tasks'),
     (LETTER_TYPE, True, 'save_letter', 'research-mode-tasks'),
 ])
-def test_process_row_sends_letter_task(template_type, research_mode, expected_function, expected_queue, mocker):
+def test_process_row_sends_letter_task(
+    notify_api, template_type, research_mode, expected_function, expected_queue, mocker
+):
     mocker.patch('app.celery.tasks.create_uuid', return_value='noti_uuid')
     task_mock = mocker.patch('app.celery.tasks.{}.apply_async'.format(expected_function))
     encrypt_mock = mocker.patch('app.celery.tasks.encryption.encrypt')
     template = Mock(id='template_id', template_type=template_type)
-    job = Mock(id='job_id', template_version='temp_vers')
+    job = Mock(id='job_id', template_version='temp_vers', notification_count=1)
     service = Mock(id='service_id', research_mode=research_mode)
 
     process_row(
@@ -412,7 +448,8 @@ def test_process_row_sends_letter_task(template_type, research_mode, expected_fu
         'job': 'job_id',
         'to': 'recip',
         'row_number': 'row_num',
-        'personalisation': {'foo': 'bar'}
+        'personalisation': {'foo': 'bar'},
+        'queue': None
     })
     task_mock.assert_called_once_with(
         (
@@ -426,12 +463,12 @@ def test_process_row_sends_letter_task(template_type, research_mode, expected_fu
     )
 
 
-def test_process_row_when_sender_id_is_provided(mocker, fake_uuid):
+def test_process_row_when_sender_id_is_provided(notify_api, mocker, fake_uuid):
     mocker.patch('app.celery.tasks.create_uuid', return_value='noti_uuid')
     task_mock = mocker.patch('app.celery.tasks.save_sms.apply_async')
     encrypt_mock = mocker.patch('app.celery.tasks.encryption.encrypt')
     template = Mock(id='template_id', template_type=SMS_TYPE)
-    job = Mock(id='job_id', template_version='temp_vers')
+    job = Mock(id='job_id', template_version='temp_vers', notification_count=1)
     service = Mock(id='service_id', research_mode=False)
 
     process_row(
@@ -540,6 +577,32 @@ def test_should_route_save_sms_task_to_appropriate_queue_according_to_template_p
     provider_tasks.deliver_sms.apply_async.assert_called_once_with(
         [str(persisted_notification.id)],
         queue=f"{process_type}-tasks"
+    )
+    assert mocked_deliver_sms.called
+
+
+def test_should_route_save_sms_task_to_bulk_on_large_csv_file(
+    notify_db,
+    notify_db_session,
+    mocker
+):
+    service = create_service()
+    template = create_template(service=service, process_type='normal')
+    notification = _notification_json(template, to="+1 650 253 2222", queue="bulk-tasks")
+
+    mocked_deliver_sms = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+
+    notification_id = uuid.uuid4()
+
+    save_sms(
+        template.service_id,
+        notification_id,
+        encryption.encrypt(notification),
+    )
+    persisted_notification = Notification.query.one()
+    provider_tasks.deliver_sms.apply_async.assert_called_once_with(
+        [str(persisted_notification.id)],
+        queue="bulk-tasks"
     )
     assert mocked_deliver_sms.called
 
@@ -696,6 +759,30 @@ def test_should_route_save_email_task_to_appropriate_queue_according_to_template
     provider_tasks.deliver_email.apply_async.assert_called_once_with(
         [str(persisted_notification.id)],
         queue=f"{process_type}-tasks"
+    )
+
+
+def test_should_route_save_email_task_to_bulk_on_large_csv_file(
+    notify_db_session, mocker
+):
+    service = create_service()
+    template = create_template(service=service, template_type="email", process_type="normal")
+    notification = _notification_json(template, to="test@test.com", queue="bulk-tasks")
+
+    mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+
+    notification_id = uuid.uuid4()
+
+    save_email(
+        template.service_id,
+        notification_id,
+        encryption.encrypt(notification),
+    )
+
+    persisted_notification = Notification.query.one()
+    provider_tasks.deliver_email.apply_async.assert_called_once_with(
+        [str(persisted_notification.id)],
+        queue="bulk-tasks"
     )
 
 
