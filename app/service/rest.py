@@ -274,22 +274,13 @@ def update_service(service_id):
         redis_store.delete(daily_limit_cache_key(service_id))
         redis_store.delete(near_daily_limit_cache_key(service_id))
         redis_store.delete(over_daily_limit_cache_key(service_id))
+        if not fetched_service.restricted:
+            _warn_service_users_about_message_limit_changed(service_id, current_data)
 
     dao_update_service(service)
 
     if service_going_live:
-        send_notification_to_service_users(
-            service_id=service_id,
-            template_id=current_app.config['SERVICE_NOW_LIVE_TEMPLATE_ID'],
-            personalisation={
-                'service_name': current_data['name'],
-                'contact_us_url': f"{current_app.config['ADMIN_BASE_URL']}/contact",
-                'signin_url': f"{current_app.config['ADMIN_BASE_URL']}/sign-in",
-                'message_limit_en': '{:,}'.format(current_data['message_limit']),
-                'message_limit_fr': '{:,}'.format(current_data['message_limit']).replace(',', ' ')
-            },
-            include_user_fields=['name']
-        )
+        _warn_services_users_about_going_live(service_id, current_data)
 
         try:
             # Two scenarios, if there is a user that has requested to go live, we will use that user
@@ -306,6 +297,34 @@ def update_service(service_id):
             current_app.logger.exception(e)
 
     return jsonify(data=service_schema.dump(fetched_service).data), 200
+
+
+def _warn_service_users_about_message_limit_changed(service_id, data):
+    send_notification_to_service_users(
+        service_id=service_id,
+        template_id=current_app.config['DAILY_LIMIT_UPDATED_TEMPLATE_ID'],
+        personalisation={
+            'service_name': data['name'],
+            'message_limit_en': '{:,}'.format(data['message_limit']),
+            'message_limit_fr': '{:,}'.format(data['message_limit']).replace(',', ' ')
+        },
+        include_user_fields=['name']
+    )
+
+
+def _warn_services_users_about_going_live(service_id, data):
+    send_notification_to_service_users(
+        service_id=service_id,
+        template_id=current_app.config['SERVICE_NOW_LIVE_TEMPLATE_ID'],
+        personalisation={
+            'service_name': data['name'],
+            'contact_us_url': f"{current_app.config['ADMIN_BASE_URL']}/contact",
+            'signin_url': f"{current_app.config['ADMIN_BASE_URL']}/sign-in",
+            'message_limit_en': '{:,}'.format(data['message_limit']),
+            'message_limit_fr': '{:,}'.format(data['message_limit']).replace(',', ' ')
+        },
+        include_user_fields=['name']
+    )
 
 
 @service_blueprint.route('/<uuid:service_id>/api-key', methods=['POST'])

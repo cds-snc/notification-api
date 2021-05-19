@@ -2206,6 +2206,7 @@ def test_update_service_updating_daily_limit_clears_redis_cache(
     expected_call,
 ):
     redis_delete = mocker.patch('app.service.rest.redis_store.delete')
+    mocker.patch('app.service.rest.send_notification_to_service_users')
 
     service = create_service(message_limit=current_limit)
 
@@ -2224,6 +2225,50 @@ def test_update_service_updating_daily_limit_clears_redis_cache(
         ]
     else:
         redis_delete.assert_not_called()
+
+
+@pytest.mark.parametrize('is_trial, current_limit, new_limit, expected_call', [
+    (False, 1_000, 1_000, False),
+    (False, 1_000, 2_000, True),
+    (True, 50, 2_000, False),
+    (False, 1_000, 50, True),
+    (False, 1_000, None, False),
+    (True, 1_000, None, False),
+])
+def test_update_service_updating_daily_limit_sends_notification_to_users(
+    notify_db,
+    notify_db_session,
+    admin_request,
+    mocker,
+    is_trial,
+    current_limit,
+    new_limit,
+    expected_call,
+):
+    send_notification_mock = mocker.patch('app.service.rest.send_notification_to_service_users')
+
+    service = create_service(message_limit=current_limit, restricted=is_trial)
+
+    admin_request.post(
+        'service.update_service',
+        service_id=service.id,
+        _data={"message_limit": new_limit} if new_limit else {},
+        _expected_status=200
+    )
+
+    if expected_call:
+        send_notification_mock.assert_called_once_with(
+            service_id=service.id,
+            template_id=current_app.config['DAILY_LIMIT_UPDATED_TEMPLATE_ID'],
+            personalisation={
+                'service_name': service.name,
+                'message_limit_en': '{:,}'.format(new_limit),
+                'message_limit_fr': '{:,}'.format(new_limit).replace(',', ' '),
+            },
+            include_user_fields=['name']
+        )
+    else:
+        send_notification_mock.assert_not_called()
 
 
 def test_update_service_does_not_call_send_notification_for_live_service(sample_service, client, mocker):
