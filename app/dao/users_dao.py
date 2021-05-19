@@ -1,6 +1,7 @@
 from random import (SystemRandom)
 from datetime import (datetime, timedelta)
 import uuid
+from flask import current_app
 
 import sqlalchemy
 from sqlalchemy import func, or_
@@ -133,8 +134,16 @@ def update_user_identity_provider_user_id(email, identity_provider_user_id):
     id_matches_condition = func.lower(User.identity_provider_user_id) == func.lower(str(identity_provider_user_id))
     user = User.query.filter(or_(email_matches_condition, id_matches_condition)).one()
     if user.identity_provider_user_id is None:
+        current_app.logger.info(
+            f'User {user.id} matched by email. Creating account with '
+            f'identity provider user id {user.identity_provider_user_id}'
+        )
         user.identity_provider_user_id = identity_provider_user_id
         db.session.add(user)
+    else:
+        current_app.logger.info(
+            f'User {user.id} matched by identity provder user id {user.identity_provider_user_id}'
+        )
 
     return user
 
