@@ -234,10 +234,11 @@ class TestAuthorize:
             return_value=github_get_user_resp,
         )
 
-        github_get_user_resp.raise_for_status.side_effect = HTTPError
-
-        with pytest.raises(HTTPError):
+        with pytest.raises(OAuthException) as e:
             make_github_get_request('/user', github_access_token)
+
+        assert e.value.status_code == 401
+        assert e.value.message == 'User Account not found.'
 
     def test_should_redirect_to_ui_if_user_is_member_of_va_organization(
             self, client, notify_api, toggle_enabled, mocker, cookie_config, github_data

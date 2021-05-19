@@ -70,10 +70,16 @@ def make_github_get_request(endpoint: str, github_token) -> json:
         endpoint,
         token=github_token
     )
-    resp.raise_for_status()
+    if resp.status_code in [403, 404]:
+        exception = OAuthException
+        exception.status_code = 401
+        exception.message = "User Account not found."
+        raise exception
 
     if resp.status_code == 304:
         raise OAuthException(Exception("Fail to retrieve required information to complete authorization"))
+
+    resp.raise_for_status()
 
     return resp
 

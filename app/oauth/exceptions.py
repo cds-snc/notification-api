@@ -1,2 +1,3 @@
 class OAuthException(Exception):
-    pass
+    status_code = None
+    message = None
