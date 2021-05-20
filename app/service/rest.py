@@ -270,14 +270,14 @@ def update_service(service_id):
         letter_branding_id = req_json['letter_branding']
         service.letter_branding = None if not letter_branding_id else LetterBranding.query.get(letter_branding_id)
 
+    dao_update_service(service)
+
     if message_limit_changed:
         redis_store.delete(daily_limit_cache_key(service_id))
         redis_store.delete(near_daily_limit_cache_key(service_id))
         redis_store.delete(over_daily_limit_cache_key(service_id))
         if not fetched_service.restricted:
             _warn_service_users_about_message_limit_changed(service_id, current_data)
-
-    dao_update_service(service)
 
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
