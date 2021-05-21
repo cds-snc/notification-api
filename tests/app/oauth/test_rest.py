@@ -1,6 +1,7 @@
 import os
 
 import pytest
+from authlib.integrations.base_client import OAuthError
 from flask_jwt_extended.exceptions import NoAuthorizationError
 from jwt import ExpiredSignatureError
 from requests import Response
@@ -221,6 +222,22 @@ class TestAuthorize:
 
         assert response.status_code == 302
         assert f"{cookie_config['UI_HOST_NAME']}/login/failure" in response.location
+        assert not any(
+            cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar
+        )
+        mock_logger.assert_called_once()
+
+    def test_should_redirect_to_login_denied_if_user_denies_access(
+            self, client, notify_api, toggle_enabled, mocker, cookie_config, github_data
+    ):
+        mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token', side_effect=OAuthError)
+        mock_logger = mocker.patch('app.oauth.rest.current_app.logger.error')
+
+        with set_config_values(notify_api, cookie_config):
+            response = client.get('/authorize')
+
+        assert response.status_code == 302
+        assert f"{cookie_config['UI_HOST_NAME']}/login/denied" in response.location
         assert not any(
             cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar
         )

@@ -1,6 +1,7 @@
 import json
 from typing import Tuple
 
+from authlib.integrations.base_client import OAuthError
 from flask import Blueprint, url_for, make_response, redirect, jsonify, current_app, request
 from flask_cors.core import get_cors_options, set_cors_headers
 from flask_jwt_extended import create_access_token, verify_jwt_in_request
@@ -35,9 +36,8 @@ def login():
 
 @oauth_blueprint.route('/authorize')
 def authorize():
-    github_token = oauth_registry.github.authorize_access_token()
-
     try:
+        github_token = oauth_registry.github.authorize_access_token()
         make_github_get_request('/user/memberships/orgs/department-of-veterans-affairs', github_token)
         email_resp = make_github_get_request('/user/emails', github_token)
         user_resp = make_github_get_request('/user', github_token)
@@ -48,7 +48,10 @@ def authorize():
             email_address=verified_email,
             identity_provider_user_id=verified_user_id,
             name=verified_name)
-
+    except OAuthError as e:
+        current_app.logger.error(f'User denied authorization: {e}')
+        statsd_client.incr('oauth.authorization.denied')
+        return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/denied"))
     except (OAuthException, HTTPError) as e:
         current_app.logger.error(f"Authorization exception raised:\n{e}\n")
         statsd_client.incr('oauth.authorization.failure')
