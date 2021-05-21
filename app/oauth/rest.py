@@ -51,7 +51,7 @@ def authorize():
     except OAuthError as e:
         current_app.logger.error(f'User denied authorization: {e}')
         statsd_client.incr('oauth.authorization.denied')
-        return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/denied"))
+        return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure?denied_authorization"))
     except (OAuthException, HTTPError) as e:
         current_app.logger.error(f"Authorization exception raised:\n{e}\n")
         statsd_client.incr('oauth.authorization.failure')

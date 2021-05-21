@@ -237,7 +237,7 @@ class TestAuthorize:
             response = client.get('/authorize')
 
         assert response.status_code == 302
-        assert f"{cookie_config['UI_HOST_NAME']}/login/denied" in response.location
+        assert f"{cookie_config['UI_HOST_NAME']}/login/failure?denied_authorization" in response.location
         assert not any(
             cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar
         )
