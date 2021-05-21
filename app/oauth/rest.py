@@ -12,7 +12,7 @@ from app import statsd_client
 from app.dao.users_dao import create_or_retrieve_user
 from app.errors import register_errors
 from app.feature_flags import is_feature_enabled, FeatureFlag
-from app.oauth.exceptions import OAuthException
+from app.oauth.exceptions import OAuthException, IncorrectGithubIdException
 from app.oauth.registry import oauth_registry
 
 oauth_blueprint = Blueprint('oauth', __name__, url_prefix='')
@@ -52,6 +52,10 @@ def authorize():
     except (OAuthException, HTTPError) as e:
         current_app.logger.error(f"Authorization exception raised:\n{e}\n")
         statsd_client.incr('oauth.authorization.failure')
+        return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
+    except IncorrectGithubIdException as e:
+        current_app.logger.error(e)
+        statsd_client.incr('oauth.authorization.github_id_mismatch')
         return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
     else:
         response = make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/success"))

@@ -27,6 +27,7 @@ from app.dao.users_dao import (
 )
 from app.errors import InvalidRequest
 from app.models import EMAIL_AUTH_TYPE, User, VerifyCode
+from app.oauth.exceptions import IncorrectGithubIdException
 
 from tests.app.db import create_permissions, create_service, create_template_folder, create_user
 
@@ -389,6 +390,15 @@ def test_update_user_identity_provider_user_id_do_not_update_email(notify_db_ses
     create_user(email=initial_email, identity_provider_user_id=user_id)
     user_from_db = update_user_identity_provider_user_id(new_email, user_id)
     assert user_from_db.email_address == initial_email
+
+
+def test_update_user_identity_provider_user_id_throws_exception_if_github_id_does_not_match(notify_db_session):
+    some_email = 'philip.schrute@dundermifflin.com'
+
+    create_user(email=some_email, identity_provider_user_id='1111')
+
+    with pytest.raises(IncorrectGithubIdException):
+        update_user_identity_provider_user_id(some_email, '2222')
 
 
 def test_create_or_retrieve_user_by_identity_provider_user_id_for_new_user(sample_user):

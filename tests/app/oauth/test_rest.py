@@ -8,7 +8,7 @@ from requests.exceptions import HTTPError
 
 from app.feature_flags import FeatureFlag
 from app.models import User
-from app.oauth.exceptions import OAuthException
+from app.oauth.exceptions import OAuthException, IncorrectGithubIdException
 from app.oauth.rest import make_github_get_request
 from tests.conftest import set_config_values
 
@@ -197,6 +197,24 @@ class TestAuthorize:
             'app.oauth.rest.make_github_get_request',
             side_effect=exception
         )
+
+        with set_config_values(notify_api, cookie_config):
+            response = client.get('/authorize')
+
+        assert response.status_code == 302
+        assert f"{cookie_config['UI_HOST_NAME']}/login/failure" in response.location
+        assert not any(
+            cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar
+        )
+        mock_logger.assert_called_once()
+
+    def test_should_redirect_to_login_failure_if_incorrect_github_id(
+            self, client, notify_api, toggle_enabled, mocker, cookie_config, github_data
+    ):
+        mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
+        mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
+        mocker.patch('app.oauth.rest.create_or_retrieve_user', side_effect=IncorrectGithubIdException)
+        mock_logger = mocker.patch('app.oauth.rest.current_app.logger.error')
 
         with set_config_values(notify_api, cookie_config):
             response = client.get('/authorize')

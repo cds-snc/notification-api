@@ -13,6 +13,7 @@ from app.dao.service_user_dao import dao_get_service_users_by_user_id
 from app.dao.dao_utils import transactional
 from app.errors import InvalidRequest
 from app.models import (EMAIL_AUTH_TYPE, User, VerifyCode)
+from app.oauth.exceptions import IncorrectGithubIdException
 from app.utils import escape_special_characters
 
 
@@ -132,6 +133,7 @@ def get_user_by_identity_provider_user_id(identity_provider_user_id):
 def update_user_identity_provider_user_id(email, identity_provider_user_id):
     email_matches_condition = func.lower(User.email_address) == func.lower(email)
     id_matches_condition = func.lower(User.identity_provider_user_id) == func.lower(str(identity_provider_user_id))
+
     user = User.query.filter(or_(email_matches_condition, id_matches_condition)).one()
     if user.identity_provider_user_id is None:
         current_app.logger.info(
@@ -141,8 +143,14 @@ def update_user_identity_provider_user_id(email, identity_provider_user_id):
         user.identity_provider_user_id = identity_provider_user_id
         db.session.add(user)
     else:
+        if user.identity_provider_user_id != identity_provider_user_id:
+            raise IncorrectGithubIdException(
+                f'User {user.id}: identity provider user id on user ({user.identity_provider_user_id})'
+                f' does not match id received from Github ({identity_provider_user_id})'
+            )
+
         current_app.logger.info(
-            f'User {user.id} matched by identity provder user id {user.identity_provider_user_id}'
+            f'User {user.id} matched by identity provider user id {user.identity_provider_user_id}'
         )
 
     return user
