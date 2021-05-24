@@ -143,7 +143,7 @@ def update_user_identity_provider_user_id(email, identity_provider_user_id):
         user.identity_provider_user_id = identity_provider_user_id
         db.session.add(user)
     else:
-        if user.identity_provider_user_id != identity_provider_user_id:
+        if str(user.identity_provider_user_id) != str(identity_provider_user_id):
             raise IncorrectGithubIdException(
                 f'User {user.id}: identity provider user id on user ({user.identity_provider_user_id})'
                 f' does not match id received from Github ({identity_provider_user_id})'
