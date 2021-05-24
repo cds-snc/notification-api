@@ -10,7 +10,7 @@ from marshmallow import (
     validates_schema,
     pre_load,
     pre_dump,
-    post_dump
+    post_dump, validate
 )
 from marshmallow_sqlalchemy import field_for
 
@@ -24,7 +24,7 @@ from notifications_utils.recipients import (
 
 from app import ma
 from app import models
-from app.models import ServicePermission, EMAIL_TYPE, SMS_TYPE
+from app.models import ServicePermission, EMAIL_TYPE, SMS_TYPE, NOTIFICATION_STATUS_TYPES_COMPLETED
 from app.dao.permissions_dao import permission_dao
 from app.provider_details import validate_providers
 from app.utils import get_template_instance
@@ -215,7 +215,7 @@ class ServiceSchema(BaseSchema):
     organisation = field_for(models.Service, 'organisation')
     override_flag = False
     letter_contact_block = fields.Method(serialize="get_letter_contact")
-    go_live_at = field_for(models.Service, 'go_live_at', format='%Y-%m-%d %H:%M:%S.%f')
+    go_live_at = field_for(models.Service, 'go_live_at', format=DATE_FORMAT)
     email_provider_id = field_for(models.Service, 'email_provider_id')
     sms_provider_id = field_for(models.Service, 'sms_provider_id')
 
@@ -282,6 +282,49 @@ class ServiceSchema(BaseSchema):
                 permissions.append(permission)
 
             in_data['permissions'] = permissions
+
+
+class ServiceCallbackApiSchema(BaseSchema):
+    created_at = field_for(models.ServiceCallbackApi, 'created_at', format=DATE_FORMAT)
+
+    class Meta:
+        model = models.ServiceCallbackApi
+        fields = (
+            'id',
+            'service_id',
+            'url',
+            'notification_statuses',
+            'updated_by_id',
+            'created_at',
+            'updated_at',
+            'bearer_token',
+            'callback_type'
+        )
+        load_only = ['_bearer_token', 'bearer_token', 'callback_type']
+        strict = True
+
+    @validates('notification_statuses')
+    def validate_notification_statuses(self, value):
+        validator = validate.ContainsOnly(
+            choices=NOTIFICATION_STATUS_TYPES_COMPLETED,
+            error="Invalid notification statuses"
+        )
+        validator(value)
+
+    @validates('url')
+    def validate_url(self, value):
+        validator = validate.URL(
+            relative=False,
+            error="Invalid URL.",
+            schemes={'https'},
+            require_tld=False
+        )
+        validator(value)
+
+    @validates('bearer_token')
+    def validate_bearer_token(self, value):
+        validator = validate.Length(min=10, error="Invalid bearer token.")
+        validator(value)
 
 
 class DetailedServiceSchema(BaseSchema):
@@ -369,7 +412,7 @@ class TemplateHistorySchema(BaseSchema):
     provider_id = field_for(models.Template, 'provider_id')
 
     created_by = fields.Nested(UserSchema, only=['id', 'name', 'email_address'], dump_only=True)
-    created_at = field_for(models.Template, 'created_at', format='%Y-%m-%d %H:%M:%S.%f')
+    created_at = field_for(models.Template, 'created_at', format=DATE_FORMAT)
 
     def get_reply_to(self, template):
         return template.reply_to
@@ -762,3 +805,4 @@ provider_details_schema = ProviderDetailsSchema()
 provider_details_history_schema = ProviderDetailsHistorySchema()
 day_schema = DaySchema()
 unarchived_template_schema = UnarchivedTemplateSchema()
+service_callback_api_schema = ServiceCallbackApiSchema()

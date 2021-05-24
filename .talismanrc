@@ -137,3 +137,10 @@ fileignoreconfig:
       checksum: 62f1bbaa6ff7edf14fcf74576a76f4fd775b66d4b70e588959af8069f789e565
     - filename: .github/workflows/dev-ci.yaml
       checksum: f60538b9b8d488e44a54ddc62750b03fe543919949abc1ac516b98b2ef83f760
+
+    - filename: app/celery/nightly_tasks.py
+      checksum: 1ec5706d92e97741cc19a4daaeb88a4462f99fd56565c83486c25bdf96d87fa4
+    - filename: tests/app/notifications/test_process_client_response.py
+      checksum: 32e867eaaa66b8848a23da88bb0c1c8e99006f95a24d91cae160778a1c1f67b9
+    - filename: app/celery/service_callback_tasks.py
+      checksum: 9afebe235d3f41bdeb433e44e1766f5e2723759dbdbfcfd94d38906a75afc29b

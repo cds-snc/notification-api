@@ -32,7 +32,7 @@ from app.exceptions import NotificationTechnicalFailureException
 from app.models import (
     LETTER_TYPE,
     SMS_TYPE,
-    EMAIL_TYPE
+    EMAIL_TYPE, NOTIFICATION_STATUS_TYPES_FAILED
 )
 from tests.app.aws.test_s3 import single_s3_object_stub
 from tests.app.db import (
@@ -223,7 +223,9 @@ def test_should_not_update_status_of_letter_notifications(client, sample_letter_
 
 
 def test_timeout_notifications_sends_status_update_to_service(client, sample_template, mocker):
-    callback_api = create_service_callback_api(service=sample_template.service)
+    callback_api = create_service_callback_api(
+        service=sample_template.service, notification_statuses=NOTIFICATION_STATUS_TYPES_FAILED
+    )
     mocked = mocker.patch('app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async')
     notification = create_notification(
         template=sample_template,

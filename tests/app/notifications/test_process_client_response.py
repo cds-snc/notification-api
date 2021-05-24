@@ -3,6 +3,7 @@ import uuid
 import pytest
 
 from app.clients import ClientException
+from app.models import NOTIFICATION_STATUS_TYPES
 from app.notifications.process_client_response import (
     validate_callback_data,
     process_sms_client_response
@@ -58,7 +59,11 @@ def test_outcome_statistics_called_for_successful_callback(sample_notification, 
     send_mock = mocker.patch(
         'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
     )
-    callback_api = create_service_callback_api(service=sample_notification.service, url="https://original_url.com")
+    callback_api = create_service_callback_api(
+        service=sample_notification.service,
+        url="https://original_url.com",
+        notification_statuses=NOTIFICATION_STATUS_TYPES
+    )
     reference = str(uuid.uuid4())
 
     success, error = process_sms_client_response(status='3', provider_reference=reference, client_name='MMG')

@@ -148,7 +148,33 @@ def test_remove_email_from_bounce():
     assert "bounce@simulator.amazonses.com" not in json.dumps(test_json)
 
 
-def test_ses_callback_should_update_notification_status(
+def test_ses_callback_should_call_send_delivery_status_to_service(
+        client,
+        sample_email_template,
+        mocker):
+    send_mock = mocker.patch(
+        'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
+    )
+    notification = create_notification(
+        template=sample_email_template,
+        status='sending',
+        reference='ref',
+    )
+
+    callback_api = create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
+    mocked_callback_api = mocker.Mock(
+        url=callback_api.url,
+        bearer_token=callback_api.bearer_token
+    )
+    process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference='ref'))
+
+    updated_notification = Notification.query.get(notification.id)
+
+    encrypted_data = create_delivery_status_callback_data(updated_notification, mocked_callback_api)
+    send_mock.assert_called_once_with([str(notification.id), encrypted_data], queue="service-callbacks")
+
+
+def test_ses_callback_should_send_statsd_statistics(
         client,
         notify_db_session,
         sample_email_template,
@@ -156,28 +182,19 @@ def test_ses_callback_should_update_notification_status(
     with freeze_time('2001-01-01T12:00:00'):
         mocker.patch('app.statsd_client.incr')
         mocker.patch('app.statsd_client.timing_with_dates')
-        mocker.patch('app.celery.service_callback_tasks.publish_complaint')
-        send_mock = mocker.patch(
-            'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
-        )
+
         notification = create_notification(
             template=sample_email_template,
             status='sending',
             reference='ref',
         )
-        callback_api = create_service_callback_api(service=sample_email_template.service,
-                                                   url="https://original_url.com")
-        assert get_notification_by_id(notification.id).status == 'sending'
 
-        assert process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference='ref'))
-        assert get_notification_by_id(notification.id).status == 'delivered'
+        process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference='ref'))
+
         statsd_client.timing_with_dates.assert_any_call(
             "callback.ses.elapsed-time", datetime.utcnow(), notification.sent_at
         )
         statsd_client.incr.assert_any_call("callback.ses.delivered")
-        updated_notification = Notification.query.get(notification.id)
-        encrypted_data = create_delivery_status_callback_data(updated_notification, callback_api)
-        send_mock.assert_called_once_with([str(notification.id), encrypted_data], queue="service-callbacks")
 
 
 def test_ses_callback_should_not_update_notification_status_if_already_delivered(sample_email_template, mocker):
@@ -237,8 +254,6 @@ def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
             status='sending',
             reference='ref',
         )
-
-        assert get_notification_by_id(notification.id).status == 'sending'
 
         assert process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference='ref'))
         assert get_notification_by_id(notification.id).status == 'delivered'

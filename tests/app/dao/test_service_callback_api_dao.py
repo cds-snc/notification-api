@@ -9,16 +9,20 @@ from app.dao.service_callback_api_dao import (
     reset_service_callback_api,
     get_service_callback_api,
     get_service_delivery_status_callback_api_for_service)
-from app.models import ServiceCallbackApi
+from app.models import ServiceCallbackApi, NOTIFICATION_FAILED, NOTIFICATION_TEMPORARY_FAILURE, \
+    NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_STATUS_TYPES_COMPLETED, NOTIFICATION_SENT, NOTIFICATION_DELIVERED
+from app.schemas import service_callback_api_schema
 from tests.app.db import create_service_callback_api
 
 
 def test_save_service_callback_api(sample_service):
-    service_callback_api = ServiceCallbackApi(
+    notification_statuses = [NOTIFICATION_FAILED]
+    service_callback_api = ServiceCallbackApi(  # nosec
         service_id=sample_service.id,
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
-        updated_by_id=sample_service.users[0].id
+        updated_by_id=sample_service.users[0].id,
+        notification_statuses=notification_statuses
     )
 
     save_service_callback_api(service_callback_api)
@@ -33,6 +37,7 @@ def test_save_service_callback_api(sample_service):
     assert callback_api.bearer_token == "some_unique_string"
     assert callback_api._bearer_token != "some_unique_string"
     assert callback_api.updated_at is None
+    assert callback_api.notification_statuses == notification_statuses
 
     versioned = ServiceCallbackApi.get_history_model().query.filter_by(id=callback_api.id).one()
     assert versioned.id == callback_api.id
@@ -45,11 +50,13 @@ def test_save_service_callback_api(sample_service):
 
 
 def test_save_service_callback_api_fails_if_service_does_not_exist(notify_db, notify_db_session):
-    service_callback_api = ServiceCallbackApi(
+    notification_statuses = [NOTIFICATION_FAILED]
+    service_callback_api = ServiceCallbackApi(  # nosec
         service_id=uuid.uuid4(),
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
-        updated_by_id=uuid.uuid4()
+        updated_by_id=uuid.uuid4(),
+        notification_statuses=str(notification_statuses)
     )
 
     with pytest.raises(SQLAlchemyError):
@@ -57,54 +64,66 @@ def test_save_service_callback_api_fails_if_service_does_not_exist(notify_db, no
 
 
 def test_update_service_callback_api_unique_constraint(sample_service):
-    service_callback_api = ServiceCallbackApi(
+    notification_statuses = [NOTIFICATION_FAILED]
+    service_callback_api = ServiceCallbackApi(  # nosec
         service_id=sample_service.id,
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
         updated_by_id=sample_service.users[0].id,
-        callback_type='delivery_status'
+        callback_type='delivery_status',
+        notification_statuses=str(notification_statuses)
     )
     save_service_callback_api(service_callback_api)
-    another = ServiceCallbackApi(
+    another = ServiceCallbackApi(  # nosec
         service_id=sample_service.id,
         url="https://some_service/another_callback_endpoint",
         bearer_token="different_string",
         updated_by_id=sample_service.users[0].id,
-        callback_type='delivery_status'
+        callback_type='delivery_status',
+        notification_statuses=str(notification_statuses)
     )
     with pytest.raises(expected_exception=SQLAlchemyError):
         save_service_callback_api(another)
 
 
 def test_update_service_callback_can_add_two_api_of_different_types(sample_service):
-    delivery_status = ServiceCallbackApi(
+    notification_statuses = [NOTIFICATION_FAILED]
+    delivery_status = ServiceCallbackApi(  # nosec
         service_id=sample_service.id,
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
         updated_by_id=sample_service.users[0].id,
-        callback_type='delivery_status'
+        callback_type='delivery_status',
+        notification_statuses=str(notification_statuses)
     )
     save_service_callback_api(delivery_status)
-    complaint = ServiceCallbackApi(
+    complaint = ServiceCallbackApi(  # nosec
         service_id=sample_service.id,
         url="https://some_service/another_callback_endpoint",
         bearer_token="different_string",
         updated_by_id=sample_service.users[0].id,
-        callback_type='complaint'
+        callback_type='complaint',
+        notification_statuses=str(notification_statuses)
     )
     save_service_callback_api(complaint)
     results = ServiceCallbackApi.query.order_by(ServiceCallbackApi.callback_type).all()
     assert len(results) == 2
-    assert results[0].serialize() == complaint.serialize()
-    assert results[1].serialize() == delivery_status.serialize()
+
+    results0_dump = service_callback_api_schema.dump(results[0]).data
+    results1_dump = service_callback_api_schema.dump(results[1]).data
+
+    assert results0_dump == service_callback_api_schema.dump(complaint).data
+    assert results1_dump == service_callback_api_schema.dump(delivery_status).data
 
 
 def test_update_service_callback_api(sample_service):
-    service_callback_api = ServiceCallbackApi(
+    notification_statuses = [NOTIFICATION_FAILED]
+    service_callback_api = ServiceCallbackApi(  # nosec
         service_id=sample_service.id,
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
-        updated_by_id=sample_service.users[0].id
+        updated_by_id=sample_service.users[0].id,
+        notification_statuses=str(notification_statuses)
     )
 
     save_service_callback_api(service_callback_api)
@@ -143,11 +162,13 @@ def test_update_service_callback_api(sample_service):
 
 
 def test_get_service_callback_api(sample_service):
-    service_callback_api = ServiceCallbackApi(
+    notification_statuses = [NOTIFICATION_FAILED]
+    service_callback_api = ServiceCallbackApi(  # nosec
         service_id=sample_service.id,
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
-        updated_by_id=sample_service.users[0].id
+        updated_by_id=sample_service.users[0].id,
+        notification_statuses=notification_statuses
     )
     save_service_callback_api(service_callback_api)
 
@@ -163,10 +184,61 @@ def test_get_service_callback_api(sample_service):
 
 def test_get_service_delivery_status_callback_api_for_service(sample_service):
     service_callback_api = create_service_callback_api(service=sample_service)
-    result = get_service_delivery_status_callback_api_for_service(sample_service.id)
+    result = get_service_delivery_status_callback_api_for_service(sample_service.id, 'delivered')
     assert result.id == service_callback_api.id
     assert result.url == service_callback_api.url
     assert result.bearer_token == service_callback_api.bearer_token
     assert result.created_at == service_callback_api.created_at
     assert result.updated_at == service_callback_api.updated_at
     assert result.updated_by_id == service_callback_api.updated_by_id
+
+
+@pytest.mark.parametrize('notification_statuses', [
+    [NOTIFICATION_FAILED],
+    [NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_FAILED, NOTIFICATION_TEMPORARY_FAILURE],
+    [NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_FAILED],
+])
+def test_existing_service_delivery_status_callback_api_by_status(sample_service, notification_statuses):
+    service_callback_api = create_service_callback_api(
+        service=sample_service, notification_statuses=notification_statuses
+    )
+
+    for notification_status in notification_statuses:
+        result = get_service_delivery_status_callback_api_for_service(
+            sample_service.id,
+            notification_status=notification_status
+        )
+        assert result.id == service_callback_api.id
+        assert result.url == service_callback_api.url
+        assert result.bearer_token == service_callback_api.bearer_token
+        assert result.created_at == service_callback_api.created_at
+        assert result.updated_at == service_callback_api.updated_at
+        assert result.updated_by_id == service_callback_api.updated_by_id
+
+
+@pytest.mark.parametrize('saved_notification_statuses, query_notification_statuses', [
+    (
+        [NOTIFICATION_FAILED],
+        list(filter(lambda status: status != NOTIFICATION_FAILED, NOTIFICATION_STATUS_TYPES_COMPLETED))
+    ),
+    (
+        [NOTIFICATION_SENT, NOTIFICATION_DELIVERED],
+        [NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_FAILED]
+    ),
+    (
+        [NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_FAILED],
+        [NOTIFICATION_SENT, NOTIFICATION_DELIVERED]
+    ),
+])
+def test_no_service_delivery_status_callback_api_by_status(
+        sample_service, saved_notification_statuses, query_notification_statuses
+):
+    create_service_callback_api(
+        service=sample_service, notification_statuses=saved_notification_statuses
+    )
+    for notification_status in query_notification_statuses:
+        result = get_service_delivery_status_callback_api_for_service(
+            sample_service.id,
+            notification_status=notification_status
+        )
+        assert result is None

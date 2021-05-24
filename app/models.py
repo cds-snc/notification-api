@@ -1,6 +1,7 @@
 import itertools
 import uuid
 import datetime
+
 from flask import url_for, current_app
 
 from sqlalchemy.ext.declarative import declared_attr
@@ -179,7 +180,6 @@ class User(db.Model):
             'name': self.name,
             'email_address': self.email_address,
             'auth_type': self.auth_type,
-            'identity_provider_user_id': self.identity_provider_user_id,
             'current_session_id': self.current_session_id,
             'failed_login_count': self.failed_login_count,
             'logged_in_at': self.logged_in_at.strftime(DATETIME_FORMAT) if self.logged_in_at else None,
@@ -195,7 +195,8 @@ class User(db.Model):
             'services': [x.id for x in self.services if x.active],
             'state': self.state,
             'blocked': self.blocked,
-            'additional_information': self.additional_information
+            'additional_information': self.additional_information,
+            'identity_provider_user_id': self.identity_provider_user_id
         }
 
     def serialize_for_users_list(self):
@@ -770,6 +771,7 @@ class ServiceCallbackApi(db.Model, Versioned):
     updated_at = db.Column(db.DateTime, nullable=True)
     updated_by = db.relationship('User')
     updated_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), index=True, nullable=False)
+    notification_statuses = db.Column('notification_statuses', JSONB, nullable=False)
 
     __table_args__ = (
         UniqueConstraint('service_id', 'callback_type', name='uix_service_callback_type'),
@@ -785,16 +787,6 @@ class ServiceCallbackApi(db.Model, Versioned):
     def bearer_token(self, bearer_token):
         if bearer_token:
             self._bearer_token = encryption.encrypt(str(bearer_token))
-
-    def serialize(self):
-        return {
-            "id": str(self.id),
-            "service_id": str(self.service_id),
-            "url": self.url,
-            "updated_by_id": str(self.updated_by_id),
-            "created_at": self.created_at.strftime(DATETIME_FORMAT),
-            "updated_at": self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None
-        }
 
 
 class ServiceCallbackType(db.Model):

@@ -235,9 +235,11 @@ def replay_create_pdf_letters(notification_id):
               notifications that need the status to be sent to the service.""")
 @click.option('-s', '--service_id', required=True,
               help="""The service that the callbacks are for""")
-def replay_service_callbacks(file_name, service_id):
+def replay_service_callbacks(file_name, service_id, notification_status):
     print("Start send service callbacks for service: ", service_id)
-    callback_api = get_service_delivery_status_callback_api_for_service(service_id=service_id)
+    callback_api = get_service_delivery_status_callback_api_for_service(
+        service_id=service_id, notification_status=notification_status
+    )
     if not callback_api:
         print("Callback api was not found for service: {}".format(service_id))
         return

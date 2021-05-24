@@ -7,7 +7,7 @@ from alembic.config import Config
 import pytest
 import sqlalchemy
 
-from app import create_app, db
+from app import create_app, db, schemas
 
 
 @pytest.fixture(scope='session')
@@ -181,3 +181,10 @@ class Matcher:
 
     def __repr__(self):
         return '<Matcher: {}>'.format(self.description)
+
+
+schemas.service_schema = schemas.ServiceSchema(session=db.session)
+schemas.template_schema = schemas.TemplateSchema(session=db.session)
+schemas.api_key_schema = schemas.ApiKeySchema(session=db.session)
+schemas.job_schema = schemas.JobSchema(session=db.session)
+schemas.invited_user_schema = schemas.InvitedUserSchema(session=db.session)
