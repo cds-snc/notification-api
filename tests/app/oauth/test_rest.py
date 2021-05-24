@@ -1,3 +1,4 @@
+import json
 import os
 
 import pytest
@@ -384,4 +385,28 @@ class TestLoginWithPassword:
     def test_login_with_password_succeeds_when_email_and_password(self, client, login_with_password_toggle_enabled):
 
         response = client.post('/login')
+        assert response.status_code == 200
+
+    def test_should_return_501_if_password_toggle_is_disabled(self, client, login_with_password_toggle_disabled):
+        response = client.post('/login')
+
+        assert response.status_code == 501
+
+    def test_should_return_400_when_email_address_or_password_not_present_in_body(
+            self, client, login_with_password_toggle_enabled
+    ):
+        data = {}
+
+        response = client.post('/login', data=json.dumps(data), headers=[('Content-Type', 'application/json')])
+        assert response.status_code == 400
+
+    def test_should_return_200_when_email_address_and_password_are_present_in_body(
+            self, client, login_with_password_toggle_enabled
+    ):
+        data = {
+            "email_address": "email@email.com",
+            "password": "some password"
+        }
+
+        response = client.post('/login', data=json.dumps(data), headers=[('Content-Type', 'application/json')])
         assert response.status_code == 200

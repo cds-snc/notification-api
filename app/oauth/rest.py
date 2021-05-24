@@ -15,6 +15,8 @@ from app.errors import register_errors
 from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.oauth.exceptions import OAuthException, IncorrectGithubIdException
 from app.oauth.registry import oauth_registry
+from app.schema_validation import validate
+from .auth_schema import password_login_request
 
 oauth_blueprint = Blueprint('oauth', __name__, url_prefix='')
 register_errors(oauth_blueprint)
@@ -36,6 +38,8 @@ def login():
 def login_with_password():
     if not is_feature_enabled(FeatureFlag.EMAIL_PASSWORD_LOGIN_ENABLED):
         return jsonify(result='error', message="Not Implemented"), 501
+
+    validate(request.get_json(), password_login_request)
 
     return jsonify(result={}), 200
 
