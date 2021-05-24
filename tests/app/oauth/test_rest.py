@@ -14,18 +14,28 @@ from app.oauth.rest import make_github_get_request
 from tests.conftest import set_config_values
 
 
-def mock_toggle(mocker, enabled: str) -> None:
-    mocker.patch.dict(os.environ, {FeatureFlag.GITHUB_LOGIN_ENABLED.value: enabled})
+def mock_toggle(mocker, feature_flag: FeatureFlag, enabled: str) -> None:
+    mocker.patch.dict(os.environ, {feature_flag.value: enabled})
 
 
 @pytest.fixture
-def toggle_disabled(mocker):
-    mock_toggle(mocker, 'False')
+def github_login_toggle_disabled(mocker):
+    mock_toggle(mocker, FeatureFlag.GITHUB_LOGIN_ENABLED, 'False')
 
 
 @pytest.fixture
-def toggle_enabled(mocker):
-    mock_toggle(mocker, 'True')
+def github_login_toggle_enabled(mocker):
+    mock_toggle(mocker, FeatureFlag.GITHUB_LOGIN_ENABLED, 'True')
+
+
+@pytest.fixture
+def login_with_password_toggle_enabled(mocker):
+    mock_toggle(mocker, FeatureFlag.EMAIL_PASSWORD_LOGIN_ENABLED, 'True')
+
+
+@pytest.fixture
+def login_with_password_toggle_disabled(mocker):
+    mock_toggle(mocker, FeatureFlag.EMAIL_PASSWORD_LOGIN_ENABLED, 'False')
 
 
 @pytest.fixture
@@ -166,13 +176,13 @@ def github_data(mocker, success_github_org_membership, success_github_user, succ
 
 class TestLogin:
 
-    def test_should_return_501_if_toggle_is_disabled(self, client, toggle_disabled):
+    def test_should_return_501_if_toggle_is_disabled(self, client, github_login_toggle_disabled):
         response = client.get('/login')
 
         assert response.status_code == 501
 
     def test_should_redirect_to_github_if_toggle_is_enabled(
-            self, client, toggle_enabled, identity_provider_authorization_url
+            self, client, github_login_toggle_enabled, identity_provider_authorization_url
     ):
         response = client.get('/login')
 
@@ -182,14 +192,14 @@ class TestLogin:
 
 class TestAuthorize:
 
-    def test_should_return_501_if_toggle_is_disabled(self, client, toggle_disabled):
+    def test_should_return_501_if_toggle_is_disabled(self, client, github_login_toggle_disabled):
         response = client.get('/authorize')
 
         assert response.status_code == 501
 
     @pytest.mark.parametrize('exception', [OAuthException, HTTPError])
     def test_should_redirect_to_login_failure_if_organization_membership_verification_or_user_info_retrieval_fails(
-            self, client, notify_api, toggle_enabled, mocker, cookie_config,
+            self, client, notify_api, github_login_toggle_enabled, mocker, cookie_config,
             exception
     ):
         mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
@@ -210,7 +220,7 @@ class TestAuthorize:
         mock_logger.assert_called_once()
 
     def test_should_redirect_to_login_failure_if_incorrect_github_id(
-            self, client, notify_api, toggle_enabled, mocker, cookie_config, github_data
+            self, client, notify_api, github_login_toggle_enabled, mocker, cookie_config, github_data
     ):
         mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
         mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
@@ -228,7 +238,7 @@ class TestAuthorize:
         mock_logger.assert_called_once()
 
     def test_should_redirect_to_login_denied_if_user_denies_access(
-            self, client, notify_api, toggle_enabled, mocker, cookie_config, github_data
+            self, client, notify_api, github_login_toggle_enabled, mocker, cookie_config, github_data
     ):
         mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token', side_effect=OAuthError)
         mock_logger = mocker.patch('app.oauth.rest.current_app.logger.error')
@@ -244,7 +254,7 @@ class TestAuthorize:
         mock_logger.assert_called_once()
 
     def test_should_raise_exception_if_304_from_github_get(
-            self, client, notify_api, toggle_enabled, mocker
+            self, client, notify_api, github_login_toggle_enabled, mocker
     ):
         github_access_token = mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
         github_get_user_resp = mocker.Mock(Response, status_code=304)
@@ -259,7 +269,7 @@ class TestAuthorize:
 
     @pytest.mark.parametrize('status_code', [403, 404])
     def test_should_raise_http_error_if_error_from_github_get(
-            self, client, notify_api, toggle_enabled, mocker, status_code
+            self, client, notify_api, github_login_toggle_enabled, mocker, status_code
     ):
         github_access_token = mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
         github_get_user_resp = mocker.Mock(Response, status_code=status_code)
@@ -276,7 +286,7 @@ class TestAuthorize:
         assert e.value.message == 'User Account not found.'
 
     def test_should_redirect_to_ui_if_user_is_member_of_va_organization(
-            self, client, notify_api, toggle_enabled, mocker, cookie_config, github_data
+            self, client, notify_api, github_login_toggle_enabled, mocker, cookie_config, github_data
     ):
         found_user = User()
         mocker.patch('app.oauth.rest.create_or_retrieve_user', return_value=found_user)
@@ -298,7 +308,8 @@ class TestAuthorize:
 
     @pytest.mark.parametrize('identity_provider_user_id', [None, '1'])
     def test_should_create_or_update_existing_user_with_identity_provider_user_id_when_successfully_verified(
-            self, client, notify_api, toggle_enabled, mocker, cookie_config, github_data, identity_provider_user_id
+            self, client, notify_api, github_login_toggle_enabled, mocker, cookie_config, github_data,
+            identity_provider_user_id
     ):
         expected_email, expected_user_id, expected_name = github_data
 
@@ -324,14 +335,14 @@ class TestAuthorize:
 
 class TestRedeemToken:
 
-    def test_should_return_501_if_toggle_is_disabled(self, client, toggle_disabled):
+    def test_should_return_501_if_toggle_is_disabled(self, client, github_login_toggle_disabled):
         response = client.get('/redeem-token')
 
         assert response.status_code == 501
 
     @pytest.mark.parametrize('exception', [NoAuthorizationError, ExpiredSignatureError])
     def test_should_return_401_if_cookie_verification_fails(
-            self, client, toggle_enabled, mocker, exception
+            self, client, github_login_toggle_enabled, mocker, exception
     ):
         mocker.patch('app.oauth.rest.verify_jwt_in_request', side_effect=exception)
         response = client.get('/redeem-token')
@@ -339,7 +350,7 @@ class TestRedeemToken:
         assert response.status_code == 401
 
     def test_should_return_cookie_in_body(
-            self, client, toggle_enabled, mocker, notify_api, cookie_config
+            self, client, github_login_toggle_enabled, mocker, notify_api, cookie_config
     ):
         mocker.patch('app.oauth.rest.verify_jwt_in_request', side_effect=None)
 
@@ -356,7 +367,7 @@ class TestRedeemToken:
         assert response.status_code == 200
         assert response.json.get('data') == expected_cookie_value
 
-    def test_should_set_cors_headers(self, client, toggle_enabled, mocker, notify_api, cookie_config):
+    def test_should_set_cors_headers(self, client, github_login_toggle_enabled, mocker, notify_api, cookie_config):
         mocker.patch('app.oauth.rest.verify_jwt_in_request', side_effect=None)
 
         with set_config_values(notify_api, {
@@ -366,3 +377,11 @@ class TestRedeemToken:
 
         assert response.access_control_allow_credentials
         assert response.access_control_allow_origin == cookie_config['UI_HOST_NAME']
+
+
+class TestLoginWithPassword:
+
+    def test_login_with_password_succeeds_when_email_and_password(self, client, login_with_password_toggle_enabled):
+
+        response = client.post('/login')
+        assert response.status_code == 200
