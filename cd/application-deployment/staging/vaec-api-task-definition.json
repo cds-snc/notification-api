@@ -113,6 +113,10 @@
         {
           "name": "UI_HOST_NAME",
           "value": "https://staging.notifications.va.gov"
+        },
+        {
+          "name": "EMAIL_PASSWORD_LOGIN_ENABLED",
+          "value": "True"
         }
       ],
       "secrets": [

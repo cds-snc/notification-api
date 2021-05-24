@@ -121,6 +121,10 @@
         {
           "name": "SESSION_COOKIE_SECURE",
           "value": "True"
+        },
+        {
+          "name": "EMAIL_PASSWORD_LOGIN_ENABLED",
+          "value": "True"
         }
       ],
       "secrets": [
