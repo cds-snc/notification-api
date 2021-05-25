@@ -382,9 +382,19 @@ class TestRedeemToken:
 
 class TestLoginWithPassword:
 
-    def test_login_with_password_succeeds_when_email_and_password(self, client, login_with_password_toggle_enabled):
+    def test_login_with_password_succeeds_when_email_and_password(
+            self, notify_api, client, login_with_password_toggle_enabled, mocker
+    ):
+        some_p = 'sillypassword'
+        user = User()
+        user.password = some_p
+        mocker.patch('app.oauth.rest.get_user_by_email', return_value=user)
+        data = {
+            "email_address": "notify@digital.cabinet-office.gov.uk",
+            "password": some_p
+        }
 
-        response = client.post('/login')
+        response = client.post('/login', data=json.dumps(data), headers=[('Content-Type', 'application/json')])
         assert response.status_code == 200
 
     def test_should_return_501_if_password_toggle_is_disabled(self, client, login_with_password_toggle_disabled):
@@ -401,8 +411,9 @@ class TestLoginWithPassword:
         assert response.status_code == 400
 
     def test_should_return_200_when_email_address_and_password_are_present_in_body(
-            self, client, login_with_password_toggle_enabled
+            self, client, login_with_password_toggle_enabled, mocker
     ):
+        mocker.patch('app.oauth.rest.get_user_by_email')
         data = {
             "email_address": "email@email.com",
             "password": "some password"

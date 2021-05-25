@@ -10,10 +10,10 @@ from jwt import ExpiredSignatureError
 from requests.exceptions import HTTPError
 
 from app import statsd_client
-from app.dao.users_dao import create_or_retrieve_user
+from app.dao.users_dao import create_or_retrieve_user, get_user_by_email
 from app.errors import register_errors
 from app.feature_flags import is_feature_enabled, FeatureFlag
-from app.oauth.exceptions import OAuthException, IncorrectGithubIdException
+from .exceptions import OAuthException, IncorrectGithubIdException, LoginWithPasswordException
 from app.oauth.registry import oauth_registry
 from app.schema_validation import validate
 from .auth_schema import password_login_request
@@ -24,7 +24,7 @@ register_errors(oauth_blueprint)
 
 def _assert_toggle_enabled():
     if not is_feature_enabled(FeatureFlag.GITHUB_LOGIN_ENABLED):
-        return jsonify(result='error', message="Not Implemented"), 501
+        raise LoginWithPasswordException(message='Not Implemented', status_code=501)
 
 
 @oauth_blueprint.route('/login', methods=['GET'])
@@ -39,7 +39,10 @@ def login_with_password():
     if not is_feature_enabled(FeatureFlag.EMAIL_PASSWORD_LOGIN_ENABLED):
         return jsonify(result='error', message="Not Implemented"), 501
 
-    validate(request.get_json(), password_login_request)
+    request_json = request.get_json()
+    validate(request_json, password_login_request)
+
+    get_user_by_email(request_json['email_address'])
 
     return jsonify(result={}), 200
 
