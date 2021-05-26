@@ -47,7 +47,6 @@ def login_with_password():
         fetched_user = get_user_by_email(request_json['email_address'])
     except NoResultFound:
         current_app.logger.info(f"No user was found with email address: {request_json['email_address']}")
-        return jsonify(result='error', message='Failed to login'), 401
     else:
         if fetched_user.check_password(request_json['password']):
             jwt_token = create_access_token(
@@ -56,7 +55,8 @@ def login_with_password():
             return jsonify(result='success', token=jwt_token), 200
         else:
             current_app.logger.info(f"wrong password for: {request_json['email_address']}")
-            return jsonify(result='error', message="Failed to login"), 401
+
+    return jsonify(result='error', message='Failed to login'), 401
 
 
 @oauth_blueprint.route('/authorize')
