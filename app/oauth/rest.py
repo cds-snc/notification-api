@@ -8,6 +8,7 @@ from flask_jwt_extended import create_access_token, verify_jwt_in_request
 from flask_jwt_extended.exceptions import NoAuthorizationError
 from jwt import ExpiredSignatureError
 from requests.exceptions import HTTPError
+from sqlalchemy.orm.exc import NoResultFound
 
 from app import statsd_client
 from app.dao.users_dao import create_or_retrieve_user, get_user_by_email
@@ -42,10 +43,20 @@ def login_with_password():
     request_json = request.get_json()
     validate(request_json, password_login_request)
 
-    get_user_by_email(request_json['email_address'])
-    request_json['password']
-
-    return jsonify(result={}), 200
+    try:
+        fetched_user = get_user_by_email(request_json['email_address'])
+    except NoResultFound:
+        current_app.logger.info(f"No user was found with email address: {request_json['email_address']}")
+        return jsonify(result='error', message='Failed to login'), 401
+    else:
+        if fetched_user.check_password(request_json['password']):
+            jwt_token = create_access_token(
+                identity=fetched_user
+            )
+            return jsonify(result='success', token=jwt_token), 200
+        else:
+            current_app.logger.info(f"wrong password for: {request_json['email_address']}")
+            return jsonify(result='error', message="Failed to login"), 401
 
 
 @oauth_blueprint.route('/authorize')

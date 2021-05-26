@@ -7,6 +7,7 @@ from flask_jwt_extended.exceptions import NoAuthorizationError
 from jwt import ExpiredSignatureError
 from requests import Response
 from requests.exceptions import HTTPError
+from sqlalchemy.orm.exc import NoResultFound
 
 from app.feature_flags import FeatureFlag
 from app.models import User
@@ -382,7 +383,7 @@ class TestRedeemToken:
 
 class TestLoginWithPassword:
 
-    def test_login_with_password_succeeds_when_email_and_password(
+    def test_login_with_password_succeeds_when_correct_credentials(
             self, notify_api, client, login_with_password_toggle_enabled, mocker
     ):
         some_p = 'sillypassword'
@@ -390,7 +391,7 @@ class TestLoginWithPassword:
         user.password = some_p
         mocker.patch('app.oauth.rest.get_user_by_email', return_value=user)
         data = {
-            "email_address": "notify@digital.cabinet-office.gov.uk",
+            "email_address": "dummy@email.address",
             "password": some_p
         }
 
@@ -410,14 +411,53 @@ class TestLoginWithPassword:
         response = client.post('/login', data=json.dumps(data), headers=[('Content-Type', 'application/json')])
         assert response.status_code == 400
 
-    def test_should_return_200_when_email_address_and_password_are_present_in_body(
+    def test_should_return_401_when_wrong_password(
             self, client, login_with_password_toggle_enabled, mocker
     ):
-        mocker.patch('app.oauth.rest.get_user_by_email')
+        some_t = 'wrong'
+        some_p = 'silly-me'
+        user = User()
+        user.password = some_p
+        mocker.patch('app.oauth.rest.get_user_by_email', return_value=user)
+        credentials = {
+            "email_address": "some@email.address",
+            "password": some_t
+        }
+
+        response = client.post('/login', data=json.dumps(credentials), headers=[('Content-Type', 'application/json')])
+        assert response.status_code == 401
+
+    def test_should_return_401_when_user_not_found_by__email_address(
+            self, client, login_with_password_toggle_enabled, mocker
+    ):
+        some_p = 'silly-me'
+        user = User()
+        user.password = some_p
+        mocker.patch('app.oauth.rest.get_user_by_email', side_effect=NoResultFound)
+        credentials = {
+            "email_address": "some@email.address",
+            "password": some_p
+        }
+
+        response = client.post('/login', data=json.dumps(credentials), headers=[('Content-Type', 'application/json')])
+        assert response.status_code == 401
+
+    def test_login_with_password_success_returns_token(
+            self, notify_api, client, login_with_password_toggle_enabled, fake_uuid, mocker
+    ):
+        some_p = 'sillypassword'
+        email_address = 'success@email.address'
+        user = User()
+        user.id = fake_uuid
+        user.email_address = email_address
+        user.password = some_p
+        mocker.patch('app.oauth.rest.get_user_by_email', return_value=user)
         data = {
-            "email_address": "email@email.com",
-            "password": "some password"
+            "email_address": email_address,
+            "password": some_p
         }
 
         response = client.post('/login', data=json.dumps(data), headers=[('Content-Type', 'application/json')])
-        assert response.status_code == 200
+        response_json = response.json
+        assert response_json['result'] == 'success'
+        assert response_json['token'] is not None
