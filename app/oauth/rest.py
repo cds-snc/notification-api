@@ -22,14 +22,14 @@ oauth_blueprint = Blueprint('oauth', __name__, url_prefix='')
 register_errors(oauth_blueprint)
 
 
-def _assert_toggle_enabled():
+def _assert_github_login_toggle_enabled():
     if not is_feature_enabled(FeatureFlag.GITHUB_LOGIN_ENABLED):
         raise LoginWithPasswordException(message='Not Implemented', status_code=501)
 
 
 @oauth_blueprint.route('/login', methods=['GET'])
 def login():
-    _assert_toggle_enabled()
+    _assert_github_login_toggle_enabled()
     redirect_uri = url_for('oauth.authorize', _external=True)
     return oauth_registry.github.authorize_redirect(redirect_uri)
 
@@ -43,13 +43,14 @@ def login_with_password():
     validate(request_json, password_login_request)
 
     get_user_by_email(request_json['email_address'])
+    request_json['password']
 
     return jsonify(result={}), 200
 
 
 @oauth_blueprint.route('/authorize')
 def authorize():
-    _assert_toggle_enabled()
+    _assert_github_login_toggle_enabled()
     try:
         github_token = oauth_registry.github.authorize_access_token()
         make_github_get_request('/user/memberships/orgs/department-of-veterans-affairs', github_token)
@@ -120,7 +121,7 @@ def _extract_github_user_info(email_resp: json, user_resp: json) -> Tuple[str, s
 
 @oauth_blueprint.route('/redeem-token', methods=['GET'])
 def redeem_token():
-    _assert_toggle_enabled()
+    _assert_github_login_toggle_enabled()
     try:
         verify_jwt_in_request(locations='cookies')
     except (NoAuthorizationError, ExpiredSignatureError):
