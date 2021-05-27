@@ -1,11 +1,7 @@
-name: Performance Deployment Trigger
+name: Perf Deploy Trigger
 
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Code changes in (branch name) to be deployed to perf environment'
-        required: true
 
 jobs:
   build-and-push:
