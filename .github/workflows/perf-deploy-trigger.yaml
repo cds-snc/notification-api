@@ -6,7 +6,7 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    if: github.ref == format('refs/heads/{0}', github.event.inputs.branch)
+    if: github.ref != 'refs/heads/master'
     env:
       IMAGE_REPOSITORY: "notification_api_perf"
       IMAGE_TAG: ${{ github.sha }}
