@@ -144,3 +144,5 @@ fileignoreconfig:
       checksum: 32e867eaaa66b8848a23da88bb0c1c8e99006f95a24d91cae160778a1c1f67b9
     - filename: app/celery/service_callback_tasks.py
       checksum: 9afebe235d3f41bdeb433e44e1766f5e2723759dbdbfcfd94d38906a75afc29b
+    - filename: .github/workflows/perf-deploy-trigger.yaml
+      checksum: 546681cda3b366c68024e507a6672dd263056f547477c1843b6e5693c98399ec

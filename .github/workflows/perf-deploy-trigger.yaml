@@ -1,0 +1,58 @@
+name: Performance Deployment Trigger
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Code changes in (branch name) to be deployed to perf environment'
+        required: true
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    if: github.ref == format('refs/heads/{0}', github.event.inputs.branch)
+    env:
+      IMAGE_REPOSITORY: "notification_api_perf"
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build docker image
+        run: |
+          docker build -t $IMAGE_REPOSITORY:$IMAGE_TAG -f ci/Dockerfile .
+
+      - name: Configure VAEC AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-gov-west-1
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-skip-session-tagging: true
+          role-duration-seconds: 900
+
+      - name: Login to VAEC ECR
+        id: login-ecr-vaec
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Publish to VAEC ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr-vaec.outputs.registry }}
+        run: |
+          docker tag $IMAGE_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$IMAGE_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$IMAGE_REPOSITORY:$IMAGE_TAG
+
+      - name: Perform twistlock scan
+        uses: ./.github/actions/run-commands-on-ec2
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr-vaec.outputs.registry }}
+        with:
+          instance-id-ssm-parameter-path: /utility/twistlock/instance
+          commands: >-
+            "aws --region us-gov-west-1 ecr get-login-password | docker login --username AWS --password-stdin '"$ECR_REGISTRY"' 2>/dev/null",
+            "docker pull '"$ECR_REGISTRY"'/'"$IMAGE_REPOSITORY"':'"$IMAGE_TAG"' 1>/dev/null",
+            "docker logout '"$ECR_REGISTRY"'",
+            "export TWISTLOCK_PASSWORD=$(aws --region us-gov-west-1 ssm get-parameter --name /utility/twistlock/vanotify-ci-user-password --with-decryption | jq '.Parameter.Value' -r)",
+            "twistcli images scan --project VaNotify --address https://twistlock.devops.va.gov --user vanotify-ci-user '"$ECR_REGISTRY"'/'"$IMAGE_REPOSITORY"':'"$IMAGE_TAG"'",
+            "STATUS_CODE=$?",
+            "docker image prune -a -f 1>/dev/null",
+            "exit $STATUS_CODE"
