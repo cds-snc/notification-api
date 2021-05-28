@@ -144,7 +144,5 @@ fileignoreconfig:
       checksum: 32e867eaaa66b8848a23da88bb0c1c8e99006f95a24d91cae160778a1c1f67b9
     - filename: app/celery/service_callback_tasks.py
       checksum: 9afebe235d3f41bdeb433e44e1766f5e2723759dbdbfcfd94d38906a75afc29b
-    - filename: tests/app/oauth/test_rest.py
-      checksum: 82e440d0ce5194955e63c7b4414edfaf69e6e00d18ab167c91269b6d63627fc3
-    - filename: app/oauth/auth_schema.py
-      checksum: 8e67327c1f74656a20c2185f3d6e1e13e4689f9328abb8fe6b1064e8685fdd7c
+    - filename: .github/workflows/perf-deploy-trigger.yaml
+      checksum: 567215608ac6852c6a4df118be85008f8ba6a7e2d1405a30930f1397ec596933
