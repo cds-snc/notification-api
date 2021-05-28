@@ -27,6 +27,7 @@ def test_all_routes_have_authentication(client, db_session):
         '/_status/live-service-and-organisation-counts',
         '/authorize',
         '/login',
+        '/logout',
         '/notifications/govdelivery',
         '/redeem-token'
     }

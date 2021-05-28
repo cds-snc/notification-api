@@ -461,3 +461,33 @@ class TestLoginWithPassword:
         response_json = response.json
         assert response_json['result'] == 'success'
         assert response_json['token'] is not None
+
+
+class TestLogout:
+
+    def test_should_return_501_if_toggle_is_disabled(self, client, github_login_toggle_disabled):
+        response = client.get('/logout')
+
+        assert response.status_code == 501
+
+    def test_should_redirect_to_ui_and_clear_cookies(
+            self, client, github_login_toggle_enabled, notify_api, cookie_config, github_data, db_session
+    ):
+        with set_config_values(notify_api, cookie_config):
+            client.get('/authorize')
+
+        assert any(
+            cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME']
+            for cookie in client.cookie_jar
+        )
+
+        with set_config_values(notify_api, cookie_config):
+            response = client.get('/logout')
+
+        assert response.status_code == 302
+        assert cookie_config['UI_HOST_NAME'] in response.location
+
+        assert not any(
+            cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME']
+            for cookie in client.cookie_jar
+        )
