@@ -152,13 +152,6 @@ def logout():
     _assert_github_login_toggle_enabled()
 
     response = make_response(redirect(f"{current_app.config['UI_HOST_NAME']}"))
-    response.set_cookie(
-        current_app.config['JWT_ACCESS_COOKIE_NAME'],
-        '',
-        expires=0,
-        httponly=True,
-        secure=current_app.config['SESSION_COOKIE_SECURE'],
-        samesite=current_app.config['SESSION_COOKIE_SAMESITE']
-    )
+    response.delete_cookie(current_app.config['JWT_ACCESS_COOKIE_NAME'])
     statsd_client.incr('oauth.logout.success')
     return response
