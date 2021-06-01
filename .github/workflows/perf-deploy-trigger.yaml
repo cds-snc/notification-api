@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Git commit SHA (full length is required) if not using the branch's latest commit"
+        description: "Git commit SHA (full length SHA) if not using the branch's latest commit"
         required: true
 
 jobs:
@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IMAGE_REPOSITORY: "notification_api_perf"
-      IMAGE_TAG: github.event.inputs.ref
+      IMAGE_TAG: ${{ github.event.inputs.ref }}
     steps:
       - uses: actions/checkout@v2
         with:
