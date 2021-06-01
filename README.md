@@ -51,6 +51,7 @@ Contains:
 VANotify OpenAPI specification can be downloaded [here](https://github.com/department-of-veterans-affairs/notification-api/blob/master/documents/openapi/openapi.yaml)
 
 Postman collection and environment files are available [here](https://github.com/department-of-veterans-affairs/notification-api/tree/master/scripts/postman) 
+
 ## Setting Up
 
 ### Checklist
@@ -352,14 +353,18 @@ aws sts get-caller-identity
 ---
 
 ## AWS Lambda Functions
-[//]: #:TODO:"Add notes with useful commands and other development details...this is a work in progress draft"
+We house our lambda functions in `/lambda_functions/*`. The infrastructure resources live in our infra repo as part of the utility stack.
 
-We house our lambda functions in `/lambda_functions/`. The infrastructure resources live in our infra repo as part of the utility stack.
-#### List of lambda functions (`/lambda_functions/`):
+#### List of lambda functions (`/lambda_functions/*`):
 
-* user_flows_handler
+* user_flows_lambda
   - Triggers user flows tests
   - lives in `/lambda_functions/user_flows/`
+    
+* pinpoint_callback_lambda
+* pinpoint_inbound_sms_lambda
+* ses_callback_lambda
+* two_way_sms_lambda
 
 #### Development workflow (suggested):
 _Follow user flows lambda setup as model_

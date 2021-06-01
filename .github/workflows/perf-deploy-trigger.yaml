@@ -1,17 +1,23 @@
-name: Perf Deploy Trigger
+name: Performance Build and Deploy
 
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git commit SHA (full length is required) if not using the branch's latest commit"
+        required: true
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/master'
     env:
       IMAGE_REPOSITORY: "notification_api_perf"
-      IMAGE_TAG: ${{ github.sha }}
+      IMAGE_TAG: github.event.inputs.ref
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.ref }}
+
       - name: Build docker image
         run: |
           docker build -t $IMAGE_REPOSITORY:$IMAGE_TAG -f ci/Dockerfile .
@@ -52,3 +58,5 @@ jobs:
             "STATUS_CODE=$?",
             "docker image prune -a -f 1>/dev/null",
             "exit $STATUS_CODE"
+
+  # TODO:// create deployment, with image repo name passed as payload
