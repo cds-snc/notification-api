@@ -471,8 +471,13 @@ class Production(Config):
     CRONITOR_ENABLED = False
 
 
+class Staging(Production):
+    pass
+
+
 configs = {
     'development': Development,
     'test': Test,
     'production': Production,
+    'staging': Staging,
 }

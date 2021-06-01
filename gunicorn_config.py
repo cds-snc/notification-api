@@ -10,8 +10,8 @@ worker_connections = 256
 bind = "0.0.0.0:{}".format(os.getenv("PORT"))
 accesslog = '-'
 
-in_production = os.environ.get("NOTIFY_ENVIRONMENT", "") == "production"
-if in_production:
+on_aws = os.environ.get("NOTIFY_ENVIRONMENT", "") in ["production", "staging"]
+if on_aws:
     # To avoid load balancers reporting errors on shutdown instances, see AWS doc
     # > We also recommend that you configure the idle timeout of your application
     # > to be larger than the idle timeout configured for the load balancer.
