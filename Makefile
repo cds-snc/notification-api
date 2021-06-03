@@ -47,3 +47,8 @@ coverage: venv ## Create coverage report
 .PHONY: clean
 clean:
 	rm -rf node_modules cache target venv .coverage build tests/.cache
+
+.PHONY: format
+format:
+	isort .
+	black --config pyproject.toml .

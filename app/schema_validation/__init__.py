@@ -2,10 +2,14 @@ import json
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from iso8601 import iso8601, ParseError
-from jsonschema import (Draft7Validator, ValidationError, FormatChecker)
-from notifications_utils.recipients import (validate_phone_number, validate_email_address, InvalidPhoneError,
-                                            InvalidEmailError)
+from iso8601 import ParseError, iso8601
+from jsonschema import Draft7Validator, FormatChecker, ValidationError
+from notifications_utils.recipients import (
+    InvalidEmailError,
+    InvalidPhoneError,
+    validate_email_address,
+    validate_phone_number,
+)
 
 from app.notifications.validators import decode_personalisation_files
 
@@ -19,21 +23,21 @@ def validate_uuid(instance):
     return True
 
 
-@format_checker.checks('phone_number', raises=InvalidPhoneError)
+@format_checker.checks("phone_number", raises=InvalidPhoneError)
 def validate_schema_phone_number(instance):
     if isinstance(instance, str):
         validate_phone_number(instance, international=True)
     return True
 
 
-@format_checker.checks('email_address', raises=InvalidEmailError)
+@format_checker.checks("email_address", raises=InvalidEmailError)
 def validate_schema_email_address(instance):
     if isinstance(instance, str):
         validate_email_address(instance)
     return True
 
 
-@format_checker.checks('postage', raises=ValidationError)
+@format_checker.checks("postage", raises=ValidationError)
 def validate_schema_postage(instance):
     if isinstance(instance, str):
         if instance not in ["first", "second"]:
@@ -41,7 +45,7 @@ def validate_schema_postage(instance):
     return True
 
 
-@format_checker.checks('datetime_within_next_day', raises=ValidationError)
+@format_checker.checks("datetime_within_next_day", raises=ValidationError)
 def validate_schema_date_with_hour(instance):
     if isinstance(instance, str):
         try:
@@ -51,8 +55,10 @@ def validate_schema_date_with_hour(instance):
             if dt > datetime.utcnow() + timedelta(hours=24):
                 raise ValidationError("datetime can only be 24 hours in the future")
         except ParseError:
-            raise ValidationError("datetime format is invalid. It must be a valid ISO8601 date time format, "
-                                  "https://en.wikipedia.org/wiki/ISO_8601")
+            raise ValidationError(
+                "datetime format is invalid. It must be a valid ISO8601 date time format, "
+                "https://en.wikipedia.org/wiki/ISO_8601"
+            )
     return True
 
 
@@ -61,15 +67,10 @@ def validate(json_to_validate, schema):
     errors = list(validator.iter_errors(json_to_validate))
     if errors.__len__() > 0:
         raise ValidationError(build_error_message(errors))
-    if json_to_validate.get('personalisation', None):
-        json_to_validate['personalisation'], errors = decode_personalisation_files(
-            json_to_validate.get('personalisation', {})
-        )
+    if json_to_validate.get("personalisation", None):
+        json_to_validate["personalisation"], errors = decode_personalisation_files(json_to_validate.get("personalisation", {}))
         if errors.__len__() > 0:
-            error_message = json.dumps({
-                "status_code": 400,
-                "errors": errors
-            })
+            error_message = json.dumps({"status_code": 400, "errors": errors})
             raise ValidationError(error_message)
     return json_to_validate
 
@@ -78,14 +79,10 @@ def build_error_message(errors):
     fields = []
     for e in errors:
         field = (
-            "{} {}".format(e.path[0], e.schema['validationMessage'])
-            if 'validationMessage' in e.schema else __format_message(e)
+            "{} {}".format(e.path[0], e.schema["validationMessage"]) if "validationMessage" in e.schema else __format_message(e)
         )
         fields.append({"error": "ValidationError", "message": field})
-    message = {
-        "status_code": 400,
-        "errors": unique_errors(fields)
-    }
+    message = {"status_code": 400, "errors": unique_errors(fields)}
 
     return json.dumps(message)
 
@@ -112,7 +109,7 @@ def __format_message(e):
         # e.cause is an exception (such as InvalidPhoneError). if it's not present it was a standard jsonschema error
         # such as a required field not being present
         error_message = str(e.cause) if e.cause else e.message
-        return error_message.replace("'", '')
+        return error_message.replace("'", "")
 
     path = get_path(e)
     message = get_error_message(e)

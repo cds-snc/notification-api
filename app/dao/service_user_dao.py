@@ -1,4 +1,3 @@
-
 from app import db
 from app.dao.dao_utils import transactional
 from app.models import ServiceUser, User
@@ -9,10 +8,7 @@ def dao_get_service_user(user_id, service_id):
 
 
 def dao_get_active_service_users(service_id):
-    query = ServiceUser.query.join(ServiceUser.user).filter(
-        ServiceUser.service_id == service_id,
-        User.state == 'active'
-    )
+    query = ServiceUser.query.join(ServiceUser.user).filter(ServiceUser.service_id == service_id, User.state == "active")
 
     return query.all()
 

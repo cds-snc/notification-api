@@ -1,19 +1,19 @@
-from contextlib import contextmanager
 import os
+from contextlib import contextmanager
 from urllib.parse import urlparse
 
-from flask import Flask
-from alembic.command import upgrade
-from alembic.config import Config
 import pytest
 import sqlalchemy
+from alembic.command import upgrade
+from alembic.config import Config
+from flask import Flask
 
 from app import create_app, db
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def notify_api():
-    app = Flask('test')
+    app = Flask("test")
     create_app(app)
 
     # deattach server-error error handlers - error_handler_spec looks like:
@@ -25,9 +25,7 @@ def notify_api():
         error_handlers.pop(500, None)
         if None in error_handlers:
             error_handlers[None] = {
-                exc_class: error_handler
-                for exc_class, error_handler in error_handlers[None].items()
-                if exc_class != Exception
+                exc_class: error_handler for exc_class, error_handler in error_handlers[None].items() if exc_class != Exception
             }
             if error_handlers[None] == []:
                 error_handlers.pop(None)
@@ -40,27 +38,20 @@ def notify_api():
     ctx.pop()
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope="function")
 def client(notify_api):
     with notify_api.test_request_context(), notify_api.test_client() as client:
         yield client
 
 
 def create_test_db(writer_uri):
-    db_uri_parts = writer_uri.split('/')
-    db_uri = '/'.join(db_uri_parts[:-1] + ['postgres'])
+    db_uri_parts = writer_uri.split("/")
+    db_uri = "/".join(db_uri_parts[:-1] + ["postgres"])
     db_name = db_uri_parts[-1]
 
-    postgres_db = sqlalchemy.create_engine(
-        db_uri,
-        echo=False,
-        isolation_level='AUTOCOMMIT',
-        client_encoding='utf8'
-    )
+    postgres_db = sqlalchemy.create_engine(db_uri, echo=False, isolation_level="AUTOCOMMIT", client_encoding="utf8")
     try:
-        postgres_db.execute(
-            sqlalchemy.sql.text(f'CREATE DATABASE {db_name};')
-        ).close()
+        postgres_db.execute(sqlalchemy.sql.text(f"CREATE DATABASE {db_name};")).close()
     except sqlalchemy.exc.ProgrammingError:
         # database "test_notification_api_master" already exists
         pass
@@ -69,21 +60,16 @@ def create_test_db(writer_uri):
 
 
 def grant_test_db(writer_uri, uri_db_reader):
-    db_schema = 'public'
+    db_schema = "public"
     db_reader = urlparse(uri_db_reader).username
     db_reader_password = urlparse(uri_db_reader).password
 
-    postgres_db = sqlalchemy.create_engine(
-        writer_uri,
-        echo=False,
-        isolation_level='AUTOCOMMIT',
-        client_encoding='utf8'
-    )
+    postgres_db = sqlalchemy.create_engine(writer_uri, echo=False, isolation_level="AUTOCOMMIT", client_encoding="utf8")
 
     statements = [
         f"CREATE ROLE {db_reader} LOGIN PASSWORD '{db_reader_password}';",
-        f'GRANT USAGE ON SCHEMA {db_schema} TO {db_reader};',
-        f'GRANT SELECT ON ALL TABLES IN SCHEMA {db_schema} TO {db_reader};',
+        f"GRANT USAGE ON SCHEMA {db_schema} TO {db_reader};",
+        f"GRANT SELECT ON ALL TABLES IN SCHEMA {db_schema} TO {db_reader};",
     ]
     for statement in statements:
         try:
@@ -93,29 +79,30 @@ def grant_test_db(writer_uri, uri_db_reader):
     postgres_db.dispose()
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def notify_db(notify_api, worker_id):
-    assert 'test_notification_api' in db.engine.url.database, 'dont run tests against main db'
+    assert "test_notification_api" in db.engine.url.database, "dont run tests against main db"
 
     # create a database for this worker thread -
     from flask import current_app
-    current_app.config['SQLALCHEMY_DATABASE_URI'] += '_{}'.format(worker_id)
-    current_app.config['SQLALCHEMY_DATABASE_READER_URI'] += '_{}'.format(worker_id)
-    uri_db_writer = current_app.config['SQLALCHEMY_DATABASE_URI']
-    uri_db_reader = current_app.config['SQLALCHEMY_DATABASE_READER_URI']
-    current_app.config['SQLALCHEMY_BINDS'] = {
-        'reader': uri_db_reader,
-        'writer': uri_db_writer
+
+    current_app.config["SQLALCHEMY_DATABASE_URI"] += "_{}".format(worker_id)
+    current_app.config["SQLALCHEMY_DATABASE_READER_URI"] += "_{}".format(worker_id)
+    uri_db_writer = current_app.config["SQLALCHEMY_DATABASE_URI"]
+    uri_db_reader = current_app.config["SQLALCHEMY_DATABASE_READER_URI"]
+    current_app.config["SQLALCHEMY_BINDS"] = {
+        "reader": uri_db_reader,
+        "writer": uri_db_writer,
     }
     create_test_db(uri_db_writer)
 
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-    ALEMBIC_CONFIG = os.path.join(BASE_DIR, 'migrations')
-    config = Config(ALEMBIC_CONFIG + '/alembic.ini')
+    ALEMBIC_CONFIG = os.path.join(BASE_DIR, "migrations")
+    config = Config(ALEMBIC_CONFIG + "/alembic.ini")
     config.set_main_option("script_location", ALEMBIC_CONFIG)
 
     with notify_api.app_context():
-        upgrade(config, 'head')
+        upgrade(config, "head")
 
     grant_test_db(uri_db_writer, uri_db_reader)
 
@@ -125,24 +112,26 @@ def notify_db(notify_api, worker_id):
     db.get_engine(notify_api).dispose()
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope="function")
 def notify_db_session(notify_db):
     yield notify_db
 
     notify_db.session.remove()
     for tbl in reversed(notify_db.metadata.sorted_tables):
-        if tbl.name not in ["provider_details",
-                            "key_types",
-                            "branding_type",
-                            "job_status",
-                            "provider_details_history",
-                            "template_process_type",
-                            "notification_status_types",
-                            "organisation_types",
-                            "service_permission_types",
-                            "auth_type",
-                            "invite_status_type",
-                            "service_callback_type"]:
+        if tbl.name not in [
+            "provider_details",
+            "key_types",
+            "branding_type",
+            "job_status",
+            "provider_details_history",
+            "template_process_type",
+            "notification_status_types",
+            "organisation_types",
+            "service_permission_types",
+            "auth_type",
+            "invite_status_type",
+            "service_callback_type",
+        ]:
             notify_db.engine.execute(tbl.delete())
     notify_db.session.commit()
 
@@ -167,7 +156,7 @@ def os_environ():
 
 def pytest_generate_tests(metafunc):
     # Copied from https://gist.github.com/pfctdayelise/5719730
-    idparametrize = metafunc.definition.get_closest_marker('idparametrize')
+    idparametrize = metafunc.definition.get_closest_marker("idparametrize")
     if idparametrize:
         argnames, testdata = idparametrize.args
         ids, argvalues = zip(*sorted(testdata.items()))
@@ -208,4 +197,4 @@ class Matcher:
         return self.key(other)
 
     def __repr__(self):
-        return '<Matcher: {}>'.format(self.description)
+        return "<Matcher: {}>".format(self.description)

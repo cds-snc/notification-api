@@ -1,7 +1,4 @@
-from datetime import (
-    datetime,
-    timedelta
-)
+from datetime import datetime, timedelta
 
 import pytz
 from flask import current_app
@@ -11,32 +8,29 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app import notify_celery, performance_platform_client, zendesk_client
 from app.aws import s3
-from app.notifications.callbacks import create_delivery_status_callback_data
-from app.celery.service_callback_tasks import (
-    send_delivery_status_to_service,
-)
+from app.celery.service_callback_tasks import send_delivery_status_to_service
 from app.config import QueueNames
+from app.cronitor import cronitor
 from app.dao.inbound_sms_dao import delete_inbound_sms_older_than_retention
-from app.dao.jobs_dao import (
-    dao_get_jobs_older_than_data_retention,
-    dao_archive_job
-)
+from app.dao.jobs_dao import dao_archive_job, dao_get_jobs_older_than_data_retention
 from app.dao.notifications_dao import (
     dao_timeout_notifications,
     delete_notifications_older_than_retention_by_type,
 )
-from app.dao.service_callback_api_dao import get_service_delivery_status_callback_api_for_service
+from app.dao.service_callback_api_dao import (
+    get_service_delivery_status_callback_api_for_service,
+)
 from app.exceptions import NotificationTechnicalFailureException
 from app.models import (
-    Notification,
-    NOTIFICATION_SENDING,
     EMAIL_TYPE,
-    SMS_TYPE,
+    KEY_TYPE_NORMAL,
     LETTER_TYPE,
-    KEY_TYPE_NORMAL
+    NOTIFICATION_SENDING,
+    SMS_TYPE,
+    Notification,
 )
-from app.performance_platform import total_sent_notifications, processing_time
-from app.cronitor import cronitor
+from app.notifications.callbacks import create_delivery_status_callback_data
+from app.performance_platform import processing_time, total_sent_notifications
 from app.utils import get_local_timezone_midnight_in_utc
 
 
@@ -68,14 +62,9 @@ def _remove_csv_files(job_types):
 def delete_sms_notifications_older_than_retention():
     try:
         start = datetime.utcnow()
-        deleted = delete_notifications_older_than_retention_by_type('sms')
+        deleted = delete_notifications_older_than_retention_by_type("sms")
         current_app.logger.info(
-            "Delete {} job started {} finished {} deleted {} sms notifications".format(
-                'sms',
-                start,
-                datetime.utcnow(),
-                deleted
-            )
+            "Delete {} job started {} finished {} deleted {} sms notifications".format("sms", start, datetime.utcnow(), deleted)
         )
     except SQLAlchemyError:
         current_app.logger.exception("Failed to delete sms notifications")
@@ -88,13 +77,10 @@ def delete_sms_notifications_older_than_retention():
 def delete_email_notifications_older_than_retention():
     try:
         start = datetime.utcnow()
-        deleted = delete_notifications_older_than_retention_by_type('email')
+        deleted = delete_notifications_older_than_retention_by_type("email")
         current_app.logger.info(
             "Delete {} job started {} finished {} deleted {} email notifications".format(
-                'email',
-                start,
-                datetime.utcnow(),
-                deleted
+                "email", start, datetime.utcnow(), deleted
             )
         )
     except SQLAlchemyError:
@@ -108,13 +94,10 @@ def delete_email_notifications_older_than_retention():
 def delete_letter_notifications_older_than_retention():
     try:
         start = datetime.utcnow()
-        deleted = delete_notifications_older_than_retention_by_type('letter')
+        deleted = delete_notifications_older_than_retention_by_type("letter")
         current_app.logger.info(
             "Delete {} job started {} finished {} deleted {} letter notifications".format(
-                'letter',
-                start,
-                datetime.utcnow(),
-                deleted
+                "letter", start, datetime.utcnow(), deleted
             )
         )
     except SQLAlchemyError:
@@ -122,12 +105,14 @@ def delete_letter_notifications_older_than_retention():
         raise
 
 
-@notify_celery.task(name='timeout-sending-notifications')
-@cronitor('timeout-sending-notifications')
+@notify_celery.task(name="timeout-sending-notifications")
+@cronitor("timeout-sending-notifications")
 @statsd(namespace="tasks")
 def timeout_notifications():
-    technical_failure_notifications, temporary_failure_notifications = \
-        dao_timeout_notifications(current_app.config.get('SENDING_NOTIFICATIONS_TIMEOUT_PERIOD'))
+    (
+        technical_failure_notifications,
+        temporary_failure_notifications,
+    ) = dao_timeout_notifications(current_app.config.get("SENDING_NOTIFICATIONS_TIMEOUT_PERIOD"))
 
     notifications = technical_failure_notifications + temporary_failure_notifications
     for notification in notifications:
@@ -135,20 +120,25 @@ def timeout_notifications():
         service_callback_api = get_service_delivery_status_callback_api_for_service(service_id=notification.service_id)
         if service_callback_api:
             encrypted_notification = create_delivery_status_callback_data(notification, service_callback_api)
-            send_delivery_status_to_service.apply_async([str(notification.id), encrypted_notification],
-                                                        queue=QueueNames.CALLBACKS)
+            send_delivery_status_to_service.apply_async(
+                [str(notification.id), encrypted_notification],
+                queue=QueueNames.CALLBACKS,
+            )
 
-    current_app.logger.info(
-        "Timeout period reached for {} notifications, status has been updated.".format(len(notifications)))
+    current_app.logger.info("Timeout period reached for {} notifications, status has been updated.".format(len(notifications)))
     if technical_failure_notifications:
-        message = "{} notifications have been updated to technical-failure because they " \
-                  "have timed out and are still in created.Notification ids: {}".format(
-                      len(technical_failure_notifications), [str(x.id) for x in technical_failure_notifications])
+        message = (
+            "{} notifications have been updated to technical-failure because they "
+            "have timed out and are still in created.Notification ids: {}".format(
+                len(technical_failure_notifications),
+                [str(x.id) for x in technical_failure_notifications],
+            )
+        )
         raise NotificationTechnicalFailureException(message)
 
 
-@notify_celery.task(name='send-daily-performance-platform-stats')
-@cronitor('send-daily-performance-platform-stats')
+@notify_celery.task(name="send-daily-performance-platform-stats")
+@cronitor("send-daily-performance-platform-stats")
 @statsd(namespace="tasks")
 def send_daily_performance_platform_stats(date=None):
     # date is a string in the format of "YYYY-MM-DD"
@@ -167,32 +157,21 @@ def send_total_sent_notifications_to_performance_platform(bst_date):
     count_dict = total_sent_notifications.get_total_sent_notifications_for_day(bst_date)
     start_time = get_local_timezone_midnight_in_utc(bst_date).strftime("%Y-%m-%d")
 
-    email_sent_count = count_dict['email']
-    sms_sent_count = count_dict['sms']
-    letter_sent_count = count_dict['letter']
+    email_sent_count = count_dict["email"]
+    sms_sent_count = count_dict["sms"]
+    letter_sent_count = count_dict["letter"]
 
     current_app.logger.info(
-        "Attempting to update Performance Platform for {} with {} emails, {} text messages and {} letters"
-        .format(bst_date, email_sent_count, sms_sent_count, letter_sent_count)
+        "Attempting to update Performance Platform for {} with {} emails, {} text messages and {} letters".format(
+            bst_date, email_sent_count, sms_sent_count, letter_sent_count
+        )
     )
 
-    total_sent_notifications.send_total_notifications_sent_for_day_stats(
-        start_time,
-        'sms',
-        sms_sent_count
-    )
+    total_sent_notifications.send_total_notifications_sent_for_day_stats(start_time, "sms", sms_sent_count)
 
-    total_sent_notifications.send_total_notifications_sent_for_day_stats(
-        start_time,
-        'email',
-        email_sent_count
-    )
+    total_sent_notifications.send_total_notifications_sent_for_day_stats(start_time, "email", email_sent_count)
 
-    total_sent_notifications.send_total_notifications_sent_for_day_stats(
-        start_time,
-        'letter',
-        letter_sent_count
-    )
+    total_sent_notifications.send_total_notifications_sent_for_day_stats(start_time, "letter", letter_sent_count)
 
 
 @notify_celery.task(name="delete-inbound-sms")
@@ -204,9 +183,7 @@ def delete_inbound_sms():
         deleted = delete_inbound_sms_older_than_retention()
         current_app.logger.info(
             "Delete inbound sms job started {} finished {} deleted {} inbound sms notifications".format(
-                start,
-                datetime.utcnow(),
-                deleted
+                start, datetime.utcnow(), deleted
             )
         )
     except SQLAlchemyError:
@@ -230,20 +207,15 @@ def remove_transformed_dvla_files():
 def delete_dvla_response_files_older_than_seven_days():
     try:
         start = datetime.utcnow()
-        bucket_objects = s3.get_s3_bucket_objects(
-            current_app.config['DVLA_RESPONSE_BUCKET_NAME'],
-            'root/dispatch'
-        )
+        bucket_objects = s3.get_s3_bucket_objects(current_app.config["DVLA_RESPONSE_BUCKET_NAME"], "root/dispatch")
         older_than_seven_days = s3.filter_s3_bucket_objects_within_date_range(bucket_objects)
 
         for f in older_than_seven_days:
-            s3.remove_s3_object(current_app.config['DVLA_RESPONSE_BUCKET_NAME'], f['Key'])
+            s3.remove_s3_object(current_app.config["DVLA_RESPONSE_BUCKET_NAME"], f["Key"])
 
         current_app.logger.info(
             "Delete dvla response files started {} finished {} deleted {} files".format(
-                start,
-                datetime.utcnow(),
-                len(older_than_seven_days)
+                start, datetime.utcnow(), len(older_than_seven_days)
             )
         )
     except SQLAlchemyError:
@@ -269,46 +241,51 @@ def raise_alert_if_letter_notifications_still_sending():
         Notification.notification_type == LETTER_TYPE,
         Notification.status == NOTIFICATION_SENDING,
         Notification.key_type == KEY_TYPE_NORMAL,
-        func.date(Notification.sent_at) <= today - timedelta(days=offset_days)
+        func.date(Notification.sent_at) <= today - timedelta(days=offset_days),
     ).count()
 
     if still_sending:
         message = "There are {} letters in the 'sending' state from {}".format(
-            still_sending,
-            (today - timedelta(days=offset_days)).strftime('%A %d %B')
+            still_sending, (today - timedelta(days=offset_days)).strftime("%A %d %B")
         )
         # Only send alerts in production
-        if current_app.config['NOTIFY_ENVIRONMENT'] in ['live', 'production', 'test']:
+        if current_app.config["NOTIFY_ENVIRONMENT"] in ["live", "production", "test"]:
             zendesk_client.create_ticket(
-                subject="[{}] Letters still sending".format(current_app.config['NOTIFY_ENVIRONMENT']),
+                subject="[{}] Letters still sending".format(current_app.config["NOTIFY_ENVIRONMENT"]),
                 message=message,
-                ticket_type=zendesk_client.TYPE_INCIDENT
+                ticket_type=zendesk_client.TYPE_INCIDENT,
             )
         else:
             current_app.logger.info(message)
 
 
-@notify_celery.task(name='raise-alert-if-no-letter-ack-file')
-@cronitor('raise-alert-if-no-letter-ack-file')
+@notify_celery.task(name="raise-alert-if-no-letter-ack-file")
+@cronitor("raise-alert-if-no-letter-ack-file")
 @statsd(namespace="tasks")
 def letter_raise_alert_if_no_ack_file_for_zip():
     # get a list of zip files since yesterday
     zip_file_set = set()
-    today_str = datetime.utcnow().strftime('%Y-%m-%d')
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
     yesterday = datetime.now(tz=pytz.utc) - timedelta(days=1)  # AWS datetime format
 
-    for key in s3.get_list_of_files_by_suffix(bucket_name=current_app.config['LETTERS_PDF_BUCKET_NAME'],
-                                              subfolder=today_str + '/zips_sent',
-                                              suffix='.TXT'):
-        subname = key.split('/')[-1]  # strip subfolder in name
-        zip_file_set.add(subname.upper().replace('.ZIP.TXT', ''))
+    for key in s3.get_list_of_files_by_suffix(
+        bucket_name=current_app.config["LETTERS_PDF_BUCKET_NAME"],
+        subfolder=today_str + "/zips_sent",
+        suffix=".TXT",
+    ):
+        subname = key.split("/")[-1]  # strip subfolder in name
+        zip_file_set.add(subname.upper().replace(".ZIP.TXT", ""))
 
     # get acknowledgement file
     ack_file_set = set()
 
-    for key in s3.get_list_of_files_by_suffix(bucket_name=current_app.config['DVLA_RESPONSE_BUCKET_NAME'],
-                                              subfolder='root/dispatch', suffix='.ACK.txt', last_modified=yesterday):
-        ack_file_set.add(key.lstrip('root/dispatch').upper().replace('.ACK.TXT', ''))
+    for key in s3.get_list_of_files_by_suffix(
+        bucket_name=current_app.config["DVLA_RESPONSE_BUCKET_NAME"],
+        subfolder="root/dispatch",
+        suffix=".ACK.txt",
+        last_modified=yesterday,
+    ):
+        ack_file_set.add(key.lstrip("root/dispatch").upper().replace(".ACK.TXT", ""))
 
     message = (
         "Letter ack file does not contain all zip files sent. "
@@ -317,24 +294,22 @@ def letter_raise_alert_if_no_ack_file_for_zip():
         "ack bucket: {}"
     ).format(
         str(sorted(zip_file_set - ack_file_set)),
-        current_app.config['LETTERS_PDF_BUCKET_NAME'],
-        datetime.utcnow().strftime('%Y-%m-%d') + '/zips_sent',
-        current_app.config['DVLA_RESPONSE_BUCKET_NAME']
+        current_app.config["LETTERS_PDF_BUCKET_NAME"],
+        datetime.utcnow().strftime("%Y-%m-%d") + "/zips_sent",
+        current_app.config["DVLA_RESPONSE_BUCKET_NAME"],
     )
     # strip empty element before comparison
-    ack_file_set.discard('')
-    zip_file_set.discard('')
+    ack_file_set.discard("")
+    zip_file_set.discard("")
 
     if len(zip_file_set - ack_file_set) > 0:
-        if current_app.config['NOTIFY_ENVIRONMENT'] in ['live', 'production', 'test']:
+        if current_app.config["NOTIFY_ENVIRONMENT"] in ["live", "production", "test"]:
             zendesk_client.create_ticket(
                 subject="Letter acknowledge error",
                 message=message,
-                ticket_type=zendesk_client.TYPE_INCIDENT
+                ticket_type=zendesk_client.TYPE_INCIDENT,
             )
         current_app.logger.error(message)
 
     if len(ack_file_set - zip_file_set) > 0:
-        current_app.logger.info(
-            "letter ack contains zip that is not for today: {}".format(ack_file_set - zip_file_set)
-        )
+        current_app.logger.info("letter ack contains zip that is not for today: {}".format(ack_file_set - zip_file_set))

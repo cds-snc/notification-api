@@ -1,5 +1,4 @@
-from flask import Blueprint, jsonify
-from flask import request
+from flask import Blueprint, jsonify, request
 
 from app.celery.tasks import process_returned_letters_list
 from app.config import QueueNames
@@ -11,10 +10,10 @@ letter_job = Blueprint("letter-job", __name__)
 register_errors(letter_job)
 
 
-@letter_job.route('/letters/returned', methods=['POST'])
+@letter_job.route("/letters/returned", methods=["POST"])
 def create_process_returned_letters_job():
     references = validate(request.get_json(), letter_references)
 
-    process_returned_letters_list.apply_async([references['references']], queue=QueueNames.DATABASE)
+    process_returned_letters_list.apply_async([references["references"]], queue=QueueNames.DATABASE)
 
-    return jsonify(references=references['references']), 200
+    return jsonify(references=references["references"]), 200

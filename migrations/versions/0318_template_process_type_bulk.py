@@ -7,8 +7,8 @@ Create Date: 2021-04-12 13:37:42
 """
 from alembic import op
 
-revision = '0318_template_process_type_bulk'
-down_revision = '0317_add_provider_response'
+revision = "0318_template_process_type_bulk"
+down_revision = "0317_add_provider_response"
 
 
 def upgrade():

@@ -2,12 +2,11 @@ import uuid
 from datetime import datetime
 
 from flask import current_app
-
 from notifications_utils.clients import redis
 from notifications_utils.recipients import (
+    format_email_address,
     get_international_phone_info,
     validate_and_format_phone_number,
-    format_email_address
 )
 from notifications_utils.timezones import convert_local_timezone_to_utc
 
@@ -15,23 +14,22 @@ from app import redis_store
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
-
+from app.dao.notifications_dao import (
+    dao_create_notification,
+    dao_created_scheduled_notification,
+    dao_delete_notifications_by_id,
+)
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
-    SMS_TYPE,
     LETTER_TYPE,
     NOTIFICATION_CREATED,
+    SMS_TYPE,
     Notification,
-    ScheduledNotification
+    ScheduledNotification,
 )
-from app.dao.notifications_dao import (
-    dao_create_notification,
-    dao_delete_notifications_by_id,
-    dao_created_scheduled_notification
-)
-from app.v2.errors import BadRequestError
 from app.utils import get_template_instance
+from app.v2.errors import BadRequestError
 
 
 def create_content_for_notification(template, personalisation):
@@ -43,8 +41,8 @@ def create_content_for_notification(template, personalisation):
 
 def check_placeholders(template_object):
     if template_object.missing_data:
-        message = 'Missing personalisation: {}'.format(", ".join(template_object.missing_data))
-        raise BadRequestError(fields=[{'template': message}], message=message)
+        message = "Missing personalisation: {}".format(", ".join(template_object.missing_data))
+        raise BadRequestError(fields=[{"template": message}], message=message)
 
 
 def persist_notification(
@@ -69,7 +67,7 @@ def persist_notification(
     reply_to_text=None,
     billable_units=None,
     postage=None,
-    template_postage=None
+    template_postage=None,
 ):
     notification_created_at = created_at or datetime.utcnow()
     if not notification_id:
@@ -93,7 +91,7 @@ def persist_notification(
         created_by_id=created_by_id,
         status=status,
         reply_to_text=reply_to_text,
-        billable_units=billable_units
+        billable_units=billable_units,
     )
 
     if notification_type == SMS_TYPE:
@@ -115,9 +113,7 @@ def persist_notification(
             if redis_store.get(redis.daily_limit_cache_key(service.id)):
                 redis_store.incr(redis.daily_limit_cache_key(service.id))
 
-        current_app.logger.info(
-            "{} {} created at {}".format(notification_type, notification_id, notification_created_at)
-        )
+        current_app.logger.info("{} {} created at {}".format(notification_type, notification_id, notification_created_at))
     return notification
 
 
@@ -149,23 +145,21 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         raise
 
     current_app.logger.debug(
-        "{} {} sent to the {} queue for delivery".format(notification.notification_type,
-                                                         notification.id,
-                                                         queue))
+        "{} {} sent to the {} queue for delivery".format(notification.notification_type, notification.id, queue)
+    )
 
 
 def simulated_recipient(to_address, notification_type):
     if notification_type == SMS_TYPE:
         formatted_simulated_numbers = [
-            validate_and_format_phone_number(number) for number in current_app.config['SIMULATED_SMS_NUMBERS']
+            validate_and_format_phone_number(number) for number in current_app.config["SIMULATED_SMS_NUMBERS"]
         ]
         return to_address in formatted_simulated_numbers
     else:
-        return to_address in current_app.config['SIMULATED_EMAIL_ADDRESSES']
+        return to_address in current_app.config["SIMULATED_EMAIL_ADDRESSES"]
 
 
 def persist_scheduled_notification(notification_id, scheduled_for):
     scheduled_datetime = convert_local_timezone_to_utc(datetime.strptime(scheduled_for, "%Y-%m-%d %H:%M"))
-    scheduled_notification = ScheduledNotification(notification_id=notification_id,
-                                                   scheduled_for=scheduled_datetime)
+    scheduled_notification = ScheduledNotification(notification_id=notification_id, scheduled_for=scheduled_datetime)
     dao_created_scheduled_notification(scheduled_notification)

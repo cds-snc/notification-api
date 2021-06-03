@@ -6,9 +6,9 @@ post_create_template_folder_schema = {
     "type": "object",
     "properties": {
         "name": {"type": "string", "minLength": 1},
-        "parent_id": nullable_uuid
+        "parent_id": nullable_uuid,
     },
-    "required": ["name", "parent_id"]
+    "required": ["name", "parent_id"],
 }
 
 post_update_template_folder_schema = {
@@ -17,9 +17,9 @@ post_update_template_folder_schema = {
     "type": "object",
     "properties": {
         "name": {"type": "string", "minLength": 1},
-        "users_with_permission": {"type": "array", "items": uuid}
+        "users_with_permission": {"type": "array", "items": uuid},
     },
-    "required": ["name"]
+    "required": ["name"],
 }
 
 post_move_template_folder_schema = {
@@ -30,5 +30,5 @@ post_move_template_folder_schema = {
         "templates": {"type": "array", "items": uuid},
         "folders": {"type": "array", "items": uuid},
     },
-    "required": ["templates", "folders"]
+    "required": ["templates", "folders"],
 }

@@ -10,11 +10,10 @@ from datetime import datetime
 from alembic import op
 from flask import current_app
 
+revision = "0321_daily_limit_updated"
+down_revision = "0320_remove_smtp"
 
-revision = '0321_daily_limit_updated'
-down_revision = '0320_remove_smtp'
-
-daily_limit_updated_id = current_app.config['DAILY_LIMIT_UPDATED_TEMPLATE_ID']
+daily_limit_updated_id = current_app.config["DAILY_LIMIT_UPDATED_TEMPLATE_ID"]
 
 template_ids = [daily_limit_updated_id]
 
@@ -31,21 +30,23 @@ def upgrade():
         VALUES ('{}', '{}', '{}', '{}', '{}', False, '{}', '{}', '{}', 1, '{}', false)
     """
 
-    content = '\n'.join([
-        "Hello ((name)),",
-        "",
-        "The daily limit of ((service_name)) has just been updated. You can now send ((message_limit_en)) messages per day. This new limit is effective now.",
-        "",
-        "The GC Notify team",
-        "",
-        "___",
-        "",
-        "Bonjour ((name)),",
-        "",
-        "La limite quotidienne de ((service_name)) a été mise à jour. Vous pouvez désormais envoyer ((message_limit_fr)) messages par jour. Ce changement est effectif dès maintenant.",
-        "",
-        "L’équipe GC Notification",
-    ])
+    content = "\n".join(
+        [
+            "Hello ((name)),",
+            "",
+            "The daily limit of ((service_name)) has just been updated. You can now send ((message_limit_en)) messages per day. This new limit is effective now.",
+            "",
+            "The GC Notify team",
+            "",
+            "___",
+            "",
+            "Bonjour ((name)),",
+            "",
+            "La limite quotidienne de ((service_name)) a été mise à jour. Vous pouvez désormais envoyer ((message_limit_fr)) messages par jour. Ce changement est effectif dès maintenant.",
+            "",
+            "L’équipe GC Notification",
+        ]
+    )
 
     templates = [
         {
@@ -59,29 +60,29 @@ def upgrade():
     for template in templates:
         op.execute(
             template_insert.format(
-                template['id'],
-                template['name'],
-                'email',
+                template["id"],
+                template["name"],
+                "email",
                 datetime.utcnow(),
-                template['content'],
-                current_app.config['NOTIFY_SERVICE_ID'],
-                template['subject'],
-                current_app.config['NOTIFY_USER_ID'],
-                'normal'
+                template["content"],
+                current_app.config["NOTIFY_SERVICE_ID"],
+                template["subject"],
+                current_app.config["NOTIFY_USER_ID"],
+                "normal",
             )
         )
 
         op.execute(
             template_history_insert.format(
-                template['id'],
-                template['name'],
-                'email',
+                template["id"],
+                template["name"],
+                "email",
                 datetime.utcnow(),
-                template['content'],
-                current_app.config['NOTIFY_SERVICE_ID'],
-                template['subject'],
-                current_app.config['NOTIFY_USER_ID'],
-                'normal'
+                template["content"],
+                current_app.config["NOTIFY_SERVICE_ID"],
+                template["subject"],
+                current_app.config["NOTIFY_USER_ID"],
+                "normal",
             )
         )
 
