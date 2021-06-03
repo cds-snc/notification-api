@@ -23,8 +23,14 @@ function display_result {
 make test-requirements
 display_result $? 1 "Requirements check"
 
+black ./app ./tests --check
+display_result $? 2 "Code style check (Black)"
+
 flake8 .
-display_result $? 1 "Code style check"
+display_result $? 1 "Code style check (flake8)"
+
+isort --check-only ./app ./tests
+display_result $? 2 "Import order check"
 
 # run with four concurrent threads
 py.test --disable-pytest-warnings --cov=app --cov-report=term-missing tests/ --junitxml=test_results.xml -n4 -v --maxfail=10
