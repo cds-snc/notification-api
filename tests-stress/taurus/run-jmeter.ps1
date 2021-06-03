@@ -1,0 +1,1 @@
+jmeter -n -t '.\Test Send Notification.jmx' -o test-output -j test.log -q config.properties
