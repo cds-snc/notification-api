@@ -1,14 +1,16 @@
 class ClientException(Exception):
-    '''
+    """
     Base Exceptions for sending notifications that fail
-    '''
+    """
+
     pass
 
 
 class Client(object):
-    '''
+    """
     Base client for sending notifications.
-    '''
+    """
+
     pass
 
 
@@ -30,10 +32,10 @@ class Clients(object):
         return self.email_clients.get(name)
 
     def get_client_by_name_and_type(self, name, notification_type):
-        assert notification_type in ['email', 'sms']
+        assert notification_type in ["email", "sms"]
 
-        if notification_type == 'email':
+        if notification_type == "email":
             return self.get_email_client(name)
 
-        if notification_type == 'sms':
+        if notification_type == "sms":
             return self.get_sms_client(name)

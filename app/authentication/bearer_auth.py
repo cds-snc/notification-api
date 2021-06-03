@@ -1,8 +1,6 @@
 import requests
 
-__all__ = [
-    'BearerAuth'
-]
+__all__ = ["BearerAuth"]
 
 
 class BearerAuth(requests.auth.AuthBase):

@@ -2,15 +2,11 @@ import base64
 from io import BytesIO
 
 import botocore
-from PyPDF2.utils import PdfReadError
-from flask import (
-    Blueprint,
-    current_app,
-    jsonify,
-    request)
+from flask import Blueprint, current_app, jsonify, request
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.pdf import extract_page_from_pdf
 from notifications_utils.template import SMSMessageTemplate
+from PyPDF2.utils import PdfReadError
 from requests import post as requests_post
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -18,29 +14,26 @@ from app.dao.notifications_dao import get_notification_by_id
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
 from app.dao.templates_dao import (
-    dao_update_template,
     dao_create_template,
-    dao_redact_template,
-    dao_get_template_by_id_and_service_id,
     dao_get_all_templates_for_service,
-    dao_get_template_versions,
-    dao_update_template_reply_to,
     dao_get_template_by_id,
+    dao_get_template_by_id_and_service_id,
+    dao_get_template_versions,
+    dao_redact_template,
+    dao_update_template,
+    dao_update_template_reply_to,
     get_precompiled_letter_template,
 )
-from app.errors import (
-    register_errors,
-    InvalidRequest
-)
+from app.errors import InvalidRequest, register_errors
 from app.letters.utils import get_letter_pdf
-from app.models import SMS_TYPE, Template, SECOND_CLASS, LETTER_TYPE
-from app.notifications.validators import service_has_permission, check_reply_to
+from app.models import LETTER_TYPE, SECOND_CLASS, SMS_TYPE, Template
+from app.notifications.validators import check_reply_to, service_has_permission
 from app.schema_validation import validate
-from app.schemas import (template_schema, template_history_schema)
+from app.schemas import template_history_schema, template_schema
 from app.template.template_schemas import post_create_template_schema
-from app.utils import get_template_instance, get_public_notify_type_text
+from app.utils import get_public_notify_type_text, get_template_instance
 
-template_blueprint = Blueprint('template', __name__, url_prefix='/service/<uuid:service_id>/template')
+template_blueprint = Blueprint("template", __name__, url_prefix="/service/<uuid:service_id>/template")
 
 register_errors(template_blueprint)
 
@@ -48,7 +41,7 @@ register_errors(template_blueprint)
 def _content_count_greater_than_limit(content, template_type):
     if template_type != SMS_TYPE:
         return False
-    template = SMSMessageTemplate({'content': content, 'template_type': template_type})
+    template = SMSMessageTemplate({"content": content, "template_type": template_type})
     return template.content_count > SMS_CHAR_COUNT_LIMIT
 
 
@@ -57,7 +50,7 @@ def validate_parent_folder(template_json):
         try:
             return dao_get_template_folder_by_id_and_service_id(
                 template_folder_id=template_json.pop("parent_folder_id"),
-                service_id=template_json['service']
+                service_id=template_json["service"],
             )
         except NoResultFound:
             raise InvalidRequest("parent_folder_id not found", status_code=400)
@@ -65,7 +58,7 @@ def validate_parent_folder(template_json):
         return None
 
 
-@template_blueprint.route('', methods=['POST'])
+@template_blueprint.route("", methods=["POST"])
 def create_template(service_id):
     fetched_service = dao_fetch_service_by_id(service_id=service_id)
     # permissions needs to be placed here otherwise marshmallow will interfere with versioning
@@ -75,9 +68,8 @@ def create_template(service_id):
     new_template = Template.from_json(template_json, folder)
 
     if not service_has_permission(new_template.template_type, permissions):
-        message = "Creating {} templates is not allowed".format(
-            get_public_notify_type_text(new_template.template_type))
-        errors = {'template_type': [message]}
+        message = "Creating {} templates is not allowed".format(get_public_notify_type_text(new_template.template_type))
+        errors = {"template_type": [message]}
         raise InvalidRequest(errors, 403)
 
     if not new_template.postage and new_template.template_type == LETTER_TYPE:
@@ -87,8 +79,8 @@ def create_template(service_id):
 
     over_limit = _content_count_greater_than_limit(new_template.content, new_template.template_type)
     if over_limit:
-        message = 'Content has a character count greater than the limit of {}'.format(SMS_CHAR_COUNT_LIMIT)
-        errors = {'content': [message]}
+        message = "Content has a character count greater than the limit of {}".format(SMS_CHAR_COUNT_LIMIT)
+        errors = {"content": [message]}
         raise InvalidRequest(errors, status_code=400)
 
     check_reply_to(service_id, new_template.reply_to, new_template.template_type)
@@ -98,21 +90,20 @@ def create_template(service_id):
     return jsonify(data=template_schema.dump(new_template).data), 201
 
 
-@template_blueprint.route('/<uuid:template_id>', methods=['POST'])
+@template_blueprint.route("/<uuid:template_id>", methods=["POST"])
 def update_template(service_id, template_id):
     fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
 
     if not service_has_permission(fetched_template.template_type, fetched_template.service.permissions):
-        message = "Updating {} templates is not allowed".format(
-            get_public_notify_type_text(fetched_template.template_type))
-        errors = {'template_type': [message]}
+        message = "Updating {} templates is not allowed".format(get_public_notify_type_text(fetched_template.template_type))
+        errors = {"template_type": [message]}
 
         raise InvalidRequest(errors, 403)
 
     data = request.get_json()
 
     # if redacting, don't update anything else
-    if data.get('redact_personalisation') is True:
+    if data.get("redact_personalisation") is True:
         return redact_template(fetched_template, data)
 
     if "reply_to" in data:
@@ -128,10 +119,10 @@ def update_template(service_id, template_id):
     if _template_has_not_changed(current_data, updated_template):
         return jsonify(data=updated_template), 200
 
-    over_limit = _content_count_greater_than_limit(updated_template['content'], fetched_template.template_type)
+    over_limit = _content_count_greater_than_limit(updated_template["content"], fetched_template.template_type)
     if over_limit:
-        message = 'Content has a character count greater than the limit of {}'.format(SMS_CHAR_COUNT_LIMIT)
-        errors = {'content': [message]}
+        message = "Content has a character count greater than the limit of {}".format(SMS_CHAR_COUNT_LIMIT)
+        errors = {"content": [message]}
         raise InvalidRequest(errors, status_code=400)
 
     update_dict = template_schema.load(updated_template).data
@@ -140,7 +131,7 @@ def update_template(service_id, template_id):
     return jsonify(data=template_schema.dump(update_dict).data), 200
 
 
-@template_blueprint.route('/precompiled', methods=['GET'])
+@template_blueprint.route("/precompiled", methods=["GET"])
 def get_precompiled_template_for_service(service_id):
     template = get_precompiled_letter_template(service_id)
     template_dict = template_schema.dump(template).data
@@ -148,21 +139,21 @@ def get_precompiled_template_for_service(service_id):
     return jsonify(template_dict), 200
 
 
-@template_blueprint.route('', methods=['GET'])
+@template_blueprint.route("", methods=["GET"])
 def get_all_templates_for_service(service_id):
     templates = dao_get_all_templates_for_service(service_id=service_id)
     data = template_schema.dump(templates, many=True).data
     return jsonify(data=data)
 
 
-@template_blueprint.route('/<uuid:template_id>', methods=['GET'])
+@template_blueprint.route("/<uuid:template_id>", methods=["GET"])
 def get_template_by_id_and_service_id(service_id, template_id):
     fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
     data = template_schema.dump(fetched_template).data
     return jsonify(data=data)
 
 
-@template_blueprint.route('/<uuid:template_id>/preview', methods=['GET'])
+@template_blueprint.route("/<uuid:template_id>/preview", methods=["GET"])
 def preview_template_by_id_and_service_id(service_id, template_id):
     fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
     data = template_schema.dump(fetched_template).data
@@ -170,33 +161,28 @@ def preview_template_by_id_and_service_id(service_id, template_id):
 
     if template_object.missing_data:
         raise InvalidRequest(
-            {'template': [
-                'Missing personalisation: {}'.format(", ".join(template_object.missing_data))
-            ]}, status_code=400
+            {"template": ["Missing personalisation: {}".format(", ".join(template_object.missing_data))]},
+            status_code=400,
         )
 
-    data['subject'], data['content'] = template_object.subject, str(template_object)
+    data["subject"], data["content"] = template_object.subject, str(template_object)
 
     return jsonify(data)
 
 
-@template_blueprint.route('/<uuid:template_id>/version/<int:version>')
+@template_blueprint.route("/<uuid:template_id>/version/<int:version>")
 def get_template_version(service_id, template_id, version):
     data = template_history_schema.dump(
-        dao_get_template_by_id_and_service_id(
-            template_id=template_id,
-            service_id=service_id,
-            version=version
-        )
+        dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id, version=version)
     ).data
     return jsonify(data=data)
 
 
-@template_blueprint.route('/<uuid:template_id>/versions')
+@template_blueprint.route("/<uuid:template_id>/versions")
 def get_template_versions(service_id, template_id):
     data = template_history_schema.dump(
         dao_get_template_versions(service_id=service_id, template_id=template_id),
-        many=True
+        many=True,
     ).data
     return jsonify(data=data)
 
@@ -204,29 +190,29 @@ def get_template_versions(service_id, template_id):
 def _template_has_not_changed(current_data, updated_template):
     return all(
         current_data[key] == updated_template[key]
-        for key in ('name', 'content', 'subject', 'archived', 'process_type', 'postage')
+        for key in ("name", "content", "subject", "archived", "process_type", "postage")
     )
 
 
 def redact_template(template, data):
     # we also don't need to check what was passed in redact_personalisation - its presence in the dict is enough.
-    if 'created_by' not in data:
-        message = 'Field is required'
-        errors = {'created_by': [message]}
+    if "created_by" not in data:
+        message = "Field is required"
+        errors = {"created_by": [message]}
         raise InvalidRequest(errors, status_code=400)
 
     # if it's already redacted, then just return 200 straight away.
     if not template.redact_personalisation:
-        dao_redact_template(template, data['created_by'])
-    return 'null', 200
+        dao_redact_template(template, data["created_by"])
+    return "null", 200
 
 
-@template_blueprint.route('/preview/<uuid:notification_id>/<file_type>', methods=['GET'])
+@template_blueprint.route("/preview/<uuid:notification_id>/<file_type>", methods=["GET"])
 def preview_letter_template_by_notification_id(service_id, notification_id, file_type):
-    if file_type not in ('pdf', 'png'):
-        raise InvalidRequest({'content': ["file_type must be pdf or png"]}, status_code=400)
+    if file_type not in ("pdf", "png"):
+        raise InvalidRequest({"content": ["file_type must be pdf or png"]}, status_code=400)
 
-    page = request.args.get('page')
+    page = request.args.get("page")
 
     notification = get_notification_by_id(notification_id)
 
@@ -239,38 +225,40 @@ def preview_letter_template_by_notification_id(service_id, notification_id, file
 
         except botocore.exceptions.ClientError as e:
             raise InvalidRequest(
-                'Error extracting requested page from PDF file for notification_id {} type {} {}'.format(
-                    notification_id, type(e), e),
-                status_code=500
+                "Error extracting requested page from PDF file for notification_id {} type {} {}".format(
+                    notification_id, type(e), e
+                ),
+                status_code=500,
             )
 
-        content = base64.b64encode(pdf_file).decode('utf-8')
-        overlay = request.args.get('overlay')
+        content = base64.b64encode(pdf_file).decode("utf-8")
+        overlay = request.args.get("overlay")
         page_number = page if page else "1"
 
         if overlay:
-            path = '/precompiled/overlay.{}'.format(file_type)
-            query_string = '?page_number={}'.format(page_number) if file_type == 'png' else ''
+            path = "/precompiled/overlay.{}".format(file_type)
+            query_string = "?page_number={}".format(page_number) if file_type == "png" else ""
             content = pdf_file
-        elif file_type == 'png':
-            query_string = '?hide_notify=true' if page_number == '1' else ''
-            path = '/precompiled-preview.png'
+        elif file_type == "png":
+            query_string = "?hide_notify=true" if page_number == "1" else ""
+            path = "/precompiled-preview.png"
         else:
             path = None
 
-        if file_type == 'png':
+        if file_type == "png":
             try:
                 pdf_page = extract_page_from_pdf(BytesIO(pdf_file), int(page_number) - 1)
-                content = pdf_page if overlay else base64.b64encode(pdf_page).decode('utf-8')
+                content = pdf_page if overlay else base64.b64encode(pdf_page).decode("utf-8")
             except PdfReadError as e:
                 raise InvalidRequest(
-                    'Error extracting requested page from PDF file for notification_id {} type {} {}'.format(
-                        notification_id, type(e), e),
-                    status_code=500
+                    "Error extracting requested page from PDF file for notification_id {} type {} {}".format(
+                        notification_id, type(e), e
+                    ),
+                    status_code=500,
                 )
 
         if path:
-            url = current_app.config['TEMPLATE_PREVIEW_API_HOST'] + path + query_string
+            url = current_app.config["TEMPLATE_PREVIEW_API_HOST"] + path + query_string
             response_content = _get_png_preview_or_overlaid_pdf(url, content, notification.id, json=False)
         else:
             response_content = content
@@ -280,23 +268,23 @@ def preview_letter_template_by_notification_id(service_id, notification_id, file
             "id": str(notification.template_id),
             "subject": template.subject,
             "content": template.content,
-            "version": str(template.version)
+            "version": str(template.version),
         }
 
         service = dao_fetch_service_by_id(service_id)
         letter_logo_filename = service.letter_branding and service.letter_branding.filename
         data = {
-            'letter_contact_block': notification.reply_to_text,
-            'template': template_for_letter_print,
-            'values': notification.personalisation,
-            'date': notification.created_at.isoformat(),
-            'filename': letter_logo_filename,
+            "letter_contact_block": notification.reply_to_text,
+            "template": template_for_letter_print,
+            "values": notification.personalisation,
+            "date": notification.created_at.isoformat(),
+            "filename": letter_logo_filename,
         }
 
-        url = '{}/preview.{}{}'.format(
-            current_app.config['TEMPLATE_PREVIEW_API_HOST'],
+        url = "{}/preview.{}{}".format(
+            current_app.config["TEMPLATE_PREVIEW_API_HOST"],
             file_type,
-            '?page={}'.format(page) if page else ''
+            "?page={}".format(page) if page else "",
         )
         response_content = _get_png_preview_or_overlaid_pdf(url, data, notification.id, json=True)
 
@@ -308,22 +296,19 @@ def _get_png_preview_or_overlaid_pdf(url, data, notification_id, json=True):
         resp = requests_post(
             url,
             json=data,
-            headers={'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY'])}
+            headers={"Authorization": "Token {}".format(current_app.config["TEMPLATE_PREVIEW_API_KEY"])},
         )
     else:
         resp = requests_post(
             url,
             data=data,
-            headers={'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY'])}
+            headers={"Authorization": "Token {}".format(current_app.config["TEMPLATE_PREVIEW_API_KEY"])},
         )
 
     if resp.status_code != 200:
         raise InvalidRequest(
-            'Error generating preview letter for {} Status code: {} {}'.format(
-                notification_id,
-                resp.status_code,
-                resp.content
-            ), status_code=500
+            "Error generating preview letter for {} Status code: {} {}".format(notification_id, resp.status_code, resp.content),
+            status_code=500,
         )
 
-    return base64.b64encode(resp.content).decode('utf-8')
+    return base64.b64encode(resp.content).decode("utf-8")

@@ -9,13 +9,12 @@ Create Date: 2019-08-13 07:42:00.0000
 # revision identifiers, used by Alembic.
 from datetime import datetime
 
+import sqlalchemy as sa
+from alembic import op
 from flask import current_app
 
-from alembic import op
-import sqlalchemy as sa
-
-revision = '0301c_update_golive_template'
-down_revision = '0301b_fido2_table'
+revision = "0301c_update_golive_template"
+down_revision = "0301b_fido2_table"
 
 
 def upgrade():
@@ -48,7 +47,7 @@ def upgrade():
     Merci,
     L’équipe de notification.
     """
-    template_subject = '((service name)) is now live on Notification'
+    template_subject = "((service name)) is now live on Notification"
 
     update = """
     UPDATE
@@ -60,13 +59,9 @@ def upgrade():
         id = '618185c6-3636-49cd-b7d2-6f6f5eb3bdde'
     """
 
-    op.execute(
-        update.format('templates', template_content, template_subject)
-    )
+    op.execute(update.format("templates", template_content, template_subject))
 
-    op.execute(
-        update.format('templates_history', template_content, template_subject)
-    )
+    op.execute(update.format("templates_history", template_content, template_subject))
 
 
 def downgrade():

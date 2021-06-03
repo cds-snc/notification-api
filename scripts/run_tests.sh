@@ -23,13 +23,13 @@ function display_result {
 make test-requirements
 display_result $? 1 "Requirements check"
 
-black ./app ./tests --check
+black --config pyproject.toml --check .
 display_result $? 2 "Code style check (Black)"
 
 flake8 .
 display_result $? 1 "Code style check (flake8)"
 
-isort --check-only ./app ./tests
+isort --check-only .
 display_result $? 2 "Import order check"
 
 # run with four concurrent threads

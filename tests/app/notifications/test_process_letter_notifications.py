@@ -1,15 +1,13 @@
-from app.models import LETTER_TYPE
-from app.models import Notification
-from app.models import NOTIFICATION_CREATED
+from app.models import LETTER_TYPE, NOTIFICATION_CREATED, Notification
 from app.notifications.process_letter_notifications import create_letter_notification
 
 
 def test_create_letter_notification_creates_notification(sample_letter_template, sample_api_key):
     data = {
-        'personalisation': {
-            'address_line_1': 'The Queen',
-            'address_line_2': 'Buckingham Palace',
-            'postcode': 'SW1 1AA',
+        "personalisation": {
+            "address_line_1": "The Queen",
+            "address_line_2": "Buckingham Palace",
+            "postcode": "SW1 1AA",
         }
     }
 
@@ -25,34 +23,39 @@ def test_create_letter_notification_creates_notification(sample_letter_template,
     assert notification.key_type == sample_api_key.key_type
     assert notification.reference is not None
     assert notification.client_reference is None
-    assert notification.postage == 'second'
+    assert notification.postage == "second"
 
 
 def test_create_letter_notification_sets_reference(sample_letter_template, sample_api_key):
     data = {
-        'personalisation': {
-            'address_line_1': 'The Queen',
-            'address_line_2': 'Buckingham Palace',
-            'postcode': 'SW1 1AA',
+        "personalisation": {
+            "address_line_1": "The Queen",
+            "address_line_2": "Buckingham Palace",
+            "postcode": "SW1 1AA",
         },
-        'reference': 'foo'
+        "reference": "foo",
     }
 
     notification = create_letter_notification(data, sample_letter_template, sample_api_key, NOTIFICATION_CREATED)
 
-    assert notification.client_reference == 'foo'
+    assert notification.client_reference == "foo"
 
 
 def test_create_letter_notification_sets_billable_units(sample_letter_template, sample_api_key):
     data = {
-        'personalisation': {
-            'address_line_1': 'The Queen',
-            'address_line_2': 'Buckingham Palace',
-            'postcode': 'SW1 1AA',
+        "personalisation": {
+            "address_line_1": "The Queen",
+            "address_line_2": "Buckingham Palace",
+            "postcode": "SW1 1AA",
         },
     }
 
-    notification = create_letter_notification(data, sample_letter_template, sample_api_key, NOTIFICATION_CREATED,
-                                              billable_units=3)
+    notification = create_letter_notification(
+        data,
+        sample_letter_template,
+        sample_api_key,
+        NOTIFICATION_CREATED,
+        billable_units=3,
+    )
 
     assert notification.billable_units == 3

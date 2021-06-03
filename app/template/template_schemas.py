@@ -1,7 +1,4 @@
-from app.models import (
-    TEMPLATE_PROCESS_TYPE,
-    TEMPLATE_TYPES,
-)
+from app.models import TEMPLATE_PROCESS_TYPE, TEMPLATE_TYPES
 from app.schema_validation.definitions import uuid
 
 post_create_template_schema = {
@@ -20,11 +17,7 @@ post_create_template_schema = {
         "parent_folder_id": uuid,
         "postage": {"type": "string"},
     },
-    "if": {
-        "properties": {
-            "template_type": {"enum": ["email", "letter"]}
-        }
-    },
+    "if": {"properties": {"template_type": {"enum": ["email", "letter"]}}},
     "then": {"required": ["subject"]},
-    "required": ["name", "template_type", "content", "service", "created_by"]
+    "required": ["name", "template_type", "content", "service", "created_by"],
 }
