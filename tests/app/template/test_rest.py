@@ -720,7 +720,7 @@ def test_should_get_a_single_template(
             'hello ((name)) we’ve received your ((thing))',
             '/service/{}/template/{}/preview?eman=Amala&gniht=document',
             None, None,
-            'Missing personalisation: thing, name'
+            'Missing personalisation: name, thing'
         ),
         (
             'about your ((thing))',
