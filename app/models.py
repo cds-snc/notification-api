@@ -1670,7 +1670,7 @@ class Notification(db.Model):
                 "delivered": "Delivered",
                 "sending": "Sending",
                 "created": "Sending",
-                "sent": "Sent internationally",
+                "sent": "Sent",
             },
             "letter": {
                 "technical-failure": "Technical failure",
