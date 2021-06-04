@@ -6,6 +6,7 @@ from app.models import (
 )
 from app.schema_validation.definitions import (
     letter_personalisation,
+    nullable_uuid,
     personalisation,
     uuid,
 )
@@ -272,3 +273,28 @@ post_letter_response = {
     },
     "required": ["id", "content", "uri", "template"],
 }
+
+
+def post_bulk_request(limit):
+    return {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "description": "POST email notification schema",
+        "type": "object",
+        "title": "POST v2/notifications/bulk",
+        "properties": {
+            "template_id": uuid,
+            "reference": {"type": "string"},
+            "scheduled_for": {
+                "type": ["string", "null"],
+                "format": "datetime_schedule_job",
+            },
+            "reply_to_id": nullable_uuid,
+            "csv": {
+                "type": "string",
+                "binaryEncoding": "base64",
+            },
+            "rows": {"type": "array", "maxItems": limit + 1, "minItems": 2},
+        },
+        "required": ["template_id"],
+        "additionalProperties": False,
+    }

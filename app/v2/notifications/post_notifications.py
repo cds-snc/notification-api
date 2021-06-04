@@ -1,9 +1,14 @@
 import base64
+import csv
 import functools
+from io import StringIO
 
 import werkzeug
 from flask import abort, current_app, jsonify, request
-from notifications_utils.recipients import try_validate_and_format_phone_number
+from notifications_utils.recipients import (
+    RecipientCSV,
+    try_validate_and_format_phone_number,
+)
 
 from app import (
     api_user,
@@ -46,8 +51,10 @@ from app.notifications.validators import (
     check_service_sms_sender_id,
     validate_and_format_recipient,
     validate_template,
+    validate_template_exists,
 )
 from app.schema_validation import validate
+from app.service.utils import safelisted_members
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
@@ -56,6 +63,7 @@ from app.v2.notifications.create_response import (
     create_post_sms_response_from_notification,
 )
 from app.v2.notifications.notification_schemas import (
+    post_bulk_request,
     post_email_request,
     post_letter_request,
     post_precompiled_letter_request,
@@ -96,6 +104,83 @@ def post_precompiled_letter_notification():
     }
 
     return jsonify(resp), 201
+
+
+@v2_notification_blueprint.route("/bulk", methods=["POST"])
+def post_bulk():
+    try:
+        request_json = request.get_json()
+    except werkzeug.exceptions.BadRequest as e:
+        raise BadRequestError(
+            message="Error decoding arguments: {}".format(e.description),
+            status_code=400,
+        )
+
+    max_rows = current_app.config["CSV_MAX_ROWS"]
+    form = validate(request_json, post_bulk_request(max_rows))
+
+    sources = [form.get("rows"), form.get("csv")]
+    if len([source for source in sources if source]) != 1:
+        raise BadRequestError(
+            message="You should specify either rows or csv",
+            status_code=400,
+        )
+    template = validate_template_exists(form["template_id"], authenticated_service)
+    check_service_has_permission(template.template_type, authenticated_service.permissions)
+
+    sender_id = get_reply_to_text(template.template_type, form, template, form_field="reply_to_id")
+
+    if form.get("rows"):
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerows(form["rows"])
+        file_data = output.getvalue()
+    else:
+        try:
+            file_data = base64.b64decode(form["csv"]).decode("utf-8")
+        except Exception as e:
+            raise BadRequestError(
+                message=f"Error decoding base64 field: {str(e)}",
+                status_code=400,
+            )
+
+    recipient_csv = RecipientCSV(
+        file_data,
+        template_type=template.template_type,
+        placeholders=template._as_utils_template().placeholders,
+        max_rows=max_rows,
+        safelist=safelisted_members(authenticated_service, api_user.key_type),
+    )
+
+    if recipient_csv.has_errors:
+        if recipient_csv.missing_column_headers:
+            raise BadRequestError(
+                message=f"Missing column headers: {', '.join(sorted(recipient_csv.missing_column_headers))}",
+                status_code=400,
+            )
+        if recipient_csv.duplicate_recipient_column_headers:
+            raise BadRequestError(
+                message=f"Duplicate column headers: {', '.join(sorted(recipient_csv.duplicate_recipient_column_headers))}",
+                status_code=400,
+            )
+        if recipient_csv.too_many_rows:
+            raise BadRequestError(
+                message=f"Too many rows. Maximum number of rows allowed is {max_rows}",
+                status_code=400,
+            )
+        if not recipient_csv.allowed_to_send_to:
+            if authenticated_service.restricted:
+                explanation = (
+                    "because your service is in trial mode and you can only send to members of your team and your safelist."
+                )
+            if api_user.key_type == KEY_TYPE_TEAM:
+                explanation = "because you used a team and safelist API key."
+            raise BadRequestError(
+                message=f"You're not allowed to send to these recipients {explanation}",
+                status_code=400,
+            )
+
+    return f"OK {sender_id}", 200
 
 
 @v2_notification_blueprint.route("/<notification_type>", methods=["POST"])
@@ -348,10 +433,10 @@ def process_precompiled_letter_notifications(*, letter_data, api_key, template, 
     return notification
 
 
-def get_reply_to_text(notification_type, form, template):
+def get_reply_to_text(notification_type, form, template, form_field=None):
     reply_to = None
     if notification_type == EMAIL_TYPE:
-        service_email_reply_to_id = form.get("email_reply_to_id", None)
+        service_email_reply_to_id = form.get(form_field or "email_reply_to_id")
         reply_to = (
             check_service_email_reply_to_id(
                 str(authenticated_service.id),
@@ -362,7 +447,7 @@ def get_reply_to_text(notification_type, form, template):
         )
 
     elif notification_type == SMS_TYPE:
-        service_sms_sender_id = form.get("sms_sender_id", None)
+        service_sms_sender_id = form.get(form_field or "sms_sender_id")
         sms_sender_id = check_service_sms_sender_id(str(authenticated_service.id), service_sms_sender_id, notification_type)
         if sms_sender_id:
             reply_to = try_validate_and_format_phone_number(sms_sender_id)

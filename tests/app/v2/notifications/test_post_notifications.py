@@ -1,5 +1,7 @@
 import base64
+import csv
 import uuid
+from io import StringIO
 from unittest.mock import call
 
 import pytest
@@ -25,7 +27,7 @@ from app.v2.notifications.notification_schemas import (
     post_sms_response,
 )
 from tests import create_authorization_header
-from tests.app.conftest import document_download_response
+from tests.app.conftest import document_download_response, sample_template
 from tests.app.db import (
     create_api_key,
     create_reply_to_email,
@@ -34,6 +36,14 @@ from tests.app.db import (
     create_service_with_inbound_number,
     create_template,
 )
+from tests.conftest import set_config
+
+
+def rows_to_base64_csv(rows):
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerows(rows)
+    return base64.b64encode(bytes(output.getvalue(), encoding="utf-8")).decode("ascii")
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
@@ -1179,3 +1189,235 @@ def test_post_notification_returns_400_when_get_json_throws_exception(client, sa
         headers=[("Content-Type", "application/json"), auth_header],
     )
     assert response.status_code == 400
+
+
+@pytest.mark.parametrize("args", [{}, {"rows": [1, 2], "csv": "foo"}], ids=["no args", "both args"])
+def test_post_bulk_with_invalid_data_arguments(
+    client,
+    sample_email_template,
+    args,
+):
+    data = {"template_id": str(sample_email_template.id)} | args
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_email_template.service_id)],
+    )
+
+    assert response.status_code == 400
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["errors"] == [
+        {
+            "error": "BadRequestError",
+            "message": "You should specify either rows or csv",
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    "scheduled_for, expected_message",
+    [
+        (42, "scheduled_for 42 is not of type string, null"),
+        (
+            "foo",
+            "scheduled_for datetime format is invalid. It must be a valid "
+            "ISO8601 date time format, "
+            "https://en.wikipedia.org/wiki/ISO_8601",
+        ),
+        ("2016-01-01T10:04:00", "scheduled_for datetime can not be in the past"),
+        ("2016-01-05T10:06:00", "scheduled_for datetime can only be 96 hours in the future"),
+    ],
+)
+@freeze_time("2016-01-01 10:05:00")
+def test_post_bulk_with_invalid_scheduled_for(client, sample_email_template, scheduled_for, expected_message):
+    data = {"template_id": str(sample_email_template.id), "scheduled_for": scheduled_for, "rows": [1, 2]}
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_email_template.service_id)],
+    )
+
+    assert response.status_code == 400
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["errors"] == [{"error": "ValidationError", "message": expected_message}]
+
+
+def test_post_bulk_with_non_existing_template(client, fake_uuid, sample_email_template):
+    data = {"template_id": fake_uuid, "rows": [1, 2]}
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_email_template.service_id)],
+    )
+
+    assert response.status_code == 400
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["errors"] == [{"error": "BadRequestError", "message": "Template not found"}]
+
+
+def test_post_bulk_with_archived_template(client, fake_uuid, notify_db, notify_db_session):
+    template = sample_template(notify_db, notify_db_session, archived=True)
+    data = {"template_id": template.id, "rows": [1, 2]}
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+    )
+
+    assert response.status_code == 400
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["errors"] == [{"error": "BadRequestError", "message": "Template has been deleted"}]
+
+
+@pytest.mark.parametrize(
+    "permission_type, notification_type, expected_error",
+    [
+        ("email", "sms", "text messages"),
+        ("sms", "email", "emails"),
+    ],
+)
+def test_post_bulk_returns_400_if_not_allowed_to_send_notification_type(
+    notify_db_session,
+    client,
+    permission_type,
+    notification_type,
+    expected_error,
+):
+    service = create_service(service_permissions=[permission_type])
+    sample_template_without_permission = create_template(service=service, template_type=notification_type)
+    data = {"template_id": sample_template_without_permission.id, "rows": [1, 2]}
+    auth_header = create_authorization_header(service_id=sample_template_without_permission.service.id)
+
+    response = client.post(
+        path="/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 400
+    assert response.headers["Content-type"] == "application/json"
+
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["status_code"] == 400
+    assert error_json["errors"] == [
+        {
+            "error": "BadRequestError",
+            "message": f"Service is not allowed to send {expected_error}",
+        }
+    ]
+
+
+@pytest.mark.parametrize("data_type", ["rows", "csv"])
+@pytest.mark.parametrize(
+    "template_type, content, row_header, expected_error",
+    [
+        ("email", "Hello!", ["foo"], "email address"),
+        ("email", "Hello ((name))!", ["foo"], "email address, name"),
+        ("sms", "Hello ((name))!", ["foo"], "name, phone number"),
+        ("sms", "Hello ((name))!", ["foo"], "name, phone number"),
+        ("sms", "Hello ((name))!", ["name"], "phone number"),
+        ("sms", "Hello ((name))!", ["NAME"], "phone number"),
+    ],
+)
+def test_post_bulk_flags_missing_column_headers(
+    client, notify_db, notify_db_session, data_type, template_type, content, row_header, expected_error
+):
+    template = sample_template(notify_db, notify_db_session, content=content, template_type=template_type)
+    data = {"template_id": template.id}
+    rows = [row_header, ["bar"]]
+    if data_type == "csv":
+        data["csv"] = rows_to_base64_csv(rows)
+    else:
+        data["rows"] = rows
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+    )
+
+    assert response.status_code == 400
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["errors"] == [{"error": "BadRequestError", "message": f"Missing column headers: {expected_error}"}]
+
+
+@pytest.mark.parametrize(
+    "template_type, content, row_header, expected_error",
+    [
+        ("email", "Hello!", ["email address", "email address"], "email address"),
+        ("email", "Hello ((name))!", ["email address", "email_address", "name"], "email address, email_address"),
+        ("sms", "Hello!", ["phone number", "phone number"], "phone number"),
+        ("sms", "Hello!", ["phone number", "phone_number"], "phone number, phone_number"),
+        ("sms", "Hello ((name))!", ["phone number", "phone_number", "name"], "phone number, phone_number"),
+    ],
+)
+def test_post_bulk_flags_duplicate_recipient_column_headers(
+    client, notify_db, notify_db_session, template_type, content, row_header, expected_error
+):
+    template = sample_template(notify_db, notify_db_session, content=content, template_type=template_type)
+    data = {"template_id": template.id, "rows": [row_header, ["bar"]]}
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+    )
+
+    assert response.status_code == 400
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["errors"] == [{"error": "BadRequestError", "message": f"Duplicate column headers: {expected_error}"}]
+
+
+def test_post_bulk_flags_too_many_rows(client, sample_email_template, notify_api):
+    data = {
+        "template_id": sample_email_template.id,
+        "csv": rows_to_base64_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
+    }
+
+    with set_config(notify_api, "CSV_MAX_ROWS", 1):
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[
+                ("Content-Type", "application/json"),
+                create_authorization_header(service_id=sample_email_template.service_id),
+            ],
+        )
+
+    assert response.status_code == 400
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["errors"] == [
+        {
+            "error": "BadRequestError",
+            "message": "Too many rows. Maximum number of rows allowed is 1",
+        }
+    ]
+
+
+def test_post_bulk_flags_recipient_not_in_safelist(client, sample_email_template, notify_api):
+    data = {
+        "template_id": sample_email_template.id,
+        "csv": rows_to_base64_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
+    }
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[
+            ("Content-Type", "application/json"),
+            create_authorization_header(service_id=sample_email_template.service_id, key_type="team"),
+        ],
+    )
+
+    assert response.status_code == 400
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["errors"] == [
+        {
+            "error": "BadRequestError",
+            "message": "You're not allowed to send to these recipients because you used a team and safelist API key.",
+        }
+    ]

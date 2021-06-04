@@ -301,7 +301,7 @@ def test_create_job_returns_403_if_letter_template_type_and_service_in_trial(
 
 
 @freeze_time("2016-01-01 11:09:00.061258")
-def test_should_not_create_scheduled_job_more_then_24_hours_hence(client, sample_template, mocker, fake_uuid):
+def test_should_not_create_scheduled_job_too_far_in_the_future(client, sample_template, mocker, fake_uuid):
     scheduled_date = (datetime.utcnow() + timedelta(hours=96, minutes=1)).isoformat()
     mocker.patch("app.celery.tasks.process_job.apply_async")
     mocker.patch(
@@ -330,7 +330,7 @@ def test_should_not_create_scheduled_job_more_then_24_hours_hence(client, sample
     resp_json = json.loads(response.get_data(as_text=True))
     assert resp_json["result"] == "error"
     assert "scheduled_for" in resp_json["message"]
-    assert resp_json["message"]["scheduled_for"] == ["Date cannot be more than 96hrs in the future"]
+    assert resp_json["message"]["scheduled_for"] == ["Date cannot be more than 96 hours in the future"]
 
 
 @freeze_time("2016-01-01 11:09:00.061258")

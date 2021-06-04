@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 
+from flask import current_app
 from flask_marshmallow.fields import fields
 from marshmallow import (
     ValidationError,
@@ -34,8 +35,10 @@ def _validate_positive_number(value, msg="Not a positive integer"):
         raise ValidationError(msg)
 
 
-def _validate_datetime_not_more_than_96_hours_in_future(dte, msg="Date cannot be more than 96hrs in the future"):
-    if dte > datetime.utcnow() + timedelta(hours=96):
+def _validate_datetime_not_too_far_in_future(dte):
+    max_hours = current_app.config["JOBS_MAX_SCHEDULE_HOURS_AHEAD"]
+    if dte > datetime.utcnow() + timedelta(hours=max_hours):
+        msg = f"Date cannot be more than {max_hours} hours in the future"
         raise ValidationError(msg)
 
 
@@ -405,7 +408,7 @@ class JobSchema(BaseSchema):
     @validates("scheduled_for")
     def validate_scheduled_for(self, value):
         _validate_datetime_not_in_past(value)
-        _validate_datetime_not_more_than_96_hours_in_future(value)
+        _validate_datetime_not_too_far_in_future(value)
 
     class Meta(BaseSchema.Meta):
         model = models.Job
