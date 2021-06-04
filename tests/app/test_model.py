@@ -134,7 +134,7 @@ def test_notification_for_csv_returns_correct_job_row_number(sample_job):
         ("email", "permanent-failure", "Email address doesn’t exist"),
         ("sms", "temporary-failure", "Phone not accepting messages right now"),
         ("sms", "permanent-failure", "Phone number doesn’t exist"),
-        ("sms", "sent", "Sent internationally"),
+        ("sms", "sent", "Sent"),
         ("letter", "created", "Accepted"),
         ("letter", "sending", "Accepted"),
         ("letter", "technical-failure", "Technical failure"),
