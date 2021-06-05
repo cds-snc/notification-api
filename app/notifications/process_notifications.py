@@ -125,8 +125,7 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         deliver_task = provider_tasks.deliver_sms
         if notification.sends_with_custom_number():
             deliver_task = provider_tasks.deliver_throttled_sms
-            if not queue:
-                queue = QueueNames.SEND_THROTTLED_SMS
+            queue = QueueNames.SEND_THROTTLED_SMS
         if not queue:
             queue = QueueNames.SEND_SMS
     if notification.notification_type == EMAIL_TYPE:
