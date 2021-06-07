@@ -22,6 +22,7 @@ from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.notifications_dao import update_notification_status_by_reference
+from app.dao.services_dao import fetch_todays_total_message_count
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.letters.utils import upload_letter_pdf
 from app.models import (
@@ -119,8 +120,7 @@ def post_bulk():
     max_rows = current_app.config["CSV_MAX_ROWS"]
     form = validate(request_json, post_bulk_request(max_rows))
 
-    sources = [form.get("rows"), form.get("csv")]
-    if len([source for source in sources if source]) != 1:
+    if len([source for source in [form.get("rows"), form.get("csv")] if source]) != 1:
         raise BadRequestError(
             message="You should specify either rows or csv",
             status_code=400,
@@ -129,56 +129,29 @@ def post_bulk():
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 
     sender_id = get_reply_to_text(template.template_type, form, template, form_field="reply_to_id")
+    remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
 
-    if form.get("rows"):
-        output = StringIO()
-        writer = csv.writer(output)
-        writer.writerows(form["rows"])
-        file_data = output.getvalue()
-    else:
-        try:
-            file_data = base64.b64decode(form["csv"]).decode("utf-8")
-        except Exception as e:
-            raise BadRequestError(
-                message=f"Error decoding base64 field: {str(e)}",
-                status_code=400,
-            )
+    try:
+        if form.get("rows"):
+            output = StringIO()
+            writer = csv.writer(output)
+            writer.writerows(form["rows"])
+            file_data = output.getvalue()
+        else:
+            file_data = form["csv"]
 
-    recipient_csv = RecipientCSV(
-        file_data,
-        template_type=template.template_type,
-        placeholders=template._as_utils_template().placeholders,
-        max_rows=max_rows,
-        safelist=safelisted_members(authenticated_service, api_user.key_type),
-    )
+        recipient_csv = RecipientCSV(
+            file_data,
+            template_type=template.template_type,
+            placeholders=template._as_utils_template().placeholders,
+            max_rows=max_rows,
+            safelist=safelisted_members(authenticated_service, api_user.key_type),
+            remaining_messages=remaining_messages,
+        )
+    except csv.Error as e:
+        raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
-    if recipient_csv.has_errors:
-        if recipient_csv.missing_column_headers:
-            raise BadRequestError(
-                message=f"Missing column headers: {', '.join(sorted(recipient_csv.missing_column_headers))}",
-                status_code=400,
-            )
-        if recipient_csv.duplicate_recipient_column_headers:
-            raise BadRequestError(
-                message=f"Duplicate column headers: {', '.join(sorted(recipient_csv.duplicate_recipient_column_headers))}",
-                status_code=400,
-            )
-        if recipient_csv.too_many_rows:
-            raise BadRequestError(
-                message=f"Too many rows. Maximum number of rows allowed is {max_rows}",
-                status_code=400,
-            )
-        if not recipient_csv.allowed_to_send_to:
-            if authenticated_service.restricted:
-                explanation = (
-                    "because your service is in trial mode and you can only send to members of your team and your safelist."
-                )
-            if api_user.key_type == KEY_TYPE_TEAM:
-                explanation = "because you used a team and safelist API key."
-            raise BadRequestError(
-                message=f"You're not allowed to send to these recipients {explanation}",
-                status_code=400,
-            )
+    check_for_csv_errors(recipient_csv, max_rows, remaining_messages)
 
     return f"OK {sender_id}", 200
 
@@ -462,3 +435,59 @@ def get_reply_to_text(notification_type, form, template, form_field=None):
 
 def strip_keys_from_personalisation_if_send_attach(personalisation):
     return {k: v for (k, v) in personalisation.items() if not (type(v) is dict and v.get("sending_method") == "attach")}
+
+
+def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
+    nb_rows = len(recipient_csv)
+
+    if recipient_csv.has_errors:
+        if recipient_csv.missing_column_headers:
+            raise BadRequestError(
+                message=f"Missing column headers: {', '.join(sorted(recipient_csv.missing_column_headers))}",
+                status_code=400,
+            )
+        if recipient_csv.duplicate_recipient_column_headers:
+            raise BadRequestError(
+                message=f"Duplicate column headers: {', '.join(sorted(recipient_csv.duplicate_recipient_column_headers))}",
+                status_code=400,
+            )
+        if recipient_csv.more_rows_than_can_send:
+            raise BadRequestError(
+                message=f"You can only send up to {remaining_messages} remaining messages today and you tried to send {nb_rows} messages.",
+                status_code=400,
+            )
+
+        if recipient_csv.too_many_rows:
+            raise BadRequestError(
+                message=f"Too many rows. Maximum number of rows allowed is {max_rows}",
+                status_code=400,
+            )
+        if not recipient_csv.allowed_to_send_to:
+            if api_user.key_type == KEY_TYPE_TEAM:
+                explanation = "because you used a team and safelist API key."
+            if authenticated_service.restricted:
+                explanation = (
+                    "because your service is in trial mode and you can only send to members of your team and your safelist."
+                )
+            raise BadRequestError(
+                message=f"You're not allowed to send to these recipients {explanation}",
+                status_code=400,
+            )
+        if recipient_csv.rows_with_errors:
+
+            def row_error(row):
+                res = []
+                for header in [header for header in recipient_csv.column_headers if row[header].error]:
+                    if row[header].recipient_error:
+                        res.append(f"`{header}`: invalid recipient")
+                    else:
+                        res.append(f"`{header}`: {row[header].error}")
+                return f"Row {row.index} - {','.join(res)}"
+
+            errors = ". ".join([row_error(row) for row in recipient_csv.initial_rows_with_errors])
+            raise BadRequestError(
+                message=f"Some rows have errors. {errors}.",
+                status_code=400,
+            )
+        else:
+            raise NotImplementedError(f"Got errors but code did not handle")

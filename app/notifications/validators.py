@@ -203,30 +203,30 @@ def check_sms_content_char_count(content_count):
 
 
 def validate_template_exists(template_id, service):
-    try:
-        template = templates_dao.dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service.id)
-    except NoResultFound:
-        message = "Template not found"
-        raise BadRequestError(message=message, fields=[{"template": message}])
-
+    template = check_template_exists_by_id_and_service(template_id, service)
     check_template_is_active(template)
 
     return template
 
 
 def validate_template(template_id, personalisation, service, notification_type):
-    try:
-        template = templates_dao.dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service.id)
-    except NoResultFound:
-        message = "Template not found"
-        raise BadRequestError(message=message, fields=[{"template": message}])
-
+    template = check_template_exists_by_id_and_service(template_id, service)
     check_template_is_for_notification_type(notification_type, template.template_type)
     check_template_is_active(template)
+
     template_with_content = create_content_for_notification(template, personalisation)
     if template.template_type == SMS_TYPE:
         check_sms_content_char_count(template_with_content.content_count)
+
     return template, template_with_content
+
+
+def check_template_exists_by_id_and_service(template_id, service):
+    try:
+        return templates_dao.dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service.id)
+    except NoResultFound:
+        message = "Template not found"
+        raise BadRequestError(message=message, fields=[{"template": message}])
 
 
 def check_reply_to(service_id, reply_to_id, type_):

@@ -39,11 +39,11 @@ from tests.app.db import (
 from tests.conftest import set_config
 
 
-def rows_to_base64_csv(rows):
+def rows_to_csv(rows):
     output = StringIO()
     writer = csv.writer(output)
     writer.writerows(rows)
-    return base64.b64encode(bytes(output.getvalue(), encoding="utf-8")).decode("ascii")
+    return output.getvalue()
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
@@ -386,10 +386,7 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
     if notification_type == "sms":
         data = {"phone_number": recipient, "template_id": str(sample_template.id)}
     else:
-        data = {
-            "email_address": recipient,
-            "template_id": str(sample_email_template.id),
-        }
+        data = {"email_address": recipient, "template_id": str(sample_email_template.id)}
 
     auth_header = create_authorization_header(service_id=sample_email_template.service_id)
 
@@ -1330,7 +1327,7 @@ def test_post_bulk_flags_missing_column_headers(
     data = {"template_id": template.id}
     rows = [row_header, ["bar"]]
     if data_type == "csv":
-        data["csv"] = rows_to_base64_csv(rows)
+        data["csv"] = rows_to_csv(rows)
     else:
         data["rows"] = rows
 
@@ -1348,15 +1345,41 @@ def test_post_bulk_flags_missing_column_headers(
 @pytest.mark.parametrize(
     "template_type, content, row_header, expected_error",
     [
-        ("email", "Hello!", ["email address", "email address"], "email address"),
-        ("email", "Hello ((name))!", ["email address", "email_address", "name"], "email address, email_address"),
+        (
+            "email",
+            "Hello!",
+            ["email address", "email address"],
+            "email address",
+        ),
+        (
+            "email",
+            "Hello ((name))!",
+            ["email address", "email_address", "name"],
+            "email address, email_address",
+        ),
         ("sms", "Hello!", ["phone number", "phone number"], "phone number"),
-        ("sms", "Hello!", ["phone number", "phone_number"], "phone number, phone_number"),
-        ("sms", "Hello ((name))!", ["phone number", "phone_number", "name"], "phone number, phone_number"),
+        (
+            "sms",
+            "Hello!",
+            ["phone number", "phone_number"],
+            "phone number, phone_number",
+        ),
+        (
+            "sms",
+            "Hello ((name))!",
+            ["phone number", "phone_number", "name"],
+            "phone number, phone_number",
+        ),
     ],
 )
 def test_post_bulk_flags_duplicate_recipient_column_headers(
-    client, notify_db, notify_db_session, template_type, content, row_header, expected_error
+    client,
+    notify_db,
+    notify_db_session,
+    template_type,
+    content,
+    row_header,
+    expected_error,
 ):
     template = sample_template(notify_db, notify_db_session, content=content, template_type=template_type)
     data = {"template_id": template.id, "rows": [row_header, ["bar"]]}
@@ -1375,7 +1398,7 @@ def test_post_bulk_flags_duplicate_recipient_column_headers(
 def test_post_bulk_flags_too_many_rows(client, sample_email_template, notify_api):
     data = {
         "template_id": sample_email_template.id,
-        "csv": rows_to_base64_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
+        "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
     }
 
     with set_config(notify_api, "CSV_MAX_ROWS", 1):
@@ -1398,10 +1421,10 @@ def test_post_bulk_flags_too_many_rows(client, sample_email_template, notify_api
     ]
 
 
-def test_post_bulk_flags_recipient_not_in_safelist(client, sample_email_template, notify_api):
+def test_post_bulk_flags_recipient_not_in_safelist_with_team_api_key(client, sample_email_template):
     data = {
         "template_id": sample_email_template.id,
-        "csv": rows_to_base64_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
+        "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
     }
 
     response = client.post(
@@ -1419,5 +1442,91 @@ def test_post_bulk_flags_recipient_not_in_safelist(client, sample_email_template
         {
             "error": "BadRequestError",
             "message": "You're not allowed to send to these recipients because you used a team and safelist API key.",
+        }
+    ]
+
+
+def test_post_bulk_flags_recipient_not_in_safelist_with_restricted_service(client, notify_db, notify_db_session):
+    service = create_service(restricted=True)
+    template = sample_template(notify_db, notify_db_session, service=service, template_type="email")
+    data = {
+        "template_id": template.id,
+        "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
+    }
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[
+            ("Content-Type", "application/json"),
+            create_authorization_header(service_id=template.service_id, key_type="team"),
+        ],
+    )
+
+    assert response.status_code == 400
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["errors"] == [
+        {
+            "error": "BadRequestError",
+            "message": "You're not allowed to send to these recipients because your service is in trial mode and you can only send to members of your team and your safelist.",
+        }
+    ]
+
+
+def test_post_bulk_flags_not_enough_remaining_messages(client, notify_db, notify_db_session, mocker):
+    service = create_service(message_limit=10)
+    template = sample_template(notify_db, notify_db_session, service=service, template_type="email")
+    messages_count_mock = mocker.patch("app.v2.notifications.post_notifications.fetch_todays_total_message_count", return_value=9)
+    data = {
+        "template_id": template.id,
+        "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
+    }
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+    )
+
+    assert response.status_code == 400
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["errors"] == [
+        {
+            "error": "BadRequestError",
+            "message": "You can only send up to 1 remaining messages today and you tried to send 2 messages.",
+        }
+    ]
+    messages_count_mock.assert_called_once()
+
+
+@pytest.mark.parametrize("data_type", ["rows", "csv"])
+def test_post_bulk_flags_rows_with_errors(client, notify_db, notify_db_session, data_type):
+    template = sample_template(notify_db, notify_db_session, template_type="email", content="Hello ((name))")
+    data = {"template_id": template.id}
+    rows = [
+        ["email address", "name"],
+        ["foo@example.com", "Foo"],
+        ["bar@example.com"],
+        ["nope", "nope"],
+        ["baz@example.com", ""],
+        ["baz@example.com", " "],
+    ]
+    if data_type == "csv":
+        data["csv"] = rows_to_csv(rows)
+    else:
+        data["rows"] = rows
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+    )
+
+    assert response.status_code == 400
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["errors"] == [
+        {
+            "error": "BadRequestError",
+            "message": "Some rows have errors. Row 1 - `name`: Missing. Row 2 - `email address`: invalid recipient. Row 3 - `name`: Missing. Row 4 - `name`: Missing.",
         }
     ]
