@@ -134,7 +134,6 @@ def post_bulk():
     template = validate_template_exists(form["template_id"], authenticated_service)
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 
-    sender_id = get_reply_to_text(template.template_type, form, template, form_field="reply_to_id")
     remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
 
     try:
@@ -158,26 +157,7 @@ def post_bulk():
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
     check_for_csv_errors(recipient_csv, max_rows, remaining_messages)
-    upload_id = upload_job_to_s3(authenticated_service.id, recipient_csv.file_data)
-    data = {
-        "id": upload_id,
-        "service": authenticated_service.id,
-        "template": template.id,
-        "notification_count": len(recipient_csv),
-        "template_version": template.version,
-        "job_status": JOB_STATUS_PENDING,
-        "original_file_name": form.get("name"),
-        "created_by": current_app.config["NOTIFY_USER_ID"],
-    }
-    if form.get("scheduled_for"):
-        data["job_status"] = JOB_STATUS_SCHEDULED
-        data["scheduled_for"] = form.get("scheduled_for")
-
-    job = job_schema.load(data).data
-    dao_create_job(job)
-
-    if job.job_status == JOB_STATUS_PENDING:
-        process_job.apply_async([str(job.id)], {"sender_id": sender_id}, queue=QueueNames.JOBS)
+    job = create_bulk_job(authenticated_service, template, form, recipient_csv)
 
     return jsonify(data=job_schema.dump(job).data), 201
 
@@ -517,3 +497,29 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
             )
         else:
             raise NotImplementedError("Got errors but code did not handle")
+
+
+def create_bulk_job(service, template, form, recipient_csv):
+    upload_id = upload_job_to_s3(service.id, recipient_csv.file_data)
+    data = {
+        "id": upload_id,
+        "service": service.id,
+        "template": template.id,
+        "notification_count": len(recipient_csv),
+        "template_version": template.version,
+        "job_status": JOB_STATUS_PENDING,
+        "original_file_name": form.get("name"),
+        "created_by": current_app.config["NOTIFY_USER_ID"],
+    }
+    if form.get("scheduled_for"):
+        data["job_status"] = JOB_STATUS_SCHEDULED
+        data["scheduled_for"] = form.get("scheduled_for")
+
+    job = job_schema.load(data).data
+    dao_create_job(job)
+
+    if job.job_status == JOB_STATUS_PENDING:
+        sender_id = get_reply_to_text(template.template_type, form, template, form_field="reply_to_id")
+        process_job.apply_async([str(job.id)], {"sender_id": sender_id}, queue=QueueNames.JOBS)
+
+    return job

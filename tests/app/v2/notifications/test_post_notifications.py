@@ -17,7 +17,6 @@ from app.models import (
     SCHEDULE_NOTIFICATIONS,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
-    Job,
     Notification,
     ScheduledNotification,
 )
