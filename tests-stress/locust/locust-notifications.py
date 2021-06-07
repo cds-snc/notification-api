@@ -1,6 +1,7 @@
-from dotenv import load_dotenv
-from locust import HttpUser, task, constant_pacing
 import os
+
+from dotenv import load_dotenv
+from locust import HttpUser, constant_pacing, task
 
 load_dotenv()
 API_KEY = os.getenv("TEST_API_KEY")
