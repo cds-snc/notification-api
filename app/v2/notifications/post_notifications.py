@@ -17,16 +17,21 @@ from app import (
     notify_celery,
     statsd_client,
 )
+from app.aws.s3 import upload_job_to_s3
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
+from app.celery.tasks import process_job
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
+from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.services_dao import fetch_todays_total_message_count
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.letters.utils import upload_letter_pdf
 from app.models import (
     EMAIL_TYPE,
+    JOB_STATUS_PENDING,
+    JOB_STATUS_SCHEDULED,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     LETTER_TYPE,
@@ -55,6 +60,7 @@ from app.notifications.validators import (
     validate_template_exists,
 )
 from app.schema_validation import validate
+from app.schemas import job_schema
 from app.service.utils import safelisted_members
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
@@ -152,8 +158,28 @@ def post_bulk():
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
     check_for_csv_errors(recipient_csv, max_rows, remaining_messages)
+    upload_id = upload_job_to_s3(authenticated_service.id, recipient_csv.file_data)
+    data = {
+        "id": upload_id,
+        "service": authenticated_service.id,
+        "template": template.id,
+        "notification_count": len(recipient_csv),
+        "template_version": template.version,
+        "job_status": JOB_STATUS_PENDING,
+        "original_file_name": form.get("name"),
+        "created_by": current_app.config["NOTIFY_USER_ID"],
+    }
+    if form.get("scheduled_for"):
+        data["job_status"] = JOB_STATUS_SCHEDULED
+        data["scheduled_for"] = form.get("scheduled_for")
 
-    return f"OK {sender_id}", 200
+    job = job_schema.load(data).data
+    dao_create_job(job)
+
+    if job.job_status == JOB_STATUS_PENDING:
+        process_job.apply_async([str(job.id)], {"sender_id": sender_id}, queue=QueueNames.JOBS)
+
+    return jsonify(data=job_schema.dump(job).data), 201
 
 
 @v2_notification_blueprint.route("/<notification_type>", methods=["POST"])
@@ -490,4 +516,4 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 status_code=400,
             )
         else:
-            raise NotImplementedError(f"Got errors but code did not handle")
+            raise NotImplementedError("Got errors but code did not handle")

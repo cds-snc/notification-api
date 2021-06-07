@@ -294,7 +294,8 @@ def post_bulk_request(limit):
                 "binaryEncoding": "base64",
             },
             "rows": {"type": "array", "maxItems": limit + 1, "minItems": 2},
+            "name": {"type": "string"},
         },
-        "required": ["template_id"],
+        "required": ["template_id", "name"],
         "additionalProperties": False,
     }

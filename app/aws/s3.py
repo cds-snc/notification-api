@@ -1,9 +1,11 @@
+import uuid
 from datetime import datetime, timedelta
 
 import botocore
 import pytz
 from boto3 import client, resource
 from flask import current_app
+from notifications_utils.s3 import s3upload as utils_s3upload
 
 FILE_LOCATION_STRUCTURE = "service-{}-notify/{}.csv"
 
@@ -34,6 +36,18 @@ def get_job_location(service_id, job_id):
         current_app.config["CSV_UPLOAD_BUCKET_NAME"],
         FILE_LOCATION_STRUCTURE.format(service_id, job_id),
     )
+
+
+def upload_job_to_s3(service_id, file_data):
+    upload_id = str(uuid.uuid4())
+    bucket, location = get_job_location(service_id, upload_id)
+    utils_s3upload(
+        filedata=file_data,
+        region=current_app.config["AWS_REGION"],
+        bucket_name=bucket,
+        file_location=location,
+    )
+    return upload_id
 
 
 def get_job_from_s3(service_id, job_id):

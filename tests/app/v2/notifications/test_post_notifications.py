@@ -8,6 +8,7 @@ import pytest
 from flask import current_app, json
 from freezegun import freeze_time
 
+from app.dao.jobs_dao import dao_get_job_by_id
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
     EMAIL_TYPE,
@@ -16,6 +17,7 @@ from app.models import (
     SCHEDULE_NOTIFICATIONS,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
+    Job,
     Notification,
     ScheduledNotification,
 )
@@ -1194,7 +1196,7 @@ def test_post_bulk_with_invalid_data_arguments(
     sample_email_template,
     args,
 ):
-    data = {"template_id": str(sample_email_template.id)} | args
+    data = {"name": "job_name", "template_id": str(sample_email_template.id)} | args
 
     response = client.post(
         "/v2/notifications/bulk",
@@ -1210,6 +1212,20 @@ def test_post_bulk_with_invalid_data_arguments(
             "message": "You should specify either rows or csv",
         }
     ]
+
+
+def test_post_bulk_flags_if_name_is_missing(client, sample_email_template):
+    data = {"template_id": str(sample_email_template.id), "csv": "foo"}
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_email_template.service_id)],
+    )
+
+    assert response.status_code == 400
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["errors"] == [{"error": "ValidationError", "message": "name is a required property"}]
 
 
 @pytest.mark.parametrize(
@@ -1228,7 +1244,7 @@ def test_post_bulk_with_invalid_data_arguments(
 )
 @freeze_time("2016-01-01 10:05:00")
 def test_post_bulk_with_invalid_scheduled_for(client, sample_email_template, scheduled_for, expected_message):
-    data = {"template_id": str(sample_email_template.id), "scheduled_for": scheduled_for, "rows": [1, 2]}
+    data = {"name": "job_name", "template_id": str(sample_email_template.id), "scheduled_for": scheduled_for, "rows": [1, 2]}
 
     response = client.post(
         "/v2/notifications/bulk",
@@ -1242,7 +1258,7 @@ def test_post_bulk_with_invalid_scheduled_for(client, sample_email_template, sch
 
 
 def test_post_bulk_with_non_existing_template(client, fake_uuid, sample_email_template):
-    data = {"template_id": fake_uuid, "rows": [1, 2]}
+    data = {"name": "job_name", "template_id": fake_uuid, "rows": [1, 2]}
 
     response = client.post(
         "/v2/notifications/bulk",
@@ -1257,7 +1273,7 @@ def test_post_bulk_with_non_existing_template(client, fake_uuid, sample_email_te
 
 def test_post_bulk_with_archived_template(client, fake_uuid, notify_db, notify_db_session):
     template = sample_template(notify_db, notify_db_session, archived=True)
-    data = {"template_id": template.id, "rows": [1, 2]}
+    data = {"name": "job_name", "template_id": template.id, "rows": [1, 2]}
 
     response = client.post(
         "/v2/notifications/bulk",
@@ -1286,7 +1302,7 @@ def test_post_bulk_returns_400_if_not_allowed_to_send_notification_type(
 ):
     service = create_service(service_permissions=[permission_type])
     sample_template_without_permission = create_template(service=service, template_type=notification_type)
-    data = {"template_id": sample_template_without_permission.id, "rows": [1, 2]}
+    data = {"name": "job_name", "template_id": sample_template_without_permission.id, "rows": [1, 2]}
     auth_header = create_authorization_header(service_id=sample_template_without_permission.service.id)
 
     response = client.post(
@@ -1324,7 +1340,7 @@ def test_post_bulk_flags_missing_column_headers(
     client, notify_db, notify_db_session, data_type, template_type, content, row_header, expected_error
 ):
     template = sample_template(notify_db, notify_db_session, content=content, template_type=template_type)
-    data = {"template_id": template.id}
+    data = {"name": "job_name", "template_id": template.id}
     rows = [row_header, ["bar"]]
     if data_type == "csv":
         data["csv"] = rows_to_csv(rows)
@@ -1382,7 +1398,7 @@ def test_post_bulk_flags_duplicate_recipient_column_headers(
     expected_error,
 ):
     template = sample_template(notify_db, notify_db_session, content=content, template_type=template_type)
-    data = {"template_id": template.id, "rows": [row_header, ["bar"]]}
+    data = {"name": "job_name", "template_id": template.id, "rows": [row_header, ["bar"]]}
 
     response = client.post(
         "/v2/notifications/bulk",
@@ -1397,6 +1413,7 @@ def test_post_bulk_flags_duplicate_recipient_column_headers(
 
 def test_post_bulk_flags_too_many_rows(client, sample_email_template, notify_api):
     data = {
+        "name": "job_name",
         "template_id": sample_email_template.id,
         "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
     }
@@ -1423,6 +1440,7 @@ def test_post_bulk_flags_too_many_rows(client, sample_email_template, notify_api
 
 def test_post_bulk_flags_recipient_not_in_safelist_with_team_api_key(client, sample_email_template):
     data = {
+        "name": "job_name",
         "template_id": sample_email_template.id,
         "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
     }
@@ -1450,6 +1468,7 @@ def test_post_bulk_flags_recipient_not_in_safelist_with_restricted_service(clien
     service = create_service(restricted=True)
     template = sample_template(notify_db, notify_db_session, service=service, template_type="email")
     data = {
+        "name": "job_name",
         "template_id": template.id,
         "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
     }
@@ -1478,6 +1497,7 @@ def test_post_bulk_flags_not_enough_remaining_messages(client, notify_db, notify
     template = sample_template(notify_db, notify_db_session, service=service, template_type="email")
     messages_count_mock = mocker.patch("app.v2.notifications.post_notifications.fetch_todays_total_message_count", return_value=9)
     data = {
+        "name": "job_name",
         "template_id": template.id,
         "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
     }
@@ -1502,7 +1522,7 @@ def test_post_bulk_flags_not_enough_remaining_messages(client, notify_db, notify
 @pytest.mark.parametrize("data_type", ["rows", "csv"])
 def test_post_bulk_flags_rows_with_errors(client, notify_db, notify_db_session, data_type):
     template = sample_template(notify_db, notify_db_session, template_type="email", content="Hello ((name))")
-    data = {"template_id": template.id}
+    data = {"name": "job_name", "template_id": template.id}
     rows = [
         ["email address", "name"],
         ["foo@example.com", "Foo"],
@@ -1530,3 +1550,40 @@ def test_post_bulk_flags_rows_with_errors(client, notify_db, notify_db_session, 
             "message": "Some rows have errors. Row 1 - `name`: Missing. Row 2 - `email address`: invalid recipient. Row 3 - `name`: Missing. Row 4 - `name`: Missing.",
         }
     ]
+
+
+@pytest.mark.parametrize("data_type", ["rows", "csv"])
+def test_post_bulk_creates_job_and_dispatches_celery_task(
+    client, sample_email_template, mocker, notify_user, notify_api, data_type
+):
+    data = {"name": "job_name", "template_id": sample_email_template.id}
+    rows = [["email address"], ["foo@example.com"]]
+    if data_type == "csv":
+        data["csv"] = rows_to_csv(rows)
+    else:
+        data["rows"] = rows
+
+    job_id = str(uuid.uuid4())
+    upload_to_s3 = mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
+    process_job = mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_email_template.service_id)],
+    )
+
+    upload_to_s3.assert_called_once_with(sample_email_template.service_id, "email address\r\nfoo@example.com")
+    process_job.assert_called_once_with([str(job_id)], {"sender_id": None}, queue="job-tasks")
+
+    job = dao_get_job_by_id(job_id)
+    assert str(job.id) == job_id
+    assert job.service_id == sample_email_template.service_id
+    assert job.template_id == sample_email_template.id
+    assert job.notification_count == 1
+    assert job.template_version == sample_email_template.version
+    assert job.job_status == "pending"
+    assert job.original_file_name == "job_name"
+    assert job.scheduled_for is None
+
+    assert response.status_code == 201
