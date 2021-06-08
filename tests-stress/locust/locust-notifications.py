@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from locust import HttpUser, constant_pacing, task
 
 load_dotenv()
-API_KEY = os.getenv("TEST_API_KEY")
+AUTH_HEADER = os.getenv("TEST_AUTH_HEADER")
 
 
 class NotifyApiUser(HttpUser):
@@ -14,7 +14,7 @@ class NotifyApiUser(HttpUser):
 
     @task
     def send_notifications(self):
-        headers = {"Authorization": API_KEY, "Content-Type": "application/json"}
+        headers = {"Authorization": AUTH_HEADER}
         json = {
             "email_address": "success@simulator.amazonses.com",
             "template_id": "9c17633c-126a-4ad3-ad2f-b14c3a85314a",

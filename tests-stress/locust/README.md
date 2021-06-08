@@ -24,7 +24,9 @@ There is an override system that [Locust implements with configuration parameter
 ~/locust.conf -> ./locust.conf -> (file specified using --conf) -> env vars -> cmd args
 ```
 
-The current directory has a *locust.conf* file where default configuration values are defined.
+Latest values read will override previous ones, hence command-line arguments will take precedence over everything.
+
+The current directory has a `locust.conf` file where default configuration values are defined.
 
 Note that the `host` value can also be defined within the `User` classes such as found in the `locust-notifications.py` file. This overriden value from its parent is the default values but will be overriden by the enumerated mechanism above.
 
