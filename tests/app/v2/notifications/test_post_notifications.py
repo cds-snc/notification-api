@@ -1562,6 +1562,7 @@ def test_post_bulk_creates_job_and_dispatches_celery_task(
     else:
         data["rows"] = rows
 
+    api_key = create_api_key(service=sample_email_template.service)
     job_id = str(uuid.uuid4())
     upload_to_s3 = mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
     process_job = mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
@@ -1584,5 +1585,31 @@ def test_post_bulk_creates_job_and_dispatches_celery_task(
     assert job.job_status == "pending"
     assert job.original_file_name == "job_name"
     assert job.scheduled_for is None
+    assert job.api_key_id == api_key.id
 
     assert response.status_code == 201
+
+    assert json.loads(response.get_data(as_text=True)) == {
+        "data": {
+            "api_key": {
+                "id": str(api_key.id),
+                "key_type": "normal",
+                "name": api_key.name,
+            },
+            "archived": False,
+            "created_at": f"{job.created_at.isoformat()}+00:00",
+            "created_by": {"id": str(notify_user.id), "name": notify_user.name},
+            "id": job_id,
+            "job_status": "pending",
+            "notification_count": 1,
+            "original_file_name": "job_name",
+            "processing_finished": None,
+            "processing_started": None,
+            "scheduled_for": None,
+            "service": str(sample_email_template.service_id),
+            "service_name": {"name": sample_email_template.service.name},
+            "template": str(sample_email_template.id),
+            "template_version": sample_email_template.version,
+            "updated_at": None,
+        }
+    }

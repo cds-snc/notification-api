@@ -157,7 +157,7 @@ def post_bulk():
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
     check_for_csv_errors(recipient_csv, max_rows, remaining_messages)
-    job = create_bulk_job(authenticated_service, template, form, recipient_csv)
+    job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
     return jsonify(data=job_schema.dump(job).data), 201
 
@@ -499,7 +499,7 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
             raise NotImplementedError("Got errors but code did not handle")
 
 
-def create_bulk_job(service, template, form, recipient_csv):
+def create_bulk_job(service, api_key, template, form, recipient_csv):
     upload_id = upload_job_to_s3(service.id, recipient_csv.file_data)
     data = {
         "id": upload_id,
@@ -510,6 +510,7 @@ def create_bulk_job(service, template, form, recipient_csv):
         "job_status": JOB_STATUS_PENDING,
         "original_file_name": form.get("name"),
         "created_by": current_app.config["NOTIFY_USER_ID"],
+        "api_key": api_key.id,
     }
     if form.get("scheduled_for"):
         data["job_status"] = JOB_STATUS_SCHEDULED

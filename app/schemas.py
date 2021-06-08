@@ -393,6 +393,14 @@ class JobSchema(BaseSchema):
         dump_only=True,
     )
     created_by = field_for(models.Job, "created_by", required=True, load_only=True)
+    api_key_details = fields.Nested(
+        ApiKeySchema,
+        attribute="api_key",
+        dump_to="api_key",
+        only=["id", "name", "key_type"],
+        dump_only=True,
+    )
+    api_key = field_for(models.Job, "api_key", required=False, load_only=True)
 
     job_status = field_for(models.JobStatus, "name", required=False)
 
