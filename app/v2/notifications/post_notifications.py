@@ -482,13 +482,13 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
         if recipient_csv.rows_with_errors:
 
             def row_error(row):
-                res = []
+                content = []
                 for header in [header for header in recipient_csv.column_headers if row[header].error]:
                     if row[header].recipient_error:
-                        res.append(f"`{header}`: invalid recipient")
+                        content.append(f"`{header}`: invalid recipient")
                     else:
-                        res.append(f"`{header}`: {row[header].error}")
-                return f"Row {row.index} - {','.join(res)}"
+                        content.append(f"`{header}`: {row[header].error}")
+                return f"Row {row.index} - {','.join(content)}"
 
             errors = ". ".join([row_error(row) for row in recipient_csv.initial_rows_with_errors])
             raise BadRequestError(
@@ -501,6 +501,8 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
 
 def create_bulk_job(service, api_key, template, form, recipient_csv):
     upload_id = upload_job_to_s3(service.id, recipient_csv.file_data)
+    sender_id = get_reply_to_text(template.template_type, form, template, form_field="reply_to_id")
+
     data = {
         "id": upload_id,
         "service": service.id,
@@ -511,6 +513,7 @@ def create_bulk_job(service, api_key, template, form, recipient_csv):
         "original_file_name": form.get("name"),
         "created_by": current_app.config["NOTIFY_USER_ID"],
         "api_key": api_key.id,
+        "sender_id": sender_id,
     }
     if form.get("scheduled_for"):
         data["job_status"] = JOB_STATUS_SCHEDULED
@@ -520,7 +523,6 @@ def create_bulk_job(service, api_key, template, form, recipient_csv):
     dao_create_job(job)
 
     if job.job_status == JOB_STATUS_PENDING:
-        sender_id = get_reply_to_text(template.template_type, form, template, form_field="reply_to_id")
-        process_job.apply_async([str(job.id)], {"sender_id": sender_id}, queue=QueueNames.JOBS)
+        process_job.apply_async([str(job.id)], queue=QueueNames.JOBS)
 
     return job

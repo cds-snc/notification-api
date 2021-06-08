@@ -82,6 +82,7 @@ from app.utils import get_csv_max_rows
 def process_job(job_id, sender_id=None):
     start = datetime.utcnow()
     job = dao_get_job_by_id(job_id)
+    sender_id = str(job.sender_id) if job.sender_id else sender_id
 
     if job.job_status != JOB_STATUS_PENDING:
         return

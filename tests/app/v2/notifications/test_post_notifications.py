@@ -1,6 +1,7 @@
 import base64
 import csv
 import uuid
+from datetime import datetime, timedelta
 from io import StringIO
 from unittest.mock import call
 
@@ -1552,8 +1553,10 @@ def test_post_bulk_flags_rows_with_errors(client, notify_db, notify_db_session, 
 
 
 @pytest.mark.parametrize("data_type", ["rows", "csv"])
+@pytest.mark.parametrize("is_scheduled", [True, False])
+@pytest.mark.parametrize("use_sender_id", [True, False])
 def test_post_bulk_creates_job_and_dispatches_celery_task(
-    client, sample_email_template, mocker, notify_user, notify_api, data_type
+    client, sample_email_template, mocker, notify_user, notify_api, data_type, is_scheduled, use_sender_id
 ):
     data = {"name": "job_name", "template_id": sample_email_template.id}
     rows = [["email address"], ["foo@example.com"]]
@@ -1561,6 +1564,10 @@ def test_post_bulk_creates_job_and_dispatches_celery_task(
         data["csv"] = rows_to_csv(rows)
     else:
         data["rows"] = rows
+
+    if is_scheduled:
+        scheduled_for = datetime.utcnow() + timedelta(days=1)
+        data["scheduled_for"] = scheduled_for.isoformat()
 
     api_key = create_api_key(service=sample_email_template.service)
     job_id = str(uuid.uuid4())
@@ -1574,7 +1581,10 @@ def test_post_bulk_creates_job_and_dispatches_celery_task(
     )
 
     upload_to_s3.assert_called_once_with(sample_email_template.service_id, "email address\r\nfoo@example.com")
-    process_job.assert_called_once_with([str(job_id)], {"sender_id": None}, queue="job-tasks")
+    if not is_scheduled:
+        process_job.assert_called_once_with([str(job_id)], queue="job-tasks")
+    else:
+        process_job.assert_not_called()
 
     job = dao_get_job_by_id(job_id)
     assert str(job.id) == job_id
@@ -1582,10 +1592,14 @@ def test_post_bulk_creates_job_and_dispatches_celery_task(
     assert job.template_id == sample_email_template.id
     assert job.notification_count == 1
     assert job.template_version == sample_email_template.version
-    assert job.job_status == "pending"
+    assert job.job_status == "scheduled" if is_scheduled else "pending"
     assert job.original_file_name == "job_name"
-    assert job.scheduled_for is None
+    if is_scheduled:
+        assert job.scheduled_for == scheduled_for
+    else:
+        assert job.scheduled_for is None
     assert job.api_key_id == api_key.id
+    assert job.sender_id is None
 
     assert response.status_code == 201
 
@@ -1600,16 +1614,17 @@ def test_post_bulk_creates_job_and_dispatches_celery_task(
             "created_at": f"{job.created_at.isoformat()}+00:00",
             "created_by": {"id": str(notify_user.id), "name": notify_user.name},
             "id": job_id,
-            "job_status": "pending",
+            "job_status": "scheduled" if is_scheduled else "pending",
             "notification_count": 1,
             "original_file_name": "job_name",
             "processing_finished": None,
             "processing_started": None,
-            "scheduled_for": None,
+            "scheduled_for": f"{scheduled_for.isoformat()}+00:00" if is_scheduled else None,
             "service": str(sample_email_template.service_id),
             "service_name": {"name": sample_email_template.service.name},
             "template": str(sample_email_template.id),
             "template_version": sample_email_template.version,
             "updated_at": None,
+            "sender_id": None,
         }
     }

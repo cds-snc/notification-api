@@ -412,6 +412,7 @@ class JobSchema(BaseSchema):
         only=["name"],
         dump_only=True,
     )
+    sender_id = fields.UUID(required=False, allow_none=True)
 
     @validates("scheduled_for")
     def validate_scheduled_for(self, value):

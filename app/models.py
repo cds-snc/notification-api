@@ -1348,6 +1348,7 @@ class Job(db.Model):
         default="pending",
     )
     archived = db.Column(db.Boolean, nullable=False, default=False)
+    sender_id = db.Column(UUID(as_uuid=True), index=False, unique=False, nullable=True)
 
 
 VERIFY_CODE_TYPES = [EMAIL_TYPE, SMS_TYPE]

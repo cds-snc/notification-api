@@ -140,7 +140,7 @@ def test_create_unscheduled_job(client, sample_template, mocker, fake_uuid):
     response = client.post(path, data=json.dumps(data), headers=headers)
     assert response.status_code == 201
 
-    app.celery.tasks.process_job.apply_async.assert_called_once_with(([str(fake_uuid)]), {"sender_id": None}, queue="job-tasks")
+    app.celery.tasks.process_job.apply_async.assert_called_once_with(([str(fake_uuid)]), queue="job-tasks")
 
     resp_json = json.loads(response.get_data(as_text=True))
 
@@ -176,10 +176,11 @@ def test_create_unscheduled_job_with_sender_id_in_metadata(client, sample_templa
 
     response = client.post(path, data=json.dumps(data), headers=headers)
     assert response.status_code == 201
+    resp_json = json.loads(response.get_data(as_text=True))
 
-    app.celery.tasks.process_job.apply_async.assert_called_once_with(
-        ([str(fake_uuid)]), {"sender_id": fake_uuid}, queue="job-tasks"
-    )
+    assert resp_json["data"]["sender_id"] == fake_uuid
+
+    app.celery.tasks.process_job.apply_async.assert_called_once_with(([str(fake_uuid)]), queue="job-tasks")
 
 
 @freeze_time("2016-01-01 12:00:00.000000")
