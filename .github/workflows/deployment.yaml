@@ -13,6 +13,23 @@ jobs:
         with:
           ref: ${{ github.event.deployment.ref }}
 
+      - name: Set image tag
+        id: set-image-tag
+        run: |
+          echo "::set-output name=image-tag::$(git rev-parse HEAD)"
+
+      - name: Set ECR registry
+        id: set-ecr-registry
+        uses: actions/github-script@v3
+        with:
+          script: |
+            const inputRepo = '${{ github.event.deployment.payload.imageRepository }}';
+            const setImageRepo = (inputRepo) => {
+              return '${{ github.event.deployment.environment }}' == 'perf' && inputRepo ? inputRepo : 'notification_api';
+            };
+            const imageRepo = setImageRepo(inputRepo);
+            core.setOutput('ecr-registry', imageRepo);
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -26,10 +43,13 @@ jobs:
       - name: Render migration task definition
         id: render
         uses: aws-actions/amazon-ecs-render-task-definition@v1
+        env:
+          ECR_REGISTRY: ${{ steps.set-ecr-registry.outputs.ecr-registry}}
+          IMAGE_TAG: ${{ steps.set-image-tag.outputs.image-tag }}
         with:
           task-definition: ./cd/application-deployment/${{ github.event.deployment.environment }}/vaec-db-migrations-task-definition.json
           container-name: ${{ github.event.deployment.environment }}-notification-api-db-migrations
-          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/notification_api:${{ github.event.deployment.ref }}
+          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/${{ env.ECR_REGISTRY }}:${{ env.IMAGE_TAG }}
 
       - name: Register migration task definition
         id: register
@@ -48,6 +68,23 @@ jobs:
         with:
           ref: ${{ github.event.deployment.ref }}
 
+      - name: Set image tag
+        id: set-image-tag
+        run: |
+          echo "::set-output name=image-tag::$(git rev-parse HEAD)"
+
+      - name: Set ECR registry
+        id: set-ecr-registry
+        uses: actions/github-script@v3
+        with:
+          script: |
+            const inputRepo = '${{ github.event.deployment.payload.imageRepository }}';
+            const setImageRepo = (inputRepo) => {
+              return '${{ github.event.deployment.environment }}' == 'perf' && inputRepo ? inputRepo : 'notification_api';
+            };
+            const imageRepo = setImageRepo(inputRepo);
+            core.setOutput('ecr-registry', imageRepo);
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -61,10 +98,13 @@ jobs:
       - name: Render API task definition
         id: render-api-container
         uses: aws-actions/amazon-ecs-render-task-definition@v1
+        env:
+          ECR_REGISTRY: ${{ steps.set-ecr-registry.outputs.ecr-registry}}
+          IMAGE_TAG: ${{ steps.set-image-tag.outputs.image-tag }}
         with:
           task-definition: ./cd/application-deployment/${{ github.event.deployment.environment }}/vaec-api-task-definition.json
           container-name: notification-api
-          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/notification_api:${{ github.event.deployment.ref }}
+          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/${{ env.ECR_REGISTRY }}:${{ env.IMAGE_TAG }}
 
       - name: Deploy API task definition to Fargate
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
@@ -82,6 +122,23 @@ jobs:
         with:
           ref: ${{ github.event.deployment.ref }}
 
+      - name: Set image tag
+        id: set-image-tag
+        run: |
+          echo "::set-output name=image-tag::$(git rev-parse HEAD)"
+
+      - name: Set ECR registry
+        id: set-ecr-registry
+        uses: actions/github-script@v3
+        with:
+          script: |
+            const inputRepo = '${{ github.event.deployment.payload.imageRepository }}';
+            const setImageRepo = (inputRepo) => {
+              return '${{ github.event.deployment.environment }}' == 'perf' && inputRepo ? inputRepo : 'notification_api';
+            };
+            const imageRepo = setImageRepo(inputRepo);
+            core.setOutput('ecr-registry', imageRepo);
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -95,10 +152,13 @@ jobs:
       - name: Render celery task definition
         id: render-celery-container
         uses: aws-actions/amazon-ecs-render-task-definition@v1
+        env:
+          ECR_REGISTRY: ${{ steps.set-ecr-registry.outputs.ecr-registry}}
+          IMAGE_TAG: ${{ steps.set-image-tag.outputs.image-tag }}
         with:
           task-definition: ./cd/application-deployment/${{ github.event.deployment.environment }}/vaec-celery-task-definition.json
           container-name: notification-celery
-          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/notification_api:${{ github.event.deployment.ref }}
+          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/${{ env.ECR_REGISTRY }}:${{ env.IMAGE_TAG }}
 
       - name: Deploy celery task definition to Fargate
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
@@ -116,6 +176,23 @@ jobs:
         with:
           ref: ${{ github.event.deployment.ref }}
 
+      - name: Set image tag
+        id: set-image-tag
+        run: |
+          echo "::set-output name=image-tag::$(git rev-parse HEAD)"
+
+      - name: Set ECR registry
+        id: set-ecr-registry
+        uses: actions/github-script@v3
+        with:
+          script: |
+            const inputRepo = '${{ github.event.deployment.payload.imageRepository }}';
+            const setImageRepo = (inputRepo) => {
+              return '${{ github.event.deployment.environment }}' == 'perf' && inputRepo ? inputRepo : 'notification_api';
+            };
+            const imageRepo = setImageRepo(inputRepo);
+            core.setOutput('ecr-registry', imageRepo);
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -129,10 +206,13 @@ jobs:
       - name: Render celery beat task definition
         id: render-celery-beat-container
         uses: aws-actions/amazon-ecs-render-task-definition@v1
+        env:
+          ECR_REGISTRY: ${{ steps.set-ecr-registry.outputs.ecr-registry}}
+          IMAGE_TAG: ${{ steps.set-image-tag.outputs.image-tag }}
         with:
           task-definition: ./cd/application-deployment/${{ github.event.deployment.environment }}/vaec-celery-beat-task-definition.json
           container-name: notification-celery-beat
-          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/notification_api:${{ github.event.deployment.ref }}
+          image: 171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/${{ env.ECR_REGISTRY }}:${{ env.IMAGE_TAG }}
 
       - name: Deploy celery beat task definition to Fargate
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
