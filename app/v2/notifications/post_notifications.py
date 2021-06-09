@@ -118,19 +118,13 @@ def post_bulk():
     try:
         request_json = request.get_json()
     except werkzeug.exceptions.BadRequest as e:
-        raise BadRequestError(
-            message="Error decoding arguments: {}".format(e.description),
-            status_code=400,
-        )
+        raise BadRequestError(message=f"Error decoding arguments: {e.description}", status_code=400)
 
     max_rows = current_app.config["CSV_MAX_ROWS"]
     form = validate(request_json, post_bulk_request(max_rows))
 
     if len([source for source in [form.get("rows"), form.get("csv")] if source]) != 1:
-        raise BadRequestError(
-            message="You should specify either rows or csv",
-            status_code=400,
-        )
+        raise BadRequestError(message="You should specify either rows or csv", status_code=400)
     template = validate_template_exists(form["template_id"], authenticated_service)
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 

@@ -296,6 +296,8 @@ def post_bulk_request(limit):
             "rows": {"type": "array", "maxItems": limit + 1, "minItems": 2},
             "name": {"type": "string"},
         },
+        # Validating that passing either `rows` or `csv` is checked
+        # in the controller to have a custom error message
         "required": ["template_id", "name"],
         "additionalProperties": False,
     }
