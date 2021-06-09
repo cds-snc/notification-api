@@ -341,7 +341,7 @@ def test_scheduled_for_raises_validation_error_when_in_the_past():
     assert error["errors"] == [
         {
             "error": "ValidationError",
-            "message": "scheduled_for datetime can not be in the past",
+            "message": "scheduled_for datetime cannot be in the past",
         }
     ]
 

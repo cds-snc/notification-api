@@ -52,7 +52,7 @@ def validate_schema_date_with_hour(instance):
         try:
             dt = iso8601.parse_date(instance).replace(tzinfo=None)
             if dt < datetime.utcnow():
-                raise ValidationError("datetime can not be in the past")
+                raise ValidationError("datetime cannot be in the past")
             if dt > datetime.utcnow() + timedelta(hours=24):
                 raise ValidationError("datetime can only be 24 hours in the future")
         except ParseError:
@@ -70,9 +70,9 @@ def validate_schema_date_for_job(instance):
         try:
             dt = iso8601.parse_date(instance).replace(tzinfo=None)
             if dt < datetime.utcnow():
-                raise ValidationError("datetime can not be in the past")
+                raise ValidationError("datetime cannot be in the past")
             if dt > datetime.utcnow() + timedelta(hours=max_hours):
-                raise ValidationError(f"datetime can only be {max_hours} hours in the future")
+                raise ValidationError(f"datetime can only be up to {max_hours} hours in the future")
         except ParseError:
             raise ValidationError(
                 "datetime format is invalid. It must be a valid ISO8601 date time format, "

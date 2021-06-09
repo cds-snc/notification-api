@@ -1238,8 +1238,8 @@ def test_post_bulk_flags_if_name_is_missing(client, sample_email_template):
             "ISO8601 date time format, "
             "https://en.wikipedia.org/wiki/ISO_8601",
         ),
-        ("2016-01-01T10:04:00", "scheduled_for datetime can not be in the past"),
-        ("2016-01-05T10:06:00", "scheduled_for datetime can only be 96 hours in the future"),
+        ("2016-01-01T10:04:00", "scheduled_for datetime cannot be in the past"),
+        ("2016-01-05T10:06:00", "scheduled_for datetime can only be up to 96 hours in the future"),
     ],
 )
 @freeze_time("2016-01-01 10:05:00")
@@ -1459,7 +1459,7 @@ def test_post_bulk_flags_recipient_not_in_safelist_with_team_api_key(client, sam
     assert error_json["errors"] == [
         {
             "error": "BadRequestError",
-            "message": "You're not allowed to send to these recipients because you used a team and safelist API key.",
+            "message": "You cannot send to these recipients because you used a team and safelist API key.",
         }
     ]
 
@@ -1487,7 +1487,7 @@ def test_post_bulk_flags_recipient_not_in_safelist_with_restricted_service(clien
     assert error_json["errors"] == [
         {
             "error": "BadRequestError",
-            "message": "You're not allowed to send to these recipients because your service is in trial mode and you can only send to members of your team and your safelist.",
+            "message": "You cannot send to these recipients because your service is in trial mode. You can only send to members of your team and your safelist.",
         }
     ]
 
@@ -1513,7 +1513,7 @@ def test_post_bulk_flags_not_enough_remaining_messages(client, notify_db, notify
     assert error_json["errors"] == [
         {
             "error": "BadRequestError",
-            "message": "You can only send up to 1 remaining messages today and you tried to send 2 messages.",
+            "message": "You only have 1 remaining messages before you reach your daily limit. You've tried to send 2 messages.",
         }
     ]
     messages_count_mock.assert_called_once()

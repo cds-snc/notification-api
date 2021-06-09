@@ -453,7 +453,7 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
             )
         if recipient_csv.more_rows_than_can_send:
             raise BadRequestError(
-                message=f"You can only send up to {remaining_messages} remaining messages today and you tried to send {nb_rows} messages.",
+                message=f"You only have {remaining_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
                 status_code=400,
             )
 
@@ -467,10 +467,10 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 explanation = "because you used a team and safelist API key."
             if authenticated_service.restricted:
                 explanation = (
-                    "because your service is in trial mode and you can only send to members of your team and your safelist."
+                    "because your service is in trial mode. You can only send to members of your team and your safelist."
                 )
             raise BadRequestError(
-                message=f"You're not allowed to send to these recipients {explanation}",
+                message=f"You cannot send to these recipients {explanation}",
                 status_code=400,
             )
         if recipient_csv.rows_with_errors:
