@@ -1,5 +1,3 @@
-# Welcome!
-
 # Notification API
 
 Contains:
