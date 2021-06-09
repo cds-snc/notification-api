@@ -619,6 +619,32 @@ def test_should_route_save_sms_task_to_bulk_on_large_csv_file(notify_db, notify_
     assert mocked_deliver_sms.called
 
 
+def test_should_route_save_sms_task_to_throttled_queue_on_large_csv_file_if_custom_sms_sender(
+    notify_db, notify_db_session, mocker
+):
+    service = create_service_with_defined_sms_sender(sms_sender_value="3433061234")
+    template = create_template(service=service, process_type="normal")
+    notification = _notification_json(template, to="+1 650 253 2222", queue="bulk-tasks")
+
+    mocked_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
+    mocked_deliver_throttled_sms = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
+
+    notification_id = uuid.uuid4()
+
+    save_sms(
+        template.service_id,
+        notification_id,
+        encryption.encrypt(notification),
+    )
+
+    persisted_notification = Notification.query.one()
+    provider_tasks.deliver_throttled_sms.apply_async.assert_called_once_with(
+        [str(persisted_notification.id)], queue="send-throttled-sms-tasks"
+    )
+    mocked_deliver_sms.assert_not_called()
+    mocked_deliver_throttled_sms.assert_called_once()
+
+
 def test_should_save_sms_if_restricted_service_and_valid_number(notify_db_session, mocker):
     user = create_user(mobile_number="6502532222")
     service = create_service(user=user, restricted=True)
