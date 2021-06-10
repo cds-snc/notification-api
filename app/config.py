@@ -221,7 +221,7 @@ class Config(object):
         # app/celery/scheduled_tasks.py
         "run-scheduled-jobs": {
             "task": "run-scheduled-jobs",
-            "schedule": crontab(minute=1),
+            "schedule": crontab(),
             "options": {"queue": QueueNames.PERIODIC},
         },
         "delete-verify-codes": {
