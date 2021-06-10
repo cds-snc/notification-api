@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Git commit SHA (full-length) or Branch name for its latest commit."
+        description: "Git commit SHA (full-length), tag, or Branch name for its latest commit."
         required: true
 
 jobs:

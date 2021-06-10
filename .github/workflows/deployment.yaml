@@ -4,10 +4,39 @@ on:
   deployment:
 
 jobs:
-  run-migrations:
+  validate-env:
+    name: Validate environment
     runs-on: ubuntu-latest
-    if: |
-      ${{ 'dev' == github.event.deployment.environment || 'staging' == github.event.deployment.environment || 'perf' == github.event.deployment.environment || 'prod' == github.event.deployment.environment }}
+    steps:
+      - shell: bash {0}
+        run: |
+          ENVS=(dev staging perf prod)
+          INPUT="${{ github.event.deployment.environment }}"
+          APPROVED=false
+
+          for env in ${ENVS[@]}; do
+              if [[ "$env" == "$INPUT" ]]; then
+                APPROVED=true
+                break
+              fi
+          done
+
+          if [[ $APPROVED == true ]]; then
+            echo -e "$INPUT is a valid environment"
+            exit 0
+          else
+            echo -e "$INPUT is not a valid environment"
+            exit 1
+          fi
+
+  set-env-vars:
+    name: Set environment variables
+    needs: validate-env
+    if: ${{ success() }}
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.set-image-tag.outputs.image-tag }}
+      ecr-registry: ${{ steps.set-ecr-registry.outputs.ecr-registry }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -30,6 +59,17 @@ jobs:
             const imageRepo = setImageRepo(inputRepo);
             core.setOutput('ecr-registry', imageRepo);
 
+  run-migrations:
+    runs-on: ubuntu-latest
+    needs: set-env-vars
+    env:
+      ECR_REGISTRY: ${{ needs.set-env-vars.outputs.ecr-registry }}
+      IMAGE_TAG: ${{ needs.set-env-vars.outputs.image-tag }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.deployment.ref }}
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -43,9 +83,6 @@ jobs:
       - name: Render migration task definition
         id: render
         uses: aws-actions/amazon-ecs-render-task-definition@v1
-        env:
-          ECR_REGISTRY: ${{ steps.set-ecr-registry.outputs.ecr-registry}}
-          IMAGE_TAG: ${{ steps.set-image-tag.outputs.image-tag }}
         with:
           task-definition: ./cd/application-deployment/${{ github.event.deployment.environment }}/vaec-db-migrations-task-definition.json
           container-name: ${{ github.event.deployment.environment }}-notification-api-db-migrations
@@ -62,28 +99,14 @@ jobs:
 
   deploy-api:
     runs-on: ubuntu-latest
-    needs: [run-migrations]
+    needs: [set-env-vars, run-migrations]
+    env:
+      ECR_REGISTRY: ${{ needs.set-env-vars.outputs.ecr-registry }}
+      IMAGE_TAG: ${{ needs.set-env-vars.outputs.image-tag }}
     steps:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.deployment.ref }}
-
-      - name: Set image tag
-        id: set-image-tag
-        run: |
-          echo "::set-output name=image-tag::$(git rev-parse HEAD)"
-
-      - name: Set ECR registry
-        id: set-ecr-registry
-        uses: actions/github-script@v3
-        with:
-          script: |
-            const inputRepo = '${{ github.event.deployment.payload.imageRepository }}';
-            const setImageRepo = (inputRepo) => {
-              return '${{ github.event.deployment.environment }}' == 'perf' && inputRepo ? inputRepo : 'notification_api';
-            };
-            const imageRepo = setImageRepo(inputRepo);
-            core.setOutput('ecr-registry', imageRepo);
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -98,9 +121,6 @@ jobs:
       - name: Render API task definition
         id: render-api-container
         uses: aws-actions/amazon-ecs-render-task-definition@v1
-        env:
-          ECR_REGISTRY: ${{ steps.set-ecr-registry.outputs.ecr-registry}}
-          IMAGE_TAG: ${{ steps.set-image-tag.outputs.image-tag }}
         with:
           task-definition: ./cd/application-deployment/${{ github.event.deployment.environment }}/vaec-api-task-definition.json
           container-name: notification-api
@@ -116,28 +136,14 @@ jobs:
 
   deploy-celery:
     runs-on: ubuntu-latest
-    needs: [run-migrations]
+    needs: [set-env-vars, run-migrations]
+    env:
+      ECR_REGISTRY: ${{ needs.set-env-vars.outputs.ecr-registry }}
+      IMAGE_TAG: ${{ needs.set-env-vars.outputs.image-tag }}
     steps:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.deployment.ref }}
-
-      - name: Set image tag
-        id: set-image-tag
-        run: |
-          echo "::set-output name=image-tag::$(git rev-parse HEAD)"
-
-      - name: Set ECR registry
-        id: set-ecr-registry
-        uses: actions/github-script@v3
-        with:
-          script: |
-            const inputRepo = '${{ github.event.deployment.payload.imageRepository }}';
-            const setImageRepo = (inputRepo) => {
-              return '${{ github.event.deployment.environment }}' == 'perf' && inputRepo ? inputRepo : 'notification_api';
-            };
-            const imageRepo = setImageRepo(inputRepo);
-            core.setOutput('ecr-registry', imageRepo);
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -152,9 +158,6 @@ jobs:
       - name: Render celery task definition
         id: render-celery-container
         uses: aws-actions/amazon-ecs-render-task-definition@v1
-        env:
-          ECR_REGISTRY: ${{ steps.set-ecr-registry.outputs.ecr-registry}}
-          IMAGE_TAG: ${{ steps.set-image-tag.outputs.image-tag }}
         with:
           task-definition: ./cd/application-deployment/${{ github.event.deployment.environment }}/vaec-celery-task-definition.json
           container-name: notification-celery
@@ -170,28 +173,14 @@ jobs:
 
   deploy-celery-beat:
     runs-on: ubuntu-latest
-    needs: [run-migrations]
+    needs: [ set-env-vars, run-migrations ]
+    env:
+      ECR_REGISTRY: ${{ needs.set-env-vars.outputs.ecr-registry }}
+      IMAGE_TAG: ${{ needs.set-env-vars.outputs.image-tag }}
     steps:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.deployment.ref }}
-
-      - name: Set image tag
-        id: set-image-tag
-        run: |
-          echo "::set-output name=image-tag::$(git rev-parse HEAD)"
-
-      - name: Set ECR registry
-        id: set-ecr-registry
-        uses: actions/github-script@v3
-        with:
-          script: |
-            const inputRepo = '${{ github.event.deployment.payload.imageRepository }}';
-            const setImageRepo = (inputRepo) => {
-              return '${{ github.event.deployment.environment }}' == 'perf' && inputRepo ? inputRepo : 'notification_api';
-            };
-            const imageRepo = setImageRepo(inputRepo);
-            core.setOutput('ecr-registry', imageRepo);
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -206,9 +195,6 @@ jobs:
       - name: Render celery beat task definition
         id: render-celery-beat-container
         uses: aws-actions/amazon-ecs-render-task-definition@v1
-        env:
-          ECR_REGISTRY: ${{ steps.set-ecr-registry.outputs.ecr-registry}}
-          IMAGE_TAG: ${{ steps.set-image-tag.outputs.image-tag }}
         with:
           task-definition: ./cd/application-deployment/${{ github.event.deployment.environment }}/vaec-celery-beat-task-definition.json
           container-name: notification-celery-beat
@@ -294,7 +280,7 @@ jobs:
 
   deployment-status:
     runs-on: ubuntu-latest
-    needs: [run-migrations, deploy-api, deploy-celery, deploy-celery-beat, run-user-flows, deploy-lambdas]
+    needs: [validate-env, set-env-vars, run-migrations, deploy-api, deploy-celery, deploy-celery-beat, run-user-flows, deploy-lambdas]
     if: always()
     steps:
       - uses: actions/github-script@v3
