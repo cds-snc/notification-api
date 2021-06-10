@@ -32,7 +32,7 @@ def _assert_github_login_toggle_enabled():
 @oauth_blueprint.route('/auth/login', methods=['GET'])
 def login():
     _assert_github_login_toggle_enabled()
-    redirect_uri = url_for('oauth.authorize', _external=True)
+    redirect_uri = url_for('oauth.deprecated-authorize', _external=True)
     return oauth_registry.github.authorize_redirect(redirect_uri)
 
 
@@ -61,7 +61,7 @@ def login_with_password():
     return jsonify(result='error', message='Failed to login'), 401
 
 
-@oauth_blueprint.route('/authorize')
+@oauth_blueprint.route('/authorize', endpoint='deprecated-authorize')
 @oauth_blueprint.route('/auth/authorize')
 def authorize():
     _assert_github_login_toggle_enabled()
