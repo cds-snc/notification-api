@@ -29,6 +29,7 @@ def _assert_github_login_toggle_enabled():
 
 
 @oauth_blueprint.route('/login', methods=['GET'])
+@oauth_blueprint.route('/auth/login', methods=['GET'])
 def login():
     _assert_github_login_toggle_enabled()
     redirect_uri = url_for('oauth.authorize', _external=True)
@@ -36,6 +37,7 @@ def login():
 
 
 @oauth_blueprint.route('/login', methods=['POST'])
+@oauth_blueprint.route('/auth/login', methods=['POST'])
 def login_with_password():
     if not is_feature_enabled(FeatureFlag.EMAIL_PASSWORD_LOGIN_ENABLED):
         return jsonify(result='error', message="Not Implemented"), 501
@@ -60,6 +62,7 @@ def login_with_password():
 
 
 @oauth_blueprint.route('/authorize')
+@oauth_blueprint.route('/auth/authorize')
 def authorize():
     _assert_github_login_toggle_enabled()
     try:
@@ -131,6 +134,7 @@ def _extract_github_user_info(email_resp: json, user_resp: json) -> Tuple[str, s
 
 
 @oauth_blueprint.route('/redeem-token', methods=['GET'])
+@oauth_blueprint.route('/auth/redeem-token', methods=['GET'])
 def redeem_token():
     _assert_github_login_toggle_enabled()
     try:
@@ -148,6 +152,7 @@ def redeem_token():
 
 
 @oauth_blueprint.route('/logout', methods=['GET'])
+@oauth_blueprint.route('/auth/logout', methods=['GET'])
 def logout():
     _assert_github_login_toggle_enabled()
 

@@ -26,10 +26,14 @@ def test_all_routes_have_authentication(client, db_session):
         '/_status',
         '/_status/live-service-and-organisation-counts',
         '/authorize',
+        '/auth/authorize',
         '/login',
+        '/auth/login',
         '/logout',
+        '/auth/logout',
         '/notifications/govdelivery',
-        '/redeem-token'
+        '/redeem-token',
+        '/auth/redeem-token'
     }
 
     for route in routes_without_authentication:
