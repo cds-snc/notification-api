@@ -10,7 +10,7 @@ from app.notifications.notifications_ses_callback import (
     get_aws_responses,
     handle_complaint,
 )
-from tests.app.aws import (
+from tests.app.aws.aws_mocks import (
     ses_complaint_callback,
     ses_complaint_callback_malformed_message_id,
     ses_complaint_callback_with_missing_complaint_type,
