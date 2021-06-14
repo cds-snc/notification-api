@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 
+from flask import current_app
 from flask_marshmallow.fields import fields
 from marshmallow import (
     ValidationError,
@@ -34,8 +35,10 @@ def _validate_positive_number(value, msg="Not a positive integer"):
         raise ValidationError(msg)
 
 
-def _validate_datetime_not_more_than_96_hours_in_future(dte, msg="Date cannot be more than 96hrs in the future"):
-    if dte > datetime.utcnow() + timedelta(hours=96):
+def _validate_datetime_not_too_far_in_future(dte):
+    max_hours = current_app.config["JOBS_MAX_SCHEDULE_HOURS_AHEAD"]
+    if dte > datetime.utcnow() + timedelta(hours=max_hours):
+        msg = f"Date cannot be more than {max_hours} hours in the future"
         raise ValidationError(msg)
 
 
@@ -390,6 +393,14 @@ class JobSchema(BaseSchema):
         dump_only=True,
     )
     created_by = field_for(models.Job, "created_by", required=True, load_only=True)
+    api_key_details = fields.Nested(
+        ApiKeySchema,
+        attribute="api_key",
+        dump_to="api_key",
+        only=["id", "name", "key_type"],
+        dump_only=True,
+    )
+    api_key = field_for(models.Job, "api_key", required=False, load_only=True)
 
     job_status = field_for(models.JobStatus, "name", required=False)
 
@@ -401,11 +412,12 @@ class JobSchema(BaseSchema):
         only=["name"],
         dump_only=True,
     )
+    sender_id = fields.UUID(required=False, allow_none=True)
 
     @validates("scheduled_for")
     def validate_scheduled_for(self, value):
         _validate_datetime_not_in_past(value)
-        _validate_datetime_not_more_than_96_hours_in_future(value)
+        _validate_datetime_not_too_far_in_future(value)
 
     class Meta(BaseSchema.Meta):
         model = models.Job

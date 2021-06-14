@@ -1337,6 +1337,8 @@ class Job(db.Model):
     processing_finished = db.Column(db.DateTime, index=False, unique=False, nullable=True)
     created_by = db.relationship("User")
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=True)
+    api_key_id = db.Column(UUID(as_uuid=True), db.ForeignKey("api_keys.id"), index=True, nullable=True)
+    api_key = db.relationship("ApiKey")
     scheduled_for = db.Column(db.DateTime, index=True, unique=False, nullable=True)
     job_status = db.Column(
         db.String(255),
@@ -1346,6 +1348,7 @@ class Job(db.Model):
         default="pending",
     )
     archived = db.Column(db.Boolean, nullable=False, default=False)
+    sender_id = db.Column(UUID(as_uuid=True), index=False, unique=False, nullable=True)
 
 
 VERIFY_CODE_TYPES = [EMAIL_TYPE, SMS_TYPE]

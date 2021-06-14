@@ -1,9 +1,14 @@
 import base64
+import csv
 import functools
+from io import StringIO
 
 import werkzeug
 from flask import abort, current_app, jsonify, request
-from notifications_utils.recipients import try_validate_and_format_phone_number
+from notifications_utils.recipients import (
+    RecipientCSV,
+    try_validate_and_format_phone_number,
+)
 
 from app import (
     api_user,
@@ -12,15 +17,21 @@ from app import (
     notify_celery,
     statsd_client,
 )
+from app.aws.s3 import upload_job_to_s3
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
+from app.celery.tasks import process_job
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
+from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
+from app.dao.services_dao import fetch_todays_total_message_count
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.letters.utils import upload_letter_pdf
 from app.models import (
     EMAIL_TYPE,
+    JOB_STATUS_PENDING,
+    JOB_STATUS_SCHEDULED,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     LETTER_TYPE,
@@ -46,8 +57,11 @@ from app.notifications.validators import (
     check_service_sms_sender_id,
     validate_and_format_recipient,
     validate_template,
+    validate_template_exists,
 )
 from app.schema_validation import validate
+from app.schemas import job_schema
+from app.service.utils import safelisted_members
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
@@ -56,6 +70,7 @@ from app.v2.notifications.create_response import (
     create_post_sms_response_from_notification,
 )
 from app.v2.notifications.notification_schemas import (
+    post_bulk_request,
     post_email_request,
     post_letter_request,
     post_precompiled_letter_request,
@@ -96,6 +111,49 @@ def post_precompiled_letter_notification():
     }
 
     return jsonify(resp), 201
+
+
+@v2_notification_blueprint.route("/bulk", methods=["POST"])
+def post_bulk():
+    try:
+        request_json = request.get_json()
+    except werkzeug.exceptions.BadRequest as e:
+        raise BadRequestError(message=f"Error decoding arguments: {e.description}", status_code=400)
+
+    max_rows = current_app.config["CSV_MAX_ROWS"]
+    form = validate(request_json, post_bulk_request(max_rows))
+
+    if len([source for source in [form.get("rows"), form.get("csv")] if source]) != 1:
+        raise BadRequestError(message="You should specify either rows or csv", status_code=400)
+    template = validate_template_exists(form["template_id"], authenticated_service)
+    check_service_has_permission(template.template_type, authenticated_service.permissions)
+
+    remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
+
+    try:
+        if form.get("rows"):
+            output = StringIO()
+            writer = csv.writer(output)
+            writer.writerows(form["rows"])
+            file_data = output.getvalue()
+        else:
+            file_data = form["csv"]
+
+        recipient_csv = RecipientCSV(
+            file_data,
+            template_type=template.template_type,
+            placeholders=template._as_utils_template().placeholders,
+            max_rows=max_rows,
+            safelist=safelisted_members(authenticated_service, api_user.key_type),
+            remaining_messages=remaining_messages,
+        )
+    except csv.Error as e:
+        raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
+
+    check_for_csv_errors(recipient_csv, max_rows, remaining_messages)
+    job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
+
+    return jsonify(data=job_schema.dump(job).data), 201
 
 
 @v2_notification_blueprint.route("/<notification_type>", methods=["POST"])
@@ -348,10 +406,10 @@ def process_precompiled_letter_notifications(*, letter_data, api_key, template, 
     return notification
 
 
-def get_reply_to_text(notification_type, form, template):
+def get_reply_to_text(notification_type, form, template, form_field=None):
     reply_to = None
     if notification_type == EMAIL_TYPE:
-        service_email_reply_to_id = form.get("email_reply_to_id", None)
+        service_email_reply_to_id = form.get(form_field or "email_reply_to_id")
         reply_to = (
             check_service_email_reply_to_id(
                 str(authenticated_service.id),
@@ -362,7 +420,7 @@ def get_reply_to_text(notification_type, form, template):
         )
 
     elif notification_type == SMS_TYPE:
-        service_sms_sender_id = form.get("sms_sender_id", None)
+        service_sms_sender_id = form.get(form_field or "sms_sender_id")
         sms_sender_id = check_service_sms_sender_id(str(authenticated_service.id), service_sms_sender_id, notification_type)
         if sms_sender_id:
             reply_to = try_validate_and_format_phone_number(sms_sender_id)
@@ -377,3 +435,88 @@ def get_reply_to_text(notification_type, form, template):
 
 def strip_keys_from_personalisation_if_send_attach(personalisation):
     return {k: v for (k, v) in personalisation.items() if not (type(v) is dict and v.get("sending_method") == "attach")}
+
+
+def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
+    nb_rows = len(recipient_csv)
+
+    if recipient_csv.has_errors:
+        if recipient_csv.missing_column_headers:
+            raise BadRequestError(
+                message=f"Missing column headers: {', '.join(sorted(recipient_csv.missing_column_headers))}",
+                status_code=400,
+            )
+        if recipient_csv.duplicate_recipient_column_headers:
+            raise BadRequestError(
+                message=f"Duplicate column headers: {', '.join(sorted(recipient_csv.duplicate_recipient_column_headers))}",
+                status_code=400,
+            )
+        if recipient_csv.more_rows_than_can_send:
+            raise BadRequestError(
+                message=f"You only have {remaining_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
+                status_code=400,
+            )
+
+        if recipient_csv.too_many_rows:
+            raise BadRequestError(
+                message=f"Too many rows. Maximum number of rows allowed is {max_rows}",
+                status_code=400,
+            )
+        if not recipient_csv.allowed_to_send_to:
+            if api_user.key_type == KEY_TYPE_TEAM:
+                explanation = "because you used a team and safelist API key."
+            if authenticated_service.restricted:
+                explanation = (
+                    "because your service is in trial mode. You can only send to members of your team and your safelist."
+                )
+            raise BadRequestError(
+                message=f"You cannot send to these recipients {explanation}",
+                status_code=400,
+            )
+        if recipient_csv.rows_with_errors:
+
+            def row_error(row):
+                content = []
+                for header in [header for header in recipient_csv.column_headers if row[header].error]:
+                    if row[header].recipient_error:
+                        content.append(f"`{header}`: invalid recipient")
+                    else:
+                        content.append(f"`{header}`: {row[header].error}")
+                return f"Row {row.index} - {','.join(content)}"
+
+            errors = ". ".join([row_error(row) for row in recipient_csv.initial_rows_with_errors])
+            raise BadRequestError(
+                message=f"Some rows have errors. {errors}.",
+                status_code=400,
+            )
+        else:
+            raise NotImplementedError("Got errors but code did not handle")
+
+
+def create_bulk_job(service, api_key, template, form, recipient_csv):
+    upload_id = upload_job_to_s3(service.id, recipient_csv.file_data)
+    sender_id = get_reply_to_text(template.template_type, form, template, form_field="reply_to_id")
+
+    data = {
+        "id": upload_id,
+        "service": service.id,
+        "template": template.id,
+        "notification_count": len(recipient_csv),
+        "template_version": template.version,
+        "job_status": JOB_STATUS_PENDING,
+        "original_file_name": form.get("name"),
+        "created_by": current_app.config["NOTIFY_USER_ID"],
+        "api_key": api_key.id,
+        "sender_id": sender_id,
+    }
+    if form.get("scheduled_for"):
+        data["job_status"] = JOB_STATUS_SCHEDULED
+        data["scheduled_for"] = form.get("scheduled_for")
+
+    job = job_schema.load(data).data
+    dao_create_job(job)
+
+    if job.job_status == JOB_STATUS_PENDING:
+        process_job.apply_async([str(job.id)], queue=QueueNames.JOBS)
+
+    return job

@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta
 from unittest.mock import call
 
@@ -12,6 +13,7 @@ from app.aws.s3 import (
     get_s3_bucket_objects,
     get_s3_file,
     remove_transformed_dvla_file,
+    upload_job_to_s3,
 )
 from tests.app.conftest import datetime_in_past
 
@@ -197,3 +199,18 @@ def test_get_list_of_files_by_suffix_empty_contents_return_with_no_error(notify_
     key = get_list_of_files_by_suffix("foo-bucket", subfolder="bar", suffix=".pdf")
 
     assert sum(1 for x in key) == 0
+
+
+def test_upload_job_to_s3(notify_api, mocker):
+    utils_mock = mocker.patch("app.aws.s3.utils_s3upload")
+    service_id = uuid.uuid4()
+    csv_data = "foo"
+
+    upload_id = upload_job_to_s3(service_id, csv_data)
+
+    utils_mock.assert_called_once_with(
+        filedata=csv_data,
+        region=notify_api.config["AWS_REGION"],
+        bucket_name=current_app.config["CSV_UPLOAD_BUCKET_NAME"],
+        file_location=f"service-{service_id}-notify/{upload_id}.csv",
+    )

@@ -54,6 +54,7 @@ from app.models import (
     JOB_STATUS_FINISHED,
     JOB_STATUS_IN_PROGRESS,
     JOB_STATUS_PENDING,
+    JOB_STATUS_SENDING_LIMITS_EXCEEDED,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
     NOTIFICATION_CREATED,
@@ -82,6 +83,7 @@ from app.utils import get_csv_max_rows
 def process_job(job_id, sender_id=None):
     start = datetime.utcnow()
     job = dao_get_job_by_id(job_id)
+    sender_id = str(job.sender_id) if job.sender_id else sender_id
 
     if job.job_status != JOB_STATUS_PENDING:
         return
@@ -171,7 +173,7 @@ def __sending_limits_for_job_exceeded(service, job, job_id):
     total_sent = fetch_todays_total_message_count(service.id)
 
     if total_sent + job.notification_count > service.message_limit:
-        job.job_status = "sending limits exceeded"
+        job.job_status = JOB_STATUS_SENDING_LIMITS_EXCEEDED
         job.processing_finished = datetime.utcnow()
         dao_update_job(job)
         current_app.logger.info(

@@ -387,6 +387,7 @@ def create_job(
     processing_started=None,
     original_file_name="some.csv",
     archived=False,
+    sender_id=None,
 ):
     data = {
         "id": uuid.uuid4(),
@@ -402,6 +403,7 @@ def create_job(
         "scheduled_for": scheduled_for,
         "processing_started": processing_started,
         "archived": archived,
+        "sender_id": sender_id,
     }
     job = Job(**data)
     dao_create_job(job)

@@ -27,14 +27,21 @@ def get_safelist_objects(service_id, request_json):
 
 
 def service_allowed_to_send_to(recipient, service, key_type, allow_safelisted_recipients=True):
-    if key_type == KEY_TYPE_TEST:
+    members = safelisted_members(service, key_type, allow_safelisted_recipients)
+    if members is None:
         return True
+    return allowed_to_send_to(recipient, members)
+
+
+def safelisted_members(service, key_type, allow_safelisted_recipients=True):
+    if key_type == KEY_TYPE_TEST:
+        return None
 
     if key_type == KEY_TYPE_NORMAL and not service.restricted:
-        return True
+        return None
 
     team_members = itertools.chain.from_iterable([user.mobile_number, user.email_address] for user in service.users)
     safelist_members = [member.recipient for member in service.safelist if allow_safelisted_recipients]
 
     if (key_type == KEY_TYPE_NORMAL and service.restricted) or (key_type == KEY_TYPE_TEAM):
-        return allowed_to_send_to(recipient, itertools.chain(team_members, safelist_members))
+        return itertools.chain(team_members, safelist_members)

@@ -166,6 +166,7 @@ class Config(object):
     TEST_MESSAGE_FILENAME = "Test message"
     ONE_OFF_MESSAGE_FILENAME = "Report"
     MAX_VERIFY_CODE_COUNT = 10
+    JOBS_MAX_SCHEDULE_HOURS_AHEAD = 96
 
     # be careful increasing this size without being sure that we won't see slowness in pysftp
     MAX_LETTER_PDF_ZIP_FILESIZE = 40 * 1024 * 1024  # 40mb
@@ -220,7 +221,7 @@ class Config(object):
         # app/celery/scheduled_tasks.py
         "run-scheduled-jobs": {
             "task": "run-scheduled-jobs",
-            "schedule": crontab(minute=1),
+            "schedule": crontab(),
             "options": {"queue": QueueNames.PERIODIC},
         },
         "delete-verify-codes": {
