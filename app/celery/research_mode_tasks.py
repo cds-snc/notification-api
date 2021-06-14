@@ -58,8 +58,12 @@ def make_request(notification_type, provider, data, headers):
         response.raise_for_status()
     except RequestException as e:
         api_error = HTTPError(e)
-        current_app.logger.error("API {} request on {} failed with {}".format("POST", api_call, api_error.response))
-        raise api_error
+        # TODO: Revert the following log to error level once the SMS research simulation has been fixed via:
+        #       https://trello.com/c/FTzY1HLJ/563-rework-fake-sms-callbacks-for-notifications-sent-using-test-keys
+        current_app.logger.info("API {} request on {} failed with {}".format("POST", api_call, api_error.response))
+        # TODO: Reinstate the error raise once the SMS research simulation has been fixed via:
+        #       https://trello.com/c/FTzY1HLJ/563-rework-fake-sms-callbacks-for-notifications-sent-using-test-keys
+        # raise api_error
     finally:
         current_app.logger.info("Mocked provider callback request finished")
     return response.json()
