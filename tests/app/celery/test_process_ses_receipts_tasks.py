@@ -18,14 +18,9 @@ from app.notifications.notifications_ses_callback import (
     remove_emails_from_bounce,
     remove_emails_from_complaint,
 )
+from tests.app.aws import ses_complaint_callback
 from tests.app.conftest import sample_notification as create_sample_notification
-from tests.app.db import (
-    create_notification,
-    create_service_callback_api,
-)
-from tests.app.aws import (
-    ses_complaint_callback,
-)
+from tests.app.db import create_notification, create_service_callback_api
 
 
 def test_process_ses_results(sample_email_template):

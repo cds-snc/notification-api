@@ -14,12 +14,9 @@ from app.models import (
     NOTIFICATION_TEMPORARY_FAILURE,
 )
 from app.notifications.callbacks import create_delivery_status_callback_data
+from tests.app.aws import sns_failed_callback, sns_success_callback
 from tests.app.conftest import sample_notification as create_sample_notification
 from tests.app.db import create_notification, create_service_callback_api
-from tests.app.aws import (
-    sns_failed_callback,
-    sns_success_callback,
-)
 
 
 def test_process_sns_results_delivered(sample_template, notify_db, notify_db_session, mocker):
