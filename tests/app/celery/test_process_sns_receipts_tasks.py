@@ -17,7 +17,9 @@ from app.notifications.callbacks import create_delivery_status_callback_data
 from tests.app.conftest import sample_notification as create_sample_notification
 from tests.app.db import (
     create_notification,
-    create_service_callback_api,
+    create_service_callback_api
+)
+from tests.app.aws import (
     sns_failed_callback,
     sns_success_callback,
 )

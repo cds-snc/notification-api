@@ -22,6 +22,8 @@ from tests.app.conftest import sample_notification as create_sample_notification
 from tests.app.db import (
     create_notification,
     create_service_callback_api,
+)
+from tests.app.aws import (
     ses_complaint_callback,
 )
 

@@ -14,6 +14,8 @@ from tests.app.conftest import sample_notification as create_sample_notification
 from tests.app.db import (
     create_notification,
     create_notification_history,
+)
+from tests.app.aws import (
     ses_complaint_callback,
     ses_complaint_callback_malformed_message_id,
     ses_complaint_callback_with_missing_complaint_type,
