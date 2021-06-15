@@ -179,14 +179,14 @@ def github_data(mocker, success_github_org_membership, success_github_user, succ
 class TestLogin:
 
     def test_should_return_501_if_toggle_is_disabled(self, client, github_login_toggle_disabled):
-        response = client.get('/login')
+        response = client.get('/auth/login')
 
         assert response.status_code == 501
 
     def test_should_redirect_to_github_if_toggle_is_enabled(
             self, client, github_login_toggle_enabled, identity_provider_authorization_url
     ):
-        response = client.get('/login')
+        response = client.get('/auth/login')
 
         assert response.status_code == 302
         assert identity_provider_authorization_url in response.location
@@ -195,7 +195,7 @@ class TestLogin:
 class TestAuthorize:
 
     def test_should_return_501_if_toggle_is_disabled(self, client, github_login_toggle_disabled):
-        response = client.get('/authorize')
+        response = client.get('/auth/authorize')
 
         assert response.status_code == 501
 
@@ -212,7 +212,7 @@ class TestAuthorize:
         )
 
         with set_config_values(notify_api, cookie_config):
-            response = client.get('/authorize')
+            response = client.get('/auth/authorize')
 
         assert response.status_code == 302
         assert f"{cookie_config['UI_HOST_NAME']}/login/failure" in response.location
@@ -230,7 +230,7 @@ class TestAuthorize:
         mock_logger = mocker.patch('app.oauth.rest.current_app.logger.error')
 
         with set_config_values(notify_api, cookie_config):
-            response = client.get('/authorize')
+            response = client.get('/auth/authorize')
 
         assert response.status_code == 302
         assert f"{cookie_config['UI_HOST_NAME']}/login/failure" in response.location
@@ -246,7 +246,7 @@ class TestAuthorize:
         mock_logger = mocker.patch('app.oauth.rest.current_app.logger.error')
 
         with set_config_values(notify_api, cookie_config):
-            response = client.get('/authorize')
+            response = client.get('/auth/authorize')
 
         assert response.status_code == 302
         assert f"{cookie_config['UI_HOST_NAME']}/login/failure?denied_authorization" in response.location
@@ -295,7 +295,7 @@ class TestAuthorize:
         create_access_token = mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
 
         with set_config_values(notify_api, cookie_config):
-            response = client.get('/authorize')
+            response = client.get('/auth/authorize')
 
         create_access_token.assert_called_with(identity=found_user)
 
@@ -327,7 +327,7 @@ class TestAuthorize:
         mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
 
         with set_config_values(notify_api, cookie_config):
-            client.get('/authorize')
+            client.get('/auth/authorize')
 
         create_or_retrieve_user.assert_called_with(
             email_address=expected_email,
@@ -338,7 +338,7 @@ class TestAuthorize:
 class TestRedeemToken:
 
     def test_should_return_501_if_toggle_is_disabled(self, client, github_login_toggle_disabled):
-        response = client.get('/redeem-token')
+        response = client.get('/auth/redeem-token')
 
         assert response.status_code == 501
 
@@ -347,7 +347,7 @@ class TestRedeemToken:
             self, client, github_login_toggle_enabled, mocker, exception
     ):
         mocker.patch('app.oauth.rest.verify_jwt_in_request', side_effect=exception)
-        response = client.get('/redeem-token')
+        response = client.get('/auth/redeem-token')
 
         assert response.status_code == 401
 
@@ -364,7 +364,7 @@ class TestRedeemToken:
         with set_config_values(notify_api,
                                {'JWT_ACCESS_COOKIE_NAME': cookie_config['JWT_ACCESS_COOKIE_NAME']}
                                ):
-            response = client.get('/redeem-token')
+            response = client.get('/auth/redeem-token')
 
         assert response.status_code == 200
         assert response.json.get('data') == expected_cookie_value
@@ -375,7 +375,7 @@ class TestRedeemToken:
         with set_config_values(notify_api, {
             'UI_HOST_NAME': cookie_config['UI_HOST_NAME']
         }):
-            response = client.get('/redeem-token')
+            response = client.get('/auth/redeem-token')
 
         assert response.access_control_allow_credentials
         assert response.access_control_allow_origin == cookie_config['UI_HOST_NAME']
@@ -395,11 +395,11 @@ class TestLoginWithPassword:
             "password": some_p
         }
 
-        response = client.post('/login', data=json.dumps(data), headers=[('Content-Type', 'application/json')])
+        response = client.post('/auth/login', data=json.dumps(data), headers=[('Content-Type', 'application/json')])
         assert response.status_code == 200
 
     def test_should_return_501_if_password_toggle_is_disabled(self, client, login_with_password_toggle_disabled):
-        response = client.post('/login')
+        response = client.post('/auth/login')
 
         assert response.status_code == 501
 
@@ -408,7 +408,7 @@ class TestLoginWithPassword:
     ):
         data = {}
 
-        response = client.post('/login', data=json.dumps(data), headers=[('Content-Type', 'application/json')])
+        response = client.post('/auth/login', data=json.dumps(data), headers=[('Content-Type', 'application/json')])
         assert response.status_code == 400
 
     def test_should_return_401_when_wrong_password(
@@ -424,7 +424,11 @@ class TestLoginWithPassword:
             "password": some_t
         }
 
-        response = client.post('/login', data=json.dumps(credentials), headers=[('Content-Type', 'application/json')])
+        response = client.post(
+            '/auth/login',
+            data=json.dumps(credentials),
+            headers=[('Content-Type', 'application/json')]
+        )
         assert response.status_code == 401
 
     def test_should_return_401_when_user_not_found_by__email_address(
@@ -439,7 +443,11 @@ class TestLoginWithPassword:
             "password": some_p
         }
 
-        response = client.post('/login', data=json.dumps(credentials), headers=[('Content-Type', 'application/json')])
+        response = client.post(
+            '/auth/login',
+            data=json.dumps(credentials),
+            headers=[('Content-Type', 'application/json')]
+        )
         assert response.status_code == 401
 
     def test_login_with_password_success_returns_token(
@@ -457,7 +465,7 @@ class TestLoginWithPassword:
             "password": some_p
         }
 
-        response = client.post('/login', data=json.dumps(data), headers=[('Content-Type', 'application/json')])
+        response = client.post('/auth/login', data=json.dumps(data), headers=[('Content-Type', 'application/json')])
         response_json = response.json
         assert response_json['result'] == 'success'
         assert response_json['token'] is not None
@@ -466,7 +474,7 @@ class TestLoginWithPassword:
 class TestLogout:
 
     def test_should_return_501_if_toggle_is_disabled(self, client, github_login_toggle_disabled):
-        response = client.get('/logout')
+        response = client.get('/auth/logout')
 
         assert response.status_code == 501
 
@@ -474,7 +482,7 @@ class TestLogout:
             self, client, github_login_toggle_enabled, notify_api, cookie_config, github_data, db_session
     ):
         with set_config_values(notify_api, cookie_config):
-            client.get('/authorize')
+            client.get('/auth/authorize')
 
         assert any(
             cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME']
@@ -482,7 +490,7 @@ class TestLogout:
         )
 
         with set_config_values(notify_api, cookie_config):
-            response = client.get('/logout')
+            response = client.get('/auth/logout')
 
         assert response.status_code == 302
         assert cookie_config['UI_HOST_NAME'] in response.location
