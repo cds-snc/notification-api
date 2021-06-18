@@ -26,7 +26,7 @@ def test_make_sns_callback(notify_api, rmock):
     phone_number = "07700900001"
     endpoint = "http://localhost:6011/notifications/sms/sns"
     rmock.request("POST", endpoint, json="some data", status_code=200)
-    res = send_sms_response("sns", "1234", phone_number)
+    send_sms_response("sns", "1234", phone_number)
 
     assert rmock.called
     assert rmock.request_history[0].url == endpoint
