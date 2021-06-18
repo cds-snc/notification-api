@@ -80,6 +80,50 @@ def ses_notification_callback():
     )
 
 
+def sns_success_callback(reference=None, timestamp="2016-06-28 00:40:34.558", destination="+1XXX5550100"):
+    # Payload details: https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html
+    body = {
+        "notification": {"messageId": reference, "timestamp": timestamp},
+        "delivery": {
+            "phoneCarrier": "My Phone Carrier",
+            "mnc": 270,
+            "destination": destination,
+            "priceInUSD": 0.00645,
+            "smsType": "Transactional",
+            "mcc": 310,
+            "providerResponse": "Message has been accepted by phone carrier",
+            "dwellTimeMs": 599,
+            "dwellTimeMsUntilDeviceAck": 1344,
+        },
+        "status": "SUCCESS",
+    }
+
+    return _sns_callback(body)
+
+
+def sns_failed_callback(provider_response, reference=None, timestamp="2016-06-28 00:40:34.558", destination="+1XXX5550100"):
+    # Payload details: https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html
+    body = {
+        "notification": {
+            "messageId": reference,
+            "timestamp": timestamp,
+        },
+        "delivery": {
+            "mnc": 0,
+            "destination": destination,
+            "priceInUSD": 0.00645,
+            "smsType": "Transactional",
+            "mcc": 0,
+            "providerResponse": provider_response,
+            "dwellTimeMs": 1420,
+            "dwellTimeMsUntilDeviceAck": 1692,
+        },
+        "status": "FAILURE",
+    }
+
+    return _sns_callback(body)
+
+
 def _ses_bounce_callback(reference, bounce_type):
     ses_message_body = {
         "bounce": {
@@ -155,47 +199,3 @@ def _sns_callback(body):
         "UnsubscribeUrl": "https://sns.ca-central-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=[REACTED]",
         "MessageAttributes": {},
     }
-
-
-def sns_success_callback(reference=None, timestamp="2016-06-28 00:40:34.558"):
-    # Payload details: https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html
-    body = {
-        "notification": {"messageId": reference, "timestamp": timestamp},
-        "delivery": {
-            "phoneCarrier": "My Phone Carrier",
-            "mnc": 270,
-            "destination": "+1XXX5550100",
-            "priceInUSD": 0.00645,
-            "smsType": "Transactional",
-            "mcc": 310,
-            "providerResponse": "Message has been accepted by phone carrier",
-            "dwellTimeMs": 599,
-            "dwellTimeMsUntilDeviceAck": 1344,
-        },
-        "status": "SUCCESS",
-    }
-
-    return _sns_callback(body)
-
-
-def sns_failed_callback(provider_response, reference=None, timestamp="2016-06-28 00:40:34.558"):
-    # Payload details: https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html
-    body = {
-        "notification": {
-            "messageId": reference,
-            "timestamp": timestamp,
-        },
-        "delivery": {
-            "mnc": 0,
-            "destination": "+1XXX5550100",
-            "priceInUSD": 0.00645,
-            "smsType": "Transactional",
-            "mcc": 0,
-            "providerResponse": provider_response,
-            "dwellTimeMs": 1420,
-            "dwellTimeMsUntilDeviceAck": 1692,
-        },
-        "status": "FAILURE",
-    }
-
-    return _sns_callback(body)

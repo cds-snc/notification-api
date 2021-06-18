@@ -4,13 +4,13 @@ from datetime import datetime, timedelta
 
 from flask import current_app
 from notifications_utils.s3 import s3upload
-from requests import HTTPError, RequestException, request
 
 from app import notify_celery
+from app.aws.aws_mocks import sns_failed_callback, sns_success_callback
 from app.aws.s3 import file_exists
 from app.celery.process_ses_receipts_tasks import process_ses_results
+from app.celery.process_sns_receipts_tasks import process_sns_results
 from app.config import QueueNames
-from app.models import SMS_TYPE
 
 temp_fail = "7700900003"
 perm_fail = "7700900002"
@@ -22,21 +22,8 @@ temp_fail_email = "temp-fail@simulator.notify"
 
 
 def send_sms_response(provider, reference, to):
-    headers = {"Content-type": "application/x-www-form-urlencoded"}
-    body = firetext_callback(reference, to)
-    # to simulate getting a temporary_failure from firetext
-    # we need to send a pending status updated then a permanent-failure
-    if body["status"] == "2":  # pending status
-        make_request(SMS_TYPE, provider, body, headers)
-        # 1 is a declined status for firetext, will result in a temp-failure
-        body = {
-            "mobile": to,
-            "status": "1",
-            "time": "2016-03-10 14:17:00",
-            "reference": reference,
-        }
-
-    make_request(SMS_TYPE, provider, body, headers)
+    body = aws_ses_callback(reference, to)
+    process_sns_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
 
 
 def send_email_response(reference, to):
@@ -50,29 +37,23 @@ def send_email_response(reference, to):
     process_ses_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
 
 
-def make_request(notification_type, provider, data, headers):
-    api_call = "{}/notifications/{}/{}".format(current_app.config["API_HOST_NAME"], notification_type, provider)
+def aws_ses_callback(notification_id, to):
+    now = datetime.now()
+    timestamp = now.strftime("%m/%d/%Y %H:%M:%S")
 
-    try:
-        response = request("POST", api_call, headers=headers, data=data, timeout=60)
-        response.raise_for_status()
-    except RequestException as e:
-        api_error = HTTPError(e)
-        # TODO: Revert the following log to error level once the SMS research simulation has been fixed via:
-        #       https://trello.com/c/FTzY1HLJ/563-rework-fake-sms-callbacks-for-notifications-sent-using-test-keys
-        current_app.logger.info("API {} request on {} failed with {}".format("POST", api_call, api_error.response))
-        # TODO: Reinstate the error raise once the SMS research simulation has been fixed via:
-        #       https://trello.com/c/FTzY1HLJ/563-rework-fake-sms-callbacks-for-notifications-sent-using-test-keys
-        # raise api_error
-    finally:
-        current_app.logger.info("Mocked provider callback request finished")
-    return response.json()
+    if to.strip().endswith(perm_fail):
+        return sns_failed_callback("Permanent failure", destination=to, timestamp=timestamp)
+    elif to.strip().endswith(temp_fail):
+        return sns_failed_callback("Temporary failure", destination=to, timestamp=timestamp)
+    else:
+        return sns_success_callback("Success", destination=to, timestamp=timestamp)
 
 
 def firetext_callback(notification_id, to):
     """
     status: 0 - delivered
     status: 1 - perm failure
+    status: 2 - temp failure
     """
     if to.strip().endswith(perm_fail):
         status = "1"
@@ -125,7 +106,8 @@ def create_fake_letter_response_file(self, reference):
 
     # on development we can't trigger SNS callbacks so we need to manually hit the DVLA callback endpoint
     if current_app.config["NOTIFY_ENVIRONMENT"] == "development":
-        make_request("letter", "dvla", _fake_sns_s3_callback(upload_file_name), None)
+        body = _fake_sns_s3_callback(upload_file_name)
+        process_sns_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
 
 
 def _fake_sns_s3_callback(filename):

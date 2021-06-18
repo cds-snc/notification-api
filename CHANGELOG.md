@@ -1,3 +1,7 @@
+## Review
+
+Do we still need this changelog? It seems we never tracked all changes that diverts from GDS since the fork. Do we want to update this or get rid of this file? It might be quite benefitial to keep a changelog automatically generated, but I don't see manual maintenance happening.
+
 ## Changelog
 
 The purpose of this file is to track the major changes we have made to the application from the original GDS version and to provide a rational for those changes. Changes are listed in reverse chronological order from most recent to last. Changes are broken down by component (API, ADMIN, UTILS). This list is not comprehensive but should just give an idea of steps necessary to stand up one's own version.

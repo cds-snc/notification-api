@@ -254,7 +254,7 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(sampl
     assert not persisted_notification.personalisation
 
 
-@pytest.mark.parametrize("research_mode,key_type", [(True, KEY_TYPE_NORMAL), (False, KEY_TYPE_TEST)])
+@pytest.mark.parametrize("research_mode, key_type", [(True, KEY_TYPE_NORMAL), (False, KEY_TYPE_TEST)])
 def test_should_call_send_sms_response_task_if_research_mode(
     notify_db, sample_service, sample_notification, mocker, research_mode, key_type
 ):
