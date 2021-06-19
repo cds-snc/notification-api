@@ -7,11 +7,11 @@ import requests_mock
 from flask import current_app, json
 from freezegun import freeze_time
 
+from app.aws.aws_mocks import ses_notification_callback, sns_success_callback
 from app.celery.research_mode_tasks import (
     create_fake_letter_response_file,
     send_email_response,
     send_sms_response,
-    ses_notification_callback,
 )
 from app.config import QueueNames
 from tests.conftest import Matcher, set_config_values
@@ -71,25 +71,15 @@ def test_create_fake_letter_response_file_uploads_response_file_s3(notify_api, m
 def test_create_fake_letter_response_file_calls_dvla_callback_on_development(notify_api, mocker):
     mocker.patch("app.celery.research_mode_tasks.file_exists", return_value=False)
     mocker.patch("app.celery.research_mode_tasks.s3upload")
+    mock_task = mocker.patch("app.celery.research_mode_tasks.process_sns_results")
 
     with set_config_values(notify_api, {"NOTIFY_ENVIRONMENT": "development"}):
-        with requests_mock.Mocker() as request_mock:
-            request_mock.post(
-                "http://localhost:6011/notifications/letter/dvla",
-                content=b"{}",
-                status_code=200,
-            )
+        some_ref = str(uuid.uuid4())
+        create_fake_letter_response_file(some_ref)
 
-            create_fake_letter_response_file("random-ref")
-
-            assert request_mock.last_request.json() == {
-                "Type": "Notification",
-                "MessageId": "some-message-id",
-                "Message": ANY,
-            }
-            assert json.loads(request_mock.last_request.json()["Message"]) == {
-                "Records": [{"s3": {"object": {"key": dvla_response_file_matcher}}}]
-            }
+        mock_task.apply_async.assert_called_once_with(ANY, queue=QueueNames.RESEARCH_MODE)
+        message = json.loads(mock_task.apply_async.call_args[0][0][0])
+        assert message["MessageId"] == some_ref
 
 
 @freeze_time("2018-01-25 14:00:30")
