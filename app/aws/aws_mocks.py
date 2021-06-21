@@ -171,10 +171,10 @@ def sns_failed_callback(provider_response, reference=None, timestamp="2016-06-28
     return _sns_callback(body)
 
 
-def _ses_bounce_callback(reference, bounce_type):
+def _ses_bounce_callback(reference, bounce_type, bounce_subtype=None):
     ses_message_body = {
         "bounce": {
-            "bounceSubType": "General",
+            "bounceSubType": bounce_subtype or "General",
             "bounceType": bounce_type,
             "bouncedRecipients": [
                 {
