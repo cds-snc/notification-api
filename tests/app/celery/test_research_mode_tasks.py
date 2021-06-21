@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from unittest.mock import ANY, call
 from urllib.parse import unquote
 
@@ -7,7 +8,7 @@ import requests_mock
 from flask import current_app, json
 from freezegun import freeze_time
 
-from app.aws.aws_mocks import ses_notification_callback
+from app.aws.aws_mocks import ses_notification_callback, sns_success_callback
 from app.celery.research_mode_tasks import (
     create_fake_letter_response_file,
     send_email_response,
@@ -22,17 +23,19 @@ dvla_response_file_matcher = Matcher(
 )
 
 
-def test_make_sns_callback(notify_api, rmock):
+@freeze_time("2018-01-25 14:00:30")
+def test_make_sns_callback(notify_api, mocker):
+    mock_task = mocker.patch("app.celery.research_mode_tasks.process_sns_results")
+    some_ref = str(uuid.uuid4())
     phone_number = "07700900001"
-    endpoint = "http://localhost:6011/notifications/sms/sns"
-    rmock.request("POST", endpoint, json="some data", status_code=200)
-    send_sms_response("sns", "1234", phone_number)
+    now = datetime.now()
+    timestamp = now.strftime("%m/%d/%Y %H:%M:%S")
 
-    assert rmock.called
-    assert rmock.request_history[0].url == endpoint
-    request = unquote(rmock.request_history[0].text)
+    send_sms_response("sns", some_ref, phone_number)
 
-    assert '"destination":+"07700900001"' in request
+    mock_task.apply_async.assert_called_once_with(ANY, queue=QueueNames.RESEARCH_MODE)
+    message_celery = mock_task.apply_async.call_args[0][0][0]
+    assert message_celery == sns_success_callback(some_ref, destination=phone_number, timestamp=timestamp)
 
 
 def test_make_ses_callback(notify_api, mocker):

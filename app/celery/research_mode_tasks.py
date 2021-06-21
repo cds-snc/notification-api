@@ -48,11 +48,11 @@ def aws_ses_callback(notification_id, to):
     timestamp = now.strftime("%m/%d/%Y %H:%M:%S")
 
     if to.strip().endswith(perm_fail):
-        return sns_failed_callback("Permanent failure", destination=to, timestamp=timestamp)
+        return sns_failed_callback("Permanent failure", notification_id, destination=to, timestamp=timestamp)
     elif to.strip().endswith(temp_fail):
-        return sns_failed_callback("Temporary failure", destination=to, timestamp=timestamp)
+        return sns_failed_callback("Temporary failure", notification_id, destination=to, timestamp=timestamp)
     else:
-        return sns_success_callback("Success", destination=to, timestamp=timestamp)
+        return sns_success_callback(notification_id, destination=to, timestamp=timestamp)
 
 
 @notify_celery.task(

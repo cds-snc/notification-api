@@ -4,16 +4,16 @@ import pytest
 from flask import json
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.aws.aws_mocks import (
+    ses_complaint_callback,
+    ses_complaint_callback_malformed_message_id,
+    ses_complaint_callback_with_missing_complaint_type,
+)
 from app.dao.notifications_dao import get_notification_by_id
 from app.models import Complaint
 from app.notifications.notifications_ses_callback import (
     get_aws_responses,
     handle_complaint,
-)
-from tests.app.aws.aws_mocks import (
-    ses_complaint_callback,
-    ses_complaint_callback_malformed_message_id,
-    ses_complaint_callback_with_missing_complaint_type,
 )
 from tests.app.conftest import sample_notification as create_sample_notification
 from tests.app.db import create_notification, create_notification_history
