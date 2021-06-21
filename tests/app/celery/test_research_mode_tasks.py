@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime
 from unittest.mock import ANY, call
-from urllib.parse import unquote
 
 import pytest
 import requests_mock
