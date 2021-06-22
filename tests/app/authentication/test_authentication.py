@@ -9,7 +9,12 @@ from freezegun import freeze_time
 from notifications_python_client.authentication import create_jwt_token
 
 from app import api_user
-from app.authentication.auth import AuthError, requires_admin_auth, requires_auth, AUTH_TYPES
+from app.authentication.auth import (
+    AUTH_TYPES,
+    AuthError,
+    requires_admin_auth,
+    requires_auth,
+)
 from app.dao.api_key_dao import (
     expire_api_key,
     get_unsigned_secret,
@@ -132,6 +137,14 @@ def test_should_allow_auth_with_api_key_scheme(client, sample_api_key, scheme):
     api_key_secret = get_unsigned_secret(sample_api_key.id)
 
     response = client.get("/notifications", headers={"Authorization": f"{scheme} {api_key_secret}"})
+
+    assert response.status_code == 200
+
+
+def test_should_allow_auth_with_api_key_scheme_36_chars_or_longer(client, sample_api_key):
+    api_key_secret = "fhsdkjhfdsfhsd" + get_unsigned_secret(sample_api_key.id)
+
+    response = client.get("/notifications", headers={"Authorization": f"ApiKey-v1 {api_key_secret}"})
 
     assert response.status_code == 200
 
