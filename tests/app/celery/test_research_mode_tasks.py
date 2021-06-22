@@ -29,6 +29,7 @@ dvla_response_file_matcher = Matcher(
 @pytest.mark.parametrize(
     "phone_number, sns_callback, sns_callback_args",
     [
+        ("07700900000", sns_success_callback, {}),
         ("07700900001", sns_success_callback, {}),
         ("07700900002", sns_failed_callback, {"provider_response": "Permanent failure"}),
         ("07700900003", sns_failed_callback, {"provider_response": "Temporary failure"}),
