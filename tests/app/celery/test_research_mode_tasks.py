@@ -7,7 +7,11 @@ import requests_mock
 from flask import current_app, json
 from freezegun import freeze_time
 
-from app.aws.mocks import ses_notification_callback, sns_success_callback
+from app.aws.mocks import (
+    ses_notification_callback,
+    sns_failed_callback,
+    sns_success_callback,
+)
 from app.celery.research_mode_tasks import (
     create_fake_letter_response_file,
     send_email_response,
@@ -22,11 +26,18 @@ dvla_response_file_matcher = Matcher(
 )
 
 
+@pytest.mark.parametrize(
+    "phone_number, sns_callback, sns_callback_args",
+    [
+        ("07700900001", sns_success_callback, {}),
+        ("07700900002", sns_failed_callback, {"provider_response": "Permanent failure"}),
+        ("07700900003", sns_failed_callback, {"provider_response": "Temporary failure"}),
+    ],
+)
 @freeze_time("2018-01-25 14:00:30")
-def test_make_sns_callback(notify_api, mocker):
+def test_make_sns_success_callback(notify_api, mocker, phone_number, sns_callback, sns_callback_args):
     mock_task = mocker.patch("app.celery.research_mode_tasks.process_sns_results")
     some_ref = str(uuid.uuid4())
-    phone_number = "07700900001"
     now = datetime.now()
     timestamp = now.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
@@ -34,7 +45,8 @@ def test_make_sns_callback(notify_api, mocker):
 
     mock_task.apply_async.assert_called_once_with(ANY, queue=QueueNames.RESEARCH_MODE)
     message_celery = mock_task.apply_async.call_args[0][0][0]
-    assert message_celery == sns_success_callback(some_ref, destination=phone_number, timestamp=timestamp)
+    sns_callback_args.update({"reference": some_ref, "destination": phone_number, "timestamp": timestamp})
+    assert message_celery == sns_callback(**sns_callback_args)
 
 
 def test_make_ses_callback(notify_api, mocker):
