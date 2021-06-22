@@ -28,7 +28,7 @@ def test_make_sns_callback(notify_api, mocker):
     some_ref = str(uuid.uuid4())
     phone_number = "07700900001"
     now = datetime.now()
-    timestamp = now.strftime("%m/%d/%Y %H:%M:%S")
+    timestamp = now.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
     send_sms_response("sns", some_ref, phone_number)
 
