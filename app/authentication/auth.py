@@ -21,8 +21,20 @@ from app.dao.services_dao import dao_fetch_service_by_id_with_api_keys
 JWT_AUTH_TYPE = "jwt"
 API_KEY_V1_AUTH_TYPE = "api_key_v1"
 AUTH_TYPES = [
-    ("Bearer", JWT_AUTH_TYPE),
-    ("ApiKey-v1", API_KEY_V1_AUTH_TYPE),
+    (
+        "Bearer",
+        JWT_AUTH_TYPE,
+        "JWT token that the client generates and passes in, "
+        "see https://docs.notifications.service.gov.uk/rest-api.html#authorisation-header "
+        "for more information",
+    ),
+    (
+        "ApiKey-v1",
+        API_KEY_V1_AUTH_TYPE,
+        "If you cannot generate a JWT token you may optionally use "
+        "the api secret generated for you by Notify. "
+        "see https://documentation.notification.canada.ca/en/start.html#headers",
+    ),
 ]
 
 
@@ -50,14 +62,19 @@ def get_auth_token(req):
         raise AuthError("Unauthorized, authentication token must be provided", 401)
 
     for el in AUTH_TYPES:
-        scheme, auth_type = el
+        scheme, auth_type, _ = el
         if auth_header.lower().startswith(scheme.lower()):
             token = auth_header[len(scheme) + 1 :]
             return auth_type, token
 
     # TODO: decide if error message stays the same.
     # In fact we support another auth method than Bearer
-    raise AuthError("Unauthorized, authentication bearer scheme must be used", 401)
+    raise AuthError(
+        "Unauthorized, Authorization header is invalid. "
+        "Notify supports the following authentication methods. "
+        + ", ".join([f"{auth_type[0]}: {auth_type[2]}" for auth_type in AUTH_TYPES]),
+        401,
+    )
 
 
 def requires_no_auth():

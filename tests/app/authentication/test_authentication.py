@@ -9,7 +9,7 @@ from freezegun import freeze_time
 from notifications_python_client.authentication import create_jwt_token
 
 from app import api_user
-from app.authentication.auth import AuthError, requires_admin_auth, requires_auth
+from app.authentication.auth import AuthError, requires_admin_auth, requires_auth, AUTH_TYPES
 from app.dao.api_key_dao import (
     expire_api_key,
     get_unsigned_secret,
@@ -33,7 +33,12 @@ def test_should_not_allow_request_with_incorrect_header(client, auth_fn):
     request.headers = {"Authorization": "Basic 1234"}
     with pytest.raises(AuthError) as exc:
         auth_fn()
-    assert exc.value.short_message == "Unauthorized, authentication bearer scheme must be used"
+    assert (
+        exc.value.short_message
+        == "Unauthorized, Authorization header is invalid. "
+        + "Notify supports the following authentication methods. "
+        + ", ".join([f"{auth_type[0]}: {auth_type[2]}" for auth_type in AUTH_TYPES])
+    )
 
 
 @pytest.mark.parametrize("auth_fn", [requires_auth, requires_admin_auth])
