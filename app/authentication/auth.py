@@ -67,8 +67,6 @@ def get_auth_token(req):
             token = auth_header[len(scheme) + 1 :]
             return auth_type, token
 
-    # TODO: decide if error message stays the same.
-    # In fact we support another auth method than Bearer
     raise AuthError(
         "Unauthorized, Authorization header is invalid. "
         "Notify supports the following authentication methods. "
