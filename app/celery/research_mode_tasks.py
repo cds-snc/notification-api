@@ -5,7 +5,7 @@ from flask import current_app
 from notifications_utils.s3 import s3upload
 
 from app import notify_celery
-from app.aws.aws_mocks import (
+from app.aws.mocks import (
     ses_hard_bounce_callback,
     ses_notification_callback,
     ses_soft_bounce_callback,
@@ -18,9 +18,9 @@ from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.process_sns_receipts_tasks import process_sns_results
 from app.config import QueueNames
 
-temp_fail = "7700900003"
-perm_fail = "7700900002"
-delivered = "7700900001"
+last_digit_temp_fail = "3"
+last_digit_perm_fail = "2"
+last_digit_delivered = "1"
 
 delivered_email = "delivered@simulator.notify"
 perm_fail_email = "perm-fail@simulator.notify"
@@ -28,7 +28,7 @@ temp_fail_email = "temp-fail@simulator.notify"
 
 
 def send_sms_response(provider, reference, to):
-    body = aws_ses_callback(reference, to)
+    body = aws_sns_callback(reference, to)
     process_sns_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
 
 
@@ -43,13 +43,13 @@ def send_email_response(reference, to):
     process_ses_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
 
 
-def aws_ses_callback(notification_id, to):
+def aws_sns_callback(notification_id, to):
     now = datetime.now()
-    timestamp = now.strftime("%m/%d/%Y %H:%M:%S")
+    timestamp = now.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
-    if to.strip().endswith(perm_fail):
+    if to.strip().endswith(last_digit_perm_fail):
         return sns_failed_callback("Permanent failure", notification_id, destination=to, timestamp=timestamp)
-    elif to.strip().endswith(temp_fail):
+    elif to.strip().endswith(last_digit_temp_fail):
         return sns_failed_callback("Temporary failure", notification_id, destination=to, timestamp=timestamp)
     else:
         return sns_success_callback(notification_id, destination=to, timestamp=timestamp)

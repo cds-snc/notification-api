@@ -4,7 +4,7 @@ import pytest
 from freezegun import freeze_time
 
 from app import statsd_client
-from app.aws.aws_mocks import sns_failed_callback, sns_success_callback
+from app.aws.mocks import sns_failed_callback, sns_success_callback
 from app.celery.process_sns_receipts_tasks import process_sns_results
 from app.dao.notifications_dao import get_notification_by_id
 from app.models import (

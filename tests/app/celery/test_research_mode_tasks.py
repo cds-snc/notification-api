@@ -7,7 +7,7 @@ import requests_mock
 from flask import current_app, json
 from freezegun import freeze_time
 
-from app.aws.aws_mocks import ses_notification_callback, sns_success_callback
+from app.aws.mocks import ses_notification_callback, sns_success_callback
 from app.celery.research_mode_tasks import (
     create_fake_letter_response_file,
     send_email_response,

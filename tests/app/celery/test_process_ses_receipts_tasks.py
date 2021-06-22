@@ -5,7 +5,7 @@ import pytest
 from freezegun import freeze_time
 
 from app import encryption, statsd_client
-from app.aws.aws_mocks import ses_complaint_callback
+from app.aws.mocks import ses_complaint_callback
 from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.research_mode_tasks import (
     ses_hard_bounce_callback,

@@ -4,7 +4,7 @@ import pytest
 from flask import json
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.aws.aws_mocks import (
+from app.aws.mocks import (
     ses_complaint_callback,
     ses_complaint_callback_malformed_message_id,
     ses_complaint_callback_with_missing_complaint_type,
