@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from flask import current_app
 from notifications_utils.s3 import s3upload
 
-from app import notify_celery
+from app import create_uuid, notify_celery
 from app.aws.mocks import (
     ses_hard_bounce_callback,
     ses_notification_callback,
@@ -27,12 +27,15 @@ perm_fail_email = "perm-fail@simulator.notify"
 temp_fail_email = "temp-fail@simulator.notify"
 
 
-def send_sms_response(provider, reference, to):
+def send_sms_response(provider, to):
+    reference = str(create_uuid())
     body = aws_sns_callback(reference, to)
     process_sns_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
+    return reference
 
 
-def send_email_response(reference, to):
+def send_email_response(to):
+    reference = str(create_uuid())
     if to == perm_fail_email:
         body = ses_hard_bounce_callback(reference)
     elif to == temp_fail_email:
@@ -41,6 +44,7 @@ def send_email_response(reference, to):
         body = ses_notification_callback(reference)
 
     process_ses_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
+    return reference
 
 
 def aws_sns_callback(notification_id, to):
@@ -48,9 +52,13 @@ def aws_sns_callback(notification_id, to):
     timestamp = now.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
     if to.strip().endswith(last_digit_perm_fail):
-        return sns_failed_callback("Permanent failure", notification_id, destination=to, timestamp=timestamp)
+        return sns_failed_callback(
+            "Phone is currently unreachable/unavailable", notification_id, destination=to, timestamp=timestamp
+        )
     elif to.strip().endswith(last_digit_temp_fail):
-        return sns_failed_callback("Temporary failure", notification_id, destination=to, timestamp=timestamp)
+        return sns_failed_callback(
+            "Phone carrier is currently unreachable/unavailable", notification_id, destination=to, timestamp=timestamp
+        )
     else:
         return sns_success_callback(notification_id, destination=to, timestamp=timestamp)
 
