@@ -1,6 +1,7 @@
 import base64
 import csv
 import functools
+import uuid
 from io import StringIO
 
 import werkzeug
@@ -129,6 +130,8 @@ def post_bulk():
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 
     remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
+
+    form["validated_sender_id"] = validate_sender_id(template, form.get("reply_to_id"))
 
     try:
         if form.get("rows"):
@@ -406,6 +409,29 @@ def process_precompiled_letter_notifications(*, letter_data, api_key, template, 
     return notification
 
 
+def validate_sender_id(template, reply_to_id):
+    notification_type = template.template_type
+
+    if notification_type == EMAIL_TYPE:
+        service_email_reply_to_id = reply_to_id
+        check_service_email_reply_to_id(
+            str(authenticated_service.id),
+            service_email_reply_to_id,
+            notification_type,
+        )
+        return service_email_reply_to_id
+    elif notification_type == SMS_TYPE:
+        service_sms_sender_id = reply_to_id
+        check_service_sms_sender_id(
+            str(authenticated_service.id),
+            service_sms_sender_id,
+            notification_type,
+        )
+        return service_sms_sender_id
+    else:
+        raise NotImplementedError("validate_sender_id only handles emails and text messages")
+
+
 def get_reply_to_text(notification_type, form, template, form_field=None):
     reply_to = None
     if notification_type == EMAIL_TYPE:
@@ -495,7 +521,7 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
 
 def create_bulk_job(service, api_key, template, form, recipient_csv):
     upload_id = upload_job_to_s3(service.id, recipient_csv.file_data)
-    sender_id = get_reply_to_text(template.template_type, form, template, form_field="reply_to_id")
+    sender_id = form["validated_sender_id"]
 
     data = {
         "id": upload_id,
@@ -507,7 +533,7 @@ def create_bulk_job(service, api_key, template, form, recipient_csv):
         "original_file_name": form.get("name"),
         "created_by": current_app.config["NOTIFY_USER_ID"],
         "api_key": api_key.id,
-        "sender_id": sender_id,
+        "sender_id": uuid.UUID(str(sender_id)) if sender_id else None,
     }
     if form.get("scheduled_for"):
         data["job_status"] = JOB_STATUS_SCHEDULED

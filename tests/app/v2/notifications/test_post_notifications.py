@@ -1214,6 +1214,78 @@ def test_post_bulk_with_invalid_data_arguments(
     ]
 
 
+def test_post_bulk_with_invalid_reply_to_id(client, sample_email_template):
+    data = {
+        "name": "job_name",
+        "template_id": str(sample_email_template.id),
+        "rows": [["email address"], ["bob@example.com"]],
+        "reply_to_id": "foo",
+    }
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_email_template.service_id)],
+    )
+
+    assert response.status_code == 400
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["errors"] == [
+        {
+            "error": "ValidationError",
+            "message": "reply_to_id is not a valid UUID",
+        }
+    ]
+
+
+def test_post_bulk_with_non_existing_reply_to_id_for_email(client, sample_email_template, fake_uuid):
+    data = {
+        "name": "job_name",
+        "template_id": str(sample_email_template.id),
+        "rows": [["email address"], ["bob@example.com"]],
+        "reply_to_id": fake_uuid,
+    }
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_email_template.service_id)],
+    )
+
+    assert response.status_code == 400
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["errors"] == [
+        {
+            "error": "BadRequestError",
+            "message": f"email_reply_to_id {fake_uuid} does not exist in database for service id {sample_email_template.service_id}",
+        }
+    ]
+
+
+def test_post_bulk_with_non_existing_reply_to_id_for_sms(client, sms_code_template, fake_uuid):
+    data = {
+        "name": "job_name",
+        "template_id": str(sms_code_template.id),
+        "rows": [["phone number", "verify_code"], ["bob@example.com", "123"]],
+        "reply_to_id": fake_uuid,
+    }
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sms_code_template.service_id)],
+    )
+
+    assert response.status_code == 400
+    error_json = json.loads(response.get_data(as_text=True))
+    assert error_json["errors"] == [
+        {
+            "error": "BadRequestError",
+            "message": f"sms_sender_id {fake_uuid} does not exist in database for service id {sms_code_template.service_id}",
+        }
+    ]
+
+
 def test_post_bulk_flags_if_name_is_missing(client, sample_email_template):
     data = {"template_id": str(sample_email_template.id), "csv": "foo"}
 
@@ -1555,8 +1627,9 @@ def test_post_bulk_flags_rows_with_errors(client, notify_db, notify_db_session, 
 @pytest.mark.parametrize("data_type", ["rows", "csv"])
 @pytest.mark.parametrize("is_scheduled", [True, False])
 @pytest.mark.parametrize("use_sender_id", [True, False])
+@pytest.mark.parametrize("has_default_reply_to", [True, False])
 def test_post_bulk_creates_job_and_dispatches_celery_task(
-    client, sample_email_template, mocker, notify_user, notify_api, data_type, is_scheduled, use_sender_id
+    client, sample_email_template, mocker, notify_user, notify_api, data_type, is_scheduled, use_sender_id, has_default_reply_to
 ):
     data = {"name": "job_name", "template_id": sample_email_template.id}
     rows = [["email address"], ["foo@example.com"]]
@@ -1568,6 +1641,11 @@ def test_post_bulk_creates_job_and_dispatches_celery_task(
     if is_scheduled:
         scheduled_for = datetime.utcnow() + timedelta(days=1)
         data["scheduled_for"] = scheduled_for.isoformat()
+    if has_default_reply_to:
+        create_reply_to_email(sample_email_template.service, "test@test.com")
+    if use_sender_id:
+        reply_to_email = create_reply_to_email(sample_email_template.service, "custom@test.com", is_default=False)
+        data["reply_to_id"] = reply_to_email.id
 
     api_key = create_api_key(service=sample_email_template.service)
     job_id = str(uuid.uuid4())
@@ -1599,7 +1677,10 @@ def test_post_bulk_creates_job_and_dispatches_celery_task(
     else:
         assert job.scheduled_for is None
     assert job.api_key_id == api_key.id
-    assert job.sender_id is None
+    if use_sender_id:
+        assert job.sender_id == reply_to_email.id
+    else:
+        assert job.sender_id is None
 
     assert response.status_code == 201
 
@@ -1625,6 +1706,6 @@ def test_post_bulk_creates_job_and_dispatches_celery_task(
             "template": str(sample_email_template.id),
             "template_version": sample_email_template.version,
             "updated_at": None,
-            "sender_id": None,
+            "sender_id": str(reply_to_email.id) if use_sender_id else None,
         }
     }
