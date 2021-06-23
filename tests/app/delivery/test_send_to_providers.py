@@ -284,15 +284,15 @@ def test_should_call_send_sms_response_task_if_research_mode(
     assert not persisted_notification.personalisation
 
 
-def test_should_have_sent_status_if_fake_callback_function_fails(sample_notification, mocker):
+def test_should_not_have_sent_status_if_fake_callback_function_fails(sample_notification, mocker):
     mocker.patch("app.delivery.send_to_providers.send_sms_response", side_effect=HTTPError)
 
     sample_notification.key_type = KEY_TYPE_TEST
 
     with pytest.raises(HTTPError):
         send_to_providers.send_sms_to_provider(sample_notification)
-    assert sample_notification.status == "sent"
-    assert sample_notification.sent_by == "sns"
+    assert sample_notification.status == "created"
+    assert sample_notification.sent_by is None
 
 
 def test_should_not_send_to_provider_when_status_is_not_created(sample_template, mocker):
