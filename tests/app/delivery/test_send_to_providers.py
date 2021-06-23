@@ -258,8 +258,9 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(sampl
 def test_should_call_send_sms_response_task_if_research_mode(
     notify_db, sample_service, sample_notification, mocker, research_mode, key_type
 ):
+    reference = str(uuid.uuid4())
     mocker.patch("app.aws_sns_client.send_sms")
-    mocker.patch("app.delivery.send_to_providers.send_sms_response")
+    mocker.patch("app.delivery.send_to_providers.send_sms_response", return_value=reference)
 
     if research_mode:
         sample_service.research_mode = True
@@ -271,9 +272,7 @@ def test_should_call_send_sms_response_task_if_research_mode(
     send_to_providers.send_sms_to_provider(sample_notification)
     assert not aws_sns_client.send_sms.called
 
-    app.delivery.send_to_providers.send_sms_response.assert_called_once_with(
-        "sns", sample_notification.to, ANY
-    )
+    app.delivery.send_to_providers.send_sms_response.assert_called_once_with("sns", sample_notification.to)
 
     persisted_notification = notifications_dao.get_notification_by_id(sample_notification.id)
     assert persisted_notification.to == sample_notification.to
