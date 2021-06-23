@@ -506,8 +506,7 @@ def test_get_html_email_renderer_handles_email_branding_without_logo(notify_api)
 
 
 def test_should_not_update_notification_if_research_mode_on_exception(sample_service, sample_notification, mocker):
-    mocker.patch("app.delivery.send_to_providers.send_sms_response", side_effect=Exception())
-    update_mock = mocker.patch("app.delivery.send_to_providers.update_notification_to_sending")
+    mock_send_sms = mocker.patch("app.delivery.send_to_providers.send_sms_response", side_effect=Exception())
     sample_service.research_mode = True
     sample_notification.billable_units = 0
 
@@ -516,7 +515,7 @@ def test_should_not_update_notification_if_research_mode_on_exception(sample_ser
 
     persisted_notification = notifications_dao.get_notification_by_id(sample_notification.id)
     assert persisted_notification.billable_units == 0
-    assert update_mock.called
+    assert mock_send_sms.called
 
 
 def __update_notification(notification_to_update, research_mode, expected_status):
