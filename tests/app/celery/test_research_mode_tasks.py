@@ -31,8 +31,8 @@ dvla_response_file_matcher = Matcher(
     [
         ("07700900000", sns_success_callback, {}),
         ("07700900001", sns_success_callback, {}),
-        ("07700900002", sns_failed_callback, {"provider_response": "Permanent failure"}),
-        ("07700900003", sns_failed_callback, {"provider_response": "Temporary failure"}),
+        ("07700900002", sns_failed_callback, {"provider_response": "Phone is currently unreachable/unavailable"}),
+        ("07700900003", sns_failed_callback, {"provider_response": "Phone carrier is currently unreachable/unavailable"}),
     ],
 )
 @freeze_time("2018-01-25 14:00:30")
