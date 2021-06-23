@@ -33,7 +33,7 @@ AUTH_TYPES = [
         API_KEY_V1_AUTH_TYPE,
         "If you cannot generate a JWT token you may optionally use "
         "the API secret generated for you by GC Notify. "
-        "see https://documentation.notification.canada.ca/en/start.html#headers",
+        "Learn more: https://documentation.notification.canada.ca/en/start.html#headers.",
     ),
 ]
 
