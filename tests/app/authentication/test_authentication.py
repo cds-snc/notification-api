@@ -41,8 +41,9 @@ def test_should_not_allow_request_with_incorrect_header(client, auth_fn):
     assert (
         exc.value.short_message
         == "Unauthorized, Authorization header is invalid. "
-        + "Notify supports the following authentication methods. "
-        + ", ".join([f"{auth_type[0]}: {auth_type[2]}" for auth_type in AUTH_TYPES])
+        + "GC Notify supports the following authentication methods. "
+        + f"{AUTH_TYPES[0][0]}: {AUTH_TYPES[0][2]}"
+        + f", {AUTH_TYPES[1][0]}: {AUTH_TYPES[1][2]}"
     )
 
 
