@@ -208,11 +208,7 @@ class User(db.Model):
         }
 
     def serialize_for_user_services(self):
-        services = {}
-
-        for service in self.services:
-            if service.active:
-                services[str(service.id)] = service.name
+        services = [service.serialize_for_user() for service in self.services if service.active]
 
         return {
             'id': str(self.id),
@@ -583,6 +579,13 @@ class Service(db.Model, Versioned):
             'name': self.name,
             'active': self.active,
             'restricted': self.restricted,
+            'research_mode': self.research_mode
+        }
+
+    def serialize_for_user(self):
+        return {
+            'id': str(self.id),
+            'name': self.name,
             'research_mode': self.research_mode
         }
 
