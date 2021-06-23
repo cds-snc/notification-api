@@ -25,8 +25,7 @@ AUTH_TYPES = [
         "Bearer",
         JWT_AUTH_TYPE,
         "JWT token that the client generates and passes in, "
-        "see https://docs.notifications.service.gov.uk/rest-api.html#authorisation-header "
-        "for more information",
+        "Learn more: https://documentation.notification.canada.ca/en/start.html#headers.",
     ),
     (
         "ApiKey-v1",
