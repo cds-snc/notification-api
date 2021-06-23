@@ -207,6 +207,20 @@ class User(db.Model):
             'mobile_number': self.mobile_number,
         }
 
+    def serialize_for_user_services(self):
+        services = {}
+
+        for service in self.services:
+            if service.active:
+                services[str(service.id)] = service.name
+
+        return {
+            'id': str(self.id),
+            'name': self.name,
+            'email_address': self.email_address,
+            'services': services
+        }
+
 
 class ServiceUser(db.Model):
     __tablename__ = 'user_to_service'

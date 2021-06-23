@@ -50,7 +50,7 @@ def login_with_password():
     else:
         if fetched_user.check_password(request_json['password']):
             jwt_token = create_access_token(
-                identity=fetched_user
+                identity=fetched_user.serialize_for_user_services()
             )
             return jsonify(result='success', token=jwt_token), 200
         else:
@@ -91,7 +91,7 @@ def authorize():
         response.set_cookie(
             current_app.config['JWT_ACCESS_COOKIE_NAME'],
             create_access_token(
-                identity=user
+                identity=user.serialize_for_user_services()
             ),
             httponly=True,
             secure=current_app.config['SESSION_COOKIE_SECURE'],

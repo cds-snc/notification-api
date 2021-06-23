@@ -389,7 +389,7 @@ class TestRequiresUserInService:
         user = create_user()
         service = create_service(service_name='some-service', user=user)
 
-        token = create_access_token(identity=user)
+        token = create_access_token(identity=user.serialize_for_user_services())
 
         request.view_args['service_id'] = service.id
         request.headers = {'Authorization': 'Bearer {}'.format(token)}
@@ -405,7 +405,7 @@ class TestRequiresUserInService:
         user = create_user()
         service = create_service(service_name='some-service')
 
-        token = create_access_token(identity=user)
+        token = create_access_token(identity=user.serialize_for_user_services())
 
         request.view_args['service_id'] = service.id
         request.headers = {'Authorization': 'Bearer {}'.format(token)}
@@ -431,7 +431,7 @@ class TestRequiresUserInService:
             permissions=[Permission(service=service, user=user, permission=required_permission)]
         )
 
-        token = create_access_token(identity=user)
+        token = create_access_token(identity=user.serialize_for_user_services())
 
         request.view_args['service_id'] = service.id
         request.headers = {'Authorization': 'Bearer {}'.format(token)}
@@ -449,7 +449,7 @@ class TestRequiresUserInService:
 
         dao_add_user_to_service(service, user, permissions=[])
 
-        token = create_access_token(identity=user)
+        token = create_access_token(identity=user.serialize_for_user_services())
 
         request.view_args['service_id'] = service.id
         request.headers = {'Authorization': 'Bearer {}'.format(token)}
@@ -478,7 +478,7 @@ class TestRequiresAdminAuthOrUserInService:
             permissions=[Permission(service=service, user=user, permission=required_permission)]
         )
 
-        token = create_access_token(identity=user)
+        token = create_access_token(identity=user.serialize_for_user_services())
 
         request.view_args['service_id'] = service.id
         request.headers = {'Authorization': 'Bearer {}'.format(token)}
@@ -496,7 +496,7 @@ class TestRequiresAdminAuthOrUserInService:
 
         dao_add_user_to_service(service, user, permissions=[])
 
-        token = create_access_token(identity=user)
+        token = create_access_token(identity=user.serialize_for_user_services())
 
         request.view_args['service_id'] = service.id
         request.headers = {'Authorization': 'Bearer {}'.format(token)}

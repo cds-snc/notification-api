@@ -9,10 +9,10 @@ jwt = JWTManager()
 @jwt.user_identity_loader
 def transform_user_to_identity_for_jwt(user: User):
     return {
-        'id': user.id,
-        'name': user.name,
-        'email_address': user.email_address,
-        'services': [x.id for x in user.services if x.active]
+        'id': user['id'],
+        'name': user['name'],
+        'email_address': user['email_address'],
+        'services': user['services']
     }
 
 
