@@ -69,7 +69,7 @@ def get_auth_token(req):
 
     raise AuthError(
         "Unauthorized, Authorization header is invalid. "
-        "Notify supports the following authentication methods. "
+        "GC Notify supports the following authentication methods. "
         + ", ".join([f"{auth_type[0]}: {auth_type[2]}" for auth_type in AUTH_TYPES]),
         401,
     )
