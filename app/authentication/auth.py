@@ -138,9 +138,8 @@ def requires_auth():
 
 def _auth_by_api_key(auth_token):
     try:
-        # in the case where the full API key is provided get the last 36 chars
-        if len(auth_token) > 36:
-            auth_token = auth_token[-36:]
+        # take last 36 chars of string so that it works even if the full key is provided.
+        auth_token = auth_token[-36:]
         api_key = get_api_key_by_secret(auth_token)
     except NoResultFound:
         raise AuthError("Invalid token: API key not found", 403)
