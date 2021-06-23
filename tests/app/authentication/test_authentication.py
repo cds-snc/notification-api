@@ -9,7 +9,12 @@ from freezegun import freeze_time
 from notifications_python_client.authentication import create_jwt_token
 
 from app import api_user
-from app.authentication.auth import AuthError, requires_admin_auth, requires_auth
+from app.authentication.auth import (
+    AUTH_TYPES,
+    AuthError,
+    requires_admin_auth,
+    requires_auth,
+)
 from app.dao.api_key_dao import (
     expire_api_key,
     get_unsigned_secret,
@@ -33,7 +38,13 @@ def test_should_not_allow_request_with_incorrect_header(client, auth_fn):
     request.headers = {"Authorization": "Basic 1234"}
     with pytest.raises(AuthError) as exc:
         auth_fn()
-    assert exc.value.short_message == "Unauthorized, authentication bearer scheme must be used"
+    assert (
+        exc.value.short_message
+        == "Unauthorized, Authorization header is invalid. "
+        + "GC Notify supports the following authentication methods. "
+        + f"{AUTH_TYPES[0][0]}: {AUTH_TYPES[0][2]}"
+        + f", {AUTH_TYPES[1][0]}: {AUTH_TYPES[1][2]}"
+    )
 
 
 @pytest.mark.parametrize("auth_fn", [requires_auth, requires_admin_auth])
@@ -127,6 +138,14 @@ def test_should_allow_auth_with_api_key_scheme(client, sample_api_key, scheme):
     api_key_secret = get_unsigned_secret(sample_api_key.id)
 
     response = client.get("/notifications", headers={"Authorization": f"{scheme} {api_key_secret}"})
+
+    assert response.status_code == 200
+
+
+def test_should_allow_auth_with_api_key_scheme_36_chars_or_longer(client, sample_api_key):
+    api_key_secret = "fhsdkjhfdsfhsd" + get_unsigned_secret(sample_api_key.id)
+
+    response = client.get("/notifications", headers={"Authorization": f"ApiKey-v1 {api_key_secret}"})
 
     assert response.status_code == 200
 
