@@ -27,15 +27,13 @@ perm_fail_email = "perm-fail@simulator.notify"
 temp_fail_email = "temp-fail@simulator.notify"
 
 
-def send_sms_response(provider, to):
-    reference = str(create_uuid())
+def send_sms_response(provider, to, reference=str(create_uuid())):
     body = aws_sns_callback(reference, to)
     process_sns_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
     return reference
 
 
-def send_email_response(to):
-    reference = str(create_uuid())
+def send_email_response(to, reference=str(create_uuid())):
     if to == perm_fail_email:
         body = ses_hard_bounce_callback(reference)
     elif to == temp_fail_email:

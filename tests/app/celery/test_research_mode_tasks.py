@@ -42,7 +42,7 @@ def test_make_sns_success_callback(notify_api, mocker, phone_number, sns_callbac
     now = datetime.now()
     timestamp = now.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
-    send_sms_response("sns", some_ref, phone_number)
+    send_sms_response("sns", phone_number, some_ref)
 
     mock_task.apply_async.assert_called_once_with(ANY, queue=QueueNames.RESEARCH_MODE)
     message_celery = mock_task.apply_async.call_args[0][0][0]

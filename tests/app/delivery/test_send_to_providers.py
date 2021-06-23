@@ -272,7 +272,7 @@ def test_should_call_send_sms_response_task_if_research_mode(
     assert not aws_sns_client.send_sms.called
 
     app.delivery.send_to_providers.send_sms_response.assert_called_once_with(
-        "sns", str(sample_notification.id), sample_notification.to
+        "sns", sample_notification.to, ANY
     )
 
     persisted_notification = notifications_dao.get_notification_by_id(sample_notification.id)
@@ -349,15 +349,14 @@ def test_send_email_to_provider_should_call_research_mode_task_response_task_if_
     )
     sample_service.research_mode = research_mode
 
-    reference = uuid.uuid4()
-    mocker.patch("app.uuid.uuid4", return_value=reference)
+    reference = str(uuid.uuid4())
     mocker.patch("app.aws_ses_client.send_email")
-    mocker.patch("app.delivery.send_to_providers.send_email_response")
+    mocker.patch("app.delivery.send_to_providers.send_email_response", return_value=reference)
 
     send_to_providers.send_email_to_provider(notification)
 
     assert not app.aws_ses_client.send_email.called
-    app.delivery.send_to_providers.send_email_response.assert_called_once_with(str(reference), "john@smith.com")
+    app.delivery.send_to_providers.send_email_response.assert_called_once_with("john@smith.com")
     persisted_notification = Notification.query.filter_by(id=notification.id).one()
     assert persisted_notification.to == "john@smith.com"
     assert persisted_notification.template_id == sample_email_template.id
