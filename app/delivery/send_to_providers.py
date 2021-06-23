@@ -14,7 +14,7 @@ from notifications_utils.template import (
     SMSMessageTemplate,
 )
 
-from app import clients, create_uuid, statsd_client
+from app import clients, statsd_client
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
 from app.clients.mlwr.mlwr import check_mlwr_score
 from app.dao.notifications_dao import dao_update_notification
