@@ -297,7 +297,7 @@ class TestAuthorize:
         with set_config_values(notify_api, cookie_config):
             response = client.get('/auth/authorize')
 
-        create_access_token.assert_called_with(identity=found_user.serialize_for_user_services())
+        create_access_token.assert_called_with(identity=found_user)
 
         assert response.status_code == 302
         assert response.location == f"{cookie_config['UI_HOST_NAME']}/login/success"
