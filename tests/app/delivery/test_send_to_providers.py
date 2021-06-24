@@ -280,7 +280,7 @@ def test_should_call_send_sms_response_task_if_research_mode(
     assert persisted_notification.status == "sent"
     assert persisted_notification.sent_at <= datetime.utcnow()
     assert persisted_notification.sent_by == "sns"
-    assert persisted_notification.reference is reference
+    assert persisted_notification.reference == reference
     assert not persisted_notification.personalisation
 
 
