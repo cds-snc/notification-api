@@ -5,6 +5,7 @@ import pytest
 from freezegun import freeze_time
 
 from app import encryption, statsd_client
+from app.aws.mocks import ses_complaint_callback
 from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.research_mode_tasks import (
     ses_hard_bounce_callback,
@@ -19,11 +20,7 @@ from app.notifications.notifications_ses_callback import (
     remove_emails_from_complaint,
 )
 from tests.app.conftest import sample_notification as create_sample_notification
-from tests.app.db import (
-    create_notification,
-    create_service_callback_api,
-    ses_complaint_callback,
-)
+from tests.app.db import create_notification, create_service_callback_api
 
 
 def test_process_ses_results(sample_email_template):

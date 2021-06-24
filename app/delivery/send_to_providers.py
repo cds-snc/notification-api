@@ -14,7 +14,7 @@ from notifications_utils.template import (
     SMSMessageTemplate,
 )
 
-from app import clients, create_uuid, statsd_client
+from app import clients, statsd_client
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
 from app.clients.mlwr.mlwr import check_mlwr_score
 from app.dao.notifications_dao import dao_update_notification
@@ -68,8 +68,8 @@ def send_sms_to_provider(notification):
         )
 
         if service.research_mode or notification.key_type == KEY_TYPE_TEST:
+            notification.reference = send_sms_response(provider.get_name(), notification.to)
             update_notification_to_sending(notification, provider)
-            send_sms_response(provider.get_name(), str(notification.id), notification.to)
 
         else:
             try:
@@ -177,9 +177,8 @@ def send_email_to_provider(notification):
             contains_pii(notification, str(plain_text_email))
 
         if service.research_mode or notification.key_type == KEY_TYPE_TEST:
-            notification.reference = str(create_uuid())
+            notification.reference = send_email_response(notification.to)
             update_notification_to_sending(notification, provider)
-            send_email_response(notification.reference, notification.to)
         else:
             if service.sending_domain is None or service.sending_domain.strip() == "":
                 sending_domain = current_app.config["NOTIFY_EMAIL_DOMAIN"]
