@@ -28,8 +28,7 @@ temp_fail_email = "temp-fail@simulator.notify"
 
 
 def send_sms_response(provider, to, reference=None):
-    if not reference:
-        reference = str(create_uuid())
+    reference = reference or str(create_uuid())
     body = aws_sns_callback(reference, to)
     process_sns_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
     return reference
