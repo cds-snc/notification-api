@@ -69,8 +69,8 @@ jobs:
       id: notify-pr-bot
       uses: getsentry/action-github-app-token@v1
       with:
-        app_id: ${{ secrets.APP_ID }}
-        private_key: ${{ secrets.APP_PRIVATE_KEY }}
+        app_id: ${{ secrets.PRBOT_APP_ID }}
+        private_key: ${{ secrets.PRBOT_PRIVATE_KEY }}
 
     - uses: cds-snc/notification-pr-bot@master
       env:
