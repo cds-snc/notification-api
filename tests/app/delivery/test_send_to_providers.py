@@ -254,12 +254,13 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(sampl
     assert not persisted_notification.personalisation
 
 
-@pytest.mark.parametrize("research_mode,key_type", [(True, KEY_TYPE_NORMAL), (False, KEY_TYPE_TEST)])
+@pytest.mark.parametrize("research_mode, key_type", [(True, KEY_TYPE_NORMAL), (False, KEY_TYPE_TEST)])
 def test_should_call_send_sms_response_task_if_research_mode(
     notify_db, sample_service, sample_notification, mocker, research_mode, key_type
 ):
+    reference = str(uuid.uuid4())
     mocker.patch("app.aws_sns_client.send_sms")
-    mocker.patch("app.delivery.send_to_providers.send_sms_response")
+    mocker.patch("app.delivery.send_to_providers.send_sms_response", return_value=reference)
 
     if research_mode:
         sample_service.research_mode = True
@@ -271,9 +272,7 @@ def test_should_call_send_sms_response_task_if_research_mode(
     send_to_providers.send_sms_to_provider(sample_notification)
     assert not aws_sns_client.send_sms.called
 
-    app.delivery.send_to_providers.send_sms_response.assert_called_once_with(
-        "sns", str(sample_notification.id), sample_notification.to
-    )
+    app.delivery.send_to_providers.send_sms_response.assert_called_once_with("sns", sample_notification.to)
 
     persisted_notification = notifications_dao.get_notification_by_id(sample_notification.id)
     assert persisted_notification.to == sample_notification.to
@@ -281,19 +280,19 @@ def test_should_call_send_sms_response_task_if_research_mode(
     assert persisted_notification.status == "sent"
     assert persisted_notification.sent_at <= datetime.utcnow()
     assert persisted_notification.sent_by == "sns"
-    assert persisted_notification.reference is None
+    assert persisted_notification.reference == reference
     assert not persisted_notification.personalisation
 
 
-def test_should_have_sent_status_if_fake_callback_function_fails(sample_notification, mocker):
+def test_should_not_have_sent_status_if_fake_callback_function_fails(sample_notification, mocker):
     mocker.patch("app.delivery.send_to_providers.send_sms_response", side_effect=HTTPError)
 
     sample_notification.key_type = KEY_TYPE_TEST
 
     with pytest.raises(HTTPError):
         send_to_providers.send_sms_to_provider(sample_notification)
-    assert sample_notification.status == "sent"
-    assert sample_notification.sent_by == "sns"
+    assert sample_notification.status == "created"
+    assert sample_notification.sent_by is None
 
 
 def test_should_not_send_to_provider_when_status_is_not_created(sample_template, mocker):
@@ -349,15 +348,14 @@ def test_send_email_to_provider_should_call_research_mode_task_response_task_if_
     )
     sample_service.research_mode = research_mode
 
-    reference = uuid.uuid4()
-    mocker.patch("app.uuid.uuid4", return_value=reference)
+    reference = str(uuid.uuid4())
     mocker.patch("app.aws_ses_client.send_email")
-    mocker.patch("app.delivery.send_to_providers.send_email_response")
+    mocker.patch("app.delivery.send_to_providers.send_email_response", return_value=reference)
 
     send_to_providers.send_email_to_provider(notification)
 
     assert not app.aws_ses_client.send_email.called
-    app.delivery.send_to_providers.send_email_response.assert_called_once_with(str(reference), "john@smith.com")
+    app.delivery.send_to_providers.send_email_response.assert_called_once_with("john@smith.com")
     persisted_notification = Notification.query.filter_by(id=notification.id).one()
     assert persisted_notification.to == "john@smith.com"
     assert persisted_notification.template_id == sample_email_template.id
@@ -508,8 +506,7 @@ def test_get_html_email_renderer_handles_email_branding_without_logo(notify_api)
 
 
 def test_should_not_update_notification_if_research_mode_on_exception(sample_service, sample_notification, mocker):
-    mocker.patch("app.delivery.send_to_providers.send_sms_response", side_effect=Exception())
-    update_mock = mocker.patch("app.delivery.send_to_providers.update_notification_to_sending")
+    mock_send_sms = mocker.patch("app.delivery.send_to_providers.send_sms_response", side_effect=Exception())
     sample_service.research_mode = True
     sample_notification.billable_units = 0
 
@@ -518,7 +515,7 @@ def test_should_not_update_notification_if_research_mode_on_exception(sample_ser
 
     persisted_notification = notifications_dao.get_notification_by_id(sample_notification.id)
     assert persisted_notification.billable_units == 0
-    assert update_mock.called
+    assert mock_send_sms.called
 
 
 def __update_notification(notification_to_update, research_mode, expected_status):

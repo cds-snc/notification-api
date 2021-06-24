@@ -1,45 +1,42 @@
-import json
 import random
 from datetime import datetime, timedelta
 
 from flask import current_app
 from notifications_utils.s3 import s3upload
-from requests import HTTPError, RequestException, request
 
-from app import notify_celery
+from app import create_uuid, notify_celery
+from app.aws.mocks import (
+    ses_hard_bounce_callback,
+    ses_notification_callback,
+    ses_soft_bounce_callback,
+    sns_failed_callback,
+    sns_s3_callback,
+    sns_success_callback,
+)
 from app.aws.s3 import file_exists
 from app.celery.process_ses_receipts_tasks import process_ses_results
+from app.celery.process_sns_receipts_tasks import process_sns_results
 from app.config import QueueNames
-from app.models import SMS_TYPE
 
-temp_fail = "7700900003"
-perm_fail = "7700900002"
-delivered = "7700900001"
+last_digit_temp_fail = "3"
+last_digit_perm_fail = "2"
+last_digit_delivered = "1"
 
 delivered_email = "delivered@simulator.notify"
 perm_fail_email = "perm-fail@simulator.notify"
 temp_fail_email = "temp-fail@simulator.notify"
 
 
-def send_sms_response(provider, reference, to):
-    headers = {"Content-type": "application/x-www-form-urlencoded"}
-    body = firetext_callback(reference, to)
-    # to simulate getting a temporary_failure from firetext
-    # we need to send a pending status updated then a permanent-failure
-    if body["status"] == "2":  # pending status
-        make_request(SMS_TYPE, provider, body, headers)
-        # 1 is a declined status for firetext, will result in a temp-failure
-        body = {
-            "mobile": to,
-            "status": "1",
-            "time": "2016-03-10 14:17:00",
-            "reference": reference,
-        }
-
-    make_request(SMS_TYPE, provider, body, headers)
+def send_sms_response(provider, to, reference=None):
+    reference = reference or str(create_uuid())
+    body = aws_sns_callback(reference, to)
+    process_sns_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
+    return reference
 
 
-def send_email_response(reference, to):
+def send_email_response(to, reference=None):
+    if not reference:
+        reference = str(create_uuid())
     if to == perm_fail_email:
         body = ses_hard_bounce_callback(reference)
     elif to == temp_fail_email:
@@ -48,44 +45,23 @@ def send_email_response(reference, to):
         body = ses_notification_callback(reference)
 
     process_ses_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
+    return reference
 
 
-def make_request(notification_type, provider, data, headers):
-    api_call = "{}/notifications/{}/{}".format(current_app.config["API_HOST_NAME"], notification_type, provider)
+def aws_sns_callback(notification_id, to):
+    now = datetime.now()
+    timestamp = now.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
-    try:
-        response = request("POST", api_call, headers=headers, data=data, timeout=60)
-        response.raise_for_status()
-    except RequestException as e:
-        api_error = HTTPError(e)
-        # TODO: Revert the following log to error level once the SMS research simulation has been fixed via:
-        #       https://trello.com/c/FTzY1HLJ/563-rework-fake-sms-callbacks-for-notifications-sent-using-test-keys
-        current_app.logger.info("API {} request on {} failed with {}".format("POST", api_call, api_error.response))
-        # TODO: Reinstate the error raise once the SMS research simulation has been fixed via:
-        #       https://trello.com/c/FTzY1HLJ/563-rework-fake-sms-callbacks-for-notifications-sent-using-test-keys
-        # raise api_error
-    finally:
-        current_app.logger.info("Mocked provider callback request finished")
-    return response.json()
-
-
-def firetext_callback(notification_id, to):
-    """
-    status: 0 - delivered
-    status: 1 - perm failure
-    """
-    if to.strip().endswith(perm_fail):
-        status = "1"
-    elif to.strip().endswith(temp_fail):
-        status = "2"
+    if to.strip().endswith(last_digit_perm_fail):
+        return sns_failed_callback(
+            "Phone is currently unreachable/unavailable", notification_id, destination=to, timestamp=timestamp
+        )
+    elif to.strip().endswith(last_digit_temp_fail):
+        return sns_failed_callback(
+            "Phone carrier is currently unreachable/unavailable", notification_id, destination=to, timestamp=timestamp
+        )
     else:
-        status = "0"
-    return {
-        "mobile": to,
-        "status": status,
-        "time": "2016-03-10 14:17:00",
-        "reference": notification_id,
-    }
+        return sns_success_callback(notification_id, destination=to, timestamp=timestamp)
 
 
 @notify_celery.task(
@@ -125,136 +101,5 @@ def create_fake_letter_response_file(self, reference):
 
     # on development we can't trigger SNS callbacks so we need to manually hit the DVLA callback endpoint
     if current_app.config["NOTIFY_ENVIRONMENT"] == "development":
-        make_request("letter", "dvla", _fake_sns_s3_callback(upload_file_name), None)
-
-
-def _fake_sns_s3_callback(filename):
-    message_contents = '{"Records":[{"s3":{"object":{"key":"%s"}}}]}' % (filename)  # noqa
-    return json.dumps(
-        {
-            "Type": "Notification",
-            "MessageId": "some-message-id",
-            "Message": message_contents,
-        }
-    )
-
-
-def ses_notification_callback(reference):
-    ses_message_body = {
-        "delivery": {
-            "processingTimeMillis": 2003,
-            "recipients": ["success@simulator.amazonses.com"],
-            "remoteMtaIp": "123.123.123.123",
-            "reportingMTA": "a7-32.smtp-out.eu-west-1.amazonses.com",
-            "smtpResponse": "250 2.6.0 Message received",
-            "timestamp": "2017-11-17T12:14:03.646Z",
-        },
-        "mail": {
-            "commonHeaders": {
-                "from": ["TEST <TEST@notify.works>"],
-                "subject": "lambda test",
-                "to": ["success@simulator.amazonses.com"],
-            },
-            "destination": ["success@simulator.amazonses.com"],
-            "headers": [
-                {"name": "From", "value": "TEST <TEST@notify.works>"},
-                {"name": "To", "value": "success@simulator.amazonses.com"},
-                {"name": "Subject", "value": "lambda test"},
-                {"name": "MIME-Version", "value": "1.0"},
-                {
-                    "name": "Content-Type",
-                    "value": 'multipart/alternative; boundary="----=_Part_617203_1627511946.1510920841645"',
-                },
-            ],
-            "headersTruncated": False,
-            "messageId": reference,
-            "sendingAccountId": "12341234",
-            "source": '"TEST" <TEST@notify.works>',
-            "sourceArn": "arn:aws:ses:eu-west-1:12341234:identity/notify.works",
-            "sourceIp": "0.0.0.1",
-            "timestamp": "2017-11-17T12:14:01.643Z",
-        },
-        "notificationType": "Delivery",
-    }
-
-    return {
-        "Type": "Notification",
-        "MessageId": "8e83c020-1234-1234-1234-92a8ee9baa0a",
-        "TopicArn": "arn:aws:sns:eu-west-1:12341234:ses_notifications",
-        "Subject": None,
-        "Message": json.dumps(ses_message_body),
-        "Timestamp": "2017-11-17T12:14:03.710Z",
-        "SignatureVersion": "1",
-        "Signature": "[REDACTED]",
-        "SigningCertUrl": "https://sns.eu-west-1.amazonaws.com/SimpleNotificationService-[REDACTED].pem",
-        "UnsubscribeUrl": "https://sns.eu-west-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=[REACTED]",
-        "MessageAttributes": {},
-    }
-
-
-def ses_hard_bounce_callback(reference, bounce_subtype=None):
-    return _ses_bounce_callback(reference, "Permanent", bounce_subtype)
-
-
-def ses_soft_bounce_callback(reference, bounce_subtype=None):
-    return _ses_bounce_callback(reference, "Transient", bounce_subtype)
-
-
-def _ses_bounce_callback(reference, bounce_type, bounce_subtype=None):
-    ses_message_body = {
-        "bounce": {
-            "bounceSubType": bounce_subtype or "General",
-            "bounceType": bounce_type,
-            "bouncedRecipients": [
-                {
-                    "action": "failed",
-                    "diagnosticCode": "smtp; 550 5.1.1 user unknown",
-                    "emailAddress": "bounce@simulator.amazonses.com",
-                    "status": "5.1.1",
-                }
-            ],
-            "feedbackId": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
-            "remoteMtaIp": "123.123.123.123",
-            "reportingMTA": "dsn; a7-31.smtp-out.eu-west-1.amazonses.com",
-            "timestamp": "2017-11-17T12:14:05.131Z",
-        },
-        "mail": {
-            "commonHeaders": {
-                "from": ["TEST <TEST@notify.works>"],
-                "subject": "ses callback test",
-                "to": ["bounce@simulator.amazonses.com"],
-            },
-            "destination": ["bounce@simulator.amazonses.com"],
-            "headers": [
-                {"name": "From", "value": "TEST <TEST@notify.works>"},
-                {"name": "To", "value": "bounce@simulator.amazonses.com"},
-                {"name": "Subject", "value": "lambda test"},
-                {"name": "MIME-Version", "value": "1.0"},
-                {
-                    "name": "Content-Type",
-                    "value": 'multipart/alternative; boundary="----=_Part_596529_2039165601.1510920843367"',
-                },
-            ],
-            "headersTruncated": False,
-            "messageId": reference,
-            "sendingAccountId": "12341234",
-            "source": '"TEST" <TEST@notify.works>',
-            "sourceArn": "arn:aws:ses:eu-west-1:12341234:identity/notify.works",
-            "sourceIp": "0.0.0.1",
-            "timestamp": "2017-11-17T12:14:03.000Z",
-        },
-        "notificationType": "Bounce",
-    }
-    return {
-        "Type": "Notification",
-        "MessageId": "36e67c28-1234-1234-1234-2ea0172aa4a7",
-        "TopicArn": "arn:aws:sns:eu-west-1:12341234:ses_notifications",
-        "Subject": None,
-        "Message": json.dumps(ses_message_body),
-        "Timestamp": "2017-11-17T12:14:05.149Z",
-        "SignatureVersion": "1",
-        "Signature": "[REDACTED]",  # noqa
-        "SigningCertUrl": "https://sns.eu-west-1.amazonaws.com/SimpleNotificationService-[REDACTED]].pem",
-        "UnsubscribeUrl": "https://sns.eu-west-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=[REDACTED]]",
-        "MessageAttributes": {},
-    }
+        body = sns_s3_callback(upload_file_name, reference)
+        process_sns_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
