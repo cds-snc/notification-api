@@ -1856,6 +1856,7 @@ class InvitedOrganisationUser(db.Model):
 # Service Permissions
 MANAGE_USERS = 'manage_users'
 MANAGE_TEMPLATES = 'manage_templates'
+EDIT_TEMPLATES = 'edit_templates'
 MANAGE_SETTINGS = 'manage_settings'
 SEND_TEXTS = 'send_texts'
 SEND_EMAILS = 'send_emails'
@@ -1868,6 +1869,7 @@ VIEW_ACTIVITY = 'view_activity'
 PERMISSION_LIST = [
     MANAGE_USERS,
     MANAGE_TEMPLATES,
+    EDIT_TEMPLATES,
     MANAGE_SETTINGS,
     SEND_TEXTS,
     SEND_EMAILS,
