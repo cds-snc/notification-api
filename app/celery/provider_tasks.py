@@ -20,14 +20,14 @@ from app.notifications.callbacks import _check_and_queue_callback_task
 # https://docs.celeryproject.org/en/stable/userguide/tasks.html#Task.rate_limit
 # This task is dispatched through the `send-throttled-sms-tasks` queue.
 # This queue is consumed by 1 Celery instance with 1 worker, the SMS Celery pod.
-# The maximum throughput is therefore 1 instance * 1 worker = 1 task per second
-# if we set rate_limit="1/s" on the Celery task
+# The maximum throughput is therefore 1 instance * 1 worker = 1 task per 2 seconds
+# if we set rate_limit="2/s" on the Celery task.
 @notify_celery.task(
     bind=True,
     name="deliver_throttled_sms",
     max_retries=48,
     default_retry_delay=300,
-    rate_limit="1/s",
+    rate_limit="2/s",
 )
 @statsd(namespace="tasks")
 def deliver_throttled_sms(self, notification_id):
