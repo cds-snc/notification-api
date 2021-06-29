@@ -29,10 +29,10 @@ dvla_response_file_matcher = Matcher(
 @pytest.mark.parametrize(
     "phone_number, sns_callback, sns_callback_args",
     [
-        ("07700900000", sns_success_callback, {}),
-        ("07700900001", sns_success_callback, {}),
-        ("07700900002", sns_failed_callback, {"provider_response": "Phone is currently unreachable/unavailable"}),
-        ("07700900003", sns_failed_callback, {"provider_response": "Phone carrier is currently unreachable/unavailable"}),
+        ("+15149301630", sns_success_callback, {}),
+        ("+15149301631", sns_success_callback, {}),
+        ("+15149301632", sns_failed_callback, {"provider_response": "Phone is currently unreachable/unavailable"}),
+        ("+15149301633", sns_failed_callback, {"provider_response": "Phone carrier is currently unreachable/unavailable"}),
     ],
 )
 @freeze_time("2018-01-25 14:00:30")

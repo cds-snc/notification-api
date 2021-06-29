@@ -18,9 +18,9 @@ from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.process_sns_receipts_tasks import process_sns_results
 from app.config import QueueNames
 
-last_digit_temp_fail = "3"
-last_digit_perm_fail = "2"
-last_digit_delivered = "1"
+temp_fail = "+15149301633"
+perm_fail = "+15149301632"
+delivered = "+15149301631"
 
 delivered_email = "delivered@simulator.notify"
 perm_fail_email = "perm-fail@simulator.notify"
@@ -52,11 +52,11 @@ def aws_sns_callback(notification_id, to):
     now = datetime.now()
     timestamp = now.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
-    if to.strip().endswith(last_digit_perm_fail):
+    if to.strip().endswith(perm_fail):
         return sns_failed_callback(
             "Phone is currently unreachable/unavailable", notification_id, destination=to, timestamp=timestamp
         )
-    elif to.strip().endswith(last_digit_temp_fail):
+    elif to.strip().endswith(temp_fail):
         return sns_failed_callback(
             "Phone carrier is currently unreachable/unavailable", notification_id, destination=to, timestamp=timestamp
         )
