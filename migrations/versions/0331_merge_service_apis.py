@@ -1,7 +1,7 @@
 """
 
-Revision ID: 0330_merge_service_apis
-Revises: 0329_notification_status
+Revision ID: 0331_merge_service_apis
+Revises: 0330a_grant_edit_templates
 Create Date: 2021-07-01
 
 """
@@ -15,8 +15,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from app.models import NOTIFICATION_STATUS_TYPES_COMPLETED
 
-revision = '0330_merge_service_apis'
-down_revision = '0329_notification_status'
+revision = '0331_merge_service_apis'
+down_revision = '0330a_grant_edit_templates'
 
 
 def upgrade():

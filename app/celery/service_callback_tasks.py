@@ -17,9 +17,8 @@ from app.dao.complaint_dao import fetch_complaint_by_id
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
 from app.dao.service_callback_api_dao import (
     get_service_delivery_status_callback_api_for_service,
-    get_service_complaint_callback_api_for_service
+    get_service_complaint_callback_api_for_service, get_service_callback_api_for_service
 )
-from app.dao.service_inbound_api_dao import get_service_inbound_api_for_service
 from app.dao.service_sms_sender_dao import dao_get_sms_sender_by_service_id_and_number
 from app.models import Complaint, Notification
 
@@ -109,7 +108,7 @@ def send_complaint_to_vanotify(self, complaint_id: str, complaint_template_name:
 @notify_celery.task(bind=True, name="send-inbound-sms", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def send_inbound_sms_to_service(self, inbound_sms_id, service_id):
-    inbound_api = get_service_inbound_api_for_service(service_id=service_id)
+    inbound_api = get_service_callback_api_for_service(service_id=service_id)
     if not inbound_api:
         current_app.logger.error(
             f'could not send inbound sms to service "{service_id}" because it does not have a callback API configured'

@@ -4,43 +4,21 @@ import pytest
 from freezegun import freeze_time
 
 from tests.app.db import (
-    create_service_inbound_api,
     create_service_callback_api
 )
 
-from app.models import ServiceInboundApi, ServiceCallbackApi, DELIVERY_STATUS_CALLBACK_TYPE
+from app.models import ServiceCallbackApi, DELIVERY_STATUS_CALLBACK_TYPE
 
 
-def test_create_service_inbound_api(admin_request, sample_service):
+def test_set_service_callback_api_raises_404_when_service_does_not_exist(notify_db, admin_request):
     data = {
-        "url": "https://some.service/inbound-sms",
+        "url": "https://some.service/callback-sms",
         "bearer_token": "some-unique-string",
-        "updated_by_id": str(sample_service.users[0].id)
-    }
-    resp_json = admin_request.post(
-        'service_callback.create_service_inbound_api',
-        service_id=sample_service.id,
-        _data=data,
-        _expected_status=201
-    )
-
-    resp_json = resp_json["data"]
-    assert resp_json["id"]
-    assert resp_json["service_id"] == str(sample_service.id)
-    assert resp_json["url"] == "https://some.service/inbound-sms"
-    assert resp_json["updated_by_id"] == str(sample_service.users[0].id)
-    assert resp_json["created_at"]
-    assert not resp_json["updated_at"]
-
-
-def test_set_service_inbound_api_raises_404_when_service_does_not_exist(notify_db, admin_request):
-    data = {
-        "url": "https://some.service/inbound-sms",
-        "bearer_token": "some-unique-string",
-        "updated_by_id": str(uuid.uuid4())
+        "updated_by_id": str(uuid.uuid4()),
+        "notification_statuses": ['sent']
     }
     response = admin_request.post(
-        'service_callback.create_service_inbound_api',
+        'service_callback.create_service_callback_api',
         service_id=uuid.uuid4(),
         _data=data,
         _expected_status=404
@@ -48,65 +26,65 @@ def test_set_service_inbound_api_raises_404_when_service_does_not_exist(notify_d
     assert response['message'] == 'No result found'
 
 
-def test_update_service_inbound_api_updates_url(admin_request, sample_service):
-    service_inbound_api = create_service_inbound_api(service=sample_service,
-                                                     url="https://original_url.com")
+def test_update_service_callback_api_updates_url(admin_request, sample_service):
+    service_callback_api = create_service_callback_api(service=sample_service,
+                                                       url="https://originalurl.com")
 
     data = {
-        "url": "https://another_url.com",
+        "url": "https://anotherurl.com",
         "updated_by_id": str(sample_service.users[0].id)
     }
 
     response = admin_request.post(
-        'service_callback.update_service_inbound_api',
+        'service_callback.update_service_callback_api',
         service_id=sample_service.id,
-        inbound_api_id=service_inbound_api.id,
+        callback_api_id=service_callback_api.id,
         _data=data
     )
 
-    assert response["data"]["url"] == "https://another_url.com"
-    assert service_inbound_api.url == "https://another_url.com"
+    assert response["data"]["url"] == "https://anotherurl.com"
+    assert service_callback_api.url == "https://anotherurl.com"
 
 
-def test_update_service_inbound_api_updates_bearer_token(admin_request, sample_service):
-    service_inbound_api = create_service_inbound_api(service=sample_service,  # nosec
-                                                     bearer_token="some_super_secret")
+def test_update_service_callback_api_updates_bearer_token(admin_request, sample_service):
+    service_callback_api = create_service_callback_api(service=sample_service,  # nosec
+                                                       bearer_token="some_super_secret")
     data = {
         "bearer_token": "different_token",
         "updated_by_id": str(sample_service.users[0].id)
     }
 
     admin_request.post(
-        'service_callback.update_service_inbound_api',
+        'service_callback.update_service_callback_api',
         service_id=sample_service.id,
-        inbound_api_id=service_inbound_api.id,
+        callback_api_id=service_callback_api.id,
         _data=data
     )
-    assert service_inbound_api.bearer_token == "different_token"
+    assert service_callback_api.bearer_token == "different_token"
 
 
-def test_fetch_service_inbound_api(admin_request, sample_service):
-    service_inbound_api = create_service_inbound_api(service=sample_service)
+def test_fetch_service_callback_api(admin_request, sample_service):
+    service_callback_api = create_service_callback_api(service=sample_service)
 
     response = admin_request.get(
-        'service_callback.fetch_service_inbound_api',
+        'service_callback.fetch_service_callback_api',
         service_id=sample_service.id,
-        inbound_api_id=service_inbound_api.id,
+        callback_api_id=service_callback_api.id,
     )
-    assert response["data"] == service_inbound_api.serialize()
+    assert response["data"] == service_callback_api.serialize()
 
 
-def test_delete_service_inbound_api(admin_request, sample_service):
-    service_inbound_api = create_service_inbound_api(sample_service)
+def test_delete_service_callback_api(admin_request, sample_service):
+    service_callback_api = create_service_callback_api(sample_service)
 
     response = admin_request.delete(
-        'service_callback.remove_service_inbound_api',
+        'service_callback.remove_service_callback_api',
         service_id=sample_service.id,
-        inbound_api_id=service_inbound_api.id,
+        callback_api_id=service_callback_api.id,
     )
 
     assert response is None
-    assert ServiceInboundApi.query.count() == 0
+    assert ServiceCallbackApi.query.count() == 0
 
 
 def test_create_service_callback_api(notify_db, admin_request, sample_service):
@@ -314,43 +292,6 @@ def test_update_service_callback_api_raises_400_when_invalid_status(admin_reques
     assert 'notification_statuses nonexistent-status is not one of' in resp_json['errors'][0]['message']
 
 
-def test_update_service_callback_api_updates_url(admin_request, sample_service):
-    service_callback_api = create_service_callback_api(service=sample_service,
-                                                       url="https://original.url.com")
-
-    data = {
-        "url": "https://another.url.com",
-        "updated_by_id": str(sample_service.users[0].id)
-    }
-
-    resp_json = admin_request.post(
-        'service_callback.update_service_callback_api',
-        service_id=sample_service.id,
-        callback_api_id=service_callback_api.id,
-        _data=data
-    )
-    assert resp_json["data"]["url"] == "https://another.url.com"
-    assert service_callback_api.url == "https://another.url.com"
-
-
-def test_update_service_callback_api_updates_bearer_token(admin_request, sample_service):
-    service_callback_api = create_service_callback_api(service=sample_service,  # nosec
-                                                       bearer_token="some_super_secret")
-    data = {
-        "bearer_token": "different_token",
-        "updated_by_id": str(sample_service.users[0].id)
-    }
-
-    admin_request.post(
-        'service_callback.update_service_callback_api',
-        service_id=sample_service.id,
-        callback_api_id=service_callback_api.id,
-        _data=data
-    )
-
-    assert service_callback_api.bearer_token == "different_token"
-
-
 def test_update_service_callback_api_raises_400_with_only_updated_by_id(admin_request, sample_service):
     service_callback_api = create_service_callback_api(service=sample_service,  # nosec
                                                        bearer_token="some_super_secret")
@@ -386,37 +327,3 @@ def test_update_service_callback_api_modifies_updated_at(admin_request, sample_s
         )
 
     assert response_json['data']['updated_at'] == "2021-05-13T12:00:00+00:00"
-
-
-def test_fetch_service_callback_api(admin_request, sample_service):
-    service_callback_api = create_service_callback_api(service=sample_service)
-
-    response = admin_request.get(
-        'service_callback.fetch_service_callback_api',
-        service_id=sample_service.id,
-        callback_api_id=service_callback_api.id,
-    )
-
-    assert response["data"] == {
-        'created_at': str(service_callback_api.created_at),
-        'id': str(service_callback_api.id),
-        'notification_statuses': service_callback_api.notification_statuses,
-        'service_id': str(service_callback_api.service_id),
-        'updated_at': service_callback_api.updated_at,
-        'updated_by_id': str(service_callback_api.updated_by_id),
-        'url': service_callback_api.url
-    }
-    assert response["data"].get('bearer_token') is None
-
-
-def test_delete_service_callback_api(admin_request, sample_service):
-    service_callback_api = create_service_callback_api(sample_service)
-
-    response = admin_request.delete(
-        'service_callback.remove_service_callback_api',
-        service_id=sample_service.id,
-        callback_api_id=service_callback_api.id,
-    )
-
-    assert response is None
-    assert ServiceCallbackApi.query.count() == 0

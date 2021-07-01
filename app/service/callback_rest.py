@@ -10,7 +10,7 @@ from app.errors import (
     InvalidRequest
 )
 from app.models import (
-    ServiceInboundApi,
+    ServiceCallbackApi,
     DELIVERY_STATUS_CALLBACK_TYPE,
 )
 from app.schema_validation import validate
@@ -19,16 +19,10 @@ from app.service.service_callback_api_schema import (
     update_service_inbound_api_schema, create_service_inbound_api_schema, update_service_callback_api_request_schema,
     create_service_callback_api_request_schema
 )
-from app.dao.service_inbound_api_dao import (
-    save_service_inbound_api,
-    get_service_inbound_api,
-    reset_service_inbound_api,
-    delete_service_inbound_api,
-)
 from app.dao.service_callback_api_dao import (
     save_service_callback_api,
     get_service_callback_api,
-    delete_service_callback_api, store_service_callback_api,
+    delete_service_callback_api, store_service_callback_api, reset_service_callback_api,
 )
 
 service_callback_blueprint = Blueprint('service_callback', __name__, url_prefix='/service/<uuid:service_id>')
@@ -41,11 +35,13 @@ def create_service_inbound_api(service_id):
     data = request.get_json()
     validate(data, create_service_inbound_api_schema)
     data["service_id"] = service_id
-    inbound_api = ServiceInboundApi(**data)
+    data["callback_type"] = "sms_callback"
+    data["notification_statuses"] = {}
+    inbound_api = ServiceCallbackApi(**data)
     try:
-        save_service_inbound_api(inbound_api)
+        save_service_callback_api(inbound_api)
     except SQLAlchemyError as e:
-        return handle_sql_error(e, 'service_inbound_api')
+        return handle_sql_error(e, 'service_callback')
 
     return jsonify(data=inbound_api.serialize()), 201
 
@@ -55,31 +51,31 @@ def update_service_inbound_api(service_id, inbound_api_id):
     data = request.get_json()
     validate(data, update_service_inbound_api_schema)
 
-    to_update = get_service_inbound_api(inbound_api_id, service_id)
+    to_update = get_service_callback_api(inbound_api_id, service_id)
 
-    reset_service_inbound_api(service_inbound_api=to_update,
-                              updated_by_id=data["updated_by_id"],
-                              url=data.get("url", None),
-                              bearer_token=data.get("bearer_token", None))
+    reset_service_callback_api(service_inbound_api=to_update,
+                               updated_by_id=data["updated_by_id"],
+                               url=data.get("url", None),
+                               bearer_token=data.get("bearer_token", None))
     return jsonify(data=to_update.serialize()), 200
 
 
 @service_callback_blueprint.route('/inbound-api/<uuid:inbound_api_id>', methods=['GET'])
 def fetch_service_inbound_api(service_id, inbound_api_id):
-    inbound_api = get_service_inbound_api(inbound_api_id, service_id)
+    inbound_api = get_service_callback_api(inbound_api_id, service_id)
 
     return jsonify(data=inbound_api.serialize()), 200
 
 
 @service_callback_blueprint.route('/inbound-api/<uuid:inbound_api_id>', methods=['DELETE'])
 def remove_service_inbound_api(service_id, inbound_api_id):
-    inbound_api = get_service_inbound_api(inbound_api_id, service_id)
+    inbound_api = get_service_callback_api(inbound_api_id, service_id)
 
     if not inbound_api:
         error = 'Service inbound API not found'
         raise InvalidRequest(error, status_code=404)
 
-    delete_service_inbound_api(inbound_api)
+    delete_service_callback_api(inbound_api)
     return '', 204
 
 
@@ -96,7 +92,7 @@ def create_service_callback_api(service_id):
     try:
         save_service_callback_api(new_service_callback_api)
     except SQLAlchemyError as e:
-        return handle_sql_error(e, 'service_callback_api')
+        return handle_sql_error(e, 'service_callback')
 
     return jsonify(data=service_callback_api_schema.dump(new_service_callback_api).data), 201
 
@@ -145,7 +141,7 @@ def handle_sql_error(e, table_name):
         ), 400
     elif hasattr(e, 'orig') and hasattr(e.orig, 'pgerror') and e.orig.pgerror \
             and ('insert or update on table "{0}" violates '
-                 'foreign key constraint "{0}_service_id_fkey"'.format(table_name)
+                 'foreign key constraint "{0}_api_service_id_fkey"'.format(table_name)
                  in e.orig.pgerror):
         return jsonify(result='error', message="No result found"), 404
     else:

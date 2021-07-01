@@ -23,11 +23,10 @@ from app.models import Notification, ServiceCallbackApi, Complaint, Service, Tem
 from tests.app.db import (
     create_complaint,
     create_notification,
-    create_service_callback_api,
     create_service,
     create_template,
     create_inbound_sms,
-    create_service_inbound_api,
+    create_service_callback_api,
     create_service_sms_sender
 )
 
@@ -383,7 +382,7 @@ def _set_up_data_for_complaint(callback_api, complaint, notification):
 class TestSendInboundSmsToService:
 
     def test_post_https_request_to_service(self, notify_api, sample_service):
-        inbound_api = create_service_inbound_api(  # nosec
+        inbound_api = create_service_callback_api(  # nosec
             service=sample_service,
             url="https://some.service.gov.uk/",
             bearer_token="something_unique"
@@ -420,7 +419,7 @@ class TestSendInboundSmsToService:
         assert request_mock.request_history[0].headers["Authorization"] == "Bearer {}".format(inbound_api.bearer_token)
 
     def test_does_not_send_request_when_inbound_sms_does_not_exist(self, notify_api, sample_service):
-        inbound_api = create_service_inbound_api(service=sample_service)
+        inbound_api = create_service_callback_api(service=sample_service)
 
         with requests_mock.Mocker() as request_mock:
             request_mock.post(inbound_api.url, json={}, status_code=200)
@@ -444,7 +443,7 @@ class TestSendInboundSmsToService:
         assert mocked.call_count == 0
 
     def test_retries_if_request_returns_500(self, notify_api, sample_service, mocker):
-        inbound_api = create_service_inbound_api(  # nosec
+        inbound_api = create_service_callback_api(  # nosec
             service=sample_service,
             url="https://some.service.gov.uk/",
             bearer_token="something_unique"
@@ -467,7 +466,7 @@ class TestSendInboundSmsToService:
         assert mocked.call_args[1]['queue'] == 'retry-tasks'
 
     def test_retries_if_request_throws_unknown(self, notify_api, sample_service, mocker):
-        create_service_inbound_api(  # nosec
+        create_service_callback_api(  # nosec
             service=sample_service,
             url="https://some.service.gov.uk/",
             bearer_token="something_unique"
@@ -489,7 +488,7 @@ class TestSendInboundSmsToService:
         assert mocked.call_args[1]['queue'] == 'retry-tasks'
 
     def test_does_not_retry_if_request_returns_404(self, notify_api, sample_service, mocker):
-        inbound_api = create_service_inbound_api(  # nosec
+        inbound_api = create_service_callback_api(  # nosec
             service=sample_service,
             url="https://some.service.gov.uk/",
             bearer_token="something_unique"
