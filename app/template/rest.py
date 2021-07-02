@@ -14,6 +14,7 @@ from notifications_utils.template import SMSMessageTemplate
 from requests import post as requests_post
 from sqlalchemy.orm.exc import NoResultFound
 
+from app.authentication.auth import requires_admin_auth_or_user_in_service
 from app.dao.notifications_dao import get_notification_by_id
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
@@ -67,6 +68,7 @@ def validate_parent_folder(template_json):
 
 
 @template_blueprint.route('', methods=['POST'])
+@requires_admin_auth_or_user_in_service(required_permission='edit_templates')
 def create_template(service_id):
     fetched_service = dao_fetch_service_by_id(service_id=service_id)
     # permissions needs to be placed here otherwise marshmallow will interfere with versioning
@@ -103,6 +105,7 @@ def create_template(service_id):
 
 
 @template_blueprint.route('/<uuid:template_id>', methods=['POST'])
+@requires_admin_auth_or_user_in_service(required_permission='edit_templates')
 def update_template(service_id, template_id):
     fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
 
@@ -145,6 +148,7 @@ def update_template(service_id, template_id):
 
 
 @template_blueprint.route('/precompiled', methods=['GET'])
+@requires_admin_auth_or_user_in_service(required_permission='manage_templates')
 def get_precompiled_template_for_service(service_id):
     template = get_precompiled_letter_template(service_id)
     template_dict = template_schema.dump(template).data
@@ -153,6 +157,7 @@ def get_precompiled_template_for_service(service_id):
 
 
 @template_blueprint.route('', methods=['GET'])
+@requires_admin_auth_or_user_in_service(required_permission='manage_templates')
 def get_all_templates_for_service(service_id):
     templates = dao_get_all_templates_for_service(service_id=service_id)
     data = template_schema.dump(templates, many=True).data
@@ -160,6 +165,7 @@ def get_all_templates_for_service(service_id):
 
 
 @template_blueprint.route('/<uuid:template_id>', methods=['GET'])
+@requires_admin_auth_or_user_in_service(required_permission='manage_templates')
 def get_template_by_id_and_service_id(service_id, template_id):
     fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
     data = template_schema.dump(fetched_template).data
@@ -167,6 +173,7 @@ def get_template_by_id_and_service_id(service_id, template_id):
 
 
 @template_blueprint.route('/<uuid:template_id>/preview', methods=['GET'])
+@requires_admin_auth_or_user_in_service(required_permission='manage_templates')
 def preview_template_by_id_and_service_id(service_id, template_id):
     fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
     data = template_schema.dump(fetched_template).data
@@ -185,6 +192,7 @@ def preview_template_by_id_and_service_id(service_id, template_id):
 
 
 @template_blueprint.route('/<uuid:template_id>/version/<int:version>')
+@requires_admin_auth_or_user_in_service(required_permission='manage_templates')
 def get_template_version(service_id, template_id, version):
     data = template_history_schema.dump(
         dao_get_template_by_id_and_service_id(
@@ -197,6 +205,7 @@ def get_template_version(service_id, template_id, version):
 
 
 @template_blueprint.route('/<uuid:template_id>/versions')
+@requires_admin_auth_or_user_in_service(required_permission='manage_templates')
 def get_template_versions(service_id, template_id):
     data = template_history_schema.dump(
         dao_get_template_versions(service_id=service_id, template_id=template_id),
@@ -226,6 +235,7 @@ def redact_template(template, data):
 
 
 @template_blueprint.route('/preview/<uuid:notification_id>/<file_type>', methods=['GET'])
+@requires_admin_auth_or_user_in_service(required_permission='manage_templates')
 def preview_letter_template_by_notification_id(service_id, notification_id, file_type):
     if file_type not in ('pdf', 'png'):
         raise InvalidRequest({'content': ["file_type must be pdf or png"]}, status_code=400)
