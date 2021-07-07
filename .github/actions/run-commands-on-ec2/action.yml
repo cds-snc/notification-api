@@ -11,7 +11,7 @@ runs:
   using: "composite"
   steps:
     - name: Invoke commands
-      shell: bash {0}
+      shell: bash
       run: |
         INSTANCE_ID=$(aws ssm get-parameter --name ${{ inputs.instance-id-ssm-parameter-path }} | jq '.Parameter.Value' -r)
         COMMAND_ID=$(aws ssm send-command \
