@@ -6,7 +6,7 @@ import uuid
 from time import monotonic
 
 from dotenv import load_dotenv
-from flask import _request_ctx_stack, g, jsonify, make_response, request
+from flask import _request_ctx_stack, g, jsonify, make_response, request # type: ignore
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
 from notifications_utils import logging, request_helper
