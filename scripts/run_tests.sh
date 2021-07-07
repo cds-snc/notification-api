@@ -32,6 +32,9 @@ display_result $? 1 "Code style check (flake8)"
 isort --check-only .
 display_result $? 2 "Import order check"
 
+mypy .
+display_result $? 1 "Type check"
+
 # run with four concurrent threads
 py.test --disable-pytest-warnings --cov=app --cov-report=term-missing tests/ --junitxml=test_results.xml -n4 -v --maxfail=10
 display_result $? 2 "Unit tests"
