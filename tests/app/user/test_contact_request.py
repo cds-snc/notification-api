@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Any, Dict
 
 import pytest
 from notifications_utils.recipients import InvalidEmailError
@@ -75,7 +75,7 @@ def test_contact_info_defaults():
     "mock_dict",
     [dict(), {"email_address": ""}, {"email_address": "this_is_not_an_email_address"}],
 )
-def test_contact_info_invalid_email(mock_dict: Dict[str, str]):
+def test_contact_info_invalid_email(mock_dict: Dict[str, Any]):
     with pytest.raises((TypeError, AssertionError, InvalidEmailError)):
         ContactRequest(**mock_dict)
 
