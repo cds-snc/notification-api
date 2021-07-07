@@ -284,11 +284,11 @@ class ServiceSchema(BaseSchema):
             in_data['permissions'] = permissions
 
 
-class ServiceCallbackApiSchema(BaseSchema):
-    created_at = field_for(models.ServiceCallbackApi, 'created_at', format=DATE_FORMAT)
+class ServiceCallbackSchema(BaseSchema):
+    created_at = field_for(models.ServiceCallback, 'created_at', format=DATE_FORMAT)
 
     class Meta:
-        model = models.ServiceCallbackApi
+        model = models.ServiceCallback
         fields = (
             'id',
             'service_id',
@@ -805,4 +805,4 @@ provider_details_schema = ProviderDetailsSchema()
 provider_details_history_schema = ProviderDetailsHistorySchema()
 day_schema = DaySchema()
 unarchived_template_schema = UnarchivedTemplateSchema()
-service_callback_api_schema = ServiceCallbackApiSchema()
+service_callback_api_schema = ServiceCallbackSchema()

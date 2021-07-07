@@ -10,7 +10,7 @@ from app.errors import (
     InvalidRequest
 )
 from app.models import (
-    ServiceCallbackApi,
+    ServiceCallback,
     DELIVERY_STATUS_CALLBACK_TYPE,
 )
 from app.schema_validation import validate
@@ -37,7 +37,7 @@ def create_service_inbound_api(service_id):
     data["service_id"] = service_id
     data["callback_type"] = "sms_callback"
     data["notification_statuses"] = {}
-    inbound_api = ServiceCallbackApi(**data)
+    inbound_api = ServiceCallback(**data)
     try:
         save_service_callback_api(inbound_api)
     except SQLAlchemyError as e:

@@ -137,7 +137,6 @@ fileignoreconfig:
       checksum: 62f1bbaa6ff7edf14fcf74576a76f4fd775b66d4b70e588959af8069f789e565
     - filename: .github/workflows/dev-ci.yaml
       checksum: f60538b9b8d488e44a54ddc62750b03fe543919949abc1ac516b98b2ef83f760
-
     - filename: app/celery/nightly_tasks.py
       checksum: 1ec5706d92e97741cc19a4daaeb88a4462f99fd56565c83486c25bdf96d87fa4
     - filename: tests/app/notifications/test_process_client_response.py
@@ -146,3 +145,9 @@ fileignoreconfig:
       checksum: 9afebe235d3f41bdeb433e44e1766f5e2723759dbdbfcfd94d38906a75afc29b
     - filename: .github/workflows/perf-deploy-trigger.yaml
       checksum: 567215608ac6852c6a4df118be85008f8ba6a7e2d1405a30930f1397ec596933
+    - filename: tests/app/db.py
+      checksum: 433302cc103482494be1e09b8af61092bcccac1e428b2204451d02f2d3de82bd
+    - filename: app/schemas.py
+      checksum: 3807b7ffed65f40a7d3c3db205d6841ff8737dbc76b843d878b2a4f325ea1502
+    - filename: app/models.py
+      checksum: 317bba2226aad76647b5245a746c20e004fbcaf1dd2959871a9cbb983ce3d7f4

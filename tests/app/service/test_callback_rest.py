@@ -7,7 +7,7 @@ from tests.app.db import (
     create_service_callback_api
 )
 
-from app.models import ServiceCallbackApi, DELIVERY_STATUS_CALLBACK_TYPE
+from app.models import ServiceCallback, DELIVERY_STATUS_CALLBACK_TYPE
 
 
 def test_set_service_callback_api_raises_404_when_service_does_not_exist(notify_db, admin_request):
@@ -84,7 +84,7 @@ def test_delete_service_callback_api(admin_request, sample_service):
     )
 
     assert response is None
-    assert ServiceCallbackApi.query.count() == 0
+    assert ServiceCallback.query.count() == 0
 
 
 def test_create_service_callback_api(notify_db, admin_request, sample_service):

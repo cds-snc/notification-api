@@ -9,7 +9,7 @@ from app.dao.service_callback_api_dao import (
     reset_service_callback_api,
     get_service_callback_api,
     get_service_delivery_status_callback_api_for_service)
-from app.models import ServiceCallbackApi, NOTIFICATION_FAILED, NOTIFICATION_TEMPORARY_FAILURE, \
+from app.models import ServiceCallback, NOTIFICATION_FAILED, NOTIFICATION_TEMPORARY_FAILURE, \
     NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_STATUS_TYPES_COMPLETED, NOTIFICATION_SENT, NOTIFICATION_DELIVERED
 from app.schemas import service_callback_api_schema
 from tests.app.db import create_service_callback_api
@@ -17,7 +17,7 @@ from tests.app.db import create_service_callback_api
 
 def test_save_service_callback_api(sample_service):
     notification_statuses = [NOTIFICATION_FAILED]
-    service_callback_api = ServiceCallbackApi(  # nosec
+    service_callback_api = ServiceCallback(  # nosec
         service_id=sample_service.id,
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
@@ -27,7 +27,7 @@ def test_save_service_callback_api(sample_service):
 
     save_service_callback_api(service_callback_api)
 
-    results = ServiceCallbackApi.query.all()
+    results = ServiceCallback.query.all()
     assert len(results) == 1
     callback_api = results[0]
     assert callback_api.id is not None
@@ -39,7 +39,7 @@ def test_save_service_callback_api(sample_service):
     assert callback_api.updated_at is None
     assert callback_api.notification_statuses == notification_statuses
 
-    versioned = ServiceCallbackApi.get_history_model().query.filter_by(id=callback_api.id).one()
+    versioned = ServiceCallback.get_history_model().query.filter_by(id=callback_api.id).one()
     assert versioned.id == callback_api.id
     assert versioned.service_id == sample_service.id
     assert versioned.updated_by_id == sample_service.users[0].id
@@ -51,7 +51,7 @@ def test_save_service_callback_api(sample_service):
 
 def test_save_service_callback_api_fails_if_service_does_not_exist(notify_db, notify_db_session):
     notification_statuses = [NOTIFICATION_FAILED]
-    service_callback_api = ServiceCallbackApi(  # nosec
+    service_callback_api = ServiceCallback(  # nosec
         service_id=uuid.uuid4(),
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
@@ -65,7 +65,7 @@ def test_save_service_callback_api_fails_if_service_does_not_exist(notify_db, no
 
 def test_update_service_callback_api_unique_constraint(sample_service):
     notification_statuses = [NOTIFICATION_FAILED]
-    service_callback_api = ServiceCallbackApi(  # nosec
+    service_callback_api = ServiceCallback(  # nosec
         service_id=sample_service.id,
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
@@ -74,7 +74,7 @@ def test_update_service_callback_api_unique_constraint(sample_service):
         notification_statuses=str(notification_statuses)
     )
     save_service_callback_api(service_callback_api)
-    another = ServiceCallbackApi(  # nosec
+    another = ServiceCallback(  # nosec
         service_id=sample_service.id,
         url="https://some_service/another_callback_endpoint",
         bearer_token="different_string",
@@ -88,7 +88,7 @@ def test_update_service_callback_api_unique_constraint(sample_service):
 
 def test_update_service_callback_can_add_two_api_of_different_types(sample_service):
     notification_statuses = [NOTIFICATION_FAILED]
-    delivery_status = ServiceCallbackApi(  # nosec
+    delivery_status = ServiceCallback(  # nosec
         service_id=sample_service.id,
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
@@ -97,7 +97,7 @@ def test_update_service_callback_can_add_two_api_of_different_types(sample_servi
         notification_statuses=str(notification_statuses)
     )
     save_service_callback_api(delivery_status)
-    complaint = ServiceCallbackApi(  # nosec
+    complaint = ServiceCallback(  # nosec
         service_id=sample_service.id,
         url="https://some_service/another_callback_endpoint",
         bearer_token="different_string",
@@ -106,7 +106,7 @@ def test_update_service_callback_can_add_two_api_of_different_types(sample_servi
         notification_statuses=str(notification_statuses)
     )
     save_service_callback_api(complaint)
-    results = ServiceCallbackApi.query.order_by(ServiceCallbackApi.callback_type).all()
+    results = ServiceCallback.query.order_by(ServiceCallback.callback_type).all()
     assert len(results) == 2
 
     results0_dump = service_callback_api_schema.dump(results[0]).data
@@ -118,7 +118,7 @@ def test_update_service_callback_can_add_two_api_of_different_types(sample_servi
 
 def test_update_service_callback_api(sample_service):
     notification_statuses = [NOTIFICATION_FAILED]
-    service_callback_api = ServiceCallbackApi(  # nosec
+    service_callback_api = ServiceCallback(  # nosec
         service_id=sample_service.id,
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
@@ -127,13 +127,13 @@ def test_update_service_callback_api(sample_service):
     )
 
     save_service_callback_api(service_callback_api)
-    results = ServiceCallbackApi.query.all()
+    results = ServiceCallback.query.all()
     assert len(results) == 1
     saved_callback_api = results[0]
 
     reset_service_callback_api(saved_callback_api, updated_by_id=sample_service.users[0].id,
                                url="https://some_service/changed_url")
-    updated_results = ServiceCallbackApi.query.all()
+    updated_results = ServiceCallback.query.all()
     assert len(updated_results) == 1
     updated = updated_results[0]
     assert updated.id is not None
@@ -144,7 +144,7 @@ def test_update_service_callback_api(sample_service):
     assert updated._bearer_token != "some_unique_string"
     assert updated.updated_at is not None
 
-    versioned_results = ServiceCallbackApi.get_history_model().query.filter_by(id=saved_callback_api.id).all()
+    versioned_results = ServiceCallback.get_history_model().query.filter_by(id=saved_callback_api.id).all()
     assert len(versioned_results) == 2
     for x in versioned_results:
         if x.version == 1:
@@ -163,7 +163,7 @@ def test_update_service_callback_api(sample_service):
 
 def test_get_service_callback_api(sample_service):
     notification_statuses = [NOTIFICATION_FAILED]
-    service_callback_api = ServiceCallbackApi(  # nosec
+    service_callback_api = ServiceCallback(  # nosec
         service_id=sample_service.id,
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",

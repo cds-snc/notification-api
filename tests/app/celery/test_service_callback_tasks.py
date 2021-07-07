@@ -19,7 +19,7 @@ from app.celery.service_callback_tasks import (
 )
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import Notification, ServiceCallbackApi, Complaint, Service, Template, User
+from app.models import Notification, ServiceCallback, Complaint, Service, Template, User
 from tests.app.db import (
     create_complaint,
     create_notification,
@@ -247,7 +247,7 @@ def test_check_and_queue_callback_task_does_not_queue_task_if_service_callback_a
 
 def test_check_and_queue_callback_task_queues_task_if_service_callback_api_exists(mocker):
     mock_notification = create_mock_notification(mocker)
-    mock_service_callback_api = mocker.Mock(ServiceCallbackApi)
+    mock_service_callback_api = mocker.Mock(ServiceCallback)
     mock_notification_data = mocker.Mock()
 
     mocker.patch(

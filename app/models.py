@@ -742,7 +742,7 @@ class ServiceWhitelist(db.Model):
         return 'Recipient {} of type: {}'.format(self.recipient, self.recipient_type)
 
 
-class ServiceCallbackApi(db.Model, Versioned):
+class ServiceCallback(db.Model, Versioned):
     __tablename__ = 'service_callback'
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), index=True, nullable=False)
