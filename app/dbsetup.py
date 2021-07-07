@@ -1,7 +1,7 @@
 from functools import cached_property, partial
 from typing import Optional
 
-from flask import _app_ctx_stack # type: ignore
+from flask import _app_ctx_stack  # type: ignore
 from flask_sqlalchemy import BaseQuery, SignallingSession, SQLAlchemy, get_state
 from sqlalchemy import orm
 

@@ -1,5 +1,6 @@
 from typing import Any, Dict
 
+
 class ClientException(Exception):
     """
     Base Exceptions for sending notifications that fail

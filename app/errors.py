@@ -4,6 +4,7 @@ from marshmallow import ValidationError
 from notifications_utils.recipients import InvalidEmailError
 from sqlalchemy.exc import DataError
 from sqlalchemy.orm.exc import NoResultFound
+from typing import Any, List
 
 from app.authentication.auth import AuthError
 from app.exceptions import ArchiveValidationError
@@ -16,8 +17,8 @@ class VirusScanError(Exception):
 
 
 class InvalidRequest(Exception):
-    code = None
-    fields = []
+    code: Any = None
+    fields: List[Any] = []
 
     def __init__(self, message, status_code):
         super().__init__()
