@@ -126,4 +126,4 @@ def test_get_logo_url(notify_api):
 def test_get_document_url(notify_api: Flask):
     with notify_api.app_context():
         assert get_document_url("en", "test.html") == "https://documentation.notification.canada.ca/en/test.html"
-        assert get_document_url(None, None) == "https://documentation.notification.canada.ca/None/None"
+        assert get_document_url("None", "None") == "https://documentation.notification.canada.ca/None/None"
