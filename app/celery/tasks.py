@@ -596,7 +596,7 @@ def process_incomplete_job(job_id):
     job_complete(job, resumed=True)
 
 
-def queue_to_use(notifications_count: int) -> str:
+def queue_to_use(notifications_count: int):
     """Determine which queue to use depending on given parameters.
 
     We only check one rule at the moment: if the CSV file is big enough,
