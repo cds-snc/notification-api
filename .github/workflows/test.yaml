@@ -36,3 +36,8 @@ jobs:
           ${{ runner.os }}-pip-
     - name: Run tests
       run: /bin/bash -c "pip install -r requirements_for_test.txt && make test"
+    - name: Notify Slack channel if this job failed in default branch
+      if: ${{ failure() && github.ref == 'refs/heads/master' }}
+      run: |
+        json="{'text':'<!here> CI is failing in <https://github.com/cds-snc/notification-api/|notification-api> !'}"
+        curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
