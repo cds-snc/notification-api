@@ -14,14 +14,16 @@ from notifications_utils.recipients import (
 from app import (
     api_user,
     authenticated_service,
+    create_uuid,
     document_download_client,
+    encryption,
     notify_celery,
     statsd_client,
 )
 from app.aws.s3 import upload_job_to_s3
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
-from app.celery.tasks import process_job
+from app.celery.tasks import process_job, save_email, save_sms
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.jobs_dao import dao_create_job
@@ -42,12 +44,12 @@ from app.models import (
     NOTIFICATION_SENDING,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
+    Notification,
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
     persist_notification,
     persist_scheduled_notification,
-    send_notification_to_queue,
     simulated_recipient,
 )
 from app.notifications.validators import (
@@ -256,32 +258,73 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
 
     personalisation = process_document_uploads(form.get("personalisation"), service, simulated, template.id)
 
-    notification = persist_notification(
-        template_id=template.id,
-        template_version=template.version,
-        recipient=form_send_to,
-        service=service,
-        personalisation=personalisation,
-        notification_type=notification_type,
-        api_key_id=api_key.id,
-        key_type=api_key.key_type,
-        client_reference=form.get("reference", None),
-        simulated=simulated,
-        reply_to_text=reply_to_text,
-    )
+    notification = {
+        "id": create_uuid(),
+        "template": str(template.id),
+        "template_version": str(template.version),
+        "to": form_send_to,
+        "personalisation": personalisation,
+        "api_key_id": str(api_key.id),
+        "key_type": str(api_key.key_type),
+        "client_reference": form.get("reference", None),
+    }
+
+    encrypted_notification_data = encryption.encrypt(notification)
 
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:
+        notification = persist_notification(
+            template_id=template.id,
+            template_version=template.version,
+            recipient=form_send_to,
+            service=service,
+            personalisation=personalisation,
+            notification_type=notification_type,
+            api_key_id=api_key.id,
+            key_type=api_key.key_type,
+            client_reference=form.get("reference", None),
+            simulated=simulated,
+            reply_to_text=reply_to_text,
+        )
         persist_scheduled_notification(notification.id, form["scheduled_for"])
     else:
         if not simulated:
-            send_notification_to_queue(
-                notification=notification,
-                research_mode=service.research_mode,
-                queue=template.queue_to_use(),
-            )
+            # depending on the type route to the appropriate save task
+            if notification_type == EMAIL_TYPE:
+                current_app.logger.info("calling save email task")
+                save_email.apply_async(
+                    (authenticated_service.id, create_uuid(), encrypted_notification_data),
+                    queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
+                )
+            elif notification_type == SMS_TYPE:
+                save_sms.apply_async(
+                    (authenticated_service.id, create_uuid(), encrypted_notification_data),
+                    queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
+                )
         else:
+            notification = persist_notification(
+                template_id=template.id,
+                template_version=template.version,
+                recipient=form_send_to,
+                service=service,
+                personalisation=personalisation,
+                notification_type=notification_type,
+                api_key_id=api_key.id,
+                key_type=api_key.key_type,
+                client_reference=form.get("reference", None),
+                simulated=simulated,
+                reply_to_text=reply_to_text,
+            )
             current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
+
+    if not isinstance(notification, Notification):
+        notification["template_id"] = notification["template"]
+        notification["template_version"] = template.version
+        notification["service"] = service
+        notification["service_id"] = service.id
+        notification["reply_to_text"] = reply_to_text
+        del notification["template"]
+        notification = Notification(**notification)
 
     return notification
 
