@@ -4,6 +4,7 @@ import uuid
 from typing import Any, Iterable
 
 from flask import current_app, url_for
+from flask_sqlalchemy.model import DefaultMeta
 from notifications_utils.columns import Columns
 from notifications_utils.letter_timings import get_letter_timings
 from notifications_utils.recipients import (
@@ -77,7 +78,10 @@ class HistoryModel:
                 current_app.logger.debug("{} has no column {} to copy from".format(original, c.name))
 
 
-class User(db.Model):  # type: ignore
+BaseModel: DefaultMeta = db.Model
+
+
+class User(BaseModel):
     __tablename__ = "users"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -186,7 +190,7 @@ class User(db.Model):  # type: ignore
         }
 
 
-class ServiceUser(db.Model):  # type: ignore
+class ServiceUser(BaseModel):
     __tablename__ = "user_to_service"
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), primary_key=True)
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), primary_key=True)
@@ -198,7 +202,7 @@ class ServiceUser(db.Model):  # type: ignore
 
 user_to_organisation = db.Table(
     "user_to_organisation",
-    db.Model.metadata,  # type: ignore
+    db.Model.metadata,
     db.Column("user_id", UUID(as_uuid=True), db.ForeignKey("users.id")),
     db.Column("organisation_id", UUID(as_uuid=True), db.ForeignKey("organisation.id")),
     UniqueConstraint("user_id", "organisation_id", name="uix_user_to_organisation"),
@@ -207,7 +211,7 @@ user_to_organisation = db.Table(
 
 user_folder_permissions = db.Table(
     "user_folder_permissions",
-    db.Model.metadata,  # type: ignore
+    db.Model.metadata,
     db.Column("user_id", UUID(as_uuid=True), primary_key=True),
     db.Column(
         "template_folder_id",
@@ -244,12 +248,12 @@ BRANDING_TYPES = [
 ]
 
 
-class BrandingTypes(db.Model):  # type: ignore
+class BrandingTypes(BaseModel):
     __tablename__ = "branding_type"
     name = db.Column(db.String(255), primary_key=True)
 
 
-class EmailBranding(db.Model):  # type: ignore
+class EmailBranding(BaseModel):
     __tablename__ = "email_branding"
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     colour = db.Column(db.String(7), nullable=True)
@@ -279,7 +283,7 @@ class EmailBranding(db.Model):  # type: ignore
 
 service_email_branding = db.Table(
     "service_email_branding",
-    db.Model.metadata,  # type: ignore
+    db.Model.metadata,
     # service_id is a primary key as you can only have one email branding per service
     db.Column(
         "service_id",
@@ -297,7 +301,7 @@ service_email_branding = db.Table(
 )
 
 
-class LetterBranding(db.Model):  # type: ignore
+class LetterBranding(BaseModel):
     __tablename__ = "letter_branding"
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = db.Column(db.String(255), unique=True, nullable=False)
@@ -313,7 +317,7 @@ class LetterBranding(db.Model):  # type: ignore
 
 service_letter_branding = db.Table(
     "service_letter_branding",
-    db.Model.metadata,  # type: ignore
+    db.Model.metadata,
     # service_id is a primary key as you can only have one letter branding per service
     db.Column(
         "service_id",
@@ -356,13 +360,13 @@ SERVICE_PERMISSION_TYPES = [
 ]
 
 
-class ServicePermissionTypes(db.Model):  # type: ignore
+class ServicePermissionTypes(BaseModel):
     __tablename__ = "service_permission_types"
 
     name = db.Column(db.String(255), primary_key=True)
 
 
-class Domain(db.Model):  # type: ignore
+class Domain(BaseModel):
     __tablename__ = "domain"
     domain = db.Column(db.String(255), primary_key=True)
     organisation_id = db.Column(
@@ -395,7 +399,7 @@ NON_CROWN_ORGANISATION_TYPES = [
 NHS_ORGANISATION_TYPES = ["nhs_central", "nhs_local", "nhs_gp"]
 
 
-class OrganisationTypes(db.Model):  # type: ignore
+class OrganisationTypes(BaseModel):
     __tablename__ = "organisation_types"
 
     name = db.Column(db.String(255), primary_key=True)
@@ -403,7 +407,7 @@ class OrganisationTypes(db.Model):  # type: ignore
     annual_free_sms_fragment_limit = db.Column(db.BigInteger, nullable=False)
 
 
-class Organisation(db.Model):  # type: ignore
+class Organisation(BaseModel):
     __tablename__ = "organisation"
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=False)
     name = db.Column(db.String(255), nullable=False, unique=True, index=True)
@@ -489,7 +493,7 @@ class Organisation(db.Model):  # type: ignore
         }
 
 
-class Service(db.Model, Versioned):  # type: ignore
+class Service(BaseModel, Versioned):
     __tablename__ = "services"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -596,7 +600,7 @@ class Service(db.Model, Versioned):  # type: ignore
         }
 
 
-class AnnualBilling(db.Model):  # type: ignore
+class AnnualBilling(BaseModel):
     __tablename__ = "annual_billing"
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=False)
     service_id = db.Column(
@@ -634,7 +638,7 @@ class AnnualBilling(db.Model):  # type: ignore
         }
 
 
-class InboundNumber(db.Model):  # type: ignore
+class InboundNumber(BaseModel):
     __tablename__ = "inbound_numbers"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -667,7 +671,7 @@ class InboundNumber(db.Model):  # type: ignore
         }
 
 
-class ServiceSmsSender(db.Model):  # type: ignore
+class ServiceSmsSender(BaseModel):
     __tablename__ = "service_sms_senders"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -709,7 +713,7 @@ class ServiceSmsSender(db.Model):  # type: ignore
         }
 
 
-class ServicePermission(db.Model):  # type: ignore
+class ServicePermission(BaseModel):
     __tablename__ = "service_permissions"
 
     service_id = db.Column(
@@ -742,7 +746,7 @@ SAFELIST_RECIPIENT_TYPE = [MOBILE_TYPE, EMAIL_TYPE]
 safelist_recipient_types = db.Enum(*SAFELIST_RECIPIENT_TYPE, name="recipient_type")
 
 
-class ServiceSafelist(db.Model):  # type: ignore
+class ServiceSafelist(BaseModel):
     __tablename__ = "service_safelist"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -776,7 +780,7 @@ class ServiceSafelist(db.Model):  # type: ignore
         return "Recipient {} of type: {}".format(self.recipient, self.recipient_type)
 
 
-class ServiceInboundApi(db.Model, Versioned):  # type: ignore
+class ServiceInboundApi(BaseModel, Versioned):
     __tablename__ = "service_inbound_api"
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     service_id = db.Column(
@@ -816,7 +820,7 @@ class ServiceInboundApi(db.Model, Versioned):  # type: ignore
         }
 
 
-class ServiceCallbackApi(db.Model, Versioned):  # type: ignore
+class ServiceCallbackApi(BaseModel, Versioned):
     __tablename__ = "service_callback_api"
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), index=True, nullable=False)
@@ -853,13 +857,13 @@ class ServiceCallbackApi(db.Model, Versioned):  # type: ignore
         }
 
 
-class ServiceCallbackType(db.Model):  # type: ignore
+class ServiceCallbackType(BaseModel):
     __tablename__ = "service_callback_type"
 
     name = db.Column(db.String, primary_key=True)
 
 
-class ApiKey(db.Model, Versioned):  # type: ignore
+class ApiKey(BaseModel, Versioned):
     __tablename__ = "api_keys"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -913,18 +917,18 @@ KEY_TYPE_TEAM = "team"
 KEY_TYPE_TEST = "test"
 
 
-class KeyTypes(db.Model):  # type: ignore
+class KeyTypes(BaseModel):
     __tablename__ = "key_types"
 
     name = db.Column(db.String(255), primary_key=True)
 
 
-class TemplateProcessTypes(db.Model):  # type: ignore
+class TemplateProcessTypes(BaseModel):
     __tablename__ = "template_process_type"
     name = db.Column(db.String(255), primary_key=True)
 
 
-class TemplateFolder(db.Model):  # type: ignore
+class TemplateFolder(BaseModel):
     __tablename__ = "template_folder"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -969,7 +973,7 @@ class TemplateFolder(db.Model):  # type: ignore
 
 template_folder_map = db.Table(
     "template_folder_map",
-    db.Model.metadata,  # type: ignore
+    db.Model.metadata,
     # template_id is a primary key as a template can only belong in one folder
     db.Column(
         "template_id",
@@ -990,7 +994,7 @@ template_folder_map = db.Table(
 PRECOMPILED_TEMPLATE_NAME = "Pre-compiled PDF"
 
 
-class TemplateBase(db.Model):  # type: ignore
+class TemplateBase(BaseModel):
     __abstract__ = True
 
     def __init__(self, **kwargs):
@@ -1168,7 +1172,7 @@ class Template(TemplateBase):
         return cls(**fields)
 
 
-class TemplateRedacted(db.Model):  # type: ignore
+class TemplateRedacted(BaseModel):
     __tablename__ = "template_redacted"
 
     template_id = db.Column(
@@ -1224,7 +1228,7 @@ NOTIFICATION_TYPE = [EMAIL_TYPE, SMS_TYPE, LETTER_TYPE]
 notification_types = db.Enum(*NOTIFICATION_TYPE, name="notification_type")
 
 
-class ProviderRates(db.Model):  # type: ignore
+class ProviderRates(BaseModel):
     __tablename__ = "provider_rates"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -1239,7 +1243,7 @@ class ProviderRates(db.Model):  # type: ignore
     provider = db.relationship("ProviderDetails", backref=db.backref("provider_rates", lazy="dynamic"))
 
 
-class ProviderDetails(db.Model):  # type: ignore
+class ProviderDetails(BaseModel):
     __tablename__ = "provider_details"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -1255,7 +1259,7 @@ class ProviderDetails(db.Model):  # type: ignore
     supports_international = db.Column(db.Boolean, nullable=False, default=False)
 
 
-class ProviderDetailsHistory(db.Model, HistoryModel):  # type: ignore
+class ProviderDetailsHistory(BaseModel, HistoryModel):
     __tablename__ = "provider_details_history"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, nullable=False)
@@ -1293,13 +1297,13 @@ JOB_STATUS_TYPES = [
 ]
 
 
-class JobStatus(db.Model):  # type: ignore
+class JobStatus(BaseModel):
     __tablename__ = "job_status"
 
     name = db.Column(db.String(255), primary_key=True)
 
 
-class Job(db.Model):  # type: ignore
+class Job(BaseModel):
     __tablename__ = "jobs"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -1355,7 +1359,7 @@ class Job(db.Model):  # type: ignore
 VERIFY_CODE_TYPES = [EMAIL_TYPE, SMS_TYPE]
 
 
-class VerifyCode(db.Model):  # type: ignore
+class VerifyCode(BaseModel):
     __tablename__ = "verify_codes"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -1479,13 +1483,13 @@ POSTAGE_TYPES = [FIRST_CLASS, SECOND_CLASS]
 RESOLVE_POSTAGE_FOR_FILE_NAME = {FIRST_CLASS: 1, SECOND_CLASS: 2}
 
 
-class NotificationStatusTypes(db.Model):  # type: ignore
+class NotificationStatusTypes(BaseModel):
     __tablename__ = "notification_status_types"
 
     name = db.Column(db.String(), primary_key=True)
 
 
-class Notification(db.Model):  # type: ignore
+class Notification(BaseModel):
     __tablename__ = "notifications"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -1785,7 +1789,7 @@ class Notification(db.Model):  # type: ignore
         return serialized
 
 
-class NotificationHistory(db.Model, HistoryModel):  # type: ignore
+class NotificationHistory(BaseModel, HistoryModel):
     __tablename__ = "notification_history"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True)
@@ -1865,7 +1869,7 @@ class NotificationHistory(db.Model, HistoryModel):  # type: ignore
         self.status = original.status
 
 
-class ScheduledNotification(db.Model):  # type: ignore
+class ScheduledNotification(BaseModel):
     __tablename__ = "scheduled_notifications"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -1886,13 +1890,13 @@ INVITE_CANCELLED = "cancelled"
 INVITED_USER_STATUS_TYPES = [INVITE_PENDING, INVITE_ACCEPTED, INVITE_CANCELLED]
 
 
-class InviteStatusType(db.Model):  # type: ignore
+class InviteStatusType(BaseModel):
     __tablename__ = "invite_status_type"
 
     name = db.Column(db.String, primary_key=True)
 
 
-class InvitedUser(db.Model):  # type: ignore
+class InvitedUser(BaseModel):
     __tablename__ = "invited_users"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -1929,7 +1933,7 @@ class InvitedUser(db.Model):  # type: ignore
         return self.permissions.split(",")
 
 
-class InvitedOrganisationUser(db.Model):  # type: ignore
+class InvitedOrganisationUser(BaseModel):
     __tablename__ = "invited_organisation_users"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -1983,7 +1987,7 @@ PERMISSION_LIST = [
 ]
 
 
-class Permission(db.Model):  # type: ignore
+class Permission(BaseModel):
     __tablename__ = "permissions"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -2015,7 +2019,7 @@ class Permission(db.Model):  # type: ignore
     __table_args__ = (UniqueConstraint("service_id", "user_id", "permission", name="uix_service_user_permission"),)
 
 
-class Event(db.Model):  # type: ignore
+class Event(BaseModel):
     __tablename__ = "events"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -2030,7 +2034,7 @@ class Event(db.Model):  # type: ignore
     data = db.Column(JSON, nullable=False)
 
 
-class Rate(db.Model):  # type: ignore
+class Rate(BaseModel):
     __tablename__ = "rates"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -2045,7 +2049,7 @@ class Rate(db.Model):  # type: ignore
         return the_string
 
 
-class InboundSms(db.Model):  # type: ignore
+class InboundSms(BaseModel):
     __tablename__ = "inbound_sms"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -2079,7 +2083,7 @@ class InboundSms(db.Model):  # type: ignore
         }
 
 
-class LetterRate(db.Model):  # type: ignore
+class LetterRate(BaseModel):
     __tablename__ = "letter_rates"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -2091,7 +2095,7 @@ class LetterRate(db.Model):  # type: ignore
     post_class = db.Column(db.String, nullable=False)
 
 
-class ServiceEmailReplyTo(db.Model):  # type: ignore
+class ServiceEmailReplyTo(BaseModel):
     __tablename__ = "service_email_reply_to"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -2123,7 +2127,7 @@ class ServiceEmailReplyTo(db.Model):  # type: ignore
         }
 
 
-class ServiceLetterContact(db.Model):  # type: ignore
+class ServiceLetterContact(BaseModel):
     __tablename__ = "service_letter_contacts"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -2155,13 +2159,13 @@ class ServiceLetterContact(db.Model):  # type: ignore
         }
 
 
-class AuthType(db.Model):  # type: ignore
+class AuthType(BaseModel):
     __tablename__ = "auth_type"
 
     name = db.Column(db.String, primary_key=True)
 
 
-class DailySortedLetter(db.Model):  # type: ignore
+class DailySortedLetter(BaseModel):
     __tablename__ = "daily_sorted_letter"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -2174,7 +2178,7 @@ class DailySortedLetter(db.Model):  # type: ignore
     __table_args__ = (UniqueConstraint("file_name", "billing_day", name="uix_file_name_billing_day"),)
 
 
-class FactBilling(db.Model):  # type: ignore
+class FactBilling(BaseModel):
     __tablename__ = "ft_billing"
 
     bst_date = db.Column(db.Date, nullable=False, primary_key=True, index=True)
@@ -2192,7 +2196,7 @@ class FactBilling(db.Model):  # type: ignore
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
 
-class DateTimeDimension(db.Model):  # type: ignore
+class DateTimeDimension(BaseModel):
     __tablename__ = "dm_datetime"
     bst_date = db.Column(db.Date, nullable=False, primary_key=True, index=True)
     year = db.Column(db.Integer(), nullable=False)
@@ -2215,7 +2219,7 @@ class DateTimeDimension(db.Model):  # type: ignore
 Index("ix_dm_datetime_yearmonth", DateTimeDimension.year, DateTimeDimension.month)
 
 
-class FactNotificationStatus(db.Model):  # type: ignore
+class FactNotificationStatus(BaseModel):
     __tablename__ = "ft_notification_status"
 
     bst_date = db.Column(db.Date, index=True, primary_key=True, nullable=False)
@@ -2235,7 +2239,7 @@ class FactNotificationStatus(db.Model):  # type: ignore
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
 
-class Complaint(db.Model):  # type: ignore
+class Complaint(BaseModel):
     __tablename__ = "complaints"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -2271,7 +2275,7 @@ class Complaint(db.Model):  # type: ignore
         }
 
 
-class ServiceDataRetention(db.Model):  # type: ignore
+class ServiceDataRetention(BaseModel):
     __tablename__ = "service_data_retention"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -2302,7 +2306,7 @@ class ServiceDataRetention(db.Model):  # type: ignore
         }
 
 
-class Fido2Key(db.Model):  # type: ignore
+class Fido2Key(BaseModel):
     __tablename__ = "fido2_keys"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -2330,7 +2334,7 @@ class Fido2Key(db.Model):  # type: ignore
         }
 
 
-class Fido2Session(db.Model):  # type: ignore
+class Fido2Session(BaseModel):
     __tablename__ = "fido2_sessions"
     user_id = db.Column(
         UUID(as_uuid=True),
@@ -2345,7 +2349,7 @@ class Fido2Session(db.Model):  # type: ignore
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
 
 
-class LoginEvent(db.Model):  # type: ignore
+class LoginEvent(BaseModel):
     __tablename__ = "login_events"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
