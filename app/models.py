@@ -1,6 +1,7 @@
 import datetime
 import itertools
 import uuid
+from typing import Any, Iterable
 
 from flask import current_app, url_for
 from notifications_utils.columns import Columns
@@ -941,7 +942,7 @@ class TemplateFolder(db.Model):
         primaryjoin="TemplateFolder.id == user_folder_permissions.c.template_folder_id",
     )
 
-    __table_args__ = (UniqueConstraint("id", "service_id", name="ix_id_service_id"), {})
+    __table_args__: Iterable[Any] = (UniqueConstraint("id", "service_id", name="ix_id_service_id"), {})
 
     def serialize(self):
         return {
@@ -1558,7 +1559,7 @@ class Notification(db.Model):
     """
     )
 
-    __table_args__ = (
+    __table_args__: Iterable[Any] = (
         db.ForeignKeyConstraint(
             ["template_id", "template_version"],
             ["templates_history.id", "templates_history.version"],
@@ -1845,7 +1846,7 @@ class NotificationHistory(db.Model, HistoryModel):
     """
     )
 
-    __table_args__ = (
+    __table_args__: Iterable[Any] = (
         db.ForeignKeyConstraint(
             ["template_id", "template_version"],
             ["templates_history.id", "templates_history.version"],
