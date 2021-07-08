@@ -1,10 +1,11 @@
+from typing import Any, List
+
 from flask import current_app, json, jsonify
 from jsonschema import ValidationError as JsonSchemaValidationError
 from marshmallow import ValidationError
 from notifications_utils.recipients import InvalidEmailError
 from sqlalchemy.exc import DataError
 from sqlalchemy.orm.exc import NoResultFound
-from typing import Any, List
 
 from app.authentication.auth import AuthError
 from app.exceptions import ArchiveValidationError

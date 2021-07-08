@@ -1,5 +1,4 @@
 from datetime import date, datetime, timedelta
-from typing import Type
 
 from flask import current_app
 from flask_marshmallow.fields import fields
@@ -21,12 +20,13 @@ from notifications_utils.recipients import (
     validate_phone_number,
 )
 
-# import marshmallow as ma
-
 from app import ma, models
 from app.dao.permissions_dao import permission_dao
 from app.models import ServicePermission
 from app.utils import get_template_instance
+
+# import marshmallow as ma
+
 
 
 def _validate_positive_number(value, msg="Not a positive integer"):
