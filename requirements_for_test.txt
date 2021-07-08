@@ -19,3 +19,4 @@ jinja2-cli[yaml]==0.6.0
 black==21.5b2
 locust==1.5.3
 mypy==0.812
+flask-sqlalchemy-stubs @ git+https://github.com/ssfdust/flask-sqlalchemy-stubs.git@103bf6c7802d778c87938ea9d06ee24b1e552b52
