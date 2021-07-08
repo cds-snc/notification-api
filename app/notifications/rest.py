@@ -2,9 +2,11 @@ from flask import Blueprint, current_app, jsonify, request
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import get_international_phone_info
 
-from app import api_user, authenticated_service
+from app import api_user, authenticated_service, encryption, create_uuid
+from app.config import QueueNames
 from app.dao import notifications_dao, templates_dao
 from app.errors import InvalidRequest, register_errors
+from app.celery import tasks
 from app.models import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
@@ -84,7 +86,6 @@ def get_all_notifications():
 
 @notifications.route("/notifications/<string:notification_type>", methods=["POST"])
 def send_notification(notification_type):
-
     if notification_type not in [SMS_TYPE, EMAIL_TYPE]:
         msg = "{} notification type is not supported".format(notification_type)
         msg = msg + ", please use the latest version of the client" if notification_type == LETTER_TYPE else msg
@@ -120,26 +121,52 @@ def send_notification(notification_type):
     # Do not persist or send notification to the queue if it is a simulated recipient
 
     simulated = simulated_recipient(notification_form["to"], notification_type)
-    notification_model = persist_notification(
-        template_id=template.id,
-        template_version=template.version,
-        template_postage=template.postage,
-        recipient=request.get_json()["to"],
-        service=authenticated_service,
-        personalisation=notification_form.get("personalisation", None),
-        notification_type=notification_type,
-        api_key_id=api_user.id,
-        key_type=api_user.key_type,
-        simulated=simulated,
-        reply_to_text=template.get_reply_to_text(),
-    )
+
+    # encrypt the notification data to send over the queue
+    encrypted_notification_data = encryption.encrypt({
+        "template": str(template.id),
+        "template_version": str(template.version),
+        "template_postage": str(template.postage),
+        "recipient": request.get_json()["to"],
+        "personalisation": notification_form.get("personalisation", None),
+        "api_key_id": str(api_user.id),
+        "key_type": str(api_user.key_type),
+    })
+
     if not simulated:
-        send_notification_to_queue(
-            notification=notification_model,
-            research_mode=authenticated_service.research_mode,
-            queue=template.queue_to_use(),
-        )
+        # depending on the type route to the appropriate save task
+        if notification_type == EMAIL_TYPE:
+            tasks.save_email.apply_async(
+                (
+                    authenticated_service.id,
+                    create_uuid(),
+                    encrypted_notification_data
+                ),
+                queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE
+            )
+        elif notification_type == SMS_TYPE:
+            tasks.save_sms.apply_async(
+                (
+                    authenticated_service.id,
+                    create_uuid(),
+                    encrypted_notification_data
+                ),
+                queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE
+            )
     else:
+        notification_model = persist_notification(
+            template_id=template.id,
+            template_version=template.version,
+            template_postage=template.postage,
+            recipient=request.get_json()["to"],
+            service=authenticated_service,
+            personalisation=notification_form.get("personalisation", None),
+            notification_type=notification_type,
+            api_key_id=api_user.id,
+            key_type=api_user.key_type,
+            simulated=simulated,
+            reply_to_text=template.get_reply_to_text(),
+        )
         current_app.logger.debug("POST simulated notification for id: {}".format(notification_model.id))
     notification_form.update({"template_version": template.version})
 
@@ -165,7 +192,8 @@ def get_notification_return_data(notification_id, notification, template):
 def _service_can_send_internationally(service, number):
     international_phone_info = get_international_phone_info(number)
 
-    if international_phone_info.international and INTERNATIONAL_SMS_TYPE not in [p.permission for p in service.permissions]:
+    if international_phone_info.international and INTERNATIONAL_SMS_TYPE not in [p.permission for p in
+                                                                                 service.permissions]:
         raise InvalidRequest({"to": ["Cannot send to international mobile numbers"]}, status_code=400)
 
 
