@@ -10,11 +10,9 @@ from flask import current_app, json
 from freezegun import freeze_time
 
 from app.dao.jobs_dao import dao_get_job_by_id
-from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
-    NOTIFICATION_CREATED,
     SCHEDULE_NOTIFICATIONS,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
@@ -380,9 +378,6 @@ def test_send_notification_uses_appropriate_queue_according_to_template_process_
         data=json.dumps(data),
         headers=[("Content-Type", "application/json"), auth_header],
     )
-
-    notification_id = json.loads(response.data)["id"]
-
     assert response.status_code == 201
     assert mocked.called
 
@@ -398,8 +393,6 @@ def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
     client, sample_service, mocker, notification_type, key_send_to, send_to
 ):
     sample = create_template(service=sample_service, template_type=notification_type)
-    persist_mock = mocker.patch("app.v2.notifications.post_notifications.persist_notification")
-    deliver_mock = mocker.patch("app.v2.notifications.post_notifications.send_notification_to_queue")
     mocker.patch(
         "app.v2.notifications.post_notifications.check_rate_limiting",
         side_effect=RateLimitError("LIMIT", "INTERVAL", "TYPE"),
@@ -422,9 +415,6 @@ def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
     assert error == "RateLimitError"
     assert message == "Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds"
     assert status_code == 429
-
-    assert not persist_mock.called
-    assert not deliver_mock.called
 
 
 def test_post_sms_notification_returns_400_if_not_allowed_to_send_int_sms(
@@ -689,7 +679,7 @@ def test_post_notification_with_wrong_type_of_sender(
 
 def test_post_email_notification_with_valid_reply_to_id_returns_201(client, sample_email_template, mocker):
     reply_to_email = create_reply_to_email(sample_email_template.service, "test@test.com")
-    mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    mocked = mocker.patch("app.celery.tasks.save_email.apply_async")
     data = {
         "email_address": sample_email_template.service.users[0].email_address,
         "template_id": sample_email_template.id,
@@ -704,12 +694,7 @@ def test_post_email_notification_with_valid_reply_to_id_returns_201(client, samp
     assert response.status_code == 201
     resp_json = json.loads(response.get_data(as_text=True))
     assert validate(resp_json, post_email_response) == resp_json
-    notification = Notification.query.first()
-    assert notification.reply_to_text == "test@test.com"
-    assert resp_json["id"] == str(notification.id)
     assert mocked.called
-
-    assert notification.reply_to_text == reply_to_email.email_address
 
 
 def test_post_email_notification_with_invalid_reply_to_id_returns_400(client, sample_email_template, mocker, fake_uuid):
@@ -763,7 +748,7 @@ def test_post_email_notification_with_archived_reply_to_id_returns_400(client, s
     )
     assert "BadRequestError" in resp_json["errors"][0]["error"]
 
-# TODO: make pass
+
 @pytest.mark.parametrize(
     "filename, file_data, sending_method",
     [
@@ -779,7 +764,7 @@ def test_post_notification_with_document_upload(client, notify_db_session, mocke
     template = create_template(service=service, template_type="email", content=content)
 
     statsd_mock = mocker.patch("app.v2.notifications.post_notifications.statsd_client")
-    mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    mocker.patch("app.celery.tasks.save_email.apply_async")
     document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
     document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
     document_download_mock.return_value = document_response
@@ -811,10 +796,6 @@ def test_post_notification_with_document_upload(client, notify_db_session, mocke
         service.id,
         {"file": decoded_file, "filename": filename, "sending_method": sending_method},
     )
-
-    notification = Notification.query.one()
-    assert notification.status == NOTIFICATION_CREATED
-    assert notification.personalisation == {"document": document_response}
 
     if sending_method == "link":
         assert resp_json["content"]["body"] == f"Document: {document_response}"
@@ -1076,7 +1057,7 @@ def test_post_notification_without_document_upload_permission(client, notify_db_
     service = create_service(service_permissions=[EMAIL_TYPE])
     template = create_template(service=service, template_type="email", content="Document: ((document))")
 
-    mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    mocker.patch("app.celery.tasks.save_email.apply_async")
     document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client")
     document_download_mock.upload_document.return_value = document_download_response()
 
