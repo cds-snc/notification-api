@@ -204,6 +204,7 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
 
     try:
         saved_notification = persist_notification(
+            notification_id=notification.get("id", notification_id),
             template_id=notification["template"],
             template_version=notification["template_version"],
             recipient=notification["to"],
@@ -215,7 +216,6 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
             created_at=datetime.utcnow(),
             job_id=notification.get("job", None),
             job_row_number=notification.get("row_number", None),
-            notification_id=notification_id,
             reply_to_text=reply_to_text,
         )
 
@@ -257,6 +257,7 @@ def save_email(self, service_id, notification_id, encrypted_notification, sender
 
     try:
         saved_notification = persist_notification(
+            notification_id=notification.get("id", notification_id),
             template_id=notification["template"],
             template_version=notification["template_version"],
             recipient=notification["to"],
@@ -268,7 +269,6 @@ def save_email(self, service_id, notification_id, encrypted_notification, sender
             created_at=datetime.utcnow(),
             job_id=notification.get("job", None),
             job_row_number=notification.get("row_number", None),
-            notification_id=notification_id,
             reply_to_text=reply_to_text,
             client_reference=notification.get("client_reference", None),
         )
