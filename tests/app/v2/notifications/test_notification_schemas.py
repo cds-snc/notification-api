@@ -15,6 +15,8 @@ from app.v2.notifications.notification_schemas import (
     post_sms_request as post_sms_request_schema,
 )
 
+valid_get_json: dict = {}
+
 valid_get_with_optionals_json = {
     "reference": "test reference",
     "status": [NOTIFICATION_CREATED],
@@ -24,7 +26,7 @@ valid_get_with_optionals_json = {
 }
 
 
-@pytest.mark.parametrize("input", [{}, valid_get_with_optionals_json])
+@pytest.mark.parametrize("input", [valid_get_json, valid_get_with_optionals_json])
 def test_get_notifications_valid_json(input):
     assert validate(input, get_notifications_request) == input
 
