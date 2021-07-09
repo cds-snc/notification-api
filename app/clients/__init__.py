@@ -1,3 +1,6 @@
+from typing import Any, Dict
+
+
 class ClientException(Exception):
     """
     Base Exceptions for sending notifications that fail
@@ -15,8 +18,8 @@ class Client(object):
 
 
 class Clients(object):
-    sms_clients = {}
-    email_clients = {}
+    sms_clients: Dict[str, Any] = {}
+    email_clients: Dict[str, Any] = {}
 
     def init_app(self, sms_clients, email_clients):
         for client in sms_clients:

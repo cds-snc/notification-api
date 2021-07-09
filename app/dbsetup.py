@@ -1,6 +1,7 @@
 from functools import cached_property, partial
+from typing import Optional
 
-from flask import _app_ctx_stack
+from flask import _app_ctx_stack  # type: ignore
 from flask_sqlalchemy import BaseQuery, SignallingSession, SQLAlchemy, get_state
 from sqlalchemy import orm
 
@@ -12,7 +13,7 @@ class ExplicitRoutingSession(SignallingSession):
     then the `reader` bind will get returned instead.
     """
 
-    _name = None
+    _name: Optional[str] = None
 
     def get_bind(self, mapper=None, clause=None):
         # If reader and writer binds are not configured,
@@ -35,7 +36,7 @@ class ExplicitRoutingSession(SignallingSession):
             self.app.logger.debug("Connecting -> writer")
             return get_state(self.app).db.get_engine(self.app, bind="writer")
 
-    def using_bind(self, name):
+    def using_bind(self, name: str):
         self._name = name
         return self
 

@@ -1,3 +1,5 @@
+from typing import Any, List
+
 from flask import current_app, json, jsonify
 from jsonschema import ValidationError as JsonSchemaValidationError
 from marshmallow import ValidationError
@@ -16,8 +18,8 @@ class VirusScanError(Exception):
 
 
 class InvalidRequest(Exception):
-    code = None
-    fields = []
+    code: Any = None
+    fields: List[Any] = []
 
     def __init__(self, message, status_code):
         super().__init__()

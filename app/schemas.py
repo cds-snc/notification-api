@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta
 from flask import current_app
 from flask_marshmallow.fields import fields
 from marshmallow import (
+    Schema,
     ValidationError,
     post_dump,
     post_load,
@@ -62,7 +63,7 @@ def _validate_datetime_not_in_past(dte, msg="Date cannot be in the past"):
         raise ValidationError(msg)
 
 
-class BaseSchema(ma.SQLAlchemyAutoSchema):
+class BaseSchema(ma.SQLAlchemyAutoSchema):  # type: ignore
     class Meta:
         load_instance = True
         include_relationships = True
@@ -430,7 +431,7 @@ class JobSchema(BaseSchema):
         strict = True
 
 
-class NotificationSchema(ma.Schema):
+class NotificationSchema(Schema):
     class Meta(BaseSchema.Meta):
         strict = True
 
@@ -593,7 +594,7 @@ class InvitedUserSchema(BaseSchema):
             raise ValidationError(str(e))
 
 
-class EmailDataSchema(ma.Schema):
+class EmailDataSchema(Schema):
     class Meta(BaseSchema.Meta):
         strict = True
 
@@ -613,7 +614,7 @@ class EmailDataSchema(ma.Schema):
             raise ValidationError(str(e))
 
 
-class SupportEmailDataSchema(ma.Schema):
+class SupportEmailDataSchema(Schema):
     class Meta(BaseSchema.Meta):
         strict = True
 
@@ -636,7 +637,7 @@ class SupportEmailDataSchema(ma.Schema):
             raise ValidationError(str(e))
 
 
-class BrandingRequestDataSchema(ma.Schema):
+class BrandingRequestDataSchema(Schema):
     class Meta(BaseSchema.Meta):
         strict = True
 
@@ -659,7 +660,7 @@ class BrandingRequestDataSchema(ma.Schema):
             raise ValidationError(str(e))
 
 
-class NotificationsFilterSchema(ma.Schema):
+class NotificationsFilterSchema(Schema):
     class Meta(BaseSchema.Meta):
         strict = True
 
@@ -704,7 +705,7 @@ class NotificationsFilterSchema(ma.Schema):
         _validate_positive_number(value)
 
 
-class ServiceHistorySchema(ma.Schema):
+class ServiceHistorySchema(Schema):
     id = fields.UUID()
     name = fields.String()
     created_at = fields.DateTime()
@@ -717,7 +718,7 @@ class ServiceHistorySchema(ma.Schema):
     version = fields.Integer()
 
 
-class ApiKeyHistorySchema(ma.Schema):
+class ApiKeyHistorySchema(Schema):
     id = fields.UUID()
     name = fields.String()
     service_id = fields.UUID()
@@ -733,7 +734,7 @@ class EventSchema(BaseSchema):
         strict = True
 
 
-class DaySchema(ma.Schema):
+class DaySchema(Schema):
     class Meta(BaseSchema.Meta):
         strict = True
 
