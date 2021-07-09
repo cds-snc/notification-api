@@ -17,8 +17,8 @@ revision = "0133_set_services_sms_prefix"
 down_revision = "0132_add_sms_prefix_setting"
 
 
-config = config.configs[os.environ["NOTIFY_ENVIRONMENT"]]
-default_sms_sender = config.FROM_NUMBER
+config = config.configs[os.environ["NOTIFY_ENVIRONMENT"]]  # type: ignore
+default_sms_sender = config.FROM_NUMBER  # type: ignore
 
 
 def upgrade():

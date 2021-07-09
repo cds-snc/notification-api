@@ -1,4 +1,5 @@
 import base64
+from typing import Any, Dict
 
 import requests_mock
 from flask import Flask
@@ -38,7 +39,7 @@ def test_send_ticket_demo(notify_api: Flask):
             status_code=201,
         )
 
-        contact_request = {
+        contact_request: Dict[str, Any] = {
             "email_address": "test@email.com",
             "name": "name-test",
             "department_org_name": "dept-test",
@@ -88,7 +89,7 @@ def test_send_ticket_go_live_request(notify_api: Flask):
             additional_matcher=match_json,
             status_code=201,
         )
-        data = {
+        data: Dict[str, Any] = {
             "email_address": "test@email.com",
             "name": "name",
             "department_org_name": "department_org_name",
@@ -134,7 +135,7 @@ def test_send_ticket_other(notify_api: Flask):
         )
 
         with notify_api.app_context():
-            response = Freshdesk(ContactRequest(**{"email_address": "test@email.com"})).send_ticket()
+            response = Freshdesk(ContactRequest(email_address="test@email.com")).send_ticket()
             assert response == 201
 
 
@@ -167,10 +168,8 @@ def test_send_ticket_user_profile(notify_api: Flask):
         with notify_api.app_context():
             response = Freshdesk(
                 ContactRequest(
-                    **{
-                        "email_address": "test@email.com",
-                        "user_profile": "user_profile",
-                    }
+                    email_address="test@email.com",
+                    user_profile="user_profile",
                 )
             ).send_ticket()
             assert response == 201

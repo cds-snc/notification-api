@@ -1,6 +1,7 @@
 import json
 import os
 from datetime import timedelta
+from typing import Any, List
 
 from dotenv import load_dotenv
 from fido2.server import Fido2Server
@@ -329,7 +330,7 @@ class Config(object):
         # 'options': {'queue': QueueNames.PERIODIC}
         # },
     }
-    CELERY_QUEUES = []
+    CELERY_QUEUES: List[Any] = []
 
     FROM_NUMBER = "development"
 

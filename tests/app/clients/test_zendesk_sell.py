@@ -1,5 +1,5 @@
 import json
-from typing import Dict, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import pytest
 import requests_mock
@@ -46,8 +46,7 @@ def test_create_lead(notify_api: Flask):
         )
 
         with notify_api.app_context():
-            data = {"email_address": "test@email.com", "name": "Test User"}
-            response = ZenDeskSell().upsert_lead(ContactRequest(**data))
+            response = ZenDeskSell().upsert_lead(ContactRequest(email_address="test@email.com", name="Test User"))
             assert response == 201
 
 
@@ -56,7 +55,7 @@ def test_create_lead_missing_name(notify_api: Flask):
     # Name field is a requirement for the zendesk sell API interface
     with notify_api.app_context():
         with pytest.raises(AssertionError):
-            ZenDeskSell().upsert_lead(ContactRequest(**{"email_address": "test@email.com"}))
+            ZenDeskSell().upsert_lead(ContactRequest(email_address="test@email.com"))
 
 
 def generate_contact_url(existing_contact_id: Optional[str], service: Service) -> str:
@@ -381,7 +380,7 @@ def test_create_note(notify_api: Flask):
             text=json.dumps(resp_data),
         )
 
-        data = {
+        data: Dict[str, Any] = {
             "email_address": "test@email.com",
             "service_name": "service_name",
             "department_org_name": "department_org_name",
@@ -420,7 +419,7 @@ def test_create_note_invalid_response(
             text=json.dumps(expected_resp_data),
         )
 
-        data = {
+        data: Dict[str, Any] = {
             "email_address": "test@email.com",
             "service_name": "service_name",
             "department_org_name": "department_org_name",
@@ -556,20 +555,19 @@ def test_send_go_live_request(notify_api: Flask, sample_service: Service, mocker
     search_deal_id_mock = mocker.patch("app.user.rest.ZenDeskSell.search_deal_id", return_value=deal_id)
     send_create_service_mock = mocker.patch("app.user.rest.ZenDeskSell.send_create_service", return_value="1")
     create_note_mock = mocker.patch("app.user.rest.ZenDeskSell.create_note", return_value="2")
+    data: Dict[str, Any] = {
+        "email_address": "test@email.com",
+        "service_name": "service_name",
+        "department_org_name": "department_org_name",
+        "intended_recipients": "intended_recipients",
+        "main_use_case": "main_use_case",
+        "notification_types": "notification_types",
+        "expected_volume": "expected_volume",
+        "service_url": "service_url",
+        "support_type": "go_live_request",
+    }
 
-    contact = ContactRequest(
-        **{
-            "email_address": "test@email.com",
-            "service_name": "service_name",
-            "department_org_name": "department_org_name",
-            "intended_recipients": "intended_recipients",
-            "main_use_case": "main_use_case",
-            "notification_types": "notification_types",
-            "expected_volume": "expected_volume",
-            "service_url": "service_url",
-            "support_type": "go_live_request",
-        }
-    )
+    contact = ContactRequest(**data)
 
     with notify_api.app_context():
         assert ZenDeskSell().send_go_live_request(sample_service, sample_service.users[0], contact)
@@ -583,20 +581,18 @@ def test_send_go_live_request_search_failed(notify_api: Flask, sample_service: S
     search_deal_id_mock = mocker.patch("app.user.rest.ZenDeskSell.search_deal_id", return_value=None)
     send_create_service_mock = mocker.patch("app.user.rest.ZenDeskSell.send_create_service", return_value=deal_id)
     create_note_mock = mocker.patch("app.user.rest.ZenDeskSell.create_note", return_value="1")
-
-    contact = ContactRequest(
-        **{
-            "email_address": "test@email.com",
-            "service_name": "service_name",
-            "department_org_name": "department_org_name",
-            "intended_recipients": "intended_recipients",
-            "main_use_case": "main_use_case",
-            "notification_types": "notification_types",
-            "expected_volume": "expected_volume",
-            "service_url": "service_url",
-            "support_type": "go_live_request",
-        }
-    )
+    data: Dict[str, Any] = {
+        "email_address": "test@email.com",
+        "service_name": "service_name",
+        "department_org_name": "department_org_name",
+        "intended_recipients": "intended_recipients",
+        "main_use_case": "main_use_case",
+        "notification_types": "notification_types",
+        "expected_volume": "expected_volume",
+        "service_url": "service_url",
+        "support_type": "go_live_request",
+    }
+    contact = ContactRequest(**data)
 
     with notify_api.app_context():
         assert ZenDeskSell().send_go_live_request(sample_service, sample_service.users[0], contact)
