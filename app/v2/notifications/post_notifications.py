@@ -48,6 +48,7 @@ from app.models import (
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
+    send_notification_to_queue,
     persist_notification,
     persist_scheduled_notification,
     simulated_recipient,
@@ -264,6 +265,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         "template_version": str(template.version),
         "to": form_send_to,
         "personalisation": personalisation,
+        "simulated": simulated,
         "api_key_id": str(api_key.id),
         "key_type": str(api_key.key_type),
         "client_reference": form.get("reference", None),
@@ -288,7 +290,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         )
         persist_scheduled_notification(notification.id, form["scheduled_for"])
     else:
-        if not simulated:
+        if current_app.config["FF_NOTIFICATION_CELERY_PERSISTANCE"]:
             # depending on the type route to the appropriate save task
             if notification_type == EMAIL_TYPE:
                 current_app.logger.info("calling save email task")
@@ -315,7 +317,12 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
                 simulated=simulated,
                 reply_to_text=reply_to_text,
             )
-            current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
+            send_notification_to_queue(
+                notification=notification,
+                research_mode=service.research_mode,
+                queue=template.queue_to_use(),
+            )
+
 
     if not isinstance(notification, Notification):
         notification["template_id"] = notification["template"]
