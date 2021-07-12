@@ -16,7 +16,6 @@ from app.models import (
     SCHEDULE_NOTIFICATIONS,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
-    Notification,
     ScheduledNotification,
 )
 from app.schema_validation import validate
@@ -307,41 +306,6 @@ def test_post_email_notification_returns_201(client, sample_email_template_with_
     )
     assert not resp_json["scheduled_for"]
     assert mocked.called
-
-
-@pytest.mark.parametrize(
-    "recipient, notification_type",
-    [
-        ("simulate-delivered@notification.canada.ca", EMAIL_TYPE),
-        ("simulate-delivered-2@notification.canada.ca", EMAIL_TYPE),
-        ("simulate-delivered-3@notification.canada.ca", EMAIL_TYPE),
-        ("6132532222", "sms"),
-        ("6132532223", "sms"),
-        ("6132532224", "sms"),
-    ],
-)
-def test_should_not_persist_or_send_notification_if_simulated_recipient(
-    client, recipient, notification_type, sample_email_template, sample_template, mocker
-):
-    apply_async = mocker.patch("app.celery.tasks.save_{}.apply_async".format(notification_type))
-
-    if notification_type == "sms":
-        data = {"phone_number": recipient, "template_id": str(sample_template.id)}
-    else:
-        data = {"email_address": recipient, "template_id": str(sample_email_template.id)}
-
-    auth_header = create_authorization_header(service_id=sample_email_template.service_id)
-
-    response = client.post(
-        path="/v2/notifications/{}".format(notification_type),
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    assert response.status_code == 201
-    apply_async.assert_not_called()
-    assert json.loads(response.get_data(as_text=True))["id"]
-    assert Notification.query.count() == 0
 
 
 @pytest.mark.parametrize(
@@ -1023,34 +987,6 @@ def test_post_notification_with_document_upload_not_base64_file(
     assert response.status_code == 400
     resp_json = json.loads(response.get_data(as_text=True))
     assert f"{message} : Error decoding base64 field" in resp_json["errors"][0]["message"]
-
-
-def test_post_notification_with_document_upload_simulated(client, notify_db_session, mocker):
-    service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
-    template = create_template(service=service, template_type="email", content="Document: ((document))")
-
-    mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
-    document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client")
-    document_download_mock.get_upload_url.return_value = "https://document-url"
-
-    data = {
-        "email_address": "simulate-delivered@notification.canada.ca",
-        "template_id": template.id,
-        "personalisation": {"document": {"file": "abababab", "sending_method": "link"}},
-    }
-
-    auth_header = create_authorization_header(service_id=service.id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert validate(resp_json, post_email_response) == resp_json
-
-    assert resp_json["content"]["body"] == "Document: https://document-url/test-document"
 
 
 def test_post_notification_without_document_upload_permission(client, notify_db_session, mocker):

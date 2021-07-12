@@ -48,9 +48,9 @@ from app.models import (
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
-    send_notification_to_queue,
     persist_notification,
     persist_scheduled_notification,
+    send_notification_to_queue,
     simulated_recipient,
 )
 from app.notifications.validators import (
@@ -323,7 +323,6 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
                 queue=template.queue_to_use(),
             )
 
-
     if not isinstance(notification, Notification):
         notification["template_id"] = notification["template"]
         notification["template_version"] = template.version
@@ -331,6 +330,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         notification["service_id"] = service.id
         notification["reply_to_text"] = reply_to_text
         del notification["template"]
+        del notification["simulated"]
         notification = Notification(**notification)
 
     return notification
@@ -376,7 +376,7 @@ def save_stats_for_attachments(files_data, service_id, template_id):
         statsd_client.incr(f"attachments.file-type.{document['mime_type']}")
         # File size is in bytes, convert to whole megabytes
         nb_mb = document["file_size"] // (1_024 * 1_024)
-        file_size_bucket = f"{nb_mb}-{nb_mb+1}mb"
+        file_size_bucket = f"{nb_mb}-{nb_mb + 1}mb"
         statsd_client.incr(f"attachments.file-size.{file_size_bucket}")
 
 
