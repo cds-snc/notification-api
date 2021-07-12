@@ -11,7 +11,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app.feature_flags import FeatureFlag
 from app.models import User
-from app.oauth.exceptions import OAuthException, IncorrectGithubIdException
+from app.oauth.exceptions import OAuthException, IncorrectGithubIdException, InsufficientGithubScopesException
 from app.oauth.rest import make_github_get_request
 from tests.conftest import set_config_values
 
@@ -259,7 +259,10 @@ class TestAuthorize:
             self, client, notify_api, github_login_toggle_enabled, mocker
     ):
         github_access_token = mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
-        github_get_user_resp = mocker.Mock(Response, status_code=304)
+        mock_toggle(mocker, FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED, 'True')
+        github_get_user_resp = mocker.Mock(
+            Response, status_code=304, headers={'X-Accepted-OAuth-Scopes': 'read:user, user:email, read:org'}
+        )
 
         mocker.patch(
             'app.oauth.rest.oauth_registry.github.get',
@@ -274,7 +277,10 @@ class TestAuthorize:
             self, client, notify_api, github_login_toggle_enabled, mocker, status_code
     ):
         github_access_token = mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
-        github_get_user_resp = mocker.Mock(Response, status_code=status_code)
+        mock_toggle(mocker, FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED, 'True')
+        github_get_user_resp = mocker.Mock(
+            Response, status_code=status_code, headers={'X-Accepted-OAuth-Scopes': 'read:user, user:email, read:org'}
+        )
 
         mocker.patch(
             'app.oauth.rest.oauth_registry.github.get',
@@ -286,6 +292,23 @@ class TestAuthorize:
 
         assert e.value.status_code == 401
         assert e.value.message == 'User Account not found.'
+
+    def test_should_raise_insufficient_github_scopes_exception_if_missing_scopes(
+            self, client, notify_api, github_login_toggle_enabled, mocker
+    ):
+        github_access_token = mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
+        mock_toggle(mocker, FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED, 'True')
+        github_get_user_resp = mocker.Mock(
+            Response, status_code=403, headers={'X-Accepted-OAuth-Scopes': 'user:email, read:org'}
+        )
+
+        mocker.patch(
+            'app.oauth.rest.oauth_registry.github.get',
+            return_value=github_get_user_resp,
+        )
+
+        with pytest.raises(InsufficientGithubScopesException):
+            make_github_get_request('/user', github_access_token)
 
     def test_should_redirect_to_ui_if_user_is_member_of_va_organization(
             self, client, notify_api, github_login_toggle_enabled, mocker, cookie_config, github_data

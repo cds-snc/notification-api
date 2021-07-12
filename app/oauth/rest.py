@@ -1,4 +1,5 @@
 import json
+
 from typing import Tuple
 
 from authlib.integrations.base_client import OAuthError
@@ -7,6 +8,7 @@ from flask_cors.core import get_cors_options, set_cors_headers
 from flask_jwt_extended import create_access_token, verify_jwt_in_request
 from flask_jwt_extended.exceptions import NoAuthorizationError
 from jwt import ExpiredSignatureError
+from requests import Response
 from requests.exceptions import HTTPError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -14,7 +16,8 @@ from app import statsd_client
 from app.dao.users_dao import create_or_retrieve_user, get_user_by_email
 from app.errors import register_errors
 from app.feature_flags import is_feature_enabled, FeatureFlag
-from .exceptions import OAuthException, IncorrectGithubIdException, LoginWithPasswordException
+from .exceptions import OAuthException, IncorrectGithubIdException, LoginWithPasswordException, \
+    InsufficientGithubScopesException
 from app.oauth.registry import oauth_registry
 from app.schema_validation import validate
 from .auth_schema import password_login_request
@@ -86,6 +89,10 @@ def authorize():
         current_app.logger.error(e)
         statsd_client.incr('oauth.authorization.github_id_mismatch')
         return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
+    except InsufficientGithubScopesException as e:
+        current_app.logger.error(e)
+        statsd_client.incr('oauth.authorization.github_incorrect_scopes')
+        return make_response(redirect(f'{current_app.config["UI_HOST_NAME"]}/login/failure?incorrect_scopes'))
     else:
         response = make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/success"))
         response.set_cookie(
@@ -106,6 +113,10 @@ def make_github_get_request(endpoint: str, github_token) -> json:
         endpoint,
         token=github_token
     )
+
+    if not does_user_have_sufficient_scope(resp):
+        raise InsufficientGithubScopesException
+
     if resp.status_code in [403, 404]:
         exception = OAuthException
         exception.status_code = 401
@@ -118,6 +129,23 @@ def make_github_get_request(endpoint: str, github_token) -> json:
     resp.raise_for_status()
 
     return resp
+
+
+def does_user_have_sufficient_scope(response: Response) -> bool:
+    if is_feature_enabled(FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED):
+        accepted_oauth_scopes = response.headers["X-Accepted-OAuth-Scopes"].split(', ')
+
+        is_user_scope_approved = 'user' in accepted_oauth_scopes or (
+            'read:user' in accepted_oauth_scopes and 'user:email' in accepted_oauth_scopes
+        )
+        is_org_scope_approved = any(scope in ['admin:org', 'read:org'] for scope in accepted_oauth_scopes)
+
+        print(f'does user have sufficient scope: {is_user_scope_approved and is_org_scope_approved}')
+        return is_user_scope_approved and is_org_scope_approved
+    else:
+        current_app.logger.info(f'oauth scopes: {response.headers["X-OAuth-Scopes"]}')
+        current_app.logger.info(f'accepted oauth scopes: {response.headers["X-Accepted-OAuth-Scopes"]}')
+        return True
 
 
 def _extract_github_user_info(email_resp: json, user_resp: json) -> Tuple[str, str, str]:

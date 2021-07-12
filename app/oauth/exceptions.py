@@ -10,6 +10,10 @@ class IncorrectGithubIdException(Exception):
     pass
 
 
+class InsufficientGithubScopesException(Exception):
+    pass
+
+
 class LoginWithPasswordException(InvalidRequest):
 
     def __init__(self, message, status_code):
