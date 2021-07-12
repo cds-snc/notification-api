@@ -1,6 +1,16 @@
-from flask import request, _request_ctx_stack, current_app, g
-from notifications_python_client.authentication import decode_jwt_token, get_token_issuer
-from notifications_python_client.errors import TokenDecodeError, TokenExpiredError, TokenIssuerError
+from flask import _request_ctx_stack, current_app, g, request  # type: ignore
+from jwt import PyJWTError
+from notifications_python_client.authentication import (
+    decode_jwt_token,
+    decode_token,
+    epoch_seconds,
+    get_token_issuer,
+)
+from notifications_python_client.errors import (
+    TokenDecodeError,
+    TokenExpiredError,
+    TokenIssuerError,
+)
 from notifications_utils import request_helper
 from sqlalchemy.exc import DataError
 from sqlalchemy.orm.exc import NoResultFound
@@ -8,11 +18,22 @@ from sqlalchemy.orm.exc import NoResultFound
 from app.dao.api_key_dao import get_api_key_by_secret
 from app.dao.services_dao import dao_fetch_service_by_id_with_api_keys
 
-JWT_AUTH_TYPE = 'jwt'
-API_KEY_V1_AUTH_TYPE = 'api_key_v1'
+JWT_AUTH_TYPE = "jwt"
+API_KEY_V1_AUTH_TYPE = "api_key_v1"
 AUTH_TYPES = [
-    ('Bearer', JWT_AUTH_TYPE),
-    ('ApiKey-v1', API_KEY_V1_AUTH_TYPE),
+    (
+        "Bearer",
+        JWT_AUTH_TYPE,
+        "JWT token that the client generates and passes in, "
+        "Learn more: https://documentation.notification.canada.ca/en/start.html#headers.",
+    ),
+    (
+        "ApiKey-v1",
+        API_KEY_V1_AUTH_TYPE,
+        "If you cannot generate a JWT token you may optionally use "
+        "the API secret generated for you by GC Notify. "
+        "Learn more: https://documentation.notification.canada.ca/en/start.html#headers.",
+    ),
 ]
 
 
@@ -25,34 +46,32 @@ class AuthError(Exception):
         self.api_key_id = api_key_id
 
     def __str__(self):
-        return 'AuthError({message}, {code}, service_id={service_id}, api_key_id={api_key_id})'.format(**self.__dict__)
+        return "AuthError({message}, {code}, service_id={service_id}, api_key_id={api_key_id})".format(**self.__dict__)
 
     def to_dict_v2(self):
         return {
-            'status_code': self.code,
-            "errors": [
-                {
-                    "error": "AuthError",
-                    "message": self.short_message
-                }
-            ]
+            "status_code": self.code,
+            "errors": [{"error": "AuthError", "message": self.short_message}],
         }
 
 
 def get_auth_token(req):
-    auth_header = req.headers.get('Authorization', None)
+    auth_header = req.headers.get("Authorization", None)
     if not auth_header:
-        raise AuthError('Unauthorized, authentication token must be provided', 401)
+        raise AuthError("Unauthorized, authentication token must be provided", 401)
 
     for el in AUTH_TYPES:
-        scheme, auth_type = el
+        scheme, auth_type, _ = el
         if auth_header.lower().startswith(scheme.lower()):
-            token = auth_header[len(scheme) + 1:]
+            token = auth_header[len(scheme) + 1 :]
             return auth_type, token
 
-    # TODO: decide if error message stays the same.
-    # In fact we support another auth method than Bearer
-    raise AuthError('Unauthorized, authentication bearer scheme must be used', 401)
+    raise AuthError(
+        "Unauthorized, Authorization header is invalid. "
+        "GC Notify supports the following authentication methods. "
+        + ", ".join([f"{auth_type[0]}: {auth_type[2]}" for auth_type in AUTH_TYPES]),
+        401,
+    )
 
 
 def requires_no_auth():
@@ -67,11 +86,11 @@ def requires_admin_auth():
         raise AuthError("Invalid scheme: can only use JWT for admin authentication", 401)
     client = __get_token_issuer(auth_token)
 
-    if client == current_app.config.get('ADMIN_CLIENT_USER_NAME'):
-        g.service_id = current_app.config.get('ADMIN_CLIENT_USER_NAME')
-        return handle_admin_key(auth_token, current_app.config.get('ADMIN_CLIENT_SECRET'))
+    if client == current_app.config.get("ADMIN_CLIENT_USER_NAME"):
+        g.service_id = current_app.config.get("ADMIN_CLIENT_USER_NAME")
+        return handle_admin_key(auth_token, current_app.config.get("ADMIN_CLIENT_SECRET"))
     else:
-        raise AuthError('Unauthorized, admin authentication token required', 401)
+        raise AuthError("Unauthorized, admin authentication token required", 401)
 
 
 def requires_auth():
@@ -102,9 +121,12 @@ def requires_auth():
         except TokenDecodeError:
             continue
         except TokenExpiredError:
-            err_msg = (
-                "Error: Your system clock must be accurate to within 30 seconds"
-            )
+            try:
+                decoded_token = decode_token(auth_token)
+            except PyJWTError:
+                continue
+            current_app.logger.info(f'JWT: iat value was {decoded_token["iat"]} while server clock is {epoch_seconds()}')
+            err_msg = "Error: Your system clock must be accurate to within 30 seconds"
             raise AuthError(err_msg, 403, service_id=service.id, api_key_id=api_key.id)
 
         _auth_with_api_key(api_key, service)
@@ -116,6 +138,8 @@ def requires_auth():
 
 def _auth_by_api_key(auth_token):
     try:
+        # take last 36 chars of string so that it works even if the full key is provided.
+        auth_token = auth_token[-36:]
         api_key = get_api_key_by_secret(auth_token)
     except NoResultFound:
         raise AuthError("Invalid token: API key not found", 403)
@@ -124,15 +148,20 @@ def _auth_by_api_key(auth_token):
 
 def _auth_with_api_key(api_key, service):
     if api_key.expiry_date:
-        raise AuthError("Invalid token: API key revoked", 403, service_id=service.id, api_key_id=api_key.id)
+        raise AuthError(
+            "Invalid token: API key revoked",
+            403,
+            service_id=service.id,
+            api_key_id=api_key.id,
+        )
     g.service_id = api_key.service_id
     _request_ctx_stack.top.authenticated_service = service
     _request_ctx_stack.top.api_user = api_key
-    current_app.logger.info('API authorised for service {} with api key {}, using client {}'.format(
-        service.id,
-        api_key.id,
-        request.headers.get('User-Agent')
-    ))
+    current_app.logger.info(
+        "API authorised for service {} with api key {}, using client {}".format(
+            service.id, api_key.id, request.headers.get("User-Agent")
+        )
+    )
 
 
 def __get_token_issuer(auth_token):
@@ -142,6 +171,8 @@ def __get_token_issuer(auth_token):
         raise AuthError("Invalid token: iss field not provided", 403)
     except TokenDecodeError:
         raise AuthError("Invalid token: signature, api token is not valid", 403)
+    except PyJWTError as e:
+        raise AuthError(f"Invalid token: {str(e)}", 403)
     return client
 
 

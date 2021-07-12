@@ -1,8 +1,9 @@
-from functools import partial, cached_property
+from functools import cached_property, partial
+from typing import Optional
 
-from flask_sqlalchemy import (BaseQuery, SignallingSession, SQLAlchemy, get_state)
+from flask import _app_ctx_stack  # type: ignore
+from flask_sqlalchemy import BaseQuery, SignallingSession, SQLAlchemy, get_state
 from sqlalchemy import orm
-from flask import _app_ctx_stack
 
 
 class ExplicitRoutingSession(SignallingSession):
@@ -12,7 +13,7 @@ class ExplicitRoutingSession(SignallingSession):
     then the `reader` bind will get returned instead.
     """
 
-    _name = None
+    _name: Optional[str] = None
 
     def get_bind(self, mapper=None, clause=None):
         # If reader and writer binds are not configured,
@@ -33,36 +34,33 @@ class ExplicitRoutingSession(SignallingSession):
         # Everything else goes to the writer engine
         else:
             self.app.logger.debug("Connecting -> writer")
-            return get_state(self.app).db.get_engine(self.app, bind='writer')
+            return get_state(self.app).db.get_engine(self.app, bind="writer")
 
-    def using_bind(self, name):
+    def using_bind(self, name: str):
         self._name = name
         return self
 
     @cached_property
     def binds_setup(self):
-        binds = self.app.config['SQLALCHEMY_BINDS'] or {}
-        return all([k in binds for k in ['reader', 'writer']])
+        binds = self.app.config["SQLALCHEMY_BINDS"] or {}
+        return all([k in binds for k in ["reader", "writer"]])
 
 
 class RoutingSQLAlchemy(SQLAlchemy):
     def on_reader(self):
-        return self.session().using_bind('reader')
+        return self.session().using_bind("reader")
 
     def apply_driver_hacks(self, app, info, options):
         super().apply_driver_hacks(app, info, options)
-        if 'connect_args' not in options:
-            options['connect_args'] = {}
-        options['connect_args']["options"] = "-c statement_timeout={}".format(
-            int(app.config['SQLALCHEMY_STATEMENT_TIMEOUT']) * 1000
+        if "connect_args" not in options:
+            options["connect_args"] = {}
+        options["connect_args"]["options"] = "-c statement_timeout={}".format(
+            int(app.config["SQLALCHEMY_STATEMENT_TIMEOUT"]) * 1000
         )
 
     def create_scoped_session(self, options=None):
         options = options or {}
-        scopefunc = options.pop('scopefunc', _app_ctx_stack.__ident_func__)
-        options.setdefault('query_cls', BaseQuery)
+        scopefunc = options.pop("scopefunc", _app_ctx_stack.__ident_func__)
+        options.setdefault("query_cls", BaseQuery)
 
-        return orm.scoped_session(
-            partial(ExplicitRoutingSession, self, **options),
-            scopefunc=scopefunc
-        )
+        return orm.scoped_session(partial(ExplicitRoutingSession, self, **options), scopefunc=scopefunc)

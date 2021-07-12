@@ -64,6 +64,20 @@ jobs:
         kubectl set image deployment.apps/celery celery=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
         kubectl set image deployment.apps/celery-beat celery-beat=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
         kubectl set image deployment.apps/celery-sms celery-sms=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+
+    - name: my-app-install token
+      id: notify-pr-bot
+      uses: getsentry/action-github-app-token@v1
+      with:
+        app_id: ${{ secrets.PRBOT_APP_ID }}
+        private_key: ${{ secrets.PRBOT_PRIVATE_KEY }}
+
     - uses: cds-snc/notification-pr-bot@master
       env:
-        TOKEN: ${{ secrets.TOKEN }}
+        TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
+
+    - name: Notify Slack channel if this job failed
+      if: ${{ failure() }}
+      run: |
+        json="{'text':'<!here> CI is failing in <https://github.com/cds-snc/notification-api/|notification-api> !'}"
+        curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}

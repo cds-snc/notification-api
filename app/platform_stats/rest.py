@@ -4,26 +4,27 @@ from flask import Blueprint, jsonify, request
 
 from app.dao.date_util import get_financial_year_for_datetime
 from app.dao.fact_billing_dao import (
-    fetch_sms_billing_for_all_services, fetch_letter_costs_for_all_services,
-    fetch_letter_line_items_for_all_services
+    fetch_letter_costs_for_all_services,
+    fetch_letter_line_items_for_all_services,
+    fetch_sms_billing_for_all_services,
 )
 from app.dao.fact_notification_status_dao import (
     fetch_notification_stats_for_trial_services,
     fetch_notification_status_totals_for_all_services,
 )
 from app.dao.notifications_dao import send_method_stats_by_service
-from app.errors import register_errors, InvalidRequest
+from app.errors import InvalidRequest, register_errors
 from app.platform_stats.platform_stats_schema import platform_stats_request
-from app.service.statistics import format_admin_stats
 from app.schema_validation import validate
+from app.service.statistics import format_admin_stats
 from app.utils import get_local_timezone_midnight_in_utc
 
-platform_stats_blueprint = Blueprint('platform_stats', __name__)
+platform_stats_blueprint = Blueprint("platform_stats", __name__)
 
 register_errors(platform_stats_blueprint)
 
 
-@platform_stats_blueprint.route('')
+@platform_stats_blueprint.route("")
 def get_platform_stats():
     if request.args:
         validate(request.args, platform_stats_request)
@@ -31,8 +32,8 @@ def get_platform_stats():
     # If start and end date are not set, we are expecting today's stats.
     today = str(datetime.utcnow().date())
 
-    start_date = datetime.strptime(request.args.get('start_date', today), '%Y-%m-%d').date()
-    end_date = datetime.strptime(request.args.get('end_date', today), '%Y-%m-%d').date()
+    start_date = datetime.strptime(request.args.get("start_date", today), "%Y-%m-%d").date()
+    end_date = datetime.strptime(request.args.get("end_date", today), "%Y-%m-%d").date()
     data = fetch_notification_status_totals_for_all_services(start_date=start_date, end_date=end_date)
     stats = format_admin_stats(data)
 
@@ -57,15 +58,15 @@ def validate_date_range_is_within_a_financial_year(start_date, end_date):
     return start_date, end_date
 
 
-@platform_stats_blueprint.route('usage-for-trial-services')
+@platform_stats_blueprint.route("usage-for-trial-services")
 def get_usage_for_trial_services():
     return jsonify(fetch_notification_stats_for_trial_services())
 
 
-@platform_stats_blueprint.route('usage-for-all-services')
+@platform_stats_blueprint.route("usage-for-all-services")
 def get_usage_for_all_services():
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
 
     start_date, end_date = validate_date_range_is_within_a_financial_year(start_date, end_date)
 
@@ -74,7 +75,10 @@ def get_usage_for_all_services():
     letter_breakdown = fetch_letter_line_items_for_all_services(start_date, end_date)
 
     lb_by_service = [
-        (lb.service_id, "{} {} class letters at {}p".format(lb.letters_sent, lb.postage, int(lb.letter_rate * 100)))
+        (
+            lb.service_id,
+            "{} {} class letters at {}p".format(lb.letters_sent, lb.postage, int(lb.letter_rate * 100)),
+        )
         for lb in letter_breakdown
     ]
     combined = {}
@@ -87,13 +91,13 @@ def get_usage_for_all_services():
             "sms_cost": float(s.sms_cost),
             "sms_fragments": s.chargeable_billable_sms,
             "letter_cost": 0,
-            "letter_breakdown": ""
+            "letter_breakdown": "",
         }
         combined[s.service_id] = entry
 
     for letter_cost in letter_costs:
         if letter_cost.service_id in combined:
-            combined[letter_cost.service_id].update({'letter_cost': float(letter_cost.letter_cost)})
+            combined[letter_cost.service_id].update({"letter_cost": float(letter_cost.letter_cost)})
         else:
             letter_entry = {
                 "organisation_id": str(letter_cost.organisation_id) if letter_cost.organisation_id else "",
@@ -103,23 +107,28 @@ def get_usage_for_all_services():
                 "sms_cost": 0,
                 "sms_fragments": 0,
                 "letter_cost": float(letter_cost.letter_cost),
-                "letter_breakdown": ""
+                "letter_breakdown": "",
             }
             combined[letter_cost.service_id] = letter_entry
     for service_id, breakdown in lb_by_service:
-        combined[service_id]['letter_breakdown'] += (breakdown + '\n')
+        combined[service_id]["letter_breakdown"] += breakdown + "\n"
 
     # sorting first by name == '' means that blank orgs will be sorted last.
-    return jsonify(sorted(combined.values(), key=lambda x: (
-        x['organisation_name'] == '',
-        x['organisation_name'],
-        x['service_name']
-    )))
+    return jsonify(
+        sorted(
+            combined.values(),
+            key=lambda x: (
+                x["organisation_name"] == "",
+                x["organisation_name"],
+                x["service_name"],
+            ),
+        )
+    )
 
 
-@platform_stats_blueprint.route('send-method-stats-by-service')
+@platform_stats_blueprint.route("send-method-stats-by-service")
 def get_send_methods_stats_by_service():
-    start_date = datetime.strptime(request.args.get('start_date'), '%Y-%m-%d').date()
-    end_date = datetime.strptime(request.args.get('end_date'), '%Y-%m-%d').date()
+    start_date = datetime.strptime(request.args.get("start_date"), "%Y-%m-%d").date()
+    end_date = datetime.strptime(request.args.get("end_date"), "%Y-%m-%d").date()
 
     return jsonify(send_method_stats_by_service(start_date, end_date))

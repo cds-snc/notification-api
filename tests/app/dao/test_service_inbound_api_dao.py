@@ -5,10 +5,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app import encryption
 from app.dao.service_inbound_api_dao import (
-    save_service_inbound_api,
-    reset_service_inbound_api,
     get_service_inbound_api,
-    get_service_inbound_api_for_service)
+    get_service_inbound_api_for_service,
+    reset_service_inbound_api,
+    save_service_inbound_api,
+)
 from app.models import ServiceInboundApi
 from tests.app.db import create_service_inbound_api
 
@@ -18,7 +19,7 @@ def test_save_service_inbound_api(sample_service):
         service_id=sample_service.id,
         url="https://some_service/inbound_messages",
         bearer_token="some_unique_string",
-        updated_by_id=sample_service.users[0].id
+        updated_by_id=sample_service.users[0].id,
     )
 
     save_service_inbound_api(service_inbound_api)
@@ -49,7 +50,7 @@ def test_save_service_inbound_api_fails_if_service_does_not_exist(notify_db, not
         service_id=uuid.uuid4(),
         url="https://some_service/inbound_messages",
         bearer_token="some_unique_string",
-        updated_by_id=uuid.uuid4()
+        updated_by_id=uuid.uuid4(),
     )
 
     with pytest.raises(SQLAlchemyError):
@@ -61,7 +62,7 @@ def test_update_service_inbound_api(sample_service):
         service_id=sample_service.id,
         url="https://some_service/inbound_messages",
         bearer_token="some_unique_string",
-        updated_by_id=sample_service.users[0].id
+        updated_by_id=sample_service.users[0].id,
     )
 
     save_service_inbound_api(service_inbound_api)
@@ -69,8 +70,11 @@ def test_update_service_inbound_api(sample_service):
     assert len(results) == 1
     saved_inbound_api = results[0]
 
-    reset_service_inbound_api(saved_inbound_api, updated_by_id=sample_service.users[0].id,
-                              url="https://some_service/changed_url")
+    reset_service_inbound_api(
+        saved_inbound_api,
+        updated_by_id=sample_service.users[0].id,
+        url="https://some_service/changed_url",
+    )
     updated_results = ServiceInboundApi.query.all()
     assert len(updated_results) == 1
     updated = updated_results[0]
@@ -104,7 +108,7 @@ def test_get_service_inbound_api(sample_service):
         service_id=sample_service.id,
         url="https://some_service/inbound_messages",
         bearer_token="some_unique_string",
-        updated_by_id=sample_service.users[0].id
+        updated_by_id=sample_service.users[0].id,
     )
     save_service_inbound_api(service_inbound_api)
 

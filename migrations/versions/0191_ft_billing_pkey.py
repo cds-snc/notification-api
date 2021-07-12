@@ -7,8 +7,8 @@ Create Date: 2018-05-21 14:24:27.229511
 """
 from alembic import op
 
-revision = '0191_ft_billing_pkey'
-down_revision = '0190_another_letter_org'
+revision = "0191_ft_billing_pkey"
+down_revision = "0190_another_letter_org"
 
 
 def upgrade():

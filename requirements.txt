@@ -4,39 +4,38 @@
 # with package version changes made in requirements-app.txt
 
 boto==2.49.0
-cffi==1.14.4
+cffi==1.14.5
 celery[sqs]==5.0.5
 docopt==0.6.2
-fido2==0.9.0
+fido2==0.9.1
 Flask-Bcrypt==0.7.1
-flask-marshmallow==0.11.0
-Flask-Migrate==2.6.0
+flask-marshmallow==0.14.0
+Flask-Migrate==2.7.0
 git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd1a20a21e682262#egg=Flask-SQLAlchemy==2.3.2.dev20190108
 Flask==1.1.2
 click-datetime==0.2
-eventlet==0.30.1
-gunicorn==20.0.4  # pyup: ignore, >19.8 breaks eventlet patching
-iso8601==0.1.13
+eventlet==0.30.2
+gunicorn==20.1.0
+iso8601==0.1.14
 idna==2.8 # pinned to align with test moto dependency requirements
 jsonschema==3.2.0
-marshmallow-sqlalchemy==0.23.1
-marshmallow==2.21.0
-python-magic==0.4.18
+marshmallow-sqlalchemy==0.23.1 # pyup: <0.24.0 # marshmallow v3 throws errors
+marshmallow==2.21.0 # pyup: <3 # v3 throws errors
+python-magic==0.4.22
 psycopg2-binary==2.8.6
-PyJWT==1.7.1
-PyYAML==5.3.1
+PyJWT==2.1.0
+PyYAML==5.4.1
 SQLAlchemy==1.3.23
-sentry-sdk[flask]==0.19.5
+sentry-sdk[flask]==1.0.0
 cachelib==0.1.1
 
-newrelic==6.0.1.155
+newrelic==6.2.0.156
 notifications-python-client==6.0.2
-python-dotenv==0.15.0
+python-dotenv==0.17.1
 pwnedpasswords==2.0.0
-sendgrid==6.5.0
 tldextract==3.1.0
 nanoid==2.0.0
-unidecode==1.1.2
+unidecode==1.2.0
 
 
 # PaaS
@@ -46,7 +45,7 @@ awscli-cwlogs>=1.4.6,<1.5
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
 itsdangerous==0.24  # pyup: <1.0.0
 
-git+https://github.com/cds-snc/notifier-utils.git@43.4.0#egg=notifications-utils
+git+https://github.com/cds-snc/notifier-utils.git@43.11.1#egg=notifications-utils
 
 # MLWR
 socketio-client==0.5.6
@@ -59,16 +58,16 @@ git+https://bitbucket.org/cse-assemblyline/assemblyline_client.git@v3.7.3#egg=as
 rsa>=4.1 # not directly required, pinned by Snyk to avoid a vulnerability
 
 ## The following requirements were added by pip freeze:
-alembic==1.5.4
-amqp==5.0.5
+alembic==1.5.8
+amqp==5.0.6
 attrs==20.3.0
-awscli==1.19.0
+awscli==1.19.58
 bcrypt==3.2.0
-billiard==3.6.3.0
+billiard==3.6.4.0
 bleach==3.3.0
 blinker==1.4
-boto3==1.17.0
-botocore==1.20.0
+boto3==1.17.58
+botocore==1.20.58
 cachetools==4.2.1
 certifi==2020.12.5
 chardet==4.0.0
@@ -77,7 +76,7 @@ click-didyoumean==0.0.3
 click-plugins==1.1.1
 click-repl==0.1.6
 colorama==0.4.3
-cryptography==3.3.1
+cryptography==3.4.7
 dnspython==1.16.0
 docutils==0.15.2
 filelock==3.0.12
@@ -90,11 +89,10 @@ kombu==5.0.2
 Mako==1.1.4
 MarkupSafe==1.1.1
 mistune==0.8.4
-monotonic==1.5
 orderedset==2.0.3
 packaging==20.9
-phonenumbers==8.12.12
-prompt-toolkit==3.0.14
+phonenumbers==8.12.21
+prompt-toolkit==3.0.18
 pyasn1==0.4.8
 pycparser==2.20
 pycurl==7.43.0.5
@@ -104,19 +102,19 @@ PyPDF2==1.26.0
 pyrsistent==0.17.3
 python-dateutil==2.8.1
 python-editor==1.0.4
-python-http-client==3.3.1
+python-http-client==3.3.2
 python-json-logger==2.0.1
 pytz==2021.1
 redis==3.5.3
 requests-file==1.5.1
-s3transfer==0.3.4
+s3transfer==0.4.2
 six==1.15.0
 smartypants==2.0.1
 starkbank-ecdsa==1.1.0
 statsd==3.3.0
-urllib3==1.26.3
+urllib3==1.26.4
 vine==5.0.0
 wcwidth==0.2.5
 webencodings==0.5.1
-websocket-client==0.57.0
+websocket-client==0.58.0
 Werkzeug==1.0.1

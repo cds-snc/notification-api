@@ -5,40 +5,37 @@ import pytest
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import InvalidPhoneError
 
-from app.v2.errors import BadRequestError, TooManyRequestsError
-from app.config import QueueNames
 from app.dao.service_safelist_dao import dao_add_and_commit_safelisted_contacts
-from app.service.send_notification import send_one_off_notification
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
     MOBILE_TYPE,
-    PRIORITY,
     SMS_TYPE,
     Notification,
     ServiceSafelist,
 )
-
+from app.service.send_notification import send_one_off_notification
+from app.v2.errors import BadRequestError, TooManyRequestsError
 from tests.app.db import (
-    create_user,
-    create_reply_to_email,
     create_letter_contact,
-    create_service_sms_sender,
+    create_reply_to_email,
     create_service,
-    create_template
+    create_service_sms_sender,
+    create_template,
+    create_user,
 )
 
 
 @pytest.fixture
 def persist_mock(mocker):
     noti = Mock(id=uuid.uuid4())
-    return mocker.patch('app.service.send_notification.persist_notification', return_value=noti)
+    return mocker.patch("app.service.send_notification.persist_notification", return_value=noti)
 
 
 @pytest.fixture
 def celery_mock(mocker):
-    return mocker.patch('app.service.send_notification.send_notification_to_queue')
+    return mocker.patch("app.service.send_notification.send_notification_to_queue")
 
 
 def test_send_one_off_notification_calls_celery_correctly(persist_mock, celery_mock, notify_db_session):
@@ -48,29 +45,19 @@ def test_send_one_off_notification_calls_celery_correctly(persist_mock, celery_m
     service = template.service
 
     post_data = {
-        'template_id': str(template.id),
-        'to': '6502532222',
-        'created_by': str(service.created_by_id)
+        "template_id": str(template.id),
+        "to": "6502532222",
+        "created_by": str(service.created_by_id),
     }
 
     resp = send_one_off_notification(service.id, post_data)
 
-    assert resp == {
-        'id': str(persist_mock.return_value.id)
-    }
+    assert resp == {"id": str(persist_mock.return_value.id)}
 
-    celery_mock.assert_called_once_with(
-        notification=persist_mock.return_value,
-        research_mode=False,
-        queue=None
-    )
+    celery_mock.assert_called_once_with(notification=persist_mock.return_value, research_mode=False, queue=None)
 
 
-def test_send_one_off_notification_calls_persist_correctly_for_sms(
-    persist_mock,
-    celery_mock,
-    notify_db_session
-):
+def test_send_one_off_notification_calls_persist_correctly_for_sms(persist_mock, celery_mock, notify_db_session):
     service = create_service()
     template = create_template(
         service=service,
@@ -79,10 +66,10 @@ def test_send_one_off_notification_calls_persist_correctly_for_sms(
     )
 
     post_data = {
-        'template_id': str(template.id),
-        'to': '6502532222',
-        'personalisation': {'name': 'foo'},
-        'created_by': str(service.created_by_id)
+        "template_id": str(template.id),
+        "to": "6502532222",
+        "personalisation": {"name": "foo"},
+        "created_by": str(service.created_by_id),
     }
 
     send_one_off_notification(service.id, post_data)
@@ -91,23 +78,19 @@ def test_send_one_off_notification_calls_persist_correctly_for_sms(
         template_id=template.id,
         template_version=template.version,
         template_postage=None,
-        recipient=post_data['to'],
+        recipient=post_data["to"],
         service=template.service,
-        personalisation={'name': 'foo'},
+        personalisation={"name": "foo"},
         notification_type=SMS_TYPE,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
         created_by_id=str(service.created_by_id),
-        reply_to_text='testing',
+        reply_to_text="testing",
         reference=None,
     )
 
 
-def test_send_one_off_notification_calls_persist_correctly_for_email(
-    persist_mock,
-    celery_mock,
-    notify_db_session
-):
+def test_send_one_off_notification_calls_persist_correctly_for_email(persist_mock, celery_mock, notify_db_session):
     service = create_service()
     template = create_template(
         service=service,
@@ -117,10 +100,10 @@ def test_send_one_off_notification_calls_persist_correctly_for_email(
     )
 
     post_data = {
-        'template_id': str(template.id),
-        'to': 'test@example.com',
-        'personalisation': {'name': 'foo'},
-        'created_by': str(service.created_by_id)
+        "template_id": str(template.id),
+        "to": "test@example.com",
+        "personalisation": {"name": "foo"},
+        "created_by": str(service.created_by_id),
     }
 
     send_one_off_notification(service.id, post_data)
@@ -129,9 +112,9 @@ def test_send_one_off_notification_calls_persist_correctly_for_email(
         template_id=template.id,
         template_version=template.version,
         template_postage=None,
-        recipient=post_data['to'],
+        recipient=post_data["to"],
         service=template.service,
-        personalisation={'name': 'foo'},
+        personalisation={"name": "foo"},
         notification_type=EMAIL_TYPE,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
@@ -141,35 +124,30 @@ def test_send_one_off_notification_calls_persist_correctly_for_email(
     )
 
 
-def test_send_one_off_notification_calls_persist_correctly_for_letter(
-    mocker,
-    persist_mock,
-    celery_mock,
-    notify_db_session
-):
+def test_send_one_off_notification_calls_persist_correctly_for_letter(mocker, persist_mock, celery_mock, notify_db_session):
     mocker.patch(
-        'app.service.send_notification.create_random_identifier',
-        return_value='this-is-random-in-real-life',
+        "app.service.send_notification.create_random_identifier",
+        return_value="this-is-random-in-real-life",
     )
     service = create_service()
     template = create_template(
         service=service,
         template_type=LETTER_TYPE,
-        postage='first',
+        postage="first",
         subject="Test subject",
         content="Hello (( Name))\nYour thing is due soon",
     )
 
     post_data = {
-        'template_id': str(template.id),
-        'to': 'First Last',
-        'personalisation': {
-            'name': 'foo',
-            'address line 1': 'First Last',
-            'address line 2': '1 Example Street',
-            'postcode': 'SW1A 1AA',
+        "template_id": str(template.id),
+        "to": "First Last",
+        "personalisation": {
+            "name": "foo",
+            "address line 1": "First Last",
+            "address line 2": "1 Example Street",
+            "postcode": "SW1A 1AA",
         },
-        'created_by': str(service.created_by_id)
+        "created_by": str(service.created_by_id),
     }
 
     send_one_off_notification(service.id, post_data)
@@ -177,16 +155,16 @@ def test_send_one_off_notification_calls_persist_correctly_for_letter(
     persist_mock.assert_called_once_with(
         template_id=template.id,
         template_version=template.version,
-        template_postage='first',
-        recipient=post_data['to'],
+        template_postage="first",
+        recipient=post_data["to"],
         service=template.service,
-        personalisation=post_data['personalisation'],
+        personalisation=post_data["personalisation"],
         notification_type=LETTER_TYPE,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
         created_by_id=str(service.created_by_id),
         reply_to_text=None,
-        reference='this-is-random-in-real-life',
+        reference="this-is-random-in-real-life",
     )
 
 
@@ -195,30 +173,31 @@ def test_send_one_off_notification_honors_research_mode(notify_db_session, persi
     template = create_template(service=service)
 
     post_data = {
-        'template_id': str(template.id),
-        'to': '6502532222',
-        'created_by': str(service.created_by_id)
+        "template_id": str(template.id),
+        "to": "6502532222",
+        "created_by": str(service.created_by_id),
     }
 
     send_one_off_notification(service.id, post_data)
 
-    assert celery_mock.call_args[1]['research_mode'] is True
+    assert celery_mock.call_args[1]["research_mode"] is True
 
 
-def test_send_one_off_notification_honors_priority(notify_db_session, persist_mock, celery_mock):
+@pytest.mark.parametrize("process_type", ["priority", "bulk"])
+def test_send_one_off_notification_honors_process_type(notify_db_session, persist_mock, celery_mock, process_type):
     service = create_service()
     template = create_template(service=service)
-    template.process_type = PRIORITY
+    template.process_type = process_type
 
     post_data = {
-        'template_id': str(template.id),
-        'to': '6502532222',
-        'created_by': str(service.created_by_id)
+        "template_id": str(template.id),
+        "to": "6502532222",
+        "created_by": str(service.created_by_id),
     }
 
     send_one_off_notification(service.id, post_data)
 
-    assert celery_mock.call_args[1]['queue'] == QueueNames.PRIORITY
+    assert celery_mock.call_args[1]["queue"] == f"{process_type}-tasks"
 
 
 def test_send_one_off_notification_raises_if_invalid_recipient(notify_db_session):
@@ -226,54 +205,59 @@ def test_send_one_off_notification_raises_if_invalid_recipient(notify_db_session
     template = create_template(service=service)
 
     post_data = {
-        'template_id': str(template.id),
-        'to': 'not a phone number',
-        'created_by': str(service.created_by_id)
+        "template_id": str(template.id),
+        "to": "not a phone number",
+        "created_by": str(service.created_by_id),
     }
 
     with pytest.raises(InvalidPhoneError):
         send_one_off_notification(service.id, post_data)
 
 
-@pytest.mark.parametrize('recipient', [
-    '6502532228',  # not in team or safelist
-    '+16502532229',  # in safelist
-    '6502532229',  # in safelist in different format
-])
+@pytest.mark.parametrize(
+    "recipient",
+    [
+        "6502532228",  # not in team or safelist
+        "+16502532229",  # in safelist
+        "6502532229",  # in safelist in different format
+    ],
+)
 def test_send_one_off_notification_raises_if_cant_send_to_recipient(
     notify_db_session,
     recipient,
 ):
     service = create_service(restricted=True)
     template = create_template(service=service)
-    dao_add_and_commit_safelisted_contacts([
-        ServiceSafelist.from_string(service.id, MOBILE_TYPE, '+16502532229'),
-    ])
+    dao_add_and_commit_safelisted_contacts(
+        [
+            ServiceSafelist.from_string(service.id, MOBILE_TYPE, "+16502532229"),
+        ]
+    )
 
     post_data = {
-        'template_id': str(template.id),
-        'to': recipient,
-        'created_by': str(service.created_by_id)
+        "template_id": str(template.id),
+        "to": recipient,
+        "created_by": str(service.created_by_id),
     }
 
     with pytest.raises(BadRequestError) as e:
         send_one_off_notification(service.id, post_data)
 
-    assert 'service is in trial mode' in e.value.message
+    assert "service is in trial mode" in e.value.message
 
 
 def test_send_one_off_notification_raises_if_over_limit(notify_db_session, mocker):
     service = create_service(message_limit=0)
     template = create_template(service=service)
     mocker.patch(
-        'app.service.send_notification.check_service_over_daily_message_limit',
-        side_effect=TooManyRequestsError(1)
+        "app.service.send_notification.check_service_over_daily_message_limit",
+        side_effect=TooManyRequestsError(1),
     )
 
     post_data = {
-        'template_id': str(template.id),
-        'to': '6502532222',
-        'created_by': str(service.created_by_id)
+        "template_id": str(template.id),
+        "to": "6502532222",
+        "created_by": str(service.created_by_id),
     }
 
     with pytest.raises(TooManyRequestsError):
@@ -285,26 +269,27 @@ def test_send_one_off_notification_raises_if_message_too_long(persist_mock, noti
     template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
 
     post_data = {
-        'template_id': str(template.id),
-        'to': '6502532222',
-        'personalisation': {'name': '🚫' * 700},
-        'created_by': str(service.created_by_id)
+        "template_id": str(template.id),
+        "to": "6502532222",
+        "personalisation": {"name": "🚫" * 700},
+        "created_by": str(service.created_by_id),
     }
 
     with pytest.raises(BadRequestError) as e:
         send_one_off_notification(service.id, post_data)
 
-    assert e.value.message == 'Content for template has a character count greater than the limit of {}'.format(
-        SMS_CHAR_COUNT_LIMIT)
+    assert e.value.message == "Content for template has a character count greater than the limit of {}".format(
+        SMS_CHAR_COUNT_LIMIT
+    )
 
 
 def test_send_one_off_notification_fails_if_created_by_other_service(sample_template):
-    user_not_in_service = create_user(email='some-other-user@gov.uk')
+    user_not_in_service = create_user(email="some-other-user@gov.uk")
 
     post_data = {
-        'template_id': str(sample_template.id),
-        'to': '6502532222',
-        'created_by': str(user_not_in_service.id)
+        "template_id": str(sample_template.id),
+        "to": "6502532222",
+        "created_by": str(user_not_in_service.id),
     }
 
     with pytest.raises(BadRequestError) as e:
@@ -314,21 +299,17 @@ def test_send_one_off_notification_fails_if_created_by_other_service(sample_temp
 
 
 def test_send_one_off_notification_should_add_email_reply_to_text_for_notification(sample_email_template, celery_mock):
-    reply_to_email = create_reply_to_email(sample_email_template.service, 'test@test.com')
+    reply_to_email = create_reply_to_email(sample_email_template.service, "test@test.com")
     data = {
-        'to': 'ok@ok.com',
-        'template_id': str(sample_email_template.id),
-        'sender_id': reply_to_email.id,
-        'created_by': str(sample_email_template.service.created_by_id)
+        "to": "ok@ok.com",
+        "template_id": str(sample_email_template.id),
+        "sender_id": reply_to_email.id,
+        "created_by": str(sample_email_template.service.created_by_id),
     }
 
     notification_id = send_one_off_notification(service_id=sample_email_template.service.id, post_data=data)
-    notification = Notification.query.get(notification_id['id'])
-    celery_mock.assert_called_once_with(
-        notification=notification,
-        research_mode=False,
-        queue=None
-    )
+    notification = Notification.query.get(notification_id["id"])
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
     assert notification.reply_to_text == reply_to_email.email_address
 
 
@@ -337,60 +318,50 @@ def test_send_one_off_letter_notification_should_use_template_reply_to_text(samp
     sample_letter_template.reply_to = str(letter_contact.id)
 
     data = {
-        'to': 'user@example.com',
-        'template_id': str(sample_letter_template.id),
-        'created_by': str(sample_letter_template.service.created_by_id)
+        "to": "user@example.com",
+        "template_id": str(sample_letter_template.id),
+        "created_by": str(sample_letter_template.service.created_by_id),
     }
 
     notification_id = send_one_off_notification(service_id=sample_letter_template.service.id, post_data=data)
-    notification = Notification.query.get(notification_id['id'])
-    celery_mock.assert_called_once_with(
-        notification=notification,
-        research_mode=False,
-        queue=None
-    )
+    notification = Notification.query.get(notification_id["id"])
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
 
     assert notification.reply_to_text == "Edinburgh, ED1 1AA"
 
 
-def test_send_one_off_letter_should_not_make_pdf_in_research_mode(sample_letter_template):
+def test_send_one_off_letter_should_not_make_pdf_in_research_mode(
+    sample_letter_template,
+):
 
     sample_letter_template.service.research_mode = True
 
     data = {
-        'to': 'A. Name',
-        'template_id': str(sample_letter_template.id),
-        'created_by': str(sample_letter_template.service.created_by_id)
+        "to": "A. Name",
+        "template_id": str(sample_letter_template.id),
+        "created_by": str(sample_letter_template.service.created_by_id),
     }
 
     notification = send_one_off_notification(service_id=sample_letter_template.service.id, post_data=data)
-    notification = Notification.query.get(notification['id'])
+    notification = Notification.query.get(notification["id"])
 
     assert notification.status == "delivered"
 
 
 def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(sample_service, celery_mock):
     template = create_template(service=sample_service, template_type=SMS_TYPE)
-    sms_sender = create_service_sms_sender(
-        service=sample_service,
-        sms_sender='6502532222',
-        is_default=False
-    )
+    sms_sender = create_service_sms_sender(service=sample_service, sms_sender="6502532222", is_default=False)
 
     data = {
-        'to': '6502532223',
-        'template_id': str(template.id),
-        'created_by': str(sample_service.created_by_id),
-        'sender_id': str(sms_sender.id),
+        "to": "6502532223",
+        "template_id": str(template.id),
+        "created_by": str(sample_service.created_by_id),
+        "sender_id": str(sms_sender.id),
     }
 
     notification_id = send_one_off_notification(service_id=sample_service.id, post_data=data)
-    notification = Notification.query.get(notification_id['id'])
-    celery_mock.assert_called_once_with(
-        notification=notification,
-        research_mode=False,
-        queue=None
-    )
+    notification = Notification.query.get(notification_id["id"])
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
 
     assert notification.reply_to_text == "+16502532222"
 
@@ -398,54 +369,46 @@ def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(sampl
 def test_send_one_off_sms_notification_should_use_default_service_reply_to_text(sample_service, celery_mock):
     template = create_template(service=sample_service, template_type=SMS_TYPE)
     sample_service.service_sms_senders[0].is_default = False
-    create_service_sms_sender(
-        service=sample_service,
-        sms_sender='6502532222',
-        is_default=True
-    )
+    create_service_sms_sender(service=sample_service, sms_sender="6502532222", is_default=True)
 
     data = {
-        'to': '6502532223',
-        'template_id': str(template.id),
-        'created_by': str(sample_service.created_by_id),
+        "to": "6502532223",
+        "template_id": str(template.id),
+        "created_by": str(sample_service.created_by_id),
     }
 
     notification_id = send_one_off_notification(service_id=sample_service.id, post_data=data)
-    notification = Notification.query.get(notification_id['id'])
-    celery_mock.assert_called_once_with(
-        notification=notification,
-        research_mode=False,
-        queue=None
-    )
+    notification = Notification.query.get(notification_id["id"])
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
 
     assert notification.reply_to_text == "+16502532222"
 
 
 def test_send_one_off_notification_should_throw_exception_if_reply_to_id_doesnot_exist(
-        sample_email_template
+    sample_email_template,
 ):
     data = {
-        'to': 'ok@ok.com',
-        'template_id': str(sample_email_template.id),
-        'sender_id': str(uuid.uuid4()),
-        'created_by': str(sample_email_template.service.created_by_id)
+        "to": "ok@ok.com",
+        "template_id": str(sample_email_template.id),
+        "sender_id": str(uuid.uuid4()),
+        "created_by": str(sample_email_template.service.created_by_id),
     }
 
     with pytest.raises(expected_exception=BadRequestError) as e:
         send_one_off_notification(service_id=sample_email_template.service.id, post_data=data)
-    assert e.value.message == 'Reply to email address not found'
+    assert e.value.message == "Reply to email address not found"
 
 
 def test_send_one_off_notification_should_throw_exception_if_sms_sender_id_doesnot_exist(
-        sample_template
+    sample_template,
 ):
     data = {
-        'to': '6502532222',
-        'template_id': str(sample_template.id),
-        'sender_id': str(uuid.uuid4()),
-        'created_by': str(sample_template.service.created_by_id)
+        "to": "6502532222",
+        "template_id": str(sample_template.id),
+        "sender_id": str(uuid.uuid4()),
+        "created_by": str(sample_template.service.created_by_id),
     }
 
     with pytest.raises(expected_exception=BadRequestError) as e:
         send_one_off_notification(service_id=sample_template.service.id, post_data=data)
-    assert e.value.message == 'SMS sender not found'
+    assert e.value.message == "SMS sender not found"
