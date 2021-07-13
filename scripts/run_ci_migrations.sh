@@ -127,7 +127,7 @@ get_parameter_value() {
 
 run_task () {
     local private_subnets
-    private_subnets=$(get_parameter_value $ENVIRONMENT subnets/private)
+    private_subnets=$($AWS_CLI ssm get-parameter --name /$ENVIRONMENT/shared/subnets/private | jq -r '.Parameter.Value')
 
     local security_group_access_db
     security_group_access_db=$(get_parameter_value $ENVIRONMENT security-group/access-db)
