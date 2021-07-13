@@ -464,7 +464,7 @@ def test_process_row_sends_save_task(notify_api, template_type, research_mode, e
 
     encrypt_mock.assert_called_once_with(
         {
-            "api_key_id": "api_key_id",
+            "api_key": "api_key_id",
             "template": "template_id",
             "template_version": "temp_vers",
             "job": "job_id",
