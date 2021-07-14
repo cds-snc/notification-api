@@ -141,6 +141,7 @@ def process_row(row: Row, template: Template, job: Job, service: Service, sender
     template_type = template.template_type
     encrypted = encryption.encrypt(
         {
+            "api_key": str(job.api_key_id),
             "template": str(template.id),
             "template_version": job.template_version,
             "job": str(job.id),
@@ -210,7 +211,7 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
             service=service,
             personalisation=notification.get("personalisation"),
             notification_type=SMS_TYPE,
-            api_key_id=None,
+            api_key_id=notification.get("api_key", None),
             key_type=KEY_TYPE_NORMAL,
             created_at=datetime.utcnow(),
             job_id=notification.get("job", None),
@@ -264,7 +265,7 @@ def save_email(self, service_id, notification_id, encrypted_notification, sender
             service=service,
             personalisation=notification.get("personalisation"),
             notification_type=EMAIL_TYPE,
-            api_key_id=None,
+            api_key_id=notification.get("api_key", None),
             key_type=KEY_TYPE_NORMAL,
             created_at=datetime.utcnow(),
             job_id=notification.get("job", None),
@@ -314,7 +315,7 @@ def save_letter(
             service=service,
             personalisation=notification["personalisation"],
             notification_type=LETTER_TYPE,
-            api_key_id=None,
+            api_key_id=notification.get("api_key", None),
             key_type=KEY_TYPE_NORMAL,
             created_at=datetime.utcnow(),
             job_id=notification["job"],
