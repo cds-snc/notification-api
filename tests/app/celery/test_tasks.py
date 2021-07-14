@@ -440,12 +440,12 @@ def test_should_process_all_sms_job(sample_job_with_placeholdered_template, mock
         (LETTER_TYPE, True, "save_letter", "research-mode-tasks"),
     ],
 )
-def test_process_row_sends_letter_task(notify_api, template_type, research_mode, expected_function, expected_queue, mocker):
+def test_process_row_sends_save_task(notify_api, template_type, research_mode, expected_function, expected_queue, mocker):
     mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
     task_mock = mocker.patch("app.celery.tasks.{}.apply_async".format(expected_function))
     encrypt_mock = mocker.patch("app.celery.tasks.encryption.encrypt")
     template = Mock(id="template_id", template_type=template_type)
-    job = Mock(id="job_id", template_version="temp_vers", notification_count=1)
+    job = Mock(id="job_id", template_version="temp_vers", notification_count=1, api_key_id="api_key_id")
     service = Mock(id="service_id", research_mode=research_mode)
 
     process_row(
@@ -464,6 +464,7 @@ def test_process_row_sends_letter_task(notify_api, template_type, research_mode,
 
     encrypt_mock.assert_called_once_with(
         {
+            "api_key": "api_key_id",
             "template": "template_id",
             "template_version": "temp_vers",
             "job": "job_id",
