@@ -122,7 +122,7 @@
         },
         {
           "name": "CHECK_GITHUB_SCOPE_ENABLED",
-          "value": "False"
+          "value": "True"
         }
       ],
       "secrets": [

@@ -133,15 +133,16 @@ def make_github_get_request(endpoint: str, github_token) -> json:
 
 def does_user_have_sufficient_scope(response: Response) -> bool:
     if is_feature_enabled(FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED):
-        accepted_oauth_scopes = response.headers["X-Accepted-OAuth-Scopes"].split(', ')
+        accepted_oauth_scopes = response.headers["X-OAuth-Scopes"].split(', ')
 
         is_user_scope_approved = 'user' in accepted_oauth_scopes or (
             'read:user' in accepted_oauth_scopes and 'user:email' in accepted_oauth_scopes
         )
-        is_org_scope_approved = any(scope in ['admin:org', 'read:org'] for scope in accepted_oauth_scopes)
 
-        print(f'does user have sufficient scope: {is_user_scope_approved and is_org_scope_approved}')
-        return is_user_scope_approved and is_org_scope_approved
+        # TODO: remove if this isn't actually necessary
+        # is_org_scope_approved = any(scope in ['admin:org', 'read:org'] for scope in accepted_oauth_scopes)
+
+        return is_user_scope_approved
     else:
         current_app.logger.info(f'oauth scopes: {response.headers["X-OAuth-Scopes"]}')
         current_app.logger.info(f'accepted oauth scopes: {response.headers["X-Accepted-OAuth-Scopes"]}')
