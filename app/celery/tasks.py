@@ -203,6 +203,8 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
 
     try:
+        # this task is used by two main things... process_job and process_sms_or_email_notification
+        # if the data is not present in the encrypted data then fallback on whats needed for process_job
         saved_notification = persist_notification(
             notification_id=notification.get("id", notification_id),
             template_id=notification["template"],
@@ -257,6 +259,8 @@ def save_email(self, service_id, notification_id, encrypted_notification, sender
     check_service_over_daily_message_limit(notification.get("key_type", KEY_TYPE_NORMAL), service)
 
     try:
+        # this task is used by two main things... process_job and process_sms_or_email_notification
+        # if the data is not present in the encrypted data then fallback on whats needed for process_job
         saved_notification = persist_notification(
             notification_id=notification.get("id", notification_id),
             template_id=notification["template"],

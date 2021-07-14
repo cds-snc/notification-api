@@ -384,7 +384,7 @@ class Config(object):
     CSV_BULK_REDIRECT_THRESHOLD = os.getenv("CSV_BULK_REDIRECT_THRESHOLD", 200)
 
     # feature flag to toggle persistance of notification in celery instead of the API
-    FF_NOTIFICATION_CELERY_PERSISTANCE = os.getenv("FF_NOTIFICATION_CELERY_PERSISTANCE", False)
+    FF_NOTIFICATION_CELERY_PERSISTENCE = os.getenv("FF_NOTIFICATION_CELERY_PERSISTENCE", False)
 
 
 ######################

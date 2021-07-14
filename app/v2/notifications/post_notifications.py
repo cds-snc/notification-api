@@ -289,34 +289,37 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             reply_to_text=reply_to_text,
         )
         persist_scheduled_notification(notification.id, form["scheduled_for"])
-    else:
-        if current_app.config["FF_NOTIFICATION_CELERY_PERSISTANCE"]:
-            # depending on the type route to the appropriate save task
-            if notification_type == EMAIL_TYPE:
-                current_app.logger.info("calling save email task")
-                save_email.apply_async(
-                    (authenticated_service.id, create_uuid(), encrypted_notification_data),
-                    queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
-                )
-            elif notification_type == SMS_TYPE:
-                save_sms.apply_async(
-                    (authenticated_service.id, create_uuid(), encrypted_notification_data),
-                    queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
-                )
-        else:
-            notification = persist_notification(
-                template_id=template.id,
-                template_version=template.version,
-                recipient=form_send_to,
-                service=service,
-                personalisation=personalisation,
-                notification_type=notification_type,
-                api_key_id=api_key.id,
-                key_type=api_key.key_type,
-                client_reference=form.get("reference", None),
-                simulated=simulated,
-                reply_to_text=reply_to_text,
+
+    elif current_app.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] and not simulated:
+        # depending on the type route to the appropriate save task
+        if notification_type == EMAIL_TYPE:
+            current_app.logger.info("calling save email task")
+            save_email.apply_async(
+                (authenticated_service.id, create_uuid(), encrypted_notification_data),
+                queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
             )
+        elif notification_type == SMS_TYPE:
+            save_sms.apply_async(
+                (authenticated_service.id, create_uuid(), encrypted_notification_data),
+                queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
+            )
+
+    else:
+        notification = persist_notification(
+            template_id=template.id,
+            template_version=template.version,
+            recipient=form_send_to,
+            service=service,
+            personalisation=personalisation,
+            notification_type=notification_type,
+            api_key_id=api_key.id,
+            key_type=api_key.key_type,
+            client_reference=form.get("reference", None),
+            simulated=simulated,
+            reply_to_text=reply_to_text,
+        )
+        if not simulated:
+            current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
             send_notification_to_queue(
                 notification=notification,
                 research_mode=service.research_mode,
