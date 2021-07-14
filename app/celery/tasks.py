@@ -141,7 +141,7 @@ def process_row(row: Row, template: Template, job: Job, service: Service, sender
     template_type = template.template_type
     encrypted = encryption.encrypt(
         {
-            "api_key": str(job.api_key_id),
+            "api_key": job.api_key_id and str(job.api_key_id),
             "template": str(template.id),
             "template_version": job.template_version,
             "job": str(job.id),
