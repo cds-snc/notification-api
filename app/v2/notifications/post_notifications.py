@@ -319,12 +319,13 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             reply_to_text=reply_to_text,
         )
         if not simulated:
-            current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
             send_notification_to_queue(
                 notification=notification,
                 research_mode=service.research_mode,
                 queue=template.queue_to_use(),
             )
+        else:
+            current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
 
     if not isinstance(notification, Notification):
         notification["template_id"] = notification["template"]
