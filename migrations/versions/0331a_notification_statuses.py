@@ -19,15 +19,9 @@ def upgrade():
         "service_callback",
         "Not(callback_type = 'delivery_status' and notification_statuses is null)"
     )
-    op.create_check_constraint(
-        "ck_statuses_in_history_not_null_if_delivery_status",
-        "service_callback_history",
-        "Not(callback_type = 'delivery_status' and notification_statuses is null)"
-    )
 
 
 def downgrade():
     op.alter_column('service_callback', 'notification_statuses', nullable=False)
     op.alter_column('service_callback_history', 'notification_statuses', nullable=False)
     op.drop_constraint('ck_statuses_not_null_if_delivery_status', 'service_callback')
-    op.drop_constraint('ck_statuses_in_history_not_null_if_delivery_status', 'service_callback_history')
