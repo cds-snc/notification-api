@@ -7,7 +7,8 @@ from tests.app.db import (
     create_service_callback_api
 )
 
-from app.models import ServiceCallback, DELIVERY_STATUS_CALLBACK_TYPE
+from app.models import ServiceCallback
+from app.models import DELIVERY_STATUS_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE
 
 
 def test_set_service_callback_api_raises_404_when_service_does_not_exist(notify_db, admin_request):
@@ -113,6 +114,43 @@ def test_create_service_callback_api(notify_db, admin_request, sample_service):
     from app.dao.service_callback_api_dao import get_service_callback_api
     created_service_callback_api = get_service_callback_api(resp_json["id"], resp_json["service_id"])
     assert created_service_callback_api.callback_type == DELIVERY_STATUS_CALLBACK_TYPE
+
+
+@pytest.mark.parametrize(
+    'callback_type',
+    [
+        DELIVERY_STATUS_CALLBACK_TYPE,
+        INBOUND_SMS_CALLBACK_TYPE,
+        COMPLAINT_CALLBACK_TYPE
+    ]
+)
+def test_create_service_callback(notify_db, admin_request, sample_service, callback_type):
+    data = {
+        "url": "https://some.service/delivery-receipt-endpoint",
+        "bearer_token": "some-unique-string",
+        "notification_statuses": ["failed"],
+        "updated_by_id": str(sample_service.users[0].id)
+    }
+
+    resp_json = admin_request.post(
+        'service_callback.create_service_callback',
+        service_id=sample_service.id,
+        callback_type=callback_type,
+        _data=data,
+        _expected_status=201
+    )
+
+    resp_json = resp_json["data"]
+    assert resp_json["id"]
+    assert resp_json["service_id"] == str(sample_service.id)
+    assert resp_json["url"] == "https://some.service/delivery-receipt-endpoint"
+    assert resp_json["updated_by_id"] == str(sample_service.users[0].id)
+    assert resp_json["created_at"]
+    assert not resp_json["updated_at"]
+    assert resp_json.get("bearer_token") is None
+    from app.dao.service_callback_api_dao import get_service_callback_api
+    created_service_callback_api = get_service_callback_api(resp_json["id"], resp_json["service_id"])
+    assert created_service_callback_api.callback_type == callback_type
 
 
 def test_create_service_callback_api_raises_400_when_no_status_in_request(admin_request, sample_service):

@@ -300,7 +300,7 @@ class ServiceCallbackSchema(BaseSchema):
             'bearer_token',
             'callback_type'
         )
-        load_only = ['_bearer_token', 'bearer_token', 'callback_type']
+        load_only = ['_bearer_token', 'bearer_token']
         strict = True
 
     @validates('notification_statuses')

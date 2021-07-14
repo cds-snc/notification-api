@@ -232,7 +232,7 @@ localstack start
 Upon starting up LocalStack, you can visit the provided port at https://localhost:4566/. You should get
 
 ```
-{"status": "running"}
+{"status": "running"}Ø
 ```
 
 If you have issues with LocalStack, you can downgrade to 0.11.2, run:

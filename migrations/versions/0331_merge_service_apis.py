@@ -25,7 +25,7 @@ def upgrade():
         'INSERT INTO service_callback_api (id, service_id, url, bearer_token, created_at, updated_at, updated_by_id, version, callback_type, notification_statuses)'
         'SELECT id, service_id, url, bearer_token, created_at, updated_at, updated_by_id, version, \'inbound_sms\', \'{}\' FROM service_inbound_api'))
 
-    op.drop_table('service_inbound_api')
+
     op.rename_table('service_callback_api', 'service_callback')
 
     op.execute((

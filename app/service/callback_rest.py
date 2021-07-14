@@ -22,7 +22,7 @@ from app.service.service_callback_api_schema import (
 from app.dao.service_callback_api_dao import (
     save_service_callback_api,
     get_service_callback_api,
-    delete_service_callback_api, store_service_callback_api, reset_service_callback_api,
+    delete_service_callback_api, store_service_callback_api, reset_service_callback_api, get_service_callbacks,
 )
 
 service_callback_blueprint = Blueprint('service_callback', __name__, url_prefix='/service/<uuid:service_id>')
@@ -35,8 +35,7 @@ def create_service_inbound_api(service_id):
     data = request.get_json()
     validate(data, create_service_inbound_api_schema)
     data["service_id"] = service_id
-    data["callback_type"] = "sms_callback"
-    data["notification_statuses"] = {}
+    data["callback_type"] = "inbound_sms"
     inbound_api = ServiceCallback(**data)
     try:
         save_service_callback_api(inbound_api)
@@ -117,6 +116,34 @@ def fetch_service_callback_api(service_id, callback_api_id):
     service_callback_api = get_service_callback_api(callback_api_id, service_id)
 
     return jsonify(data=service_callback_api_schema.dump(service_callback_api).data), 200
+
+
+@service_callback_blueprint.route('/callback', methods=['GET'])
+def fetch_service_callbacks(service_id):
+    service_callbacks = get_service_callbacks(service_id)
+    return jsonify(data=service_callback_api_schema.dump(service_callbacks, many=True).data), 200
+
+
+@service_callback_blueprint.route('/callback/<path:callback_type>', methods=['POST'])
+def create_service_callback(service_id, callback_type):
+    data = request.get_json()
+
+    # TO-DO: MAKE THIS VALIDATION WORK ACCORDING TO DA RULES
+    # AKA NOTIFICATION STATUSES MUST BE NULL FOR CALLBACK TYPE INBOUND_SMS,
+    # MUST NOT BE NULL FOR CALLBACK TYPE DELIVERY_STATUS, CAN BE EITHER(? AC DOES NOT SPECIFY ?) FOR COMPLAINT
+    # ALSO WRITE TESTS IN CALLBACK_REST FOR ALL OF ABOVE CASES
+    validate(data, create_service_callback_api_request_schema)
+
+    data["service_id"] = service_id
+    data["callback_type"] = callback_type
+    new_service_callback_api = service_callback_api_schema.load(data).data
+
+    try:
+        save_service_callback_api(new_service_callback_api)
+    except SQLAlchemyError as e:
+        return handle_sql_error(e, 'service_callback')
+
+    return jsonify(data=service_callback_api_schema.dump(new_service_callback_api).data), 201
 
 
 @service_callback_blueprint.route('/delivery-receipt-api/<uuid:callback_api_id>', methods=['DELETE'])

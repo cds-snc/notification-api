@@ -35,6 +35,10 @@ def store_service_callback_api(service_callback_api):
     db.session.add(service_callback_api)
 
 
+def get_service_callbacks(service_id):
+    return ServiceCallback.query.filter_by(service_id=service_id).all()
+
+
 def get_service_callback_api(service_callback_api_id, service_id):
     return ServiceCallback.query.filter_by(id=service_callback_api_id, service_id=service_id).first()
 
