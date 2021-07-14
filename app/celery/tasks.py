@@ -204,19 +204,22 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
 
     try:
+        # this task is used by two main things... process_job and process_sms_or_email_notification
+        # if the data is not present in the encrypted data then fallback on whats needed for process_job
         saved_notification = persist_notification(
+            notification_id=notification.get("id", notification_id),
             template_id=notification["template"],
             template_version=notification["template_version"],
             recipient=notification["to"],
             service=service,
             personalisation=notification.get("personalisation"),
             notification_type=SMS_TYPE,
+            simulated=notification.get("simulated", None),
             api_key_id=notification.get("api_key", None),
-            key_type=KEY_TYPE_NORMAL,
+            key_type=notification.get("key_type", KEY_TYPE_NORMAL),
             created_at=datetime.utcnow(),
             job_id=notification.get("job", None),
             job_row_number=notification.get("row_number", None),
-            notification_id=notification_id,
             reply_to_text=reply_to_text,
         )
 
@@ -242,7 +245,6 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
 @statsd(namespace="tasks")
 def save_email(self, service_id, notification_id, encrypted_notification, sender_id=None):
     notification = encryption.decrypt(encrypted_notification)
-
     service = dao_fetch_service_by_id(service_id)
     template = dao_get_template_by_id(notification["template"], version=notification["template_version"])
 
@@ -251,14 +253,17 @@ def save_email(self, service_id, notification_id, encrypted_notification, sender
     else:
         reply_to_text = template.get_reply_to_text()
 
-    if not service_allowed_to_send_to(notification["to"], service, KEY_TYPE_NORMAL):
+    if not service_allowed_to_send_to(notification["to"], service, notification.get("key_type", KEY_TYPE_NORMAL)):
         current_app.logger.info("Email {} failed as restricted service".format(notification_id))
         return
 
-    check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
+    check_service_over_daily_message_limit(notification.get("key_type", KEY_TYPE_NORMAL), service)
 
     try:
+        # this task is used by two main things... process_job and process_sms_or_email_notification
+        # if the data is not present in the encrypted data then fallback on whats needed for process_job
         saved_notification = persist_notification(
+            notification_id=notification.get("id", notification_id),
             template_id=notification["template"],
             template_version=notification["template_version"],
             recipient=notification["to"],
@@ -266,14 +271,14 @@ def save_email(self, service_id, notification_id, encrypted_notification, sender
             personalisation=notification.get("personalisation"),
             notification_type=EMAIL_TYPE,
             api_key_id=notification.get("api_key", None),
-            key_type=KEY_TYPE_NORMAL,
+            key_type=notification.get("key_type", KEY_TYPE_NORMAL),
             created_at=datetime.utcnow(),
             job_id=notification.get("job", None),
+            simulated=notification.get("simulated", None),
             job_row_number=notification.get("row_number", None),
-            notification_id=notification_id,
             reply_to_text=reply_to_text,
+            client_reference=notification.get("client_reference", None),
         )
-
         send_notification_to_queue(
             saved_notification,
             service.research_mode,
