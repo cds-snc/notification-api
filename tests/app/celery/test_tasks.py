@@ -433,11 +433,11 @@ def test_should_process_all_sms_job(sample_job_with_placeholdered_template, mock
     "template_type, research_mode, expected_function, expected_queue, api_key_id",
     [
         (SMS_TYPE, False, "save_sms", "database-tasks", None),
-        (SMS_TYPE, True, "save_sms", "research-mode-tasks", "api key id"),
-        (EMAIL_TYPE, False, "save_email", "database-tasks", "api key id"),
+        (SMS_TYPE, True, "save_sms", "research-mode-tasks", uuid.uuid4()),
+        (EMAIL_TYPE, False, "save_email", "database-tasks", uuid.uuid4()),
         (EMAIL_TYPE, True, "save_email", "research-mode-tasks", None),
         (LETTER_TYPE, False, "save_letter", "database-tasks", None),
-        (LETTER_TYPE, True, "save_letter", "research-mode-tasks", "api key id"),
+        (LETTER_TYPE, True, "save_letter", "research-mode-tasks", uuid.uuid4()),
     ],
 )
 def test_process_row_sends_save_task(
@@ -466,7 +466,7 @@ def test_process_row_sends_save_task(
 
     encrypt_mock.assert_called_once_with(
         {
-            "api_key": api_key_id,
+            "api_key": None if api_key_id is None else str(api_key_id),
             "template": "template_id",
             "template_version": "temp_vers",
             "job": "job_id",
