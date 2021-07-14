@@ -21,6 +21,7 @@ def test_all_routes_have_authentication(client, db_session):
             if response.status_code not in [401, 403]:
                 routes_without_authentication.add(str(rule))
 
+    print("done")
     expected_routes_without_authentication = {
         '/',
         '/_status',
@@ -29,7 +30,7 @@ def test_all_routes_have_authentication(client, db_session):
         '/auth/login',
         '/auth/logout',
         '/notifications/govdelivery',
-        '/auth/redeem-token'
+        '/auth/redeem-token',
     }
 
     for route in routes_without_authentication:

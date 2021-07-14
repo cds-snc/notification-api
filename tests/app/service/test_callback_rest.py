@@ -129,13 +129,13 @@ def test_create_service_callback(notify_db, admin_request, sample_service, callb
         "url": "https://some.service/delivery-receipt-endpoint",
         "bearer_token": "some-unique-string",
         "notification_statuses": ["failed"],
-        "updated_by_id": str(sample_service.users[0].id)
+        "updated_by_id": str(sample_service.users[0].id),
+        "callback_type": callback_type
     }
 
     resp_json = admin_request.post(
         'service_callback.create_service_callback',
         service_id=sample_service.id,
-        callback_type=callback_type,
         _data=data,
         _expected_status=201
     )

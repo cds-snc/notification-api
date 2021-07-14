@@ -165,3 +165,5 @@ fileignoreconfig:
       checksum: 8c2a1de59b87535ded640067c9c18993b5223a9da53592218e38af7161f76d2a
     - filename: README.md
       checksum: ab34825b3e5e29d328e4994848cd15272ee4fa343ec991052e86173cae550851
+    - filename: app/models.py
+      checksum: 4154a5ba7ef0bb0d5af3e5e0200b85874557c753bb89c68b483803f465cb45e0

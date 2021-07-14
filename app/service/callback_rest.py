@@ -124,8 +124,8 @@ def fetch_service_callbacks(service_id):
     return jsonify(data=service_callback_api_schema.dump(service_callbacks, many=True).data), 200
 
 
-@service_callback_blueprint.route('/callback/<path:callback_type>', methods=['POST'])
-def create_service_callback(service_id, callback_type):
+@service_callback_blueprint.route('/callback', methods=['POST'])
+def create_service_callback(service_id):
     data = request.get_json()
 
     # TO-DO: MAKE THIS VALIDATION WORK ACCORDING TO DA RULES
@@ -135,7 +135,6 @@ def create_service_callback(service_id, callback_type):
     validate(data, create_service_callback_api_request_schema)
 
     data["service_id"] = service_id
-    data["callback_type"] = callback_type
     new_service_callback_api = service_callback_api_schema.load(data).data
 
     try:

@@ -780,7 +780,8 @@ class ServiceCallback(db.Model, Versioned):
             "updated_by_id": str(self.updated_by_id),
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S.%f"),
             "updated_at": self.updated_at.strftime("%Y-%m-%d %H:%M:%S.%f") if self.updated_at else None,
-            "notification_statuses": self.notification_statuses
+            "notification_statuses": self.notification_statuses,
+            "callback_type": self.callback_type
         }
 
 
