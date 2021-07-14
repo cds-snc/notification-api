@@ -266,7 +266,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         "to": form_send_to,
         "personalisation": personalisation,
         "simulated": simulated,
-        "api_key_id": str(api_key.id),
+        "api_key": str(api_key.id),
         "key_type": str(api_key.key_type),
         "client_reference": form.get("reference", None),
     }
@@ -328,11 +328,13 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
 
     if not isinstance(notification, Notification):
         notification["template_id"] = notification["template"]
+        notification["api_key_id"] = notification["api_key"]
         notification["template_version"] = template.version
         notification["service"] = service
         notification["service_id"] = service.id
         notification["reply_to_text"] = reply_to_text
         del notification["template"]
+        del notification["api_key"]
         del notification["simulated"]
         notification = Notification(**notification)
 
