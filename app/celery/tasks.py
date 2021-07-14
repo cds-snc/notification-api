@@ -211,7 +211,7 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
             service=service,
             personalisation=notification.get("personalisation"),
             notification_type=SMS_TYPE,
-            api_key_id=notification.get("api_key"),
+            api_key_id=notification.get("api_key", None),
             key_type=KEY_TYPE_NORMAL,
             created_at=datetime.utcnow(),
             job_id=notification.get("job", None),
