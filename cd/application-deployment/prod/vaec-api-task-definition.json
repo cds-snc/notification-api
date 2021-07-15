@@ -106,6 +106,10 @@
         {
           "name": "CHECK_GITHUB_SCOPE_ENABLED",
           "value": "False"
+        },
+        {
+          "name": "GITHUB_LOGIN_ENABLED",
+          "value": "False"
         }
       ],
       "secrets": [
