@@ -117,21 +117,22 @@ def test_create_service_callback_api(notify_db, admin_request, sample_service):
 
 
 @pytest.mark.parametrize(
-    'callback_type',
+    'callback_type, has_notification_statuses',
     [
-        DELIVERY_STATUS_CALLBACK_TYPE,
-        INBOUND_SMS_CALLBACK_TYPE,
-        COMPLAINT_CALLBACK_TYPE
+        (DELIVERY_STATUS_CALLBACK_TYPE, True),
+        (INBOUND_SMS_CALLBACK_TYPE, False),
+        (COMPLAINT_CALLBACK_TYPE, False)
     ]
 )
-def test_create_service_callback(notify_db, admin_request, sample_service, callback_type):
+def test_create_service_callback(notify_db, admin_request, sample_service, callback_type, has_notification_statuses):
     data = {
         "url": "https://some.service/delivery-receipt-endpoint",
         "bearer_token": "some-unique-string",
-        "notification_statuses": ["failed"],
         "updated_by_id": str(sample_service.users[0].id),
         "callback_type": callback_type
     }
+    if has_notification_statuses:
+        data["notification_statuses"] = ["failed"]
 
     resp_json = admin_request.post(
         'service_callback.create_service_callback',

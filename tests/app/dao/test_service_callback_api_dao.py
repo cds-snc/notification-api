@@ -102,12 +102,11 @@ def test_update_service_callback_can_add_two_api_of_different_types(sample_servi
         url="https://some_service/another_callback_endpoint",
         bearer_token="different_string",
         updated_by_id=sample_service.users[0].id,
-        callback_type='complaint',
-        notification_statuses=str(notification_statuses)
+        callback_type='complaint'
     )
     save_service_callback_api(complaint)
     results = ServiceCallback.query.order_by(ServiceCallback.callback_type).all()
-    assert len(results) == 2
+    assert len(results) == 1
 
     results0_dump = service_callback_api_schema.dump(results[0]).data
     results1_dump = service_callback_api_schema.dump(results[1]).data
