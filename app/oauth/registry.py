@@ -11,5 +11,5 @@ oauth_registry.register(  # nosec
     authorize_url='https://github.com/login/oauth/authorize',
     authorize_params=None,
     api_base_url='https://api.github.com/',
-    client_kwargs={'scope': 'user'}
+    client_kwargs={'scope': 'read:user, user:email, read:org'}
 )
