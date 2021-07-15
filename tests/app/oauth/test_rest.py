@@ -261,7 +261,7 @@ class TestAuthorize:
         github_access_token = mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
         mock_toggle(mocker, FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED, 'True')
         github_get_user_resp = mocker.Mock(
-            Response, status_code=304, headers={'X-Accepted-OAuth-Scopes': 'read:user, user:email, read:org'}
+            Response, status_code=304, headers={'X-OAuth-Scopes': 'read:user, user:email, read:org'}
         )
 
         mocker.patch(
@@ -279,7 +279,7 @@ class TestAuthorize:
         github_access_token = mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
         mock_toggle(mocker, FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED, 'True')
         github_get_user_resp = mocker.Mock(
-            Response, status_code=status_code, headers={'X-Accepted-OAuth-Scopes': 'read:user, user:email, read:org'}
+            Response, status_code=status_code, headers={'X-OAuth-Scopes': 'read:user, user:email, read:org'}
         )
 
         mocker.patch(
@@ -299,7 +299,7 @@ class TestAuthorize:
         github_access_token = mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
         mock_toggle(mocker, FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED, 'True')
         github_get_user_resp = mocker.Mock(
-            Response, status_code=403, headers={'X-Accepted-OAuth-Scopes': 'read:org'}
+            Response, status_code=403, headers={'X-OAuth-Scopes': 'read:org'}
         )
 
         mocker.patch(

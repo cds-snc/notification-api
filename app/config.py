@@ -516,7 +516,7 @@ class Test(Development):
     # this is overriden in jenkins and on cloudfoundry
     SQLALCHEMY_DATABASE_URI = os.getenv(  # nosec
         'SQLALCHEMY_DATABASE_URI',
-        'postgresql://postgres@localhost/test_notification_api'
+        'postgresql://postgres@localhost/test_notification_api_master'
     )
 
     CELERY_SETTINGS = {
