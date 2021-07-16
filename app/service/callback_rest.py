@@ -10,72 +10,23 @@ from app.errors import (
     InvalidRequest
 )
 from app.models import (
-    ServiceCallback,
     DELIVERY_STATUS_CALLBACK_TYPE,
 )
 from app.schema_validation import validate
 from app.schemas import service_callback_api_schema
 from app.service.service_callback_api_schema import (
-    update_service_inbound_api_schema, create_service_inbound_api_schema, update_service_callback_api_request_schema,
+    update_service_callback_api_request_schema,
     create_service_callback_api_request_schema
 )
 from app.dao.service_callback_api_dao import (
     save_service_callback_api,
     get_service_callback_api,
-    delete_service_callback_api, store_service_callback_api, reset_service_callback_api, get_service_callbacks,
+    delete_service_callback_api, store_service_callback_api, get_service_callbacks
 )
 
 service_callback_blueprint = Blueprint('service_callback', __name__, url_prefix='/service/<uuid:service_id>')
 
 register_errors(service_callback_blueprint)
-
-
-@service_callback_blueprint.route('/inbound-api', methods=['POST'])
-def create_service_inbound_api(service_id):
-    data = request.get_json()
-    validate(data, create_service_inbound_api_schema)
-    data["service_id"] = service_id
-    data["callback_type"] = "inbound_sms"
-    inbound_api = ServiceCallback(**data)
-    try:
-        save_service_callback_api(inbound_api)
-    except SQLAlchemyError as e:
-        return handle_sql_error(e, 'service_callback')
-
-    return jsonify(data=inbound_api.serialize()), 201
-
-
-@service_callback_blueprint.route('/inbound-api/<uuid:inbound_api_id>', methods=['POST'])
-def update_service_inbound_api(service_id, inbound_api_id):
-    data = request.get_json()
-    validate(data, update_service_inbound_api_schema)
-
-    to_update = get_service_callback_api(inbound_api_id, service_id)
-
-    reset_service_callback_api(service_inbound_api=to_update,
-                               updated_by_id=data["updated_by_id"],
-                               url=data.get("url", None),
-                               bearer_token=data.get("bearer_token", None))
-    return jsonify(data=to_update.serialize()), 200
-
-
-@service_callback_blueprint.route('/inbound-api/<uuid:inbound_api_id>', methods=['GET'])
-def fetch_service_inbound_api(service_id, inbound_api_id):
-    inbound_api = get_service_callback_api(inbound_api_id, service_id)
-
-    return jsonify(data=inbound_api.serialize()), 200
-
-
-@service_callback_blueprint.route('/inbound-api/<uuid:inbound_api_id>', methods=['DELETE'])
-def remove_service_inbound_api(service_id, inbound_api_id):
-    inbound_api = get_service_callback_api(inbound_api_id, service_id)
-
-    if not inbound_api:
-        error = 'Service inbound API not found'
-        raise InvalidRequest(error, status_code=404)
-
-    delete_service_callback_api(inbound_api)
-    return '', 204
 
 
 @service_callback_blueprint.route('/delivery-receipt-api', methods=['POST'])
