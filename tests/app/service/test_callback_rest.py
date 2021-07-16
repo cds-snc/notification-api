@@ -154,21 +154,6 @@ def test_create_service_callback(notify_db, admin_request, sample_service, callb
     assert created_service_callback_api.callback_type == callback_type
 
 
-def test_create_service_callback_api_raises_400_when_no_status_in_request(admin_request, sample_service):
-    data = {
-        "url": "https://some.service/delivery-receipt-endpoint",
-        "bearer_token": "some-unique-string",
-        "updated_by_id": str(sample_service.users[0].id)
-    }
-
-    admin_request.post(
-        'service_callback.create_service_callback_api',
-        service_id=sample_service.id,
-        _data=data,
-        _expected_status=400
-    )
-
-
 def test_create_service_callback_api_raises_400_when_notification_status_validation_failed(
         admin_request, notify_db_session
 ):

@@ -82,7 +82,6 @@ def test_create_service_callback_api_schema_validate_fails_when_missing_properti
 @pytest.mark.parametrize('key, wrong_key, value', [
     ("url", "urls", "https://some_url.for_service"),
     ("bearer_token", "bearers_token", "something_ten_chars"),
-    ("notification_statuses", "notifications_statuses", ["failed"]),
     ("updated_by_id", "update_by_id", "6ce466d0-fd6a-11e5-82f5-e0accb9d11a6")
 ])
 def test_create_service_callback_api_schema_validate_fails_with_misspelled_keys(key, wrong_key, value):
