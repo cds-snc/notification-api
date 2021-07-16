@@ -122,7 +122,7 @@ def process_job(job_id, sender_id=None):
     job_complete(job, start=start)
 
 
-def job_complete(job, resumed=False, start=None):
+def job_complete(job: Job, resumed=False, start=None):
     job.job_status = JOB_STATUS_FINISHED
 
     finished = datetime.utcnow()
@@ -171,7 +171,7 @@ def process_row(row: Row, template: Template, job: Job, service: Service, sender
     )
 
 
-def __sending_limits_for_job_exceeded(service, job, job_id):
+def __sending_limits_for_job_exceeded(service, job: Job, job_id):
     total_sent = fetch_todays_total_message_count(service.id)
 
     if total_sent + job.notification_count > service.message_limit:
