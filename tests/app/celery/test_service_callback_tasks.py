@@ -17,6 +17,7 @@ from app.celery.service_callback_tasks import (
     publish_complaint,
     send_inbound_sms_to_service
 )
+
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
 from app.models import Notification, ServiceCallback, Complaint, Service, Template, User

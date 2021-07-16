@@ -33,6 +33,8 @@ def upgrade():
         "(callback_type = 'delivery_status' and notification_statuses is not null) or (callback_type != 'delivery_status' and notification_statuses is null)"
     )
 
+    op.alter_column('service_callback', 'notification_statuses', server_default=None)
+
 def downgrade():
     op.create_check_constraint(
         "ck_statuses_not_null_if_delivery_status",
@@ -49,4 +51,8 @@ def downgrade():
             SET notification_statuses = '{curly_braces}'
             WHERE callback_type != 'delivery_status'
         """)
+
+    default_statuses = f"'{json.dumps({'statuses': NOTIFICATION_STATUS_TYPES_COMPLETED})}'::jsonb"
+
+    op.alter_column('service_callback', 'notification_statuses', server_default=text(default_statuses))
 

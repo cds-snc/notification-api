@@ -59,7 +59,8 @@ from app.models import (
     LetterBranding,
     Domain,
     NotificationHistory,
-    RecipientIdentifier, NOTIFICATION_STATUS_TYPES_COMPLETED
+    RecipientIdentifier, NOTIFICATION_STATUS_TYPES_COMPLETED,
+    DELIVERY_STATUS_CALLBACK_TYPE
 )
 
 
@@ -465,16 +466,24 @@ def create_service_callback_api(  # nosec
         service,
         url="https://something.com",
         bearer_token="some_super_secret",
-        callback_type="delivery_status",
+        callback_type=DELIVERY_STATUS_CALLBACK_TYPE,
         notification_statuses=NOTIFICATION_STATUS_TYPES_COMPLETED
 ):
-    service_callback_api = ServiceCallback(service_id=service.id,
-                                           url=url,
-                                           bearer_token=bearer_token,
-                                           updated_by_id=service.users[0].id,
-                                           callback_type=callback_type,
-                                           notification_statuses=notification_statuses
-                                           )
+    if callback_type == DELIVERY_STATUS_CALLBACK_TYPE:
+        service_callback_api = ServiceCallback(service_id=service.id,
+                                               url=url,
+                                               bearer_token=bearer_token,
+                                               updated_by_id=service.users[0].id,
+                                               callback_type=callback_type,
+                                               notification_statuses=notification_statuses
+                                               )
+    else:
+        service_callback_api = ServiceCallback(service_id=service.id,
+                                               url=url,
+                                               bearer_token=bearer_token,
+                                               updated_by_id=service.users[0].id,
+                                               callback_type=callback_type
+                                               )
     save_service_callback_api(service_callback_api)
     return service_callback_api
 
