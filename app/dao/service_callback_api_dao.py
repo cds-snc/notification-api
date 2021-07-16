@@ -4,7 +4,7 @@ from app import db, create_uuid
 from app.dao.dao_utils import transactional, version_class
 from app.models import ServiceCallback
 
-from app.models import DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE
+from app.models import DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE, NOTIFICATION_STATUS_TYPES_COMPLETED
 
 
 @transactional
@@ -12,6 +12,9 @@ from app.models import DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE
 def save_service_callback_api(service_callback_api):
     service_callback_api.id = create_uuid()
     service_callback_api.created_at = datetime.utcnow()
+    if service_callback_api.callback_type == DELIVERY_STATUS_CALLBACK_TYPE and \
+            not service_callback_api.notification_statuses:
+        service_callback_api.notification_statuses = NOTIFICATION_STATUS_TYPES_COMPLETED
     db.session.add(service_callback_api)
 
 

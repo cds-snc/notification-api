@@ -7,7 +7,7 @@ from tests.app.db import (
     create_service_callback_api
 )
 
-from app.models import ServiceCallback
+from app.models import ServiceCallback, NOTIFICATION_STATUS_TYPES_COMPLETED
 from app.models import DELIVERY_STATUS_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE
 
 
@@ -152,6 +152,54 @@ def test_create_service_callback(notify_db, admin_request, sample_service, callb
     from app.dao.service_callback_api_dao import get_service_callback_api
     created_service_callback_api = get_service_callback_api(resp_json["id"], resp_json["service_id"])
     assert created_service_callback_api.callback_type == callback_type
+
+
+def test_create_service_callback_creates_delivery_status_with_default_statuses_if_no_statuses_passed(
+        notify_db, admin_request, sample_service
+):
+    data = {
+        "url": "https://some.service/delivery-receipt-endpoint",
+        "bearer_token": "some-unique-string",
+        "updated_by_id": str(sample_service.users[0].id),
+        "callback_type": DELIVERY_STATUS_CALLBACK_TYPE
+    }
+
+    resp_json = admin_request.post(
+        'service_callback.create_service_callback',
+        service_id=sample_service.id,
+        _data=data,
+        _expected_status=201
+    )
+
+    resp_json = resp_json["data"]
+    from app.dao.service_callback_api_dao import get_service_callback_api
+    created_service_callback_api = get_service_callback_api(resp_json["id"], resp_json["service_id"])
+    assert created_service_callback_api.notification_statuses == NOTIFICATION_STATUS_TYPES_COMPLETED
+
+
+@pytest.mark.parametrize(
+    'callback_type', [INBOUND_SMS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE]
+)
+def test_create_service_callback_returns_400_if_statuses_passed_with_incompatible_callback_type(
+        notify_db, admin_request, sample_service, callback_type
+):
+    data = {
+        "url": "https://some.service/delivery-receipt-endpoint",
+        "bearer_token": "some-unique-string",
+        "updated_by_id": str(sample_service.users[0].id),
+        "callback_type": callback_type,
+        "notification_statuses": NOTIFICATION_STATUS_TYPES_COMPLETED
+    }
+
+    resp_json = admin_request.post(
+        'service_callback.create_service_callback',
+        service_id=sample_service.id,
+        _data=data,
+        _expected_status=400
+    )
+
+    assert resp_json['result'] == 'error'
+    assert resp_json['message']['_schema'][0] == "violates check constraint"
 
 
 def test_create_service_callback_api_raises_400_when_notification_status_validation_failed(

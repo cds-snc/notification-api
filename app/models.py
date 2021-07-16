@@ -55,7 +55,6 @@ NORMAL = 'normal'
 PRIORITY = 'priority'
 TEMPLATE_PROCESS_TYPE = [NORMAL, PRIORITY]
 
-
 SMS_AUTH_TYPE = 'sms_auth'
 EMAIL_AUTH_TYPE = 'email_auth'
 USER_AUTH_TYPE = [SMS_AUTH_TYPE, EMAIL_AUTH_TYPE]
@@ -239,7 +238,6 @@ user_to_organisation = db.Table(
     UniqueConstraint('user_id', 'organisation_id', name='uix_user_to_organisation')
 )
 
-
 user_folder_permissions = db.Table(
     'user_folder_permissions',
     db.Model.metadata,
@@ -249,7 +247,6 @@ user_folder_permissions = db.Table(
     db.ForeignKeyConstraint(['user_id', 'service_id'], ['user_to_service.user_id', 'user_to_service.service_id']),
     db.ForeignKeyConstraint(['template_folder_id', 'service_id'], ['template_folder.id', 'template_folder.service_id'])
 )
-
 
 BRANDING_GOVUK = 'govuk'  # Deprecated outside migrations
 BRANDING_ORG = 'org'
@@ -322,7 +319,6 @@ service_letter_branding = db.Table(
     db.Column('service_id', UUID(as_uuid=True), db.ForeignKey('services.id'), primary_key=True, nullable=False),
     db.Column('letter_branding_id', UUID(as_uuid=True), db.ForeignKey('letter_branding.id'), nullable=False),
 )
-
 
 INTERNATIONAL_SMS_TYPE = 'international_sms'
 INBOUND_SMS_TYPE = 'inbound_sms'
@@ -615,7 +611,7 @@ class AnnualBilling(db.Model):
                 "name": self.service.name
             }
 
-        return{
+        return {
             "id": str(self.id),
             'free_sms_fragment_limit': self.free_sms_fragment_limit,
             'service_id': self.service_id,
@@ -758,7 +754,7 @@ class ServiceCallback(db.Model, Versioned):
     notification_statuses = db.Column('notification_statuses', JSONB, nullable=True)
 
     __table_args__ = (
-        UniqueConstraint('service_id', 'callback_type', name='uix_service_callback_type'),
+        UniqueConstraint('service_id', 'callback_type', name='uix_service_callback_type')
     )
 
     @property
@@ -900,7 +896,6 @@ template_folder_map = db.Table(
     db.Column('template_id', UUID(as_uuid=True), db.ForeignKey('templates.id'), primary_key=True, nullable=False),
     db.Column('template_folder_id', UUID(as_uuid=True), db.ForeignKey('template_folder.id'), nullable=False),
 )
-
 
 PRECOMPILED_TEMPLATE_NAME = 'Pre-compiled PDF'
 
@@ -1661,8 +1656,7 @@ class Notification(db.Model):
             serialized['line_5'] = col.get('address_line_5')
             serialized['line_6'] = col.get('address_line_6')
             serialized['postcode'] = col.get('postcode')
-            serialized['estimated_delivery'] = \
-                get_letter_timings(serialized['created_at'], postage=self.postage) \
+            serialized['estimated_delivery'] = get_letter_timings(serialized['created_at'], postage=self.postage) \
                 .earliest_delivery \
                 .strftime(DATETIME_FORMAT)
 

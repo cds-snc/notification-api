@@ -24,7 +24,8 @@ from notifications_utils.recipients import (
 
 from app import ma
 from app import models
-from app.models import ServicePermission, EMAIL_TYPE, SMS_TYPE, NOTIFICATION_STATUS_TYPES_COMPLETED
+from app.models import ServicePermission, EMAIL_TYPE, SMS_TYPE, NOTIFICATION_STATUS_TYPES_COMPLETED, \
+    DELIVERY_STATUS_CALLBACK_TYPE
 from app.dao.permissions_dao import permission_dao
 from app.provider_details import validate_providers
 from app.utils import get_template_instance
@@ -85,7 +86,6 @@ class BaseSchema(ma.ModelSchema):
 
 
 class UserSchema(BaseSchema):
-
     permissions = fields.Method("user_permissions", dump_only=True)
     password_changed_at = field_for(models.User, 'password_changed_at', format=DATE_FORMAT)
     created_at = field_for(models.User, 'created_at', format=DATE_FORMAT)
@@ -174,7 +174,6 @@ class UserUpdateAttributeSchema(BaseSchema):
 
 
 class UserUpdatePasswordSchema(BaseSchema):
-
     class Meta:
         model = models.User
         only = ('password')
@@ -206,7 +205,6 @@ class ProviderDetailsHistorySchema(BaseSchema):
 
 
 class ServiceSchema(BaseSchema):
-
     created_by = field_for(models.Service, 'created_by', required=True)
     organisation_type = field_for(models.Service, 'organisation_type')
     letter_logo_filename = fields.Method(dump_only=True, serialize='get_letter_logo_filename')
@@ -303,6 +301,12 @@ class ServiceCallbackSchema(BaseSchema):
         load_only = ['_bearer_token', 'bearer_token']
         strict = True
 
+    @validates_schema
+    def validate_callback_type(self, data):
+        if 'callback_type' in data and 'notification_statuses' in data:
+            if data['callback_type'] != DELIVERY_STATUS_CALLBACK_TYPE and data['notification_statuses'] is not None:
+                raise ValidationError("violates check constraint")
+
     @validates('notification_statuses')
     def validate_notification_statuses(self, value):
         validator = validate.ContainsOnly(
@@ -386,7 +390,6 @@ class BaseTemplateSchema(BaseSchema):
 
 
 class TemplateSchema(BaseTemplateSchema):
-
     created_by = field_for(models.Template, 'created_by', required=True)
     process_type = field_for(models.Template, 'process_type')
     redact_personalisation = fields.Method("redact")
@@ -406,7 +409,6 @@ class TemplateSchema(BaseTemplateSchema):
 
 
 class TemplateHistorySchema(BaseSchema):
-
     reply_to = fields.Method("get_reply_to", allow_none=True)
     reply_to_text = fields.Method("get_reply_to_text", allow_none=True)
     provider_id = field_for(models.Template, 'provider_id')
@@ -425,7 +427,6 @@ class TemplateHistorySchema(BaseSchema):
 
 
 class ApiKeySchema(BaseSchema):
-
     created_by = field_for(models.ApiKey, 'created_by', required=True)
     key_type = field_for(models.ApiKey, 'key_type', required=True)
 
@@ -462,7 +463,6 @@ class JobSchema(BaseSchema):
 
 
 class NotificationSchema(ma.Schema):
-
     class Meta:
         strict = True
 
@@ -610,7 +610,6 @@ class InvitedUserSchema(BaseSchema):
 
 
 class EmailDataSchema(ma.Schema):
-
     class Meta:
         strict = True
 
@@ -631,7 +630,6 @@ class EmailDataSchema(ma.Schema):
 
 
 class SupportEmailDataSchema(ma.Schema):
-
     class Meta:
         strict = True
 
@@ -655,7 +653,6 @@ class SupportEmailDataSchema(ma.Schema):
 
 
 class BrandingRequestDataSchema(ma.Schema):
-
     class Meta:
         strict = True
 
@@ -679,7 +676,6 @@ class BrandingRequestDataSchema(ma.Schema):
 
 
 class NotificationsFilterSchema(ma.Schema):
-
     class Meta:
         strict = True
 
@@ -754,7 +750,6 @@ class EventSchema(BaseSchema):
 
 
 class DaySchema(ma.Schema):
-
     class Meta:
         strict = True
 
