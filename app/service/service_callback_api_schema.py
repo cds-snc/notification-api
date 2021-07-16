@@ -49,7 +49,7 @@ create_service_callback_api_request_schema = {
         },
         "updated_by_id": uuid
     },
-    "required": ["updated_by_id", "url", "bearer_token", "notification_statuses"]
+    "required": ["updated_by_id", "url", "bearer_token"]
 }
 
 update_service_callback_api_request_schema = {

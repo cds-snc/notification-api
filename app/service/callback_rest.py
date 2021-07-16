@@ -128,10 +128,6 @@ def fetch_service_callbacks(service_id):
 def create_service_callback(service_id):
     data = request.get_json()
 
-    # TO-DO: MAKE THIS VALIDATION WORK ACCORDING TO DA RULES
-    # AKA NOTIFICATION STATUSES MUST BE NULL FOR CALLBACK TYPE INBOUND_SMS,
-    # MUST NOT BE NULL FOR CALLBACK TYPE DELIVERY_STATUS, CAN BE EITHER(? AC DOES NOT SPECIFY ?) FOR COMPLAINT
-    # ALSO WRITE TESTS IN CALLBACK_REST FOR ALL OF ABOVE CASES
     validate(data, create_service_callback_api_request_schema)
 
     data["service_id"] = service_id
