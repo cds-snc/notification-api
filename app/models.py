@@ -754,7 +754,7 @@ class ServiceCallback(db.Model, Versioned):
     notification_statuses = db.Column('notification_statuses', JSONB, nullable=True)
 
     __table_args__ = (
-        UniqueConstraint('service_id', 'callback_type', name='uix_service_callback_type')
+        UniqueConstraint('service_id', 'callback_type', name='uix_service_callback_type'),
     )
 
     @property
