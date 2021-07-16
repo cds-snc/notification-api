@@ -109,7 +109,7 @@
         },
         {
           "name": "GITHUB_LOGIN_ENABLED",
-          "value": "False"
+          "value": "True"
         }
       ],
       "secrets": [
