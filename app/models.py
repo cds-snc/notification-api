@@ -741,6 +741,13 @@ class ServiceWhitelist(db.Model):
 
 class ServiceCallback(db.Model, Versioned):
     __tablename__ = 'service_callback'
+
+    def __init__(self, **kwargs):
+        if 'notification_statuses' not in kwargs:
+            if kwargs.get("callback_type") == DELIVERY_STATUS_CALLBACK_TYPE:
+                self.notification_statuses = NOTIFICATION_STATUS_TYPES_COMPLETED
+        super().__init__(**kwargs)
+
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), index=True, nullable=False)
     service = db.relationship('Service', backref='service_callback')

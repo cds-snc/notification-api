@@ -173,3 +173,5 @@ fileignoreconfig:
       checksum: cfca0869e6ee4152856af23dd6ec74f9fcb4a249a088a472496e13f326925a93
     - filename: app/models.py
       checksum: c892b9f3b3e77a62322e05b4f955c42ae10f814e8ef5e77f89def1d81e6d41d3
+    - filename: app/models.py
+      checksum: 238b0016fd5f9864eb8f566346b496f37443af9249b9e2fd75ce8da85c9d0e04
