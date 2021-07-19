@@ -305,7 +305,7 @@ class ServiceCallbackSchema(BaseSchema):
     def validate_callback_type(self, data):
         if 'callback_type' in data and 'notification_statuses' in data:
             if data['callback_type'] != DELIVERY_STATUS_CALLBACK_TYPE and data['notification_statuses'] is not None:
-                raise ValidationError("violates check constraint")
+                raise ValidationError(f"Callback type {data['callback_type']} should not have notification statuses")
 
     @validates('notification_statuses')
     def validate_notification_statuses(self, value):

@@ -4,7 +4,7 @@ from app import db, create_uuid
 from app.dao.dao_utils import transactional, version_class
 from app.models import ServiceCallback
 
-from app.models import DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE
+from app.models import DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE
 
 
 @transactional
@@ -59,6 +59,13 @@ def get_service_complaint_callback_api_for_service(service_id):
     return ServiceCallback.query.filter_by(
         service_id=service_id,
         callback_type=COMPLAINT_CALLBACK_TYPE
+    ).first()
+
+
+def get_service_inbound_sms_callback_api_for_service(service_id):
+    return ServiceCallback.query.filter_by(
+        service_id=service_id,
+        callback_type=INBOUND_SMS_CALLBACK_TYPE
     ).first()
 
 

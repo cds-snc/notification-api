@@ -20,7 +20,7 @@ from app.celery.service_callback_tasks import (
 
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import Notification, ServiceCallback, Complaint, Service, Template, User
+from app.models import Notification, ServiceCallback, Complaint, Service, Template, User, INBOUND_SMS_CALLBACK_TYPE
 from tests.app.db import (
     create_complaint,
     create_notification,
@@ -386,6 +386,7 @@ class TestSendInboundSmsToService:
         inbound_api = create_service_callback_api(  # nosec
             service=sample_service,
             url="https://some.service.gov.uk/",
+            callback_type=INBOUND_SMS_CALLBACK_TYPE,
             bearer_token="something_unique"
         )
         inbound_sms = create_inbound_sms(
@@ -420,7 +421,7 @@ class TestSendInboundSmsToService:
         assert request_mock.request_history[0].headers["Authorization"] == "Bearer {}".format(inbound_api.bearer_token)
 
     def test_does_not_send_request_when_inbound_sms_does_not_exist(self, notify_api, sample_service):
-        inbound_api = create_service_callback_api(service=sample_service)
+        inbound_api = create_service_callback_api(service=sample_service, callback_type=INBOUND_SMS_CALLBACK_TYPE)
 
         with requests_mock.Mocker() as request_mock:
             request_mock.post(inbound_api.url, json={}, status_code=200)
@@ -447,7 +448,8 @@ class TestSendInboundSmsToService:
         inbound_api = create_service_callback_api(  # nosec
             service=sample_service,
             url="https://some.service.gov.uk/",
-            bearer_token="something_unique"
+            bearer_token="something_unique",
+            callback_type=INBOUND_SMS_CALLBACK_TYPE
         )
         inbound_sms = create_inbound_sms(
             service=sample_service,
@@ -470,7 +472,8 @@ class TestSendInboundSmsToService:
         create_service_callback_api(  # nosec
             service=sample_service,
             url="https://some.service.gov.uk/",
-            bearer_token="something_unique"
+            bearer_token="something_unique",
+            callback_type=INBOUND_SMS_CALLBACK_TYPE
         )
         inbound_sms = create_inbound_sms(
             service=sample_service,

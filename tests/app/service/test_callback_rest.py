@@ -3,6 +3,7 @@ import uuid
 import pytest
 from freezegun import freeze_time
 
+from app.dao.service_callback_api_dao import get_service_callback_api
 from tests.app.db import (
     create_service_callback_api
 )
@@ -149,7 +150,6 @@ def test_create_service_callback(notify_db, admin_request, sample_service, callb
     assert resp_json["created_at"]
     assert not resp_json["updated_at"]
     assert resp_json.get("bearer_token") is None
-    from app.dao.service_callback_api_dao import get_service_callback_api
     created_service_callback_api = get_service_callback_api(resp_json["id"], resp_json["service_id"])
     assert created_service_callback_api.callback_type == callback_type
 
@@ -199,7 +199,7 @@ def test_create_service_callback_returns_400_if_statuses_passed_with_incompatibl
     )
 
     assert resp_json['result'] == 'error'
-    assert resp_json['message']['_schema'][0] == "violates check constraint"
+    assert resp_json['message']['_schema'][0] == f"Callback type {callback_type} should not have notification statuses"
 
 
 def test_create_service_callback_api_raises_400_when_notification_status_validation_failed(

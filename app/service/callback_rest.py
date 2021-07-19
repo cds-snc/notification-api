@@ -10,7 +10,7 @@ from app.errors import (
     InvalidRequest
 )
 from app.models import (
-    DELIVERY_STATUS_CALLBACK_TYPE,
+    DELIVERY_STATUS_CALLBACK_TYPE
 )
 from app.schema_validation import validate
 from app.schemas import service_callback_api_schema
