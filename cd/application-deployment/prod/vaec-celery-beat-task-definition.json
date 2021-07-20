@@ -103,6 +103,10 @@
         {
           "name": "GITHUB_LOGIN_ENABLED",
           "value": "True"
+        },
+        {
+          "name": "UI_HOST_NAME",
+          "value": "https://notifications.va.gov"
         }
       ],
       "secrets": [
