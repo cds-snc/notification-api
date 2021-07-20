@@ -759,9 +759,11 @@ class ServiceCallback(db.Model, Versioned):
     updated_by = db.relationship('User')
     updated_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), index=True, nullable=False)
     notification_statuses = db.Column('notification_statuses', JSONB, nullable=True)
+    callback_channel = db.Column(db.String(), db.ForeignKey('service_callback_channel.channel'), nullable=True)
 
     __table_args__ = (
         UniqueConstraint('service_id', 'callback_type', name='uix_service_callback_type'),
+        UniqueConstraint('service_id', 'callback_channel', name='uix_service_callback_channel'),
     )
 
     @property
@@ -792,6 +794,12 @@ class ServiceCallbackType(db.Model):
     __tablename__ = 'service_callback_type'
 
     name = db.Column(db.String, primary_key=True)
+
+
+class ServiceCallbackChannel(db.Model):
+    __tablename__ = 'service_callback_channel'
+
+    channel = db.Column(db.String, primary_key=True)
 
 
 class ApiKey(db.Model, Versioned):

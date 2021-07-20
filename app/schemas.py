@@ -296,7 +296,8 @@ class ServiceCallbackSchema(BaseSchema):
             'created_at',
             'updated_at',
             'bearer_token',
-            'callback_type'
+            'callback_type',
+            'callback_channel'
         )
         load_only = ['_bearer_token', 'bearer_token']
         strict = True
