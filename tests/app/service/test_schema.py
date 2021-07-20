@@ -61,8 +61,6 @@ def test_create_service_callback_api_schema_validate_succeeds():
 
 @pytest.mark.parametrize('key, value', [
     ("url", "https://some_url.for_service"),
-    ("bearer_token", "something_ten_chars"),
-    ("notification_statuses", ["failed"]),
     ("updated_by_id", "6ce466d0-fd6a-11e5-82f5-e0accb9d11a6"),
     (None, None)
 ])
@@ -73,7 +71,7 @@ def test_create_service_callback_api_schema_validate_fails_when_missing_properti
         validate(under_test, create_service_callback_api_request_schema)
 
     errors = json.loads(str(e.value)).get('errors')
-    assert len(errors) > 1
+    assert len(errors) >= 1
     for message in errors:
         assert message['error'] == 'ValidationError'
         assert 'is a required property' in message['message']
@@ -81,8 +79,6 @@ def test_create_service_callback_api_schema_validate_fails_when_missing_properti
 
 @pytest.mark.parametrize('key, wrong_key, value', [
     ("url", "urls", "https://some_url.for_service"),
-    ("bearer_token", "bearers_token", "something_ten_chars"),
-    ("updated_by_id", "update_by_id", "6ce466d0-fd6a-11e5-82f5-e0accb9d11a6")
 ])
 def test_create_service_callback_api_schema_validate_fails_with_misspelled_keys(key, wrong_key, value):
     under_test = {

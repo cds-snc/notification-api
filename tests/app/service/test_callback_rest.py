@@ -271,7 +271,6 @@ def test_create_service_callback_api_raises_404_when_service_does_not_exist(admi
 @pytest.mark.parametrize(
     'add_bearer_token, bearer_token, expected_response',
     [
-        (False, None, 'bearer_token is a required property'),
         (True, None, 'bearer_token None is not of type string'),
         (True, 'too-short', 'bearer_token too-short is too short')
     ]

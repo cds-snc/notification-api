@@ -308,6 +308,12 @@ class ServiceCallbackSchema(BaseSchema):
             if data['callback_type'] != DELIVERY_STATUS_CALLBACK_TYPE and data['notification_statuses'] is not None:
                 raise ValidationError(f"Callback type {data['callback_type']} should not have notification statuses")
 
+    @validates_schema
+    def validate_callback_channel(self, data):
+        if 'callback_channel' in data and 'bearer_token' not in data:
+            if data['callback_channel'] == 'webhook':
+                raise ValidationError(f"Callback channel {data['callback_channel']} should have bearer_token")
+
     @validates('notification_statuses')
     def validate_notification_statuses(self, value):
         validator = validate.ContainsOnly(
