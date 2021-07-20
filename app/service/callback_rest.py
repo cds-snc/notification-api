@@ -50,6 +50,8 @@ def create_service_callback_api(service_id):
 @service_callback_blueprint.route('/delivery-receipt-api/<uuid:callback_api_id>', methods=['POST'])
 def update_service_callback_api(service_id, callback_api_id):
     request_json = request.get_json()
+    request_json["service_id"] = service_id
+
     validate(request_json, update_service_callback_api_request_schema)
 
     current_service_callback_api = get_service_callback_api(callback_api_id, service_id)
@@ -79,9 +81,10 @@ def fetch_service_callbacks(service_id):
 def create_service_callback(service_id):
     data = request.get_json()
 
+    data["service_id"] = service_id
+
     validate(data, create_service_callback_api_request_schema)
 
-    data["service_id"] = service_id
     new_service_callback_api = service_callback_api_schema.load(data).data
 
     try:

@@ -2,14 +2,15 @@ import uuid
 
 import pytest
 from freezegun import freeze_time
+from pytest_mock import mock
 
 from app.dao.service_callback_api_dao import get_service_callback_api
+from app.models import DELIVERY_STATUS_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE
+from app.models import ServiceCallback, NOTIFICATION_STATUS_TYPES_COMPLETED, WEBHOOK_CHANNEL_TYPE, MANAGE_SETTINGS, \
+    PLATFORM_ADMIN, PERMISSION_LIST, QUEUE_CHANNEL_TYPE
 from tests.app.db import (
     create_service_callback_api
 )
-
-from app.models import ServiceCallback, NOTIFICATION_STATUS_TYPES_COMPLETED
-from app.models import DELIVERY_STATUS_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE
 
 
 def test_set_service_callback_api_raises_404_when_service_does_not_exist(notify_db, admin_request):
@@ -200,6 +201,85 @@ def test_create_service_callback_returns_400_if_statuses_passed_with_incompatibl
 
     assert resp_json['result'] == 'error'
     assert resp_json['message']['_schema'][0] == f"Callback type {callback_type} should not have notification statuses"
+
+
+def test_create_service_callback_returns_400_if_no_bearer_token_for_webhook(
+        notify_db, admin_request, sample_service
+):
+    data = {
+        "url": "https://some.service/delivery-receipt-endpoint",
+        "updated_by_id": str(sample_service.users[0].id),
+        "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
+        "notification_statuses": NOTIFICATION_STATUS_TYPES_COMPLETED,
+        "callback_channel": WEBHOOK_CHANNEL_TYPE
+    }
+
+    resp_json = admin_request.post(
+        'service_callback.create_service_callback',
+        service_id=sample_service.id,
+        _data=data,
+        _expected_status=400
+    )
+
+    assert resp_json['result'] == 'error'
+    assert resp_json['message']['_schema'][0] == f"Callback channel {WEBHOOK_CHANNEL_TYPE} should have bearer_token"
+
+
+def test_create_service_callback_returns_400_for_invalid_callback_channel(
+        notify_db, admin_request, sample_service
+):
+    data = {
+        "url": "https://some.service/delivery-receipt-endpoint",
+        "updated_by_id": str(sample_service.users[0].id),
+        "bearer_token": "some-unique-string",
+        "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
+        "notification_statuses": NOTIFICATION_STATUS_TYPES_COMPLETED,
+        "callback_channel": 'invalid_channel_type'
+    }
+
+    resp_json = admin_request.post(
+        'service_callback.create_service_callback',
+        service_id=sample_service.id,
+        _data=data,
+        _expected_status=400
+    )
+
+    assert resp_json['result'] == 'error'
+    assert resp_json['message']['callback_channel'][0] == "Invalid callback channel"
+
+
+@mock.patch('app.dao.permissions_dao.PermissionDAO.get_permissions_by_user_id_and_service_id')
+@pytest.mark.parametrize(
+    'callback_channel, permissions',
+    [
+        (WEBHOOK_CHANNEL_TYPE, [x for x in PERMISSION_LIST if x != MANAGE_SETTINGS]),
+        (QUEUE_CHANNEL_TYPE, [x for x in PERMISSION_LIST if x != PLATFORM_ADMIN]),
+    ]
+)
+def test_create_service_callback_raises_400_when_insufficient_permissions(
+        mock_permissions, notify_db, admin_request, sample_service, callback_channel, permissions
+):
+    mock_permissions.return_value = permissions
+
+    data = {
+        "url": "https://some.service/delivery-receipt-endpoint",
+        "updated_by_id": str(sample_service.users[0].id),
+        "bearer_token": "some-unique-string",
+        "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
+        "notification_statuses": NOTIFICATION_STATUS_TYPES_COMPLETED,
+        "callback_channel": callback_channel
+    }
+
+    resp_json = admin_request.post(
+        'service_callback.create_service_callback',
+        service_id=sample_service.id,
+        _data=data,
+        _expected_status=400
+    )
+
+    assert resp_json['result'] == 'error'
+    assert resp_json['message']['_schema'][0] == f"User does not have permissions to create callbacks of channel type "\
+                                                 f"{callback_channel}"
 
 
 def test_create_service_callback_api_raises_400_when_notification_status_validation_failed(

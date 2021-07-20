@@ -25,7 +25,8 @@ from notifications_utils.recipients import (
 from app import ma
 from app import models
 from app.models import ServicePermission, EMAIL_TYPE, SMS_TYPE, NOTIFICATION_STATUS_TYPES_COMPLETED, \
-    DELIVERY_STATUS_CALLBACK_TYPE
+    DELIVERY_STATUS_CALLBACK_TYPE, CALLBACK_CHANNEL_TYPES, WEBHOOK_CHANNEL_TYPE, QUEUE_CHANNEL_TYPE, PLATFORM_ADMIN, \
+    MANAGE_SETTINGS
 from app.dao.permissions_dao import permission_dao
 from app.provider_details import validate_providers
 from app.utils import get_template_instance
@@ -303,16 +304,34 @@ class ServiceCallbackSchema(BaseSchema):
         strict = True
 
     @validates_schema
-    def validate_callback_type(self, data):
+    def validate_schema(self, data):
         if 'callback_type' in data and 'notification_statuses' in data:
             if data['callback_type'] != DELIVERY_STATUS_CALLBACK_TYPE and data['notification_statuses'] is not None:
                 raise ValidationError(f"Callback type {data['callback_type']} should not have notification statuses")
 
-    @validates_schema
-    def validate_callback_channel(self, data):
         if 'callback_channel' in data and 'bearer_token' not in data:
             if data['callback_channel'] == 'webhook':
                 raise ValidationError(f"Callback channel {data['callback_channel']} should have bearer_token")
+
+        user_permissions = permission_dao.get_permissions_by_user_id_and_service_id(
+            data['updated_by_id'],
+            data['service_id'])
+
+        if 'callback_channel' in data:
+            if MANAGE_SETTINGS not in user_permissions and data['callback_channel'] == WEBHOOK_CHANNEL_TYPE:
+                raise ValidationError(f"User does not have permissions to create callbacks of channel type "
+                                      f"{WEBHOOK_CHANNEL_TYPE}")
+            if PLATFORM_ADMIN not in user_permissions and data['callback_channel'] == QUEUE_CHANNEL_TYPE:
+                raise ValidationError(f"User does not have permissions to create callbacks of channel type "
+                                      f"{QUEUE_CHANNEL_TYPE}")
+
+    @validates('callback_channel')
+    def validate_callback_channel(self, value):
+        validator = validate.OneOf(
+            choices=CALLBACK_CHANNEL_TYPES,
+            error="Invalid callback channel"
+        )
+        validator(value)
 
     @validates('notification_statuses')
     def validate_notification_statuses(self, value):
