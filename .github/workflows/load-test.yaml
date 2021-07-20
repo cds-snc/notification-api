@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'The target environment (dev, staging, ...)'
+        description: 'The target environment (dev|staging|perf)'
         required: true
-        default: 'dev'
+        default: 'perf'
       run_time:
         description: 'Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.)'
         required: true
