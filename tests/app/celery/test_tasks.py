@@ -430,24 +430,24 @@ def test_should_process_all_sms_job(sample_job_with_placeholdered_template, mock
 
 
 @pytest.mark.parametrize(
-    "template_type, research_mode, expected_function, expected_queue, api_key_id",
+    "template_type, research_mode, expected_function, expected_queue, api_key_id, sender_id",
     [
-        (SMS_TYPE, False, "save_sms", "database-tasks", None),
-        (SMS_TYPE, True, "save_sms", "research-mode-tasks", uuid.uuid4()),
-        (EMAIL_TYPE, False, "save_email", "database-tasks", uuid.uuid4()),
-        (EMAIL_TYPE, True, "save_email", "research-mode-tasks", None),
-        (LETTER_TYPE, False, "save_letter", "database-tasks", None),
-        (LETTER_TYPE, True, "save_letter", "research-mode-tasks", uuid.uuid4()),
+        (SMS_TYPE, False, "save_sms", "database-tasks", None, None),
+        (SMS_TYPE, True, "save_sms", "research-mode-tasks", uuid.uuid4(), uuid.uuid4()),
+        (EMAIL_TYPE, False, "save_email", "database-tasks", uuid.uuid4(), uuid.uuid4()),
+        (EMAIL_TYPE, True, "save_email", "research-mode-tasks", None, None),
+        (LETTER_TYPE, False, "save_letter", "database-tasks", None, None),
+        (LETTER_TYPE, True, "save_letter", "research-mode-tasks", uuid.uuid4(), uuid.uuid4()),
     ],
 )
 def test_process_row_sends_save_task(
-    notify_api, template_type, research_mode, expected_function, expected_queue, api_key_id, mocker
+    notify_api, template_type, research_mode, expected_function, expected_queue, api_key_id, sender_id, mocker
 ):
     mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
     task_mock = mocker.patch("app.celery.tasks.{}.apply_async".format(expected_function))
     encrypt_mock = mocker.patch("app.celery.tasks.encryption.encrypt")
     template = Mock(id="template_id", template_type=template_type)
-    job = Mock(id="job_id", template_version="temp_vers", notification_count=1, api_key_id=api_key_id)
+    job = Mock(id="job_id", template_version="temp_vers", notification_count=1, api_key_id=api_key_id, sender_id=sender_id)
     service = Mock(id="service_id", research_mode=research_mode)
 
     process_row(
@@ -483,7 +483,7 @@ def test_process_row_sends_save_task(
             # encrypted data
             encrypt_mock.return_value,
         ),
-        {},
+        {"sender_id": str(sender_id)} if sender_id else {},
         queue=expected_queue,
     )
 
