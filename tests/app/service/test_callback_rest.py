@@ -153,6 +153,8 @@ def test_create_service_callback(notify_db, admin_request, sample_service, callb
     assert resp_json.get("bearer_token") is None
     created_service_callback_api = get_service_callback_api(resp_json["id"], resp_json["service_id"])
     assert created_service_callback_api.callback_type == callback_type
+    if has_notification_statuses:
+        assert created_service_callback_api.notification_statuses == ["failed"]
 
 
 def test_create_service_callback_creates_delivery_status_with_default_statuses_if_no_statuses_passed(
