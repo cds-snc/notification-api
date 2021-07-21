@@ -17,6 +17,7 @@ from notifications_utils import logging, request_helper
 from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
 from werkzeug.local import LocalProxy
 
+from app.callback.sqs_client import SQSClient
 from app.celery.celery import NotifyCelery
 from app.clients import Clients
 from app.clients.document_download import DocumentDownloadClient
@@ -72,6 +73,7 @@ twilio_sms_client = TwilioSMSClient(
     from_number=os.getenv('TWILIO_FROM_NUMBER'),
 )
 aws_pinpoint_client = AwsPinpointClient()
+sqs_client = SQSClient()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
 redis_store = RedisClient()
@@ -136,6 +138,12 @@ def create_app(application):
         application.config['AWS_REGION'],
         application.logger,
         application.config['FROM_NUMBER'],
+        statsd_client
+    )
+    sqs_client.init_app(
+        application.config['AWS_SQS_URL'],
+        application.config['AWS_REGION'],
+        application.logger,
         statsd_client
     )
     va_profile_client.init_app(
