@@ -125,3 +125,8 @@ $ locust -f tests-perf/locust/locust-notifications.py --web-host 0.0.0.0 --web-p
 
 You should then be able to see the locust interface if you navigate to the server's IP address 
 in your browser
+
+##### Step 7. Shut down the server when you are finished
+
+To avoid incurring charges on resources that are not being used please put the instances into a 
+stopped state when you are finished with the performance testing. 
