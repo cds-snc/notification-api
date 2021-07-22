@@ -299,7 +299,7 @@ class TestAuthorize:
         github_access_token = mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
         mock_toggle(mocker, FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED, 'True')
         github_get_user_resp = mocker.Mock(
-            Response, status_code=403, headers={'X-OAuth-Scopes': 'read:org'}
+            Response, status_code=200, headers={'X-OAuth-Scopes': 'read:org'}
         )
 
         mocker.patch(
@@ -309,6 +309,23 @@ class TestAuthorize:
 
         with pytest.raises(InsufficientGithubScopesException):
             make_github_get_request('/user', github_access_token)
+
+    def test_should_not_raise_insufficient_github_scopes_exception_if_not_missing_scopes(
+            self, client, notify_api, github_login_toggle_enabled, mocker
+    ):
+        github_access_token = mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
+        mock_toggle(mocker, FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED, 'True')
+        github_get_user_resp = mocker.Mock(
+            Response, status_code=200, headers={'X-OAuth-Scopes': 'read:user, user:email, read:org'}
+        )
+
+        mocker.patch(
+            'app.oauth.rest.oauth_registry.github.get',
+            return_value=github_get_user_resp,
+        )
+
+        resp = make_github_get_request('/user', github_access_token)
+        assert resp.status_code == 200
 
     def test_should_redirect_to_ui_if_user_is_member_of_va_organization(
             self, client, notify_api, github_login_toggle_enabled, mocker, cookie_config, github_data
