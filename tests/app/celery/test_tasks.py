@@ -314,6 +314,25 @@ def test_should_process_email_job(email_job_with_placeholders, mocker):
     redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
 
 
+def test_should_process_email_job_with_sender_id(sample_email_template, mocker, fake_uuid):
+    email_csv = """email_address,name
+    test@test.com,foo
+    """
+    job = create_job(template=sample_email_template, sender_id=fake_uuid)
+    mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=email_csv)
+    mocker.patch("app.celery.tasks.save_email.apply_async")
+    mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
+    mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
+
+    process_job(job.id)
+
+    tasks.save_email.apply_async.assert_called_once_with(
+        (str(job.service_id), "uuid", "something_encrypted"),
+        {"sender_id": fake_uuid},
+        queue="database-tasks",
+    )
+
+
 @freeze_time("2016-01-01 11:09:00.061258")
 def test_should_process_letter_job(sample_letter_job, mocker):
     csv = """address_line_1,address_line_2,address_line_3,address_line_4,postcode,name
