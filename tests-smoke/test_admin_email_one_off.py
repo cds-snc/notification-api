@@ -9,7 +9,7 @@ import time
 load_dotenv()
 
 API_KEY = os.environ.get("API_KEY")
-TEMPLATE_ID = os.environ.get("TEMPLATE_ID")
+EMAIL_TEMPLATE_ID = os.environ.get("EMAIL_TEMPLATE_ID")
 USER_ID = os.environ.get("USER_ID")
 SERVICE_ID = os.environ.get("SERVICE_ID")
 ADMIN_CLIENT_SECRET = os.environ.get("ADMIN_CLIENT_SECRET")
@@ -29,7 +29,7 @@ def test_admin_email_one_off():
 
     response = requests.post(
         f"{API_HOST_NAME}/service/{SERVICE_ID}/send-notification",
-        json={"to": EMAIL_TO, "template_id": TEMPLATE_ID, "created_by": USER_ID},
+        json={"to": EMAIL_TO, "template_id": EMAIL_TEMPLATE_ID, "created_by": USER_ID},
         headers={"Authorization": "Bearer {}".format(token)},
     )
     status_code = response.status_code
@@ -52,10 +52,10 @@ def test_admin_email_one_off():
             print("FAILED: couldn't get notification status")
             pretty_print(body)
             return
-        if body["status"] == "sending":
+        if body["status"] == "sending" or body["status"] == "delivered":
             break
 
-    if body["status"] != "sending":
+    if body["status"] != "sending" and body["status"] != "delivered":
         print("FAILED: email not sent successfully")
         pretty_print(body)
         return

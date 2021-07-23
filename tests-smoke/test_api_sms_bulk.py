@@ -14,10 +14,10 @@ from notifications_python_client.authentication import create_jwt_token
 load_dotenv()
 
 API_KEY = os.environ.get("API_KEY")
-EMAIL_TEMPLATE_ID = os.environ.get("EMAIL_TEMPLATE_ID")
+SMS_TEMPLATE_ID = os.environ.get("SMS_TEMPLATE_ID")
 ADMIN_CLIENT_SECRET = os.environ.get("ADMIN_CLIENT_SECRET")
 ADMIN_CLIENT_USER_NAME = os.environ.get("ADMIN_CLIENT_USER_NAME")
-EMAIL_TO = os.environ.get("EMAIL_TO")
+SMS_TO = os.environ.get("SMSL_TO")
 API_HOST_NAME = os.environ.get("API_HOST_NAME")
 
 
@@ -33,17 +33,17 @@ def rows_to_csv(rows):
 
 
 def job_line(number_of_lines):
-    return list(itertools.repeat([EMAIL_TO, "test"], number_of_lines))
+    return list(itertools.repeat([SMS_TO, "test"], number_of_lines))
 
 
-def test_api_email_bulk():
-    print("test_api_email_bulk... ", end="", flush=True)
+def test_api_sms_bulk():
+    print("test_api_sms_bulk... ", end="", flush=True)
     response = requests.post(
         f"{API_HOST_NAME}/v2/notifications/bulk",
         json={
             "name": f"My bulk name {datetime.utcnow().isoformat()}",
-            "template_id": EMAIL_TEMPLATE_ID,
-            "csv": rows_to_csv([["email address", "name"], *job_line(1)]),
+            "template_id": SMS_TEMPLATE_ID,
+            "csv": rows_to_csv([["phone number", "name"], *job_line(1)]),
         },
         headers={"Authorization": f"ApiKey-v1 {API_KEY[-36:]}"},
     )
@@ -74,4 +74,4 @@ def test_api_email_bulk():
 
 
 if __name__ == "__main__":
-    test_api_email_bulk()
+    test_api_sms_bulk()

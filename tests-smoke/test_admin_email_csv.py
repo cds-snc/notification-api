@@ -7,14 +7,12 @@ import time
 import uuid
 
 
-# 127.0.0.1 - - [20/Jul/2021 16:27:52] "POST /service/a4d0638a-d06b-4971-9346-2f584f5b4ad5/job HTTP/1.1" 201 -
-# POST /services/a4d0638a-d06b-4971-9346-2f584f5b4ad5/start-job/1c152e8f-a39a-45ae-9af9-cf0e4f368abc?original_file_name=staging_email2.csv
-# POST /services/a4d0638a-d06b-4971-9346-2f584f5b4ad5/send/42958d1d-39f2-4aa4-a856-7ed3c165820f/csv
+# NOTE: this doesn't work yet
 
 load_dotenv()
 
 API_KEY = os.environ.get("API_KEY")
-TEMPLATE_ID = os.environ.get("TEMPLATE_ID")
+EMAIL_TEMPLATE_ID = os.environ.get("EMAIL_TEMPLATE_ID")
 USER_ID = os.environ.get("USER_ID")
 SERVICE_ID = os.environ.get("SERVICE_ID")
 ADMIN_CLIENT_SECRET = os.environ.get("ADMIN_CLIENT_SECRET")
