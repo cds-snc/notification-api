@@ -20,3 +20,4 @@ black==21.5b2
 locust==1.5.3
 mypy==0.812
 sqlalchemy-stubs==0.4
+networkx>=2.6 # not directly required, pinned by Snyk to avoid a vulnerability
