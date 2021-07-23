@@ -15,6 +15,7 @@ SERVICE_ID = os.environ.get("SERVICE_ID")
 ADMIN_CLIENT_SECRET = os.environ.get("ADMIN_CLIENT_SECRET")
 ADMIN_CLIENT_USER_NAME = os.environ.get("ADMIN_CLIENT_USER_NAME")
 EMAIL_TO = os.environ.get("EMAIL_TO")
+API_HOST_NAME = os.environ.get("API_HOST_NAME")
 
 
 def pretty_print(data):
@@ -22,12 +23,12 @@ def pretty_print(data):
 
 
 def test_admin_email_one_off():
-    print("test_admin_one_off... ", end="", flush=True)
+    print("test_admin_email_one_off... ", end="", flush=True)
 
     token = create_jwt_token(ADMIN_CLIENT_SECRET, client_id=ADMIN_CLIENT_USER_NAME)
 
     response = requests.post(
-        f"http://localhost:6011/service/{SERVICE_ID}/send-notification",
+        f"{API_HOST_NAME}/service/{SERVICE_ID}/send-notification",
         json={"to": EMAIL_TO, "template_id": TEMPLATE_ID, "created_by": USER_ID},
         headers={"Authorization": "Bearer {}".format(token)},
     )
@@ -42,7 +43,7 @@ def test_admin_email_one_off():
     for _ in range(20):
         time.sleep(1)
         response = requests.get(
-            f"http://localhost:6011/service/{SERVICE_ID}/notifications/{notification_id}",
+            f"{API_HOST_NAME}/service/{SERVICE_ID}/notifications/{notification_id}",
             headers={"Authorization": "Bearer {}".format(token)},
         )
         status_code = response.status_code

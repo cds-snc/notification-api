@@ -18,6 +18,7 @@ TEMPLATE_ID = os.environ.get("TEMPLATE_ID")
 ADMIN_CLIENT_SECRET = os.environ.get("ADMIN_CLIENT_SECRET")
 ADMIN_CLIENT_USER_NAME = os.environ.get("ADMIN_CLIENT_USER_NAME")
 EMAIL_TO = os.environ.get("EMAIL_TO")
+API_HOST_NAME = os.environ.get("API_HOST_NAME")
 
 
 def pretty_print(data):
@@ -31,14 +32,14 @@ def rows_to_csv(rows):
     return output.getvalue()
 
 
-def job_line(nb):
-    return list(itertools.repeat([EMAIL_TO, "test"], nb))
+def job_line(number_of_lines):
+    return list(itertools.repeat([EMAIL_TO, "test"], number_of_lines))
 
 
 def test_api_email_bulk():
-    print("test_api_bulk... ", end="", flush=True)
+    print("test_api_email_bulk... ", end="", flush=True)
     response = requests.post(
-        "http://localhost:6011/v2/notifications/bulk",
+        f"{API_HOST_NAME}/v2/notifications/bulk",
         json={
             "name": f"My bulk name {datetime.utcnow().isoformat()}",
             "template_id": TEMPLATE_ID,
@@ -53,7 +54,7 @@ def test_api_email_bulk():
 
     service_id = response.json()["data"]["service"]
     job_id = response.json()["data"]["id"]
-    uri = "http://localhost:6011/service/{}/job/{}".format(service_id, job_id)
+    uri = f"{API_HOST_NAME}/service/{service_id}/job/{job_id}"
     token = create_jwt_token(ADMIN_CLIENT_SECRET, client_id=ADMIN_CLIENT_USER_NAME)
 
     for _ in range(20):

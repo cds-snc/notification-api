@@ -2,13 +2,14 @@ from dotenv import load_dotenv
 import json
 import os
 import requests
-
+import time
 
 load_dotenv()
 
 API_KEY = os.environ.get("API_KEY")
 TEMPLATE_ID = os.environ.get("TEMPLATE_ID")
 EMAIL_TO = os.environ.get("EMAIL_TO")
+API_HOST_NAME = os.environ.get("API_HOST_NAME")
 
 
 def pretty_print(data):
@@ -18,7 +19,7 @@ def pretty_print(data):
 def test_api_email():
     print("test_api_email... ", end="", flush=True)
     response = requests.post(
-        "http://localhost:6011/v2/notifications/email",
+        f"{API_HOST_NAME}/v2/notifications/email",
         json={
             "email_address": EMAIL_TO,
             "template_id": TEMPLATE_ID,
@@ -31,10 +32,16 @@ def test_api_email():
         return
 
     uri = response.json()["uri"]
-    response = requests.get(
-        uri,
-        headers={"Authorization": f"ApiKey-v1 {API_KEY[-36:]}"},
-    )
+
+    for _ in range(20):
+        time.sleep(1)
+        response = requests.get(
+            uri,
+            headers={"Authorization": f"ApiKey-v1 {API_KEY[-36:]}"},
+        )
+        if response.status_code == 200:
+            break
+
     if response.status_code != 200:
         print("FAILED: email not sent successfully")
         pretty_print(response.json())
