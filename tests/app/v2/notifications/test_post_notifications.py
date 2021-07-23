@@ -916,7 +916,8 @@ def test_post_notification_with_wrong_type_of_sender(
     assert "ValidationError" in resp_json["errors"][0]["error"]
 
 
-def test_post_email_notification_with_valid_reply_to_id_returns_201(client, sample_email_template, mocker):
+def test_post_email_notification_with_valid_reply_to_id_returns_201(notify_api, client, sample_email_template, mocker):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     reply_to_email = create_reply_to_email(sample_email_template.service, "test@test.com")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     data = {
@@ -1000,7 +1001,10 @@ def test_post_email_notification_with_archived_reply_to_id_returns_400(client, s
         ("good name.txt", "VGV4dCBjb250ZW50IGhlcmU=", "link"),
     ],
 )
-def test_post_notification_with_document_upload(client, notify_db_session, mocker, filename, file_data, sending_method):
+def test_post_notification_with_document_upload(
+    notify_api, client, notify_db_session, mocker, filename, file_data, sending_method
+):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
     content = "See attached file."
     if sending_method == "link":
