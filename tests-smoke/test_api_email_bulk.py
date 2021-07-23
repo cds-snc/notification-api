@@ -17,6 +17,7 @@ API_KEY = os.environ.get("API_KEY")
 TEMPLATE_ID = os.environ.get("TEMPLATE_ID")
 ADMIN_CLIENT_SECRET = os.environ.get("ADMIN_CLIENT_SECRET")
 ADMIN_CLIENT_USER_NAME = os.environ.get("ADMIN_CLIENT_USER_NAME")
+EMAIL_TO = os.environ.get("EMAIL_TO")
 
 
 def pretty_print(data):
@@ -31,17 +32,17 @@ def rows_to_csv(rows):
 
 
 def job_line(nb):
-    return list(itertools.repeat(["success@simulator.amazonses.com", "test"], nb))
+    return list(itertools.repeat([EMAIL_TO, "test"], nb))
 
 
-def test_api_bulk():
+def test_api_email_bulk():
     print("test_api_bulk... ", end="", flush=True)
     response = requests.post(
         "http://localhost:6011/v2/notifications/bulk",
         json={
             "name": f"My bulk name {datetime.utcnow().isoformat()}",
             "template_id": TEMPLATE_ID,
-            "csv": rows_to_csv([["email address", "name"], *job_line(3)]),
+            "csv": rows_to_csv([["email address", "name"], *job_line(1)]),
         },
         headers={"Authorization": f"ApiKey-v1 {API_KEY[-36:]}"},
     )
@@ -72,4 +73,4 @@ def test_api_bulk():
 
 
 if __name__ == "__main__":
-    test_api_bulk()
+    test_api_email_bulk()

@@ -8,6 +8,7 @@ load_dotenv()
 
 API_KEY = os.environ.get("API_KEY")
 TEMPLATE_ID = os.environ.get("TEMPLATE_ID")
+EMAIL_TO = os.environ.get("EMAIL_TO")
 
 
 def pretty_print(data):
@@ -19,7 +20,7 @@ def test_api_email():
     response = requests.post(
         "http://localhost:6011/v2/notifications/email",
         json={
-            "email_address": "success@simulator.amazonses.com",
+            "email_address": EMAIL_TO,
             "template_id": TEMPLATE_ID,
         },
         headers={"Authorization": f"ApiKey-v1 {API_KEY[-36:]}"},
