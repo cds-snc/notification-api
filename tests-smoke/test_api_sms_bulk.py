@@ -17,7 +17,7 @@ API_KEY = os.environ.get("API_KEY")
 SMS_TEMPLATE_ID = os.environ.get("SMS_TEMPLATE_ID")
 ADMIN_CLIENT_SECRET = os.environ.get("ADMIN_CLIENT_SECRET")
 ADMIN_CLIENT_USER_NAME = os.environ.get("ADMIN_CLIENT_USER_NAME")
-SMS_TO = os.environ.get("SMSL_TO")
+SMS_TO = os.environ.get("SMS_TO")
 API_HOST_NAME = os.environ.get("API_HOST_NAME")
 
 
@@ -25,25 +25,14 @@ def pretty_print(data):
     print(json.dumps(data, indent=4, sort_keys=True))
 
 
-def rows_to_csv(rows):
-    output = StringIO()
-    writer = csv.writer(output)
-    writer.writerows(rows)
-    return output.getvalue()
-
-
-def job_line(number_of_lines):
-    return list(itertools.repeat([SMS_TO, "test"], number_of_lines))
-
-
 def test_api_sms_bulk():
     print("test_api_sms_bulk... ", end="", flush=True)
     response = requests.post(
         f"{API_HOST_NAME}/v2/notifications/bulk",
         json={
-            "name": f"My bulk name {datetime.utcnow().isoformat()}",
+            "name": f"Smoke api sms bulk {datetime.utcnow().isoformat()}",
             "template_id": SMS_TEMPLATE_ID,
-            "csv": rows_to_csv([["phone number", "name"], *job_line(1)]),
+            "rows": [["phone number"], [SMS_TO]],
         },
         headers={"Authorization": f"ApiKey-v1 {API_KEY[-36:]}"},
     )
