@@ -1,4 +1,5 @@
 import pytest
+from celery import Task
 
 from freezegun import freeze_time
 from sqlalchemy.exc import IntegrityError
@@ -19,7 +20,7 @@ from app.models import (
     NOTIFICATION_STATUS_LETTER_RECEIVED,
     NOTIFICATION_STATUS_TYPES_FAILED,
     NOTIFICATION_TECHNICAL_FAILURE,
-    PRECOMPILED_TEMPLATE_NAME
+    PRECOMPILED_TEMPLATE_NAME, ServiceCallback, COMPLAINT_CALLBACK_TYPE, QUEUE_CHANNEL_TYPE, WEBHOOK_CHANNEL_TYPE
 )
 from app.va.identifier import IdentifierType
 
@@ -130,10 +131,10 @@ def test_notification_for_csv_returns_correct_job_row_number(sample_job):
     ('letter', 'delivered', 'Received')
 ])
 def test_notification_for_csv_returns_formatted_status(
-    sample_service,
-    template_type,
-    status,
-    expected_status
+        sample_service,
+        template_type,
+        status,
+        expected_status
 ):
     template = create_template(sample_service, template_type=template_type)
     notification = create_notification(template, status=status)
@@ -376,3 +377,37 @@ def test_login_event_serialization(sample_login_event):
     json = sample_login_event.serialize()
     assert json['data'] == sample_login_event.data
     assert json['created_at']
+
+
+class TestServiceCallback:
+    @pytest.mark.parametrize(
+        ['callback_channel', 'callback_strategy_path'],
+        [
+            (QUEUE_CHANNEL_TYPE, 'app.callback.queue_callback_strategy.QueueCallbackStrategy'),
+            (WEBHOOK_CHANNEL_TYPE, 'app.callback.webhook_callback_strategy.WebhookCallbackStrategy')
+        ]
+    )
+    def test_service_callback_send_uses_queue_strategy(
+            self, mocker, sample_service, callback_channel, callback_strategy_path
+    ):
+        service_callback = ServiceCallback(  # nosec
+            service_id=sample_service.id,
+            url="https://something.com",
+            bearer_token="some_super_secret",
+            updated_by_id=sample_service.users[0].id,
+            callback_type=COMPLAINT_CALLBACK_TYPE,
+            callback_channel=callback_channel
+        )
+
+        mock_callback_strategy = mocker.patch(callback_strategy_path)
+        mock_task = mocker.Mock(Task)
+
+        service_callback.send(
+            task=mock_task,
+            payload={},
+            logging_tags={}
+        )
+
+        mock_callback_strategy.send_callback.assert_called_with(
+            mock_task, service_callback, {}, {}
+        )

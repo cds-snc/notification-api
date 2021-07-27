@@ -1,7 +1,9 @@
 from celery import Task
 
+from app.models import ServiceCallback
+
 
 class ServiceCallbackStrategyInterface:
     @staticmethod
-    def send_callback(task: Task, payload: dict, url: str, logging_tags: dict, token: str) -> None:
+    def send_callback(task: Task, callback: ServiceCallback, payload: dict, logging_tags: dict) -> None:
         raise NotImplementedError

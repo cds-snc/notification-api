@@ -2,6 +2,7 @@ import itertools
 import uuid
 import datetime
 
+from celery import Task
 from flask import url_for, current_app
 
 from sqlalchemy.ext.declarative import declared_attr
@@ -793,6 +794,18 @@ class ServiceCallback(db.Model, Versioned):
             "callback_type": self.callback_type,
             "callback_channel": self.callback_channel
         }
+
+    def send(self, task: Task, payload: dict, logging_tags: dict):
+        from app.callback.queue_callback_strategy import QueueCallbackStrategy
+        from app.callback.webhook_callback_strategy import WebhookCallbackStrategy
+
+        callback_strategies = {
+            WEBHOOK_CHANNEL_TYPE: WebhookCallbackStrategy,
+            QUEUE_CHANNEL_TYPE: QueueCallbackStrategy
+        }
+
+        strategy = callback_strategies[self.callback_channel]
+        strategy.send_callback(task, self, payload, logging_tags)
 
 
 class ServiceCallbackType(db.Model):

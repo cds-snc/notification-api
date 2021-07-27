@@ -6,24 +6,28 @@ from celery import Task
 
 from app.callback.webhook_callback_strategy import WebhookCallbackStrategy
 from app.config import QueueNames
+from app.models import ServiceCallback
 
 
 @pytest.fixture
 def mock_task(mocker):
     mock_task = mocker.Mock(Task)
-    mock_task.name = 'some task name'
     return mock_task
 
 
-def test_send_callback_returns_200_if_successful(notify_api, mocker, mock_task):
+@pytest.fixture
+def mock_callback(mocker):
+    return mocker.Mock(ServiceCallback, url='http://some_url', bearer_token='some token')  # nosec
+
+
+def test_send_callback_returns_200_if_successful(notify_api, mock_task, mock_callback):
     with requests_mock.Mocker() as request_mock:
         request_mock.post('http://some_url', json={}, status_code=200)
-        WebhookCallbackStrategy.send_callback(  # nosec
+        WebhookCallbackStrategy.send_callback(
             task=mock_task,
+            callback=mock_callback,
             payload={'message': 'hello'},
-            url='http://some_url',
-            logging_tags={'log': 'some log'},
-            token='some token'
+            logging_tags={'log': 'some log'}
         )
 
     assert request_mock.call_count == 1
@@ -35,16 +39,14 @@ def test_send_callback_returns_200_if_successful(notify_api, mocker, mock_task):
     assert request.headers["Authorization"] == "Bearer {}".format('some token')
 
 
-def test_send_callback_retries_with_status_code_above_500(notify_api, mock_task):
+def test_send_callback_retries_with_status_code_above_500(notify_api, mock_task, mock_callback):
     with requests_mock.Mocker() as request_mock:
         request_mock.post('http://some_url', json={}, status_code=501)
-        WebhookCallbackStrategy.send_callback(  # nosec
+        WebhookCallbackStrategy.send_callback(
             task=mock_task,
+            callback=mock_callback,
             payload={'message': 'hello'},
-            url='http://some_url',
-            logging_tags={'log': 'some log'},
-            token='some token'
+            logging_tags={'log': 'some log'}
         )
 
-    # assert response.status_code == 501
     mock_task.retry.assert_called_with(queue=QueueNames.RETRY)
