@@ -2,7 +2,7 @@ from app.callback.service_callback_strategy_interface import ServiceCallbackStra
 
 import json
 
-from flask import current_app, Response
+from flask import current_app
 
 from requests.api import request
 from requests.exceptions import RequestException, HTTPError
@@ -11,7 +11,7 @@ from app.config import QueueNames
 
 class WebhookCallbackStrategy(ServiceCallbackStrategyInterface):
     @staticmethod
-    def send_callback(task, payload: dict, url: str, logging_tags: dict, token: str) -> Response:
+    def send_callback(task, payload: dict, url: str, logging_tags: dict, token: str) -> None:
         tags = ', '.join([f"{key}: {value}" for key, value in logging_tags.items()])
         try:
             response = request(
@@ -27,7 +27,6 @@ class WebhookCallbackStrategy(ServiceCallbackStrategyInterface):
             current_app.logger.info(f"{task.name} sent to {url}, response {response.status_code}, {tags}")
             response.raise_for_status()
 
-            return response
         except RequestException as e:
             if not isinstance(e, HTTPError) or e.response.status_code >= 500:
                 current_app.logger.warning(f"Retrying: {task.name} request failed for url: {url}. exc: {e}, {tags}")

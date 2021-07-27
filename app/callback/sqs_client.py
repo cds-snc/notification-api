@@ -16,4 +16,4 @@ class SQSClient:
         return self.name
 
     def send_message(self, message_body):
-        boto3.send_message(self.sqs_url, message_body)
+        self._client.send_message(QueueUrl=self.sqs_url, MessageBody=message_body)

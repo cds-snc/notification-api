@@ -179,3 +179,7 @@ fileignoreconfig:
       checksum: 645fff96c82d12d5b489d722bf980ecf8317d5525fd9ee20c3459c4c0b59223f
     - filename: app/models.py
       checksum: 096f559df1c96f3dc64b89cc8fba6cb0443435bee908941703c90cc76976567f
+    - filename: app/callback/queue_callback_strategy.py
+      checksum: 50bfb94c5b0d9fbf9ac7c2f2c66f09fda8fdeeb865e3042a0d7775e7fc19f2ff
+    - filename: app/callback/webhook_callback_strategy.py
+      checksum: 5165b5cc21a703fcb861084614ac3f8af19226d2f76566451b6498642bab2c24
