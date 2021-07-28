@@ -1,3 +1,5 @@
+from typing import List
+
 from app import db
 from app.dao import DAOClass
 from app.models import (
@@ -59,11 +61,11 @@ class PermissionDAO(DAOClass):
             if _commit:
                 db.session.commit()
 
-    def get_permissions_by_user_id(self, user_id):
+    def get_permissions_by_user_id(self, user_id) -> List[Permission]:
         return self.Meta.model.query.filter_by(user_id=user_id)\
                                     .join(Permission.service).filter_by(active=True).all()
 
-    def get_permissions_by_user_id_and_service_id(self, user_id, service_id):
+    def get_permissions_by_user_id_and_service_id(self, user_id, service_id) -> List[Permission]:
         return self.Meta.model.query.filter_by(user_id=user_id)\
                                     .join(Permission.service).filter_by(active=True, id=service_id).all()
 

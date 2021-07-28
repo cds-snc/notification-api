@@ -117,8 +117,10 @@ def _process_for_status(notification_status, client_name, provider_reference):
         # queue callback task only if the service_callback_api exists
         if service_callback_api:
             encrypted_notification = create_delivery_status_callback_data(notification, service_callback_api)
-            send_delivery_status_to_service.apply_async([str(notification.id), encrypted_notification],
-                                                        queue=QueueNames.CALLBACKS)
+            send_delivery_status_to_service.apply_async(
+                [service_callback_api.id, str(notification.id), encrypted_notification],
+                queue=QueueNames.CALLBACKS
+            )
 
     success = "{} callback succeeded. reference {} updated".format(client_name, provider_reference)
     return success
@@ -130,8 +132,10 @@ def process_service_callback(notification):
         # queue callback task only if the service_callback_api exists
         if service_callback_api:
             encrypted_notification = create_delivery_status_callback_data(notification, service_callback_api)
-            send_delivery_status_to_service.apply_async([notification.id, encrypted_notification],
-                                                        queue=QueueNames.CALLBACKS)
+            send_delivery_status_to_service.apply_async(
+                [service_callback_api.id, notification.id, encrypted_notification],
+                queue=QueueNames.CALLBACKS
+            )
 
 
 def set_notification_sent_by(notification, client_name):

@@ -4,8 +4,8 @@ import pytest
 from freezegun import freeze_time
 from pytest_mock import mock
 
-from app.dao.service_callback_api_dao import get_service_callback_api
-from app.models import DELIVERY_STATUS_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE
+from app.dao.service_callback_api_dao import get_service_callback
+from app.models import DELIVERY_STATUS_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE, Permission
 from app.models import ServiceCallback, NOTIFICATION_STATUS_TYPES_COMPLETED, WEBHOOK_CHANNEL_TYPE, MANAGE_SETTINGS, \
     PLATFORM_ADMIN, PERMISSION_LIST, QUEUE_CHANNEL_TYPE
 from tests.app.db import (
@@ -113,8 +113,8 @@ def test_create_service_callback_api(notify_db, admin_request, sample_service):
     assert resp_json["created_at"]
     assert not resp_json["updated_at"]
     assert resp_json.get("bearer_token") is None
-    from app.dao.service_callback_api_dao import get_service_callback_api
-    created_service_callback_api = get_service_callback_api(resp_json["id"], resp_json["service_id"])
+    from app.dao.service_callback_api_dao import get_service_callback
+    created_service_callback_api = get_service_callback(resp_json["id"])
     assert created_service_callback_api.callback_type == DELIVERY_STATUS_CALLBACK_TYPE
 
 
@@ -151,7 +151,7 @@ def test_create_service_callback(notify_db, admin_request, sample_service, callb
     assert resp_json["created_at"]
     assert not resp_json["updated_at"]
     assert resp_json.get("bearer_token") is None
-    created_service_callback_api = get_service_callback_api(resp_json["id"], resp_json["service_id"])
+    created_service_callback_api = get_service_callback(resp_json["id"])
     assert created_service_callback_api.callback_type == callback_type
     if has_notification_statuses:
         assert created_service_callback_api.notification_statuses == ["failed"]
@@ -175,8 +175,8 @@ def test_create_service_callback_creates_delivery_status_with_default_statuses_i
     )
 
     resp_json = resp_json["data"]
-    from app.dao.service_callback_api_dao import get_service_callback_api
-    created_service_callback_api = get_service_callback_api(resp_json["id"], resp_json["service_id"])
+    from app.dao.service_callback_api_dao import get_service_callback
+    created_service_callback_api = get_service_callback(resp_json["id"])
     assert created_service_callback_api.notification_statuses == NOTIFICATION_STATUS_TYPES_COMPLETED
 
 
@@ -252,16 +252,18 @@ def test_create_service_callback_returns_400_for_invalid_callback_channel(
 
 @mock.patch('app.dao.permissions_dao.PermissionDAO.get_permissions_by_user_id_and_service_id')
 @pytest.mark.parametrize(
-    'callback_channel, permissions',
+    'callback_channel, required_permission',
     [
-        (WEBHOOK_CHANNEL_TYPE, [x for x in PERMISSION_LIST if x != MANAGE_SETTINGS]),
-        (QUEUE_CHANNEL_TYPE, [x for x in PERMISSION_LIST if x != PLATFORM_ADMIN]),
+        (WEBHOOK_CHANNEL_TYPE, MANAGE_SETTINGS),
+        (QUEUE_CHANNEL_TYPE, PLATFORM_ADMIN),
     ]
 )
 def test_create_service_callback_raises_400_when_insufficient_permissions(
-        mock_permissions, notify_db, admin_request, sample_service, callback_channel, permissions
+        mock_permissions, notify_db, admin_request, sample_service, callback_channel, required_permission
 ):
-    mock_permissions.return_value = permissions
+    permission_list = [Permission(permission=x) for x in PERMISSION_LIST if x != required_permission]
+
+    mock_permissions.return_value = permission_list
 
     data = {
         "url": "https://some.service/delivery-receipt-endpoint",

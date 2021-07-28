@@ -318,10 +318,11 @@ class ServiceCallbackSchema(BaseSchema):
             data['service_id'])
 
         if 'callback_channel' in data:
-            if MANAGE_SETTINGS not in user_permissions and data['callback_channel'] == WEBHOOK_CHANNEL_TYPE:
+            permissions_list = [x.permission for x in user_permissions]
+            if MANAGE_SETTINGS not in permissions_list and data['callback_channel'] == WEBHOOK_CHANNEL_TYPE:
                 raise ValidationError(f"User does not have permissions to create callbacks of channel type "
                                       f"{WEBHOOK_CHANNEL_TYPE}")
-            if PLATFORM_ADMIN not in user_permissions and data['callback_channel'] == QUEUE_CHANNEL_TYPE:
+            if PLATFORM_ADMIN not in permissions_list and data['callback_channel'] == QUEUE_CHANNEL_TYPE:
                 raise ValidationError(f"User does not have permissions to create callbacks of channel type "
                                       f"{QUEUE_CHANNEL_TYPE}")
 

@@ -183,3 +183,17 @@ fileignoreconfig:
       checksum: 9fd8326a806ee4ce593b000680d998c20edcfebd73d928a1dee510cc0d481b97
     - filename: app/models.py
       checksum: e914473d6063f053ea83ea3a2c19c657371a7d11698b5b614f23ba2f8a099667
+    - filename: tests/app/db.py
+      checksum: 93812487055b5ce54ee080dbf3bab4b5a81310bc9df3f26ae6e30dc01d340db5
+    - filename: tests/conftest.py
+      checksum: 81db237c7a3abb49d28f8fe11f2a72b2879096882eb79a6ed2556ec484eaa1e3
+    - filename: tests/app/notifications/test_process_client_response.py
+      checksum: 6a72967293c852a49f04203c83dd4c2591226874e96f34bebc434d5dfc204215
+    - filename: app/celery/service_callback_tasks.py
+      checksum: 6ae1f62b423b6fd5c55fa751eade98bd27549ab32039cc2acb5cfd9811a74fd3
+    - filename: app/celery/nightly_tasks.py
+      checksum: 1f6149c59b26f8f19fde11c2f3f4b6c8fe8ea9bf7084d97706a72bcbc27f5bff
+    - filename: app/schemas.py
+      checksum: 17b1949dbdc060c16f46b69e3e3bd58cf2afca56bec8a9bd703d8f7f31eb87c4
+    - filename: app/commands.py
+      checksum: 2a9904cac380a9962701da94eaf9db43c542c8b6134bd12927d56ea9af937a98

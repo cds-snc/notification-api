@@ -60,7 +60,7 @@ from app.models import (
     Domain,
     NotificationHistory,
     RecipientIdentifier, NOTIFICATION_STATUS_TYPES_COMPLETED,
-    DELIVERY_STATUS_CALLBACK_TYPE
+    DELIVERY_STATUS_CALLBACK_TYPE, WEBHOOK_CHANNEL_TYPE
 )
 
 
@@ -467,7 +467,7 @@ def create_service_callback_api(  # nosec
         url="https://something.com",
         bearer_token="some_super_secret",
         callback_type=DELIVERY_STATUS_CALLBACK_TYPE,
-        notification_statuses=NOTIFICATION_STATUS_TYPES_COMPLETED
+        notification_statuses=NOTIFICATION_STATUS_TYPES_COMPLETED,
 ):
     if callback_type == DELIVERY_STATUS_CALLBACK_TYPE:
         service_callback_api = ServiceCallback(service_id=service.id,
@@ -475,14 +475,16 @@ def create_service_callback_api(  # nosec
                                                bearer_token=bearer_token,
                                                updated_by_id=service.users[0].id,
                                                callback_type=callback_type,
-                                               notification_statuses=notification_statuses
+                                               notification_statuses=notification_statuses,
+                                               callback_channel=WEBHOOK_CHANNEL_TYPE
                                                )
     else:
         service_callback_api = ServiceCallback(service_id=service.id,
                                                url=url,
                                                bearer_token=bearer_token,
                                                updated_by_id=service.users[0].id,
-                                               callback_type=callback_type
+                                               callback_type=callback_type,
+                                               callback_channel=WEBHOOK_CHANNEL_TYPE
                                                )
     save_service_callback_api(service_callback_api)
     return service_callback_api

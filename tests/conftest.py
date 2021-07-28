@@ -108,7 +108,8 @@ def notify_db_session(notify_db):
                             "service_permission_types",
                             "auth_type",
                             "invite_status_type",
-                            "service_callback_type"]:
+                            "service_callback_type",
+                            "service_callback_channel"]:
             notify_db.engine.execute(tbl.delete())
     notify_db.session.commit()
 

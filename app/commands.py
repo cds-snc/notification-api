@@ -274,7 +274,7 @@ def replay_service_callbacks(file_name, service_id, notification_status):
             "service_callback_api_bearer_token": callback_api.bearer_token,
         }
         encrypted_status_update = encryption.encrypt(data)
-        send_delivery_status_to_service.apply_async([str(n.id), encrypted_status_update],
+        send_delivery_status_to_service.apply_async([callback_api.id, str(n.id), encrypted_status_update],
                                                     queue=QueueNames.CALLBACKS)
 
     print("Replay service status for service: {}. Sent {} notification status updates to the queue".format(

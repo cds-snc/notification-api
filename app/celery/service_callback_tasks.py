@@ -18,7 +18,7 @@ from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
 from app.dao.service_callback_api_dao import (
     get_service_delivery_status_callback_api_for_service,
     get_service_complaint_callback_api_for_service,
-    get_service_inbound_sms_callback_api_for_service
+    get_service_inbound_sms_callback_api_for_service, get_service_callback
 )
 from app.dao.service_sms_sender_dao import dao_get_sms_sender_by_service_id_and_number
 from app.models import Complaint, Notification
@@ -27,8 +27,9 @@ from app.models import Complaint, Notification
 @notify_celery.task(bind=True, name="send-delivery-status", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def send_delivery_status_to_service(
-    self, notification_id, encrypted_status_update
+    self, service_callback_id, notification_id, encrypted_status_update
 ):
+    service_callback = get_service_callback(service_callback_id)
     status_update = encryption.decrypt(encrypted_status_update)
 
     payload = {
@@ -41,11 +42,9 @@ def send_delivery_status_to_service(
         "sent_at": status_update['notification_sent_at'],
         "notification_type": status_update['notification_type']
     }
-    _send_to_service_callback_api(
-        self,
-        payload,
-        status_update['service_callback_api_url'],
-        status_update['service_callback_api_bearer_token'],
+    service_callback.send(
+        task=self,
+        payload=payload,
         logging_tags={
             'notification_id': str(notification_id)
         }
@@ -206,7 +205,7 @@ def check_and_queue_callback_task(notification):
     )
     if service_callback_api:
         notification_data = create_delivery_status_callback_data(notification, service_callback_api)
-        send_delivery_status_to_service.apply_async([str(notification.id), notification_data],
+        send_delivery_status_to_service.apply_async([service_callback_api.id, str(notification.id), notification_data],
                                                     queue=QueueNames.CALLBACKS)
 
 

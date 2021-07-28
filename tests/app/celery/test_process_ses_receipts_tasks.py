@@ -151,7 +151,8 @@ def test_remove_email_from_bounce():
 def test_ses_callback_should_call_send_delivery_status_to_service(
         client,
         sample_email_template,
-        mocker):
+        mocker,
+        notify_db):
     send_mock = mocker.patch(
         'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
     )
@@ -162,6 +163,7 @@ def test_ses_callback_should_call_send_delivery_status_to_service(
     )
 
     callback_api = create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
+    callback_id = callback_api.id
     mocked_callback_api = mocker.Mock(
         url=callback_api.url,
         bearer_token=callback_api.bearer_token
@@ -171,7 +173,7 @@ def test_ses_callback_should_call_send_delivery_status_to_service(
     updated_notification = Notification.query.get(notification.id)
 
     encrypted_data = create_delivery_status_callback_data(updated_notification, mocked_callback_api)
-    send_mock.assert_called_once_with([str(notification.id), encrypted_data], queue="service-callbacks")
+    send_mock.assert_called_once_with([callback_id, str(notification.id), encrypted_data], queue="service-callbacks")
 
 
 def test_ses_callback_should_send_statsd_statistics(

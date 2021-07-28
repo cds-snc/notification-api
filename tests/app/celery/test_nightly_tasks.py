@@ -226,6 +226,7 @@ def test_timeout_notifications_sends_status_update_to_service(client, sample_tem
     callback_api = create_service_callback_api(
         service=sample_template.service, notification_statuses=NOTIFICATION_STATUS_TYPES_FAILED
     )
+    callback_id = callback_api.id
     mocked = mocker.patch('app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async')
     notification = create_notification(
         template=sample_template,
@@ -235,7 +236,7 @@ def test_timeout_notifications_sends_status_update_to_service(client, sample_tem
     timeout_notifications()
 
     encrypted_data = create_delivery_status_callback_data(notification, callback_api)
-    mocked.assert_called_once_with([str(notification.id), encrypted_data], queue=QueueNames.CALLBACKS)
+    mocked.assert_called_once_with([callback_id, str(notification.id), encrypted_data], queue=QueueNames.CALLBACKS)
 
 
 def test_send_daily_performance_stats_calls_does_not_send_if_inactive(client, mocker):

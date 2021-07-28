@@ -65,7 +65,9 @@ def test_send_delivery_status_to_service_post_https_request_to_service_with_encr
         request_mock.post(callback_api.url,
                           json={},
                           status_code=200)
-        send_delivery_status_to_service(notification.id, encrypted_status_update=encrypted_status_update)
+        send_delivery_status_to_service(
+            callback_api.id, notification.id, encrypted_status_update=encrypted_status_update
+        )
 
     mock_data = {
         "id": str(notification.id),
@@ -136,7 +138,7 @@ def test__send_data_to_service_callback_api_retries_if_request_returns_500_with_
         request_mock.post(callback_api.url,
                           json={},
                           status_code=500)
-        send_delivery_status_to_service(notification.id, encrypted_status_update=encrypted_data)
+        send_delivery_status_to_service(callback_api.id, notification.id, encrypted_status_update=encrypted_data)
 
     assert mocked.call_count == 1
     assert mocked.call_args[1]['queue'] == 'retry-tasks'
@@ -164,7 +166,7 @@ def test__send_data_to_service_callback_api_does_not_retry_if_request_returns_40
         request_mock.post(callback_api.url,
                           json={},
                           status_code=404)
-        send_delivery_status_to_service(notification.id, encrypted_status_update=encrypted_data)
+        send_delivery_status_to_service(callback_api.id, notification.id, encrypted_status_update=encrypted_data)
 
     assert mocked.call_count == 0
 
@@ -188,7 +190,7 @@ def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(
         request_mock.post(callback_api.url,
                           json={},
                           status_code=404)
-        send_delivery_status_to_service(notification.id, encrypted_status_update=encrypted_data)
+        send_delivery_status_to_service(callback_api.id, notification.id, encrypted_status_update=encrypted_data)
 
     assert mocked.call_count == 0
 
@@ -268,7 +270,7 @@ def test_check_and_queue_callback_task_queues_task_if_service_callback_api_exist
 
     mock_create_callback_data.assert_called_once_with(mock_notification, mock_service_callback_api)
     mock_send_delivery_status.assert_called_once_with(
-        [str(mock_notification.id), mock_notification_data],
+        [mock_service_callback_api.id, str(mock_notification.id), mock_notification_data],
         queue=QueueNames.CALLBACKS
     )
 

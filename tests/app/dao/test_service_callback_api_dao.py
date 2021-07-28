@@ -7,7 +7,7 @@ from app import encryption
 from app.dao.service_callback_api_dao import (
     save_service_callback_api,
     reset_service_callback_api,
-    get_service_callback_api,
+    get_service_callback,
     get_service_delivery_status_callback_api_for_service)
 from app.models import ServiceCallback, NOTIFICATION_FAILED, NOTIFICATION_TEMPORARY_FAILURE, \
     NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_STATUS_TYPES_COMPLETED, NOTIFICATION_SENT, NOTIFICATION_DELIVERED
@@ -171,7 +171,7 @@ def test_get_service_callback_api(sample_service):
     )
     save_service_callback_api(service_callback_api)
 
-    callback_api = get_service_callback_api(service_callback_api.id, sample_service.id)
+    callback_api = get_service_callback(service_callback_api.id)
     assert callback_api.id is not None
     assert callback_api.service_id == sample_service.id
     assert callback_api.updated_by_id == sample_service.users[0].id
