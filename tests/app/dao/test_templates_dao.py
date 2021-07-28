@@ -1,13 +1,17 @@
+import json
 from datetime import datetime
+from uuid import UUID
 
 import pytest
 from freezegun import freeze_time
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
+from app import redis_store
 from app.dao.templates_dao import (
     dao_create_template,
     dao_get_all_templates_for_service,
+    dao_get_template_by_id,
     dao_get_template_by_id_and_service_id,
     dao_get_template_versions,
     dao_redact_template,
@@ -15,6 +19,7 @@ from app.dao.templates_dao import (
     dao_update_template_reply_to,
 )
 from app.models import Template, TemplateFolder, TemplateHistory, TemplateRedacted
+from app.schemas import template_schema
 from tests.app.db import create_letter_contact, create_template
 
 
@@ -308,6 +313,40 @@ def test_get_all_templates_ignores_hidden_templates(sample_service):
 
     assert len(templates) == 1
     assert templates[0] == normal_template
+
+
+def test_get_template_id_from_redis_when_cached(sample_service, mocker):
+    sample_template = create_template(template_name="Test Template", service=sample_service)
+
+    json_data = {"data": template_schema.dump(sample_template).data}
+    mocked_redis_get = mocker.patch.object(
+        redis_store,
+        "get",
+        return_value=bytes(json.dumps(json_data, default=lambda o: o.hex if isinstance(o, UUID) else None), encoding="utf-8"),
+    )
+
+    template = dao_get_template_by_id(sample_template.id, use_cache=True)
+
+    assert mocked_redis_get.called
+    assert str(sample_template.id) == template[0].id
+    assert json.dumps(json_data["data"], default=lambda o: o.hex if isinstance(o, UUID) else None) == json.dumps(template[1])
+
+
+def test_get_template_id_with_specific_version_from_redis(sample_service, mocker):
+    sample_template = create_template(template_name="Test Template", service=sample_service)
+    json_data = {"data": template_schema.dump(sample_template).data}
+    mocked_redis_get = mocker.patch.object(
+        redis_store,
+        "get",
+        return_value=bytes(json.dumps(json_data, default=lambda o: o.hex if isinstance(o, UUID) else None), encoding="utf-8"),
+    )
+
+    template = dao_get_template_by_id(sample_template.id, version=1, use_cache=True)
+
+    assert mocked_redis_get.called
+    assert str(sample_template.id) == template[0].id
+    assert isinstance(template[0], TemplateHistory)
+    assert json.dumps(json_data["data"], default=lambda o: o.hex if isinstance(o, UUID) else None) == json.dumps(template[1])
 
 
 def test_get_template_by_id_and_service(sample_service):

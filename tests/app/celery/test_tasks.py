@@ -12,7 +12,7 @@ from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate
 from requests import RequestException
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import DATETIME_FORMAT, encryption
+from app import DATETIME_FORMAT, encryption, redis_store
 from app.celery import provider_tasks, tasks
 from app.celery.tasks import (
     get_template_class,
@@ -42,6 +42,7 @@ from app.models import (
     Notification,
     NotificationHistory,
 )
+from app.schemas import template_schema
 from celery.exceptions import Retry
 from tests.app import load_example_csv
 from tests.app.db import (
@@ -486,6 +487,84 @@ def test_should_send_template_to_correct_sms_task_and_persist(sample_template_wi
     assert persisted_notification._personalisation == encryption.encrypt({"name": "Jo"})
     assert persisted_notification.notification_type == "sms"
     mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
+
+
+def test_save_sms_should_use_redis_cache_to_retrieve_template_when_possible(sample_template_with_placeholders, mocker):
+    notification = _notification_json(
+        sample_template_with_placeholders,
+        to="+1 650 253 2222",
+        personalisation={"name": "Jo"},
+    )
+
+    mocked_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+    json_template_date = {"data": template_schema.dump(sample_template_with_placeholders).data}
+    mocked_redis_get = mocker.patch.object(redis_store, "get")
+
+    mocked_redis_get.side_effect = [
+        None,
+        bytes(json.dumps(json_template_date, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
+        False,
+    ]
+
+    save_sms(sample_template_with_placeholders.service_id, uuid.uuid4(), encryption.encrypt(notification))
+
+    assert mocked_redis_get.called
+    persisted_notification = Notification.query.one()
+    assert persisted_notification.to == "+1 650 253 2222"
+    assert persisted_notification.template_id == sample_template_with_placeholders.id
+    assert persisted_notification.template_version == sample_template_with_placeholders.version
+    assert persisted_notification.status == "created"
+    assert persisted_notification.created_at <= datetime.utcnow()
+    assert not persisted_notification.sent_at
+    assert not persisted_notification.sent_by
+    assert not persisted_notification.job_id
+    assert persisted_notification.personalisation == {"name": "Jo"}
+    assert persisted_notification._personalisation == encryption.encrypt({"name": "Jo"})
+    assert persisted_notification.notification_type == "sms"
+    mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
+
+
+def test_save_email_should_use_redis_cache_to_retrieve_template_when_possible(sample_service, mocker):
+    sample_template = create_template(
+        template_name="Test Template",
+        template_type="email",
+        content="Hello (( Name))\nYour thing is due soon",
+        service=sample_service,
+    )
+
+    notification = _notification_json(
+        sample_template,
+        to="test@unittest.com",
+        personalisation={"name": "Jo"},
+    )
+
+    mocked_deliver_email = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+
+    json_template_date = {"data": template_schema.dump(sample_template).data}
+    mocked_redis_get = mocker.patch.object(redis_store, "get")
+
+    mocked_redis_get.side_effect = [
+        None,
+        bytes(json.dumps(json_template_date, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
+        False,
+    ]
+
+    save_email(sample_template.service_id, uuid.uuid4(), encryption.encrypt(notification))
+
+    assert mocked_redis_get.called
+    persisted_notification = Notification.query.one()
+    assert persisted_notification.to == "test@unittest.com"
+    assert persisted_notification.template_id == sample_template.id
+    assert persisted_notification.template_version == sample_template.version
+    assert persisted_notification.status == "created"
+    assert persisted_notification.created_at <= datetime.utcnow()
+    assert not persisted_notification.sent_at
+    assert not persisted_notification.sent_by
+    assert not persisted_notification.job_id
+    assert persisted_notification.personalisation == {"name": "Jo"}
+    assert persisted_notification._personalisation == encryption.encrypt({"name": "Jo"})
+    assert persisted_notification.notification_type == "email"
+    mocked_deliver_email.assert_called_once_with([str(persisted_notification.id)], queue="send-email-tasks")
 
 
 def test_should_put_save_sms_task_in_research_mode_queue_if_research_mode_service(notify_db, notify_db_session, mocker):
