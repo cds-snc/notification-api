@@ -13,6 +13,7 @@ from notifications_utils.pdf import extract_page_from_pdf
 from notifications_utils.template import SMSMessageTemplate
 from requests import post as requests_post
 from sqlalchemy.orm.exc import NoResultFound
+from notifications_utils.template import HTMLEmailTemplate
 
 from app.authentication.auth import requires_admin_auth_or_user_in_service
 from app.dao.notifications_dao import get_notification_by_id
@@ -191,6 +192,18 @@ def preview_template_by_id_and_service_id(service_id, template_id):
     return jsonify(data)
 
 
+@template_blueprint.route("/<template_id>/preview-html", methods=['GET'])
+def get_html_template(service_id, template_id):
+    template_dict = dao_get_template_by_id(template_id).__dict__
+
+    html_email = HTMLEmailTemplate(
+        template_dict,
+        values={},
+    )
+
+    return jsonify(previewContent=str(html_email))
+
+
 @template_blueprint.route('/<uuid:template_id>/version/<int:version>')
 @requires_admin_auth_or_user_in_service(required_permission='manage_templates')
 def get_template_version(service_id, template_id, version):
@@ -341,3 +354,4 @@ def _get_png_preview_or_overlaid_pdf(url, data, notification_id, json=True):
         )
 
     return base64.b64encode(resp.content).decode('utf-8')
+
