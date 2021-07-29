@@ -1,8 +1,5 @@
-import csv
 from datetime import datetime
 from dotenv import load_dotenv
-from io import StringIO
-import itertools
 import json
 import os
 import requests

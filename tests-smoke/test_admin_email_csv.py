@@ -1,19 +1,15 @@
+from boto3 import resource
 import csv
-
 from dotenv import load_dotenv
 from io import StringIO
 import itertools
 import json
 from notifications_python_client.authentication import create_jwt_token
-import os
 from notifications_utils.s3 import s3upload as utils_s3upload
+import os
 import requests
 import time
 import uuid
-from boto3 import resource
-
-# NOTE: this doesn't work yet
-
 
 load_dotenv()
 

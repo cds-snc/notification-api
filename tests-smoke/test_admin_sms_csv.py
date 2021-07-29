@@ -1,19 +1,15 @@
+from boto3 import resource
 import csv
-
 from dotenv import load_dotenv
 from io import StringIO
 import itertools
 import json
 from notifications_python_client.authentication import create_jwt_token
-import os
 from notifications_utils.s3 import s3upload as utils_s3upload
+import os
 import requests
 import time
 import uuid
-from boto3 import resource
-
-# NOTE: this doesn't work yet
-
 
 load_dotenv()
 
@@ -89,7 +85,7 @@ def pretty_print(data):
     print(json.dumps(data, indent=4, sort_keys=True))
 
 
-def test_admin_email_csv():
+def test_admin_sms_csv():
     print("test_admin_csv... ", end="", flush=True)
 
     data = rows_to_csv([["phone number", "name"], *job_line(1)])
@@ -144,4 +140,4 @@ def test_admin_email_csv():
 
 
 if __name__ == "__main__":
-    test_admin_email_csv()
+    test_admin_sms_csv()
