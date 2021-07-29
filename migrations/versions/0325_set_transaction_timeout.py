@@ -1,8 +1,8 @@
 """
 
-Revision ID: 0323_jobs_add_sender_id
-Revises: 0322_jobs_add_api_key
-Create Date: 2021-06-08 13:37:42
+Revision ID: 0325_set_transaction_timeout
+Revises: 0325_set_transaction_timeout
+Create Date: 2021-07-29 17:30:00
 
 """
 from alembic import op
