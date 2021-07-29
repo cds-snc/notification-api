@@ -1,10 +1,5 @@
-import json
-
-from celery import Task
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
-from requests.api import request
-from requests.exceptions import RequestException, HTTPError
 
 from app import (
     notify_celery,
@@ -53,8 +48,9 @@ def send_delivery_status_to_service(
 
 @notify_celery.task(bind=True, name="send-complaint", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def send_complaint_to_service(self, complaint_data):
+def send_complaint_to_service(self, service_callback_id, complaint_data):
     complaint = encryption.decrypt(complaint_data)
+    service_callback = get_service_callback(service_callback_id)
 
     payload = {
         "notification_id": complaint['notification_id'],
@@ -64,11 +60,9 @@ def send_complaint_to_service(self, complaint_data):
         "complaint_date": complaint['complaint_date']
     }
 
-    _send_to_service_callback_api(
-        self,
-        payload,
-        complaint['service_callback_api_url'],
-        complaint['service_callback_api_bearer_token'],
+    service_callback.send(
+        task=self,
+        payload=payload,
         logging_tags={
             'notification_id': complaint['notification_id'],
             'complaint_id': complaint['complaint_id']
@@ -108,8 +102,8 @@ def send_complaint_to_vanotify(self, complaint_id: str, complaint_template_name:
 @notify_celery.task(bind=True, name="send-inbound-sms", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def send_inbound_sms_to_service(self, inbound_sms_id, service_id):
-    inbound_api = get_service_inbound_sms_callback_api_for_service(service_id=service_id)
-    if not inbound_api:
+    service_callback = get_service_inbound_sms_callback_api_for_service(service_id=service_id)
+    if not service_callback:
         current_app.logger.error(
             f'could not send inbound sms to service "{service_id}" because it does not have a callback API configured'
         )
@@ -128,42 +122,14 @@ def send_inbound_sms_to_service(self, inbound_sms_id, service_id):
         "sms_sender_id": str(sms_sender.id) if sms_sender else None
     }
 
-    _send_to_service_callback_api(
-        self,
-        payload,
-        inbound_api.url,
-        inbound_api.bearer_token,
+    service_callback.send(
+        task=self,
+        payload=payload,
         logging_tags={
             'inbound_sms_id': str(inbound_sms_id),
             'service_id': str(service_id)
         }
     )
-
-
-def _send_to_service_callback_api(self: Task, payload: dict, url: str, token: str, logging_tags: dict) -> None:
-    tags = ', '.join([f"{key}: {value}" for key, value in logging_tags.items()])
-    try:
-        response = request(
-            method="POST",
-            url=url,
-            data=json.dumps(payload),
-            headers={
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer {}'.format(token)
-            },
-            timeout=60
-        )
-        current_app.logger.info(f"{self.name} sent to {url}, response {response.status_code}, {tags}")
-        response.raise_for_status()
-    except RequestException as e:
-        if not isinstance(e, HTTPError) or e.response.status_code >= 500:
-            current_app.logger.warning(f"Retrying: {self.name} request failed for url: {url}. exc: {e}, {tags}")
-            try:
-                self.retry(queue=QueueNames.RETRY)
-            except self.MaxRetriesExceededError:
-                current_app.logger.error(f"Retry: {self.name} has retried the max num of times for url {url}, {tags}")
-        else:
-            current_app.logger.error(f"Not retrying: {self.name} request failed for url: {url}. exc: {e}, {tags}")
 
 
 def create_delivery_status_callback_data(notification, service_callback_api):
@@ -214,7 +180,7 @@ def _check_and_queue_complaint_callback_task(complaint, notification, recipient)
     service_callback_api = get_service_complaint_callback_api_for_service(service_id=notification.service_id)
     if service_callback_api:
         complaint_data = create_complaint_callback_data(complaint, notification, service_callback_api, recipient)
-        send_complaint_to_service.apply_async([complaint_data], queue=QueueNames.CALLBACKS)
+        send_complaint_to_service.apply_async([service_callback_api.id, complaint_data], queue=QueueNames.CALLBACKS)
 
 
 def publish_complaint(complaint: Complaint, notification: Notification, recipient_email: str) -> bool:

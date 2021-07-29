@@ -3,6 +3,7 @@ import json
 import pytest
 import requests_mock
 from celery import Task
+from requests import RequestException
 
 from app.callback.webhook_callback_strategy import WebhookCallbackStrategy
 from app.config import QueueNames
@@ -50,3 +51,28 @@ def test_send_callback_retries_with_status_code_above_500(notify_api, mock_task,
         )
 
     mock_task.retry.assert_called_with(queue=QueueNames.RETRY)
+
+
+def test_send_callback_retries_with_request_exception(notify_api, mock_task, mock_callback, mocker):
+    mocker.patch("app.callback.webhook_callback_strategy.request", side_effect=RequestException())
+    WebhookCallbackStrategy.send_callback(
+        task=mock_task,
+        callback=mock_callback,
+        payload={'message': 'hello'},
+        logging_tags={'log': 'some log'}
+    )
+
+    mock_task.retry.assert_called_with(queue=QueueNames.RETRY)
+
+
+def test_send_callback_does_not_retry_with_status_code_404(notify_api, mock_task, mock_callback):
+    with requests_mock.Mocker() as request_mock:
+        request_mock.post('http://some_url', json={}, status_code=404)
+        WebhookCallbackStrategy.send_callback(
+            task=mock_task,
+            callback=mock_callback,
+            payload={'message': 'hello'},
+            logging_tags={'log': 'some log'}
+        )
+
+    mock_task.retry.assert_not_called()
