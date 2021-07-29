@@ -1,11 +1,12 @@
-from boto3 import resource
 import csv
-from dotenv import load_dotenv
-from io import StringIO
 import itertools
 import json
-import uuid
 import os
+import uuid
+from io import StringIO
+
+from boto3 import resource
+from dotenv import load_dotenv
 from notifications_utils.s3 import s3upload as utils_s3upload
 
 load_dotenv()

@@ -1,10 +1,11 @@
-from common import rows_to_csv, job_line, s3upload, set_metadata_on_csv_upload, get_csv_location
-from dotenv import load_dotenv
 import json
-from notifications_python_client.authentication import create_jwt_token
 import os
-import requests
 import time
+
+import requests
+from common import job_line, rows_to_csv, s3upload, set_metadata_on_csv_upload
+from dotenv import load_dotenv
+from notifications_python_client.authentication import create_jwt_token
 
 load_dotenv()
 

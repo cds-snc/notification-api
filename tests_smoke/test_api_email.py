@@ -1,29 +1,30 @@
+import os
+import time
+
+import requests
 from common import pretty_print
 from dotenv import load_dotenv
-import os
-import requests
-import time
 
 load_dotenv()
 
 API_KEY = os.environ.get("API_KEY")
-SMS_TEMPLATE_ID = os.environ.get("SMS_TEMPLATE_ID")
-SMS_TO = os.environ.get("SMS_TO")
+EMAIL_TEMPLATE_ID = os.environ.get("EMAIL_TEMPLATE_ID")
+EMAIL_TO = os.environ.get("EMAIL_TO")
 API_HOST_NAME = os.environ.get("API_HOST_NAME")
 
 
-def test_api_sms():
-    print("test_api_sms... ", end="", flush=True)
+def test_api_email():
+    print("test_api_email... ", end="", flush=True)
     response = requests.post(
-        f"{API_HOST_NAME}/v2/notifications/sms",
+        f"{API_HOST_NAME}/v2/notifications/email",
         json={
-            "phone_number": SMS_TO,
-            "template_id": SMS_TEMPLATE_ID,
+            "email_address": EMAIL_TO,
+            "template_id": EMAIL_TEMPLATE_ID,
         },
         headers={"Authorization": f"ApiKey-v1 {API_KEY[-36:]}"},
     )
     if response.status_code != 201:
-        print("FAILED: post to v2/notifications/sms failed")
+        print("FAILED: post to v2/notifications/email failed")
         pretty_print(response.json())
         return
 
@@ -39,7 +40,7 @@ def test_api_sms():
             break
 
     if response.status_code != 200:
-        print("FAILED: sms not sent successfully")
+        print("FAILED: email not sent successfully")
         pretty_print(response.json())
         return
 
@@ -47,4 +48,4 @@ def test_api_sms():
 
 
 if __name__ == "__main__":
-    test_api_sms()
+    test_api_email()

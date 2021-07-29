@@ -1,10 +1,10 @@
+import os
+import time
+
+import requests
 from common import pretty_print
 from dotenv import load_dotenv
 from notifications_python_client.authentication import create_jwt_token
-import os
-import requests
-import time
-
 
 load_dotenv()
 
