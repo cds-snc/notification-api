@@ -1,5 +1,5 @@
+from common import pretty_print
 from dotenv import load_dotenv
-import json
 import os
 import requests
 import time
@@ -10,10 +10,6 @@ API_KEY = os.environ.get("API_KEY")
 SMS_TEMPLATE_ID = os.environ.get("SMS_TEMPLATE_ID")
 SMS_TO = os.environ.get("SMS_TO")
 API_HOST_NAME = os.environ.get("API_HOST_NAME")
-
-
-def pretty_print(data):
-    print(json.dumps(data, indent=4, sort_keys=True))
 
 
 def test_api_sms():

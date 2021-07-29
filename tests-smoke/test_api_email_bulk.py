@@ -1,9 +1,6 @@
-import csv
+from common import pretty_print, rows_to_csv, job_line
 from datetime import datetime
 from dotenv import load_dotenv
-from io import StringIO
-import itertools
-import json
 import os
 import requests
 import time
@@ -21,21 +18,6 @@ EMAIL_TO = os.environ.get("EMAIL_TO")
 API_HOST_NAME = os.environ.get("API_HOST_NAME")
 
 
-def pretty_print(data):
-    print(json.dumps(data, indent=4, sort_keys=True))
-
-
-def rows_to_csv(rows):
-    output = StringIO()
-    writer = csv.writer(output)
-    writer.writerows(rows)
-    return output.getvalue()
-
-
-def job_line(number_of_lines):
-    return list(itertools.repeat([EMAIL_TO, "test"], number_of_lines))
-
-
 def test_api_email_bulk():
     print("test_api_email_bulk... ", end="", flush=True)
     response = requests.post(
@@ -43,7 +25,7 @@ def test_api_email_bulk():
         json={
             "name": f"My bulk name {datetime.utcnow().isoformat()}",
             "template_id": EMAIL_TEMPLATE_ID,
-            "csv": rows_to_csv([["email address", "name"], *job_line(1)]),
+            "csv": rows_to_csv([["email address", "name"], *job_line(EMAIL_TO, 1)]),
         },
         headers={"Authorization": f"ApiKey-v1 {API_KEY[-36:]}"},
     )

@@ -1,15 +1,9 @@
-from boto3 import resource
-import csv
+from common import job_line, rows_to_csv, s3upload, set_metadata_on_csv_upload, get_csv_location, pretty_print
 from dotenv import load_dotenv
-from io import StringIO
-import itertools
-import json
 from notifications_python_client.authentication import create_jwt_token
-from notifications_utils.s3 import s3upload as utils_s3upload
 import os
 import requests
 import time
-import uuid
 
 load_dotenv()
 
@@ -21,74 +15,12 @@ ADMIN_CLIENT_SECRET = os.environ.get("ADMIN_CLIENT_SECRET")
 ADMIN_CLIENT_USER_NAME = os.environ.get("ADMIN_CLIENT_USER_NAME")
 EMAIL_TO = os.environ.get("EMAIL_TO")
 API_HOST_NAME = os.environ.get("API_HOST_NAME")
-CSV_UPLOAD_BUCKET_NAME = os.environ.get("CSV_UPLOAD_BUCKET_NAME")
-AWS_REGION = os.environ.get("AWS_REGION")
-
-
-def rows_to_csv(rows):
-    output = StringIO()
-    writer = csv.writer(output)
-    writer.writerows(rows)
-    return output.getvalue()
-
-
-def job_line(number_of_lines):
-    return list(itertools.repeat([EMAIL_TO, "test"], number_of_lines))
-
-
-# from admin app/s3_client/c3_csv_client.py ---------
-
-FILE_LOCATION_STRUCTURE = "service-{}-notify/{}.csv"
-
-
-def get_csv_location(service_id, upload_id):
-    return (
-        CSV_UPLOAD_BUCKET_NAME,
-        FILE_LOCATION_STRUCTURE.format(service_id, upload_id),
-    )
-
-
-def s3upload(service_id, data):
-    upload_id = str(uuid.uuid4())
-    bucket_name, file_location = get_csv_location(service_id, upload_id)
-    utils_s3upload(
-        filedata=data,
-        region=AWS_REGION,
-        bucket_name=bucket_name,
-        file_location=file_location,
-    )
-    return upload_id
-
-
-def set_metadata_on_csv_upload(service_id, upload_id, **kwargs):
-    get_csv_upload(service_id, upload_id).copy_from(
-        CopySource="{}/{}".format(*get_csv_location(service_id, upload_id)),
-        ServerSideEncryption="AES256",
-        Metadata={key: str(value) for key, value in kwargs.items()},
-        MetadataDirective="REPLACE",
-    )
-
-
-def get_csv_upload(service_id, upload_id):
-    return get_s3_object(*get_csv_location(service_id, upload_id))
-
-
-def get_s3_object(bucket_name, filename):
-    s3 = resource("s3")
-    return s3.Object(bucket_name, filename)
-
-
-# --------------------------------------------------
-
-
-def pretty_print(data):
-    print(json.dumps(data, indent=4, sort_keys=True))
 
 
 def test_admin_email_csv():
-    print("test_admin_csv... ", end="", flush=True)
+    print("test_admin_email_csv... ", end="", flush=True)
 
-    data = rows_to_csv([["email address", "name"], *job_line(1)])
+    data = rows_to_csv([["email address", "name"], *job_line(EMAIL_TO, 1)])
 
     upload_id = s3upload(SERVICE_ID, data)
     metadata_kwargs = {
@@ -100,9 +32,6 @@ def test_admin_email_csv():
 
     set_metadata_on_csv_upload(SERVICE_ID, upload_id, **metadata_kwargs)
 
-    print(f"upload id: {upload_id}")
-    print(f"file: {get_csv_location(SERVICE_ID, upload_id)}")
-
     token = create_jwt_token(ADMIN_CLIENT_SECRET, client_id=ADMIN_CLIENT_USER_NAME)
 
     response = requests.post(
@@ -112,9 +41,6 @@ def test_admin_email_csv():
     )
     status_code = response.status_code
     body = response.json()
-
-    print(f"status: {status_code}")
-    pretty_print(body)
 
     if status_code != 201:
         print("FAILED: post to send_notification failed")

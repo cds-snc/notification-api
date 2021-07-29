@@ -1,6 +1,6 @@
+from common import pretty_print
 from datetime import datetime
 from dotenv import load_dotenv
-import json
 import os
 import requests
 import time
@@ -16,10 +16,6 @@ ADMIN_CLIENT_SECRET = os.environ.get("ADMIN_CLIENT_SECRET")
 ADMIN_CLIENT_USER_NAME = os.environ.get("ADMIN_CLIENT_USER_NAME")
 SMS_TO = os.environ.get("SMS_TO")
 API_HOST_NAME = os.environ.get("API_HOST_NAME")
-
-
-def pretty_print(data):
-    print(json.dumps(data, indent=4, sort_keys=True))
 
 
 def test_api_sms_bulk():

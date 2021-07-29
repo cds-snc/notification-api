@@ -1,3 +1,4 @@
+from common import pretty_print
 from dotenv import load_dotenv
 import json
 import os
@@ -10,10 +11,6 @@ API_KEY = os.environ.get("API_KEY")
 EMAIL_TEMPLATE_ID = os.environ.get("EMAIL_TEMPLATE_ID")
 EMAIL_TO = os.environ.get("EMAIL_TO")
 API_HOST_NAME = os.environ.get("API_HOST_NAME")
-
-
-def pretty_print(data):
-    print(json.dumps(data, indent=4, sort_keys=True))
 
 
 def test_api_email():
