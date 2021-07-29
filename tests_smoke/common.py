@@ -14,13 +14,10 @@ load_dotenv()
 
 class Config:
     API_HOST_NAME = os.environ.get("API_HOST_NAME")
-
-    AWS_REGION = os.environ.get("AWS_REGION")
+    AWS_REGION = "ca-central-1"
     CSV_UPLOAD_BUCKET_NAME = os.environ.get("CSV_UPLOAD_BUCKET_NAME")
-
+    ADMIN_CLIENT_USER_NAME = "notify-admin"
     ADMIN_CLIENT_SECRET = os.environ.get("ADMIN_CLIENT_SECRET")
-    ADMIN_CLIENT_USER_NAME = os.environ.get("ADMIN_CLIENT_USER_NAME")
-
     EMAIL_TO = os.environ.get("EMAIL_TO")
     SMS_TO = os.environ.get("SMS_TO")
     USER_ID = os.environ.get("USER_ID")
