@@ -3,9 +3,10 @@ import time
 from datetime import datetime
 
 import requests
-from common import job_line, pretty_print, rows_to_csv
 from dotenv import load_dotenv
 from notifications_python_client.authentication import create_jwt_token
+
+from .common import job_line, pretty_print, rows_to_csv
 
 load_dotenv()
 

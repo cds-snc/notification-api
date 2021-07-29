@@ -2,8 +2,9 @@ import os
 import time
 
 import requests
-from common import pretty_print
 from dotenv import load_dotenv
+
+from .common import pretty_print
 
 load_dotenv()
 

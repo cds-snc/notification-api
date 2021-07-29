@@ -3,9 +3,10 @@ import os
 import time
 
 import requests
-from common import job_line, rows_to_csv, s3upload, set_metadata_on_csv_upload
 from dotenv import load_dotenv
 from notifications_python_client.authentication import create_jwt_token
+
+from .common import job_line, rows_to_csv, s3upload, set_metadata_on_csv_upload
 
 load_dotenv()
 

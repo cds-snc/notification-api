@@ -2,9 +2,10 @@ import os
 import time
 
 import requests
-from common import pretty_print
 from dotenv import load_dotenv
 from notifications_python_client.authentication import create_jwt_token
+
+from .common import pretty_print
 
 load_dotenv()
 
