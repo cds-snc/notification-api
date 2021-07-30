@@ -915,12 +915,6 @@ def test_notification_document_with_illegal_url_attachment(
 
     db_notification = create_notification(template=template, personalisation=personalisation)
 
-    statsd_mock = mocker.patch("app.delivery.send_to_providers.statsd_client")
-    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
-    request_mock = mocker.patch(
-        "app.delivery.send_to_providers.urllib.request.Request",
-        return_value="request_mock",
-    )
     # See https://stackoverflow.com/a/34929900
     cm = MagicMock()
     cm.read.return_value = "request_content"
