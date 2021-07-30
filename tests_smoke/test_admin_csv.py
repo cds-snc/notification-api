@@ -35,7 +35,7 @@ def test_admin_csv(notification_type: str):
     response = requests.post(
         f"{Config.API_HOST_NAME}/service/{Config.SERVICE_ID}/job",
         json={"id": upload_id, "created_by": Config.USER_ID},
-        headers={"Authorization": "Bearer {}".format(token)},
+        headers={"Authorization": f"Bearer {token}"},
     )
     status_code = response.status_code
     body = response.json()
@@ -49,7 +49,7 @@ def test_admin_csv(notification_type: str):
 
     for _ in range(20):
         time.sleep(1)
-        response = requests.get(uri, headers={"Authorization": "Bearer {}".format(token)})
+        response = requests.get(uri, headers={"Authorization": f"Bearer {token}"})
         status_code = response.status_code
         data = response.json()["data"]
         if status_code == 200 and data.get("job_status") == "finished":

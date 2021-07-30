@@ -15,7 +15,7 @@ def test_admin_one_off(notification_type: str):
     response = requests.post(
         f"{Config.API_HOST_NAME}/service/{Config.SERVICE_ID}/send-notification",
         json={"to": to, "template_id": template_id, "created_by": Config.USER_ID},
-        headers={"Authorization": "Bearer {}".format(token)},
+        headers={"Authorization": f"Bearer {token}"},
     )
     status_code = response.status_code
     body = response.json()
@@ -29,7 +29,7 @@ def test_admin_one_off(notification_type: str):
         time.sleep(1)
         response = requests.get(
             f"{Config.API_HOST_NAME}/service/{Config.SERVICE_ID}/notifications/{notification_id}",
-            headers={"Authorization": "Bearer {}".format(token)},
+            headers={"Authorization": f"Bearer {token}"},
         )
         status_code = response.status_code
         body = response.json()

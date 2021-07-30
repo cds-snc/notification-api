@@ -34,7 +34,7 @@ def test_api_bulk(notification_type):
 
     for _ in range(20):
         time.sleep(1)
-        response = requests.get(uri, headers={"Authorization": "Bearer {}".format(token)})
+        response = requests.get(uri, headers={"Authorization": f"Bearer {token}"})
         status_code = response.status_code
         data = response.json()["data"]
         if (
