@@ -315,7 +315,7 @@ def test_get_all_templates_ignores_hidden_templates(sample_service):
     assert templates[0] == normal_template
 
 
-def test_get_template_id_from_redis_when_cached(sample_service, mocker):
+def test_get_template_id_from_redis_when_cached(sample_service, mocker, notify_db_session):
     sample_template = create_template(template_name="Test Template", service=sample_service)
 
     json_data = {"data": template_schema.dump(sample_template).data}
@@ -332,7 +332,7 @@ def test_get_template_id_from_redis_when_cached(sample_service, mocker):
     assert json.dumps(json_data["data"], default=lambda o: o.hex if isinstance(o, UUID) else None) == json.dumps(template[1])
 
 
-def test_get_template_id_with_specific_version_from_redis(sample_service, mocker):
+def test_get_template_id_with_specific_version_from_redis(sample_service, mocker, notify_db_session):
     sample_template = create_template(template_name="Test Template", service=sample_service)
     json_data = {"data": template_schema.dump(sample_template).data}
     mocked_redis_get = mocker.patch.object(

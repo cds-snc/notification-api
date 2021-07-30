@@ -330,7 +330,7 @@ def test_get_service_by_id_returns_go_live_user_and_go_live_at(admin_request, sa
         (False, True),
     ),
 )
-def test_create_service(admin_request, sample_user, platform_admin, expected_count_as_live, mocker):
+def test_create_service(admin_request, sample_user, platform_admin, expected_count_as_live, mocker, notify_db_session):
     sample_user.platform_admin = platform_admin
     data = {
         "name": "created service",
@@ -383,7 +383,9 @@ def test_create_service(admin_request, sample_user, platform_admin, expected_cou
         ("test.example.gov.uk", True),
     ),
 )
-def test_create_service_with_domain_sets_organisation(admin_request, sample_user, domain, expected_org, mocker):
+def test_create_service_with_domain_sets_organisation(
+    admin_request, sample_user, domain, expected_org, mocker, notify_db_session
+):
 
     red_herring_org = create_organisation(name="Sub example")
     create_domain("specific.example.gov.uk", red_herring_org.id)
@@ -419,7 +421,7 @@ def test_create_service_with_domain_sets_organisation(admin_request, sample_user
         assert json_resp["data"]["organisation"] is None
 
 
-def test_create_service_inherits_branding_from_organisation(admin_request, sample_user, mocker):
+def test_create_service_inherits_branding_from_organisation(admin_request, sample_user, mocker, notify_db_session):
 
     org = create_organisation()
     email_branding = create_email_branding()
@@ -490,7 +492,10 @@ def test_should_error_if_created_by_missing(notify_api, sample_user):
 
 
 def test_should_not_create_service_with_missing_if_user_id_is_not_in_database(
-    notify_api, notify_db, notify_db_session, fake_uuid
+    notify_api,
+    notify_db,
+    notify_db_session,
+    fake_uuid,
 ):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:

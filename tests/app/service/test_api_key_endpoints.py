@@ -10,7 +10,7 @@ from tests.app.conftest import sample_service as create_sample_service
 from tests.app.db import create_user
 
 
-def test_api_key_should_create_new_api_key_for_service(notify_api, sample_service):
+def test_api_key_should_create_new_api_key_for_service(notify_api, sample_service, notify_db_session):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             data = {
@@ -45,7 +45,7 @@ def test_api_key_should_return_error_when_service_does_not_exist(notify_api, sam
             assert response.status_code == 404
 
 
-def test_create_api_key_without_key_type_rejects(notify_api, sample_service):
+def test_create_api_key_without_key_type_rejects(notify_api, sample_service, notify_db_session):
     with notify_api.test_request_context(), notify_api.test_client() as client:
         data = {
             "name": "some secret name",
@@ -81,7 +81,7 @@ def test_revoke_should_expire_api_key_for_service(notify_api, sample_api_key):
             assert api_keys_for_service.expiry_date is not None
 
 
-def test_api_key_should_create_multiple_new_api_key_for_service(notify_api, sample_service):
+def test_api_key_should_create_multiple_new_api_key_for_service(notify_api, sample_service, notify_db_session):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             assert ApiKey.query.count() == 0

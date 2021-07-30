@@ -208,6 +208,9 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
     else:
         reply_to_text = template.get_reply_to_text()
 
+    if isinstance(service, tuple):
+        service = service[0]
+
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
 
     try:
@@ -262,6 +265,9 @@ def save_email(self, service_id, notification_id, encrypted_notification, sender
         template = template[0]
     else:
         reply_to_text = template.get_reply_to_text()
+
+    if isinstance(service, tuple):
+        service = service[0]
 
     check_service_over_daily_message_limit(notification.get("key_type", KEY_TYPE_NORMAL), service)
 

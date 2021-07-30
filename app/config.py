@@ -162,6 +162,7 @@ class Config(object):
     SQLALCHEMY_POOL_TIMEOUT = 30
     SQLALCHEMY_POOL_RECYCLE = 300
     SQLALCHEMY_STATEMENT_TIMEOUT = 1200
+    SQLALCHEMY_ECHO = bool(os.getenv("SQLALCHEMY_ECHO", None))
     PAGE_SIZE = 50
     API_PAGE_SIZE = 250
     TEST_MESSAGE_FILENAME = "Test message"
@@ -394,7 +395,6 @@ class Config(object):
 
 class Development(Config):
     DEBUG = True
-    SQLALCHEMY_ECHO = False
 
     # CSV_UPLOAD_BUCKET_NAME = 'development-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = "development-test-letters"

@@ -17,12 +17,7 @@ from tests import create_authorization_header
     ],
 )
 def test_create_invited_user(
-    admin_request,
-    sample_service,
-    mocker,
-    invitation_email_template,
-    extra_args,
-    expected_start_of_invite_url,
+    admin_request, sample_service, mocker, invitation_email_template, extra_args, expected_start_of_invite_url, notify_db_session
 ):
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     email_address = "invited_user@service.gov.uk"
@@ -93,7 +88,7 @@ def test_create_invited_user_without_auth_type(admin_request, sample_service, mo
     assert json_resp["data"]["auth_type"] == EMAIL_AUTH_TYPE
 
 
-def test_create_invited_user_invalid_email(client, sample_service, mocker, fake_uuid):
+def test_create_invited_user_invalid_email(client, sample_service, mocker, fake_uuid, notify_db_session):
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     email_address = "notanemail"
     invite_from = sample_service.users[0]
@@ -161,7 +156,7 @@ def test_get_invited_users_by_service_with_no_invites(client, notify_db, notify_
     assert len(json_resp["data"]) == 0
 
 
-def test_update_invited_user_set_status_to_cancelled(client, sample_invited_user):
+def test_update_invited_user_set_status_to_cancelled(client, sample_invited_user, notify_db_session):
     data = {"status": "cancelled"}
     url = "/service/{0}/invite/{1}".format(sample_invited_user.service_id, sample_invited_user.id)
     auth_header = create_authorization_header()
@@ -190,7 +185,7 @@ def test_update_invited_user_for_wrong_service_returns_404(client, sample_invite
     assert json_response == "No result found"
 
 
-def test_update_invited_user_for_invalid_data_returns_400(client, sample_invited_user):
+def test_update_invited_user_for_invalid_data_returns_400(client, sample_invited_user, notify_db_session):
     data = {"status": "garbage"}
     url = "/service/{0}/invite/{1}".format(sample_invited_user.service_id, sample_invited_user.id)
     auth_header = create_authorization_header()

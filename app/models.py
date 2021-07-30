@@ -571,7 +571,7 @@ class Service(BaseModel, Versioned):
         fields["organisation_id"] = fields.pop("organisation", None)
         fields["go_live_user_id"] = fields.pop("go_live_user", None)
         fields.pop("safelist", None)
-        fields.pop("permissions")
+        fields.pop("permissions", None)
         fields.pop("service_callback_api", None)
         fields.pop("users", None)
         fields.pop("annual_billing", None)
@@ -1039,7 +1039,7 @@ class TemplateBase(BaseModel):
         fields = data.copy()
         fields["created_by_id"] = fields.pop("created_by")
         fields.pop("redact_personalisation", None)
-        fields.pop("reply_to_text")
+        fields.pop("reply_to_text", None)
         return cls(**fields)
 
     @declared_attr

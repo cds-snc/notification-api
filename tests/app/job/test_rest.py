@@ -118,7 +118,7 @@ def test_cancel_letter_job_does_not_call_cancel_if_can_letter_job_be_cancelled_r
     assert response["message"] == "Sorry, it's too late, letters have already been sent."
 
 
-def test_create_unscheduled_job(client, sample_template, mocker, fake_uuid):
+def test_create_unscheduled_job(client, sample_template, mocker, fake_uuid, notify_db_session):
     mocker.patch("app.celery.tasks.process_job.apply_async")
     mocker.patch(
         "app.job.rest.get_job_metadata_from_s3",
@@ -154,7 +154,7 @@ def test_create_unscheduled_job(client, sample_template, mocker, fake_uuid):
     assert resp_json["data"]["notification_count"] == 1
 
 
-def test_create_unscheduled_job_with_sender_id_in_metadata(client, sample_template, mocker, fake_uuid):
+def test_create_unscheduled_job_with_sender_id_in_metadata(client, sample_template, mocker, fake_uuid, notify_db_session):
     mocker.patch("app.celery.tasks.process_job.apply_async")
     mocker.patch(
         "app.job.rest.get_job_metadata_from_s3",
@@ -184,7 +184,7 @@ def test_create_unscheduled_job_with_sender_id_in_metadata(client, sample_templa
 
 
 @freeze_time("2016-01-01 12:00:00.000000")
-def test_create_scheduled_job(client, sample_template, mocker, fake_uuid):
+def test_create_scheduled_job(client, sample_template, mocker, fake_uuid, notify_db_session):
     scheduled_date = (datetime.utcnow() + timedelta(hours=95, minutes=59)).isoformat()
     mocker.patch("app.celery.tasks.process_job.apply_async")
     mocker.patch(
@@ -302,7 +302,7 @@ def test_create_job_returns_403_if_letter_template_type_and_service_in_trial(
 
 
 @freeze_time("2016-01-01 11:09:00.061258")
-def test_should_not_create_scheduled_job_too_far_in_the_future(client, sample_template, mocker, fake_uuid):
+def test_should_not_create_scheduled_job_too_far_in_the_future(client, sample_template, mocker, fake_uuid, notify_db_session):
     scheduled_date = (datetime.utcnow() + timedelta(hours=96, minutes=1)).isoformat()
     mocker.patch("app.celery.tasks.process_job.apply_async")
     mocker.patch(
@@ -335,7 +335,7 @@ def test_should_not_create_scheduled_job_too_far_in_the_future(client, sample_te
 
 
 @freeze_time("2016-01-01 11:09:00.061258")
-def test_should_not_create_scheduled_job_in_the_past(client, sample_template, mocker, fake_uuid):
+def test_should_not_create_scheduled_job_in_the_past(client, sample_template, mocker, fake_uuid, notify_db_session):
     scheduled_date = (datetime.utcnow() - timedelta(minutes=1)).isoformat()
     mocker.patch("app.celery.tasks.process_job.apply_async")
     mocker.patch(
@@ -389,7 +389,7 @@ def test_create_job_returns_400_if_missing_id(client, sample_template, mocker):
     assert "Missing data for required field." in resp_json["message"]["id"]
 
 
-def test_create_job_returns_400_if_missing_data(client, sample_template, mocker, fake_uuid):
+def test_create_job_returns_400_if_missing_data(client, sample_template, mocker, fake_uuid, notify_db_session):
     mocker.patch("app.celery.tasks.process_job.apply_async")
     mocker.patch(
         "app.job.rest.get_job_metadata_from_s3",
