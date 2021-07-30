@@ -4,6 +4,7 @@ import json
 import os
 import uuid
 from io import StringIO
+from typing import Any, List, Tuple
 
 from boto3 import resource
 from dotenv import load_dotenv
@@ -27,18 +28,18 @@ class Config:
     API_KEY = os.environ.get("API_KEY")
 
 
-def rows_to_csv(rows):
+def rows_to_csv(rows: List[List[str]]):
     output = StringIO()
     writer = csv.writer(output)
     writer.writerows(rows)
     return output.getvalue()
 
 
-def job_line(data, number_of_lines):
+def job_line(data: str, number_of_lines: int) -> List[List[str]]:
     return list(itertools.repeat([data, "test"], number_of_lines))
 
 
-def pretty_print(data):
+def pretty_print(data: Any):
     print(json.dumps(data, indent=4, sort_keys=True))
 
 
@@ -47,14 +48,14 @@ def pretty_print(data):
 FILE_LOCATION_STRUCTURE = "service-{}-notify/{}.csv"
 
 
-def get_csv_location(service_id, upload_id):
+def get_csv_location(service_id: str, upload_id: str) -> Tuple[str, str]:
     return (
         Config.CSV_UPLOAD_BUCKET_NAME,
         FILE_LOCATION_STRUCTURE.format(service_id, upload_id),
     )
 
 
-def s3upload(service_id, data):
+def s3upload(service_id: str, data: str) -> str:
     upload_id = str(uuid.uuid4())
     bucket_name, file_location = get_csv_location(service_id, upload_id)
     utils_s3upload(
@@ -66,7 +67,7 @@ def s3upload(service_id, data):
     return upload_id
 
 
-def set_metadata_on_csv_upload(service_id, upload_id, **kwargs):
+def set_metadata_on_csv_upload(service_id: str, upload_id: str, **kwargs):
     get_csv_upload(service_id, upload_id).copy_from(
         CopySource="{}/{}".format(*get_csv_location(service_id, upload_id)),
         ServerSideEncryption="AES256",
@@ -75,10 +76,10 @@ def set_metadata_on_csv_upload(service_id, upload_id, **kwargs):
     )
 
 
-def get_csv_upload(service_id, upload_id):
+def get_csv_upload(service_id: str, upload_id: str) -> Any:
     return get_s3_object(*get_csv_location(service_id, upload_id))
 
 
-def get_s3_object(bucket_name, filename):
+def get_s3_object(bucket_name: str, filename: str) -> Any:
     s3 = resource("s3")
     return s3.Object(bucket_name, filename)

@@ -6,7 +6,7 @@ from common import Config, job_line, pretty_print, rows_to_csv  # type: ignore
 from notifications_python_client.authentication import create_jwt_token
 
 
-def test_api_bulk(notification_type):
+def test_api_bulk(notification_type: str):
     print(f"test_api_bulk ({notification_type})... ", end="", flush=True)
     template_id = Config.EMAIL_TEMPLATE_ID if notification_type == "email" else Config.SMS_TEMPLATE_ID
     to = Config.EMAIL_TO if notification_type == "email" else Config.SMS_TO
