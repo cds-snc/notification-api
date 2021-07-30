@@ -888,6 +888,7 @@ def test_notification_document_with_pdf_attachment(
         assert call(statsd_key, notification.sent_at, notification.created_at) in statsd_calls
         assert call(statsd_key) in statsd_mock.incr.call_args_list
 
+
 def test_notification_document_with_illegal_url_attachment(
     mocker,
     notify_db,
