@@ -889,10 +889,10 @@ def test_notification_document_with_pdf_attachment(
         assert call(statsd_key) in statsd_mock.incr.call_args_list
 
 @pytest.mark.parametrize(
-    "filename_attribute_present, filename, expected_filename",
+    "filename_attribute_present, filename",
     [
-        (True, None, None),
-        (True, "custom_filename.pdf", "custom_filename.pdf"),
+        (True, None),
+        (True, "custom_filename.pdf"),
     ],
 )
 def test_notification_document_with_illegal_url_attachment(
@@ -901,7 +901,6 @@ def test_notification_document_with_illegal_url_attachment(
     notify_db_session,
     filename_attribute_present,
     filename,
-    expected_filename,
 ):
     template = sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
     personalisation = {
