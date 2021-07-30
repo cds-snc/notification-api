@@ -888,7 +888,14 @@ def test_notification_document_with_pdf_attachment(
         assert call(statsd_key, notification.sent_at, notification.created_at) in statsd_calls
         assert call(statsd_key) in statsd_mock.incr.call_args_list
 
-
+@pytest.mark.parametrize(
+    "filename_attribute_present, filename, expected_filename",
+    [
+        (False, "whatever", None),
+        (True, None, None),
+        (True, "custom_filename.pdf", "custom_filename.pdf"),
+    ],
+)
 def test_notification_document_with_illegal_url_attachment(
     mocker,
     notify_db,
