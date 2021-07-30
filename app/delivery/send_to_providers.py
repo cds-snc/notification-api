@@ -24,6 +24,7 @@ from app.dao.provider_details_dao import (
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import (
+    InvalidUrlException,
     MalwarePendingException,
     NotificationTechnicalFailureException,
 )
@@ -134,7 +135,7 @@ def send_email_to_provider(notification):
             if sending_method == "attach":
                 # Prevent URL patterns like file:// ftp:// that may lead to security vulnerabilities
                 if not personalisation_data[key]["document"]["direct_file_url"].lower().startswith(("http", "s3")):
-                    raise ValueError("Invalid URL provided")
+                    raise InvalidUrlException
                 try:
                     req = urllib.request.Request(personalisation_data[key]["document"]["direct_file_url"])
                     with urllib.request.urlopen(req) as response:  # nosec - Restricted to http(s) and s3 above

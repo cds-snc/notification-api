@@ -16,6 +16,7 @@ from app.dao.provider_details_dao import (
 )
 from app.delivery import send_to_providers
 from app.exceptions import (
+    InvalidUrlException,
     MalwarePendingException,
     NotificationTechnicalFailureException,
 )
@@ -929,7 +930,7 @@ def test_notification_document_with_illegal_url_attachment(
     urlopen_mock = mocker.patch("app.delivery.send_to_providers.urllib.request.urlopen")
     urlopen_mock.return_value = cm
 
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidUrlException):
         send_to_providers.send_email_to_provider(db_notification)
 
 
