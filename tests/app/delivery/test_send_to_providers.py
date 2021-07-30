@@ -888,6 +888,49 @@ def test_notification_document_with_pdf_attachment(
         assert call(statsd_key, notification.sent_at, notification.created_at) in statsd_calls
         assert call(statsd_key) in statsd_mock.incr.call_args_list
 
+def test_notification_document_with_illegal_url_attachment(
+    mocker,
+    notify_db,
+    notify_db_session,
+    filename_attribute_present,
+    filename,
+    expected_filename,
+):
+    template = sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
+    personalisation = {
+        "file": document_download_response(
+            {
+                "direct_file_url": "file://foo.bar/direct_file_url",
+                "url": "http://foo.bar/url",
+                "mime_type": "application/pdf",
+                "mlwr_sid": "false",
+            }
+        )
+    }
+    if filename_attribute_present:
+        personalisation["file"]["document"]["filename"] = filename
+        personalisation["file"]["document"]["sending_method"] = "attach"
+    else:
+        personalisation["file"]["document"]["sending_method"] = "link"
+
+    db_notification = create_notification(template=template, personalisation=personalisation)
+
+    statsd_mock = mocker.patch("app.delivery.send_to_providers.statsd_client")
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    request_mock = mocker.patch(
+        "app.delivery.send_to_providers.urllib.request.Request",
+        return_value="request_mock",
+    )
+    # See https://stackoverflow.com/a/34929900
+    cm = MagicMock()
+    cm.read.return_value = "request_content"
+    cm.__enter__.return_value = cm
+    urlopen_mock = mocker.patch("app.delivery.send_to_providers.urllib.request.urlopen")
+    urlopen_mock.return_value = cm
+
+    with pytest.raises(ValueError):
+        send_to_providers.send_email_to_provider(db_notification)
+
 
 def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
     sample_email_template_with_html, mocker, notify_api
