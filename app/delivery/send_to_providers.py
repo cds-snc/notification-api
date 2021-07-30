@@ -133,9 +133,11 @@ def send_email_to_provider(notification):
 
             if sending_method == "attach":
                 try:
-
+                    # Prevent URL patterns like file:// ftp:// that may lead to security vulnerabilities
+                    if(not personalisation_data[key]["document"]["direct_file_url"].lower().startswith(("http","s3"))):
+                        raise ValueError('Invalid URL provided')
                     req = urllib.request.Request(personalisation_data[key]["document"]["direct_file_url"])
-                    with urllib.request.urlopen(req) as response:
+                    with urllib.request.urlopen(req) as response: # nosec - Restricted to http(s) and s3 above
                         buffer = response.read()
                         filename = personalisation_data[key]["document"].get("filename")
                         mime_type = personalisation_data[key]["document"].get("mime_type")
