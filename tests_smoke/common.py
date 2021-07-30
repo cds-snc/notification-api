@@ -49,10 +49,13 @@ FILE_LOCATION_STRUCTURE = "service-{}-notify/{}.csv"
 
 
 def get_csv_location(service_id: str, upload_id: str) -> Tuple[str, str]:
-    return (
-        Config.CSV_UPLOAD_BUCKET_NAME,
-        FILE_LOCATION_STRUCTURE.format(service_id, upload_id),
-    )
+    if Config.CSV_UPLOAD_BUCKET_NAME:
+        return (
+            Config.CSV_UPLOAD_BUCKET_NAME,
+            FILE_LOCATION_STRUCTURE.format(service_id, upload_id),
+        )
+    else:
+        exit("CSV_UPLOAD_BUCKET_NAME undefined")
 
 
 def s3upload(service_id: str, data: str) -> str:
