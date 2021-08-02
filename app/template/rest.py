@@ -193,6 +193,7 @@ def preview_template_by_id_and_service_id(service_id, template_id):
 
 
 @template_blueprint.route("/<template_id>/preview-html", methods=['GET'])
+@requires_admin_auth_or_user_in_service(required_permission='manage_templates')
 def get_html_template(service_id, template_id):
     template_dict = dao_get_template_by_id(template_id).__dict__
 
