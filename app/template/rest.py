@@ -354,4 +354,3 @@ def _get_png_preview_or_overlaid_pdf(url, data, notification_id, json=True):
         )
 
     return base64.b64encode(resp.content).decode('utf-8')
-
