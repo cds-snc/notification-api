@@ -141,7 +141,6 @@ def create_app(application):
         statsd_client
     )
     sqs_client.init_app(
-        application.config['AWS_SQS_URL'],
         application.config['AWS_REGION'],
         application.logger,
         statsd_client

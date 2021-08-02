@@ -8,8 +8,13 @@ from flask import current_app
 
 from requests.api import request
 from requests.exceptions import RequestException, HTTPError
-from app.config import QueueNames
+
+from app.celery.exceptions import RetryableException, NonRetryableException
 from app.models import ServiceCallback
+
+
+class NotRetryableException(object):
+    pass
 
 
 class WebhookCallbackStrategy(ServiceCallbackStrategyInterface):
@@ -32,15 +37,6 @@ class WebhookCallbackStrategy(ServiceCallbackStrategyInterface):
 
         except RequestException as e:
             if not isinstance(e, HTTPError) or e.response.status_code >= 500:
-                current_app.logger.warning(
-                    f"Retrying: {task.name} request failed for url: {callback.url}. exc: {e}, {tags}"
-                )
-                try:
-                    task.retry(queue=QueueNames.RETRY)
-                except task.MaxRetriesExceededError:
-                    current_app.logger.error(
-                        f"Retry: {task.name} has retried the max num of times for url {callback.url}, {tags}")
+                raise RetryableException(e)
             else:
-                current_app.logger.error(
-                    f"Not retrying: {task.name} request failed for url: {callback.url}. exc: {e}, {tags}"
-                )
+                raise NonRetryableException(e)

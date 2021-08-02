@@ -7,6 +7,7 @@ from app import (
     statsd_client,
     DATETIME_FORMAT
 )
+from app.celery.exceptions import RetryableException, NonRetryableException
 from app.config import QueueNames
 from app.dao.complaint_dao import fetch_complaint_by_id
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
@@ -37,13 +38,30 @@ def send_delivery_status_to_service(
         "sent_at": status_update['notification_sent_at'],
         "notification_type": status_update['notification_type']
     }
-    service_callback.send(
-        task=self,
-        payload=payload,
-        logging_tags={
-            'notification_id': str(notification_id)
-        }
-    )
+    try:
+        service_callback.send(
+            task=self,
+            payload=payload,
+            logging_tags={
+                'notification_id': str(notification_id)
+            }
+        )
+    except RetryableException as e:
+        try:
+            current_app.logger.warning(
+                f"Retrying: {self.name} failed for notification_id {payload.id}, url {service_callback.url}. exc: {e}"
+            )
+            self.retry(queue=QueueNames.RETRY)
+        except self.MaxRetriesExceededError:
+            current_app.logger.error(
+                f"Retry: {self.name} has retried the max num of times for notification_id {payload.id}, url "
+                f"{service_callback.url}. exc: {e}")
+            raise e
+    except NonRetryableException as e:
+        current_app.logger.error(
+            f"Not retrying: {self.name} failed for notification_id {payload.id}, url: {service_callback.url}. exc: {e}"
+        )
+        raise e
 
 
 @notify_celery.task(bind=True, name="send-complaint", max_retries=5, default_retry_delay=300)
