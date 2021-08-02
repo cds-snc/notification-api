@@ -12,7 +12,10 @@ class QueueCallbackStrategy(ServiceCallbackStrategyInterface):
     @staticmethod
     def send_callback(callback: ServiceCallback, payload: dict, logging_tags: dict) -> None:
         tags = ', '.join([f"{key}: {value}" for key, value in logging_tags.items()])
-        response = sqs_client.send_message(json.dumps(payload))
-        current_app.logger.info(f"Callback sent to {callback.url}, response {response.status_code}, {tags}")
-        response.raise_for_status()
-        return response
+        sqs_client.send_message(
+            url=callback.url,
+            payload=json.dumps(payload),
+            message_attributes={"callback_type": {"StringValue": callback.callback_type, "DataType": "String"}}
+        )
+
+        current_app.logger.info(f"Callback sent to {callback.url}, {tags}")

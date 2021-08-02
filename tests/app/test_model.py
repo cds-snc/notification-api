@@ -1,5 +1,4 @@
 import pytest
-from celery import Task
 
 from freezegun import freeze_time
 from sqlalchemy.exc import IntegrityError
@@ -400,14 +399,12 @@ class TestServiceCallback:
         )
 
         mock_callback_strategy = mocker.patch(callback_strategy_path)
-        mock_task = mocker.Mock(Task)
 
         service_callback.send(
-            task=mock_task,
             payload={},
             logging_tags={}
         )
 
         mock_callback_strategy.send_callback.assert_called_with(
-            mock_task, service_callback, {}, {}
+            service_callback, {}, {}
         )
