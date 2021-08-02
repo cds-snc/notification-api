@@ -40,7 +40,7 @@ def test_send_callback_returns_200_if_successful(notify_api, mock_task, mock_cal
     assert request.headers["Authorization"] == "Bearer {}".format('some token')
 
 
-def test_send_callback_raises_retryable_exception__with_status_code_above_500(notify_api, mock_task, mock_callback):
+def test_send_callback_raises_retryable_exception_with_status_code_above_500(notify_api, mock_task, mock_callback):
     with pytest.raises(RetryableException) as e:
         with requests_mock.Mocker() as request_mock:
             request_mock.post('http://some_url', json={}, status_code=501)

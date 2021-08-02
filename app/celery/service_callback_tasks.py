@@ -49,17 +49,19 @@ def send_delivery_status_to_service(
     except RetryableException as e:
         try:
             current_app.logger.warning(
-                f"Retrying: {self.name} failed for notification_id {payload.id}, url {service_callback.url}. exc: {e}"
+                f"Retrying: {self.name} failed for notification_id {payload['id']}, url {service_callback.url}. "
+                f"exc: {e}"
             )
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
             current_app.logger.error(
-                f"Retry: {self.name} has retried the max num of times for notification_id {payload.id}, url "
+                f"Retry: {self.name} has retried the max num of times for notification_id {payload['id']}, url "
                 f"{service_callback.url}. exc: {e}")
             raise e
     except NonRetryableException as e:
         current_app.logger.error(
-            f"Not retrying: {self.name} failed for notification_id {payload.id}, url: {service_callback.url}. exc: {e}"
+            f"Not retrying: {self.name} failed for notification_id {payload['id']}, url: {service_callback.url}. "
+            f"exc: {e}"
         )
         raise e
 

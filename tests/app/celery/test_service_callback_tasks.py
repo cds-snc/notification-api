@@ -9,6 +9,7 @@ from freezegun import freeze_time
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import (DATETIME_FORMAT, encryption)
+from app.celery.exceptions import NonRetryableException
 from app.celery.service_callback_tasks import (
     send_complaint_to_service,
     send_complaint_to_vanotify,
@@ -136,16 +137,15 @@ def test__send_data_to_service_callback_api_retries_if_request_returns_500_with_
     with requests_mock.Mocker() as request_mock:
         request_mock.post(callback_api.url,
                           json={},
-                          status_code=500)
+                          status_code=501)
         send_delivery_status_to_service(callback_api.id, notification.id, encrypted_status_update=encrypted_data)
 
     assert mocked.call_count == 1
-    assert mocked.call_args[1]['queue'] == 'retry-tasks'
 
 
 @pytest.mark.parametrize("notification_type",
                          ["email", "letter", "sms"])
-def test__send_data_to_service_callback_api_does_not_retry_if_request_returns_404_with_encrypted_data(
+def test_send_data_to_service_callback_api_does_not_retry_if_request_returns_404_with_encrypted_data(
         notify_db_session,
         mocker,
         notification_type
@@ -165,14 +165,14 @@ def test__send_data_to_service_callback_api_does_not_retry_if_request_returns_40
         request_mock.post(callback_api.url,
                           json={},
                           status_code=404)
-        send_delivery_status_to_service(callback_api.id, notification.id, encrypted_status_update=encrypted_data)
+        with pytest.raises(NonRetryableException):
+            send_delivery_status_to_service(callback_api.id, notification.id, encrypted_status_update=encrypted_data)
 
     assert mocked.call_count == 0
 
 
 def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(
-        notify_db_session,
-        mocker
+        notify_db_session
 ):
     from app.celery.service_callback_tasks import send_delivery_status_to_service
     callback_api, template = _set_up_test_data('email', "delivery_status")
@@ -184,14 +184,17 @@ def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(
                                        status='technical-failure'
                                        )
     encrypted_data = _set_up_data_for_status_update(callback_api, notification)
-    mocked = mocker.patch('app.celery.service_callback_tasks.send_delivery_status_to_service.retry')
     with requests_mock.Mocker() as request_mock:
         request_mock.post(callback_api.url,
                           json={},
-                          status_code=404)
+                          status_code=200)
         send_delivery_status_to_service(callback_api.id, notification.id, encrypted_status_update=encrypted_data)
 
-    assert mocked.call_count == 0
+    assert request_mock.call_count == 1
+    assert request_mock.request_history[0].url == callback_api.url
+    assert request_mock.request_history[0].method == 'POST'
+    assert request_mock.request_history[0].headers["Content-type"] == "application/json"
+    assert request_mock.request_history[0].headers["Authorization"] == "Bearer {}".format(callback_api.bearer_token)
 
 
 def test_send_complaint_to_vanotify_invokes_send_notification_to_service_users(
