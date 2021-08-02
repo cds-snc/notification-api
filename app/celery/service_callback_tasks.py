@@ -40,7 +40,6 @@ def send_delivery_status_to_service(
     }
     try:
         service_callback.send(
-            task=self,
             payload=payload,
             logging_tags={
                 'notification_id': str(notification_id)
@@ -80,14 +79,32 @@ def send_complaint_to_service(self, service_callback_id, complaint_data):
         "complaint_date": complaint['complaint_date']
     }
 
-    service_callback.send(
-        task=self,
-        payload=payload,
-        logging_tags={
-            'notification_id': complaint['notification_id'],
-            'complaint_id': complaint['complaint_id']
-        }
-    )
+    try:
+        service_callback.send(
+            payload=payload,
+            logging_tags={
+                'notification_id': complaint['notification_id'],
+                'complaint_id': complaint['complaint_id']
+            }
+        )
+    except RetryableException as e:
+        try:
+            current_app.logger.warning(
+                f"Retrying: {self.name} failed for notification_id {payload['id']}, url {service_callback.url}. "
+                f"exc: {e}"
+            )
+            self.retry(queue=QueueNames.RETRY)
+        except self.MaxRetriesExceededError:
+            current_app.logger.error(
+                f"Retry: {self.name} has retried the max num of times for notification_id {payload['id']}, url "
+                f"{service_callback.url}. exc: {e}")
+            raise e
+    except NonRetryableException as e:
+        current_app.logger.error(
+            f"Not retrying: {self.name} failed for notification_id {payload['id']}, url: {service_callback.url}. "
+            f"exc: {e}"
+        )
+        raise e
 
 
 @notify_celery.task(bind=True, name="send-complaint-to-vanotify", max_retries=5, default_retry_delay=300)
@@ -142,14 +159,32 @@ def send_inbound_sms_to_service(self, inbound_sms_id, service_id):
         "sms_sender_id": str(sms_sender.id) if sms_sender else None
     }
 
-    service_callback.send(
-        task=self,
-        payload=payload,
-        logging_tags={
-            'inbound_sms_id': str(inbound_sms_id),
-            'service_id': str(service_id)
-        }
-    )
+    try:
+        service_callback.send(
+            payload=payload,
+            logging_tags={
+                'inbound_sms_id': str(inbound_sms_id),
+                'service_id': str(service_id)
+            }
+        )
+    except RetryableException as e:
+        try:
+            current_app.logger.warning(
+                f"Retrying: {self.name} failed for notification_id {payload['id']}, url {service_callback.url}. "
+                f"exc: {e}"
+            )
+            self.retry(queue=QueueNames.RETRY)
+        except self.MaxRetriesExceededError:
+            current_app.logger.error(
+                f"Retry: {self.name} has retried the max num of times for notification_id {payload['id']}, url "
+                f"{service_callback.url}. exc: {e}")
+            raise e
+    except NonRetryableException as e:
+        current_app.logger.error(
+            f"Not retrying: {self.name} failed for notification_id {payload['id']}, url: {service_callback.url}. "
+            f"exc: {e}"
+        )
+        raise e
 
 
 def create_delivery_status_callback_data(notification, service_callback_api):

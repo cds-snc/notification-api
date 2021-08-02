@@ -1,5 +1,3 @@
-from celery import Task
-
 from app.callback.service_callback_strategy_interface import ServiceCallbackStrategyInterface
 
 import json
@@ -19,7 +17,7 @@ class NotRetryableException(object):
 
 class WebhookCallbackStrategy(ServiceCallbackStrategyInterface):
     @staticmethod
-    def send_callback(task: Task, callback: ServiceCallback, payload: dict, logging_tags: dict) -> None:
+    def send_callback(callback: ServiceCallback, payload: dict, logging_tags: dict) -> None:
         tags = ', '.join([f"{key}: {value}" for key, value in logging_tags.items()])
         try:
             response = request(
@@ -32,7 +30,7 @@ class WebhookCallbackStrategy(ServiceCallbackStrategyInterface):
                 },
                 timeout=60
             )
-            current_app.logger.info(f"{task.name} sent to {callback.url}, response {response.status_code}, {tags}")
+            current_app.logger.info(f"Callback sent to {callback.url}, response {response.status_code}, {tags}")
             response.raise_for_status()
 
         except RequestException as e:
