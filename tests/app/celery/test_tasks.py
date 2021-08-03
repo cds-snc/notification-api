@@ -136,21 +136,6 @@ def test_should_process_sms_job_with_sender_id(sample_template, mocker, fake_uui
     )
 
 
-def test_should_process_sms_job_with_sender_id_by_kwarg(sample_job, mocker, fake_uuid):
-    mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
-    mocker.patch("app.celery.tasks.save_sms.apply_async")
-    mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
-    mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
-
-    process_job(sample_job.id, sender_id=fake_uuid)
-
-    tasks.save_sms.apply_async.assert_called_once_with(
-        (str(sample_job.service_id), "uuid", "something_encrypted"),
-        {"sender_id": fake_uuid},
-        queue="database-tasks",
-    )
-
-
 @pytest.mark.parametrize(
     "csv_threshold, expected_queue",
     [
@@ -175,7 +160,7 @@ def test_should_redirect_job_to_queue_depending_on_csv_threshold(
     )
 
     with set_config_values(notify_api, {"CSV_BULK_REDIRECT_THRESHOLD": csv_threshold}):
-        process_row(row, template, job, service, fake_uuid)
+        process_row(row, template, job, service)
 
     tasks.save_email.apply_async.assert_called_once()
     args = mock_save_email.method_calls[0].args
@@ -339,28 +324,10 @@ def test_should_process_email_job_with_sender_id(sample_email_template, mocker, 
     mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
     mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
-    process_job(job.id, sender_id=fake_uuid)
+    process_job(job.id)
 
     tasks.save_email.apply_async.assert_called_once_with(
         (str(job.service_id), "uuid", "something_encrypted"),
-        {"sender_id": fake_uuid},
-        queue="database-tasks",
-    )
-
-
-def test_should_process_email_job_with_sender_id_by_kwarg(email_job_with_placeholders, mocker, fake_uuid):
-    email_csv = """email_address,name
-    test@test.com,foo
-    """
-    mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=email_csv)
-    mocker.patch("app.celery.tasks.save_email.apply_async")
-    mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
-    mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
-
-    process_job(email_job_with_placeholders.id, sender_id=fake_uuid)
-
-    tasks.save_email.apply_async.assert_called_once_with(
-        (str(email_job_with_placeholders.service_id), "uuid", "something_encrypted"),
         {"sender_id": fake_uuid},
         queue="database-tasks",
     )
@@ -430,22 +397,24 @@ def test_should_process_all_sms_job(sample_job_with_placeholdered_template, mock
 
 
 @pytest.mark.parametrize(
-    "template_type, research_mode, expected_function, expected_queue",
+    "template_type, research_mode, expected_function, expected_queue, api_key_id, sender_id",
     [
-        (SMS_TYPE, False, "save_sms", "database-tasks"),
-        (SMS_TYPE, True, "save_sms", "research-mode-tasks"),
-        (EMAIL_TYPE, False, "save_email", "database-tasks"),
-        (EMAIL_TYPE, True, "save_email", "research-mode-tasks"),
-        (LETTER_TYPE, False, "save_letter", "database-tasks"),
-        (LETTER_TYPE, True, "save_letter", "research-mode-tasks"),
+        (SMS_TYPE, False, "save_sms", "database-tasks", None, None),
+        (SMS_TYPE, True, "save_sms", "research-mode-tasks", uuid.uuid4(), uuid.uuid4()),
+        (EMAIL_TYPE, False, "save_email", "database-tasks", uuid.uuid4(), uuid.uuid4()),
+        (EMAIL_TYPE, True, "save_email", "research-mode-tasks", None, None),
+        (LETTER_TYPE, False, "save_letter", "database-tasks", None, None),
+        (LETTER_TYPE, True, "save_letter", "research-mode-tasks", uuid.uuid4(), uuid.uuid4()),
     ],
 )
-def test_process_row_sends_letter_task(notify_api, template_type, research_mode, expected_function, expected_queue, mocker):
+def test_process_row_sends_save_task(
+    notify_api, template_type, research_mode, expected_function, expected_queue, api_key_id, sender_id, mocker
+):
     mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
     task_mock = mocker.patch("app.celery.tasks.{}.apply_async".format(expected_function))
     encrypt_mock = mocker.patch("app.celery.tasks.encryption.encrypt")
     template = Mock(id="template_id", template_type=template_type)
-    job = Mock(id="job_id", template_version="temp_vers", notification_count=1)
+    job = Mock(id="job_id", template_version="temp_vers", notification_count=1, api_key_id=api_key_id, sender_id=sender_id)
     service = Mock(id="service_id", research_mode=research_mode)
 
     process_row(
@@ -464,6 +433,7 @@ def test_process_row_sends_letter_task(notify_api, template_type, research_mode,
 
     encrypt_mock.assert_called_once_with(
         {
+            "api_key": None if api_key_id is None else str(api_key_id),
             "template": "template_id",
             "template_version": "temp_vers",
             "job": "job_id",
@@ -480,43 +450,8 @@ def test_process_row_sends_letter_task(notify_api, template_type, research_mode,
             # encrypted data
             encrypt_mock.return_value,
         ),
-        {},
+        {"sender_id": str(sender_id)} if sender_id else {},
         queue=expected_queue,
-    )
-
-
-def test_process_row_when_sender_id_is_provided(notify_api, mocker, fake_uuid):
-    mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
-    task_mock = mocker.patch("app.celery.tasks.save_sms.apply_async")
-    encrypt_mock = mocker.patch("app.celery.tasks.encryption.encrypt")
-    template = Mock(id="template_id", template_type=SMS_TYPE)
-    job = Mock(id="job_id", template_version="temp_vers", notification_count=1)
-    service = Mock(id="service_id", research_mode=False)
-
-    process_row(
-        Row(
-            {"foo": "bar", "to": "recip"},
-            index="row_num",
-            error_fn=lambda k, v: None,
-            recipient_column_headers=["to"],
-            placeholders={"foo"},
-            template=template,
-        ),
-        template,
-        job,
-        service,
-        sender_id=fake_uuid,
-    )
-
-    task_mock.assert_called_once_with(
-        (
-            "service_id",
-            "noti_uuid",
-            # encrypted data
-            encrypt_mock.return_value,
-        ),
-        {"sender_id": fake_uuid},
-        queue="database-tasks",
     )
 
 

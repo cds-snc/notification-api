@@ -49,7 +49,8 @@ def rows_to_csv(rows):
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
-def test_post_sms_notification_returns_201(client, sample_template_with_placeholders, mocker, reference):
+def test_post_sms_notification_returns_201(notify_api, client, sample_template_with_placeholders, mocker, reference):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     data = {
         "phone_number": "+16502532222",
@@ -91,9 +92,49 @@ def test_post_sms_notification_returns_201(client, sample_template_with_placehol
     assert mocked.called
 
 
-def test_post_sms_notification_uses_inbound_number_as_sender(client, notify_db_session, mocker):
-    service = create_service_with_inbound_number(inbound_number="1")
+@pytest.mark.parametrize("reference", [None, "reference_from_client"])
+def test_post_sms_notification_with_persistance_in_celery_returns_201(
+    notify_api, client, sample_template_with_placeholders, mocker, reference
+):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
+    mocked = mocker.patch("app.celery.tasks.save_sms.apply_async")
+    data = {
+        "phone_number": "+16502532222",
+        "template_id": str(sample_template_with_placeholders.id),
+        "personalisation": {" Name": "Jo"},
+    }
+    if reference:
+        data.update({"reference": reference})
+    auth_header = create_authorization_header(service_id=sample_template_with_placeholders.service_id)
 
+    response = client.post(
+        path="/v2/notifications/sms",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+    assert response.status_code == 201
+    resp_json = json.loads(response.get_data(as_text=True))
+    assert validate(resp_json, post_sms_response) == resp_json
+    assert resp_json["reference"] == reference
+    assert resp_json["content"]["body"] == sample_template_with_placeholders.content.replace("(( Name))", "Jo")
+    assert resp_json["content"]["from_number"] == current_app.config["FROM_NUMBER"]
+    assert "v2/notifications/{}".format(resp_json["id"]) in resp_json["uri"]
+    assert resp_json["template"]["id"] == str(sample_template_with_placeholders.id)
+    assert resp_json["template"]["version"] == sample_template_with_placeholders.version
+    assert (
+        "services/{}/templates/{}".format(
+            sample_template_with_placeholders.service_id,
+            sample_template_with_placeholders.id,
+        )
+        in resp_json["template"]["uri"]
+    )
+    assert not resp_json["scheduled_for"]
+    assert mocked.called
+
+
+def test_post_sms_notification_uses_inbound_number_as_sender(notify_api, client, notify_db_session, mocker):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    service = create_service_with_inbound_number(inbound_number="1")
     template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     data = {
@@ -120,9 +161,9 @@ def test_post_sms_notification_uses_inbound_number_as_sender(client, notify_db_s
     mocked.assert_called_once_with([str(notification_id)], queue="send-sms-tasks")
 
 
-def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(client, notify_db_session, mocker):
+def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(notify_api, client, notify_db_session, mocker):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     service = create_service_with_inbound_number(inbound_number="6502532222")
-
     template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
     data = {
@@ -149,7 +190,8 @@ def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(client, no
     mocked.assert_called_once_with([str(notification_id)], queue="send-throttled-sms-tasks")
 
 
-def test_post_sms_notification_returns_201_with_sms_sender_id(client, sample_template_with_placeholders, mocker):
+def test_post_sms_notification_returns_201_with_sms_sender_id(notify_api, client, sample_template_with_placeholders, mocker):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="123456")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     data = {
@@ -175,7 +217,34 @@ def test_post_sms_notification_returns_201_with_sms_sender_id(client, sample_tem
     mocked.assert_called_once_with([resp_json["id"]], queue="send-sms-tasks")
 
 
-def test_post_sms_notification_uses_sms_sender_id_reply_to(client, sample_template_with_placeholders, mocker):
+def test_post_sms_notification_with_celery_persistence_returns_201_with_sms_sender_id(
+    notify_api, client, sample_template_with_placeholders, mocker
+):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
+    sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="123456")
+    mocked = mocker.patch("app.celery.tasks.save_sms.apply_async")
+    data = {
+        "phone_number": "+16502532222",
+        "template_id": str(sample_template_with_placeholders.id),
+        "personalisation": {" Name": "Jo"},
+        "sms_sender_id": str(sms_sender.id),
+    }
+    auth_header = create_authorization_header(service_id=sample_template_with_placeholders.service_id)
+
+    response = client.post(
+        path="/v2/notifications/sms",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+    assert response.status_code == 201
+    resp_json = json.loads(response.get_data(as_text=True))
+    assert validate(resp_json, post_sms_response) == resp_json
+    assert resp_json["content"]["from_number"] == sms_sender.sms_sender
+    assert mocked.called
+
+
+def test_post_sms_notification_uses_sms_sender_id_reply_to(notify_api, client, sample_template_with_placeholders, mocker):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="6502532222")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
     data = {
@@ -202,8 +271,9 @@ def test_post_sms_notification_uses_sms_sender_id_reply_to(client, sample_templa
 
 
 def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after_post_notification(
-    client, sample_template, mocker
+    notify_api, client, sample_template, mocker
 ):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     sms_sender = create_service_sms_sender(service=sample_template.service, sms_sender="123456", is_default=False)
     mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     data = {
@@ -240,6 +310,7 @@ def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after
     ],
 )
 def test_post_notification_returns_400_and_missing_template(client, sample_service, notification_type, key_send_to, send_to):
+
     data = {key_send_to: send_to, "template_id": str(uuid.uuid4())}
     auth_header = create_authorization_header(service_id=sample_service.id)
 
@@ -324,7 +395,8 @@ def test_notification_returns_400_and_for_schema_problems(client, sample_templat
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
-def test_post_email_notification_returns_201(client, sample_email_template_with_placeholders, mocker, reference):
+def test_post_email_notification_returns_201(notify_api, client, sample_email_template_with_placeholders, mocker, reference):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     data = {
         "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
@@ -356,6 +428,49 @@ def test_post_email_notification_returns_201(client, sample_email_template_with_
         current_app.config["NOTIFY_EMAIL_DOMAIN"],
     )
     assert "v2/notifications/{}".format(notification.id) in resp_json["uri"]
+    assert resp_json["template"]["id"] == str(sample_email_template_with_placeholders.id)
+    assert resp_json["template"]["version"] == sample_email_template_with_placeholders.version
+    assert (
+        "services/{}/templates/{}".format(
+            str(sample_email_template_with_placeholders.service_id),
+            str(sample_email_template_with_placeholders.id),
+        )
+        in resp_json["template"]["uri"]
+    )
+    assert not resp_json["scheduled_for"]
+    assert mocked.called
+
+
+@pytest.mark.parametrize("reference", [None, "reference_from_client"])
+def test_post_email_notification_returns_201_with_celery_persistence(
+    notify_api, client, sample_email_template_with_placeholders, mocker, reference
+):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
+    mocked = mocker.patch("app.celery.tasks.save_email.apply_async")
+    data = {
+        "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
+        "template_id": sample_email_template_with_placeholders.id,
+        "personalisation": {"name": "Bob"},
+    }
+    if reference:
+        data.update({"reference": reference})
+    auth_header = create_authorization_header(service_id=sample_email_template_with_placeholders.service_id)
+    response = client.post(
+        path="v2/notifications/email",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+    assert response.status_code == 201
+    resp_json = json.loads(response.get_data(as_text=True))
+    assert validate(resp_json, post_email_response) == resp_json
+    assert resp_json["reference"] == reference
+    assert resp_json["content"]["body"] == sample_email_template_with_placeholders.content.replace("((name))", "Bob")
+    assert resp_json["content"]["subject"] == sample_email_template_with_placeholders.subject.replace("((name))", "Bob")
+    assert resp_json["content"]["from_email"] == "{}@{}".format(
+        sample_email_template_with_placeholders.service.email_from,
+        current_app.config["NOTIFY_EMAIL_DOMAIN"],
+    )
+    assert "v2/notifications/{}".format(resp_json["id"]) in resp_json["uri"]
     assert resp_json["template"]["id"] == str(sample_email_template_with_placeholders.id)
     assert resp_json["template"]["version"] == sample_email_template_with_placeholders.version
     assert (
@@ -413,6 +528,7 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
 )
 @pytest.mark.parametrize("process_type", ["priority", "bulk"])
 def test_send_notification_uses_appropriate_queue_according_to_template_process_type(
+    notify_api,
     client,
     sample_service,
     mocker,
@@ -421,6 +537,7 @@ def test_send_notification_uses_appropriate_queue_according_to_template_process_
     send_to,
     process_type,
 ):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     mocker.patch("app.celery.provider_tasks.deliver_{}.apply_async".format(notification_type))
 
     sample = create_template(
@@ -454,8 +571,9 @@ def test_send_notification_uses_appropriate_queue_according_to_template_process_
     ],
 )
 def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
-    client, sample_service, mocker, notification_type, key_send_to, send_to
+    notify_api, client, sample_service, mocker, notification_type, key_send_to, send_to
 ):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     sample = create_template(service=sample_service, template_type=notification_type)
     persist_mock = mocker.patch("app.v2.notifications.post_notifications.persist_notification")
     deliver_mock = mocker.patch("app.v2.notifications.post_notifications.send_notification_to_queue")
@@ -515,9 +633,8 @@ def test_post_sms_notification_returns_400_if_not_allowed_to_send_int_sms(
     ]
 
 
-def test_post_sms_notification_with_archived_reply_to_id_returns_400(client, sample_template, mocker):
+def test_post_sms_notification_with_archived_reply_to_id_returns_400(client, sample_template):
     archived_sender = create_service_sms_sender(sample_template.service, "12345", is_default=False, archived=True)
-    mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     data = {
         "phone_number": "+16502532222",
         "template_id": sample_template.id,
@@ -608,12 +725,15 @@ def test_post_sms_notification_returns_400_if_number_not_safelisted(notify_db_se
     ]
 
 
+# TODO: duplicate
 def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms(
+    notify_api,
     sample_service,
     sample_template,
     client,
     mocker,
 ):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
     data = {"phone_number": "+20-12-1234-1234", "template_id": sample_template.id}
@@ -629,7 +749,32 @@ def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms(
     assert response.headers["Content-type"] == "application/json"
 
 
-def test_post_sms_should_persist_supplied_sms_number(client, sample_template_with_placeholders, mocker):
+# TODO: duplicate
+def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms_with_celery_persistence(
+    notify_api,
+    sample_service,
+    sample_template,
+    client,
+    mocker,
+):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
+    mocker.patch("app.celery.tasks.save_sms.apply_async")
+
+    data = {"phone_number": "+20-12-1234-1234", "template_id": sample_template.id}
+    auth_header = create_authorization_header(service_id=sample_service.id)
+
+    response = client.post(
+        path="/v2/notifications/sms",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 201
+    assert response.headers["Content-type"] == "application/json"
+
+
+def test_post_sms_should_persist_supplied_sms_number(notify_api, client, sample_template_with_placeholders, mocker):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     data = {
         "phone_number": "+16502532222",
@@ -771,7 +916,8 @@ def test_post_notification_with_wrong_type_of_sender(
     assert "ValidationError" in resp_json["errors"][0]["error"]
 
 
-def test_post_email_notification_with_valid_reply_to_id_returns_201(client, sample_email_template, mocker):
+def test_post_email_notification_with_valid_reply_to_id_returns_201(notify_api, client, sample_email_template, mocker):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     reply_to_email = create_reply_to_email(sample_email_template.service, "test@test.com")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     data = {
@@ -855,7 +1001,10 @@ def test_post_email_notification_with_archived_reply_to_id_returns_400(client, s
         ("good name.txt", "VGV4dCBjb250ZW50IGhlcmU=", "link"),
     ],
 )
-def test_post_notification_with_document_upload(client, notify_db_session, mocker, filename, file_data, sending_method):
+def test_post_notification_with_document_upload(
+    notify_api, client, notify_db_session, mocker, filename, file_data, sending_method
+):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
     content = "See attached file."
     if sending_method == "link":
