@@ -197,3 +197,5 @@ fileignoreconfig:
       checksum: 17b1949dbdc060c16f46b69e3e3bd58cf2afca56bec8a9bd703d8f7f31eb87c4
     - filename: app/commands.py
       checksum: 2a9904cac380a9962701da94eaf9db43c542c8b6134bd12927d56ea9af937a98
+    - filename: app/callback/queue_callback_strategy.py
+      checksum: ae7f7515cdb3746229ddf36e90292fb156731d2e51a9f6de22ab018eaefbcc9a

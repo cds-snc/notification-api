@@ -38,28 +38,29 @@ def send_delivery_status_to_service(
         "sent_at": status_update['notification_sent_at'],
         "notification_type": status_update['notification_type']
     }
+    logging_tags = {
+        'notification_id': str(notification_id)
+    }
     try:
         service_callback.send(
             payload=payload,
-            logging_tags={
-                'notification_id': str(notification_id)
-            }
+            logging_tags=logging_tags
         )
     except RetryableException as e:
         try:
             current_app.logger.warning(
-                f"Retrying: {self.name} failed for notification_id {payload['id']}, url {service_callback.url}. "
+                f"Retrying: {self.name} failed for {logging_tags}, url {service_callback.url}. "
                 f"exc: {e}"
             )
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
             current_app.logger.error(
-                f"Retry: {self.name} has retried the max num of times for notification_id {payload['id']}, url "
+                f"Retry: {self.name} has retried the max num of times for {logging_tags}, url "
                 f"{service_callback.url}. exc: {e}")
             raise e
     except NonRetryableException as e:
         current_app.logger.error(
-            f"Not retrying: {self.name} failed for notification_id {payload['id']}, url: {service_callback.url}. "
+            f"Not retrying: {self.name} failed for {logging_tags}, url: {service_callback.url}. "
             f"exc: {e}"
         )
         raise e
@@ -78,30 +79,30 @@ def send_complaint_to_service(self, service_callback_id, complaint_data):
         "to": complaint['to'],
         "complaint_date": complaint['complaint_date']
     }
-
+    logging_tags = {
+        'notification_id': complaint['notification_id'],
+        'complaint_id': complaint['complaint_id']
+    }
     try:
         service_callback.send(
             payload=payload,
-            logging_tags={
-                'notification_id': complaint['notification_id'],
-                'complaint_id': complaint['complaint_id']
-            }
+            logging_tags=logging_tags
         )
     except RetryableException as e:
         try:
             current_app.logger.warning(
-                f"Retrying: {self.name} failed for notification_id {payload['id']}, url {service_callback.url}. "
+                f"Retrying: {self.name} failed for {logging_tags}, url {service_callback.url}. "
                 f"exc: {e}"
             )
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
             current_app.logger.error(
-                f"Retry: {self.name} has retried the max num of times for notification_id {payload['id']}, url "
+                f"Retry: {self.name} has retried the max num of times for {logging_tags}, url "
                 f"{service_callback.url}. exc: {e}")
             raise e
     except NonRetryableException as e:
         current_app.logger.error(
-            f"Not retrying: {self.name} failed for notification_id {payload['id']}, url: {service_callback.url}. "
+            f"Not retrying: {self.name} failed for {logging_tags}, url: {service_callback.url}. "
             f"exc: {e}"
         )
         raise e
@@ -158,30 +159,30 @@ def send_inbound_sms_to_service(self, inbound_sms_id, service_id):
         "date_received": inbound_sms.provider_date.strftime(DATETIME_FORMAT),
         "sms_sender_id": str(sms_sender.id) if sms_sender else None
     }
-
+    logging_tags = {
+        'inbound_sms_id': str(inbound_sms_id),
+        'service_id': str(service_id)
+    }
     try:
         service_callback.send(
             payload=payload,
-            logging_tags={
-                'inbound_sms_id': str(inbound_sms_id),
-                'service_id': str(service_id)
-            }
+            logging_tags=logging_tags
         )
     except RetryableException as e:
         try:
             current_app.logger.warning(
-                f"Retrying: {self.name} failed for notification_id {payload['id']}, url {service_callback.url}. "
+                f"Retrying: {self.name} failed for {logging_tags}, url {service_callback.url}. "
                 f"exc: {e}"
             )
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
             current_app.logger.error(
-                f"Retry: {self.name} has retried the max num of times for notification_id {payload['id']}, url "
+                f"Retry: {self.name} has retried the max num of times for {logging_tags}, url "
                 f"{service_callback.url}. exc: {e}")
             raise e
     except NonRetryableException as e:
         current_app.logger.error(
-            f"Not retrying: {self.name} failed for notification_id {payload['id']}, url: {service_callback.url}. "
+            f"Not retrying: {self.name} failed for {logging_tags}, url: {service_callback.url}. "
             f"exc: {e}"
         )
         raise e

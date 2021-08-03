@@ -1,7 +1,7 @@
+import json
+
 import boto3
 from botocore.exceptions import ClientError
-
-from app.celery.exceptions import NonRetryableException
 
 
 class SQSClient:
@@ -18,12 +18,14 @@ class SQSClient:
         return self.name
 
     def send_message(self, url: str, message_body: dict, message_attributes: dict = None):
+        if not message_attributes:
+            message_attributes = {}
         try:
             response = self._client.send_message(
-                QueueUrl=url, MessageBody=message_body, MessageAttributes=message_attributes
+                QueueUrl=url, MessageBody=json.dumps(message_body), MessageAttributes=message_attributes
             )
         except ClientError as e:
-            self.logger.error("Send message failed: %s", message_body)
-            raise NonRetryableException(e)
+            self.logger.error("SQS client failed to send message: %s", message_body)
+            raise e
         else:
             return response
