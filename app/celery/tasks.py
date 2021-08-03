@@ -81,10 +81,9 @@ from app.utils import get_csv_max_rows
 
 @notify_celery.task(name="process-job")
 @statsd(namespace="tasks")
-def process_job(job_id, sender_id=None):
+def process_job(job_id):
     start = datetime.utcnow()
     job = dao_get_job_by_id(job_id)
-    sender_id = str(job.sender_id) if job.sender_id else sender_id
 
     if job.job_status != JOB_STATUS_PENDING:
         return
@@ -117,7 +116,7 @@ def process_job(job_id, sender_id=None):
 
     csv = get_recipient_csv(job, template)
     for row in csv.get_rows():
-        process_row(row, template, job, service, sender_id)
+        process_row(row, template, job, service)
 
     job_complete(job, start=start)
 
@@ -137,7 +136,7 @@ def job_complete(job: Job, resumed=False, start=None):
         )
 
 
-def process_row(row: Row, template: Template, job: Job, service: Service, sender_id: str = None):
+def process_row(row: Row, template: Template, job: Job, service: Service):
     template_type = template.template_type
     encrypted = encryption.encrypt(
         {
@@ -151,6 +150,7 @@ def process_row(row: Row, template: Template, job: Job, service: Service, sender
             "queue": queue_to_use(job.notification_count),
         }
     )
+    sender_id = str(job.sender_id) if job.sender_id else None
 
     send_fns = {SMS_TYPE: save_sms, EMAIL_TYPE: save_email, LETTER_TYPE: save_letter}
 
