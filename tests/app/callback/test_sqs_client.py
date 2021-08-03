@@ -30,9 +30,10 @@ def sqs_stub(sqs_client):
 
 
 @pytest.mark.parametrize(['message_attributes', 'expected_attributes'],
-                         [({"callback_type": {"DataType": "String", "StringValue": "foo"}},
-                           {"callback_type": {"DataType": "String", "StringValue": "foo"}}),
-                             (None, {})])
+                         [({"CallbackType": {"DataType": "String", "StringValue": "foo"}},
+                           {"CallbackType": {"DataType": "String", "StringValue": "foo"},
+                            "ContentType": {"StringValue": "application/json", "DataType": "String"}}),
+                             (None, {"ContentType": {"StringValue": "application/json", "DataType": "String"}})])
 def test_send_message_successful_returns_response_body(sqs_stub, sqs_client, message_attributes, expected_attributes):
     url = 'http://some_url'
     body = {"message": "hello"}
@@ -61,7 +62,7 @@ def test_send_message_raises_client_error_on_client_exception(sqs_stub, sqs_clie
         expected_params={
             'QueueUrl': url,
             'MessageBody': json.dumps(body),
-            'MessageAttributes': {}
+            'MessageAttributes': {"ContentType": {"StringValue": "application/json", "DataType": "String"}}
         }
     )
 

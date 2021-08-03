@@ -7,6 +7,7 @@ from flask import current_app
 
 from app.celery.exceptions import NonRetryableException
 from app.models import ServiceCallback
+from app import statsd_client
 
 
 class QueueCallbackStrategy(ServiceCallbackStrategyInterface):
@@ -18,8 +19,13 @@ class QueueCallbackStrategy(ServiceCallbackStrategyInterface):
             sqs_client.send_message(
                 url=callback.url,
                 payload=payload,
-                message_attributes={"callback_type": {"StringValue": callback.callback_type, "DataType": "String"}}
+                message_attributes={
+                    "CallbackType": {"StringValue": callback.callback_type, "DataType": "String"}
+                }
             )
-            current_app.logger.info(f"Callback sent to {callback.url}, {tags}")
         except ClientError as e:
+            statsd_client.incr(f"callback.queue.{callback.callback_type}.non_retryable_error")
             raise NonRetryableException(e)
+        else:
+            current_app.logger.info(f"Callback sent to {callback.url}, {tags}")
+            statsd_client.incr(f"callback.queue.{callback.callback_type}.success")
