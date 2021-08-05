@@ -1042,7 +1042,7 @@ class TemplateBase(BaseModel):
     @classmethod
     def from_json(cls, data):
         fields = data.copy()
-        fields["created_by_id"] = fields.pop("created_by")
+        fields["created_by_id"] = fields.pop("created_by", None)
         fields.pop("redact_personalisation", None)
         fields.pop("reply_to_text", None)
         return cls(**fields)
