@@ -567,7 +567,18 @@ class Service(BaseModel, Versioned):
         # validate json with marshmallow
         fields = data.copy()
 
-        fields["created_by_id"] = fields.pop("created_by")
+        fields["created_by_id"] = fields.pop("created_by", None)
+        fields["organisation_id"] = fields.pop("organisation", None)
+        fields["go_live_user_id"] = fields.pop("go_live_user", None)
+        fields.pop("safelist", None)
+        fields.pop("permissions", None)
+        fields.pop("service_callback_api", None)
+        fields.pop("users", None)
+        fields.pop("annual_billing", None)
+        fields.pop("inbound_api", None)
+        fields.pop("letter_logo_filename", None)
+        fields.pop("letter_contact_block", None)
+        fields.pop("email_branding", None)
 
         return cls(**fields)
 
@@ -1023,6 +1034,14 @@ class TemplateBase(BaseModel):
     """
     )
 
+    @classmethod
+    def from_json(cls, data):
+        fields = data.copy()
+        fields["created_by_id"] = fields.pop("created_by")
+        fields.pop("redact_personalisation", None)
+        fields.pop("reply_to_text", None)
+        return cls(**fields)
+
     @declared_attr
     def service_id(cls):
         return db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), index=True, nullable=False)
@@ -1159,17 +1178,24 @@ class Template(TemplateBase):
         )
 
     @classmethod
-    def from_json(cls, data, folder):
+    def from_json(cls, data, folder=None):
         """
         Assumption: data has been validated appropriately.
         Returns a Template object based on the provided data.
         """
         fields = data.copy()
 
-        fields["created_by_id"] = fields.pop("created_by")
-        fields["service_id"] = fields.pop("service")
-        fields["folder"] = folder
-        return cls(**fields)
+        if fields.get("service"):
+            fields["service_id"] = fields.pop("service")
+
+        fields.pop("template_redacted", None)
+
+        if folder:
+            fields["folder"] = folder
+        else:
+            fields.pop("folder", None)
+
+        return super(Template, cls).from_json(fields)
 
 
 class TemplateRedacted(BaseModel):
@@ -1199,6 +1225,17 @@ class TemplateHistory(TemplateBase):
 
     service = db.relationship("Service")
     version = db.Column(db.Integer, primary_key=True, nullable=False)
+
+    @classmethod
+    def from_json(cls, data):
+        fields = data.copy()
+
+        if fields.get("service"):
+            fields["service_id"] = fields.pop("service")
+
+        fields.pop("template_redacted", None)
+        fields.pop("folder", None)
+        return super(TemplateHistory, cls).from_json(fields)
 
     @declared_attr
     def template_redacted(cls):
