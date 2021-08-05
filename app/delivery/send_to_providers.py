@@ -115,6 +115,7 @@ def send_email_to_provider(notification):
             # Check if a MLWR sid exists
             if (
                 current_app.config["MLWR_HOST"]
+                and "https" in str(current_app.config["MLWR_HOST"])
                 and "mlwr_sid" in personalisation_data[key]["document"]
                 and personalisation_data[key]["document"]["mlwr_sid"] != "false"
             ):
