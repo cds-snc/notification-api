@@ -17,12 +17,7 @@ from tests import create_authorization_header
     ],
 )
 def test_create_invited_user(
-    admin_request,
-    sample_service,
-    mocker,
-    invitation_email_template,
-    extra_args,
-    expected_start_of_invite_url,
+    admin_request, sample_service, mocker, invitation_email_template, extra_args, expected_start_of_invite_url
 ):
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     email_address = "invited_user@service.gov.uk"

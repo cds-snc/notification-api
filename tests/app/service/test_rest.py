@@ -490,7 +490,10 @@ def test_should_error_if_created_by_missing(notify_api, sample_user):
 
 
 def test_should_not_create_service_with_missing_if_user_id_is_not_in_database(
-    notify_api, notify_db, notify_db_session, fake_uuid
+    notify_api,
+    notify_db,
+    notify_db_session,
+    fake_uuid,
 ):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:

@@ -21,7 +21,7 @@ from notifications_utils.recipients import (
     validate_phone_number,
 )
 
-from app import ma, models
+from app import db, ma, models
 from app.dao.permissions_dao import permission_dao
 from app.models import ServicePermission
 from app.utils import get_template_instance
@@ -65,6 +65,7 @@ def _validate_datetime_not_in_past(dte, msg="Date cannot be in the past"):
 
 class BaseSchema(ma.SQLAlchemyAutoSchema):  # type: ignore
     class Meta:
+        sqla_session = db.session
         load_instance = True
         include_relationships = True
 
