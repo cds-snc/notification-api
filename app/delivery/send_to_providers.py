@@ -69,7 +69,7 @@ def send_sms_to_provider(notification):
 
         if service.research_mode or notification.key_type == KEY_TYPE_TEST:
             notification.reference = send_sms_response(provider.get_name(), notification.to)
-            update_notification_to_sending(notification, provider)
+            update_notification_to_sent(notification, provider)
 
         else:
             try:
@@ -178,7 +178,7 @@ def send_email_to_provider(notification):
 
         if service.research_mode or notification.key_type == KEY_TYPE_TEST:
             notification.reference = send_email_response(notification.to)
-            update_notification_to_sending(notification, provider)
+            update_notification_to_sent(notification, provider)
         else:
             if service.sending_domain is None or service.sending_domain.strip() == "":
                 sending_domain = current_app.config["NOTIFY_EMAIL_DOMAIN"]
@@ -199,7 +199,7 @@ def send_email_to_provider(notification):
                 attachments=attachments,
             )
             notification.reference = reference
-            update_notification_to_sending(notification, provider)
+            update_notification_to_sent(notification, provider)
 
         # Record StatsD stats to compute SLOs
         statsd_client.timing_with_dates("email.total-time", notification.sent_at, notification.created_at)
@@ -210,9 +210,18 @@ def send_email_to_provider(notification):
 
 
 def update_notification_to_sending(notification, provider):
+    status = NOTIFICATION_SENT if notification.notification_type == "sms" else NOTIFICATION_SENDING
+    update_notification_with_status(notification, provider, status)
+
+
+def update_notification_to_sent(notification, provider):
+    update_notification_with_status(notification, provider, NOTIFICATION_SENT)
+
+
+def update_notification_with_status(notification, provider, status):
     notification.sent_at = datetime.utcnow()
     notification.sent_by = provider.get_name()
-    notification.status = NOTIFICATION_SENT if notification.notification_type == "sms" else NOTIFICATION_SENDING
+    notification.status = status
     dao_update_notification(notification)
 
 
