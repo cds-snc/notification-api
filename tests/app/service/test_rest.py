@@ -330,7 +330,7 @@ def test_get_service_by_id_returns_go_live_user_and_go_live_at(admin_request, sa
         (False, True),
     ),
 )
-def test_create_service(admin_request, sample_user, platform_admin, expected_count_as_live, mocker, notify_db_session):
+def test_create_service(admin_request, sample_user, platform_admin, expected_count_as_live, mocker):
     sample_user.platform_admin = platform_admin
     data = {
         "name": "created service",
@@ -383,9 +383,7 @@ def test_create_service(admin_request, sample_user, platform_admin, expected_cou
         ("test.example.gov.uk", True),
     ),
 )
-def test_create_service_with_domain_sets_organisation(
-    admin_request, sample_user, domain, expected_org, mocker, notify_db_session
-):
+def test_create_service_with_domain_sets_organisation(admin_request, sample_user, domain, expected_org, mocker):
 
     red_herring_org = create_organisation(name="Sub example")
     create_domain("specific.example.gov.uk", red_herring_org.id)
@@ -421,7 +419,7 @@ def test_create_service_with_domain_sets_organisation(
         assert json_resp["data"]["organisation"] is None
 
 
-def test_create_service_inherits_branding_from_organisation(admin_request, sample_user, mocker, notify_db_session):
+def test_create_service_inherits_branding_from_organisation(admin_request, sample_user, mocker):
 
     org = create_organisation()
     email_branding = create_email_branding()

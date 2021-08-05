@@ -315,7 +315,7 @@ def test_get_all_templates_ignores_hidden_templates(sample_service):
     assert templates[0] == normal_template
 
 
-def test_get_template_id_from_redis_when_cached(sample_service, mocker, notify_db_session):
+def test_get_template_id_from_redis_when_cached(sample_service, mocker):
     sample_template = create_template(template_name="Test Template", service=sample_service)
 
     json_data = {"data": template_schema.dump(sample_template).data}

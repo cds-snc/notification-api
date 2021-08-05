@@ -410,7 +410,7 @@ def test_should_process_all_sms_job(sample_job_with_placeholdered_template, mock
     ],
 )
 def test_process_row_sends_save_task(
-    notify_api, template_type, research_mode, expected_function, expected_queue, api_key_id, sender_id, mocker, notify_db_session
+    notify_api, template_type, research_mode, expected_function, expected_queue, api_key_id, sender_id, mocker
 ):
     service_allowed_to_send_to_mock = mocker.patch("app.service.utils.safelisted_members", return_value=None)
     mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
@@ -574,7 +574,7 @@ def test_should_send_template_to_correct_sms_task_and_persist(sample_template_wi
 
 
 def test_save_sms_should_use_redis_cache_to_retrieve_service_and_template_when_possible(
-    sample_template_with_placeholders, mocker, notify_db_session
+    sample_template_with_placeholders, mocker
 ):
     notification = _notification_json(
         sample_template_with_placeholders,
@@ -611,9 +611,7 @@ def test_save_sms_should_use_redis_cache_to_retrieve_service_and_template_when_p
     mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
 
 
-def test_save_email_should_use_redis_cache_to_retrieve_service_and_template_when_possible(
-    sample_service, mocker, notify_db_session
-):
+def test_save_email_should_use_redis_cache_to_retrieve_service_and_template_when_possible(sample_service, mocker):
     sample_template = create_template(
         template_name="Test Template",
         template_type="email",
