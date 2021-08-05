@@ -18,7 +18,7 @@ class QueueCallbackStrategy(ServiceCallbackStrategyInterface):
         try:
             sqs_client.send_message(
                 url=callback.url,
-                payload=payload,
+                message_body=payload,
                 message_attributes={
                     "CallbackType": {"StringValue": callback.callback_type, "DataType": "String"}
                 }

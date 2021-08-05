@@ -32,7 +32,7 @@ def test_send_callback_enqueues_message(mocker, notify_api, callback_type):
 
     _, kwargs = mock_send_message.call_args
     assert kwargs['url'] == 'http://some_url'
-    assert kwargs['payload'] == {"message": "hello"}
+    assert kwargs['message_body'] == {"message": "hello"}
     assert kwargs['message_attributes'] == {
         "CallbackType": {"DataType": "String", "StringValue": mock_callback.callback_type},
     }
