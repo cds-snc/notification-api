@@ -1,4 +1,5 @@
 import uuid
+
 from app import db
 from app.dao.dao_utils import transactional
 from app.models import InboundNumber
@@ -36,13 +37,7 @@ def dao_set_inbound_number_active_flag(service_id, active):
 
 @transactional
 def dao_allocate_number_for_service(service_id, inbound_number_id):
-    updated = InboundNumber.query.filter_by(
-        id=inbound_number_id,
-        active=True,
-        service_id=None
-    ).update(
-        {"service_id": service_id}
-    )
+    updated = InboundNumber.query.filter_by(id=inbound_number_id, active=True, service_id=None).update({"service_id": service_id})
     if not updated:
         raise Exception("Inbound number: {} is not available".format(inbound_number_id))
     return InboundNumber.query.get(inbound_number_id)
@@ -52,7 +47,7 @@ def dao_add_inbound_number(inbound_number):
     obj = InboundNumber(
         id=uuid.uuid4(),
         number=inbound_number,
-        provider='pinpoint',
+        provider="pinpoint",
         active=True,
     )
     db.session.add(obj)

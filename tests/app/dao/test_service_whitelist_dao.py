@@ -1,16 +1,11 @@
 import uuid
 
-from app.models import (
-    ServiceSafelist,
-    EMAIL_TYPE,
-)
-
 from app.dao.service_safelist_dao import (
-    dao_fetch_service_safelist,
     dao_add_and_commit_safelisted_contacts,
-    dao_remove_service_safelist
+    dao_fetch_service_safelist,
+    dao_remove_service_safelist,
 )
-
+from app.models import EMAIL_TYPE, ServiceSafelist
 from tests.app.conftest import sample_service as create_service
 
 
@@ -25,7 +20,7 @@ def test_fetch_service_safelist_ignores_other_service(sample_service_safelist):
 
 
 def test_add_and_commit_safelisted_contacts_saves_data(sample_service):
-    safelist = ServiceSafelist.from_string(sample_service.id, EMAIL_TYPE, 'foo@example.com')
+    safelist = ServiceSafelist.from_string(sample_service.id, EMAIL_TYPE, "foo@example.com")
 
     dao_add_and_commit_safelisted_contacts([safelist])
 
@@ -37,10 +32,12 @@ def test_add_and_commit_safelisted_contacts_saves_data(sample_service):
 def test_remove_service_safelist_only_removes_for_my_service(notify_db, notify_db_session):
     service_1 = create_service(notify_db, notify_db_session, service_name="service 1")
     service_2 = create_service(notify_db, notify_db_session, service_name="service 2")
-    dao_add_and_commit_safelisted_contacts([
-        ServiceSafelist.from_string(service_1.id, EMAIL_TYPE, 'service1@example.com'),
-        ServiceSafelist.from_string(service_2.id, EMAIL_TYPE, 'service2@example.com')
-    ])
+    dao_add_and_commit_safelisted_contacts(
+        [
+            ServiceSafelist.from_string(service_1.id, EMAIL_TYPE, "service1@example.com"),
+            ServiceSafelist.from_string(service_2.id, EMAIL_TYPE, "service2@example.com"),
+        ]
+    )
 
     dao_remove_service_safelist(service_1.id)
 

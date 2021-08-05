@@ -1,34 +1,33 @@
-from flask import (
-    Blueprint,
-    request,
-    jsonify,
-    current_app)
+from flask import Blueprint, current_app, jsonify, request
 
 from app.config import QueueNames
 from app.dao.invited_user_dao import (
-    save_invited_user,
     get_invited_user,
-    get_invited_users_for_service
+    get_invited_users_for_service,
+    save_invited_user,
 )
 from app.dao.templates_dao import dao_get_template_by_id
-from app.models import EMAIL_TYPE, KEY_TYPE_NORMAL, Service
-from app.notifications.process_notifications import persist_notification, send_notification_to_queue
-from app.schemas import invited_user_schema
 from app.errors import register_errors
+from app.models import EMAIL_TYPE, KEY_TYPE_NORMAL, Service
+from app.notifications.process_notifications import (
+    persist_notification,
+    send_notification_to_queue,
+)
+from app.schemas import invited_user_schema
 
-invite = Blueprint('invite', __name__, url_prefix='/service/<service_id>/invite')
+invite = Blueprint("invite", __name__, url_prefix="/service/<service_id>/invite")
 
 register_errors(invite)
 
 
-@invite.route('', methods=['POST'])
+@invite.route("", methods=["POST"])
 def create_invited_user(service_id):
     request_json = request.get_json()
     invited_user, errors = invited_user_schema.load(request_json)
     save_invited_user(invited_user)
 
-    template = dao_get_template_by_id(current_app.config['INVITATION_EMAIL_TEMPLATE_ID'])
-    service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
+    template = dao_get_template_by_id(current_app.config["INVITATION_EMAIL_TEMPLATE_ID"])
+    service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
 
     saved_notification = persist_notification(
         template_id=template.id,
@@ -36,17 +35,17 @@ def create_invited_user(service_id):
         recipient=invited_user.email_address,
         service=service,
         personalisation={
-            'user_name': invited_user.from_user.name,
-            'service_name': invited_user.service.name,
-            'url': invited_user_url(
+            "user_name": invited_user.from_user.name,
+            "service_name": invited_user.service.name,
+            "url": invited_user_url(
                 invited_user.id,
-                request_json.get('invite_link_host'),
+                request_json.get("invite_link_host"),
             ),
         },
         notification_type=EMAIL_TYPE,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=invited_user.from_user.email_address
+        reply_to_text=invited_user.from_user.email_address,
     )
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
@@ -54,13 +53,13 @@ def create_invited_user(service_id):
     return jsonify(data=invited_user_schema.dump(invited_user).data), 201
 
 
-@invite.route('', methods=['GET'])
+@invite.route("", methods=["GET"])
 def get_invited_users_by_service(service_id):
     invited_users = get_invited_users_for_service(service_id)
     return jsonify(data=invited_user_schema.dump(invited_users, many=True).data), 200
 
 
-@invite.route('/<invited_user_id>', methods=['POST'])
+@invite.route("/<invited_user_id>", methods=["POST"])
 def update_invited_user(service_id, invited_user_id):
     fetched = get_invited_user(service_id=service_id, invited_user_id=invited_user_id)
 
@@ -73,9 +72,14 @@ def update_invited_user(service_id, invited_user_id):
 
 def invited_user_url(invited_user_id, invite_link_host=None):
     from notifications_utils.url_safe_token import generate_token
-    token = generate_token(str(invited_user_id), current_app.config['SECRET_KEY'], current_app.config['DANGEROUS_SALT'])
+
+    token = generate_token(
+        str(invited_user_id),
+        current_app.config["SECRET_KEY"],
+        current_app.config["DANGEROUS_SALT"],
+    )
 
     if invite_link_host is None:
-        invite_link_host = current_app.config['ADMIN_BASE_URL']
+        invite_link_host = current_app.config["ADMIN_BASE_URL"]
 
-    return '{0}/invitation/{1}'.format(invite_link_host, token)
+    return "{0}/invitation/{1}".format(invite_link_host, token)

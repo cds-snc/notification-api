@@ -8,5 +8,6 @@ def test_all_routes_have_authentication(client):
 
     # The static route is always available by default for a Flask app to serve anything in the static folder.
     routes_blueprint_names = set(
-        [x.split('.')[0] for x in client.application.view_functions.keys() if x.split('.')[0] != 'static'])
+        [x.split(".")[0] for x in client.application.view_functions.keys() if x.split(".")[0] != "static"]
+    )
     assert sorted(blueprint_names) == sorted(routes_blueprint_names)

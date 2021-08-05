@@ -1,67 +1,90 @@
 import base64
+import csv
 import functools
+import uuid
+from io import StringIO
 
 import werkzeug
-from flask import request, jsonify, current_app, abort
-from notifications_utils.recipients import try_validate_and_format_phone_number
+from flask import abort, current_app, jsonify, request
+from notifications_utils.recipients import (
+    RecipientCSV,
+    try_validate_and_format_phone_number,
+)
 
-from app import api_user, authenticated_service, notify_celery, document_download_client, statsd_client
+from app import (
+    api_user,
+    authenticated_service,
+    create_uuid,
+    document_download_client,
+    encryption,
+    notify_celery,
+    statsd_client,
+)
+from app.aws.s3 import upload_job_to_s3
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
+from app.celery.tasks import process_job, save_email, save_sms
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
+from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
+from app.dao.services_dao import fetch_todays_total_message_count
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.letters.utils import upload_letter_pdf
 from app.models import (
-    SMS_TYPE,
     EMAIL_TYPE,
-    LETTER_TYPE,
-    UPLOAD_DOCUMENT,
-    KEY_TYPE_TEST,
+    JOB_STATUS_PENDING,
+    JOB_STATUS_SCHEDULED,
     KEY_TYPE_TEAM,
+    KEY_TYPE_TEST,
+    LETTER_TYPE,
     NOTIFICATION_CREATED,
-    NOTIFICATION_SENDING,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PENDING_VIRUS_CHECK,
+    NOTIFICATION_SENDING,
+    SMS_TYPE,
+    UPLOAD_DOCUMENT,
+    Notification,
 )
-from app.notifications.process_letter_notifications import (
-    create_letter_notification
-)
+from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
     persist_notification,
     persist_scheduled_notification,
     send_notification_to_queue,
-    simulated_recipient
+    simulated_recipient,
 )
 from app.notifications.validators import (
-    validate_and_format_recipient,
     check_rate_limiting,
     check_service_can_schedule_notification,
-    check_service_has_permission,
-    validate_template,
     check_service_email_reply_to_id,
-    check_service_sms_sender_id
+    check_service_has_permission,
+    check_service_sms_sender_id,
+    validate_and_format_recipient,
+    validate_template,
+    validate_template_exists,
 )
 from app.schema_validation import validate
+from app.schemas import job_schema
+from app.service.utils import safelisted_members
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
-    create_post_sms_response_from_notification,
     create_post_email_response_from_notification,
-    create_post_letter_response_from_notification
+    create_post_letter_response_from_notification,
+    create_post_sms_response_from_notification,
 )
 from app.v2.notifications.notification_schemas import (
-    post_sms_request,
+    post_bulk_request,
     post_email_request,
     post_letter_request,
-    post_precompiled_letter_request
+    post_precompiled_letter_request,
+    post_sms_request,
 )
 
 
-@v2_notification_blueprint.route('/{}'.format(LETTER_TYPE), methods=['POST'])
+@v2_notification_blueprint.route("/{}".format(LETTER_TYPE), methods=["POST"])
 def post_precompiled_letter_notification():
-    if 'content' not in (request.get_json() or {}):
+    if "content" not in (request.get_json() or {}):
         return post_notification(LETTER_TYPE)
 
     form = validate(request.get_json(), post_precompiled_letter_request)
@@ -73,9 +96,7 @@ def post_precompiled_letter_notification():
 
     template = get_precompiled_letter_template(authenticated_service.id)
 
-    form['personalisation'] = {
-        'address_line_1': form['reference']
-    }
+    form["personalisation"] = {"address_line_1": form["reference"]}
 
     reply_to = get_reply_to_text(LETTER_TYPE, form, template)
 
@@ -84,25 +105,72 @@ def post_precompiled_letter_notification():
         api_key=api_user,
         template=template,
         reply_to_text=reply_to,
-        precompiled=True
+        precompiled=True,
     )
 
     resp = {
-        'id': notification.id,
-        'reference': notification.client_reference,
-        'postage': notification.postage
+        "id": notification.id,
+        "reference": notification.client_reference,
+        "postage": notification.postage,
     }
 
     return jsonify(resp), 201
 
 
-@v2_notification_blueprint.route('/<notification_type>', methods=['POST'])
+@v2_notification_blueprint.route("/bulk", methods=["POST"])
+def post_bulk():
+    try:
+        request_json = request.get_json()
+    except werkzeug.exceptions.BadRequest as e:
+        raise BadRequestError(message=f"Error decoding arguments: {e.description}", status_code=400)
+
+    max_rows = current_app.config["CSV_MAX_ROWS"]
+    form = validate(request_json, post_bulk_request(max_rows))
+
+    if len([source for source in [form.get("rows"), form.get("csv")] if source]) != 1:
+        raise BadRequestError(message="You should specify either rows or csv", status_code=400)
+    template = validate_template_exists(form["template_id"], authenticated_service)
+    check_service_has_permission(template.template_type, authenticated_service.permissions)
+
+    remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
+
+    form["validated_sender_id"] = validate_sender_id(template, form.get("reply_to_id"))
+
+    try:
+        if form.get("rows"):
+            output = StringIO()
+            writer = csv.writer(output)
+            writer.writerows(form["rows"])
+            file_data = output.getvalue()
+        else:
+            file_data = form["csv"]
+
+        recipient_csv = RecipientCSV(
+            file_data,
+            template_type=template.template_type,
+            placeholders=template._as_utils_template().placeholders,
+            max_rows=max_rows,
+            safelist=safelisted_members(authenticated_service, api_user.key_type),
+            remaining_messages=remaining_messages,
+        )
+    except csv.Error as e:
+        raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
+
+    check_for_csv_errors(recipient_csv, max_rows, remaining_messages)
+    job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
+
+    return jsonify(data=job_schema.dump(job).data), 201
+
+
+@v2_notification_blueprint.route("/<notification_type>", methods=["POST"])
 def post_notification(notification_type):
     try:
         request_json = request.get_json()
     except werkzeug.exceptions.BadRequest as e:
-        raise BadRequestError(message="Error decoding arguments: {}".format(e.description),
-                              status_code=400)
+        raise BadRequestError(
+            message="Error decoding arguments: {}".format(e.description),
+            status_code=400,
+        )
 
     if notification_type == EMAIL_TYPE:
         form = validate(request_json, post_email_request)
@@ -122,8 +190,8 @@ def post_notification(notification_type):
     check_rate_limiting(authenticated_service, api_user)
 
     template, template_with_content = validate_template(
-        form['template_id'],
-        strip_keys_from_personalisation_if_send_attach(form.get('personalisation', {})),
+        form["template_id"],
+        strip_keys_from_personalisation_if_send_attach(form.get("personalisation", {})),
         authenticated_service,
         notification_type,
     )
@@ -135,7 +203,7 @@ def post_notification(notification_type):
             letter_data=form,
             api_key=api_user,
             template=template,
-            reply_to_text=reply_to
+            reply_to_text=reply_to,
         )
     else:
         notification = process_sms_or_email_notification(
@@ -144,25 +212,22 @@ def post_notification(notification_type):
             api_key=api_user,
             template=template,
             service=authenticated_service,
-            reply_to_text=reply_to
+            reply_to_text=reply_to,
         )
 
         template_with_content.values = notification.personalisation
 
     if notification_type == SMS_TYPE:
-        create_resp_partial = functools.partial(
-            create_post_sms_response_from_notification,
-            from_number=reply_to
-        )
+        create_resp_partial = functools.partial(create_post_sms_response_from_notification, from_number=reply_to)
     elif notification_type == EMAIL_TYPE:
         if authenticated_service.sending_domain is None or authenticated_service.sending_domain.strip() == "":
-            sending_domain = current_app.config['NOTIFY_EMAIL_DOMAIN']
+            sending_domain = current_app.config["NOTIFY_EMAIL_DOMAIN"]
         else:
             sending_domain = authenticated_service.sending_domain
         create_resp_partial = functools.partial(
             create_post_email_response_from_notification,
             subject=template_with_content.subject,
-            email_from='{}@{}'.format(authenticated_service.email_from, sending_domain)
+            email_from="{}@{}".format(authenticated_service.email_from, sending_domain),
         )
     elif notification_type == LETTER_TYPE:
         create_resp_partial = functools.partial(
@@ -174,61 +239,111 @@ def post_notification(notification_type):
         notification=notification,
         content=str(template_with_content),
         url_root=request.url_root,
-        scheduled_for=scheduled_for
+        scheduled_for=scheduled_for,
     )
     return jsonify(resp), 201
 
 
 def process_sms_or_email_notification(*, form, notification_type, api_key, template, service, reply_to_text=None):
-    form_send_to = form['email_address'] if notification_type == EMAIL_TYPE else form['phone_number']
+    form_send_to = form["email_address"] if notification_type == EMAIL_TYPE else form["phone_number"]
 
-    send_to = validate_and_format_recipient(send_to=form_send_to,
-                                            key_type=api_key.key_type,
-                                            service=service,
-                                            notification_type=notification_type)
+    send_to = validate_and_format_recipient(
+        send_to=form_send_to,
+        key_type=api_key.key_type,
+        service=service,
+        notification_type=notification_type,
+    )
 
     # Do not persist or send notification to the queue if it is a simulated recipient
     simulated = simulated_recipient(send_to, notification_type)
 
-    personalisation = process_document_uploads(
-        form.get('personalisation'),
-        service,
-        simulated,
-        template.id
-    )
+    personalisation = process_document_uploads(form.get("personalisation"), service, simulated, template.id)
 
-    notification = persist_notification(
-        template_id=template.id,
-        template_version=template.version,
-        recipient=form_send_to,
-        service=service,
-        personalisation=personalisation,
-        notification_type=notification_type,
-        api_key_id=api_key.id,
-        key_type=api_key.key_type,
-        client_reference=form.get('reference', None),
-        simulated=simulated,
-        reply_to_text=reply_to_text
-    )
+    notification = {
+        "id": create_uuid(),
+        "template": str(template.id),
+        "template_version": str(template.version),
+        "to": form_send_to,
+        "personalisation": personalisation,
+        "simulated": simulated,
+        "api_key": str(api_key.id),
+        "key_type": str(api_key.key_type),
+        "client_reference": form.get("reference", None),
+    }
+
+    encrypted_notification_data = encryption.encrypt(notification)
 
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:
+        notification = persist_notification(
+            template_id=template.id,
+            template_version=template.version,
+            recipient=form_send_to,
+            service=service,
+            personalisation=personalisation,
+            notification_type=notification_type,
+            api_key_id=api_key.id,
+            key_type=api_key.key_type,
+            client_reference=form.get("reference", None),
+            simulated=simulated,
+            reply_to_text=reply_to_text,
+        )
         persist_scheduled_notification(notification.id, form["scheduled_for"])
+
+    elif current_app.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] and not simulated:
+        # depending on the type route to the appropriate save task
+        if notification_type == EMAIL_TYPE:
+            current_app.logger.info("calling save email task")
+            save_email.apply_async(
+                (authenticated_service.id, create_uuid(), encrypted_notification_data, None),
+                queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
+            )
+        elif notification_type == SMS_TYPE:
+            save_sms.apply_async(
+                (authenticated_service.id, create_uuid(), encrypted_notification_data, None),
+                queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
+            )
+
     else:
+        notification = persist_notification(
+            template_id=template.id,
+            template_version=template.version,
+            recipient=form_send_to,
+            service=service,
+            personalisation=personalisation,
+            notification_type=notification_type,
+            api_key_id=api_key.id,
+            key_type=api_key.key_type,
+            client_reference=form.get("reference", None),
+            simulated=simulated,
+            reply_to_text=reply_to_text,
+        )
         if not simulated:
             send_notification_to_queue(
                 notification=notification,
                 research_mode=service.research_mode,
-                queue=template.queue_to_use()
+                queue=template.queue_to_use(),
             )
         else:
             current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
+
+    if not isinstance(notification, Notification):
+        notification["template_id"] = notification["template"]
+        notification["api_key_id"] = notification["api_key"]
+        notification["template_version"] = template.version
+        notification["service"] = service
+        notification["service_id"] = service.id
+        notification["reply_to_text"] = reply_to_text
+        del notification["template"]
+        del notification["api_key"]
+        del notification["simulated"]
+        notification = Notification(**notification)
 
     return notification
 
 
 def process_document_uploads(personalisation_data, service, simulated, template_id):
-    file_keys = [k for k, v in (personalisation_data or {}).items() if isinstance(v, dict) and 'file' in v]
+    file_keys = [k for k, v in (personalisation_data or {}).items() if isinstance(v, dict) and "file" in v]
     if not file_keys:
         return personalisation_data
 
@@ -238,12 +353,10 @@ def process_document_uploads(personalisation_data, service, simulated, template_
 
     for key in file_keys:
         if simulated:
-            personalisation_data[key] = document_download_client.get_upload_url(service.id) + '/test-document'
+            personalisation_data[key] = document_download_client.get_upload_url(service.id) + "/test-document"
         else:
             try:
-                personalisation_data[key] = document_download_client.upload_document(
-                    service.id, personalisation_data[key]
-                )
+                personalisation_data[key] = document_download_client.upload_document(service.id, personalisation_data[key])
             except DocumentDownloadError as e:
                 raise BadRequestError(message=e.message, status_code=e.status_code)
 
@@ -251,7 +364,7 @@ def process_document_uploads(personalisation_data, service, simulated, template_
         save_stats_for_attachments(
             [v for k, v in personalisation_data.items() if k in file_keys],
             service.id,
-            template_id
+            template_id,
         )
 
     return personalisation_data
@@ -260,31 +373,33 @@ def process_document_uploads(personalisation_data, service, simulated, template_
 def save_stats_for_attachments(files_data, service_id, template_id):
     nb_files = len(files_data)
     statsd_client.incr(f"attachments.nb-attachments.count-{nb_files}")
-    statsd_client.incr('attachments.nb-attachments', count=nb_files)
+    statsd_client.incr("attachments.nb-attachments", count=nb_files)
     statsd_client.incr(f"attachments.services.{service_id}", count=nb_files)
     statsd_client.incr(f"attachments.templates.{template_id}", count=nb_files)
 
-    for document in [f['document'] for f in files_data]:
+    for document in [f["document"] for f in files_data]:
         statsd_client.incr(f"attachments.sending-method.{document['sending_method']}")
         statsd_client.incr(f"attachments.file-type.{document['mime_type']}")
         # File size is in bytes, convert to whole megabytes
-        nb_mb = document['file_size'] // (1_024 * 1_024)
-        file_size_bucket = f"{nb_mb}-{nb_mb+1}mb"
+        nb_mb = document["file_size"] // (1_024 * 1_024)
+        file_size_bucket = f"{nb_mb}-{nb_mb + 1}mb"
         statsd_client.incr(f"attachments.file-size.{file_size_bucket}")
 
 
 def process_letter_notification(*, letter_data, api_key, template, reply_to_text, precompiled=False):
     if api_key.key_type == KEY_TYPE_TEAM:
-        raise BadRequestError(message='Cannot send letters with a team api key', status_code=403)
+        raise BadRequestError(message="Cannot send letters with a team api key", status_code=403)
 
     if not api_key.service.research_mode and api_key.service.restricted and api_key.key_type != KEY_TYPE_TEST:
-        raise BadRequestError(message='Cannot send letters when service is in trial mode', status_code=403)
+        raise BadRequestError(message="Cannot send letters when service is in trial mode", status_code=403)
 
     if precompiled:
-        return process_precompiled_letter_notifications(letter_data=letter_data,
-                                                        api_key=api_key,
-                                                        template=template,
-                                                        reply_to_text=reply_to_text)
+        return process_precompiled_letter_notifications(
+            letter_data=letter_data,
+            api_key=api_key,
+            template=template,
+            reply_to_text=reply_to_text,
+        )
 
     test_key = api_key.key_type == KEY_TYPE_TEST
 
@@ -292,23 +407,19 @@ def process_letter_notification(*, letter_data, api_key, template, reply_to_text
     status = NOTIFICATION_CREATED if not test_key else NOTIFICATION_SENDING
     queue = QueueNames.CREATE_LETTERS_PDF if not test_key else QueueNames.RESEARCH_MODE
 
-    notification = create_letter_notification(letter_data=letter_data,
-                                              template=template,
-                                              api_key=api_key,
-                                              status=status,
-                                              reply_to_text=reply_to_text)
-
-    create_letters_pdf.apply_async(
-        [str(notification.id)],
-        queue=queue
+    notification = create_letter_notification(
+        letter_data=letter_data,
+        template=template,
+        api_key=api_key,
+        status=status,
+        reply_to_text=reply_to_text,
     )
 
+    create_letters_pdf.apply_async([str(notification.id)], queue=queue)
+
     if test_key:
-        if current_app.config['NOTIFY_ENVIRONMENT'] in ['preview', 'development']:
-            create_fake_letter_response_file.apply_async(
-                (notification.reference,),
-                queue=queue
-            )
+        if current_app.config["NOTIFY_ENVIRONMENT"] in ["preview", "development"]:
+            create_fake_letter_response_file.apply_async((notification.reference,), queue=queue)
         else:
             update_notification_status_by_reference(notification.reference, NOTIFICATION_DELIVERED)
 
@@ -318,50 +429,81 @@ def process_letter_notification(*, letter_data, api_key, template, reply_to_text
 def process_precompiled_letter_notifications(*, letter_data, api_key, template, reply_to_text):
     try:
         status = NOTIFICATION_PENDING_VIRUS_CHECK
-        letter_content = base64.b64decode(letter_data['content'])
+        letter_content = base64.b64decode(letter_data["content"])
     except ValueError:
-        raise BadRequestError(message='Cannot decode letter content (invalid base64 encoding)', status_code=400)
+        raise BadRequestError(
+            message="Cannot decode letter content (invalid base64 encoding)",
+            status_code=400,
+        )
 
-    notification = create_letter_notification(letter_data=letter_data,
-                                              template=template,
-                                              api_key=api_key,
-                                              status=status,
-                                              reply_to_text=reply_to_text)
+    notification = create_letter_notification(
+        letter_data=letter_data,
+        template=template,
+        api_key=api_key,
+        status=status,
+        reply_to_text=reply_to_text,
+    )
 
     filename = upload_letter_pdf(notification, letter_content, precompiled=True)
 
-    current_app.logger.info('Calling task scan-file for {}'.format(filename))
+    current_app.logger.info("Calling task scan-file for {}".format(filename))
 
     # call task to add the filename to anti virus queue
-    if current_app.config['ANTIVIRUS_ENABLED']:
+    if current_app.config["ANTIVIRUS_ENABLED"]:
         notify_celery.send_task(
             name=TaskNames.SCAN_FILE,
-            kwargs={'filename': filename},
+            kwargs={"filename": filename},
             queue=QueueNames.ANTIVIRUS,
         )
     else:
         # stub out antivirus in dev
         process_virus_scan_passed.apply_async(
-            kwargs={'filename': filename},
+            kwargs={"filename": filename},
             queue=QueueNames.LETTERS,
         )
 
     return notification
 
 
-def get_reply_to_text(notification_type, form, template):
+def validate_sender_id(template, reply_to_id):
+    notification_type = template.template_type
+
+    if notification_type == EMAIL_TYPE:
+        service_email_reply_to_id = reply_to_id
+        check_service_email_reply_to_id(
+            str(authenticated_service.id),
+            service_email_reply_to_id,
+            notification_type,
+        )
+        return service_email_reply_to_id
+    elif notification_type == SMS_TYPE:
+        service_sms_sender_id = reply_to_id
+        check_service_sms_sender_id(
+            str(authenticated_service.id),
+            service_sms_sender_id,
+            notification_type,
+        )
+        return service_sms_sender_id
+    else:
+        raise NotImplementedError("validate_sender_id only handles emails and text messages")
+
+
+def get_reply_to_text(notification_type, form, template, form_field=None):
     reply_to = None
     if notification_type == EMAIL_TYPE:
-        service_email_reply_to_id = form.get("email_reply_to_id", None)
-        reply_to = check_service_email_reply_to_id(
-            str(authenticated_service.id), service_email_reply_to_id, notification_type
-        ) or template.get_reply_to_text()
+        service_email_reply_to_id = form.get(form_field or "email_reply_to_id")
+        reply_to = (
+            check_service_email_reply_to_id(
+                str(authenticated_service.id),
+                service_email_reply_to_id,
+                notification_type,
+            )
+            or template.get_reply_to_text()
+        )
 
     elif notification_type == SMS_TYPE:
-        service_sms_sender_id = form.get("sms_sender_id", None)
-        sms_sender_id = check_service_sms_sender_id(
-            str(authenticated_service.id), service_sms_sender_id, notification_type
-        )
+        service_sms_sender_id = form.get(form_field or "sms_sender_id")
+        sms_sender_id = check_service_sms_sender_id(str(authenticated_service.id), service_sms_sender_id, notification_type)
         if sms_sender_id:
             reply_to = try_validate_and_format_phone_number(sms_sender_id)
         else:
@@ -374,5 +516,89 @@ def get_reply_to_text(notification_type, form, template):
 
 
 def strip_keys_from_personalisation_if_send_attach(personalisation):
-    return {k: v for (k, v) in personalisation.items() if
-            not (type(v) is dict and v.get('sending_method') == 'attach')}
+    return {k: v for (k, v) in personalisation.items() if not (type(v) is dict and v.get("sending_method") == "attach")}
+
+
+def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
+    nb_rows = len(recipient_csv)
+
+    if recipient_csv.has_errors:
+        if recipient_csv.missing_column_headers:
+            raise BadRequestError(
+                message=f"Missing column headers: {', '.join(sorted(recipient_csv.missing_column_headers))}",
+                status_code=400,
+            )
+        if recipient_csv.duplicate_recipient_column_headers:
+            raise BadRequestError(
+                message=f"Duplicate column headers: {', '.join(sorted(recipient_csv.duplicate_recipient_column_headers))}",
+                status_code=400,
+            )
+        if recipient_csv.more_rows_than_can_send:
+            raise BadRequestError(
+                message=f"You only have {remaining_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
+                status_code=400,
+            )
+
+        if recipient_csv.too_many_rows:
+            raise BadRequestError(
+                message=f"Too many rows. Maximum number of rows allowed is {max_rows}",
+                status_code=400,
+            )
+        if not recipient_csv.allowed_to_send_to:
+            if api_user.key_type == KEY_TYPE_TEAM:
+                explanation = "because you used a team and safelist API key."
+            if authenticated_service.restricted:
+                explanation = (
+                    "because your service is in trial mode. You can only send to members of your team and your safelist."
+                )
+            raise BadRequestError(
+                message=f"You cannot send to these recipients {explanation}",
+                status_code=400,
+            )
+        if recipient_csv.rows_with_errors:
+
+            def row_error(row):
+                content = []
+                for header in [header for header in recipient_csv.column_headers if row[header].error]:
+                    if row[header].recipient_error:
+                        content.append(f"`{header}`: invalid recipient")
+                    else:
+                        content.append(f"`{header}`: {row[header].error}")
+                return f"Row {row.index} - {','.join(content)}"
+
+            errors = ". ".join([row_error(row) for row in recipient_csv.initial_rows_with_errors])
+            raise BadRequestError(
+                message=f"Some rows have errors. {errors}.",
+                status_code=400,
+            )
+        else:
+            raise NotImplementedError("Got errors but code did not handle")
+
+
+def create_bulk_job(service, api_key, template, form, recipient_csv):
+    upload_id = upload_job_to_s3(service.id, recipient_csv.file_data)
+    sender_id = form["validated_sender_id"]
+
+    data = {
+        "id": upload_id,
+        "service": service.id,
+        "template": template.id,
+        "notification_count": len(recipient_csv),
+        "template_version": template.version,
+        "job_status": JOB_STATUS_PENDING,
+        "original_file_name": form.get("name"),
+        "created_by": current_app.config["NOTIFY_USER_ID"],
+        "api_key": api_key.id,
+        "sender_id": uuid.UUID(str(sender_id)) if sender_id else None,
+    }
+    if form.get("scheduled_for"):
+        data["job_status"] = JOB_STATUS_SCHEDULED
+        data["scheduled_for"] = form.get("scheduled_for")
+
+    job = job_schema.load(data).data
+    dao_create_job(job)
+
+    if job.job_status == JOB_STATUS_PENDING:
+        process_job.apply_async([str(job.id)], queue=QueueNames.JOBS)
+
+    return job

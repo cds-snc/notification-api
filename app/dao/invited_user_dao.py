@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
-from app import db
 
+from app import db
 from app.models import InvitedUser
 
 
@@ -22,8 +22,6 @@ def get_invited_users_for_service(service_id):
 
 
 def delete_invitations_created_more_than_two_days_ago():
-    deleted = db.session.query(InvitedUser).filter(
-        InvitedUser.created_at <= datetime.utcnow() - timedelta(days=2)
-    ).delete()
+    deleted = db.session.query(InvitedUser).filter(InvitedUser.created_at <= datetime.utcnow() - timedelta(days=2)).delete()
     db.session.commit()
     return deleted

@@ -31,7 +31,6 @@ newrelic==6.2.0.156
 notifications-python-client==6.0.2
 python-dotenv==0.17.1
 pwnedpasswords==2.0.0
-sendgrid==6.7.0
 tldextract==3.1.0
 nanoid==2.0.0
 unidecode==1.2.0
@@ -44,7 +43,7 @@ awscli-cwlogs>=1.4.6,<1.5
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
 itsdangerous==0.24  # pyup: <1.0.0
 
-git+https://github.com/cds-snc/notifier-utils.git@43.8.0#egg=notifications-utils
+git+https://github.com/cds-snc/notifier-utils.git@44.1.0#egg=notifications-utils
 
 # MLWR
 socketio-client==0.5.6

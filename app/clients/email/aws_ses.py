@@ -1,14 +1,15 @@
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from time import monotonic
+
 import boto3
 import botocore
 from flask import current_app
-from time import monotonic
 from notifications_utils.recipients import InvalidEmailError
 from unidecode import unidecode
 
-from app.clients.email import (EmailClientException, EmailClient)
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.application import MIMEApplication
+from app.clients.email import EmailClient, EmailClientException
 
 
 class AwsSesClientException(EmailClientException):
@@ -16,14 +17,14 @@ class AwsSesClientException(EmailClientException):
 
 
 class AwsSesClient(EmailClient):
-    '''
+    """
     Amazon SES email client.
-    '''
+    """
 
     def init_app(self, region, statsd_client, *args, **kwargs):
-        self._client = boto3.client('ses', region_name=region)
+        self._client = boto3.client("ses", region_name=region)
         super(AwsSesClient, self).__init__(*args, **kwargs)
-        self.name = 'ses'
+        self.name = "ses"
         self.statsd_client = statsd_client
 
     def get_name(self):
@@ -35,23 +36,26 @@ class AwsSesClient(EmailClient):
         to_addresses,
         subject,
         body,
-        html_body='',
+        html_body="",
         reply_to_address=None,
         attachments=None,
     ):
         def create_mime_base(attachments, html):
-            msg_type = 'mixed' if attachments or (not attachments and not html) else 'alternative'
+            msg_type = "mixed" if attachments or (not attachments and not html) else "alternative"
             ret = MIMEMultipart(msg_type)
-            ret['Subject'] = subject
-            ret['From'] = source
-            ret['To'] = ",".join([punycode_encode_email(addr) for addr in to_addresses])
+            ret["Subject"] = subject
+            ret["From"] = source
+            ret["To"] = ",".join([punycode_encode_email(addr) for addr in to_addresses])
             if reply_to_addresses:
-                ret.add_header('reply-to', ",".join([punycode_encode_email(addr) for addr in reply_to_addresses]))
+                ret.add_header(
+                    "reply-to",
+                    ",".join([punycode_encode_email(addr) for addr in reply_to_addresses]),
+                )
             return ret
 
         def attach_html(m, content):
             if content:
-                parts = MIMEText(content, 'html')
+                parts = MIMEText(content, "html")
                 m.attach(parts)
 
         attachments = attachments or []
@@ -75,10 +79,10 @@ class AwsSesClient(EmailClient):
 
         try:
             msg = create_mime_base(attachments, html_body)
-            txt_part = MIMEText(body, 'plain')
+            txt_part = MIMEText(body, "plain")
 
             if attachments and html_body:
-                msg_alternative = MIMEMultipart('alternative')
+                msg_alternative = MIMEMultipart("alternative")
                 msg_alternative.attach(txt_part)
                 attach_html(msg_alternative, html_body)
                 msg.attach(msg_alternative)
@@ -89,25 +93,19 @@ class AwsSesClient(EmailClient):
             for attachment in attachments:
                 # See https://docs.aws.amazon.com/ses/latest/DeveloperGuide/send-email-raw.html#send-email-raw-mime
                 attachment_part = MIMEApplication(attachment["data"])
-                if attachment.get('mime_type'):
-                    attachment_part.add_header('Content-Type', attachment["mime_type"], name=attachment["name"])
-                attachment_part.add_header('Content-Disposition', 'attachment', filename=attachment["name"])
+                if attachment.get("mime_type"):
+                    attachment_part.add_header("Content-Type", attachment["mime_type"], name=attachment["name"])
+                attachment_part.add_header("Content-Disposition", "attachment", filename=attachment["name"])
                 msg.attach(attachment_part)
 
             start_time = monotonic()
-            response = self._client.send_raw_email(
-                Source=source,
-                RawMessage={'Data': msg.as_string()}
-            )
+            response = self._client.send_raw_email(Source=source, RawMessage={"Data": msg.as_string()})
         except botocore.exceptions.ClientError as e:
             self.statsd_client.incr("clients.ses.error")
 
             # http://docs.aws.amazon.com/ses/latest/DeveloperGuide/api-error-codes.html
-            if e.response['Error']['Code'] == 'InvalidParameterValue':
-                raise InvalidEmailError('email: "{}" message: "{}"'.format(
-                    to_addresses[0],
-                    e.response['Error']['Message']
-                ))
+            if e.response["Error"]["Code"] == "InvalidParameterValue":
+                raise InvalidEmailError('email: "{}" message: "{}"'.format(to_addresses[0], e.response["Error"]["Message"]))
             else:
                 self.statsd_client.incr("clients.ses.error")
                 raise AwsSesClientException(str(e))
@@ -119,10 +117,10 @@ class AwsSesClient(EmailClient):
             current_app.logger.info("AWS SES request finished in {}".format(elapsed_time))
             self.statsd_client.timing("clients.ses.request-time", elapsed_time)
             self.statsd_client.incr("clients.ses.success")
-            return response['MessageId']
+            return response["MessageId"]
 
 
 def punycode_encode_email(email_address):
     # only the hostname should ever be punycode encoded.
-    local, hostname = email_address.split('@')
-    return '{}@{}'.format(local, hostname.encode('idna').decode('ascii'))
+    local, hostname = email_address.split("@")
+    return "{}@{}".format(local, hostname.encode("idna").decode("ascii"))

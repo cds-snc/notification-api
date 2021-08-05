@@ -1,52 +1,47 @@
 import base64
 import json
 
-from flask import current_app
 import requests
-
+from flask import current_app
 from notifications_utils.timezones import convert_utc_to_local_timezone
 
 
 class PerformancePlatformClient:
-
     @property
     def active(self):
         return self._active
 
     def init_app(self, app):
-        self._active = app.config.get('PERFORMANCE_PLATFORM_ENABLED')
+        self._active = app.config.get("PERFORMANCE_PLATFORM_ENABLED")
         if self.active:
-            self.performance_platform_url = app.config.get('PERFORMANCE_PLATFORM_URL')
-            self.performance_platform_endpoints = app.config.get('PERFORMANCE_PLATFORM_ENDPOINTS')
+            self.performance_platform_url = app.config.get("PERFORMANCE_PLATFORM_URL")
+            self.performance_platform_endpoints = app.config.get("PERFORMANCE_PLATFORM_ENDPOINTS")
 
     def send_stats_to_performance_platform(self, payload):
         if self.active:
-            bearer_token = self.performance_platform_endpoints[payload['dataType']]
+            bearer_token = self.performance_platform_endpoints[payload["dataType"]]
             headers = {
-                'Content-Type': "application/json",
-                'Authorization': 'Bearer {}'.format(bearer_token)
+                "Content-Type": "application/json",
+                "Authorization": "Bearer {}".format(bearer_token),
             }
             resp = requests.post(
-                self.performance_platform_url + payload['dataType'],
+                self.performance_platform_url + payload["dataType"],
                 json=payload,
-                headers=headers
+                headers=headers,
             )
 
             if resp.status_code == 200:
-                current_app.logger.info(
-                    "Updated performance platform successfully with payload {}".format(json.dumps(payload))
-                )
+                current_app.logger.info("Updated performance platform successfully with payload {}".format(json.dumps(payload)))
             else:
                 current_app.logger.error(
                     "Performance platform update request failed for payload with response details: {} '{}'".format(
-                        json.dumps(payload),
-                        resp.status_code
+                        json.dumps(payload), resp.status_code
                     )
                 )
                 resp.raise_for_status()
 
     @staticmethod
-    def format_payload(*, dataset, start_time, group_name, group_value, count, period='day'):
+    def format_payload(*, dataset, start_time, group_name, group_value, count, period="day"):
         """
         :param dataset - the name of the overall graph, as referred to in the endpoint.
         :param start_time - UTC midnight of the day we're sending stats for
@@ -56,14 +51,14 @@ class PerformancePlatformClient:
         :param period - the period that this data covers - "day", "week", "month", "quarter".
         """
         payload = {
-            '_timestamp': convert_utc_to_local_timezone(start_time).isoformat(),
-            'service': 'govuk-notify',
-            'dataType': dataset,
-            'period': period,
-            'count': count,
+            "_timestamp": convert_utc_to_local_timezone(start_time).isoformat(),
+            "service": "govuk-notify",
+            "dataType": dataset,
+            "period": period,
+            "count": count,
             group_name: group_value,
         }
-        payload['_id'] = PerformancePlatformClient.generate_payload_id(payload, group_name)
+        payload["_id"] = PerformancePlatformClient.generate_payload_id(payload, group_name)
         return payload
 
     @staticmethod
@@ -71,12 +66,12 @@ class PerformancePlatformClient:
         """
         group_name is the name of the group - eg "channel" or "status"
         """
-        payload_string = '{}{}{}{}{}'.format(
-            payload['_timestamp'],
-            payload['service'],
+        payload_string = "{}{}{}{}{}".format(
+            payload["_timestamp"],
+            payload["service"],
             payload[group_name],
-            payload['dataType'],
-            payload['period']
+            payload["dataType"],
+            payload["period"],
         )
-        _id = base64.b64encode(payload_string.encode('utf-8'))
-        return _id.decode('utf-8')
+        _id = base64.b64encode(payload_string.encode("utf-8"))
+        return _id.decode("utf-8")

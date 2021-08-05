@@ -20,83 +20,78 @@ Example:
         scripts/delete_sqs_queues.py list delete
 """
 
-from docopt import docopt
-import boto3
 import csv
 from datetime import datetime
 
+import boto3
+from docopt import docopt
+
 FILE_NAME = "/tmp/queues.csv"
 
-client = boto3.client('sqs', region_name='eu-west-1')
+client = boto3.client("sqs", region_name="eu-west-1")
 
 
 def _formatted_date_from_timestamp(timestamp):
-    return datetime.fromtimestamp(
-        int(timestamp)
-    ).strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.fromtimestamp(int(timestamp)).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def get_queues():
     response = client.list_queues()
-    queues = response['QueueUrls']
+    queues = response["QueueUrls"]
     return queues
 
 
 def get_queue_attributes(queue_name):
-    response = client.get_queue_attributes(
-        QueueUrl=queue_name,
-        AttributeNames=[
-            'All'
-        ]
-    )
-    queue_attributes = response['Attributes']
-    queue_attributes.update({'QueueUrl': queue_name})
+    response = client.get_queue_attributes(QueueUrl=queue_name, AttributeNames=["All"])
+    queue_attributes = response["Attributes"]
+    queue_attributes.update({"QueueUrl": queue_name})
     return queue_attributes
 
 
 def delete_queue(queue_url):
     # Note that deleting a queue returns 200 OK if it doesn't exist
     print("DELETEING {}".format(queue_url))
-    response = client.delete_queue(
-        QueueUrl=queue_url
-    )
-    if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-        print('Deleted queue successfully {}'.format(response['ResponseMetadata']))
+    response = client.delete_queue(QueueUrl=queue_url)
+    if response["ResponseMetadata"]["HTTPStatusCode"] == 200:
+        print("Deleted queue successfully {}".format(response["ResponseMetadata"]))
     else:
-        print('Error occured when attempting to delete queue')
+        print("Error occured when attempting to delete queue")
         from pprint import pprint
+
         pprint(response)
     return response
 
 
 def output_to_csv(queue_attributes):
-    with open(FILE_NAME, 'w') as csvfile:
+    with open(FILE_NAME, "w") as csvfile:
         fieldnames = [
-            'Queue Name',
-            'Queue URL',
-            'Number of Messages',
-            'Number of Messages Delayed',
-            'Number of Messages Not Visible',
-            'Created'
+            "Queue Name",
+            "Queue URL",
+            "Number of Messages",
+            "Number of Messages Delayed",
+            "Number of Messages Not Visible",
+            "Created",
         ]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
         for queue_attr in queue_attributes:
-            writer.writerow({
-                'Queue Name': queue_attr['QueueArn'],
-                'Queue URL': queue_attr['QueueUrl'],
-                'Number of Messages': queue_attr['ApproximateNumberOfMessages'],
-                'Number of Messages Delayed': queue_attr['ApproximateNumberOfMessagesDelayed'],
-                'Number of Messages Not Visible': queue_attr['ApproximateNumberOfMessagesNotVisible'],
-                'Created': _formatted_date_from_timestamp(queue_attr['CreatedTimestamp'])
-            })
+            writer.writerow(
+                {
+                    "Queue Name": queue_attr["QueueArn"],
+                    "Queue URL": queue_attr["QueueUrl"],
+                    "Number of Messages": queue_attr["ApproximateNumberOfMessages"],
+                    "Number of Messages Delayed": queue_attr["ApproximateNumberOfMessagesDelayed"],
+                    "Number of Messages Not Visible": queue_attr["ApproximateNumberOfMessagesNotVisible"],
+                    "Created": _formatted_date_from_timestamp(queue_attr["CreatedTimestamp"]),
+                }
+            )
 
 
 def read_from_csv():
     queue_urls = []
-    with open(FILE_NAME, 'r') as csvfile:
+    with open(FILE_NAME, "r") as csvfile:
         next(csvfile)
-        rows = csv.reader(csvfile, delimiter=',')
+        rows = csv.reader(csvfile, delimiter=",")
         for row in rows:
             queue_urls.append(row[1])
     return queue_urls
@@ -105,13 +100,13 @@ def read_from_csv():
 if __name__ == "__main__":
     arguments = docopt(__doc__)
 
-    if arguments['<action>'] == 'list':
+    if arguments["<action>"] == "list":
         queues = get_queues()
         queue_attributes = []
         for queue in queues:
             queue_attributes.append(get_queue_attributes(queue))
         output_to_csv(queue_attributes)
-    elif arguments['<action>'] == 'delete':
+    elif arguments["<action>"] == "delete":
         queues_to_delete = read_from_csv()
         for queue in queues_to_delete:
             delete_queue(queue)

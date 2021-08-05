@@ -1,0 +1,3 @@
+# Ignore secret file
+config.properties
+notifications-results.csv

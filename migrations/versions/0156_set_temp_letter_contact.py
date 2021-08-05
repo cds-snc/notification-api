@@ -7,9 +7,8 @@ Create Date: 2018-01-05 17:04:20.596271
 """
 from alembic import op
 
-
-revision = '0156_set_temp_letter_contact'
-down_revision = '0155_revert_0153'
+revision = "0156_set_temp_letter_contact"
+down_revision = "0155_revert_0153"
 
 
 def upgrade():

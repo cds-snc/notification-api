@@ -7,9 +7,8 @@ Create Date: 2021-01-08 09:03:00 .214680
 """
 from alembic import op
 
-
-revision = '0313_disable_pinpoint_provider'
-down_revision = '0312_update_branding_request'
+revision = "0313_disable_pinpoint_provider"
+down_revision = "0312_update_branding_request"
 
 
 def upgrade():

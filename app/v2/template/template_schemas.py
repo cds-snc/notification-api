@@ -1,16 +1,12 @@
 from app.models import SMS_TYPE, TEMPLATE_TYPES
-from app.schema_validation.definitions import uuid, personalisation
+from app.schema_validation.definitions import personalisation, uuid
 from app.utils import get_html_email_body_from_template
-
 
 get_template_by_id_request = {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "description": "schema for parameters allowed when getting template by id",
     "type": "object",
-    "properties": {
-        "id": uuid,
-        "version": {"type": ["integer", "null"], "minimum": 1}
-    },
+    "properties": {"id": uuid, "version": {"type": ["integer", "null"], "minimum": 1}},
     "required": ["id"],
     "additionalProperties": False,
 }
@@ -26,21 +22,30 @@ get_template_by_id_response = {
         "created_at": {
             "format": "date-time",
             "type": "string",
-            "description": "Date+time created"
+            "description": "Date+time created",
         },
         "updated_at": {
             "format": "date-time",
             "type": ["string", "null"],
-            "description": "Date+time updated"
+            "description": "Date+time updated",
         },
         "created_by": {"type": "string"},
         "version": {"type": "integer"},
         "body": {"type": "string"},
         "subject": {"type": ["string", "null"]},
         "name": {"type": "string"},
-        "postage": {"type": "string"}
+        "postage": {"type": "string"},
     },
-    "required": ["id", "type", "created_at", "updated_at", "version", "created_by", "body", "name"],
+    "required": [
+        "id",
+        "type",
+        "created_at",
+        "updated_at",
+        "version",
+        "created_by",
+        "body",
+        "name",
+    ],
 }
 
 post_template_preview_request = {
@@ -48,11 +53,8 @@ post_template_preview_request = {
     "description": "POST template schema",
     "type": "object",
     "title": "POST v2/template/{id}/preview",
-    "properties": {
-        "id": uuid,
-        "personalisation": personalisation
-    },
-    "required": ["id"]
+    "properties": {"id": uuid, "personalisation": personalisation},
+    "required": ["id"],
 }
 
 post_template_preview_response = {
@@ -84,5 +86,5 @@ def create_post_template_preview_response(template, template_object):
         "body": str(template_object),
         "html": get_html_email_body_from_template(template_object),
         "subject": subject,
-        "postage": template.postage
+        "postage": template.postage,
     }

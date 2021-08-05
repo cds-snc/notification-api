@@ -1,6 +1,6 @@
-from app import process_user_agent
-
 import pytest
+
+from app import process_user_agent
 
 
 @pytest.mark.parametrize(

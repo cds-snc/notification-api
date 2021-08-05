@@ -1,17 +1,19 @@
 import os
 import sys
 import traceback
+
 import newrelic.agent  # See https://bit.ly/2xBVKBH
-newrelic.agent.initialize()    # noqa: E402
+
+newrelic.agent.initialize()  # noqa: E402
 
 workers = 4
 worker_class = "eventlet"
 worker_connections = 256
 bind = "0.0.0.0:{}".format(os.getenv("PORT"))
-accesslog = '-'
+accesslog = "-"
 
-in_production = os.environ.get("NOTIFY_ENVIRONMENT", "") == "production"
-if in_production:
+on_aws = os.environ.get("NOTIFY_ENVIRONMENT", "") in ["production", "staging"]
+if on_aws:
     # To avoid load balancers reporting errors on shutdown instances, see AWS doc
     # > We also recommend that you configure the idle timeout of your application
     # > to be larger than the idle timeout configured for the load balancer.
@@ -38,7 +40,7 @@ def on_starting(server):
 def worker_abort(worker):
     worker.log.info("worker received ABORT {}".format(worker.pid))
     for threadId, stack in sys._current_frames().items():
-        worker.log.error(''.join(traceback.format_stack(stack)))
+        worker.log.error("".join(traceback.format_stack(stack)))
 
 
 def on_exit(server):

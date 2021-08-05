@@ -7,36 +7,40 @@ import pytest
 from notifications_utils.recipients import InvalidEmailError
 
 from app import aws_ses_client
-from app.clients.email.aws_ses import (
-    AwsSesClientException,
-    punycode_encode_email,
-)
+from app.clients.email.aws_ses import AwsSesClientException, punycode_encode_email
 
 
 def email_b64_encoding(input):
     return f"=?utf-8?b?{b64encode(input.encode('utf-8')).decode('utf-8')}?="
 
 
-@pytest.mark.parametrize('reply_to_address, expected_value', [
-    (None, []),
-    ('foo@bar.com', 'foo@bar.com'),
-    ('føøøø@bååååår.com', email_b64_encoding(punycode_encode_email('føøøø@bååååår.com')))
-], ids=['empty', 'single_email', 'punycode'])
+@pytest.mark.parametrize(
+    "reply_to_address, expected_value",
+    [
+        (None, []),
+        ("foo@bar.com", "foo@bar.com"),
+        (
+            "føøøø@bååååår.com",
+            email_b64_encoding(punycode_encode_email("føøøø@bååååår.com")),
+        ),
+    ],
+    ids=["empty", "single_email", "punycode"],
+)
 def test_send_email_handles_reply_to_address(notify_api, mocker, reply_to_address, expected_value):
-    boto_mock = mocker.patch.object(aws_ses_client, '_client', create=True)
-    mocker.patch.object(aws_ses_client, 'statsd_client', create=True)
+    boto_mock = mocker.patch.object(aws_ses_client, "_client", create=True)
+    mocker.patch.object(aws_ses_client, "statsd_client", create=True)
 
     with notify_api.app_context():
         aws_ses_client.send_email(
-            source='from@address.com',
-            to_addresses='to@address.com',
-            subject='Subject',
-            body='Body',
-            reply_to_address=reply_to_address
+            source="from@address.com",
+            to_addresses="to@address.com",
+            subject="Subject",
+            body="Body",
+            reply_to_address=reply_to_address,
         )
 
     boto_mock.send_raw_email.assert_called()
-    raw_message = boto_mock.send_raw_email.call_args.kwargs['RawMessage']['Data']
+    raw_message = boto_mock.send_raw_email.call_args.kwargs["RawMessage"]["Data"]
     if not expected_value:
         assert "reply-to" not in raw_message
     else:
@@ -44,23 +48,24 @@ def test_send_email_handles_reply_to_address(notify_api, mocker, reply_to_addres
 
 
 def test_send_email_txt_and_html_email(notify_api, mocker):
-    boto_mock = mocker.patch.object(aws_ses_client, '_client', create=True)
-    mocker.patch.object(aws_ses_client, 'statsd_client', create=True)
+    boto_mock = mocker.patch.object(aws_ses_client, "_client", create=True)
+    mocker.patch.object(aws_ses_client, "statsd_client", create=True)
 
     with notify_api.app_context():
         aws_ses_client.send_email(
-            'from@example.com',
-            to_addresses='destination@example.com',
-            subject='Subject',
-            body='email body',
-            html_body='<p>email body</p>',
-            reply_to_address='reply@example.com',
+            "from@example.com",
+            to_addresses="destination@example.com",
+            subject="Subject",
+            body="email body",
+            html_body="<p>email body</p>",
+            reply_to_address="reply@example.com",
         )
 
     boto_mock.send_raw_email.assert_called_once()
-    raw_message = boto_mock.send_raw_email.call_args.kwargs['RawMessage']['Data']
+    raw_message = boto_mock.send_raw_email.call_args.kwargs["RawMessage"]["Data"]
 
-    regex = dedent(r"""
+    regex = dedent(
+        r"""
         Content-Type: multipart\/alternative; boundary="===============(?P<boundary>.+)=="
         MIME-Version: 1\.0
         Subject: Subject
@@ -81,31 +86,33 @@ def test_send_email_txt_and_html_email(notify_api, mocker):
 
         <p>email body</p>
         --===============(?P<b3>.+)==--
-    """).strip()
+    """
+    ).strip()
 
     assert len(set(re.findall(regex, raw_message))) == 1
     assert re.match(regex, raw_message)
 
 
 def test_send_email_txt_and_html_email_with_attachment(notify_api, mocker):
-    boto_mock = mocker.patch.object(aws_ses_client, '_client', create=True)
-    mocker.patch.object(aws_ses_client, 'statsd_client', create=True)
+    boto_mock = mocker.patch.object(aws_ses_client, "_client", create=True)
+    mocker.patch.object(aws_ses_client, "statsd_client", create=True)
 
     with notify_api.app_context():
         aws_ses_client.send_email(
-            'from@example.com',
-            to_addresses='destination@example.com',
-            subject='Subject',
-            body='email body',
-            html_body='<p>email body</p>',
-            attachments=[{'data': 'Canada', 'name': 'file.txt', 'mime_type': 'text/plain'}],
-            reply_to_address='reply@example.com',
+            "from@example.com",
+            to_addresses="destination@example.com",
+            subject="Subject",
+            body="email body",
+            html_body="<p>email body</p>",
+            attachments=[{"data": "Canada", "name": "file.txt", "mime_type": "text/plain"}],
+            reply_to_address="reply@example.com",
         )
 
     boto_mock.send_raw_email.assert_called_once()
-    raw_message = boto_mock.send_raw_email.call_args.kwargs['RawMessage']['Data']
+    raw_message = boto_mock.send_raw_email.call_args.kwargs["RawMessage"]["Data"]
 
-    regex = dedent(r"""
+    regex = dedent(
+        r"""
         Content-Type: multipart/mixed; boundary="===============(?P<boundary>.+)=="
         MIME-Version: 1\.0
         Subject: Subject
@@ -141,84 +148,88 @@ def test_send_email_txt_and_html_email_with_attachment(notify_api, mocker):
         Q2FuYWRh
 
         --===============(?P<b7>.+)==--
-    """).strip()
+    """
+    ).strip()
 
     groups = re.match(regex, raw_message).groupdict()
-    assert groups['boundary'] == groups['b7'] == groups['b6'] == groups['b1']
-    assert groups['b2'] == groups['b3'] == groups['b4'] == groups['b5']
+    assert groups["boundary"] == groups["b7"] == groups["b6"] == groups["b1"]
+    assert groups["b2"] == groups["b3"] == groups["b4"] == groups["b5"]
     assert re.match(regex, raw_message)
 
 
 def test_send_email_handles_punycode_to_address(notify_api, mocker):
-    boto_mock = mocker.patch.object(aws_ses_client, '_client', create=True)
-    mocker.patch.object(aws_ses_client, 'statsd_client', create=True)
+    boto_mock = mocker.patch.object(aws_ses_client, "_client", create=True)
+    mocker.patch.object(aws_ses_client, "statsd_client", create=True)
 
     with notify_api.app_context():
         aws_ses_client.send_email(
-            'from@address.com',
-            to_addresses='føøøø@bååååår.com',
-            subject='Subject',
-            body='Body',
+            "from@address.com",
+            to_addresses="føøøø@bååååår.com",
+            subject="Subject",
+            body="Body",
         )
 
     boto_mock.send_raw_email.assert_called()
-    raw_message = boto_mock.send_raw_email.call_args.kwargs['RawMessage']['Data']
-    expected_to = email_b64_encoding(punycode_encode_email('føøøø@bååååår.com'))
+    raw_message = boto_mock.send_raw_email.call_args.kwargs["RawMessage"]["Data"]
+    expected_to = email_b64_encoding(punycode_encode_email("føøøø@bååååår.com"))
     assert f"To: {expected_to}" in raw_message
 
 
 def test_send_email_raises_bad_email_as_InvalidEmailError(mocker):
-    boto_mock = mocker.patch.object(aws_ses_client, '_client', create=True)
-    mocker.patch.object(aws_ses_client, 'statsd_client', create=True)
+    boto_mock = mocker.patch.object(aws_ses_client, "_client", create=True)
+    mocker.patch.object(aws_ses_client, "statsd_client", create=True)
     error_response = {
-        'Error': {
-            'Code': 'InvalidParameterValue',
-            'Message': 'some error message from amazon',
-            'Type': 'Sender'
+        "Error": {
+            "Code": "InvalidParameterValue",
+            "Message": "some error message from amazon",
+            "Type": "Sender",
         }
     }
-    boto_mock.send_raw_email.side_effect = botocore.exceptions.ClientError(error_response, 'opname')
-    mocker.patch.object(aws_ses_client, 'statsd_client', create=True)
+    boto_mock.send_raw_email.side_effect = botocore.exceptions.ClientError(error_response, "opname")
+    mocker.patch.object(aws_ses_client, "statsd_client", create=True)
 
     with pytest.raises(InvalidEmailError) as excinfo:
         aws_ses_client.send_email(
-            source='from@address.com',
-            to_addresses='definitely@invalid_email.com',
-            subject='Subject',
-            body='Body'
+            source="from@address.com",
+            to_addresses="definitely@invalid_email.com",
+            subject="Subject",
+            body="Body",
         )
 
-    assert 'some error message from amazon' in str(excinfo.value)
-    assert 'definitely@invalid_email.com' in str(excinfo.value)
+    assert "some error message from amazon" in str(excinfo.value)
+    assert "definitely@invalid_email.com" in str(excinfo.value)
 
 
 def test_send_email_raises_other_errs_as_AwsSesClientException(mocker):
-    boto_mock = mocker.patch.object(aws_ses_client, '_client', create=True)
-    mocker.patch.object(aws_ses_client, 'statsd_client', create=True)
+    boto_mock = mocker.patch.object(aws_ses_client, "_client", create=True)
+    mocker.patch.object(aws_ses_client, "statsd_client", create=True)
     error_response = {
-        'Error': {
-            'Code': 'ServiceUnavailable',
-            'Message': 'some error message from amazon',
-            'Type': 'Sender'
+        "Error": {
+            "Code": "ServiceUnavailable",
+            "Message": "some error message from amazon",
+            "Type": "Sender",
         }
     }
-    boto_mock.send_raw_email.side_effect = botocore.exceptions.ClientError(error_response, 'opname')
-    mocker.patch.object(aws_ses_client, 'statsd_client', create=True)
+    boto_mock.send_raw_email.side_effect = botocore.exceptions.ClientError(error_response, "opname")
+    mocker.patch.object(aws_ses_client, "statsd_client", create=True)
 
     with pytest.raises(AwsSesClientException) as excinfo:
         aws_ses_client.send_email(
-            source='from@address.com',
-            to_addresses='foo@bar.com',
-            subject='Subject',
-            body='Body'
+            source="from@address.com",
+            to_addresses="foo@bar.com",
+            subject="Subject",
+            body="Body",
         )
 
-    assert 'some error message from amazon' in str(excinfo.value)
+    assert "some error message from amazon" in str(excinfo.value)
 
 
-@pytest.mark.parametrize('input, expected_output', [
-    ('foo@domain.tld', 'foo@domain.tld'),
-    ('føøøø@bååååår.com', 'føøøø@xn--br-yiaaaaa.com'),
-])
+@pytest.mark.parametrize(
+    "input, expected_output",
+    [
+        ("foo@domain.tld", "foo@domain.tld"),
+        ("føøøø@bååååår.com", "føøøø@xn--br-yiaaaaa.com"),
+    ],
+)
 def test_punycode_encode_email(input, expected_output):
     assert punycode_encode_email(input) == expected_output

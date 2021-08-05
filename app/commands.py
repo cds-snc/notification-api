@@ -1,25 +1,27 @@
 import csv
 import functools
+import itertools
 import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
 
 import click
-import itertools
 from click_datetime import Datetime as click_dt
-from flask import current_app, json
 from flask import cli as flask_cli
+from flask import current_app, json
+from notifications_utils.statsd_decorators import statsd
 from notifications_utils.template import SMSMessageTemplate
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
-from notifications_utils.statsd_decorators import statsd
 
-from app import db, DATETIME_FORMAT, encryption
+from app import DATETIME_FORMAT, db, encryption
 from app.aws import s3
-from app.celery.tasks import record_daily_sorted_counts
-from app.celery.nightly_tasks import send_total_sent_notifications_to_performance_platform
-from app.celery.service_callback_tasks import send_delivery_status_to_service
 from app.celery.letters_pdf_tasks import create_letters_pdf
+from app.celery.nightly_tasks import (
+    send_total_sent_notifications_to_performance_platform,
+)
+from app.celery.service_callback_tasks import send_delivery_status_to_service
+from app.celery.tasks import record_daily_sorted_counts
 from app.config import QueueNames
 from app.dao.annual_billing_dao import dao_create_or_update_annual_billing_for_year
 from app.dao.fact_billing_dao import (
@@ -28,30 +30,48 @@ from app.dao.fact_billing_dao import (
     get_service_ids_that_need_billing_populated,
     update_fact_billing,
 )
-from app.dao.organisation_dao import dao_get_organisation_by_email_address, dao_add_service_to_organisation
-
-from app.dao.provider_rates_dao import create_provider_rates as dao_create_provider_rates
-from app.dao.service_callback_api_dao import get_service_delivery_status_callback_api_for_service
+from app.dao.organisation_dao import (
+    dao_add_service_to_organisation,
+    dao_get_organisation_by_email_address,
+)
+from app.dao.provider_rates_dao import (
+    create_provider_rates as dao_create_provider_rates,
+)
+from app.dao.service_callback_api_dao import (
+    get_service_delivery_status_callback_api_for_service,
+)
 from app.dao.services_dao import (
-    delete_service_and_all_associated_db_objects,
     dao_fetch_all_services_by_user,
     dao_fetch_service_by_id,
-    dao_update_service
+    dao_update_service,
+    delete_service_and_all_associated_db_objects,
 )
 from app.dao.templates_dao import dao_get_template_by_id
-from app.dao.users_dao import delete_model_user, delete_user_verify_codes, get_user_by_email
-from app.models import (
-    PROVIDERS, User, Notification, Organisation, Domain, Service, SMS_TYPE,
-    NOTIFICATION_CREATED,
-    KEY_TYPE_TEST,
-    EmailBranding,
-    LetterBranding
+from app.dao.users_dao import (
+    delete_model_user,
+    delete_user_verify_codes,
+    get_user_by_email,
 )
-from app.performance_platform.processing_time import send_processing_time_for_start_and_end
+from app.models import (
+    KEY_TYPE_TEST,
+    NOTIFICATION_CREATED,
+    PROVIDERS,
+    SMS_TYPE,
+    Domain,
+    EmailBranding,
+    LetterBranding,
+    Notification,
+    Organisation,
+    Service,
+    User,
+)
+from app.performance_platform.processing_time import (
+    send_processing_time_for_start_and_end,
+)
 from app.utils import get_local_timezone_midnight_in_utc, get_midnight_for_day_before
 
 
-@click.group(name='command', help='Additional commands')
+@click.group(name="command", help="Additional commands")
 def command_group():
     pass
 
@@ -76,9 +96,15 @@ class notify_command:
 
 
 @notify_command()
-@click.option('-p', '--provider_name', required=True, type=click.Choice(PROVIDERS))
-@click.option('-c', '--cost', required=True, help='Cost (pence) per message including decimals', type=float)
-@click.option('-d', '--valid_from', required=True, type=click_dt(format='%Y-%m-%dT%H:%M:%S'))
+@click.option("-p", "--provider_name", required=True, type=click.Choice(PROVIDERS))
+@click.option(
+    "-c",
+    "--cost",
+    required=True,
+    help="Cost (pence) per message including decimals",
+    type=float,
+)
+@click.option("-d", "--valid_from", required=True, type=click_dt(format="%Y-%m-%dT%H:%M:%S"))
 def create_provider_rates(provider_name, cost, valid_from):
     """
     Backfill rates for a given provider
@@ -88,9 +114,14 @@ def create_provider_rates(provider_name, cost, valid_from):
 
 
 @notify_command()
-@click.option('-u', '--user_email_prefix', required=True, help="""
+@click.option(
+    "-u",
+    "--user_email_prefix",
+    required=True,
+    help="""
     Functional test user email prefix. eg "notify-test-preview"
-""")  # noqa
+""",
+)  # noqa
 def purge_functional_test_data(user_email_prefix):
     """
     Remove non-seeded functional test data
@@ -102,7 +133,7 @@ def purge_functional_test_data(user_email_prefix):
         # Make sure the full email includes a uuid in it
         # Just in case someone decides to use a similar email address.
         try:
-            uuid.UUID(usr.email_address.split("@")[0].split('+')[1])
+            uuid.UUID(usr.email_address.split("@")[0].split("+")[1])
         except ValueError:
             print("Skipping {} as the user email doesn't contain a UUID.".format(usr.email_address))
         else:
@@ -130,7 +161,7 @@ def backfill_notification_statuses():
 
     while len(result) > 0:
         db.session.execute(update)
-        print('commit {} updates at {}'.format(LIMIT, datetime.utcnow()))
+        print("commit {} updates at {}".format(LIMIT, datetime.utcnow()))
         db.session.commit()
         result = db.session.execute(subq).fetchall()
 
@@ -147,7 +178,7 @@ def update_notification_international_flag():
 
     while len(result) > 0:
         db.session.execute(update)
-        print('commit 250000 updates at {}'.format(datetime.utcnow()))
+        print("commit 250000 updates at {}".format(datetime.utcnow()))
         db.session.commit()
         result = db.session.execute(subq).fetchall()
 
@@ -157,7 +188,7 @@ def update_notification_international_flag():
     result_history = db.session.execute(subq_history).fetchall()
     while len(result_history) > 0:
         db.session.execute(update_history)
-        print('commit 250000 updates at {}'.format(datetime.utcnow()))
+        print("commit 250000 updates at {}".format(datetime.utcnow()))
         db.session.commit()
         result_history = db.session.execute(subq_history).fetchall()
 
@@ -180,25 +211,36 @@ def fix_notification_statuses_not_in_sync():
 
     while len(result) > 0:
         db.session.execute(update)
-        print('Committed {} updates at {}'.format(len(result), datetime.utcnow()))
+        print("Committed {} updates at {}".format(len(result), datetime.utcnow()))
         db.session.commit()
         result = db.session.execute(subq).fetchall()
 
-    subq_hist = "SELECT id FROM notification_history WHERE cast (status as text) != notification_status LIMIT {}" \
-        .format(MAX)
+    subq_hist = "SELECT id FROM notification_history WHERE cast (status as text) != notification_status LIMIT {}".format(MAX)
     update = "UPDATE notification_history SET notification_status = status WHERE id in ({})".format(subq_hist)
     result = db.session.execute(subq_hist).fetchall()
 
     while len(result) > 0:
         db.session.execute(update)
-        print('Committed {} updates at {}'.format(len(result), datetime.utcnow()))
+        print("Committed {} updates at {}".format(len(result), datetime.utcnow()))
         db.session.commit()
         result = db.session.execute(subq_hist).fetchall()
 
 
 @notify_command()
-@click.option('-s', '--start_date', required=True, help="start date inclusive", type=click_dt(format='%Y-%m-%d'))
-@click.option('-e', '--end_date', required=True, help="end date inclusive", type=click_dt(format='%Y-%m-%d'))
+@click.option(
+    "-s",
+    "--start_date",
+    required=True,
+    help="start date inclusive",
+    type=click_dt(format="%Y-%m-%d"),
+)
+@click.option(
+    "-e",
+    "--end_date",
+    required=True,
+    help="end date inclusive",
+    type=click_dt(format="%Y-%m-%d"),
+)
 def backfill_performance_platform_totals(start_date, end_date):
     """
     Send historical total messages sent to Performance Platform.
@@ -209,22 +251,32 @@ def backfill_performance_platform_totals(start_date, end_date):
 
     delta = end_date - start_date
 
-    print('Sending total messages sent for all days between {} and {}'.format(start_date, end_date))
+    print("Sending total messages sent for all days between {} and {}".format(start_date, end_date))
 
     for i in range(delta.days + 1):
 
         process_date = start_date + timedelta(days=i)
 
-        print('Sending total messages sent for {}'.format(
-            process_date.isoformat()
-        ))
+        print("Sending total messages sent for {}".format(process_date.isoformat()))
 
         send_total_sent_notifications_to_performance_platform(process_date)
 
 
 @notify_command()
-@click.option('-s', '--start_date', required=True, help="start date inclusive", type=click_dt(format='%Y-%m-%d'))
-@click.option('-e', '--end_date', required=True, help="end date inclusive", type=click_dt(format='%Y-%m-%d'))
+@click.option(
+    "-s",
+    "--start_date",
+    required=True,
+    help="start date inclusive",
+    type=click_dt(format="%Y-%m-%d"),
+)
+@click.option(
+    "-e",
+    "--end_date",
+    required=True,
+    help="end date inclusive",
+    type=click_dt(format="%Y-%m-%d"),
+)
 def backfill_processing_time(start_date, end_date):
     """
     Send historical processing time to Performance Platform.
@@ -232,7 +284,7 @@ def backfill_processing_time(start_date, end_date):
 
     delta = end_date - start_date
 
-    print('Sending notification processing-time data for all days between {} and {}'.format(start_date, end_date))
+    print("Sending notification processing-time data for all days between {} and {}".format(start_date, end_date))
 
     for i in range(delta.days + 1):
         # because the tz conversion funcs talk about midnight, and the midnight before last,
@@ -242,16 +294,22 @@ def backfill_processing_time(start_date, end_date):
         process_start_date = get_midnight_for_day_before(process_date)
         process_end_date = get_local_timezone_midnight_in_utc(process_date)
 
-        print('Sending notification processing-time for {} - {}'.format(
-            process_start_date.isoformat(),
-            process_end_date.isoformat()
-        ))
+        print(
+            "Sending notification processing-time for {} - {}".format(
+                process_start_date.isoformat(), process_end_date.isoformat()
+            )
+        )
         send_processing_time_for_start_and_end(process_start_date, process_end_date)
 
 
-@notify_command(name='populate-annual-billing')
-@click.option('-y', '--year', required=True, type=int,
-              help="""The year to populate the annual billing data for, i.e. 2019""")
+@notify_command(name="populate-annual-billing")
+@click.option(
+    "-y",
+    "--year",
+    required=True,
+    type=int,
+    help="""The year to populate the annual billing data for, i.e. 2019""",
+)
 def populate_annual_billing(year):
     """
     add annual_billing for given year.
@@ -272,24 +330,30 @@ def populate_annual_billing(year):
             order by financial_year_start desc limit 1
         """
         free_allowance_rows = db.session.execute(latest_annual_billing, {"service_id": row.id})
-        free_allowance = [x[0]for x in free_allowance_rows]
+        free_allowance = [x[0] for x in free_allowance_rows]
         print("create free limit of {} for service: {}".format(free_allowance[0], row.id))
-        dao_create_or_update_annual_billing_for_year(service_id=row.id,
-                                                     free_sms_fragment_limit=free_allowance[0],
-                                                     financial_year_start=int(year))
+        dao_create_or_update_annual_billing_for_year(
+            service_id=row.id,
+            free_sms_fragment_limit=free_allowance[0],
+            financial_year_start=int(year),
+        )
 
 
-@notify_command(name='list-routes')
+@notify_command(name="list-routes")
 def list_routes():
     """List URLs of all application routes."""
     for rule in sorted(current_app.url_map.iter_rules(), key=lambda r: r.rule):
-        print("{:10} {}".format(", ".join(rule.methods - set(['OPTIONS', 'HEAD'])), rule.rule))
+        print("{:10} {}".format(", ".join(rule.methods - set(["OPTIONS", "HEAD"])), rule.rule))
 
 
-@notify_command(name='insert-inbound-numbers')
-@click.option('-f', '--file_name', required=True,
-              help="""Full path of the file to upload, file is a contains inbound numbers,
-              one number per line. The number must have the format of 07... not 447....""")
+@notify_command(name="insert-inbound-numbers")
+@click.option(
+    "-f",
+    "--file_name",
+    required=True,
+    help="""Full path of the file to upload, file is a contains inbound numbers,
+              one number per line. The number must have the format of 07... not 447....""",
+)
 def insert_inbound_numbers_from_file(file_name):
     print("Inserting inbound numbers from {}".format(file_name))
     file = open(file_name)
@@ -302,20 +366,33 @@ def insert_inbound_numbers_from_file(file_name):
     file.close()
 
 
-@notify_command(name='replay-create-pdf-letters')
-@click.option('-n', '--notification_id', type=click.UUID, required=True,
-              help="Notification id of the letter that needs the create_letters_pdf task replayed")
+@notify_command(name="replay-create-pdf-letters")
+@click.option(
+    "-n",
+    "--notification_id",
+    type=click.UUID,
+    required=True,
+    help="Notification id of the letter that needs the create_letters_pdf task replayed",
+)
 def replay_create_pdf_letters(notification_id):
     print("Create task to create_letters_pdf for notification: {}".format(notification_id))
     create_letters_pdf.apply_async([str(notification_id)], queue=QueueNames.CREATE_LETTERS_PDF)
 
 
-@notify_command(name='replay-service-callbacks')
-@click.option('-f', '--file_name', required=True,
-              help="""Full path of the file to upload, file is a contains client references of
-              notifications that need the status to be sent to the service.""")
-@click.option('-s', '--service_id', required=True,
-              help="""The service that the callbacks are for""")
+@notify_command(name="replay-service-callbacks")
+@click.option(
+    "-f",
+    "--file_name",
+    required=True,
+    help="""Full path of the file to upload, file is a contains client references of
+              notifications that need the status to be sent to the service.""",
+)
+@click.option(
+    "-s",
+    "--service_id",
+    required=True,
+    help="""The service that the callbacks are for""",
+)
 def replay_service_callbacks(file_name, service_id):
     print("Start send service callbacks for service: ", service_id)
     callback_api = get_service_delivery_status_callback_api_for_service(service_id=service_id)
@@ -353,24 +430,38 @@ def replay_service_callbacks(file_name, service_id):
             "service_callback_api_bearer_token": callback_api.bearer_token,
         }
         encrypted_status_update = encryption.encrypt(data)
-        send_delivery_status_to_service.apply_async([str(n.id), encrypted_status_update],
-                                                    queue=QueueNames.CALLBACKS)
+        send_delivery_status_to_service.apply_async([str(n.id), encrypted_status_update], queue=QueueNames.CALLBACKS)
 
-    print("Replay service status for service: {}. Sent {} notification status updates to the queue".format(
-        service_id, len(notifications)))
+    print(
+        "Replay service status for service: {}. Sent {} notification status updates to the queue".format(
+            service_id, len(notifications)
+        )
+    )
 
 
 def setup_commands(application):
     application.cli.add_command(command_group)
 
 
-@notify_command(name='migrate-data-to-ft-billing')
-@click.option('-s', '--start_date', required=True, help="start date inclusive", type=click_dt(format='%Y-%m-%d'))
-@click.option('-e', '--end_date', required=True, help="end date inclusive", type=click_dt(format='%Y-%m-%d'))
+@notify_command(name="migrate-data-to-ft-billing")
+@click.option(
+    "-s",
+    "--start_date",
+    required=True,
+    help="start date inclusive",
+    type=click_dt(format="%Y-%m-%d"),
+)
+@click.option(
+    "-e",
+    "--end_date",
+    required=True,
+    help="end date inclusive",
+    type=click_dt(format="%Y-%m-%d"),
+)
 @statsd(namespace="tasks")
 def migrate_data_to_ft_billing(start_date, end_date):
 
-    current_app.logger.info('Billing migration from date {} to {}'.format(start_date, end_date))
+    current_app.logger.info("Billing migration from date {} to {}".format(start_date, end_date))
 
     process_date = start_date
     total_updated = 0
@@ -378,8 +469,7 @@ def migrate_data_to_ft_billing(start_date, end_date):
     while process_date < end_date:
         start_time = datetime.utcnow()
         # migrate data into ft_billing, upserting the data if it the record already exists
-        sql = \
-            """
+        sql = """
             insert into ft_billing (bst_date, template_id, service_id, notification_type, provider, rate_multiplier,
                 international, billable_units, notifications_sent, rate, postage, created_at)
                 select bst_date, template_id, service_id, notification_type, provider, rate_multiplier, international,
@@ -436,40 +526,41 @@ def migrate_data_to_ft_billing(start_date, end_date):
 
         result = db.session.execute(sql, {"start": process_date, "end": process_date + timedelta(days=1)})
         db.session.commit()
-        current_app.logger.info('ft_billing: --- Completed took {}ms. Migrated {} rows for {}'.format(
-            datetime.now() - start_time, result.rowcount, process_date))
+        current_app.logger.info(
+            "ft_billing: --- Completed took {}ms. Migrated {} rows for {}".format(
+                datetime.now() - start_time, result.rowcount, process_date
+            )
+        )
 
         process_date += timedelta(days=1)
 
         total_updated += result.rowcount
-    current_app.logger.info('Total inserted/updated records = {}'.format(total_updated))
+    current_app.logger.info("Total inserted/updated records = {}".format(total_updated))
 
 
-@notify_command(name='rebuild-ft-billing-for-day')
-@click.option('-s', '--service_id', required=False, type=click.UUID)
-@click.option('-d', '--day', help="The date to recalculate, as YYYY-MM-DD", required=True,
-              type=click_dt(format='%Y-%m-%d'))
+@notify_command(name="rebuild-ft-billing-for-day")
+@click.option("-s", "--service_id", required=False, type=click.UUID)
+@click.option(
+    "-d",
+    "--day",
+    help="The date to recalculate, as YYYY-MM-DD",
+    required=True,
+    type=click_dt(format="%Y-%m-%d"),
+)
 def rebuild_ft_billing_for_day(service_id, day):
     """
     Rebuild the data in ft_billing for the given service_id and date
     """
+
     def rebuild_ft_data(process_day, service):
         deleted_rows = delete_billing_data_for_service_for_day(process_day, service)
-        current_app.logger.info('deleted {} existing billing rows for {} on {}'.format(
-            deleted_rows,
-            service,
-            process_day
-        ))
+        current_app.logger.info("deleted {} existing billing rows for {} on {}".format(deleted_rows, service, process_day))
         transit_data = fetch_billing_data_for_day(process_day=process_day, service_id=service)
         # transit_data = every row that should exist
         for data in transit_data:
             # upsert existing rows
             update_fact_billing(data, process_day)
-        current_app.logger.info('added/updated {} billing rows for {} on {}'.format(
-            len(transit_data),
-            service,
-            process_day
-        ))
+        current_app.logger.info("added/updated {} billing rows for {} on {}".format(len(transit_data), service, process_day))
 
     if service_id:
         # confirm the service exists
@@ -478,19 +569,31 @@ def rebuild_ft_billing_for_day(service_id, day):
     else:
         services = get_service_ids_that_need_billing_populated(
             get_local_timezone_midnight_in_utc(day),
-            get_local_timezone_midnight_in_utc(day + timedelta(days=1))
+            get_local_timezone_midnight_in_utc(day + timedelta(days=1)),
         )
         for row in services:
             rebuild_ft_data(day, row.service_id)
 
 
-@notify_command(name='migrate-data-to-ft-notification-status')
-@click.option('-s', '--start_date', required=True, help="start date inclusive", type=click_dt(format='%Y-%m-%d'))
-@click.option('-e', '--end_date', required=True, help="end date inclusive", type=click_dt(format='%Y-%m-%d'))
+@notify_command(name="migrate-data-to-ft-notification-status")
+@click.option(
+    "-s",
+    "--start_date",
+    required=True,
+    help="start date inclusive",
+    type=click_dt(format="%Y-%m-%d"),
+)
+@click.option(
+    "-e",
+    "--end_date",
+    required=True,
+    help="end date inclusive",
+    type=click_dt(format="%Y-%m-%d"),
+)
 @statsd(namespace="tasks")
 def migrate_data_to_ft_notification_status(start_date, end_date):
 
-    print('Notification statuses migration from date {} to {}'.format(start_date, end_date))
+    print("Notification statuses migration from date {} to {}".format(start_date, end_date))
 
     process_date = start_date
     total_updated = 0
@@ -500,12 +603,11 @@ def migrate_data_to_ft_notification_status(start_date, end_date):
         # migrate data into ft_notification_status and update if record already exists
 
         db.session.execute(
-            'delete from ft_notification_status where bst_date = :process_date',
-            {"process_date": process_date}
+            "delete from ft_notification_status where bst_date = :process_date",
+            {"process_date": process_date},
         )
 
-        sql = \
-            """
+        sql = """
             insert into ft_notification_status (bst_date, template_id, service_id, job_id, notification_type, key_type,
                 notification_status, created_at, notification_count)
                 select
@@ -526,25 +628,38 @@ def migrate_data_to_ft_notification_status(start_date, end_date):
             """
         result = db.session.execute(sql, {"start": process_date, "end": process_date + timedelta(days=1)})
         db.session.commit()
-        print('ft_notification_status: --- Completed took {}ms. Migrated {} rows for {}.'.format(
-            datetime.now() - start_time,
-            result.rowcount,
-            process_date
-        ))
+        print(
+            "ft_notification_status: --- Completed took {}ms. Migrated {} rows for {}.".format(
+                datetime.now() - start_time, result.rowcount, process_date
+            )
+        )
         process_date += timedelta(days=1)
 
         total_updated += result.rowcount
-    print('Total inserted/updated records = {}'.format(total_updated))
+    print("Total inserted/updated records = {}".format(total_updated))
 
 
-@notify_command(name='bulk-invite-user-to-service')
-@click.option('-f', '--file_name', required=True,
-              help="Full path of the file containing a list of email address for people to invite to a service")
-@click.option('-s', '--service_id', required=True, help='The id of the service that the invite is for')
-@click.option('-u', '--user_id', required=True, help='The id of the user that the invite is from')
-@click.option('-a', '--auth_type', required=False,
-              help='The authentication type for the user, sms_auth or email_auth. Defaults to sms_auth if not provided')
-@click.option('-p', '--permissions', required=True, help='Comma separated list of permissions.')
+@notify_command(name="bulk-invite-user-to-service")
+@click.option(
+    "-f",
+    "--file_name",
+    required=True,
+    help="Full path of the file containing a list of email address for people to invite to a service",
+)
+@click.option(
+    "-s",
+    "--service_id",
+    required=True,
+    help="The id of the service that the invite is for",
+)
+@click.option("-u", "--user_id", required=True, help="The id of the user that the invite is from")
+@click.option(
+    "-a",
+    "--auth_type",
+    required=False,
+    help="The authentication type for the user, sms_auth or email_auth. Defaults to sms_auth if not provided",
+)
+@click.option("-p", "--permissions", required=True, help="Comma separated list of permissions.")
 def bulk_invite_user_to_service(file_name, service_id, user_id, auth_type, permissions):
     #  permissions
     #  manage_users | manage_templates | manage_settings
@@ -554,21 +669,22 @@ def bulk_invite_user_to_service(file_name, service_id, user_id, auth_type, permi
     #  view_activity
     # "send_texts,send_emails,send_letters,view_activity"
     from app.invite.rest import create_invited_user
+
     file = open(file_name)
     for email_address in file:
         data = {
-            'service': service_id,
-            'email_address': email_address.strip(),
-            'from_user': user_id,
-            'permissions': permissions,
-            'auth_type': auth_type,
-            'invite_link_host': current_app.config['ADMIN_BASE_URL']
+            "service": service_id,
+            "email_address": email_address.strip(),
+            "from_user": user_id,
+            "permissions": permissions,
+            "auth_type": auth_type,
+            "invite_link_host": current_app.config["ADMIN_BASE_URL"],
         }
         with current_app.test_request_context(
-            path='/service/{}/invite/'.format(service_id),
-            method='POST',
+            path="/service/{}/invite/".format(service_id),
+            method="POST",
             data=json.dumps(data),
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
         ):
             try:
                 response = create_invited_user(service_id)
@@ -581,17 +697,17 @@ def bulk_invite_user_to_service(file_name, service_id, user_id, auth_type, permi
     file.close()
 
 
-@notify_command(name='populate-notification-postage')
+@notify_command(name="populate-notification-postage")
 @click.option(
-    '-s',
-    '--start_date',
+    "-s",
+    "--start_date",
     default=datetime(2017, 2, 1),
     help="start date inclusive",
-    type=click_dt(format='%Y-%m-%d')
+    type=click_dt(format="%Y-%m-%d"),
 )
 @statsd(namespace="tasks")
 def populate_notification_postage(start_date):
-    current_app.logger.info('populating historical notification postage')
+    current_app.logger.info("populating historical notification postage")
 
     total_updated = 0
 
@@ -599,8 +715,7 @@ def populate_notification_postage(start_date):
         # process in ten day chunks
         end_date = start_date + timedelta(days=10)
 
-        sql = \
-            """
+        sql = """
             UPDATE {}
             SET postage = 'second'
             WHERE notification_type = 'letter' AND
@@ -611,28 +726,46 @@ def populate_notification_postage(start_date):
         execution_start = datetime.utcnow()
 
         if end_date > datetime.utcnow() - timedelta(days=8):
-            print('Updating notifications table as well')
-            db.session.execute(sql.format('notifications'), {'start': start_date, 'end': end_date})
+            print("Updating notifications table as well")
+            db.session.execute(sql.format("notifications"), {"start": start_date, "end": end_date})
 
-        result = db.session.execute(sql.format('notification_history'), {'start': start_date, 'end': end_date})
+        result = db.session.execute(sql.format("notification_history"), {"start": start_date, "end": end_date})
         db.session.commit()
 
-        current_app.logger.info('notification postage took {}ms. Migrated {} rows for {} to {}'.format(
-            datetime.utcnow() - execution_start, result.rowcount, start_date, end_date))
+        current_app.logger.info(
+            "notification postage took {}ms. Migrated {} rows for {} to {}".format(
+                datetime.utcnow() - execution_start,
+                result.rowcount,
+                start_date,
+                end_date,
+            )
+        )
 
         start_date += timedelta(days=10)
 
         total_updated += result.rowcount
 
-    current_app.logger.info('Total inserted/updated records = {}'.format(total_updated))
+    current_app.logger.info("Total inserted/updated records = {}".format(total_updated))
 
 
-@notify_command(name='archive-jobs-created-between-dates')
-@click.option('-s', '--start_date', required=True, help="start date inclusive", type=click_dt(format='%Y-%m-%d'))
-@click.option('-e', '--end_date', required=True, help="end date inclusive", type=click_dt(format='%Y-%m-%d'))
+@notify_command(name="archive-jobs-created-between-dates")
+@click.option(
+    "-s",
+    "--start_date",
+    required=True,
+    help="start date inclusive",
+    type=click_dt(format="%Y-%m-%d"),
+)
+@click.option(
+    "-e",
+    "--end_date",
+    required=True,
+    help="end date inclusive",
+    type=click_dt(format="%Y-%m-%d"),
+)
 @statsd(namespace="tasks")
 def update_jobs_archived_flag(start_date, end_date):
-    current_app.logger.info('Archiving jobs created between {} to {}'.format(start_date, end_date))
+    current_app.logger.info("Archiving jobs created between {} to {}".format(start_date, end_date))
 
     process_date = start_date
     total_updated = 0
@@ -648,17 +781,25 @@ def update_jobs_archived_flag(start_date, end_date):
 
         result = db.session.execute(sql, {"start": process_date, "end": process_date + timedelta(days=1)})
         db.session.commit()
-        current_app.logger.info('jobs: --- Completed took {}ms. Archived {} jobs for {}'.format(
-            datetime.now() - start_time, result.rowcount, process_date))
+        current_app.logger.info(
+            "jobs: --- Completed took {}ms. Archived {} jobs for {}".format(
+                datetime.now() - start_time, result.rowcount, process_date
+            )
+        )
 
         process_date += timedelta(days=1)
 
         total_updated += result.rowcount
-    current_app.logger.info('Total archived jobs = {}'.format(total_updated))
+    current_app.logger.info("Total archived jobs = {}".format(total_updated))
 
 
-@notify_command(name='update-emails-to-remove-gsi')
-@click.option('-s', '--service_id', required=True, help="service id. Update all user.email_address to remove .gsi")
+@notify_command(name="update-emails-to-remove-gsi")
+@click.option(
+    "-s",
+    "--service_id",
+    required=True,
+    help="service id. Update all user.email_address to remove .gsi",
+)
 @statsd(namespace="tasks")
 def update_emails_to_remove_gsi(service_id):
     users_to_update = """SELECT u.id user_id, u.name, email_address, s.id, s.name
@@ -668,11 +809,11 @@ def update_emails_to_remove_gsi(service_id):
                           WHERE s.id = :service_id
                             AND u.email_address ilike ('%.gsi.gov.uk%')
     """
-    results = db.session.execute(users_to_update, {'service_id': service_id})
+    results = db.session.execute(users_to_update, {"service_id": service_id})
     print("Updating {} users.".format(results.rowcount))
 
     for user in results:
-        print('User with id {} updated'.format(user.user_id))
+        print("User with id {} updated".format(user.user_id))
 
         update_stmt = """
         UPDATE users
@@ -680,25 +821,36 @@ def update_emails_to_remove_gsi(service_id):
                updated_at = now()
          WHERE id = :user_id
         """
-        db.session.execute(update_stmt, {'user_id': str(user.user_id)})
+        db.session.execute(update_stmt, {"user_id": str(user.user_id)})
         db.session.commit()
 
 
-@notify_command(name='replay-daily-sorted-count-files')
-@click.option('-f', '--file_extension', required=False, help="File extension to search for, defaults to rs.txt")
+@notify_command(name="replay-daily-sorted-count-files")
+@click.option(
+    "-f",
+    "--file_extension",
+    required=False,
+    help="File extension to search for, defaults to rs.txt",
+)
 @statsd(namespace="tasks")
 def replay_daily_sorted_count_files(file_extension):
-    bucket_location = '{}-ftp'.format(current_app.config['NOTIFY_EMAIL_DOMAIN'])
-    for filename in s3.get_list_of_files_by_suffix(bucket_name=bucket_location,
-                                                   subfolder='root/dispatch',
-                                                   suffix=file_extension or '.rs.txt'):
+    bucket_location = "{}-ftp".format(current_app.config["NOTIFY_EMAIL_DOMAIN"])
+    for filename in s3.get_list_of_files_by_suffix(
+        bucket_name=bucket_location,
+        subfolder="root/dispatch",
+        suffix=file_extension or ".rs.txt",
+    ):
         print("Create task to record daily sorted counts for file: ", filename)
         record_daily_sorted_counts.apply_async([filename], queue=QueueNames.NOTIFY)
 
 
-@notify_command(name='populate-organisations-from-file')
-@click.option('-f', '--file_name', required=True,
-              help="Pipe delimited file containing organisation name, sector, crown, argeement_signed, domains")
+@notify_command(name="populate-organisations-from-file")
+@click.option(
+    "-f",
+    "--file_name",
+    required=True,
+    help="Pipe delimited file containing organisation name, sector, crown, argeement_signed, domains",
+)
 def populate_organisations_from_file(file_name):
     # [0] organisation name:: name of the organisation insert if organisation is missing.
     # [1] sector:: Central | Local | NHS only
@@ -711,17 +863,18 @@ def populate_organisations_from_file(file_name):
     # The expectation is that the organisation, organisation_to_service
     # and user_to_organisation will be cleared before running this command.
     # Ignoring duplicates allows us to run the command again with the same file or same file with new rows.
-    with open(file_name, 'r') as f:
+    with open(file_name, "r") as f:
+
         def boolean_or_none(field):
-            if field == '1':
+            if field == "1":
                 return True
-            elif field == '0':
+            elif field == "0":
                 return False
-            elif field == '':
+            elif field == "":
                 return None
 
         for line in itertools.islice(f, 1, None):
-            columns = line.split('|')
+            columns = line.split("|")
             print(columns)
             email_branding = None
             email_branding_column = columns[5].strip()
@@ -732,14 +885,13 @@ def populate_organisations_from_file(file_name):
             if len(letter_branding_column) > 0:
                 letter_branding = LetterBranding.query.filter(LetterBranding.name == letter_branding_column).one()
             data = {
-                'name': columns[0],
-                'active': True,
-                'agreement_signed': boolean_or_none(columns[3]),
-                'crown': boolean_or_none(columns[2]),
-                'organisation_type': columns[1].lower(),
-                'email_branding_id': email_branding.id if email_branding else None,
-                'letter_branding_id': letter_branding.id if letter_branding else None
-
+                "name": columns[0],
+                "active": True,
+                "agreement_signed": boolean_or_none(columns[3]),
+                "crown": boolean_or_none(columns[2]),
+                "organisation_type": columns[1].lower(),
+                "email_branding_id": email_branding.id if email_branding else None,
+                "letter_branding_id": letter_branding.id if letter_branding else None,
             }
             org = Organisation(**data)
             try:
@@ -748,7 +900,7 @@ def populate_organisations_from_file(file_name):
             except IntegrityError:
                 print("duplicate org", org.name)
                 db.session.rollback()
-            domains = columns[4].split(',')
+            domains = columns[4].split(",")
             for d in domains:
                 if len(d.strip()) > 0:
                     domain = Domain(domain=d.strip(), organisation_id=org.id)
@@ -760,8 +912,8 @@ def populate_organisations_from_file(file_name):
                         db.session.rollback()
 
 
-@notify_command(name='get-letter-details-from-zips-sent-file')
-@click.argument('file_paths', required=True, nargs=-1)
+@notify_command(name="get-letter-details-from-zips-sent-file")
+@click.argument("file_paths", required=True, nargs=-1)
 @statsd(namespace="tasks")
 def get_letter_details_from_zips_sent_file(file_paths):
     """Get notification details from letters listed in zips_sent file(s)
@@ -774,8 +926,8 @@ def get_letter_details_from_zips_sent_file(file_paths):
 
     for path in file_paths:
         file_contents = s3.get_s3_file(
-            bucket_name=current_app.config['LETTERS_PDF_BUCKET_NAME'],
-            file_location=path
+            bucket_name=current_app.config["LETTERS_PDF_BUCKET_NAME"],
+            file_location=path,
         )
         rows_from_file.extend(json.loads(file_contents))
 
@@ -786,21 +938,19 @@ def get_letter_details_from_zips_sent_file(file_paths):
         FROM notifications
         WHERE reference IN :notification_references
         ORDER BY service_id, job_id"""
-    result = db.session.execute(sql, {'notification_references': notification_references}).fetchall()
+    result = db.session.execute(sql, {"notification_references": notification_references}).fetchall()
 
-    with open('zips_sent_details.csv', 'w') as csvfile:
+    with open("zips_sent_details.csv", "w") as csvfile:
         csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(['notification_id', 'service_id', 'reference', 'job_id', 'created_at'])
+        csv_writer.writerow(["notification_id", "service_id", "reference", "job_id", "created_at"])
 
         for row in result:
             csv_writer.writerow(row)
 
 
-@notify_command(name='associate-services-to-organisations')
+@notify_command(name="associate-services-to-organisations")
 def associate_services_to_organisations():
-    services = Service.get_history_model().query.filter_by(
-        version=1
-    ).all()
+    services = Service.get_history_model().query.filter_by(version=1).all()
 
     for s in services:
         created_by_user = User.query.filter_by(id=s.created_by_id).first()
@@ -812,18 +962,22 @@ def associate_services_to_organisations():
     print("finished associating services to organisations")
 
 
-@notify_command(name='populate-service-volume-intentions')
-@click.option('-f', '--file_name', required=True,
-              help="Pipe delimited file containing service_id, SMS, email, letters")
+@notify_command(name="populate-service-volume-intentions")
+@click.option(
+    "-f",
+    "--file_name",
+    required=True,
+    help="Pipe delimited file containing service_id, SMS, email, letters",
+)
 def populate_service_volume_intentions(file_name):
     # [0] service_id
     # [1] SMS:: volume intentions for service
     # [2] Email:: volume intentions for service
     # [3] Letters:: volume intentions for service
 
-    with open(file_name, 'r') as f:
+    with open(file_name, "r") as f:
         for line in itertools.islice(f, 1, None):
-            columns = line.split(',')
+            columns = line.split(",")
             print(columns)
             service = dao_fetch_service_by_id(columns[0])
             service.volume_sms = columns[1]
@@ -833,14 +987,15 @@ def populate_service_volume_intentions(file_name):
     print("populate-service-volume-intentions complete")
 
 
-@notify_command(name='populate-go-live')
-@click.option('-f', '--file_name', required=True, help='CSV file containing live service data')
+@notify_command(name="populate-go-live")
+@click.option("-f", "--file_name", required=True, help="CSV file containing live service data")
 def populate_go_live(file_name):
     # 0 - count, 1- Link, 2- Service ID, 3- DEPT, 4- Service Name, 5- Main contact,
     # 6- Contact detail, 7-MOU, 8- LIVE date, 9- SMS, 10 - Email, 11 - Letters, 12 -CRM, 13 - Blue badge
     import csv
+
     print("Populate go live user and date")
-    with open(file_name, 'r') as f:
+    with open(file_name, "r") as f:
         rows = csv.reader(
             f,
             quoting=csv.QUOTE_MINIMAL,
@@ -851,7 +1006,7 @@ def populate_go_live(file_name):
             print(index, row)
             service_id = row[2]
             go_live_email = row[6]
-            go_live_date = datetime.strptime(row[8], '%d/%m/%Y') + timedelta(hours=12)
+            go_live_date = datetime.strptime(row[8], "%d/%m/%Y") + timedelta(hours=12)
             print(service_id, go_live_email, go_live_date)
             try:
                 if go_live_email:
@@ -871,7 +1026,7 @@ def populate_go_live(file_name):
             dao_update_service(service)
 
 
-@notify_command(name='fix-billable-units')
+@notify_command(name="fix-billable-units")
 def fix_billable_units():
     query = Notification.query.filter(
         Notification.notification_type == SMS_TYPE,
@@ -892,10 +1047,6 @@ def fix_billable_units():
         )
         print("Updating notification: {} with {} billable_units".format(notification.id, template.fragment_count))
 
-        Notification.query.filter(
-            Notification.id == notification.id
-        ).update(
-            {"billable_units": template.fragment_count}
-        )
+        Notification.query.filter(Notification.id == notification.id).update({"billable_units": template.fragment_count})
     db.session.commit()
     print("End fix_billable_units")
