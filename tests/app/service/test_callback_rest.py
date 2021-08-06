@@ -261,12 +261,18 @@ class TestCreateServiceCallback:
         assert resp_json['errors'][0]['error'] == 'ValidationError'
         assert resp_json['errors'][0]['message'] == expected_response
 
-    def test_create_service_callback_raises_404_when_service_does_not_exist(self, admin_request, notify_db_session):
+    @mock.patch('app.dao.permissions_dao.PermissionDAO.get_permissions_by_user_id_and_service_id')
+    def test_create_service_callback_raises_404_when_service_does_not_exist(
+            self, mock_permissions, admin_request, notify_db_session
+    ):
+        mock_permissions.return_value = [Permission(permission=x) for x in PERMISSION_LIST]
+
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
             "bearer_token": "some-unique-string",
             "notification_statuses": ["failed"],
-            "updated_by_id": str(uuid.uuid4())
+            "updated_by_id": str(uuid.uuid4()),
+            "callback_channel": WEBHOOK_CHANNEL_TYPE
         }
 
         resp_json = admin_request.post(
