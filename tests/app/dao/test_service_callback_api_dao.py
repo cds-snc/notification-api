@@ -10,7 +10,8 @@ from app.dao.service_callback_api_dao import (
     get_service_callback,
     get_service_delivery_status_callback_api_for_service)
 from app.models import ServiceCallback, NOTIFICATION_FAILED, NOTIFICATION_TEMPORARY_FAILURE, \
-    NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_STATUS_TYPES_COMPLETED, NOTIFICATION_SENT, NOTIFICATION_DELIVERED
+    NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_STATUS_TYPES_COMPLETED, NOTIFICATION_SENT, NOTIFICATION_DELIVERED, \
+    WEBHOOK_CHANNEL_TYPE
 from app.schemas import service_callback_api_schema
 from tests.app.db import create_service_callback_api
 
@@ -22,7 +23,8 @@ def test_save_service_callback_api(sample_service):
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
         updated_by_id=sample_service.users[0].id,
-        notification_statuses=notification_statuses
+        notification_statuses=notification_statuses,
+        callback_channel=WEBHOOK_CHANNEL_TYPE
     )
 
     save_service_callback_api(service_callback_api)
@@ -56,7 +58,8 @@ def test_save_service_callback_api_fails_if_service_does_not_exist(notify_db, no
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
         updated_by_id=uuid.uuid4(),
-        notification_statuses=str(notification_statuses)
+        notification_statuses=str(notification_statuses),
+        callback_channel=WEBHOOK_CHANNEL_TYPE
     )
 
     with pytest.raises(SQLAlchemyError):
@@ -71,7 +74,8 @@ def test_update_service_callback_api_unique_constraint(sample_service):
         bearer_token="some_unique_string",
         updated_by_id=sample_service.users[0].id,
         callback_type='delivery_status',
-        notification_statuses=str(notification_statuses)
+        notification_statuses=str(notification_statuses),
+        callback_channel=WEBHOOK_CHANNEL_TYPE
     )
     save_service_callback_api(service_callback_api)
     another = ServiceCallback(  # nosec
@@ -80,7 +84,8 @@ def test_update_service_callback_api_unique_constraint(sample_service):
         bearer_token="different_string",
         updated_by_id=sample_service.users[0].id,
         callback_type='delivery_status',
-        notification_statuses=str(notification_statuses)
+        notification_statuses=str(notification_statuses),
+        callback_channel=WEBHOOK_CHANNEL_TYPE
     )
     with pytest.raises(expected_exception=SQLAlchemyError):
         save_service_callback_api(another)
@@ -94,7 +99,8 @@ def test_update_service_callback_can_add_two_api_of_different_types(sample_servi
         bearer_token="some_unique_string",
         updated_by_id=sample_service.users[0].id,
         callback_type='delivery_status',
-        notification_statuses=str(notification_statuses)
+        notification_statuses=str(notification_statuses),
+        callback_channel=WEBHOOK_CHANNEL_TYPE
     )
     save_service_callback_api(delivery_status)
     complaint = ServiceCallback(  # nosec
@@ -102,7 +108,8 @@ def test_update_service_callback_can_add_two_api_of_different_types(sample_servi
         url="https://some_service/another_callback_endpoint",
         bearer_token="different_string",
         updated_by_id=sample_service.users[0].id,
-        callback_type='complaint'
+        callback_type='complaint',
+        callback_channel=WEBHOOK_CHANNEL_TYPE
     )
     save_service_callback_api(complaint)
     results = ServiceCallback.query.order_by(ServiceCallback.callback_type).all()
@@ -122,7 +129,8 @@ def test_update_service_callback_api(sample_service):
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
         updated_by_id=sample_service.users[0].id,
-        notification_statuses=str(notification_statuses)
+        notification_statuses=str(notification_statuses),
+        callback_channel=WEBHOOK_CHANNEL_TYPE
     )
 
     save_service_callback_api(service_callback_api)
@@ -167,7 +175,8 @@ def test_get_service_callback_api(sample_service):
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
         updated_by_id=sample_service.users[0].id,
-        notification_statuses=notification_statuses
+        notification_statuses=notification_statuses,
+        callback_channel=WEBHOOK_CHANNEL_TYPE
     )
     save_service_callback_api(service_callback_api)
 

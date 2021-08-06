@@ -28,12 +28,18 @@ class TestFetchServiceCallback:
 
 class TestCreateServiceCallback:
 
-    def test_set_service_callback_raises_404_when_service_does_not_exist(self, notify_db, admin_request):
+    @mock.patch('app.dao.permissions_dao.PermissionDAO.get_permissions_by_user_id_and_service_id')
+    def test_set_service_callback_raises_404_when_service_does_not_exist(
+            self, mock_permissions, notify_db, admin_request
+    ):
+        mock_permissions.return_value = [Permission(permission=x) for x in PERMISSION_LIST]
+
         data = {
             "url": "https://some.service/callback-sms",
             "bearer_token": "some-unique-string",
             "updated_by_id": str(uuid.uuid4()),
-            "notification_statuses": ['sent']
+            "notification_statuses": ['sent'],
+            "callback_channel": WEBHOOK_CHANNEL_TYPE
         }
         response = admin_request.post(
             'service_callback.create_service_callback',
@@ -57,7 +63,8 @@ class TestCreateServiceCallback:
             "url": "https://some.service/delivery-receipt-endpoint",
             "bearer_token": "some-unique-string",
             "updated_by_id": str(sample_service.users[0].id),
-            "callback_type": callback_type
+            "callback_type": callback_type,
+            "callback_channel": WEBHOOK_CHANNEL_TYPE
         }
         if has_notification_statuses:
             data["notification_statuses"] = ["failed"]
@@ -89,7 +96,8 @@ class TestCreateServiceCallback:
             "url": "https://some.service/delivery-receipt-endpoint",
             "bearer_token": "some-unique-string",
             "updated_by_id": str(sample_service.users[0].id),
-            "callback_type": DELIVERY_STATUS_CALLBACK_TYPE
+            "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
+            "callback_channel": WEBHOOK_CHANNEL_TYPE
         }
 
         resp_json = admin_request.post(
@@ -115,7 +123,8 @@ class TestCreateServiceCallback:
             "bearer_token": "some-unique-string",
             "updated_by_id": str(sample_service.users[0].id),
             "callback_type": callback_type,
-            "notification_statuses": NOTIFICATION_STATUS_TYPES_COMPLETED
+            "notification_statuses": NOTIFICATION_STATUS_TYPES_COMPLETED,
+            "callback_channel": WEBHOOK_CHANNEL_TYPE
         }
 
         resp_json = admin_request.post(
@@ -183,16 +192,14 @@ class TestCreateServiceCallback:
     def test_create_service_callback_raises_400_when_insufficient_permissions(
             self, mock_permissions, notify_db, admin_request, sample_service, callback_channel, required_permission
     ):
-        permission_list = [Permission(permission=x) for x in PERMISSION_LIST if x != required_permission]
-
-        mock_permissions.return_value = permission_list
+        mock_permissions.return_value = [Permission(permission=x) for x in PERMISSION_LIST if x != required_permission]
 
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
             "updated_by_id": str(sample_service.users[0].id),
             "bearer_token": "some-unique-string",
             "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
-            "notification_statuses": NOTIFICATION_STATUS_TYPES_COMPLETED,
+            "notification_statusmes": NOTIFICATION_STATUS_TYPES_COMPLETED,
             "callback_channel": callback_channel
         }
 
@@ -215,7 +222,7 @@ class TestCreateServiceCallback:
             "url": "https://some.service/delivery-receipt-endpoint",
             "bearer_token": "some-unique-string",
             "notification_statuses": [non_existent_status],
-            "updated_by_id": str(uuid.uuid4())
+            "updated_by_id": str(uuid.uuid4()),
         }
 
         admin_request.post(
