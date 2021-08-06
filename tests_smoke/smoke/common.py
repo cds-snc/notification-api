@@ -3,7 +3,6 @@ import itertools
 import json
 import os
 import uuid
-
 from enum import Enum
 from io import StringIO
 from typing import Any, List, Tuple

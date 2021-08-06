@@ -4,7 +4,7 @@ from datetime import datetime
 import requests
 from notifications_python_client.authentication import create_jwt_token
 
-from .common import Config, job_line, Notification_type, pretty_print, rows_to_csv
+from .common import Config, Notification_type, job_line, pretty_print, rows_to_csv
 
 
 def test_api_bulk(notification_type: Notification_type):
