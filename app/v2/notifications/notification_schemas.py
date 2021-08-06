@@ -155,7 +155,10 @@ post_sms_request = {
         {"required": ["phone_number"]},
         {"required": ["recipient_identifier"]}
     ],
-    "additionalProperties": False
+    "additionalProperties": False,
+    "validationMessage": {
+        "anyOf": "Please provide either a phone number or a recipient identifier"
+    }
 }
 
 sms_content = {
@@ -206,7 +209,10 @@ post_email_request = {
         {"required": ["email_address"]},
         {"required": ["recipient_identifier"]}
     ],
-    "additionalProperties": False
+    "additionalProperties": False,
+    "validationMessage": {
+        "anyOf": "Please provide either an email address or a recipient identifier"
+    }
 }
 
 email_content = {

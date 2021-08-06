@@ -66,11 +66,18 @@ def validate(json_to_validate, schema):
 def build_error_message(errors):
     fields = []
     for e in errors:
-        field = (
-            "{} {}".format(e.path[0], e.schema['validationMessage'])
-            if 'validationMessage' in e.schema else __format_message(e)
-        )
-        fields.append({"error": "ValidationError", "message": field})
+        if 'validationMessage' not in e.schema:
+            error_message = __format_message(e)
+        else:
+            if len(e.path) > 0:
+                # a path indicates that we are validating a specific property
+                # eg: "template_id" + " is not a valid UUID"
+                error_message = f"{e.path[0]} {e.schema['validationMessage']}"
+            elif e.validator in e.schema['validationMessage']:
+                error_message = e.schema['validationMessage'][e.validator]
+            else:
+                error_message = __format_message(e)
+        fields.append({"error": "ValidationError", "message": error_message})
     message = {
         "status_code": 400,
         "errors": unique_errors(fields)

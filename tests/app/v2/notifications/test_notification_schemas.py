@@ -216,7 +216,7 @@ def test_post_sms_json_schema_bad_uuid_and_missing_phone_number_and_recipient_id
     assert error.get('status_code') == 400
     assert len(error.get('errors')) == 2
     assert {'error': 'ValidationError',
-            'message': "{template_id: notUUID} is not valid under any of the given schemas"} in error['errors']
+            'message': "Please provide either a phone number or a recipient identifier"} in error['errors']
     assert {'error': 'ValidationError',
             'message': "template_id is not a valid UUID"} in error['errors']
 
