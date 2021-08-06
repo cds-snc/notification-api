@@ -52,3 +52,7 @@ clean:
 format:
 	isort .
 	black --config pyproject.toml .
+
+.PHONY: smoke-test
+smoke-test:
+	cd tests_smoke && python smoke_test.py
