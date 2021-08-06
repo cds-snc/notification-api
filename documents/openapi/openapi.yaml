@@ -449,6 +449,100 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /service/{service_id}/callback/{callback_id}:
+    get:
+      summary: Get a callback for a service by its id
+      tags:
+        - callback
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/CallbackId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    items:
+                      $ref: '#/components/schemas/ServiceCallback'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminAuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Update a callback for a service
+      tags:
+        - callback
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/CallbackId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/UpdateCallbackRequestDeliveryStatus'
+                - $ref: '#/components/schemas/UpdateCallbackRequestComplaint'
+                - $ref: '#/components/schemas/UpdateCallbackRequestInboundSms'
+      responses:
+        '200':
+          description: UPDATED
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceCallback'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminAuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Remove a callback for a service
+      tags:
+        - callback
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/CallbackId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoveCallbackRequest'
+      responses:
+        '204':
+          description: DELETED
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminAuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   '/service/{service_id}/template':
     get:
       summary: Get all templates for a service
