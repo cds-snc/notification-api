@@ -1,7 +1,9 @@
 import time
 
 import requests
-from common import (  # type: ignore
+from notifications_python_client.authentication import create_jwt_token
+
+from .common import (
     Config,
     job_line,
     pretty_print,
@@ -9,7 +11,6 @@ from common import (  # type: ignore
     s3upload,
     set_metadata_on_csv_upload,
 )
-from notifications_python_client.authentication import create_jwt_token
 
 
 def test_admin_csv(notification_type: str):

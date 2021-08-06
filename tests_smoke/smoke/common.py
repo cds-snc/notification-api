@@ -19,13 +19,13 @@ class Config:
     CSV_UPLOAD_BUCKET_NAME = os.environ.get("CSV_UPLOAD_BUCKET_NAME")
     ADMIN_CLIENT_USER_NAME = "notify-admin"
     ADMIN_CLIENT_SECRET = os.environ.get("ADMIN_CLIENT_SECRET")
-    EMAIL_TO = os.environ.get("EMAIL_TO")
-    SMS_TO = os.environ.get("SMS_TO")
+    EMAIL_TO = os.environ.get("EMAIL_TO", "")
+    SMS_TO = os.environ.get("SMS_TO", "")
     USER_ID = os.environ.get("USER_ID")
-    SERVICE_ID = os.environ.get("SERVICE_ID")
+    SERVICE_ID = os.environ.get("SERVICE_ID", "")
     EMAIL_TEMPLATE_ID = os.environ.get("EMAIL_TEMPLATE_ID")
     SMS_TEMPLATE_ID = os.environ.get("SMS_TEMPLATE_ID")
-    API_KEY = os.environ.get("API_KEY")
+    API_KEY = os.environ.get("API_KEY", "")
 
 
 def rows_to_csv(rows: List[List[str]]):

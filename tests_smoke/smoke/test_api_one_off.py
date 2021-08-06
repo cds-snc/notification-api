@@ -1,7 +1,8 @@
 import time
 
 import requests
-from common import Config, pretty_print  # type: ignore
+
+from .common import Config, pretty_print
 
 
 def test_api_one_off(notification_type: str):

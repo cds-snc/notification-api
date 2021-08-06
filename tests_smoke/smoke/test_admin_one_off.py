@@ -1,8 +1,9 @@
 import time
 
 import requests
-from common import Config, pretty_print  # type: ignore
 from notifications_python_client.authentication import create_jwt_token
+
+from .common import Config, pretty_print
 
 
 def test_admin_one_off(notification_type: str):

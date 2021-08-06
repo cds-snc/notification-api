@@ -2,8 +2,9 @@ import time
 from datetime import datetime
 
 import requests
-from common import Config, job_line, pretty_print, rows_to_csv  # type: ignore
 from notifications_python_client.authentication import create_jwt_token
+
+from .common import Config, job_line, pretty_print, rows_to_csv
 
 
 def test_api_bulk(notification_type: str):
