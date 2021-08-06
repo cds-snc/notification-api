@@ -4,14 +4,14 @@ from datetime import datetime
 import requests
 from notifications_python_client.authentication import create_jwt_token
 
-from .common import Config, job_line, pretty_print, rows_to_csv
+from .common import Config, job_line, Notification_type, pretty_print, rows_to_csv
 
 
-def test_api_bulk(notification_type: str):
-    print(f"test_api_bulk ({notification_type})... ", end="", flush=True)
-    template_id = Config.EMAIL_TEMPLATE_ID if notification_type == "email" else Config.SMS_TEMPLATE_ID
-    to = Config.EMAIL_TO if notification_type == "email" else Config.SMS_TO
-    header = "email address" if notification_type == "email" else "phone number"
+def test_api_bulk(notification_type: Notification_type):
+    print(f"test_api_bulk ({notification_type.value})... ", end="", flush=True)
+    template_id = Config.EMAIL_TEMPLATE_ID if notification_type == Notification_type.EMAIL else Config.SMS_TEMPLATE_ID
+    to = Config.EMAIL_TO if notification_type == Notification_type.EMAIL else Config.SMS_TO
+    header = "email address" if notification_type == Notification_type.EMAIL else "phone number"
 
     response = requests.post(
         f"{Config.API_HOST_NAME}/v2/notifications/bulk",
@@ -49,8 +49,3 @@ def test_api_bulk(notification_type: str):
         return
 
     print("Success")
-
-
-if __name__ == "__main__":
-    test_api_bulk("email")
-    test_api_bulk("sms")

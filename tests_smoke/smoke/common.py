@@ -3,6 +3,8 @@ import itertools
 import json
 import os
 import uuid
+
+from enum import Enum
 from io import StringIO
 from typing import Any, List, Tuple
 
@@ -26,6 +28,11 @@ class Config:
     EMAIL_TEMPLATE_ID = os.environ.get("EMAIL_TEMPLATE_ID")
     SMS_TEMPLATE_ID = os.environ.get("SMS_TEMPLATE_ID")
     API_KEY = os.environ.get("API_KEY", "")
+
+
+class Notification_type(Enum):
+    EMAIL = "email"
+    SMS = "sms"
 
 
 def rows_to_csv(rows: List[List[str]]):

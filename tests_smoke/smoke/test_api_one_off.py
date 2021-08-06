@@ -2,13 +2,13 @@ import time
 
 import requests
 
-from .common import Config, pretty_print
+from .common import Config, Notification_type, pretty_print
 
 
-def test_api_one_off(notification_type: str):
-    print(f"test_api_oneoff ({notification_type})... ", end="", flush=True)
+def test_api_one_off(notification_type: Notification_type):
+    print(f"test_api_oneoff ({notification_type.value})... ", end="", flush=True)
 
-    if notification_type == "email":
+    if notification_type == Notification_type.EMAIL:
         data = {
             "email_address": Config.EMAIL_TO,
             "template_id": Config.EMAIL_TEMPLATE_ID,
@@ -20,12 +20,12 @@ def test_api_one_off(notification_type: str):
         }
 
     response = requests.post(
-        f"{Config.API_HOST_NAME}/v2/notifications/{notification_type}",
+        f"{Config.API_HOST_NAME}/v2/notifications/{notification_type.value}",
         json=data,
         headers={"Authorization": f"ApiKey-v1 {Config.API_KEY[-36:]}"},
     )
     if response.status_code != 201:
-        print(f"FAILED: post to v2/notifications/{notification_type} failed")
+        print(f"FAILED: post to v2/notifications/{notification_type.value} failed")
         pretty_print(response.json())
         return
 
@@ -46,8 +46,3 @@ def test_api_one_off(notification_type: str):
         return
 
     print("Success")
-
-
-if __name__ == "__main__":
-    test_api_one_off("email")
-    test_api_one_off("sms")

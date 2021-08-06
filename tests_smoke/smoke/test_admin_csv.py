@@ -6,6 +6,7 @@ from notifications_python_client.authentication import create_jwt_token
 from .common import (
     Config,
     job_line,
+    Notification_type,
     pretty_print,
     rows_to_csv,
     s3upload,
@@ -13,10 +14,10 @@ from .common import (
 )
 
 
-def test_admin_csv(notification_type: str):
-    print(f"test_admin_csv ({notification_type})... ", end="", flush=True)
+def test_admin_csv(notification_type: Notification_type):
+    print(f"test_admin_csv ({notification_type.value})... ", end="", flush=True)
 
-    if notification_type == "email":
+    if notification_type == Notification_type.EMAIL:
         data = rows_to_csv([["email address", "name"], *job_line(Config.EMAIL_TO, 1)])
     else:
         data = rows_to_csv([["phone number", "name"], *job_line(Config.SMS_TO, 1)])
@@ -24,7 +25,7 @@ def test_admin_csv(notification_type: str):
     upload_id = s3upload(Config.SERVICE_ID, data)
     metadata_kwargs = {
         "notification_count": 1,
-        "template_id": Config.EMAIL_TEMPLATE_ID if notification_type == "email" else Config.SMS_TEMPLATE_ID,
+        "template_id": Config.EMAIL_TEMPLATE_ID if notification_type == Notification_type.EMAIL else Config.SMS_TEMPLATE_ID,
         "valid": True,
         "original_file_name": "smoke_test.csv",
     }
@@ -62,8 +63,3 @@ def test_admin_csv(notification_type: str):
         return
 
     print("Success")
-
-
-if __name__ == "__main__":
-    test_admin_csv("email")
-    test_admin_csv("sms")

@@ -3,15 +3,15 @@ import time
 import requests
 from notifications_python_client.authentication import create_jwt_token
 
-from .common import Config, pretty_print
+from .common import Config, Notification_type, pretty_print
 
 
-def test_admin_one_off(notification_type: str):
-    print(f"test_admin_one_off ({notification_type})... ", end="", flush=True)
+def test_admin_one_off(notification_type: Notification_type):
+    print(f"test_admin_one_off ({notification_type.value})... ", end="", flush=True)
 
     token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
-    to = Config.EMAIL_TO if notification_type == "email" else Config.SMS_TO
-    template_id = Config.EMAIL_TEMPLATE_ID if notification_type == "email" else Config.SMS_TEMPLATE_ID
+    to = Config.EMAIL_TO if notification_type == Notification_type.EMAIL else Config.SMS_TO
+    template_id = Config.EMAIL_TEMPLATE_ID if notification_type == Notification_type.EMAIL else Config.SMS_TEMPLATE_ID
 
     response = requests.post(
         f"{Config.API_HOST_NAME}/service/{Config.SERVICE_ID}/send-notification",
@@ -46,8 +46,3 @@ def test_admin_one_off(notification_type: str):
         pretty_print(body)
         return
     print("Success")
-
-
-if __name__ == "__main__":
-    test_admin_one_off("email")
-    test_admin_one_off("sms")
