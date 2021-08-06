@@ -229,6 +229,7 @@ def register_blueprint(application):
     from app.template_folder.rest import template_folder_blueprint
     from app.letter_branding.letter_branding_rest import letter_branding_blueprint
     from app.oauth.rest import oauth_blueprint
+    from app.notifications.receive_notifications import receive_notifications_blueprint
 
     application.register_blueprint(service_blueprint, url_prefix='/service')
 
@@ -307,6 +308,8 @@ def register_blueprint(application):
 
     letter_branding_blueprint.before_request(validate_admin_auth)
     application.register_blueprint(letter_branding_blueprint)
+
+    application.register_blueprint(receive_notifications_blueprint)
 
 
 def register_v2_blueprints(application):

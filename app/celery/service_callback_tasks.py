@@ -39,7 +39,7 @@ def send_delivery_status_to_service(
         "notification_type": status_update['notification_type']
     }
     logging_tags = {
-        'notification_id': str(notification_id)
+        "notification_id": str(notification_id)
     }
     try:
         service_callback.send(

@@ -24,11 +24,11 @@ register_errors(receive_notifications_blueprint)
 def receive_mmg_sms():
     """
     {
-        'MSISDN': '447123456789'
-        'Number': '40604',
-        'Message': 'some+uri+encoded+message%3A',
-        'ID': 'SOME-MMG-SPECIFIC-ID',
-        'DateRecieved': '2017-05-21+11%3A56%3A11'
+        "MSISDN": "447123456789"
+        "Number": "40604",
+        "Message": "some+uri+encoded+message%3A",
+        "ID": "SOME-MMG-SPECIFIC-ID",
+        "DateRecieved": "2017-05-21+11%3A56%3A11"
     }
     """
     post_data = request.get_json()
