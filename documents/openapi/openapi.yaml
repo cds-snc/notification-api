@@ -426,9 +426,8 @@ paths:
           application/json:
             schema:
               oneOf:
-                - $ref: '#/components/schemas/CreateCallbackRequestDeliveryStatus'
-                - $ref: '#/components/schemas/CreateCallbackRequestComplaint'
-                - $ref: '#/components/schemas/CreateCallbackRequestInboundSms'
+                - $ref: '#/components/schemas/CreateCallbackRequest'
+                - $ref: '#/components/schemas/CreateDeliveryStatusCallbackRequest'
       responses:
         '201':
           description: CREATED
@@ -445,8 +444,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/AdminAuthError'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
   /service/{service_id}/callback/{callback_id}:
@@ -466,9 +463,7 @@ paths:
                 type: object
                 properties:
                   data:
-                    type: object
-                    items:
-                      $ref: '#/components/schemas/ServiceCallback'
+                    $ref: '#/components/schemas/ServiceCallback'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -490,9 +485,7 @@ paths:
           application/json:
             schema:
               oneOf:
-                - $ref: '#/components/schemas/UpdateCallbackRequestDeliveryStatus'
-                - $ref: '#/components/schemas/UpdateCallbackRequestComplaint'
-                - $ref: '#/components/schemas/UpdateCallbackRequestInboundSms'
+                - $ref: '#/components/schemas/UpdateCallbackRequest'
       responses:
         '200':
           description: UPDATED
@@ -520,12 +513,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/ServiceId'
         - $ref: '#/components/parameters/CallbackId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RemoveCallbackRequest'
       responses:
         '204':
           description: DELETED
@@ -922,6 +909,13 @@ components:
         $ref: '#/components/schemas/Id'
       required: true
       description: Service identifier
+    CallbackId:
+      name: callback_id
+      in: path
+      schema:
+        $ref: '#/components/schemas/Id'
+      required: true
+      description: Callback identifier
     TemplateId:
       name: template_id
       in: path
@@ -1155,6 +1149,91 @@ components:
         - password
         - email_address
         - user_permissions
+    ServiceCallback:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        service_id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        callback_type:
+          $ref: '#/components/schemas/CallbackType'
+        created_at:
+          type: string
+          format: datetime
+        updated_at:
+          type: string
+          format: datetime
+          nullable: true
+        updated_by_id:
+          type: string
+          format: uuid
+        notification_statuses:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/NotificationStatus'
+    CreateCallbackRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+        callback_type:
+          $ref: '#/components/schemas/CallbackType'
+        bearer_token:
+          type: string
+          description: Required if callback_channel is webhook
+        callback_channel:
+          $ref: '#/components/schemas/CallbackChannel'
+      required:
+        - url
+        - callback_type
+        - callback_channel
+    CreateDeliveryStatusCallbackRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateCallbackRequest'
+      properties:
+        notification_statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationStatus'
+      required:
+        - notification_statuses
+    UpdateCallbackRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateCallbackRequest'
+        - type: object
+          anyOf:
+            - required: [url]
+            - required: [bearer_token]
+            - required: [notification_statuses]
+    CallbackType:
+      type: string
+      enum:
+        - delivery_status
+        - inbound_sms
+        - complaint
+    CallbackChannel:
+      type: string
+      enum:
+        - webhook
+        - queue
+    NotificationStatus:
+      type: string
+      enum:
+        - cancelled
+        - delivered
+        - failed
+        - technical-failure
+        - temporary-failure
+        - permanent-failure
+        - returned-letter
     User:
       type: object
       properties:
