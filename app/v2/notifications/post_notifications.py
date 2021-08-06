@@ -295,12 +295,12 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         if notification_type == EMAIL_TYPE:
             current_app.logger.info("calling save email task")
             save_email.apply_async(
-                (authenticated_service.id, create_uuid(), encrypted_notification_data),
+                (authenticated_service.id, create_uuid(), encrypted_notification_data, None),
                 queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
             )
         elif notification_type == SMS_TYPE:
             save_sms.apply_async(
-                (authenticated_service.id, create_uuid(), encrypted_notification_data),
+                (authenticated_service.id, create_uuid(), encrypted_notification_data, None),
                 queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
             )
 

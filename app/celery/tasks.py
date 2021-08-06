@@ -150,6 +150,9 @@ def process_row(row: Row, template: Template, job: Job, service: Service):
             "queue": queue_to_use(job.notification_count),
         }
     )
+
+    notification_id = create_uuid()
+
     sender_id = str(job.sender_id) if job.sender_id else None
 
     send_fns = {SMS_TYPE: save_sms, EMAIL_TYPE: save_email, LETTER_TYPE: save_letter}
@@ -160,15 +163,20 @@ def process_row(row: Row, template: Template, job: Job, service: Service):
     if sender_id:
         task_kwargs["sender_id"] = sender_id
 
-    send_fn.apply_async(
-        (
-            str(service.id),
-            create_uuid(),
-            encrypted,
-        ),
-        task_kwargs,
-        queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
-    )
+    # the same_sms and save_email task are going to be using template and service objects from cache
+    # these objects are transient and will not have relationships loaded
+    if service_allowed_to_send_to(row.recipient, service, KEY_TYPE_NORMAL):
+        send_fn.apply_async(
+            (
+                str(service.id),
+                notification_id,
+                encrypted,
+            ),
+            task_kwargs,
+            queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
+        )
+    else:
+        current_app.logger.debug("SMS {} failed as restricted service".format(notification_id))
 
 
 def __sending_limits_for_job_exceeded(service, job: Job, job_id):
@@ -189,17 +197,25 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
 @statsd(namespace="tasks")
 def save_sms(self, service_id, notification_id, encrypted_notification, sender_id=None):
     notification = encryption.decrypt(encrypted_notification)
-    service = dao_fetch_service_by_id(service_id)
-    template = dao_get_template_by_id(notification["template"], version=notification["template_version"])
+    service = dao_fetch_service_by_id(service_id, use_cache=True)
+    template = dao_get_template_by_id(notification["template"], version=notification["template_version"], use_cache=True)
 
     if sender_id:
         reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
+    # if the template is obtained from cache a tuple will be returned where
+    # the first element is the Template object and the second the template cache data
+    # in the form of a dict
+    elif isinstance(template, tuple):
+        reply_to_text = template[1].get("reply_to_text")
+        template = template[0]
     else:
         reply_to_text = template.get_reply_to_text()
 
-    if not service_allowed_to_send_to(notification["to"], service, KEY_TYPE_NORMAL):
-        current_app.logger.debug("SMS {} failed as restricted service".format(notification_id))
-        return
+    # if the service is obtained from cache a tuple will be returned where
+    # the first element is the Service object and the second the service cache data
+    # in the form of a dict
+    if isinstance(service, tuple):
+        service = service[0]
 
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
 
@@ -245,17 +261,25 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
 @statsd(namespace="tasks")
 def save_email(self, service_id, notification_id, encrypted_notification, sender_id=None):
     notification = encryption.decrypt(encrypted_notification)
-    service = dao_fetch_service_by_id(service_id)
-    template = dao_get_template_by_id(notification["template"], version=notification["template_version"])
+    service = dao_fetch_service_by_id(service_id, use_cache=True)
+    template = dao_get_template_by_id(notification["template"], version=notification["template_version"], use_cache=True)
 
     if sender_id:
         reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
+    # if the template is obtained from cache a tuple will be returned where
+    # the first element is the Template object and the second the template cache data
+    # in the form of a dict
+    elif isinstance(template, tuple):
+        reply_to_text = template[1].get("reply_to_text")
+        template = template[0]
     else:
         reply_to_text = template.get_reply_to_text()
 
-    if not service_allowed_to_send_to(notification["to"], service, notification.get("key_type", KEY_TYPE_NORMAL)):
-        current_app.logger.info("Email {} failed as restricted service".format(notification_id))
-        return
+    # if the service is obtained from cache a tuple will be returned where
+    # the first element is the Service object and the second the service cache data
+    # in the form of a dict
+    if isinstance(service, tuple):
+        service = service[0]
 
     check_service_over_daily_message_limit(notification.get("key_type", KEY_TYPE_NORMAL), service)
 

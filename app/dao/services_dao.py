@@ -1,13 +1,16 @@
+import json
 import uuid
 from datetime import date, datetime, timedelta
+from typing import Tuple, Union
 
 from flask import current_app
+from notifications_utils.clients.redis import service_cache_key
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import and_, asc, case, func
 
-from app import db
+from app import db, redis_store
 from app.dao.dao_utils import VersionOptions, transactional, version_class
 from app.dao.date_util import get_current_financial_year
 from app.dao.email_branding_dao import dao_get_email_branding_by_name
@@ -186,12 +189,16 @@ def dao_fetch_live_services_data():
     return results
 
 
-def dao_fetch_service_by_id(service_id, only_active=False):
-    query = Service.query.filter_by(id=service_id).options(joinedload("users"))
+def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Union[Service, Tuple[Service, dict]]:
+    if use_cache:
+        service_cache = redis_store.get(service_cache_key(service_id))
+        if service_cache:
+            service_cache_decoded = json.loads(service_cache.decode("utf-8"))["data"]
+            return Service.from_json(service_cache_decoded), service_cache_decoded
 
+    query = Service.query.filter_by(id=service_id).options(joinedload("users"))
     if only_active:
         query = query.filter(Service.active)
-
     return query.one()
 
 

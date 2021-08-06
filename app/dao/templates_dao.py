@@ -1,10 +1,13 @@
+import json
 import uuid
 from datetime import datetime
+from typing import Tuple, Union
 
 from flask import current_app
+from notifications_utils.clients.redis import template_version_cache_key
 from sqlalchemy import asc, desc
 
-from app import db
+from app import db, redis_store
 from app.dao.dao_utils import VersionOptions, transactional, version_class
 from app.dao.users_dao import get_user_by_id
 from app.models import (
@@ -91,8 +94,26 @@ def dao_get_template_by_id_and_service_id(template_id, service_id, version=None)
     return db.on_reader().query(Template).filter_by(id=template_id, hidden=False, service_id=service_id).one()
 
 
-def dao_get_template_by_id(template_id, version=None):
-    if version is not None:
+def dao_get_template_by_id(
+    template_id, version=None, use_cache=False
+) -> Union[Union[Template, TemplateHistory], Tuple[Union[Template, TemplateHistory], dict]]:
+
+    if use_cache:
+        # When loading a SQLAlchemy object from cache it is in the transient state.
+        # We do not add it to the session. This would defeat the purpose of using the cache.
+        # The reasoning being that if the object is added to the session it would be queried
+        # to retrieve the latest data for that row. Since we do not want to add the object
+        # to the session it means some fields such as reply_to_text would be missing
+        # so we also return the cached data.
+        template_cache = redis_store.get(template_version_cache_key(template_id, version))
+        if template_cache:
+            template_cache_decoded = json.loads(template_cache.decode("utf-8"))["data"]
+            if version:
+                return TemplateHistory.from_json(template_cache_decoded), template_cache_decoded
+            else:
+                return Template.from_json(template_cache_decoded), template_cache_decoded
+
+    elif version is not None:
         return TemplateHistory.query.filter_by(id=template_id, version=version).one()
     return Template.query.filter_by(id=template_id).one()
 

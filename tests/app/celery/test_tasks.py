@@ -12,7 +12,7 @@ from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate
 from requests import RequestException
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import DATETIME_FORMAT, encryption
+from app import DATETIME_FORMAT, encryption, redis_store
 from app.celery import provider_tasks, tasks
 from app.celery.tasks import (
     get_template_class,
@@ -42,6 +42,7 @@ from app.models import (
     Notification,
     NotificationHistory,
 )
+from app.schemas import service_schema, template_schema
 from celery.exceptions import Retry
 from tests.app import load_example_csv
 from tests.app.db import (
@@ -147,6 +148,7 @@ def test_should_redirect_job_to_queue_depending_on_csv_threshold(
     notify_api, sample_job, mocker, fake_uuid, csv_threshold, expected_queue
 ):
     mock_save_email = mocker.patch("app.celery.tasks.save_email")
+    mocker.patch("app.service.utils.safelisted_members", return_value=None)
 
     template = Mock(id=1, template_type=EMAIL_TYPE)
     job = Mock(id=1, template_version="temp_vers", notification_count=1)
@@ -410,6 +412,7 @@ def test_should_process_all_sms_job(sample_job_with_placeholdered_template, mock
 def test_process_row_sends_save_task(
     notify_api, template_type, research_mode, expected_function, expected_queue, api_key_id, sender_id, mocker
 ):
+    service_allowed_to_send_to_mock = mocker.patch("app.service.utils.safelisted_members", return_value=None)
     mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
     task_mock = mocker.patch("app.celery.tasks.{}.apply_async".format(expected_function))
     encrypt_mock = mocker.patch("app.celery.tasks.encryption.encrypt")
@@ -431,6 +434,7 @@ def test_process_row_sends_save_task(
         service,
     )
 
+    assert service_allowed_to_send_to_mock.called
     encrypt_mock.assert_called_once_with(
         {
             "api_key": None if api_key_id is None else str(api_key_id),
@@ -453,6 +457,87 @@ def test_process_row_sends_save_task(
         {"sender_id": str(sender_id)} if sender_id else {},
         queue=expected_queue,
     )
+
+
+def test_should_not_save_sms_if_restricted_service_and_invalid_number(notify_db_session, mocker):
+    user = create_user(mobile_number="6502532222")
+    service = create_service(user=user, restricted=True)
+    template = create_template(service=service)
+    job = create_job(template)
+    notification = _notification_json(template, to="07700 900849")
+
+    save_sms_mock = mocker.patch("app.celery.tasks.save_sms")
+
+    process_row(
+        Row(
+            {"foo": "bar", "to": notification["to"]},
+            index="row_num",
+            error_fn=lambda k, v: None,
+            recipient_column_headers=["to"],
+            placeholders={"foo"},
+            template=SMSMessageTemplate(template.__dict__),
+        ),
+        template,
+        job,
+        service,
+    )
+
+    assert not save_sms_mock.called
+
+
+def test_should_not_save_sms_if_team_key_and_recipient_not_in_team(notify_db_session, mocker):
+    user = create_user(mobile_number="6502532222")
+    service = create_service(user=user, restricted=True)
+    template = create_template(service=service)
+    job = create_job(template)
+    notification = _notification_json(template, to="07700 900849")
+
+    team_members = [user.mobile_number for user in service.users]
+    assert "07890 300000" not in team_members
+
+    save_sms_mock = mocker.patch("app.celery.tasks.save_sms.apply_async")
+
+    process_row(
+        Row(
+            {"foo": "bar", "to": notification["to"]},
+            index="row_num",
+            error_fn=lambda k, v: None,
+            recipient_column_headers=["to"],
+            placeholders={"foo"},
+            template=SMSMessageTemplate(template.__dict__),
+        ),
+        template,
+        job,
+        service,
+    )
+
+    assert not save_sms_mock.called
+
+
+def test_should_not_save_email_if_restricted_service_and_invalid_email_address(notify_db_session, mocker):
+    user = create_user()
+    service = create_service(user=user, restricted=True)
+    template = create_template(service=service, template_type="email", subject="Hello")
+    job = create_job(template)
+    notification = _notification_json(template, to="test@example.com")
+
+    save_email_mock = mocker.patch("app.celery.tasks.save_email")
+
+    process_row(
+        Row(
+            {"foo": "bar", "to": notification["to"]},
+            index="row_num",
+            error_fn=lambda k, v: None,
+            recipient_column_headers=["to"],
+            placeholders={"foo"},
+            template=WithSubjectTemplate(template.__dict__),
+        ),
+        template,
+        job,
+        service,
+    )
+
+    assert not save_email_mock.called
 
 
 # -------- save_sms and save_email tests -------- #
@@ -486,6 +571,88 @@ def test_should_send_template_to_correct_sms_task_and_persist(sample_template_wi
     assert persisted_notification._personalisation == encryption.encrypt({"name": "Jo"})
     assert persisted_notification.notification_type == "sms"
     mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
+
+
+def test_save_sms_should_use_redis_cache_to_retrieve_service_and_template_when_possible(
+    sample_template_with_placeholders, mocker
+):
+    notification = _notification_json(
+        sample_template_with_placeholders,
+        to="+1 650 253 2222",
+        personalisation={"name": "Jo"},
+    )
+
+    mocked_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+    json_template_date = {"data": template_schema.dump(sample_template_with_placeholders).data}
+    json_service_data = {"data": service_schema.dump(sample_template_with_placeholders.service).data}
+    mocked_redis_get = mocker.patch.object(redis_store, "get")
+
+    mocked_redis_get.side_effect = [
+        bytes(json.dumps(json_service_data, default=lambda o: hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
+        bytes(json.dumps(json_template_date, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
+        False,
+    ]
+
+    save_sms(sample_template_with_placeholders.service_id, uuid.uuid4(), encryption.encrypt(notification))
+
+    assert mocked_redis_get.called
+    persisted_notification = Notification.query.one()
+    assert persisted_notification.to == "+1 650 253 2222"
+    assert persisted_notification.template_id == sample_template_with_placeholders.id
+    assert persisted_notification.template_version == sample_template_with_placeholders.version
+    assert persisted_notification.status == "created"
+    assert persisted_notification.created_at <= datetime.utcnow()
+    assert not persisted_notification.sent_at
+    assert not persisted_notification.sent_by
+    assert not persisted_notification.job_id
+    assert persisted_notification.personalisation == {"name": "Jo"}
+    assert persisted_notification._personalisation == encryption.encrypt({"name": "Jo"})
+    assert persisted_notification.notification_type == "sms"
+    mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
+
+
+def test_save_email_should_use_redis_cache_to_retrieve_service_and_template_when_possible(sample_service, mocker):
+    sample_template = create_template(
+        template_name="Test Template",
+        template_type="email",
+        content="Hello (( Name))\nYour thing is due soon",
+        service=sample_service,
+    )
+
+    notification = _notification_json(
+        sample_template,
+        to="test@unittest.com",
+        personalisation={"name": "Jo"},
+    )
+
+    mocked_deliver_email = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+
+    json_template_date = {"data": template_schema.dump(sample_template).data}
+    json_service_data = {"data": service_schema.dump(sample_service).data}
+    mocked_redis_get = mocker.patch.object(redis_store, "get")
+
+    mocked_redis_get.side_effect = [
+        bytes(json.dumps(json_service_data, default=lambda o: hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
+        bytes(json.dumps(json_template_date, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
+        False,
+    ]
+
+    save_email(sample_template.service_id, uuid.uuid4(), encryption.encrypt(notification))
+
+    assert mocked_redis_get.called
+    persisted_notification = Notification.query.one()
+    assert persisted_notification.to == "test@unittest.com"
+    assert persisted_notification.template_id == sample_template.id
+    assert persisted_notification.template_version == sample_template.version
+    assert persisted_notification.status == "created"
+    assert persisted_notification.created_at <= datetime.utcnow()
+    assert not persisted_notification.sent_at
+    assert not persisted_notification.sent_by
+    assert not persisted_notification.job_id
+    assert persisted_notification.personalisation == {"name": "Jo"}
+    assert persisted_notification._personalisation == encryption.encrypt({"name": "Jo"})
+    assert persisted_notification.notification_type == "email"
+    mocked_deliver_email.assert_called_once_with([str(persisted_notification.id)], queue="send-email-tasks")
 
 
 def test_should_put_save_sms_task_in_research_mode_queue_if_research_mode_service(notify_db, notify_db_session, mocker):
@@ -647,40 +814,6 @@ def test_save_sms_should_save_default_smm_sender_notification_reply_to_text_on(n
     assert persisted_notification.reply_to_text == "12345"
 
 
-def test_should_not_save_sms_if_restricted_service_and_invalid_number(notify_db_session, mocker):
-    user = create_user(mobile_number="6502532222")
-    service = create_service(user=user, restricted=True)
-    template = create_template(service=service)
-
-    notification = _notification_json(template, "07700 900849")
-    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-
-    notification_id = uuid.uuid4()
-    save_sms(
-        service.id,
-        notification_id,
-        encryption.encrypt(notification),
-    )
-    assert provider_tasks.deliver_sms.apply_async.called is False
-    assert Notification.query.count() == 0
-
-
-def test_should_not_save_email_if_restricted_service_and_invalid_email_address(notify_db_session, mocker):
-    user = create_user()
-    service = create_service(user=user, restricted=True)
-    template = create_template(service=service, template_type="email", subject="Hello")
-    notification = _notification_json(template, to="test@example.com")
-
-    notification_id = uuid.uuid4()
-    save_email(
-        service.id,
-        notification_id,
-        encryption.encrypt(notification),
-    )
-
-    assert Notification.query.count() == 0
-
-
 def test_should_put_save_email_task_in_research_mode_queue_if_research_mode_service(notify_db_session, mocker):
     service = create_service(research_mode=True)
 
@@ -774,28 +907,6 @@ def test_should_save_sms_template_to_and_persist_with_job_id(sample_job, mocker)
 
     provider_tasks.deliver_sms.apply_async.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
     mock_over_daily_limit.assert_called_once_with("normal", sample_job.service)
-
-
-def test_should_not_save_sms_if_team_key_and_recipient_not_in_team(notify_db_session, mocker):
-    assert Notification.query.count() == 0
-    user = create_user(mobile_number="6502532222")
-    service = create_service(user=user, restricted=True)
-    template = create_template(service=service)
-
-    team_members = [user.mobile_number for user in service.users]
-    assert "07890 300000" not in team_members
-
-    notification = _notification_json(template, "07700 900849")
-    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-
-    notification_id = uuid.uuid4()
-    save_sms(
-        service.id,
-        notification_id,
-        encryption.encrypt(notification),
-    )
-    assert provider_tasks.deliver_sms.apply_async.called is False
-    assert Notification.query.count() == 0
 
 
 def test_should_use_email_template_and_persist(sample_email_template_with_placeholders, sample_api_key, mocker):
