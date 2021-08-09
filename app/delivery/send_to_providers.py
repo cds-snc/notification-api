@@ -155,7 +155,7 @@ def send_email_to_provider(notification):  # noqa (C901 too complex)
                     )
                 del personalisation_data[key]
             else:
-                if not personalisation_data[key]["document"]["url"].lower().startswith(("http")):
+                if not personalisation_data[key]["document"]["url"].lower().startswith(("https")):
                     raise InvalidUrlException
                 personalisation_data[key] = personalisation_data[key]["document"]["url"]
 
