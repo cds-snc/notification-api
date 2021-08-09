@@ -133,8 +133,8 @@ def send_email_to_provider(notification):
                     raise MalwarePendingException
 
             if sending_method == "attach":
-                # Prevent URL patterns like file:// ftp:// that may lead to security vulnerabilities
-                if not personalisation_data[key]["document"]["direct_file_url"].lower().startswith(("http", "s3")):
+                # Prevent URL patterns like file:// ftp:// that may lead to security local file read vulnerabilities
+                if not personalisation_data[key]["document"]["direct_file_url"].lower().startswith(("s3")):
                     raise InvalidUrlException
                 try:
                     req = urllib.request.Request(personalisation_data[key]["document"]["direct_file_url"])
@@ -155,6 +155,8 @@ def send_email_to_provider(notification):
                     )
                 del personalisation_data[key]
             else:
+                if not personalisation_data[key]["document"]["url"].lower().startswith(("https")):
+                    raise InvalidUrlException
                 personalisation_data[key] = personalisation_data[key]["document"]["url"]
 
         template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
