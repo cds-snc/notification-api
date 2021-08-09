@@ -97,7 +97,7 @@ def send_sms_to_provider(notification):
         statsd_client.incr(statsd_key)
 
 
-def send_email_to_provider(notification):
+def send_email_to_provider(notification):  # noqa (C901 too complex)
     service = notification.service
     if not service.active:
         technical_failure(notification=notification)
