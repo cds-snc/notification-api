@@ -199,7 +199,7 @@ class TestCreateServiceCallback:
             "updated_by_id": str(sample_service.users[0].id),
             "bearer_token": "some-unique-string",
             "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
-            "notification_statusmes": NOTIFICATION_STATUS_TYPES_COMPLETED,
+            "notification_statuses": NOTIFICATION_STATUS_TYPES_COMPLETED,
             "callback_channel": callback_channel
         }
 
