@@ -827,7 +827,7 @@ def test_notification_document_with_pdf_attachment(
     personalisation = {
         "file": document_download_response(
             {
-                "direct_file_url": "https://foo.bar/direct_file_url",
+                "direct_file_url": "s3://foo.bar/direct_file_url",
                 "url": "https://foo.bar/url",
                 "mime_type": "application/pdf",
                 "mlwr_sid": "false",
@@ -859,7 +859,7 @@ def test_notification_document_with_pdf_attachment(
 
     attachments = []
     if filename_attribute_present:
-        request_mock.assert_called_once_with("https://foo.bar/direct_file_url")
+        request_mock.assert_called_once_with("s3://foo.bar/direct_file_url")
         urlopen_mock.assert_called_once_with("request_mock")
         attachments = [
             {
