@@ -1165,6 +1165,20 @@ def test_should_not_update_template_with_non_existent_provider(admin_request, sa
         _expected_status=400)
 
 
+def test_should_not_update_template_with_non_existent_communication_item(
+        admin_request, sample_email_template, fake_uuid
+):
+    data = {
+        'communication_item_id': fake_uuid
+    }
+    admin_request.post(
+        'template.update_template',
+        service_id=sample_email_template.service_id,
+        template_id=sample_email_template.id,
+        _data=data,
+        _expected_status=400)
+
+
 @pytest.mark.parametrize('template_type', (
     EMAIL_TYPE,
     SMS_TYPE

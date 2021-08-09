@@ -21,9 +21,11 @@ from notifications_utils.recipients import (
     InvalidPhoneError,
     validate_and_format_phone_number
 )
+from sqlalchemy.orm.exc import NoResultFound
 
 from app import ma
 from app import models
+from app.dao.communication_item_dao import get_communication_item
 from app.models import ServicePermission, EMAIL_TYPE, SMS_TYPE, NOTIFICATION_STATUS_TYPES_COMPLETED, \
     DELIVERY_STATUS_CALLBACK_TYPE, CALLBACK_CHANNEL_TYPES, WEBHOOK_CHANNEL_TYPE, QUEUE_CHANNEL_TYPE, PLATFORM_ADMIN, \
     MANAGE_SETTINGS
@@ -424,6 +426,14 @@ class TemplateSchema(BaseTemplateSchema):
 
     def redact(self, template):
         return template.redact_personalisation
+
+    @validates("communication_item_id")
+    def validate_communication_item_id(self, value):
+        if value is not None:
+            try:
+                get_communication_item(value)
+            except NoResultFound:
+                raise ValidationError(f"Invalid communication item id: {value}")
 
     @validates_schema
     def validate_type(self, data):
