@@ -230,6 +230,7 @@ def register_blueprint(application):
     from app.letter_branding.letter_branding_rest import letter_branding_blueprint
     from app.oauth.rest import oauth_blueprint
     from app.notifications.receive_notifications import receive_notifications_blueprint
+    from app.communication_item.rest import communication_item_blueprint
 
     application.register_blueprint(service_blueprint, url_prefix='/service')
 
@@ -310,6 +311,9 @@ def register_blueprint(application):
     application.register_blueprint(letter_branding_blueprint)
 
     application.register_blueprint(receive_notifications_blueprint)
+
+    communication_item_blueprint.before_request(validate_admin_auth)
+    application.register_blueprint(communication_item_blueprint)
 
 
 def register_v2_blueprints(application):

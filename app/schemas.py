@@ -796,6 +796,15 @@ class UnarchivedTemplateSchema(BaseSchema):
             raise ValidationError('Template has been deleted', 'template')
 
 
+class CommunicationItemSchema(BaseSchema):
+
+    class Meta:
+        model = models.CommunicationItem
+
+        dump_only = ['id']
+        strict = True
+
+
 # should not be used on its own for dumping - only for loading
 create_user_schema = UserSchema()
 user_update_schema_load_json = UserUpdateAttributeSchema(load_json=True, partial=True)
@@ -828,3 +837,4 @@ provider_details_history_schema = ProviderDetailsHistorySchema()
 day_schema = DaySchema()
 unarchived_template_schema = UnarchivedTemplateSchema()
 service_callback_api_schema = ServiceCallbackSchema()
+communication_item_schema = CommunicationItemSchema()
