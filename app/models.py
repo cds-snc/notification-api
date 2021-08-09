@@ -964,6 +964,10 @@ class TemplateBase(db.Model):
         return db.Column(UUID(as_uuid=True), db.ForeignKey('provider_details.id'), nullable=True)
 
     @declared_attr
+    def communication_item_id(cls):
+        return db.Column(UUID(as_uuid=True), db.ForeignKey('communication_items.id'), nullable=True)
+
+    @declared_attr
     def service_id(cls):
         return db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), index=True, nullable=False)
 

@@ -403,6 +403,7 @@ class BaseTemplateSchema(BaseSchema):
     reply_to = fields.Method("get_reply_to", allow_none=True)
     reply_to_text = fields.Method("get_reply_to_text", allow_none=True)
     provider_id = field_for(models.Template, 'provider_id')
+    communication_item_id = field_for(models.Template, 'communication_item_id')
 
     def get_reply_to(self, template):
         return template.reply_to
