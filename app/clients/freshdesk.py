@@ -85,7 +85,6 @@ class Freshdesk(object):
 
             # The API and field definitions are defined here:
             # https://developer.zendesk.com/rest_api/docs/support/tickets
-
             response = requests.post(
                 urljoin(api_url, "/api/v2/tickets"),
                 json=self._generate_ticket(),
