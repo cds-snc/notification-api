@@ -113,14 +113,14 @@ def test_send_ticket_branding_request(notify_api: Flask):
         expected = {
             "product_id": 42,
             "subject": "Branding request",
-            "description": "A new logo has been uploaded by name (test@email.com)<br>"
-            "- Service name: t6<br>"
+            "description": "A new logo has been uploaded by name (test@email.com) for the following service:<br>"
             "- Service id: 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
+            "- Service name: t6<br>"
             "- Logo filename: branding_url<br>"
-            "---<br>"
-            "Un nouveau logo a été téléchargé par name (test@email.com)<br>"
-            "- Nom du service : t6<br>"
+            "<hr><br>"
+            "Un nouveau logo a été téléchargé par name (test@email.com) pour le service suivant :<br>"
             "- Identifiant du service : 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
+            "- Nom du service : t6<br>"
             "- Nom du fichier du logo : branding_url",
             "email": "test@email.com",
             "priority": 1,
