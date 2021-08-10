@@ -88,9 +88,6 @@ class Freshdesk(object):
             # The API and field definitions are defined here:
             # https://developer.zendesk.com/rest_api/docs/support/tickets
 
-            # current_app.logger.info(f"Create Freshdesk ticket: {self._generate_ticket()}")
-            # return 200
-
             response = requests.post(
                 urljoin(api_url, "/api/v2/tickets"),
                 json=self._generate_ticket(),
@@ -100,10 +97,10 @@ class Freshdesk(object):
             response.raise_for_status()
 
             return response.status_code
-        # except requests.RequestException as e:
-        #     content = json.loads(response.content)
-        #     current_app.logger.warning(f"Failed to create Freshdesk ticket: {content['errors']}")
-        #     raise e
+        except requests.RequestException as e:
+            content = json.loads(response.content)
+            current_app.logger.warning(f"Failed to create Freshdesk ticket: {content['errors']}")
+            raise e
         except NotImplementedError:
             # There are cases in development when we do not want to send to freshdesk
             # because configuration is not defined, lets return a 200 OK

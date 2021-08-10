@@ -63,7 +63,6 @@ from app.notifications.process_notifications import (
 )
 from app.schema_validation import validate
 from app.schemas import (
-    branding_request_data_schema,
     create_user_schema,
     email_data_request_schema,
     partial_email_data_request_schema,
