@@ -521,8 +521,7 @@ class Test(Development):
     )
 
     CELERY_SETTINGS = {
-        'broker_url': 'sqs://',
-        'task_always_eager': True
+        'broker_url': 'sqs://'
     }
 
     ANTIVIRUS_ENABLED = True
