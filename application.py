@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import os
 
+import awsgi
 import sentry_sdk
 from dotenv import load_dotenv
 from flask import Flask
@@ -24,7 +25,8 @@ sentry_sdk.init(
 
 application = Flask("api")
 application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
-create_app(application)
+app = create_app(application)
+app
 
 if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("")
@@ -35,3 +37,6 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("")
     print("========================================================")
     print("")
+
+def handler(event, context):
+    return awsgi.response(app, event, context)
