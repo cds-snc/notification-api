@@ -72,6 +72,7 @@ def create_user(
     identity_provider_user_id=None,
     name="Test User",
     blocked=False,
+    platform_admin=False
 ):
     data = {
         'id': id_ or uuid.uuid4(),
@@ -81,7 +82,8 @@ def create_user(
         'identity_provider_user_id': identity_provider_user_id,
         'mobile_number': mobile_number,
         'state': state,
-        'blocked': blocked
+        'blocked': blocked,
+        'platform_admin': platform_admin
     }
     user = User.query.filter_by(email_address=email).first()
     if not user:
