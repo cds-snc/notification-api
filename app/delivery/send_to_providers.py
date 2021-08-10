@@ -24,6 +24,7 @@ from app.dao.provider_details_dao import (
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import (
+    InvalidUrlException,
     MalwarePendingException,
     NotificationTechnicalFailureException,
 )
@@ -96,7 +97,7 @@ def send_sms_to_provider(notification):
         statsd_client.incr(statsd_key)
 
 
-def send_email_to_provider(notification):
+def send_email_to_provider(notification):  # noqa (C901 too complex)
     service = notification.service
     if not service.active:
         technical_failure(notification=notification)
@@ -132,10 +133,12 @@ def send_email_to_provider(notification):
                     raise MalwarePendingException
 
             if sending_method == "attach":
+                # Prevent URL patterns like file:// ftp:// that may lead to security local file read vulnerabilities
+                if not personalisation_data[key]["document"]["direct_file_url"].lower().startswith(("s3")):
+                    raise InvalidUrlException
                 try:
-
                     req = urllib.request.Request(personalisation_data[key]["document"]["direct_file_url"])
-                    with urllib.request.urlopen(req) as response:
+                    with urllib.request.urlopen(req) as response:  # nosec - Restricted to http(s) and s3 above
                         buffer = response.read()
                         filename = personalisation_data[key]["document"].get("filename")
                         mime_type = personalisation_data[key]["document"].get("mime_type")
@@ -152,6 +155,8 @@ def send_email_to_provider(notification):
                     )
                 del personalisation_data[key]
             else:
+                if not personalisation_data[key]["document"]["url"].lower().startswith(("https")):
+                    raise InvalidUrlException
                 personalisation_data[key] = personalisation_data[key]["document"]["url"]
 
         template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
