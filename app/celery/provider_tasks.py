@@ -9,6 +9,7 @@ from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
 from app.delivery import send_to_providers
 from app.exceptions import (
+    InvalidUrlException,
     MalwarePendingException,
     NotificationTechnicalFailureException,
 )
@@ -65,6 +66,10 @@ def deliver_email(self, notification_id):
         current_app.logger.info(f"Cannot send notification {notification_id}, got an invalid email address: {str(e)}.")
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
         _check_and_queue_callback_task(notification)
+    except InvalidUrlException:
+        current_app.logger.info(f"Cannot send notification {notification_id}, got an invalid direct file url.")
+        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        _check_and_queue_callback_task(notification)
     except MalwarePendingException:
         current_app.logger.info("RETRY: Email notification {} is pending malware scans".format(notification_id))
         self.retry(queue=QueueNames.RETRY, countdown=60)
@@ -90,6 +95,10 @@ def _deliver_sms(self, notification_id):
         if not notification:
             raise NoResultFound()
         send_to_providers.send_sms_to_provider(notification)
+    except InvalidUrlException:
+        current_app.logger.info(f"Cannot send notification {notification_id}, got an invalid direct file url.")
+        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        _check_and_queue_callback_task(notification)
     except Exception:
         try:
             current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
