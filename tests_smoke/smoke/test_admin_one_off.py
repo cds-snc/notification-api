@@ -23,7 +23,7 @@ def test_admin_one_off(notification_type: Notification_type):
     if status_code != 201:
         print("FAILED: post to send_notification failed")
         pretty_print(body)
-        return
+        exit(1)
 
     notification_id = body["id"]
     for _ in range(20):
@@ -34,15 +34,12 @@ def test_admin_one_off(notification_type: Notification_type):
         )
         status_code = response.status_code
         body = response.json()
-        if status_code != 200:
-            print("FAILED: couldn't get notification status")
-            pretty_print(body)
-            return
-        if body["status"] == "sending" or body["status"] == "delivered":
+        if body.get("status") in ["delivered", "permanent-failure"]:
             break
 
-    if body["status"] != "sending" and body["status"] != "delivered":
+    if body.get("status") != "delivered":
         print("FAILED: email not sent successfully")
         pretty_print(body)
-        return
+        exit(1)
+
     print("Success")

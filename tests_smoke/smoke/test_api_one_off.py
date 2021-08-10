@@ -27,7 +27,7 @@ def test_api_one_off(notification_type: Notification_type):
     if response.status_code != 201:
         print(f"FAILED: post to v2/notifications/{notification_type.value} failed")
         pretty_print(response.json())
-        return
+        exit(1)
 
     uri = response.json()["uri"]
 
@@ -39,12 +39,12 @@ def test_api_one_off(notification_type: Notification_type):
         )
         body = response.json()
 
-        if body["status"] in ["delivered", "permanent-failure"]:
+        if body.get("status") in ["delivered", "permanent-failure"]:
             break
 
-    if body["status"] != "delivered":
+    if body.get("status") != "delivered":
         print("FAILED: email not sent successfully")
         pretty_print(body)
-        return
+        exit(1)
 
     print("Success")
