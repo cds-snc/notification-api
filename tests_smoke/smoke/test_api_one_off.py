@@ -37,12 +37,14 @@ def test_api_one_off(notification_type: Notification_type):
             uri,
             headers={"Authorization": f"ApiKey-v1 {Config.API_KEY[-36:]}"},
         )
-        if response.status_code == 200:
+        body = response.json()
+
+        if body["status"] in ["delivered", "permanent-failure"]:
             break
 
-    if response.status_code != 200:
+    if body["status"] != "delivered":
         print("FAILED: email not sent successfully")
-        pretty_print(response.json())
+        pretty_print(body)
         return
 
     print("Success")
