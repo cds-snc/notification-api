@@ -521,7 +521,7 @@ class Test(Development):
     )
 
     CELERY_SETTINGS = {
-        'broker_url': 'sqs://',
+        'broker_url': 'sqs://'
     }
 
     ANTIVIRUS_ENABLED = True
