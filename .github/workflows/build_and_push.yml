@@ -1,4 +1,30 @@
 
+name: Build and Push Container to ECR, deploy to lambda
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+
+env:
+  GITHUB_SHA: ${{ github.sha }}
+  REGISTRY: ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.ca-central-1.amazonaws.com/notify/api
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.filter.outputs.changes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            api: 'app/**'
+
   build-push-and-deploy:
     if: ${{ needs.changes.outputs.images != '[]' }}
     runs-on: ubuntu-latest
