@@ -42,6 +42,22 @@ class Freshdesk(object):
                     self.contact.service_url,
                 ]
             )
+        elif self.contact.is_branding_request():
+            message = "<br>".join(
+                [
+                    f"A new logo has been uploaded by {self.contact.name} ({self.contact.email_address})",
+                    f"- Service name: {self.contact.service_name}",
+                    f"- Service id: {self.contact.service_id}",
+                    f"- Service url: {self.contact.service_url}",
+                    f"- Logo filename: {self.contact.branding_url}",
+                    "---",
+                    f"Un nouveau logo a été téléchargé par {self.contact.name} ({self.contact.email_address})",
+                    f"- Nom du service : {self.contact.service_name}",
+                    f"- Identifiant du service : {self.contact.service_id}",
+                    f"- Url du Service : {self.contact.service_url}",
+                    f"- Nom du fichier du logo : {self.contact.branding_url}",
+                ]
+            )
 
         if len(self.contact.user_profile):
             message += f"<br><br>---<br><br> {self.contact.user_profile}"
@@ -71,6 +87,10 @@ class Freshdesk(object):
 
             # The API and field definitions are defined here:
             # https://developer.zendesk.com/rest_api/docs/support/tickets
+
+            # current_app.logger.info(f"Create Freshdesk ticket: {self._generate_ticket()}")
+            # return 200
+
             response = requests.post(
                 urljoin(api_url, "/api/v2/tickets"),
                 json=self._generate_ticket(),
@@ -80,10 +100,10 @@ class Freshdesk(object):
             response.raise_for_status()
 
             return response.status_code
-        except requests.RequestException as e:
-            content = json.loads(response.content)
-            current_app.logger.warning(f"Failed to create Freshdesk ticket: {content['errors']}")
-            raise e
+        # except requests.RequestException as e:
+        #     content = json.loads(response.content)
+        #     current_app.logger.warning(f"Failed to create Freshdesk ticket: {content['errors']}")
+        #     raise e
         except NotImplementedError:
             # There are cases in development when we do not want to send to freshdesk
             # because configuration is not defined, lets return a 200 OK

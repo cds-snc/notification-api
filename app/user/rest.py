@@ -467,29 +467,33 @@ def send_contact_request(user_id):
 
 @user_blueprint.route("/<uuid:user_id>/branding-request", methods=["POST"])
 def send_branding_request(user_id):
-    to, errors = branding_request_data_schema.load(request.get_json())
-    template = dao_get_template_by_id(current_app.config["BRANDING_REQUEST_TEMPLATE_ID"])
-    service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
 
-    saved_notification = persist_notification(
-        template_id=template.id,
-        template_version=template.version,
-        recipient=to["email"],
-        service=service,
-        personalisation={
-            "email": get_user_by_id(user_id=user_id).email_address,
-            "service_id": to["serviceID"],
-            "service_name": to["service_name"],
-            "url": get_logo_url(to["filename"]),
-        },
-        notification_type=template.template_type,
-        api_key_id=None,
-        key_type=KEY_TYPE_NORMAL,
-        reply_to_text=service.get_default_reply_to_email_address(),
-    )
-    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+    contact = None
+    data = request.json
+    try:
+        user = get_user_by_id(user_id=user_id)
+        contact = ContactRequest(
+            support_type="branding_request",
+            friendly_support_type="Branding request",
+            name=user.name,
+            email_address=user.email_address,
+            service_id=data["serviceID"],
+            service_name=data["service_name"],
+            service_url=data["service_url"],
+            branding_url=get_logo_url(data["filename"]),
+        )
+        contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
 
-    return jsonify({}), 204
+    except TypeError as e:
+        current_app.logger.error(e)
+        return jsonify({}), 400
+    except NoResultFound as e:
+        # This means that get_user_by_id couldn't find a user
+        current_app.logger.error(e)
+        return jsonify({}), 400
+
+    status_code = Freshdesk(contact).send_ticket()
+    return jsonify({"status_code": status_code}), 204
 
 
 @user_blueprint.route("/<uuid:user_id>", methods=["GET"])
