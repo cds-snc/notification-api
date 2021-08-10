@@ -269,12 +269,11 @@ def verify_user_code(user_id):
 def send_user_2fa_code(user_id, code_type):
     user_to_send_to = get_user_by_id(user_id=user_id)
 
-    if verify_within_time(user_to_send_to, age=timedelta(seconds=10)) >= 1:
-        raise InvalidRequest("Code already sent, wait 10 seconds", status_code=400)
-
     if count_user_verify_codes(user_to_send_to) >= current_app.config.get("MAX_VERIFY_CODE_COUNT"):
         # Prevent more than `MAX_VERIFY_CODE_COUNT` active verify codes at a time
         current_app.logger.warning("Too many verify codes created for user {}".format(user_to_send_to.id))
+    elif verify_within_time(user_to_send_to, age=timedelta(seconds=10)) >= 1:
+        current_app.logger.warning(f"A code has already been created for user {user_to_send_to.id} in the last 10 seconds.")
     else:
         data = request.get_json()
         if code_type == SMS_TYPE:

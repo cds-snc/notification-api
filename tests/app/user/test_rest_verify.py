@@ -257,7 +257,7 @@ def test_send_user_code_for_sms_respects_a_retry_time_delta(client, sample_user,
         headers=[("Content-Type", "application/json"), auth_header],
     )
 
-    assert resp.status_code == 400
+    assert resp.status_code == 204
     assert mocked.call_count == 1
 
 
