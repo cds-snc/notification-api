@@ -38,5 +38,6 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("========================================================")
     print("")
 
+
 def handler(event, context):
     return awsgi.response(app, event, context)
