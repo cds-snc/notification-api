@@ -1,0 +1,53 @@
+
+  build-push-and-deploy:
+    if: ${{ needs.changes.outputs.images != '[]' }}
+    runs-on: ubuntu-latest
+    needs: changes
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.changes.outputs.images) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Build container
+        working-directory: ./${{ matrix.image }}
+        run: |
+          docker build \
+          --build-arg git_sha=$GITHUB_SHA \
+          -t $REGISTRY/${{ matrix.image }}:$GITHUB_SHA \
+          -t $REGISTRY/${{ matrix.image }}:latest .
+
+      - name: Configure AWS credentials
+        id: aws-creds
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ca-central-1
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Push containers to ECR
+        run: |
+          docker push $REGISTRY/${{ matrix.image }}:$GITHUB_SHA
+          docker push $REGISTRY/${{ matrix.image }}:latest
+
+      - name: Logout of Amazon ECR
+        run: docker logout ${{ steps.login-ecr.outputs.registry }}
+
+      - name: Deploy lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ matrix.image }} \
+            --image-uri $REGISTRY/${{ matrix.image }}:latest
+
+      - name: Migrate Database
+        if: ${{ matrix.image == 'api' }}
+        run: |
+          source .github/workflows/scripts/migrate.sh
+          migrate
