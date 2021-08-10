@@ -8,7 +8,7 @@ on:
 
 env:
   GITHUB_SHA: ${{ github.sha }}
-  REGISTRY: ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.ca-central-1.amazonaws.com/notify/api
+  REGISTRY: ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.ca-central-1.amazonaws.com/notify
 
 jobs:
   changes:
@@ -71,9 +71,3 @@ jobs:
           aws lambda update-function-code \
             --function-name ${{ matrix.image }} \
             --image-uri $REGISTRY/${{ matrix.image }}:latest
-
-      - name: Migrate Database
-        if: ${{ matrix.image == 'api' }}
-        run: |
-          source .github/workflows/scripts/migrate.sh
-          migrate
