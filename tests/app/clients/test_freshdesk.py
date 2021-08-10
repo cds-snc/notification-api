@@ -116,13 +116,11 @@ def test_send_ticket_branding_request(notify_api: Flask):
             "description": "A new logo has been uploaded by name (test@email.com)<br>"
             "- Service name: t6<br>"
             "- Service id: 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
-            "- Service url: http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
             "- Logo filename: branding_url<br>"
             "---<br>"
             "Un nouveau logo a été téléchargé par name (test@email.com)<br>"
             "- Nom du service : t6<br>"
             "- Identifiant du service : 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
-            "- Url du Service : http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
             "- Nom du fichier du logo : branding_url",
             "email": "test@email.com",
             "priority": 1,
@@ -150,7 +148,6 @@ def test_send_ticket_branding_request(notify_api: Flask):
             "support_type": "branding_request",
             "service_name": "t6",
             "service_id": "8624bd36-b70b-4d4b-a459-13e1f4770b92",
-            "service_url": "http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92",
             "branding_url": "branding_url",
         }
         with notify_api.app_context():

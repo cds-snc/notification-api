@@ -48,13 +48,11 @@ class Freshdesk(object):
                     f"A new logo has been uploaded by {self.contact.name} ({self.contact.email_address})",
                     f"- Service name: {self.contact.service_name}",
                     f"- Service id: {self.contact.service_id}",
-                    f"- Service url: {self.contact.service_url}",
                     f"- Logo filename: {self.contact.branding_url}",
                     "---",
                     f"Un nouveau logo a été téléchargé par {self.contact.name} ({self.contact.email_address})",
                     f"- Nom du service : {self.contact.service_name}",
                     f"- Identifiant du service : {self.contact.service_id}",
-                    f"- Url du Service : {self.contact.service_url}",
                     f"- Nom du fichier du logo : {self.contact.branding_url}",
                 ]
             )
