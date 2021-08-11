@@ -27,8 +27,8 @@ def test_api_one_off(notification_type: Notification_type):
         headers={"Authorization": f"ApiKey-v1 {Config.API_KEY[-36:]}"},
     )
     if response.status_code != 201:
-        print(f"FAILED: post to v2/notifications/{notification_type.value} failed")
         pretty_print(response.json())
+        print(f"FAILED: post to v2/notifications/{notification_type.value} failed")
         exit(1)
 
     uri = response.json()["uri"]
@@ -45,8 +45,8 @@ def test_api_one_off(notification_type: Notification_type):
             break
 
     if body.get("status") != "delivered":
-        print("FAILED: email not sent successfully")
         pretty_print(body)
+        print("FAILED: email not sent successfully")
         exit(1)
 
     print("Success")

@@ -40,7 +40,7 @@ def test_admin_csv(notification_type: Notification_type):
     if response.status_code != 201:
         pretty_print(response.json)
         print("FAILED: post to send_notification failed")
-        return
+        exit(1)
 
     success = job_succeeded(Config.SERVICE_ID, upload_id)
     if not success:
