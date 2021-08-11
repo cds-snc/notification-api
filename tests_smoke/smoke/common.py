@@ -45,7 +45,8 @@ def rows_to_csv(rows: List[List[str]]):
 
 
 def job_line(data: str, number_of_lines: int) -> List[List[str]]:
-    return list(itertools.repeat([data, "test"], number_of_lines))
+    return map(lambda n: [data, f"var{n}"], range(0, number_of_lines))
+    return list(itertools.repeat([data, "var"], number_of_lines))
 
 
 def pretty_print(data: Any):

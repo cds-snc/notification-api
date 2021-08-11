@@ -19,9 +19,9 @@ def test_admin_csv(notification_type: Notification_type):
     print(f"test_admin_csv ({notification_type.value})... ", end="", flush=True)
 
     if notification_type == Notification_type.EMAIL:
-        data = rows_to_csv([["email address", "name"], *job_line(Config.EMAIL_TO, 2)])
+        data = rows_to_csv([["email address", "var"], *job_line(Config.EMAIL_TO, 2)])
     else:
-        data = rows_to_csv([["phone number", "name"], *job_line(Config.SMS_TO, 2)])
+        data = rows_to_csv([["phone number", "var"], *job_line(Config.SMS_TO, 2)])
 
     upload_id = s3upload(Config.SERVICE_ID, data)
     metadata_kwargs = {

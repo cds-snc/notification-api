@@ -15,7 +15,12 @@ def test_admin_one_off(notification_type: Notification_type):
 
     response = requests.post(
         f"{Config.API_HOST_NAME}/service/{Config.SERVICE_ID}/send-notification",
-        json={"to": to, "template_id": template_id, "created_by": Config.USER_ID},
+        json={
+            "to": to,
+            "template_id": template_id,
+            "created_by": Config.USER_ID,
+            "personalisation": {"var": "var"},
+        },
         headers={"Authorization": f"Bearer {token}"},
     )
     status_code = response.status_code

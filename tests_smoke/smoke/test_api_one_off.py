@@ -12,11 +12,13 @@ def test_api_one_off(notification_type: Notification_type):
         data = {
             "email_address": Config.EMAIL_TO,
             "template_id": Config.EMAIL_TEMPLATE_ID,
+            "personalisation": {"var": "var"},
         }
     else:
         data = {
             "phone_number": Config.SMS_TO,
             "template_id": Config.SMS_TEMPLATE_ID,
+            "personalisation": {"var": "var"},
         }
 
     response = requests.post(
