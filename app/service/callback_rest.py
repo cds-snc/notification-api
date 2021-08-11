@@ -83,6 +83,7 @@ def update_service_callback(service_id, callback_id):
 
 
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=['DELETE'])
+@requires_user_in_service_or_admin(required_permission=MANAGE_SETTINGS)
 def remove_service_callback(service_id, callback_id):  # noqa
     callback = get_service_callback(callback_id)
 

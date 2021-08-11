@@ -1,9 +1,9 @@
-import uuid
 import pytest
 import json
 from flask import url_for
 from flask_jwt_extended import create_access_token
 from freezegun import freeze_time
+from app import create_uuid
 from app.dao.service_callback_api_dao import get_service_callback
 from app.dao.services_dao import dao_add_user_to_service
 from app.models import DELIVERY_STATUS_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE, Permission
@@ -96,12 +96,12 @@ class TestCreateServiceCallback:
         data = {
             "url": "https://some.service/callback-sms",
             "bearer_token": "some-unique-string",
-            "updated_by_id": str(uuid.uuid4()),
+            "updated_by_id": create_uuid(),
             "notification_statuses": ['sent'],
             "callback_channel": WEBHOOK_CHANNEL_TYPE
         }
         response = client.post(
-            url_for('service_callback.create_service_callback', service_id=uuid.uuid4()),
+            url_for('service_callback.create_service_callback', service_id=create_uuid()),
             data=json.dumps(data),
             headers=[('Content-Type', 'application/json'),
                      ('Authorization', f'Bearer {token}')]
@@ -305,11 +305,11 @@ class TestCreateServiceCallback:
             "url": "https://some.service/delivery-receipt-endpoint",
             "bearer_token": "some-unique-string",
             "notification_statuses": [non_existent_status],
-            "updated_by_id": str(uuid.uuid4()),
+            "updated_by_id": create_uuid(),
         }
 
         response = client.post(
-            url_for('service_callback.create_service_callback', service_id=uuid.uuid4()),
+            url_for('service_callback.create_service_callback', service_id=create_uuid()),
             data=json.dumps(data),
             headers=[('Content-Type', 'application/json'),
                      ('Authorization', f'Bearer {create_access_token(create_user(platform_admin=True))}')]
@@ -517,14 +517,40 @@ class TestUpdateServiceCallback:
 
 class TestRemoveServiceCallback:
 
-    def test_delete_service_callback(self, admin_request, sample_service):
-        service_callback_api = create_service_callback_api(sample_service)
+    @pytest.mark.idparametrize(('callback_channel'), {
+        'webhook': (WEBHOOK_CHANNEL_TYPE),
+        'queue': (QUEUE_CHANNEL_TYPE)
+    })
+    def test_delete_service_callback_works_for_user(self, client, sample_service, callback_channel):
+        service_callback_api = create_service_callback_api(sample_service, callback_channel=callback_channel)
 
-        response = admin_request.delete(
-            'service_callback.remove_service_callback',
-            service_id=sample_service.id,
-            callback_id=service_callback_api.id,
+        response = client.delete(
+            url_for('service_callback.remove_service_callback',
+                    service_id=sample_service.id,
+                    callback_id=service_callback_api.id),
+            headers=[('Authorization', f'Bearer {create_access_token(sample_service.users[0])}')]
         )
 
-        assert response is None
+        assert response.status_code == 204
         assert ServiceCallback.query.count() == 0
+
+    def test_delete_service_callback_should_return_404_if_callback_does_not_exist(self, client, sample_service):
+        response = client.delete(
+            url_for('service_callback.remove_service_callback',
+                    service_id=sample_service.id,
+                    callback_id=create_uuid()),
+            headers=[('Authorization', f'Bearer {create_access_token(sample_service.users[0])}')]
+        )
+        assert response.status_code == 404
+
+    def test_delete_service_callback_should_return_403_if_not_authorized(self, client, sample_service):
+        service_callback_api = create_service_callback_api(sample_service)
+        user = create_user(email='foo@bar.com')
+        dao_add_user_to_service(sample_service, user, permissions=[])
+        response = client.delete(
+            url_for('service_callback.remove_service_callback',
+                    service_id=sample_service.id,
+                    callback_id=service_callback_api.id),
+            headers=[('Authorization', f'Bearer {create_access_token(user)}')]
+        )
+        assert response.status_code == 403

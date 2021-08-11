@@ -40,11 +40,7 @@ def get_service_callbacks(service_id):
 
 
 def get_service_callback(service_callback_id):
-    return ServiceCallback.query.filter_by(id=service_callback_id).first()
-
-
-def get_service_callback_api_for_service(service_id):
-    return ServiceCallback.query.filter_by(service_id=service_id).first()
+    return ServiceCallback.query.filter_by(id=service_callback_id).one_or_none()
 
 
 def get_service_delivery_status_callback_api_for_service(service_id, notification_status):
