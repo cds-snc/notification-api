@@ -44,7 +44,8 @@ jobs:
           docker build \
           --build-arg git_sha=$GITHUB_SHA \
           -t $REGISTRY/${{ matrix.image }}:$GITHUB_SHA \
-          -t $REGISTRY/${{ matrix.image }}:latest .
+          -t $REGISTRY/${{ matrix.image }}:latest . \
+          -f ci/Dockerfile.lambda
 
       - name: Configure AWS credentials
         id: aws-creds
