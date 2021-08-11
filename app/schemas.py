@@ -427,7 +427,7 @@ class TemplateSchema(BaseTemplateSchema):
     def redact(self, template):
         return template.redact_personalisation
 
-    @validates("communication_item_id")
+    @validates('communication_item_id')
     def validate_communication_item_id(self, value):
         if value is not None:
             try:
