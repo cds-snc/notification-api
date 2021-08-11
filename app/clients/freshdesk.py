@@ -42,6 +42,20 @@ class Freshdesk(object):
                     self.contact.service_url,
                 ]
             )
+        elif self.contact.is_branding_request():
+            message = "<br>".join(
+                [
+                    f"A new logo has been uploaded by {self.contact.name} ({self.contact.email_address}) for the following service:",
+                    f"- Service id: {self.contact.service_id}",
+                    f"- Service name: {self.contact.service_name}",
+                    f"- Logo filename: {self.contact.branding_url}",
+                    "<hr>",
+                    f"Un nouveau logo a été téléchargé par {self.contact.name} ({self.contact.email_address}) pour le service suivant :",
+                    f"- Identifiant du service : {self.contact.service_id}",
+                    f"- Nom du service : {self.contact.service_name}",
+                    f"- Nom du fichier du logo : {self.contact.branding_url}",
+                ]
+            )
 
         if len(self.contact.user_profile):
             message += f"<br><br>---<br><br> {self.contact.user_profile}"
