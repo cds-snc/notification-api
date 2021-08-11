@@ -1,38 +1,97 @@
 import uuid
-
 import pytest
+import json
+from flask import url_for
+from flask_jwt_extended import create_access_token
 from freezegun import freeze_time
-from pytest_mock import mock
-
 from app.dao.service_callback_api_dao import get_service_callback
+from app.dao.services_dao import dao_add_user_to_service
 from app.models import DELIVERY_STATUS_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE, Permission
 from app.models import ServiceCallback, NOTIFICATION_STATUS_TYPES_COMPLETED, WEBHOOK_CHANNEL_TYPE, MANAGE_SETTINGS, \
-    PLATFORM_ADMIN, PERMISSION_LIST, QUEUE_CHANNEL_TYPE
+    QUEUE_CHANNEL_TYPE
 from tests.app.db import (
+    create_user,
     create_service_callback_api
 )
 
 
 class TestFetchServiceCallback:
 
-    def test_fetch_service_callback(self, admin_request, sample_service):
+    def test_fetch_service_callback_works_with_user_permisisons(self, db_session, client, sample_service):
         service_callback_api = create_service_callback_api(service=sample_service)
+        user = create_user(email='foo@bar.com')
+        dao_add_user_to_service(sample_service, user,
+                                permissions=[Permission(service=sample_service, user=user, permission=MANAGE_SETTINGS)])
+        token = create_access_token(user)
 
-        response = admin_request.get(
-            'service_callback.fetch_service_callback',
-            service_id=sample_service.id,
-            callback_id=service_callback_api.id,
+        response = client.get(
+            url_for('service_callback.fetch_service_callback',
+                    service_id=sample_service.id,
+                    callback_id=service_callback_api.id),
+            headers=[('Authorization', f'Bearer {token}')]
         )
-        assert response["data"] == service_callback_api.serialize()
+        assert response.status_code == 200
+        assert response.json["data"] == service_callback_api.serialize()
+
+    def test_fetch_service_callback_works_with_platform_admin(self, db_session, client, sample_service):
+        service_callback_api = create_service_callback_api(service=sample_service)
+        user = create_user(email='foo@bar.com', platform_admin=True)
+        token = create_access_token(user)
+
+        response = client.get(
+            url_for('service_callback.fetch_service_callback',
+                    service_id=sample_service.id,
+                    callback_id=service_callback_api.id),
+            headers=[('Authorization', f'Bearer {token}')]
+        )
+        assert response.status_code == 200
+        assert response.json["data"] == service_callback_api.serialize()
+
+
+class TestFetchServiceCallbacks:
+
+    def test_fetch_service_callbacks_works_with_user_permisisons(self, db_session, client, sample_service):
+        service_callbacks = [
+            create_service_callback_api(service=sample_service),
+            create_service_callback_api(service=sample_service, callback_type=INBOUND_SMS_CALLBACK_TYPE)
+        ]
+        user = create_user(email='foo@bar.com')
+        dao_add_user_to_service(sample_service, user,
+                                permissions=[Permission(service=sample_service, user=user, permission=MANAGE_SETTINGS)])
+        token = create_access_token(user)
+
+        response = client.get(
+            url_for('service_callback.fetch_service_callbacks',
+                    service_id=sample_service.id),
+            headers=[('Authorization', f'Bearer {token}')]
+        )
+        assert response.status_code == 200
+        assert response.json["data"] == [s.serialize() for s in service_callbacks]
+
+    def test_fetch_service_callbacks_works_with_platform_admin(self, db_session, client, sample_service):
+        service_callbacks = [
+            create_service_callback_api(service=sample_service),
+            create_service_callback_api(service=sample_service, callback_type=INBOUND_SMS_CALLBACK_TYPE)
+        ]
+        user = create_user(email='foo@bar.com', platform_admin=True)
+        token = create_access_token(user)
+
+        response = client.get(
+            url_for('service_callback.fetch_service_callbacks',
+                    service_id=sample_service.id),
+            headers=[('Authorization', f'Bearer {token}')]
+        )
+        assert response.status_code == 200
+        assert response.json["data"] == [s.serialize() for s in service_callbacks]
 
 
 class TestCreateServiceCallback:
 
-    @mock.patch('app.dao.permissions_dao.PermissionDAO.get_permissions_by_user_id_and_service_id')
-    def test_set_service_callback_raises_404_when_service_does_not_exist(
-            self, mock_permissions, notify_db, admin_request
+    def test_create_service_callback_raises_404_when_service_does_not_exist_for_platform_admin(
+            self, db_session, client
     ):
-        mock_permissions.return_value = [Permission(permission=x) for x in PERMISSION_LIST]
+        user = create_user(email='foo@bar.com', platform_admin=True)
+        token = create_access_token(user)
 
         data = {
             "url": "https://some.service/callback-sms",
@@ -41,13 +100,14 @@ class TestCreateServiceCallback:
             "notification_statuses": ['sent'],
             "callback_channel": WEBHOOK_CHANNEL_TYPE
         }
-        response = admin_request.post(
-            'service_callback.create_service_callback',
-            service_id=uuid.uuid4(),
-            _data=data,
-            _expected_status=404
+        response = client.post(
+            url_for('service_callback.create_service_callback', service_id=uuid.uuid4()),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'),
+                     ('Authorization', f'Bearer {token}')]
         )
-        assert response['message'] == 'No result found'
+        assert response.status_code == 404
+        assert response.json['message'] == 'No result found'
 
     @pytest.mark.parametrize(
         'callback_type, has_notification_statuses',
@@ -57,26 +117,28 @@ class TestCreateServiceCallback:
             (COMPLAINT_CALLBACK_TYPE, False)
         ]
     )
-    def test_create_service_callback(self, notify_db, admin_request, sample_service, callback_type,
+    def test_create_service_callback(self, db_session, client, sample_service, callback_type,
                                      has_notification_statuses):
+        user = sample_service.users[0]
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
             "bearer_token": "some-unique-string",
-            "updated_by_id": str(sample_service.users[0].id),
+            "updated_by_id": str(user.id),
             "callback_type": callback_type,
             "callback_channel": WEBHOOK_CHANNEL_TYPE
         }
         if has_notification_statuses:
             data["notification_statuses"] = ["failed"]
 
-        resp_json = admin_request.post(
-            'service_callback.create_service_callback',
-            service_id=sample_service.id,
-            _data=data,
-            _expected_status=201
+        response = client.post(
+            url_for('service_callback.create_service_callback', service_id=sample_service.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'),
+                     ('Authorization', f'Bearer {create_access_token(user)}')]
         )
 
-        resp_json = resp_json["data"]
+        assert response.status_code == 201
+        resp_json = response.json["data"]
         assert resp_json["id"]
         assert resp_json["service_id"] == str(sample_service.id)
         assert resp_json["url"] == "https://some.service/delivery-receipt-endpoint"
@@ -89,26 +151,27 @@ class TestCreateServiceCallback:
         if has_notification_statuses:
             assert created_service_callback_api.notification_statuses == ["failed"]
 
+    # TODO: No need to test using API calls - move that test to model?
     def test_create_service_callback_creates_delivery_status_with_default_statuses_if_no_statuses_passed(
-            self, notify_db, admin_request, sample_service
+            self, db_session, client, sample_service
     ):
+        user = sample_service.users[0]
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
             "bearer_token": "some-unique-string",
-            "updated_by_id": str(sample_service.users[0].id),
+            "updated_by_id": str(user.id),
             "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
             "callback_channel": WEBHOOK_CHANNEL_TYPE
         }
 
-        resp_json = admin_request.post(
-            'service_callback.create_service_callback',
-            service_id=sample_service.id,
-            _data=data,
-            _expected_status=201
+        response = client.post(
+            url_for('service_callback.create_service_callback', service_id=sample_service.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'),
+                     ('Authorization', f'Bearer {create_access_token(user)}')]
         )
 
-        resp_json = resp_json["data"]
-        from app.dao.service_callback_api_dao import get_service_callback
+        resp_json = response.json["data"]
         created_service_callback_api = get_service_callback(resp_json["id"])
         assert created_service_callback_api.notification_statuses == NOTIFICATION_STATUS_TYPES_COMPLETED
 
@@ -116,106 +179,126 @@ class TestCreateServiceCallback:
         'callback_type', [INBOUND_SMS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE]
     )
     def test_create_service_callback_returns_400_if_statuses_passed_with_incompatible_callback_type(
-            self, notify_db, admin_request, sample_service, callback_type
+            self, db_session, client, sample_service, callback_type
     ):
+        user = sample_service.users[0]
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
             "bearer_token": "some-unique-string",
-            "updated_by_id": str(sample_service.users[0].id),
+            "updated_by_id": str(user.id),
             "callback_type": callback_type,
             "notification_statuses": NOTIFICATION_STATUS_TYPES_COMPLETED,
             "callback_channel": WEBHOOK_CHANNEL_TYPE
         }
 
-        resp_json = admin_request.post(
-            'service_callback.create_service_callback',
-            service_id=sample_service.id,
-            _data=data,
-            _expected_status=400
+        response = client.post(
+            url_for('service_callback.create_service_callback', service_id=sample_service.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'),
+                     ('Authorization', f'Bearer {create_access_token(user)}')]
         )
 
+        assert response.status_code == 400
+        resp_json = response.json
         assert resp_json['result'] == 'error'
         error_message = resp_json['message']['_schema'][0]
         assert error_message == f"Callback type {callback_type} should not have notification statuses"
 
     def test_create_service_callback_returns_400_if_no_bearer_token_for_webhook(
-            self, notify_db, admin_request, sample_service
+            self, db_session, client, sample_service
     ):
+        user = sample_service.users[0]
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
-            "updated_by_id": str(sample_service.users[0].id),
+            "updated_by_id": str(user.id),
             "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
             "notification_statuses": NOTIFICATION_STATUS_TYPES_COMPLETED,
             "callback_channel": WEBHOOK_CHANNEL_TYPE
         }
 
-        resp_json = admin_request.post(
-            'service_callback.create_service_callback',
-            service_id=sample_service.id,
-            _data=data,
-            _expected_status=400
+        response = client.post(
+            url_for('service_callback.create_service_callback', service_id=sample_service.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'),
+                     ('Authorization', f'Bearer {create_access_token(user)}')]
         )
 
+        assert response.status_code == 400
+        resp_json = response.json
         assert resp_json['result'] == 'error'
         assert resp_json['message']['_schema'][0] == f"Callback channel {WEBHOOK_CHANNEL_TYPE} should have bearer_token"
 
     def test_create_service_callback_returns_400_for_invalid_callback_channel(
-            self, notify_db, admin_request, sample_service
+            self, db_session, client, sample_service
     ):
+        user = sample_service.users[0]
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
-            "updated_by_id": str(sample_service.users[0].id),
+            "updated_by_id": str(user.id),
             "bearer_token": "some-unique-string",
             "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
             "notification_statuses": NOTIFICATION_STATUS_TYPES_COMPLETED,
             "callback_channel": 'invalid_channel_type'
         }
 
-        resp_json = admin_request.post(
-            'service_callback.create_service_callback',
-            service_id=sample_service.id,
-            _data=data,
-            _expected_status=400
+        response = client.post(
+            url_for('service_callback.create_service_callback', service_id=sample_service.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'),
+                     ('Authorization', f'Bearer {create_access_token(user)}')]
         )
 
+        assert response.status_code == 400
+        resp_json = response.json
         assert resp_json['result'] == 'error'
         assert resp_json['message']['callback_channel'][0] == "Invalid callback channel"
 
-    @mock.patch('app.dao.permissions_dao.PermissionDAO.get_permissions_by_user_id_and_service_id')
-    @pytest.mark.parametrize(
-        'callback_channel, required_permission',
-        [
-            (WEBHOOK_CHANNEL_TYPE, MANAGE_SETTINGS),
-            (QUEUE_CHANNEL_TYPE, PLATFORM_ADMIN),
-        ]
-    )
-    def test_create_service_callback_raises_400_when_insufficient_permissions(
-            self, mock_permissions, notify_db, admin_request, sample_service, callback_channel, required_permission
+    def test_users_cannot_create_service_callbacks_with_queue_channel(
+            self, db_session, client, sample_service
     ):
-        mock_permissions.return_value = [Permission(permission=x) for x in PERMISSION_LIST if x != required_permission]
-
+        user = sample_service.users[0]
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
-            "updated_by_id": str(sample_service.users[0].id),
-            "bearer_token": "some-unique-string",
+            "updated_by_id": str(user.id),
             "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
             "notification_statusmes": NOTIFICATION_STATUS_TYPES_COMPLETED,
-            "callback_channel": callback_channel
+            "callback_channel": QUEUE_CHANNEL_TYPE
         }
 
-        resp_json = admin_request.post(
-            'service_callback.create_service_callback',
-            service_id=sample_service.id,
-            _data=data,
-            _expected_status=400
+        response = client.post(
+            url_for('service_callback.create_service_callback', service_id=sample_service.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'),
+                     ('Authorization', f'Bearer {create_access_token(user)}')]
         )
 
-        assert resp_json['result'] == 'error'
-        error_message = resp_json['message']['_schema'][0]
-        assert error_message == f"User does not have permissions to create callbacks of channel type {callback_channel}"
+        assert response.status_code == 403
+        error_message = response.json['message']['token'][0]
+        assert error_message == f"User does not have permissions to create callbacks of channel type queue"
+
+    def test_platform_admin_can_create_queue_service_callback(
+            self, db_session, client, sample_service
+    ):
+        user = create_user(email='foo@bar.com', platform_admin=True)
+        data = {
+            "url": "https://some.service/delivery-receipt-endpoint",
+            "updated_by_id": str(user.id),
+            "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
+            "notification_statusmes": NOTIFICATION_STATUS_TYPES_COMPLETED,
+            "callback_channel": QUEUE_CHANNEL_TYPE
+        }
+
+        response = client.post(
+            url_for('service_callback.create_service_callback', service_id=sample_service.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'),
+                     ('Authorization', f'Bearer {create_access_token(user)}')]
+        )
+
+        assert response.status_code == 201
 
     def test_create_service_callback_raises_400_when_notification_status_validation_failed(
-            self, admin_request, notify_db_session
+            self, db_session, client
     ):
         non_existent_status = 'nonexistent_failed'
         data = {
@@ -225,12 +308,13 @@ class TestCreateServiceCallback:
             "updated_by_id": str(uuid.uuid4()),
         }
 
-        admin_request.post(
-            'service_callback.create_service_callback',
-            service_id=uuid.uuid4(),
-            _data=data,
-            _expected_status=400
+        response = client.post(
+            url_for('service_callback.create_service_callback', service_id=uuid.uuid4()),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'),
+                     ('Authorization', f'Bearer {create_access_token(create_user(platform_admin=True))}')]
         )
+        assert response.status_code == 400
 
     @pytest.mark.parametrize(
         'add_url, url, expected_response',
@@ -241,47 +325,27 @@ class TestCreateServiceCallback:
         ]
     )
     def test_create_service_callback_raises_400_when_url_validation_failed(
-            self, admin_request, sample_service, add_url, url, expected_response
+            self, db_session, sample_service, client, add_url, url, expected_response
     ):
+        user = sample_service.users[0]
         data = {
             "bearer_token": "some-unique-string",
             "notification_statuses": ["failed"],
-            "updated_by_id": str(sample_service.users[0].id)
+            "updated_by_id": str(user.id),
         }
         if add_url:
             data['url'] = url
 
-        resp_json = admin_request.post(
-            'service_callback.create_service_callback',
-            service_id=sample_service.id,
-            _data=data,
-            _expected_status=400
+        response = client.post(
+            url_for('service_callback.create_service_callback', service_id=sample_service.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'),
+                     ('Authorization', f'Bearer {create_access_token(user)}')]
         )
-
+        assert response.status_code == 400
+        resp_json = response.json
         assert resp_json['errors'][0]['error'] == 'ValidationError'
         assert resp_json['errors'][0]['message'] == expected_response
-
-    @mock.patch('app.dao.permissions_dao.PermissionDAO.get_permissions_by_user_id_and_service_id')
-    def test_create_service_callback_raises_404_when_service_does_not_exist(
-            self, mock_permissions, admin_request, notify_db_session
-    ):
-        mock_permissions.return_value = [Permission(permission=x) for x in PERMISSION_LIST]
-
-        data = {
-            "url": "https://some.service/delivery-receipt-endpoint",
-            "bearer_token": "some-unique-string",
-            "notification_statuses": ["failed"],
-            "updated_by_id": str(uuid.uuid4()),
-            "callback_channel": WEBHOOK_CHANNEL_TYPE
-        }
-
-        resp_json = admin_request.post(
-            'service_callback.create_service_callback',
-            service_id=uuid.uuid4(),
-            _data=data,
-            _expected_status=404
-        )
-        assert resp_json['message'] == 'No result found'
 
     @pytest.mark.parametrize(
         'add_bearer_token, bearer_token, expected_response',
@@ -291,23 +355,26 @@ class TestCreateServiceCallback:
         ]
     )
     def test_create_service_callback_raises_400_when_bearer_token_validation_failed(
-            self, admin_request, sample_service, add_bearer_token, bearer_token, expected_response
+            self, db_session, client, sample_service, add_bearer_token, bearer_token, expected_response
     ):
+        user = sample_service.users[0]
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
             "notification_statuses": ["failed"],
-            "updated_by_id": str(sample_service.users[0].id)
+            "updated_by_id": str(user.id)
         }
         if add_bearer_token:
             data['bearer_token'] = bearer_token
 
-        resp_json = admin_request.post(
-            'service_callback.create_service_callback',
-            service_id=sample_service.id,
-            _data=data,
-            _expected_status=400
+        response = client.post(
+            url_for('service_callback.create_service_callback', service_id=sample_service.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'),
+                     ('Authorization', f'Bearer {create_access_token(user)}')]
         )
 
+        assert response.status_code == 400
+        resp_json = response.json
         assert resp_json['errors'][0]['error'] == 'ValidationError'
         assert resp_json['errors'][0]['message'] == expected_response
 

@@ -1,8 +1,11 @@
+from app.models import MANAGE_SETTINGS, QUEUE_CHANNEL_TYPE
+from app.authentication.auth import AuthError, requires_user_in_service_or_admin
 from flask import (
     Blueprint,
     jsonify,
     request,
 )
+from flask_jwt_extended import current_user
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.dao.service_callback_api_dao import (
@@ -27,12 +30,14 @@ register_errors(service_callback_blueprint)
 
 
 @service_callback_blueprint.route('', methods=['GET'])
+@requires_user_in_service_or_admin(required_permission=MANAGE_SETTINGS)
 def fetch_service_callbacks(service_id):
     service_callbacks = get_service_callbacks(service_id)
     return jsonify(data=service_callback_api_schema.dump(service_callbacks, many=True).data), 200
 
 
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=["GET"])
+@requires_user_in_service_or_admin(required_permission=MANAGE_SETTINGS)
 def fetch_service_callback(service_id, callback_id):  # noqa
     service_callback = get_service_callback(callback_id)
 
@@ -40,12 +45,15 @@ def fetch_service_callback(service_id, callback_id):  # noqa
 
 
 @service_callback_blueprint.route('', methods=['POST'])
+@requires_user_in_service_or_admin(required_permission=MANAGE_SETTINGS)
 def create_service_callback(service_id):
     data = request.get_json()
-
     data["service_id"] = service_id
-
     validate(data, create_service_callback_api_request_schema)
+    if ('callback_channel' in data
+       and data['callback_channel'] == QUEUE_CHANNEL_TYPE
+       and not current_user.platform_admin):
+        raise AuthError(f"User does not have permissions to create callbacks of channel type {QUEUE_CHANNEL_TYPE}", 403)
 
     new_service_callback = service_callback_api_schema.load(data).data
 

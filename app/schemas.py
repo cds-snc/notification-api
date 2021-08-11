@@ -27,8 +27,7 @@ from app import ma
 from app import models
 from app.dao.communication_item_dao import get_communication_item
 from app.models import ServicePermission, EMAIL_TYPE, SMS_TYPE, NOTIFICATION_STATUS_TYPES_COMPLETED, \
-    DELIVERY_STATUS_CALLBACK_TYPE, CALLBACK_CHANNEL_TYPES, WEBHOOK_CHANNEL_TYPE, QUEUE_CHANNEL_TYPE, PLATFORM_ADMIN, \
-    MANAGE_SETTINGS
+    DELIVERY_STATUS_CALLBACK_TYPE, CALLBACK_CHANNEL_TYPES
 from app.dao.permissions_dao import permission_dao
 from app.provider_details import validate_providers
 from app.utils import get_template_instance
@@ -314,19 +313,6 @@ class ServiceCallbackSchema(BaseSchema):
         if 'callback_channel' in data and 'bearer_token' not in data:
             if data['callback_channel'] == 'webhook':
                 raise ValidationError(f"Callback channel {data['callback_channel']} should have bearer_token")
-
-        user_permissions = permission_dao.get_permissions_by_user_id_and_service_id(
-            data['updated_by_id'],
-            data['service_id'])
-
-        if 'callback_channel' in data:
-            permissions_list = [x.permission for x in user_permissions]
-            if MANAGE_SETTINGS not in permissions_list and data['callback_channel'] == WEBHOOK_CHANNEL_TYPE:
-                raise ValidationError(f"User does not have permissions to create callbacks of channel type "
-                                      f"{WEBHOOK_CHANNEL_TYPE}")
-            if PLATFORM_ADMIN not in permissions_list and data['callback_channel'] == QUEUE_CHANNEL_TYPE:
-                raise ValidationError(f"User does not have permissions to create callbacks of channel type "
-                                      f"{QUEUE_CHANNEL_TYPE}")
 
     @validates('callback_channel')
     def validate_callback_channel(self, value):
