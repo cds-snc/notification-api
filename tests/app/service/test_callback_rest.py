@@ -11,6 +11,7 @@ from app.models import ServiceCallback, NOTIFICATION_STATUS_TYPES_COMPLETED, WEB
     QUEUE_CHANNEL_TYPE
 from tests.app.db import (
     create_user,
+    create_service,
     create_service_callback_api
 )
 
@@ -46,6 +47,18 @@ class TestFetchServiceCallback:
         )
         assert response.status_code == 200
         assert response.json["data"] == service_callback_api.serialize()
+
+    def test_should_return_404_if_trying_to_fetch_callback_from_different_service(self, client, sample_service):
+        another_service = create_service(service_name='Another Service')
+        service_callback_api = create_service_callback_api(another_service)
+
+        response = client.get(
+            url_for('service_callback.fetch_service_callback',
+                    service_id=sample_service.id,
+                    callback_id=service_callback_api.id),
+            headers=[('Authorization', f'Bearer {create_access_token(sample_service.users[0])}')]
+        )
+        assert response.status_code == 404
 
 
 class TestFetchServiceCallbacks:
@@ -605,6 +618,23 @@ class TestUpdateServiceCallback:
         )
         assert response.status_code == 403
 
+    def test_should_return_404_when_trying_to_update_callback_from_different_service(self, client, sample_service):
+        another_service = create_service(service_name='Another Service')
+        service_callback_api = create_service_callback_api(another_service)
+        data = {
+            "url": "https://anotherurl.com",
+            "updated_by_id": str(sample_service.users[0].id)
+        }
+        response = client.post(
+            url_for('service_callback.update_service_callback',
+                    service_id=sample_service.id,
+                    callback_id=service_callback_api.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'),
+                     ('Authorization', f'Bearer {create_access_token(sample_service.users[0])}')]
+        )
+        assert response.status_code == 404
+
 
 class TestRemoveServiceCallback:
 
@@ -645,3 +675,15 @@ class TestRemoveServiceCallback:
             headers=[('Authorization', f'Bearer {create_access_token(user)}')]
         )
         assert response.status_code == 403
+
+    def test_should_return_404_if_trying_to_delete_callback_from_different_service(self, client, sample_service):
+        another_service = create_service(service_name='Another Service')
+        service_callback_api = create_service_callback_api(another_service)
+
+        response = client.delete(
+            url_for('service_callback.remove_service_callback',
+                    service_id=sample_service.id,
+                    callback_id=service_callback_api.id),
+            headers=[('Authorization', f'Bearer {create_access_token(sample_service.users[0])}')]
+        )
+        assert response.status_code == 404

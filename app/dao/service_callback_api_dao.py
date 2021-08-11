@@ -39,8 +39,15 @@ def get_service_callbacks(service_id):
     return ServiceCallback.query.filter_by(service_id=service_id).all()
 
 
+###
+# Not to be used in rest controllers where we need to operate within a service user has permissions for
+###
 def get_service_callback(service_callback_id):
-    return ServiceCallback.query.filter_by(id=service_callback_id).one_or_none()
+    return ServiceCallback.query.get(service_callback_id)
+
+
+def query_service_callback(service_id, service_callback_id):
+    return ServiceCallback.query.filter_by(service_id=service_id, id=service_callback_id).one()
 
 
 def get_service_delivery_status_callback_api_for_service(service_id, notification_status):
