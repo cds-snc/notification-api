@@ -2,7 +2,14 @@ from datetime import datetime
 
 import requests
 
-from .common import Config, Notification_type, job_line, job_succeeded, pretty_print, rows_to_csv
+from .common import (
+    Config,
+    Notification_type,
+    job_line,
+    job_succeeded,
+    pretty_print,
+    rows_to_csv,
+)
 
 
 def test_api_bulk(notification_type: Notification_type):

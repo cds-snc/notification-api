@@ -1,5 +1,3 @@
-import time
-
 import requests
 from notifications_python_client.authentication import create_jwt_token
 

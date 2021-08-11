@@ -1,18 +1,17 @@
 import csv
-import itertools
 import json
 import os
+import time
 import uuid
 from enum import Enum
 from io import StringIO
-from typing import Any, List, Tuple
-import time
-import requests
+from typing import Any, Iterator, List, Tuple
 
+import requests
 from boto3 import resource
 from dotenv import load_dotenv
-from notifications_utils.s3 import s3upload as utils_s3upload
 from notifications_python_client.authentication import create_jwt_token
+from notifications_utils.s3 import s3upload as utils_s3upload
 
 load_dotenv()
 
@@ -44,9 +43,8 @@ def rows_to_csv(rows: List[List[str]]):
     return output.getvalue()
 
 
-def job_line(data: str, number_of_lines: int) -> List[List[str]]:
+def job_line(data: str, number_of_lines: int) -> Iterator[List[str]]:
     return map(lambda n: [data, f"var{n}"], range(0, number_of_lines))
-    return list(itertools.repeat([data, "var"], number_of_lines))
 
 
 def pretty_print(data: Any):
