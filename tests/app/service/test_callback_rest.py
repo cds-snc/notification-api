@@ -9,6 +9,7 @@ from app.dao.services_dao import dao_add_user_to_service
 from app.models import DELIVERY_STATUS_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE, Permission
 from app.models import ServiceCallback, NOTIFICATION_STATUS_TYPES_COMPLETED, WEBHOOK_CHANNEL_TYPE, MANAGE_SETTINGS, \
     QUEUE_CHANNEL_TYPE
+from app.schemas import service_callback_api_schema
 from tests.app.db import (
     create_user,
     create_service,
@@ -32,7 +33,17 @@ class TestFetchServiceCallback:
             headers=[('Authorization', f'Bearer {token}')]
         )
         assert response.status_code == 200
-        assert response.json["data"] == service_callback_api.serialize()
+        assert response.json["data"] == {
+            "id": str(service_callback_api.id),
+            "service_id": str(service_callback_api.service_id),
+            "url": service_callback_api.url,
+            "updated_by_id": str(sample_service.users[0].id),
+            "created_at": str(service_callback_api.created_at),
+            "updated_at": service_callback_api.updated_at,
+            "notification_statuses": service_callback_api.notification_statuses,
+            "callback_type": service_callback_api.callback_type,
+            "callback_channel": service_callback_api.callback_channel
+        }
 
     def test_fetch_service_callback_works_with_platform_admin(self, db_session, client, sample_service):
         service_callback_api = create_service_callback_api(service=sample_service)
@@ -46,7 +57,7 @@ class TestFetchServiceCallback:
             headers=[('Authorization', f'Bearer {token}')]
         )
         assert response.status_code == 200
-        assert response.json["data"] == service_callback_api.serialize()
+        assert response.json["data"] == service_callback_api_schema.dump(service_callback_api).data
 
     def test_should_return_404_if_trying_to_fetch_callback_from_different_service(self, client, sample_service):
         another_service = create_service(service_name='Another Service')
@@ -79,7 +90,7 @@ class TestFetchServiceCallbacks:
             headers=[('Authorization', f'Bearer {token}')]
         )
         assert response.status_code == 200
-        assert response.json["data"] == [s.serialize() for s in service_callbacks]
+        assert response.json["data"] == [service_callback_api_schema.dump(s).data for s in service_callbacks]
 
     def test_fetch_service_callbacks_works_with_platform_admin(self, db_session, client, sample_service):
         service_callbacks = [
@@ -95,7 +106,7 @@ class TestFetchServiceCallbacks:
             headers=[('Authorization', f'Bearer {token}')]
         )
         assert response.status_code == 200
-        assert response.json["data"] == [s.serialize() for s in service_callbacks]
+        assert response.json["data"] == [service_callback_api_schema.dump(s).data for s in service_callbacks]
 
 
 class TestCreateServiceCallback:
