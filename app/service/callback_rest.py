@@ -50,10 +50,7 @@ def create_service_callback(service_id):
     data = request.get_json()
     data["service_id"] = service_id
     validate(data, create_service_callback_api_request_schema)
-    if ('callback_channel' in data
-       and data['callback_channel'] == QUEUE_CHANNEL_TYPE
-       and not current_user.platform_admin):
-        raise AuthError(f"User does not have permissions to create callbacks of channel type {QUEUE_CHANNEL_TYPE}", 403)
+    require_admin_for_queue_callback(data)
 
     new_service_callback = service_callback_api_schema.load(data).data
 
@@ -66,13 +63,17 @@ def create_service_callback(service_id):
 
 
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=['POST'])
+@requires_user_in_service_or_admin(required_permission=MANAGE_SETTINGS)
 def update_service_callback(service_id, callback_id):
     request_json = request.get_json()
     request_json["service_id"] = service_id
 
     validate(request_json, update_service_callback_api_request_schema)
-
     current_service_callback = get_service_callback(callback_id)
+    require_admin_for_queue_callback({
+        **service_callback_api_schema.dump(current_service_callback).data,
+        **request_json
+    })
 
     updated_service_callback = service_callback_api_schema.load(
         request_json, instance=current_service_callback, transient=True, partial=True
@@ -110,3 +111,10 @@ def handle_sql_error(e, table_name):
         return jsonify(result='error', message="No result found"), 404
     else:
         raise e
+
+
+def require_admin_for_queue_callback(data):
+    if ('callback_channel' in data
+       and data['callback_channel'] == QUEUE_CHANNEL_TYPE
+       and not current_user.platform_admin):
+        raise AuthError(f"User does not have permissions to create callbacks of channel type {QUEUE_CHANNEL_TYPE}", 403)
