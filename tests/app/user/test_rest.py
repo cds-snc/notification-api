@@ -864,6 +864,25 @@ def test_send_contact_request_go_live(client, sample_service, mocker):
     mocked_zendesk.assert_called_once_with(sample_service, sample_user, ContactRequest(**data))
 
 
+def test_send_branding_request(client, sample_service, mocker):
+    sample_user = sample_service.users[0]
+    post_data = {
+        "service_name": sample_service.name,
+        "email_address": sample_user.email_address,
+        "serviceID": str(sample_service.id),
+        "filename": "branding_url",
+    }
+    mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
+
+    resp = client.post(
+        url_for("user.send_branding_request", user_id=str(sample_user.id)),
+        data=json.dumps(post_data),
+        headers=[("Content-Type", "application/json"), create_authorization_header()],
+    )
+    assert resp.status_code == 204
+    mocked_freshdesk.assert_called_once_with()
+
+
 def test_send_user_confirm_new_email_returns_204(client, sample_user, change_email_confirmation_template, mocker):
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     new_email = "new_address@dig.gov.uk"
