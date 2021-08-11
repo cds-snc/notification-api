@@ -48,6 +48,7 @@ def fetch_service_callback(service_id, callback_id):
 def create_service_callback(service_id):
     data = request.get_json()
     data["service_id"] = service_id
+    data["updated_by_id"] = current_user.id
     validate(data, create_service_callback_api_request_schema)
     require_admin_for_queue_callback(data)
 
@@ -64,19 +65,20 @@ def create_service_callback(service_id):
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=['POST'])
 @requires_user_in_service_or_admin(required_permission=MANAGE_SETTINGS)
 def update_service_callback(service_id, callback_id):
-    request_json = request.get_json()
-    request_json["service_id"] = service_id
+    data = request.get_json()
+    data["service_id"] = service_id
+    data["updated_by_id"] = current_user.id
 
-    validate(request_json, update_service_callback_api_request_schema)
+    validate(data, update_service_callback_api_request_schema)
     current_service_callback = query_service_callback(service_id, callback_id)
 
     require_admin_for_queue_callback({
         **service_callback_api_schema.dump(current_service_callback).data,
-        **request_json
+        **data
     })
 
     updated_service_callback = service_callback_api_schema.load(
-        request_json, instance=current_service_callback, transient=True, partial=True
+        data, instance=current_service_callback, transient=True, partial=True
     ).data
     store_service_callback_api(updated_service_callback)
 

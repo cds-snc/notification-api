@@ -21,6 +21,7 @@ class TestFetchServiceCallback:
 
     def test_fetch_service_callback_works_with_user_permisisons(self, db_session, client, sample_service):
         service_callback_api = create_service_callback_api(service=sample_service)
+        original_user = sample_service.users[0]
         user = create_user(email='foo@bar.com')
         dao_add_user_to_service(sample_service, user,
                                 permissions=[Permission(service=sample_service, user=user, permission=MANAGE_SETTINGS)])
@@ -37,7 +38,7 @@ class TestFetchServiceCallback:
             "id": str(service_callback_api.id),
             "service_id": str(service_callback_api.service_id),
             "url": service_callback_api.url,
-            "updated_by_id": str(sample_service.users[0].id),
+            "updated_by_id": str(original_user.id),
             "created_at": str(service_callback_api.created_at),
             "updated_at": service_callback_api.updated_at,
             "notification_statuses": service_callback_api.notification_statuses,
@@ -120,7 +121,6 @@ class TestCreateServiceCallback:
         data = {
             "url": "https://some.service/callback-sms",
             "bearer_token": "some-unique-string",
-            "updated_by_id": create_uuid(),
             "notification_statuses": ['sent'],
             "callback_channel": WEBHOOK_CHANNEL_TYPE
         }
@@ -147,7 +147,6 @@ class TestCreateServiceCallback:
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
             "bearer_token": "some-unique-string",
-            "updated_by_id": str(user.id),
             "callback_type": callback_type,
             "callback_channel": WEBHOOK_CHANNEL_TYPE
         }
@@ -166,7 +165,7 @@ class TestCreateServiceCallback:
         assert resp_json["id"]
         assert resp_json["service_id"] == str(sample_service.id)
         assert resp_json["url"] == "https://some.service/delivery-receipt-endpoint"
-        assert resp_json["updated_by_id"] == str(sample_service.users[0].id)
+        assert resp_json["updated_by_id"] == str(user.id)
         assert resp_json["created_at"]
         assert not resp_json["updated_at"]
         assert resp_json.get("bearer_token") is None
@@ -183,7 +182,6 @@ class TestCreateServiceCallback:
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
             "bearer_token": "some-unique-string",
-            "updated_by_id": str(user.id),
             "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
             "callback_channel": WEBHOOK_CHANNEL_TYPE
         }
@@ -209,7 +207,6 @@ class TestCreateServiceCallback:
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
             "bearer_token": "some-unique-string",
-            "updated_by_id": str(user.id),
             "callback_type": callback_type,
             "notification_statuses": NOTIFICATION_STATUS_TYPES_COMPLETED,
             "callback_channel": WEBHOOK_CHANNEL_TYPE
@@ -234,7 +231,6 @@ class TestCreateServiceCallback:
         user = sample_service.users[0]
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
-            "updated_by_id": str(user.id),
             "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
             "notification_statuses": NOTIFICATION_STATUS_TYPES_COMPLETED,
             "callback_channel": WEBHOOK_CHANNEL_TYPE
@@ -258,7 +254,6 @@ class TestCreateServiceCallback:
         user = sample_service.users[0]
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
-            "updated_by_id": str(user.id),
             "bearer_token": "some-unique-string",
             "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
             "notification_statuses": NOTIFICATION_STATUS_TYPES_COMPLETED,
@@ -283,7 +278,6 @@ class TestCreateServiceCallback:
         user = sample_service.users[0]
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
-            "updated_by_id": str(user.id),
             "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
             "notification_statusmes": NOTIFICATION_STATUS_TYPES_COMPLETED,
             "callback_channel": QUEUE_CHANNEL_TYPE
@@ -306,7 +300,6 @@ class TestCreateServiceCallback:
         user = create_user(email='foo@bar.com', platform_admin=True)
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
-            "updated_by_id": str(user.id),
             "callback_type": DELIVERY_STATUS_CALLBACK_TYPE,
             "notification_statusmes": NOTIFICATION_STATUS_TYPES_COMPLETED,
             "callback_channel": QUEUE_CHANNEL_TYPE
@@ -329,7 +322,6 @@ class TestCreateServiceCallback:
             "url": "https://some.service/delivery-receipt-endpoint",
             "bearer_token": "some-unique-string",
             "notification_statuses": [non_existent_status],
-            "updated_by_id": create_uuid(),
         }
 
         response = client.post(
@@ -355,7 +347,6 @@ class TestCreateServiceCallback:
         data = {
             "bearer_token": "some-unique-string",
             "notification_statuses": ["failed"],
-            "updated_by_id": str(user.id),
         }
         if add_url:
             data['url'] = url
@@ -385,7 +376,6 @@ class TestCreateServiceCallback:
         data = {
             "url": "https://some.service/delivery-receipt-endpoint",
             "notification_statuses": ["failed"],
-            "updated_by_id": str(user.id)
         }
         if add_bearer_token:
             data['bearer_token'] = bearer_token
@@ -410,8 +400,7 @@ class TestUpdateServiceCallback:
                                                            url="https://originalurl.com")
 
         data = {
-            "url": "https://anotherurl.com",
-            "updated_by_id": str(sample_service.users[0].id)
+            "url": "https://anotherurl.com"
         }
 
         response = client.post(
@@ -432,7 +421,6 @@ class TestUpdateServiceCallback:
                                                            bearer_token="some_super_secret")
         data = {
             "bearer_token": "different_token",
-            "updated_by_id": str(sample_service.users[0].id)
         }
 
         response = client.post(
@@ -452,7 +440,6 @@ class TestUpdateServiceCallback:
 
         data = {
             "notification_statuses": ["delivered"],
-            "updated_by_id": str(sample_service.users[0].id)
         }
 
         response = client.post(
@@ -472,7 +459,6 @@ class TestUpdateServiceCallback:
         'request_data', {
             'invalid_property': ({
                 "invalid_parameter": ["failed"],
-                "updated_by_id": "6ce466d0-fd6a-11e5-82f5-e0accb9d11a6"
             }),
             'empty_request': ({})
         }
@@ -502,7 +488,6 @@ class TestUpdateServiceCallback:
 
         data = {
             "notification_statuses": ["nonexistent-status"],
-            "updated_by_id": str(sample_service.users[0].id)
         }
 
         response = client.post(
@@ -518,31 +503,11 @@ class TestUpdateServiceCallback:
         assert resp_json['errors'][0]['error'] == 'ValidationError'
         assert 'notification_statuses nonexistent-status is not one of' in resp_json['errors'][0]['message']
 
-    def test_update_service_callback_raises_400_with_only_updated_by_id(self, client, sample_service):
-        service_callback_api = create_service_callback_api(service=sample_service,  # nosec
-                                                           bearer_token="some_super_secret")
-        data = {
-            "updated_by_id": str(sample_service.users[0].id)
-        }
-        response = client.post(
-            url_for('service_callback.update_service_callback',
-                    service_id=sample_service.id,
-                    callback_id=service_callback_api.id),
-            data=json.dumps(data),
-            headers=[('Content-Type', 'application/json'),
-                     ('Authorization', f'Bearer {create_access_token(sample_service.users[0])}')]
-        )
-        assert response.status_code == 400
-        resp_json = response.json
-        assert resp_json['errors'][0]['error'] == 'ValidationError'
-        assert 'is not valid' in resp_json['errors'][0]['message']
-
     def test_update_service_callback_modifies_updated_at(self, client, sample_service):
         with freeze_time("2021-05-13 12:00:00.000000"):
             service_callback_api = create_service_callback_api(service=sample_service,  # nosec
                                                                bearer_token="some_super_secret")
             data = {
-                "updated_by_id": str(sample_service.users[0].id),
                 "url": "https://some.service"
             }
 
@@ -557,6 +522,27 @@ class TestUpdateServiceCallback:
 
         assert response.json['data']['updated_at'] == "2021-05-13T12:00:00+00:00"
 
+    def test_update_service_callback_modifies_updated_by(self, client, sample_service):
+        service_callback_api = create_service_callback_api(service=sample_service)
+        user = create_user(email='foo@bar.com')
+        dao_add_user_to_service(sample_service, user,
+                                permissions=[Permission(service=sample_service, user=user, permission=MANAGE_SETTINGS)])
+
+        data = {
+            "url": "https://some.service"
+        }
+
+        response = client.post(
+            url_for('service_callback.update_service_callback',
+                    service_id=sample_service.id,
+                    callback_id=service_callback_api.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'),
+                     ('Authorization', f'Bearer {create_access_token(user)}')]
+        )
+
+        assert response.json['data']['updated_by_id'] == str(user.id)
+
     def test_update_service_callback_should_return_403_if_not_authorized(self, client, sample_service):
         service_callback_api = create_service_callback_api(sample_service)
         user = create_user(email='foo@bar.com')
@@ -564,7 +550,6 @@ class TestUpdateServiceCallback:
 
         data = {
             "url": "https://anotherurl.com",
-            "updated_by_id": str(sample_service.users[0].id)
         }
         response = client.post(
             url_for('service_callback.update_service_callback',
@@ -580,7 +565,6 @@ class TestUpdateServiceCallback:
         service_callback_api = create_service_callback_api(sample_service, callback_channel=QUEUE_CHANNEL_TYPE)
         data = {
             "url": "https://anotherurl.com",
-            "updated_by_id": str(sample_service.users[0].id)
         }
         response = client.post(
             url_for('service_callback.update_service_callback',
@@ -598,7 +582,6 @@ class TestUpdateServiceCallback:
             "url": "https://anotherurl.com",
             "bearer_token": "some-token",
             "callback_channel": WEBHOOK_CHANNEL_TYPE,
-            "updated_by_id": str(sample_service.users[0].id)
         }
         response = client.post(
             url_for('service_callback.update_service_callback',
@@ -617,7 +600,6 @@ class TestUpdateServiceCallback:
         data = {
             "url": "https://anotherurl.com",
             "callback_channel": QUEUE_CHANNEL_TYPE,
-            "updated_by_id": str(sample_service.users[0].id)
         }
         response = client.post(
             url_for('service_callback.update_service_callback',
@@ -634,7 +616,6 @@ class TestUpdateServiceCallback:
         service_callback_api = create_service_callback_api(another_service)
         data = {
             "url": "https://anotherurl.com",
-            "updated_by_id": str(sample_service.users[0].id)
         }
         response = client.post(
             url_for('service_callback.update_service_callback',
