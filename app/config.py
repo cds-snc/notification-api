@@ -521,7 +521,7 @@ class Test(Development):
     )
 
     CELERY_SETTINGS = {
-        'broker_url': 'sqs://'
+        'broker_url': 'you-forgot-to-mock-celery-in-your-tests://'
     }
 
     ANTIVIRUS_ENABLED = True

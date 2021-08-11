@@ -207,3 +207,5 @@ fileignoreconfig:
       checksum: 731e9053a5349098a848cd6495b7efe71df56fcd2cc63bab26347e4250ccb062
     - filename: app/config.py
       checksum: 1d180fb880fee2a0ed9c2f57eeeb50dde794527fcabce6e64e6c0fa663bc807e
+    - filename: app/config.py
+      checksum: 9c6c8ad62e3e224f945ec7692ff2f0f93b3a10010e4552e561c5d489f1871d7c
