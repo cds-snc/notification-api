@@ -6,10 +6,13 @@ import uuid
 from enum import Enum
 from io import StringIO
 from typing import Any, List, Tuple
+import time
+import requests
 
 from boto3 import resource
 from dotenv import load_dotenv
 from notifications_utils.s3 import s3upload as utils_s3upload
+from notifications_python_client.authentication import create_jwt_token
 
 load_dotenv()
 
@@ -47,6 +50,26 @@ def job_line(data: str, number_of_lines: int) -> List[List[str]]:
 
 def pretty_print(data: Any):
     print(json.dumps(data, indent=4, sort_keys=True))
+
+
+def job_succeeded(service_id: str, job_id: str) -> bool:
+    uri = f"{Config.API_HOST_NAME}/service/{service_id}/job/{job_id}"
+    token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
+
+    for i in range(20):
+        time.sleep(1)
+        response = requests.get(uri, headers={"Authorization": f"Bearer {token}"})
+        data = response.json()["data"]
+        if data["job_status"] != "finished":
+            next
+        success = all([stat["status"] == "delivered" for stat in data["statistics"]])
+        failure = any([stat["status"] == "permanent-failure" for stat in data["statistics"]])
+        if success or failure:
+            break
+
+    if not success:
+        pretty_print(data)
+    return success
 
 
 # from admin app/s3_client/c3_csv_client.py
