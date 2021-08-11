@@ -20,16 +20,13 @@ def test_api_bulk(notification_type: Notification_type):
         },
         headers={"Authorization": f"ApiKey-v1 {Config.API_KEY[-36:]}"},
     )
-
     if response.status_code != 201:
-        print("FAILED: post failed")
         pretty_print(response.json())
+        print("FAILED: post failed")
         exit(1)
 
-    success = job_succeeded(response.json()["data"]["service"], response.json()["data"]["id"])
-
+    success = job_succeeded(Config.SERVICE_ID, response.json()["data"]["id"])
     if not success:
         print("FAILED: job didn't finish successfully")
         exit(1)
-
     print("Success")
