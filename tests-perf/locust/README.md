@@ -58,10 +58,10 @@ You can also modify the *locust.config* file to enable the headless mode and def
 
 ### Performance Testing on AWS
 
-#### Overview 
+#### Overview
 
 In the Notify staging account you will find an AMI image that you can use to spin up EC2 servers in which you can ssh into and
-run the performance testing. 
+run the performance testing.
 
 Use the following link to navigate to the [AMI image](https://ca-central-1.console.aws.amazon.com/ec2/v2/home?region=ca-central-1#Images:visibility=owned-by-me;name=locust-testing-image;sort=name).
 Following this right click on the image and click launch. You'll want to launch a minimum of a t2 large as locust is cpu intensive.

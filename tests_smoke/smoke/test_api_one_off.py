@@ -31,7 +31,7 @@ def test_api_one_off(notification_type: Notification_type):
 
     uri = response.json()["uri"]
 
-    for _ in range(20):
+    for _ in range(Config.POLL_TIMEOUT):
         time.sleep(1)
         response = requests.get(
             uri,

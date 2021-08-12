@@ -51,6 +51,7 @@ def test_admin_csv(notification_type: Notification_type):
 
     for _ in range(20):
         time.sleep(1)
+        token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
         response = requests.get(uri, headers={"Authorization": f"Bearer {token}"})
         status_code = response.status_code
         data = response.json()["data"]

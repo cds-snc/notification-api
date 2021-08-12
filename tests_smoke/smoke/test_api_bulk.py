@@ -33,7 +33,7 @@ def test_api_bulk(notification_type: Notification_type):
     uri = f"{Config.API_HOST_NAME}/service/{service_id}/job/{job_id}"
     token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
 
-    for _ in range(20):
+    for _ in range(Config.POLL_TIMEOUT):
         time.sleep(1)
         response = requests.get(uri, headers={"Authorization": f"Bearer {token}"})
         status_code = response.status_code

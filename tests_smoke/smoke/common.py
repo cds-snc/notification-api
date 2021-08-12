@@ -27,6 +27,7 @@ class Config:
     EMAIL_TEMPLATE_ID = os.environ.get("EMAIL_TEMPLATE_ID")
     SMS_TEMPLATE_ID = os.environ.get("SMS_TEMPLATE_ID")
     API_KEY = os.environ.get("API_KEY", "")
+    POLL_TIMEOUT = int(os.environ.get("POLL_TIMEOUT", 20))
 
 
 class Notification_type(Enum):

@@ -26,7 +26,7 @@ def test_admin_one_off(notification_type: Notification_type):
         return
 
     notification_id = body["id"]
-    for _ in range(20):
+    for _ in range(Config.POLL_TIMEOUT):
         time.sleep(1)
         response = requests.get(
             f"{Config.API_HOST_NAME}/service/{Config.SERVICE_ID}/notifications/{notification_id}",
