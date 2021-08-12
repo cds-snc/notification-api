@@ -53,10 +53,15 @@ def whatever(notify_api):
             'broker_url': 'sqs://',
             'task_always_eager': True,
             'imports': (
+                'app.celery.tasks',
+                'app.celery.scheduled_tasks',
+                'app.celery.reporting_tasks',
+                'app.celery.nightly_tasks',
+                'app.celery.process_pinpoint_receipt_tasks',
+                'app.celery.process_pinpoint_inbound_sms'
                 'app.celery.service_callback_tasks'
             )
         }
-
     }):
         notify_celery.init_app(notify_api)
     yield
