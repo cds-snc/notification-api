@@ -1,5 +1,5 @@
 from app.models import MANAGE_SETTINGS, QUEUE_CHANNEL_TYPE
-from app.authentication.auth import AuthError, requires_user_in_service_or_admin
+from app.authentication.auth import AuthError, create_validator_for_user_in_service_or_admin
 from flask import (
     Blueprint,
     jsonify,
@@ -24,19 +24,20 @@ from app.service.service_callback_api_schema import (
 )
 
 service_callback_blueprint = Blueprint('service_callback', __name__, url_prefix='/service/<uuid:service_id>/callback')
+service_callback_blueprint.before_request(
+    create_validator_for_user_in_service_or_admin(required_permission=MANAGE_SETTINGS)
+)
 
 register_errors(service_callback_blueprint)
 
 
 @service_callback_blueprint.route('', methods=['GET'])
-@requires_user_in_service_or_admin(required_permission=MANAGE_SETTINGS)
 def fetch_service_callbacks(service_id):
     service_callbacks = get_service_callbacks(service_id)
     return jsonify(data=service_callback_api_schema.dump(service_callbacks, many=True).data), 200
 
 
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=["GET"])
-@requires_user_in_service_or_admin(required_permission=MANAGE_SETTINGS)
 def fetch_service_callback(service_id, callback_id):
     service_callback = query_service_callback(service_id, callback_id)
 
@@ -44,7 +45,6 @@ def fetch_service_callback(service_id, callback_id):
 
 
 @service_callback_blueprint.route('', methods=['POST'])
-@requires_user_in_service_or_admin(required_permission=MANAGE_SETTINGS)
 def create_service_callback(service_id):
     data = request.get_json()
     data["service_id"] = service_id
@@ -63,7 +63,6 @@ def create_service_callback(service_id):
 
 
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=['POST'])
-@requires_user_in_service_or_admin(required_permission=MANAGE_SETTINGS)
 def update_service_callback(service_id, callback_id):
     data = request.get_json()
     data["service_id"] = service_id
@@ -86,8 +85,7 @@ def update_service_callback(service_id, callback_id):
 
 
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=['DELETE'])
-@requires_user_in_service_or_admin(required_permission=MANAGE_SETTINGS)
-def remove_service_callback(service_id, callback_id):  # noqa
+def remove_service_callback(service_id, callback_id):
     callback = query_service_callback(service_id, callback_id)
 
     delete_service_callback_api(callback)
