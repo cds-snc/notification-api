@@ -25,12 +25,12 @@ class QueueNames(object):
     # Periodic tasks executed by Notify.
     PERIODIC = "periodic-tasks"
 
-    # For high priority tasks. The queue should be kept at relatively low volume 
+    # For high priority tasks. The queue should be kept at relatively low volume
     # and fast processing.
     PRIORITY = "priority-tasks"
 
-     # For bulk send of notifications. This can be high volume and flushed over time.
-     # It would get most traffic coming from the API for example.
+    # For bulk send of notifications. This can be high volume and flushed over time.
+    # It would get most traffic coming from the API for example.
     BULK = "bulk-tasks"
 
     # A queue meant for database tasks but it seems to be the default for sending
