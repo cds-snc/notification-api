@@ -11,25 +11,37 @@ import requests
 from boto3 import resource
 from dotenv import load_dotenv
 from notifications_python_client.authentication import create_jwt_token
-from notifications_utils.s3 import s3upload as utils_s3upload
+
+# from notifications_utils.s3 import s3upload as utils_s3upload
+import urllib
+
+import botocore
+from boto3 import resource, Session
+
 
 load_dotenv()
 
 
 class Config:
-    API_HOST_NAME = os.environ.get("API_HOST_NAME")
+    API_HOST_NAME = os.environ.get("SMOKE_API_HOST_NAME")
     AWS_REGION = "ca-central-1"
-    CSV_UPLOAD_BUCKET_NAME = os.environ.get("CSV_UPLOAD_BUCKET_NAME")
+    CSV_UPLOAD_BUCKET_NAME = os.environ.get("SMOKE_CSV_UPLOAD_BUCKET_NAME")
     ADMIN_CLIENT_USER_NAME = "notify-admin"
-    ADMIN_CLIENT_SECRET = os.environ.get("ADMIN_CLIENT_SECRET")
-    EMAIL_TO = os.environ.get("EMAIL_TO", "")
-    SMS_TO = os.environ.get("SMS_TO", "")
-    USER_ID = os.environ.get("USER_ID")
-    SERVICE_ID = os.environ.get("SERVICE_ID", "")
-    EMAIL_TEMPLATE_ID = os.environ.get("EMAIL_TEMPLATE_ID")
-    SMS_TEMPLATE_ID = os.environ.get("SMS_TEMPLATE_ID")
-    API_KEY = os.environ.get("API_KEY", "")
-    POLL_TIMEOUT = int(os.environ.get("POLL_TIMEOUT", 20))
+    ADMIN_CLIENT_SECRET = os.environ.get("SMOKE_ADMIN_CLIENT_SECRET")
+    EMAIL_TO = os.environ.get("SMOKE_EMAIL_TO", "")
+    SMS_TO = os.environ.get("SMOKE_SMS_TO", "")
+    USER_ID = os.environ.get("SMOKE_USER_ID")
+    SERVICE_ID = os.environ.get("SMOKE_SERVICE_ID", "")
+    EMAIL_TEMPLATE_ID = os.environ.get("SMOKE_EMAIL_TEMPLATE_ID")
+    SMS_TEMPLATE_ID = os.environ.get("SMOKE_SMS_TEMPLATE_ID")
+    API_KEY = os.environ.get("SMOKE_API_KEY", "")
+    POLL_TIMEOUT = int(os.environ.get("SMOKE_POLL_TIMEOUT", 20))
+
+
+boto_session = Session(
+    aws_access_key_id=os.environ.get("SMOKE_AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.environ.get("SMOKE_AWS_SECRET_ACCESS_KEY"),
+)
 
 
 class Notification_type(Enum):
@@ -96,6 +108,25 @@ def job_succeeded(service_id: str, job_id: str) -> bool:
     return success
 
 
+# from notifications_utils.s3 import s3upload as utils_s3upload
+def utils_s3upload(filedata, region, bucket_name, file_location, content_type="binary/octet-stream", tags=None):
+    _s3 = boto_session.resource("s3")
+
+    key = _s3.Object(bucket_name, file_location)
+
+    put_args = {"Body": filedata, "ServerSideEncryption": "AES256", "ContentType": content_type}
+
+    if tags:
+        tags = urllib.parse.urlencode(tags)
+        put_args["Tagging"] = tags
+
+    try:
+        key.put(**put_args)
+    except botocore.exceptions.ClientError as e:
+        print("Unable to upload file to S3 bucket {}".format(bucket_name))
+        raise e
+
+
 # from admin app/s3_client/c3_csv_client.py
 
 FILE_LOCATION_STRUCTURE = "service-{}-notify/{}.csv"
@@ -137,5 +168,5 @@ def get_csv_upload(service_id: str, upload_id: str) -> Any:
 
 
 def get_s3_object(bucket_name: str, filename: str) -> Any:
-    s3 = resource("s3")
+    s3 = boto_session.resource("s3")
     return s3.Object(bucket_name, filename)
