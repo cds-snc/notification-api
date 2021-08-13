@@ -1,5 +1,7 @@
 import json
 import pytest
+from flask import url_for
+from flask_jwt_extended import create_access_token
 
 from app.celery.process_pinpoint_inbound_sms import CeleryEvent, process_pinpoint_inbound_sms
 from app.dao.permissions_dao import permission_dao
@@ -7,12 +9,8 @@ from app.feature_flags import FeatureFlag
 from app.models import QUEUE_CHANNEL_TYPE, INBOUND_SMS_CALLBACK_TYPE, PLATFORM_ADMIN, Permission
 from tests.app.factories.feature_flag import mock_feature_flag
 from botocore.stub import Stubber, ANY
-from app import sqs_client
-
-
-@pytest.fixture
-def pinpoint_inbound_sms_toggle_enabled(mocker):
-    mock_feature_flag(mocker, FeatureFlag.PINPOINT_INBOUND_SMS_ENABLED, 'True')
+from app import sqs_client, notify_celery
+from tests.conftest import set_config_values
 
 
 @pytest.fixture()
@@ -20,6 +18,11 @@ def sqs_stub():
     with Stubber(sqs_client._client) as stubber:
         yield stubber
         stubber.assert_no_pending_responses()
+
+
+@pytest.fixture
+def pinpoint_inbound_sms_toggle_enabled(mocker):
+    mock_feature_flag(mocker, FeatureFlag.PINPOINT_INBOUND_SMS_ENABLED, 'True')
 
 
 class AnySms(object):
@@ -44,7 +47,32 @@ class AnySms(object):
         )
 
 
-def test_sqs_callback(sample_service_full_permissions, admin_request, pinpoint_inbound_sms_toggle_enabled, sqs_stub):
+@pytest.fixture()
+def whatever(notify_api):
+    with set_config_values(notify_api, {
+
+        'CELERY_SETTINGS': {
+            'broker_url': 'sqs://',
+            'task_always_eager': True,
+            'imports': (
+                'app.celery.tasks',
+                'app.celery.scheduled_tasks',
+                'app.celery.reporting_tasks',
+                'app.celery.nightly_tasks',
+                'app.celery.process_pinpoint_receipt_tasks',
+                'app.celery.process_pinpoint_inbound_sms'
+                'app.celery.service_callback_tasks'
+            )
+        }
+    }):
+        notify_celery.init_app(notify_api)
+    yield
+    notify_celery.init_app(notify_api)
+
+
+def test_sqs_callback(
+        whatever, sqs_stub, sample_service_full_permissions, client,
+        pinpoint_inbound_sms_toggle_enabled):
     sample_service = sample_service_full_permissions
     user = sample_service.users[0]
     permission_dao.set_user_service_permission(
@@ -55,6 +83,8 @@ def test_sqs_callback(sample_service_full_permissions, admin_request, pinpoint_i
             user_id=user.id,
             permission=PLATFORM_ADMIN
         )])
+    user.platform_admin = True
+
     data = {
         "url": "https://some.queue/inbound-sms-endpoint",
         "updated_by_id": str(sample_service.users[0].id),
@@ -62,11 +92,11 @@ def test_sqs_callback(sample_service_full_permissions, admin_request, pinpoint_i
         "callback_channel": QUEUE_CHANNEL_TYPE
     }
 
-    admin_request.post(
-        'service_callback.create_service_callback',
-        service_id=sample_service.id,
-        _data=data,
-        _expected_status=201
+    client.post(
+        url_for('service_callback.create_service_callback', service_id=sample_service.id),
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'),
+                 ('Authorization', f'Bearer {create_access_token(user)}')],
     )
 
     message = {
