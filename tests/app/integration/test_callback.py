@@ -48,7 +48,7 @@ class AnySms(object):
 
 
 @pytest.fixture()
-def whatever(notify_api):
+def integration_celery_config(notify_api):
     with set_config_values(notify_api, {
 
         'CELERY_SETTINGS': {
@@ -72,7 +72,7 @@ def whatever(notify_api):
 
 @pytest.mark.skip(reason="Integration test fails when run in suite, passes when run alone")
 def test_sqs_callback(
-        whatever, sqs_stub, sample_service_full_permissions, client,
+        integration_celery_config, sqs_stub, sample_service_full_permissions, client,
         pinpoint_inbound_sms_toggle_enabled):
     sample_service = sample_service_full_permissions
     user = sample_service.users[0]
