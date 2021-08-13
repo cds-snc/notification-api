@@ -24,7 +24,7 @@ class Config:
     AWS_REGION = "ca-central-1"
     CSV_UPLOAD_BUCKET_NAME = os.environ.get("SMOKE_CSV_UPLOAD_BUCKET_NAME")
     ADMIN_CLIENT_USER_NAME = "notify-admin"
-    SMOKE_ADMIN_CLIENT_SECRET = os.environ.get("SMOKE_ADMIN_CLIENT_SECRET")
+    ADMIN_CLIENT_SECRET = os.environ.get("SMOKE_ADMIN_CLIENT_SECRET")
     EMAIL_TO = os.environ.get("SMOKE_EMAIL_TO", "")
     SMS_TO = os.environ.get("SMOKE_SMS_TO", "")
     USER_ID = os.environ.get("SMOKE_USER_ID")
@@ -65,7 +65,7 @@ def single_succeeded(uri: str, use_jwt: bool) -> bool:
     for _ in range(Config.POLL_TIMEOUT):
         time.sleep(1)
         if use_jwt:
-            token = create_jwt_token(Config.SMOKE_ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
+            token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
             headers = {"Authorization": f"Bearer {token}"}
         else:
             headers = {"Authorization": f"ApiKey-v1 {Config.API_KEY[-36:]}"}
@@ -87,7 +87,7 @@ def single_succeeded(uri: str, use_jwt: bool) -> bool:
 
 def job_succeeded(service_id: str, job_id: str) -> bool:
     uri = f"{Config.API_HOST_NAME}/service/{service_id}/job/{job_id}"
-    token = create_jwt_token(Config.SMOKE_ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
+    token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
 
     for _ in range(Config.POLL_TIMEOUT):
         time.sleep(1)
