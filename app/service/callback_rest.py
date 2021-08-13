@@ -1,18 +1,20 @@
+from app.models import MANAGE_SETTINGS, QUEUE_CHANNEL_TYPE
+from app.authentication.auth import AuthError, create_validator_for_user_in_service_or_admin
 from flask import (
     Blueprint,
     jsonify,
     request,
 )
+from flask_jwt_extended import current_user
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.dao.service_callback_api_dao import (
+    query_service_callback,
     save_service_callback_api,
-    get_service_callback,
     delete_service_callback_api, store_service_callback_api, get_service_callbacks
 )
 from app.errors import (
-    register_errors,
-    InvalidRequest
+    register_errors
 )
 from app.schema_validation import validate
 from app.schemas import service_callback_api_schema
@@ -22,6 +24,9 @@ from app.service.service_callback_api_schema import (
 )
 
 service_callback_blueprint = Blueprint('service_callback', __name__, url_prefix='/service/<uuid:service_id>/callback')
+service_callback_blueprint.before_request(
+    create_validator_for_user_in_service_or_admin(required_permission=MANAGE_SETTINGS)
+)
 
 register_errors(service_callback_blueprint)
 
@@ -33,8 +38,8 @@ def fetch_service_callbacks(service_id):
 
 
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=["GET"])
-def fetch_service_callback(service_id, callback_id):  # noqa
-    service_callback = get_service_callback(callback_id)
+def fetch_service_callback(service_id, callback_id):
+    service_callback = query_service_callback(service_id, callback_id)
 
     return jsonify(data=service_callback_api_schema.dump(service_callback).data), 200
 
@@ -42,10 +47,10 @@ def fetch_service_callback(service_id, callback_id):  # noqa
 @service_callback_blueprint.route('', methods=['POST'])
 def create_service_callback(service_id):
     data = request.get_json()
-
     data["service_id"] = service_id
-
+    data["updated_by_id"] = current_user.id
     validate(data, create_service_callback_api_request_schema)
+    require_admin_for_queue_callback(data)
 
     new_service_callback = service_callback_api_schema.load(data).data
 
@@ -59,15 +64,20 @@ def create_service_callback(service_id):
 
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=['POST'])
 def update_service_callback(service_id, callback_id):
-    request_json = request.get_json()
-    request_json["service_id"] = service_id
+    data = request.get_json()
+    data["service_id"] = service_id
+    data["updated_by_id"] = current_user.id
 
-    validate(request_json, update_service_callback_api_request_schema)
+    validate(data, update_service_callback_api_request_schema)
+    current_service_callback = query_service_callback(service_id, callback_id)
 
-    current_service_callback = get_service_callback(callback_id)
+    require_admin_for_queue_callback({
+        **service_callback_api_schema.dump(current_service_callback).data,
+        **data
+    })
 
     updated_service_callback = service_callback_api_schema.load(
-        request_json, instance=current_service_callback, transient=True, partial=True
+        data, instance=current_service_callback, transient=True, partial=True
     ).data
     store_service_callback_api(updated_service_callback)
 
@@ -75,12 +85,8 @@ def update_service_callback(service_id, callback_id):
 
 
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=['DELETE'])
-def remove_service_callback(service_id, callback_id):  # noqa
-    callback = get_service_callback(callback_id)
-
-    if not callback:
-        error = 'Service delivery receipt callback not found'
-        raise InvalidRequest(error, status_code=404)
+def remove_service_callback(service_id, callback_id):
+    callback = query_service_callback(service_id, callback_id)
 
     delete_service_callback_api(callback)
     return '', 204
@@ -101,3 +107,10 @@ def handle_sql_error(e, table_name):
         return jsonify(result='error', message="No result found"), 404
     else:
         raise e
+
+
+def require_admin_for_queue_callback(data):
+    if ('callback_channel' in data
+       and data['callback_channel'] == QUEUE_CHANNEL_TYPE
+       and not current_user.platform_admin):
+        raise AuthError(f"User does not have permissions to create callbacks of channel type {QUEUE_CHANNEL_TYPE}", 403)

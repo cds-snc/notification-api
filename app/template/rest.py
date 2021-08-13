@@ -16,6 +16,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from notifications_utils.template import HTMLEmailTemplate
 
 from app.authentication.auth import requires_admin_auth_or_user_in_service
+from app.communication_item import validate_communication_items
 from app.dao.notifications_dao import get_notification_by_id
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
@@ -76,6 +77,7 @@ def create_template(service_id):
     permissions = fetched_service.permissions
     template_json = validate(request.get_json(), post_create_template_schema)
 
+    validate_communication_items.validate_communication_item_id(template_json)
     validate_providers.validate_template_providers(template_json)
 
     folder = validate_parent_folder(template_json=template_json)
@@ -200,6 +202,7 @@ def get_html_template(service_id, template_id):
     html_email = HTMLEmailTemplate(
         template_dict,
         values={},
+        preview_mode=True
     )
 
     return jsonify(previewContent=str(html_email))

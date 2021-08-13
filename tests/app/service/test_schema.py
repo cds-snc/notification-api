@@ -51,8 +51,7 @@ def test_create_service_callback_api_schema_validate_succeeds():
     under_test = {
         "url": "https://some_url.for_service",
         "bearer_token": "something_ten_chars",
-        "notification_statuses": ["failed"],
-        "updated_by_id": str(uuid.uuid4())
+        "notification_statuses": ["failed"]
     }
 
     validated = validate(under_test, create_service_callback_api_request_schema)
@@ -60,8 +59,6 @@ def test_create_service_callback_api_schema_validate_succeeds():
 
 
 @pytest.mark.parametrize('key, value', [
-    ("url", "https://some_url.for_service"),
-    ("updated_by_id", "6ce466d0-fd6a-11e5-82f5-e0accb9d11a6"),
     (None, None)
 ])
 def test_create_service_callback_api_schema_validate_fails_when_missing_properties(key, value):
@@ -84,8 +81,7 @@ def test_create_service_callback_api_schema_validate_fails_with_misspelled_keys(
     under_test = {
         "url": "https://some_url.for_service",
         "bearer_token": "something_ten_chars",
-        "notification_statuses": ["failed"],
-        "updated_by_id": str(uuid.uuid4())
+        "notification_statuses": ["failed"]
     }
     del under_test[key]
     under_test[wrong_key] = value
@@ -102,8 +98,7 @@ def test_create_service_callback_api_schema_validate_fails_with_misspelled_keys(
 def test_update_service_callback_api_schema_validate_succeeds():
     under_test = {
         "url": "https://some_url.for_service",
-        "bearer_token": "something_ten_chars",
-        "updated_by_id": str(uuid.uuid4())
+        "bearer_token": "something_ten_chars"
     }
 
     validated = validate(under_test, update_service_callback_api_request_schema)
@@ -112,8 +107,7 @@ def test_update_service_callback_api_schema_validate_succeeds():
 
 def test_update_service_callback_api_schema_validate_fails_with_invalid_keys():
     under_test = {
-        "bearers_token": "something_ten_chars",
-        "updated_by_id": str(uuid.uuid4())
+        "bearers_token": "something_ten_chars"
     }
 
     with pytest.raises(ValidationError) as e:
