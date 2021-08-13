@@ -1,5 +1,7 @@
 import json
 import pytest
+from flask import url_for
+from flask_jwt_extended import create_access_token
 
 from app.celery.process_pinpoint_inbound_sms import CeleryEvent, process_pinpoint_inbound_sms
 from app.dao.permissions_dao import permission_dao
@@ -69,7 +71,7 @@ def whatever(notify_api):
 
 
 def test_sqs_callback(
-        whatever, sqs_stub, sample_service_full_permissions, admin_request,
+        whatever, sqs_stub, sample_service_full_permissions, client,
         pinpoint_inbound_sms_toggle_enabled):
     sample_service = sample_service_full_permissions
     user = sample_service.users[0]
@@ -81,6 +83,7 @@ def test_sqs_callback(
             user_id=user.id,
             permission=PLATFORM_ADMIN
         )])
+    user.platform_admin = True
 
     data = {
         "url": "https://some.queue/inbound-sms-endpoint",
@@ -89,11 +92,11 @@ def test_sqs_callback(
         "callback_channel": QUEUE_CHANNEL_TYPE
     }
 
-    admin_request.post(
-        'service_callback.create_service_callback',
-        service_id=sample_service.id,
-        _data=data,
-        _expected_status=201
+    client.post(
+        url_for('service_callback.create_service_callback', service_id=sample_service.id),
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'),
+                 ('Authorization', f'Bearer {create_access_token(user)}')],
     )
 
     message = {
