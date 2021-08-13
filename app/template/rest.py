@@ -202,7 +202,7 @@ def get_html_template(service_id, template_id):
     html_email = HTMLEmailTemplate(
         template_dict,
         values={},
-        use_preheader=False
+        preview_mode=True
     )
 
     return jsonify(previewContent=str(html_email))
