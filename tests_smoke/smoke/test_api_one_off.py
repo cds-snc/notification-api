@@ -1,8 +1,6 @@
-import time
-
 import requests
 
-from .common import Config, Notification_type, pretty_print
+from .common import Config, Notification_type, pretty_print, single_succeeded
 
 
 def test_api_one_off(notification_type: Notification_type):
@@ -33,20 +31,8 @@ def test_api_one_off(notification_type: Notification_type):
 
     uri = response.json()["uri"]
 
-    for _ in range(20):
-        time.sleep(1)
-        response = requests.get(
-            uri,
-            headers={"Authorization": f"ApiKey-v1 {Config.API_KEY[-36:]}"},
-        )
-        body = response.json()
-
-        if body.get("status") in ["delivered", "permanent-failure"]:
-            break
-
-    if body.get("status") != "delivered":
-        pretty_print(body)
-        print("FAILED: email not sent successfully")
+    success = single_succeeded(uri, use_jwt=False)
+    if not success:
+        print("FAILED: job didn't finish successfully")
         exit(1)
-
     print("Success")

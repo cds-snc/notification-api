@@ -29,6 +29,7 @@ class Config:
     EMAIL_TEMPLATE_ID = os.environ.get("EMAIL_TEMPLATE_ID")
     SMS_TEMPLATE_ID = os.environ.get("SMS_TEMPLATE_ID")
     API_KEY = os.environ.get("API_KEY", "")
+    POLL_TIMEOUT = int(os.environ.get("POLL_TIMEOUT", 20))
 
 
 class Notification_type(Enum):
@@ -51,11 +52,35 @@ def pretty_print(data: Any):
     print(json.dumps(data, indent=4, sort_keys=True))
 
 
+def single_succeeded(uri: str, use_jwt: bool) -> bool:
+    for _ in range(Config.POLL_TIMEOUT):
+        time.sleep(1)
+        if use_jwt:
+            token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
+            headers = {"Authorization": f"Bearer {token}"}
+        else:
+            headers = {"Authorization": f"ApiKey-v1 {Config.API_KEY[-36:]}"}
+
+        response = requests.get(
+            uri,
+            headers=headers,
+        )
+        body = response.json()
+        success = body.get("status") == "delivered"
+        failure = body.get("status") == "permanent-failure"
+        if success or failure:
+            break
+
+    if not success:
+        pretty_print(body)
+    return success
+
+
 def job_succeeded(service_id: str, job_id: str) -> bool:
     uri = f"{Config.API_HOST_NAME}/service/{service_id}/job/{job_id}"
     token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
 
-    for i in range(20):
+    for _ in range(Config.POLL_TIMEOUT):
         time.sleep(1)
         response = requests.get(uri, headers={"Authorization": f"Bearer {token}"})
         data = response.json()["data"]
