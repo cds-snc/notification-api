@@ -7,7 +7,7 @@ from .common import Config, Notification_type, pretty_print, single_succeeded
 def test_admin_one_off(notification_type: Notification_type):
     print(f"test_admin_one_off ({notification_type.value})... ", end="", flush=True)
 
-    token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
+    token = create_jwt_token(Config.SMOKE_ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
     to = Config.EMAIL_TO if notification_type == Notification_type.EMAIL else Config.SMS_TO
     template_id = Config.EMAIL_TEMPLATE_ID if notification_type == Notification_type.EMAIL else Config.SMS_TEMPLATE_ID
 

@@ -31,7 +31,7 @@ def test_admin_csv(notification_type: Notification_type):
 
     set_metadata_on_csv_upload(Config.SERVICE_ID, upload_id, **metadata_kwargs)
 
-    token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
+    token = create_jwt_token(Config.SMOKE_ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
     response = requests.post(
         f"{Config.API_HOST_NAME}/service/{Config.SERVICE_ID}/job",
         json={"id": upload_id, "created_by": Config.USER_ID},
