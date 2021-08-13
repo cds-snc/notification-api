@@ -781,19 +781,6 @@ class ServiceCallback(db.Model, Versioned):
         if bearer_token:
             self._bearer_token = encryption.encrypt(str(bearer_token))
 
-    def serialize(self):
-        return {
-            "id": str(self.id),
-            "service_id": str(self.service_id),
-            "url": self.url,
-            "updated_by_id": str(self.updated_by_id),
-            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S.%f"),
-            "updated_at": self.updated_at.strftime("%Y-%m-%d %H:%M:%S.%f") if self.updated_at else None,
-            "notification_statuses": self.notification_statuses,
-            "callback_type": self.callback_type,
-            "callback_channel": self.callback_channel
-        }
-
     def send(self, payload: dict, logging_tags: dict):
         from app.callback.queue_callback_strategy import QueueCallbackStrategy
         from app.callback.webhook_callback_strategy import WebhookCallbackStrategy

@@ -33,10 +33,9 @@ create_service_callback_api_request_schema = {
             "items": {
                 "enum": NOTIFICATION_STATUS_TYPES_COMPLETED
             }
-        },
-        "updated_by_id": uuid
+        }
     },
-    "required": ["updated_by_id", "url"]
+    "required": ["url"]
 }
 
 update_service_callback_api_request_schema = {
@@ -52,10 +51,8 @@ update_service_callback_api_request_schema = {
             "items": {
                 "enum": NOTIFICATION_STATUS_TYPES_COMPLETED
             }
-        },
-        "updated_by_id": uuid
+        }
     },
-    "required": ["updated_by_id"],
     "anyOf": [
         {"required": ["url"]},
         {"required": ["bearer_token"]},

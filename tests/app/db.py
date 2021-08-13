@@ -72,6 +72,7 @@ def create_user(
     identity_provider_user_id=None,
     name="Test User",
     blocked=False,
+    platform_admin=False
 ):
     data = {
         'id': id_ or uuid.uuid4(),
@@ -81,7 +82,8 @@ def create_user(
         'identity_provider_user_id': identity_provider_user_id,
         'mobile_number': mobile_number,
         'state': state,
-        'blocked': blocked
+        'blocked': blocked,
+        'platform_admin': platform_admin
     }
     user = User.query.filter_by(email_address=email).first()
     if not user:
@@ -468,6 +470,7 @@ def create_service_callback_api(  # nosec
         bearer_token="some_super_secret",
         callback_type=DELIVERY_STATUS_CALLBACK_TYPE,
         notification_statuses=NOTIFICATION_STATUS_TYPES_COMPLETED,
+        callback_channel=WEBHOOK_CHANNEL_TYPE
 ):
     if callback_type == DELIVERY_STATUS_CALLBACK_TYPE:
         service_callback_api = ServiceCallback(service_id=service.id,
@@ -476,7 +479,7 @@ def create_service_callback_api(  # nosec
                                                updated_by_id=service.users[0].id,
                                                callback_type=callback_type,
                                                notification_statuses=notification_statuses,
-                                               callback_channel=WEBHOOK_CHANNEL_TYPE
+                                               callback_channel=callback_channel
                                                )
     else:
         service_callback_api = ServiceCallback(service_id=service.id,
@@ -484,7 +487,7 @@ def create_service_callback_api(  # nosec
                                                bearer_token=bearer_token,
                                                updated_by_id=service.users[0].id,
                                                callback_type=callback_type,
-                                               callback_channel=WEBHOOK_CHANNEL_TYPE
+                                               callback_channel=callback_channel
                                                )
     save_service_callback_api(service_callback_api)
     return service_callback_api

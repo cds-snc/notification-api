@@ -13,6 +13,7 @@ post_create_template_schema = {
         "name": {"type": "string"},
         "template_type": {"enum": TEMPLATE_TYPES},
         "service": uuid,
+        "communication_item_id": uuid,
         "process_type": {"emun": TEMPLATE_PROCESS_TYPE},
         "content": {"type": "string"},
         "subject": {"type": "string"},
