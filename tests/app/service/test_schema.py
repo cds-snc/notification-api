@@ -51,7 +51,8 @@ def test_create_service_callback_api_schema_validate_succeeds():
     under_test = {
         "url": "https://some_url.for_service",
         "bearer_token": "something_ten_chars",
-        "notification_statuses": ["failed"]
+        "notification_statuses": ["failed"],
+        "callback_channel": "webhook"
     }
 
     validated = validate(under_test, create_service_callback_api_request_schema)
@@ -81,7 +82,8 @@ def test_create_service_callback_api_schema_validate_fails_with_misspelled_keys(
     under_test = {
         "url": "https://some_url.for_service",
         "bearer_token": "something_ten_chars",
-        "notification_statuses": ["failed"]
+        "notification_statuses": ["failed"],
+        "callback_channel": "webhook"
     }
     del under_test[key]
     under_test[wrong_key] = value
