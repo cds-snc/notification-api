@@ -1,4 +1,4 @@
-##Callbacks
+## Callbacks
 
 Can configure callbacks to be sent either via queue or webhook.
 
@@ -14,13 +14,13 @@ All callbacks associated with a service can be retrieved with GET `/service/<uui
 
 The expected parameters for each of these endpoints is outlined in [OpenAPI documentation](../../documents/openapi/openapi.yaml).
 
-###Assumptions
+### Assumptions
 
 For callbacks configured to send message via queue, it is assumed that (1) the queue is an AWS SQS queue running on region us-gov-west and (2) that the user running the app has the PLATFORM_ADMIN permission, which allows them to post messages.
 
 For callbacks configured to send via webhook, it is assumed that the user is either a platform admin or has the MANAGE_SETTINGS permission.
 
-###Design
+### Design
 
 ![Alt text](sqs_callbacks_diagram.png "SQS callbacks diagram")
 
