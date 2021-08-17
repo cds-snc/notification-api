@@ -37,7 +37,7 @@ create_service_callback_api_request_schema = {
         "callback_type": {"enum": SERVICE_CALLBACK_TYPES},
         "callback_channel": {"enum": CALLBACK_CHANNEL_TYPES}
     },
-    "required": ["url", "callback_channel"]
+    "required": ["url", "callback_channel", "callback_type"]
 }
 
 update_service_callback_api_request_schema = {
@@ -54,6 +54,7 @@ update_service_callback_api_request_schema = {
                 "enum": NOTIFICATION_STATUS_TYPES_COMPLETED
             }
         },
+        "callback_type": {"enum": SERVICE_CALLBACK_TYPES},
         "callback_channel": {"enum": CALLBACK_CHANNEL_TYPES}
     },
     "anyOf": [

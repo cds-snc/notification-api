@@ -122,7 +122,8 @@ class TestCreateServiceCallback:
             "url": "https://some.service/callback-sms",
             "bearer_token": "some-unique-string",
             "notification_statuses": ['sent'],
-            "callback_channel": WEBHOOK_CHANNEL_TYPE
+            "callback_channel": WEBHOOK_CHANNEL_TYPE,
+            "callback_type": DELIVERY_STATUS_CALLBACK_TYPE
         }
         response = client.post(
             url_for('service_callback.create_service_callback', service_id=create_uuid()),

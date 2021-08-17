@@ -28,22 +28,22 @@ Contains:
     - [Other useful commands](#other-useful-commands)
 - [Deployment Workflow](#deployment-workflow)
 - [To run the queues](#to-run-the-queues)
-  - [Running in Docker](#running-in-docker)
-  - [AWS Configuration](#aws-configuration)
+- [Running in Docker](#running-in-docker)
+- [AWS Configuration](#aws-configuration)
     - [Install tools](#install-tools)
     - [Useful commands](#useful-commands)
-  - [AWS Lambda Functions](#aws-lambda-functions)
-  - [Terraform](#terraform)
+- [AWS Lambda Functions](#aws-lambda-functions)
+- [Terraform](#terraform)
     - [Install tools](#install-tools-1)
     - [Useful commands](#useful-commands-1)
     - [Python version](#python-version)
-  - [To update application dependencies](#to-update-application-dependencies)
-  - [Running Code Scans](#running-code-scans)
+- [To update application dependencies](#to-update-application-dependencies)
+- [Running Code Scans](#running-code-scans)
     - [Bandit](#bandit)
     - [Safety](#safety)
-  - [Testing template changes](#testing-template-changes)
-  - [Using Mountebank stubs for MPI/VAProfile](#using-mountebank-stubs)
-  - [Frequent problems](#frequent-problems)
+- [Testing template changes](#testing-template-changes)
+- [Using Mountebank stubs for MPI/VAProfile](#using-mountebank-stubs)
+- [Frequent problems](#frequent-problems)
 
 ---
 
@@ -51,6 +51,8 @@ Contains:
 VANotify OpenAPI specification can be downloaded [here](https://github.com/department-of-veterans-affairs/notification-api/blob/master/documents/openapi/openapi.yaml)
 
 Postman collection and environment files are available [here](https://github.com/department-of-veterans-affairs/notification-api/tree/master/scripts/postman) 
+
+Information about service callback setup is available [here](/app/callback/README.md)
 
 ## Setting Up
 

@@ -4,6 +4,7 @@ import uuid
 import pytest
 from jsonschema import ValidationError
 
+from app.models import DELIVERY_STATUS_CALLBACK_TYPE, WEBHOOK_CHANNEL_TYPE
 from app.schema_validation import validate
 from app.service.service_callback_api_schema import (
     update_service_inbound_api_schema, update_service_callback_api_request_schema,
@@ -52,7 +53,8 @@ def test_create_service_callback_api_schema_validate_succeeds():
         "url": "https://some_url.for_service",
         "bearer_token": "something_ten_chars",
         "notification_statuses": ["failed"],
-        "callback_channel": "webhook"
+        "callback_channel": WEBHOOK_CHANNEL_TYPE,
+        "callback_type": DELIVERY_STATUS_CALLBACK_TYPE
     }
 
     validated = validate(under_test, create_service_callback_api_request_schema)
@@ -83,7 +85,8 @@ def test_create_service_callback_api_schema_validate_fails_with_misspelled_keys(
         "url": "https://some_url.for_service",
         "bearer_token": "something_ten_chars",
         "notification_statuses": ["failed"],
-        "callback_channel": "webhook"
+        "callback_channel": WEBHOOK_CHANNEL_TYPE,
+        "callback_type": DELIVERY_STATUS_CALLBACK_TYPE
     }
     del under_test[key]
     under_test[wrong_key] = value
