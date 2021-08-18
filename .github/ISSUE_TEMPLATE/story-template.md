@@ -33,8 +33,8 @@ Security:
   - [ ] auth permissions
   - [ ] JsonSchema
 
-Marshmallow
-- [ ] Model serialization / deserialization
+Transform requests to business models in our API
+- [ ] Marshmallow model serialization / deserialization
 
 Documentation:
   - [ ] Readmes
@@ -45,13 +45,14 @@ Documentation:
   - [ ] Tech Debt wall
 
 Mountebank
-- [ ]  Mock
+- [ ] UI - create mocks for any API calls
+- [ ] API - create mocks for any external services calls
 
 Accessibility
 - [ ] E2E & Testrail
 
 Postman
-- [ ] Update collection
+- [ ] Update collection whenever we change our API
 
 
 # Assumptions
