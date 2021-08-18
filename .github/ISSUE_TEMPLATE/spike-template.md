@@ -2,7 +2,7 @@
 name: Spike Template
 about: The standard template for a new spike
 title: "[SPIKE]"
-labels: Needs Prioritization
+labels: ''
 assignees: ''
 
 ---

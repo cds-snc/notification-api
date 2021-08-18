@@ -2,7 +2,7 @@
 name: Bug Report Template
 about: The standard template for a found bug
 title: "[BUG]"
-labels: Bug, Needs Prioritization
+labels: Bug
 assignees: ''
 
 ---
