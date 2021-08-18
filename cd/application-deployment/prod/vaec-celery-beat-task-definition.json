@@ -105,6 +105,10 @@
           "value": "True"
         },
         {
+          "name": "PINPOINT_INBOUND_SMS_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "UI_HOST_NAME",
           "value": "https://notifications.va.gov"
         }
