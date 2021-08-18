@@ -121,6 +121,10 @@
         {
           "name": "CHECK_GITHUB_SCOPE_ENABLED",
           "value": "False"
+        },
+        {
+          "name": "PINPOINT_INBOUND_SMS_ENABLED",
+          "value": "True"
         }
       ],
       "secrets": [
