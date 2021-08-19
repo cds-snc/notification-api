@@ -105,6 +105,10 @@
         {
           "name": "CHECK_GITHUB_SCOPE_ENABLED",
           "value": "False"
+        },
+        {
+          "name": "REDIS_ENABLED",
+          "value": "False"
         }
       ],
       "secrets": [
@@ -147,6 +151,10 @@
         {
           "name": "VANOTIFY_SSL_KEY",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/cert/vanotify-va-key"
+        },
+        {
+          "name": "REDIS_URL",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/redis/url"
         }
       ]
     },

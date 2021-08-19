@@ -109,6 +109,10 @@
           "value": "True"
         },
         {
+          "name": "REDIS_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "UI_HOST_NAME",
           "value": "https://dev.notifications.va.gov"
         },
@@ -141,6 +145,10 @@
         {
           "name": "GRANICUS_TOKEN",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/granicus/token"
+        },
+        {
+          "name": "REDIS_URL",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/redis/url"
         },
         {
           "name": "SQLALCHEMY_DATABASE_URI",
