@@ -1,9 +1,7 @@
-import time
-
 import requests
 from notifications_python_client.authentication import create_jwt_token
 
-from .common import Config, Notification_type, pretty_print
+from .common import Config, Notification_type, pretty_print, single_succeeded
 
 
 def test_admin_one_off(notification_type: Notification_type):
@@ -15,34 +13,24 @@ def test_admin_one_off(notification_type: Notification_type):
 
     response = requests.post(
         f"{Config.API_HOST_NAME}/service/{Config.SERVICE_ID}/send-notification",
-        json={"to": to, "template_id": template_id, "created_by": Config.USER_ID},
+        json={
+            "to": to,
+            "template_id": template_id,
+            "created_by": Config.USER_ID,
+            "personalisation": {"var": "var"},
+        },
         headers={"Authorization": f"Bearer {token}"},
     )
     status_code = response.status_code
     body = response.json()
     if status_code != 201:
+        pretty_print(body)
         print("FAILED: post to send_notification failed")
-        pretty_print(body)
-        return
+        exit(1)
 
-    notification_id = body["id"]
-    for _ in range(20):
-        time.sleep(1)
-        response = requests.get(
-            f"{Config.API_HOST_NAME}/service/{Config.SERVICE_ID}/notifications/{notification_id}",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-        status_code = response.status_code
-        body = response.json()
-        if status_code != 200:
-            print("FAILED: couldn't get notification status")
-            pretty_print(body)
-            return
-        if body["status"] == "sending" or body["status"] == "delivered":
-            break
-
-    if body["status"] != "sending" and body["status"] != "delivered":
-        print("FAILED: email not sent successfully")
-        pretty_print(body)
-        return
+    uri = f"{Config.API_HOST_NAME}/service/{Config.SERVICE_ID}/notifications/{body['id']}"
+    success = single_succeeded(uri, use_jwt=True)
+    if not success:
+        print("FAILED: job didn't finish successfully")
+        exit(1)
     print("Success")

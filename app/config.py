@@ -21,23 +21,56 @@ if os.getenv("VCAP_SERVICES"):
 
 
 class QueueNames(object):
+
+    # Periodic tasks executed by Notify.
     PERIODIC = "periodic-tasks"
+
+    # For high priority tasks. The queue should be kept at relatively low volume
+    # and fast processing.
     PRIORITY = "priority-tasks"
+
+    # For bulk send of notifications. This can be high volume and flushed over time.
+    # It would get most traffic coming from the API for example.
     BULK = "bulk-tasks"
+
+    # A queue meant for database tasks but it seems to be the default for sending
+    # notifications in some occasion. Need to investigate the purpose of this one
+    # further.
     DATABASE = "database-tasks"
+
+    # Queue for sending all SMS, except long dedicated numbers.
     SEND_SMS = "send-sms-tasks"
+
+    # Primarily used for long dedicated numbers sent from us-west-2 upon which
+    # we have a limit to send per second and hence, needs to be throttled.
     SEND_THROTTLED_SMS = "send-throttled-sms-tasks"
+
+    # The queue to send emails by default.
     SEND_EMAIL = "send-email-tasks"
+
+    # The research mode queue for notifications that are tested by users trying
+    # out Notify.
     RESEARCH_MODE = "research-mode-tasks"
     REPORTING = "reporting-tasks"
+
+    # Queue for scheduled notifications.
     JOBS = "job-tasks"
+
+    # Queue for tasks to retry.
     RETRY = "retry-tasks"
+
     NOTIFY = "notify-internal-tasks"
     PROCESS_FTP = "process-ftp-tasks"
     CREATE_LETTERS_PDF = "create-letters-pdf-tasks"
     CALLBACKS = "service-callbacks"
+
+    # Queue for letters, unused by CDS at this time as we don't use these.
     LETTERS = "letter-tasks"
+
+    # Queue for antivirus/malware tasks
     ANTIVIRUS = "antivirus-tasks"
+
+    # Queue for delivery receipts such as emails sent through AWS SES.
     DELIVERY_RECEIPTS = "delivery-receipts"
 
     @staticmethod
