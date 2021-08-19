@@ -25,6 +25,8 @@
 
 # Release Instructions | Instructions pour le déploiement
 
+None.
+
 > Necessary steps to perform before and after the deployment of these changes.
 > For example, emptying the cache on a feature that changes the cache data
 > structure in Redis could be mentioned.
