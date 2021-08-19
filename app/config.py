@@ -442,6 +442,7 @@ class Config(object):
     GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '')
 
     JWT_ACCESS_COOKIE_NAME = 'vanotify_api_access_token'
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
     UI_HOST_NAME = os.getenv('UI_HOST_NAME', 'http://localhost:3000')
 
     SESSION_COOKIE_SECURE = str(True) == os.getenv('SESSION_COOKIE_SECURE', 'False')
