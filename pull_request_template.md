@@ -45,9 +45,6 @@ review | Voici une suggestion de liste de vérification comprenant des questions
 que les réviseurs pourraient poser pendant leur examen :
 
 
-- [ ] Is it accessible? | Est-ce que c’est accessible?
-- [ ] Is it translated between both offical languages? | Est-ce dans les deux
-      langues officielles?
 - [ ] Is the code maintainable? | Est-ce que le code peut être maintenu?
 - [ ] Have you tested it? | L’avez-vous testé?
 - [ ] Are there automated tests? | Y a-t-il des tests automatisés?
