@@ -96,7 +96,7 @@
         },
         {
           "name": "REDIS_ENABLED",
-          "value": "True"
+          "value": "False"
         },
         {
           "name": "PROVIDER_STRATEGIES_ENABLED",

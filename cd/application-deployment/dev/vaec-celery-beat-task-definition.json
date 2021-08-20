@@ -106,7 +106,7 @@
         },
         {
           "name": "REDIS_ENABLED",
-          "value": "True"
+          "value": "False"
         },
         {
           "name": "GITHUB_LOGIN_ENABLED",

@@ -110,7 +110,7 @@
         },
         {
           "name": "REDIS_ENABLED",
-          "value": "True"
+          "value": "False"
         },
         {
           "name": "UI_HOST_NAME",
