@@ -1,33 +1,29 @@
 import requests
 
-from .common import Config, Notification_type, pretty_print, single_succeeded
+from .common import Config, pretty_print, single_succeeded
 
 
-def test_api_one_off_file_attached(notification_type: Notification_type):
+def test_api_one_off_file_attached():
 
-    if notification_type != Notification_type.EMAIL:
-        print("test_api_one_off_file_attached: only used for emails")
-        return
-
-    print(f"test_api_one_off_file_attached (email)... ", end="", flush=True)
+    print("test_api_one_off_file_attached (email)... ", end="", flush=True)
 
     data = {
         "email_address": Config.EMAIL_TO,
         "template_id": Config.EMAIL_TEMPLATE_ID,
         "personalisation": {
             "var": "var",
-            "application_file": {"file": "aGkgdGhlcmU=", "filename": "test_file.pdf", "sending_method": "attach"},
+            "application_file": {"file": "aGkgdGhlcmU=", "filename": "test_file.txt", "sending_method": "attach"},
         },
     }
 
     response = requests.post(
-        f"{Config.API_HOST_NAME}/v2/notifications/{notification_type.value}",
+        f"{Config.API_HOST_NAME}/v2/notifications/email",
         json=data,
         headers={"Authorization": f"ApiKey-v1 {Config.API_KEY[-36:]}"},
     )
     if response.status_code != 201:
         pretty_print(response.json())
-        print(f"FAILED: post to v2/notifications/{notification_type.value} failed")
+        print("FAILED: post to v2/notifications/email failed")
         exit(1)
 
     uri = response.json()["uri"]
