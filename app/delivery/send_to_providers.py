@@ -134,7 +134,7 @@ def send_email_to_provider(notification):  # noqa (C901 too complex)
 
             if sending_method == "attach":
                 # Prevent URL patterns like file:// ftp:// that may lead to security local file read vulnerabilities
-                if not personalisation_data[key]["document"]["direct_file_url"].lower().startswith(("s3")):
+                if not personalisation_data[key]["document"]["direct_file_url"].lower().startswith("http"):
                     raise InvalidUrlException
                 try:
                     req = urllib.request.Request(personalisation_data[key]["document"]["direct_file_url"])
@@ -155,7 +155,7 @@ def send_email_to_provider(notification):  # noqa (C901 too complex)
                     )
                 del personalisation_data[key]
             else:
-                if not personalisation_data[key]["document"]["url"].lower().startswith(("https")):
+                if not personalisation_data[key]["document"]["url"].lower().startswith("https"):
                     raise InvalidUrlException
                 personalisation_data[key] = personalisation_data[key]["document"]["url"]
 
