@@ -1194,8 +1194,8 @@ def document_download_response(override={}):
     # https://github.com/cds-snc/notification-document-download-api/blob/master/app/upload/views.py
     base = {
         "id": "document-id",
-        "direct_file_url": "https://direct-file-url.localdomain",
-        "url": "https://frontend-url.localdomain",
+        "direct_file_url": "http://direct-file-url.localdomain",
+        "url": "http://frontend-url.localdomain",
         "mlwr_sid": "mlwr-sid",
         "filename": "filename",
         "sending_method": "sending_method",
