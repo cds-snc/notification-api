@@ -8,6 +8,7 @@ from app import db, version, provider_service
 from app.dao.services_dao import dao_count_live_services
 from app.dao.organisation_dao import dao_count_organsations_with_live_services
 from app.notifications.notification_type import NotificationType
+from .redis_check import redis_check
 
 status = Blueprint('status', __name__)
 
@@ -24,7 +25,9 @@ def show_status():
             build_time=version.__time__,
             email_strategy=provider_service.strategies[NotificationType.EMAIL].__name__,
             sms_strategy=provider_service.strategies[NotificationType.SMS].__name__,
-            db_version=get_db_version()), 200
+            db_version=get_db_version(),
+            redis=redis_check()
+        ), 200
 
 
 @status.route('/_status/live-service-and-organisation-counts')
