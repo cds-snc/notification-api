@@ -110,7 +110,11 @@
         },
         {
           "name": "REDIS_ENABLED",
-          "value": "False"
+          "value": "True"
+        },
+        {
+          "name": "REDIS_SSL",
+          "value": "True"
         },
         {
           "name": "UI_HOST_NAME",
