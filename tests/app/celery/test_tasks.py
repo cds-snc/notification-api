@@ -41,6 +41,8 @@ from app.models import (
     Job,
     Notification,
     NotificationHistory,
+    ServiceEmailReplyTo,
+    ServiceSmsSender,
 )
 from app.schemas import service_schema, template_schema
 from celery.exceptions import Retry
@@ -573,8 +575,9 @@ def test_should_send_template_to_correct_sms_task_and_persist(sample_template_wi
     mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
 
 
+@pytest.mark.parametrize("sender_id", [None, "996958a8-0c06-43be-a40e-56e4a2d1655c"])
 def test_save_sms_should_use_redis_cache_to_retrieve_service_and_template_when_possible(
-    sample_template_with_placeholders, mocker
+    sample_template_with_placeholders, mocker, sender_id
 ):
     notification = _notification_json(
         sample_template_with_placeholders,
@@ -582,7 +585,12 @@ def test_save_sms_should_use_redis_cache_to_retrieve_service_and_template_when_p
         personalisation={"name": "Jo"},
     )
 
-    mocked_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+    sms_sender = ServiceSmsSender()
+    sms_sender.sms_sender = "+16502532222"
+
+    mocked_get_sender_id = mocker.patch("app.celery.tasks.dao_get_service_sms_senders_by_id", return_value=sms_sender)
+    celery_task = 'deliver_throttled_sms' if sender_id else "deliver_sms"
+    mocked_deliver_sms = mocker.patch(f"app.celery.provider_tasks.{celery_task}.apply_async")
     json_template_date = {"data": template_schema.dump(sample_template_with_placeholders).data}
     json_service_data = {"data": service_schema.dump(sample_template_with_placeholders.service).data}
     mocked_redis_get = mocker.patch.object(redis_store, "get")
@@ -593,7 +601,7 @@ def test_save_sms_should_use_redis_cache_to_retrieve_service_and_template_when_p
         False,
     ]
 
-    save_sms(sample_template_with_placeholders.service_id, uuid.uuid4(), encryption.encrypt(notification))
+    save_sms(sample_template_with_placeholders.service_id, uuid.uuid4(), encryption.encrypt(notification), sender_id)
 
     assert mocked_redis_get.called
     persisted_notification = Notification.query.one()
@@ -608,10 +616,15 @@ def test_save_sms_should_use_redis_cache_to_retrieve_service_and_template_when_p
     assert persisted_notification.personalisation == {"name": "Jo"}
     assert persisted_notification._personalisation == encryption.encrypt({"name": "Jo"})
     assert persisted_notification.notification_type == "sms"
-    mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
+    mocked_deliver_sms.assert_called_once_with(
+        [str(persisted_notification.id)], queue="send-throttled-sms-tasks" if sender_id else "send-sms-tasks"
+    )
+    if sender_id:
+        mocked_get_sender_id.assert_called_once_with(persisted_notification.service_id, sender_id)
 
 
-def test_save_email_should_use_redis_cache_to_retrieve_service_and_template_when_possible(sample_service, mocker):
+@pytest.mark.parametrize("sender_id", [None, "996958a8-0c06-43be-a40e-56e4a2d1655c"])
+def test_save_email_should_use_redis_cache_to_retrieve_service_and_template_when_possible(sample_service, mocker, sender_id):
     sample_template = create_template(
         template_name="Test Template",
         template_type="email",
@@ -625,6 +638,9 @@ def test_save_email_should_use_redis_cache_to_retrieve_service_and_template_when
         personalisation={"name": "Jo"},
     )
 
+    reply_to = ServiceEmailReplyTo()
+    reply_to.email_address = "notify@digital.cabinet-office.gov.uk"
+    mocked_get_sender_id = mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     mocked_deliver_email = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
     json_template_date = {"data": template_schema.dump(sample_template).data}
@@ -637,7 +653,7 @@ def test_save_email_should_use_redis_cache_to_retrieve_service_and_template_when
         False,
     ]
 
-    save_email(sample_template.service_id, uuid.uuid4(), encryption.encrypt(notification))
+    save_email(sample_template.service_id, uuid.uuid4(), encryption.encrypt(notification), sender_id)
 
     assert mocked_redis_get.called
     persisted_notification = Notification.query.one()
@@ -653,6 +669,8 @@ def test_save_email_should_use_redis_cache_to_retrieve_service_and_template_when
     assert persisted_notification._personalisation == encryption.encrypt({"name": "Jo"})
     assert persisted_notification.notification_type == "email"
     mocked_deliver_email.assert_called_once_with([str(persisted_notification.id)], queue="send-email-tasks")
+    if sender_id:
+        mocked_get_sender_id.assert_called_once_with(persisted_notification.service_id, sender_id)
 
 
 def test_should_put_save_sms_task_in_research_mode_queue_if_research_mode_service(notify_db, notify_db_session, mocker):
