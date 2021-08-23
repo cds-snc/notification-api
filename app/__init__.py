@@ -162,7 +162,7 @@ def create_app(application):
 
     notify_celery.init_app(application)
     encryption.init_app(application)
-    redis_store.init_app(application, **application.config['REDIS_SETTINGS'])
+    redis_store.init_app(application)
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
     clients.init_app(

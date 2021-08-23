@@ -120,10 +120,6 @@ class Config(object):
     # URL of redis instance
     REDIS_URL = os.getenv('REDIS_URL')
     REDIS_ENABLED = os.getenv('REDIS_ENABLED') == 'True'
-    REDIS_SETTINGS = {
-        'ssl': os.getenv('REDIS_SSL') == 'True',
-        'password': os.getenv('REDIS_PASSWORD', None)
-    }
     EXPIRE_CACHE_TEN_MINUTES = 600
     EXPIRE_CACHE_EIGHT_DAYS = 8 * 24 * 60 * 60
 

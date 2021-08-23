@@ -96,11 +96,7 @@
         },
         {
           "name": "REDIS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "REDIS_SSL",
-          "value": "True"
+          "value": "False"
         },
         {
           "name": "PROVIDER_STRATEGIES_ENABLED",

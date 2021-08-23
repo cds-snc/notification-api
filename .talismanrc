@@ -212,6 +212,4 @@ fileignoreconfig:
     - filename: README.md
       checksum: 723a622caee8477317b532d54e9352e483d53b53b5443ab2b53ec45934efa21a
     - filename: cd/application-deployment/dev/vaec-api-task-definition.json
-      checksum: 3765b919b1e9d8e42a3d99e9271c99212fede129ac3991e6464c1fe23956c197
-    - filename: app/config.py
-      checksum: 96177f765633632c0c3ffdb0158c168a6e50887544dc25d51dedda207a3afed2      
+      checksum: 3765b919b1e9d8e42a3d99e9271c99212fede129ac3991e6464c1fe23956c197      
