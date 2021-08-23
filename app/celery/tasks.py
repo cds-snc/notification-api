@@ -202,6 +202,8 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
 
     if sender_id:
         reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
+        if isinstance(template, tuple):
+            template = template[0]
     # if the template is obtained from cache a tuple will be returned where
     # the first element is the Template object and the second the template cache data
     # in the form of a dict
@@ -266,6 +268,8 @@ def save_email(self, service_id, notification_id, encrypted_notification, sender
 
     if sender_id:
         reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
+        if isinstance(template, tuple):
+            template = template[0]
     # if the template is obtained from cache a tuple will be returned where
     # the first element is the Template object and the second the template cache data
     # in the form of a dict
