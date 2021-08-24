@@ -46,6 +46,12 @@ class Notification_type(Enum):
     SMS = "sms"
 
 
+class Attachment_type(Enum):
+    NONE = "none"
+    ATTACHED = "attach"
+    LINK = "link"
+
+
 def rows_to_csv(rows: List[List[str]]):
     output = StringIO()
     writer = csv.writer(output)
