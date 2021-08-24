@@ -190,6 +190,10 @@ def send_email_to_provider(notification):
 
             email_reply_to = notification.reply_to_text
 
+            print(f"--- service_id: {notification.service_id}")
+            print(html_email)
+            attachments = [{"name": "attachments.txt", "data": b"hi there", "mime_type": "text/plain"}]
+
             reference = provider.send_email(
                 from_address,
                 validate_and_format_email_address(notification.to),
