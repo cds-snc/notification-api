@@ -1,4 +1,4 @@
-from smoke.common import Config, Notification_type
+from smoke.common import Attachment_type, Config, Notification_type
 from smoke.test_admin_csv import test_admin_csv
 from smoke.test_admin_one_off import test_admin_one_off
 from smoke.test_api_bulk import test_api_bulk
@@ -15,3 +15,5 @@ if __name__ == "__main__":
         test_admin_csv(notification_type)
         test_api_one_off(notification_type)
         test_api_bulk(notification_type)
+    test_api_one_off(Notification_type.EMAIL, Attachment_type.ATTACHED)
+    test_api_one_off(Notification_type.EMAIL, Attachment_type.LINK)
