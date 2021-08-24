@@ -39,6 +39,8 @@ from app.models import (
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_VIRUS_SCAN_FAILED,
     SMS_TYPE,
+    Notification,
+    Service,
 )
 from app.utils import get_logo_url
 
@@ -96,7 +98,7 @@ def send_sms_to_provider(notification):
         statsd_client.incr(statsd_key)
 
 
-def send_email_to_provider(notification):
+def send_email_to_provider(notification: Notification):
     service = notification.service
     if not service.active:
         technical_failure(notification=notification)
@@ -169,6 +171,7 @@ def send_email_to_provider(notification):
             template_dict,
             values=personalisation_data,
             jinja_path=debug_template_path,
+            allow_html=(str(service.id) == current_app.config["ALLOW_HTML_SERVICE_ID"]),
             **get_html_email_options(service),
         )
 
@@ -229,7 +232,7 @@ def provider_to_use(notification_type, notification_id, international=False, sen
     return clients.get_client_by_name_and_type(active_providers_in_order[0].identifier, notification_type)
 
 
-def get_html_email_options(service):
+def get_html_email_options(service: Service):
     if service.email_branding is None:
         if service.default_branding_is_french is True:
             return {
