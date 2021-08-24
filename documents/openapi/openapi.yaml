@@ -1247,12 +1247,22 @@ components:
       type: string
       enum:
         - cancelled
+        - created
         - delivered
         - failed
+        - sending
+        - sent
         - technical-failure
         - temporary-failure
+        - pending
+        - pending-virus-check
         - permanent-failure
+        - pii-check-failed
+        - preferences-declined
         - returned-letter
+        - validation-failed
+        - virus-scan-failed
+
     User:
       type: object
       properties:
