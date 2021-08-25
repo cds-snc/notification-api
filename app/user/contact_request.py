@@ -29,6 +29,7 @@ class ContactRequest:
     service_url: str = field(default="")
     notification_types: str = field(default="")
     expected_volume: str = field(default="")
+    branding_url: str = field(default="")
 
     def __post_init__(self):
         # email address is mandatory for us
@@ -48,3 +49,6 @@ class ContactRequest:
 
     def is_go_live_request(self):
         return "go_live_request" in self.support_type.lower()
+
+    def is_branding_request(self):
+        return "branding_request" in self.support_type.lower()

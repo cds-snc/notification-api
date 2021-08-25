@@ -361,7 +361,7 @@ class TemplateHistorySchema(BaseSchema):
 
     reply_to = fields.Method("get_reply_to", allow_none=True)
     reply_to_text = fields.Method("get_reply_to_text", allow_none=True)
-
+    process_type = field_for(models.Template, "process_type")
     created_by = fields.Nested(UserSchema, only=["id", "name", "email_address"], dump_only=True)
     created_at = field_for(models.Template, "created_at", format="%Y-%m-%d %H:%M:%S.%f")
 
@@ -638,29 +638,6 @@ class SupportEmailDataSchema(Schema):
             raise ValidationError(str(e))
 
 
-class BrandingRequestDataSchema(Schema):
-    class Meta(BaseSchema.Meta):
-        strict = True
-
-    email = fields.Str(required=True)
-    serviceID = fields.Str(required=True)
-    service_name = fields.Str(required=True)
-    filename = fields.Str(required=True)
-
-    def __init__(self, partial_email=False):
-        super().__init__()
-        self.partial_email = partial_email
-
-    @validates("email")
-    def validate_email(self, value):
-        if self.partial_email:
-            return
-        try:
-            validate_email_address(value)
-        except InvalidEmailError as e:
-            raise ValidationError(str(e))
-
-
 class NotificationsFilterSchema(Schema):
     class Meta(BaseSchema.Meta):
         strict = True
@@ -775,7 +752,6 @@ notification_with_personalisation_schema = NotificationWithPersonalisationSchema
 invited_user_schema = InvitedUserSchema()
 email_data_request_schema = EmailDataSchema()
 support_email_data_schema = SupportEmailDataSchema()
-branding_request_data_schema = BrandingRequestDataSchema()
 partial_email_data_request_schema = EmailDataSchema(partial_email=True)
 notifications_filter_schema = NotificationsFilterSchema()
 service_history_schema = ServiceHistorySchema()
