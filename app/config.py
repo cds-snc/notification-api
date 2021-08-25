@@ -233,7 +233,10 @@ class Config(object):
     NEAR_DAILY_LIMIT_TEMPLATE_ID = "5d3e4322-4ee6-457a-a710-c48755f6b643"
     REACHED_DAILY_LIMIT_TEMPLATE_ID = "fd29f796-fcdc-471b-a0d4-0093880d9173"
     DAILY_LIMIT_UPDATED_TEMPLATE_ID = "b3c766e6-be32-4edf-b8db-0f04ef404edc"
-    ALLOW_HTML_SERVICE_ID = "c500520b-977f-49df-8695-84e1c50a90da"
+
+    # List of allowed service IDs that are allowed to send HTML through their
+    # templates.
+    ALLOW_HTML_SERVICE_IDS: List[str] = [id.strip() for id in os.getenv("ALLOW_HTML_SERVICE_IDS", "").split(",")]
 
     BROKER_URL = "sqs://"
     BROKER_TRANSPORT_OPTIONS = {

@@ -171,7 +171,7 @@ def send_email_to_provider(notification: Notification):
             template_dict,
             values=personalisation_data,
             jinja_path=debug_template_path,
-            allow_html=(str(service.id) == current_app.config["ALLOW_HTML_SERVICE_ID"]),
+            allow_html=(str(service.id) in current_app.config["ALLOW_HTML_SERVICE_IDS"]),
             **get_html_email_options(service),
         )
 
