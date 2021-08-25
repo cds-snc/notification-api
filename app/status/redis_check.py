@@ -9,7 +9,7 @@ def redis_check() -> str:
     try:
         redis_client.ping()
     except Exception as ex:
-        current_app.logger.error(ex)
+        current_app.logger.error(ex, exc_info=True)
         return 'FAILED'
     else:
         return 'OK'
