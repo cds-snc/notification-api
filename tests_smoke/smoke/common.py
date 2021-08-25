@@ -21,16 +21,17 @@ load_dotenv()
 
 class Config:
     API_HOST_NAME = os.environ.get("SMOKE_API_HOST_NAME")
+    EMAIL_TO = os.environ.get("SMOKE_EMAIL_TO", "")
+    SMS_TO = os.environ.get("SMOKE_SMS_TO", "")
+    SERVICE_ID = os.environ.get("SMOKE_SERVICE_ID", "")
+    EMAIL_TEMPLATE_ID = os.environ.get("SMOKE_EMAIL_TEMPLATE_ID")
+    SMS_TEMPLATE_ID = os.environ.get("SMOKE_SMS_TEMPLATE_ID")
+
+    USER_ID = os.environ.get("SMOKE_USER_ID")
     AWS_REGION = "ca-central-1"
     CSV_UPLOAD_BUCKET_NAME = os.environ.get("SMOKE_CSV_UPLOAD_BUCKET_NAME")
     ADMIN_CLIENT_USER_NAME = "notify-admin"
     ADMIN_CLIENT_SECRET = os.environ.get("SMOKE_ADMIN_CLIENT_SECRET")
-    EMAIL_TO = os.environ.get("SMOKE_EMAIL_TO", "")
-    SMS_TO = os.environ.get("SMOKE_SMS_TO", "")
-    USER_ID = os.environ.get("SMOKE_USER_ID")
-    SERVICE_ID = os.environ.get("SMOKE_SERVICE_ID", "")
-    EMAIL_TEMPLATE_ID = os.environ.get("SMOKE_EMAIL_TEMPLATE_ID")
-    SMS_TEMPLATE_ID = os.environ.get("SMOKE_SMS_TEMPLATE_ID")
     API_KEY = os.environ.get("SMOKE_API_KEY", "")
     POLL_TIMEOUT = int(os.environ.get("SMOKE_POLL_TIMEOUT", 20))
 
@@ -44,6 +45,12 @@ boto_session = Session(
 class Notification_type(Enum):
     EMAIL = "email"
     SMS = "sms"
+
+
+class Attachment_type(Enum):
+    NONE = "none"
+    ATTACHED = "attach"
+    LINK = "link"
 
 
 def rows_to_csv(rows: List[List[str]]):
@@ -62,8 +69,9 @@ def pretty_print(data: Any):
 
 
 def single_succeeded(uri: str, use_jwt: bool) -> bool:
-    for _ in range(Config.POLL_TIMEOUT):
+    for n in range(Config.POLL_TIMEOUT):
         time.sleep(1)
+        print(f"{n + 1} ", end="", flush=True)
         if use_jwt:
             token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
             headers = {"Authorization": f"Bearer {token}"}
@@ -87,10 +95,10 @@ def single_succeeded(uri: str, use_jwt: bool) -> bool:
 
 def job_succeeded(service_id: str, job_id: str) -> bool:
     uri = f"{Config.API_HOST_NAME}/service/{service_id}/job/{job_id}"
-    token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
-
-    for _ in range(Config.POLL_TIMEOUT):
+    for n in range(Config.POLL_TIMEOUT):
         time.sleep(1)
+        print(f"{n + 1} ", end="", flush=True)
+        token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
         response = requests.get(uri, headers={"Authorization": f"Bearer {token}"})
         data = response.json()["data"]
         if data["job_status"] != "finished":
