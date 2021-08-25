@@ -1,8 +1,8 @@
 from enum import Enum
 
 
+# TODO: Refactor this file to have actual classes that contain suffix, oid properties etc instead of all these dicts
 class IdentifierType(Enum):
-
     VA_PROFILE_ID = 'VAPROFILEID'
     PID = 'PID'
     ICN = 'ICN'
@@ -22,6 +22,10 @@ FHIR_FORMAT_SUFFIXES = {
     IdentifierType.PID: "^PI^200CORP^USVBA",
     IdentifierType.VA_PROFILE_ID: "^PI^200VETS^USDVA",
     IdentifierType.BIRLSID: "^PI^200BRLS^USVBA"
+}
+
+OIDS = {
+    IdentifierType.VA_PROFILE_ID: '2.16.840.1.113883.4.349'
 }
 
 

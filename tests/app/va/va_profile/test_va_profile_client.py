@@ -8,6 +8,8 @@ from app.va.va_profile import (
     VAProfileRetryableException,
     VAProfileNonRetryableException
 )
+from app.models import RecipientIdentifier
+from app.va.va_profile.va_profile_client import CommunicationItemNotFoundException
 
 MOCK_VA_PROFILE_URL = 'http://mock.vaprofile.va.gov/'
 
@@ -580,3 +582,156 @@ def test_should_throw_va_retryable_exception_when_request_exception_is_thrown(
             e.value.failure_reason
             == 'VA Profile returned RequestException while querying for VA Profile ID'
         )
+
+
+class TestCommunicationPermissions:
+
+    def test_get_is_communication_allowed_should_throw_exception_if_communication_item_does_not_exist_on_user(
+            self, test_va_profile_client, rmock
+    ):
+        response = {
+            "txAuditId": "b8c82dd0-65d9-4e50-bd3e-cd83a4844ff0",
+            "status": "COMPLETED_SUCCESS",
+            "bios": [
+                {
+                    "createDate": "2021-08-02T17:22:27Z",
+                    "updateDate": "2021-08-02T17:22:27Z",
+                    "txAuditId": "59bde0dc-a9c1-4066-bec1-f54ad1282b33",
+                    "sourceSystem": "VAPROFILE-TEST-PARTNER",
+                    "sourceDate": "2021-08-02T17:11:16Z",
+                    "originatingSourceSystem": "release testing",
+                    "sourceSystemUser": "Dwight Snoot",
+                    "communicationPermissionId": 2481,
+                    "vaProfileId": 1,
+                    "communicationChannelId": 1,
+                    "communicationItemId": 1,
+                    "communicationChannelName": "Text",
+                    "communicationItemCommonName": "Board of Veterans' Appeals hearing reminder",
+                    "allowed": 'true',
+                    "confirmationDate": "2021-08-02T17:11:16Z"
+                }
+            ]
+        }
+        rmock.get(ANY, json=response, status_code=200)
+
+        recipient_identifier = RecipientIdentifier(id_type='VAPROFILEID', id_value='1')
+
+        with pytest.raises(CommunicationItemNotFoundException):
+            test_va_profile_client.get_is_communication_allowed(recipient_identifier, 'some-id')
+
+    def test_get_is_communication_allowed_should_return_false_if_communication_item_is_not_allowed_on_user(
+            self, test_va_profile_client, rmock
+    ):
+        response = {
+            "txAuditId": "b8c82dd0-65d9-4e50-bd3e-cd83a4844ff0",
+            "status": "COMPLETED_SUCCESS",
+            "bios": [
+                {
+                    "createDate": "2021-08-02T17:22:27Z",
+                    "updateDate": "2021-08-02T17:22:27Z",
+                    "txAuditId": "59bde0dc-a9c1-4066-bec1-f54ad1282b33",
+                    "sourceSystem": "VAPROFILE-TEST-PARTNER",
+                    "sourceDate": "2021-08-02T17:11:16Z",
+                    "originatingSourceSystem": "release testing",
+                    "sourceSystemUser": "Dwight Snoot",
+                    "communicationPermissionId": 1,
+                    "vaProfileId": 1,
+                    "communicationChannelId": 1,
+                    "communicationItemId": 'some-valid-id',
+                    "communicationChannelName": "Text",
+                    "communicationItemCommonName": "Board of Veterans' Appeals hearing reminder",
+                    "allowed": 'false',
+                    "confirmationDate": "2021-08-02T17:11:16Z"
+                }
+            ]
+        }
+        rmock.get(ANY, json=response, status_code=200)
+
+        recipient_identifier = RecipientIdentifier(id_type='VAPROFILEID', id_value='1')
+
+        assert not test_va_profile_client.get_is_communication_allowed(recipient_identifier, 'some-valid-id')
+
+    def test_get_is_communication_allowed_should_return_true_if_user_has_no_permissions(
+            self, test_va_profile_client, rmock
+    ):
+        # TODO: Note that this behavior will change once we starting using default communication item permissions
+        response = {
+            "messages": [
+                {
+                    "code": "CP310",
+                    "key": "PermissionNotFound",
+                    "text": "Permission not found for vaProfileId 1",
+                    "severity": "ERROR"
+                }
+            ],
+            "txAuditId": "37df9590-e791-4392-ae77-eaffc782276c",
+            "status": "COMPLETED_SUCCESS"
+        }
+        rmock.get(ANY, json=response, status_code=200)
+
+        recipient_identifier = RecipientIdentifier(id_type='VAPROFILEID', id_value='1')
+
+        assert test_va_profile_client.get_is_communication_allowed(recipient_identifier, 'some-random-id')
+
+    def test_get_is_communication_allowed_should_return_true_if_user_allows_communication_item(
+            self, test_va_profile_client, rmock
+    ):
+        response = {
+            "txAuditId": "b8c82dd0-65d9-4e50-bd3e-cd83a4844ff0",
+            "status": "COMPLETED_SUCCESS",
+            "bios": [
+                {
+                    "createDate": "2021-08-02T17:22:27Z",
+                    "updateDate": "2021-08-02T17:22:27Z",
+                    "txAuditId": "59bde0dc-a9c1-4066-bec1-f54ad1282b33",
+                    "sourceSystem": "VAPROFILE-TEST-PARTNER",
+                    "sourceDate": "2021-08-02T17:11:16Z",
+                    "originatingSourceSystem": "release testing",
+                    "sourceSystemUser": "Dwight Snoot",
+                    "communicationPermissionId": 2481,
+                    "vaProfileId": 1,
+                    "communicationChannelId": 1,
+                    "communicationItemId": 1,
+                    "communicationChannelName": "Text",
+                    "communicationItemCommonName": "Board of Veterans' Appeals hearing reminder",
+                    "allowed": 'true',
+                    "confirmationDate": "2021-08-02T17:11:16Z"
+                },
+                {
+                    "createDate": "2021-08-02T17:23:30Z",
+                    "updateDate": "2021-08-02T17:23:30Z",
+                    "txAuditId": "fe7cf35a-ab2a-4ce0-ad8b-7514a391d94f",
+                    "sourceSystem": "VAPROFILE-TEST-PARTNER",
+                    "sourceDate": "2021-08-02T17:11:16Z",
+                    "originatingSourceSystem": "release testing",
+                    "sourceSystemUser": "Dwight Snoot",
+                    "communicationPermissionId": 2482,
+                    "vaProfileId": 1,
+                    "communicationChannelId": 2,
+                    "communicationItemId": 2,
+                    "communicationChannelName": "Email",
+                    "communicationItemCommonName": "COVID-19 Updates",
+                    "allowed": 'true',
+                    "confirmationDate": "2021-08-02T17:11:16Z"
+                },
+                {
+                    "createDate": "2021-07-28T20:00:12Z",
+                    "updateDate": "2021-07-28T20:00:12Z",
+                    "txAuditId": "01941ff7-8f0c-4713-87ca-8cd4df1a1c46",
+                    "sourceSystem": "VAPROFILE-TEST-PARTNER",
+                    "sourceDate": "2021-07-28T19:58:47Z",
+                    "communicationPermissionId": 2101,
+                    "vaProfileId": 1,
+                    "communicationChannelId": 1,
+                    "communicationItemId": 'some-valid-id',
+                    "communicationChannelName": "Text",
+                    "communicationItemCommonName": "Appointment reminders",
+                    "allowed": 'true'
+                }
+            ]
+        }
+        rmock.get(ANY, json=response, status_code=200)
+
+        recipient_identifier = RecipientIdentifier(id_type='VAPROFILEID', id_value='1')
+
+        assert test_va_profile_client.get_is_communication_allowed(recipient_identifier, 'some-valid-id')

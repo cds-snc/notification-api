@@ -10,7 +10,11 @@ from app.va.va_profile import (
     VAProfileNonRetryableException,
     VAProfileRetryableException
 )
-from app.va.identifier import is_fhir_format, transform_from_fhir_format
+from app.va.identifier import is_fhir_format, transform_from_fhir_format, transform_to_fhir_format, OIDS
+
+
+class CommunicationItemNotFoundException(Exception):
+    pass
 
 
 class PhoneNumberType(Enum):
@@ -41,7 +45,14 @@ class VAProfileClient:
         self.statsd_client = statsd_client
 
     def get_email(self, va_profile_id):
-        response = self._make_request(va_profile_id, self.EMAIL_BIO_TYPE)
+        if is_fhir_format(va_profile_id):
+            va_profile_id = transform_from_fhir_format(va_profile_id)
+
+        url = (
+            f'{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/'
+            f'{va_profile_id}/{self.EMAIL_BIO_TYPE}'
+        )
+        response = self._make_request(url, va_profile_id, self.EMAIL_BIO_TYPE)
 
         most_recently_created_bio = self._get_most_recently_created_email_bio(response, va_profile_id)
         email = most_recently_created_bio['emailAddressText']
@@ -49,7 +60,14 @@ class VAProfileClient:
         return email
 
     def get_telephone(self, va_profile_id):
-        response = self._make_request(va_profile_id, self.PHONE_BIO_TYPE)
+        if is_fhir_format(va_profile_id):
+            va_profile_id = transform_from_fhir_format(va_profile_id)
+
+        url = (
+            f'{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/'
+            f'{va_profile_id}/{self.PHONE_BIO_TYPE}'
+        )
+        response = self._make_request(url, va_profile_id, self.PHONE_BIO_TYPE)
 
         most_recently_created_bio = self._get_highest_order_phone_bio(response, va_profile_id)
         phone_number = f"+{most_recently_created_bio['countryCode']}" \
@@ -58,19 +76,34 @@ class VAProfileClient:
         self.statsd_client.incr("clients.va-profile.get-telephone.success")
         return phone_number
 
-    def _make_request(self, va_profile_id, bio_type):
-        start_time = monotonic()
+    def get_is_communication_allowed(
+            self, recipient_identifier, communication_item_id: str
+    ) -> bool:
+        recipient_id = transform_to_fhir_format(recipient_identifier)
+        oid = OIDS.get(recipient_identifier.id_type)
 
-        if is_fhir_format(va_profile_id):
-            va_profile_id = transform_from_fhir_format(va_profile_id)
+        url = f'{self.va_profile_url}communication/v1/{oid}/{recipient_id}/communication-permissions'
+        response = self._make_request(url, recipient_id)
+
+        if response.get('messages', None):
+            # TODO: use default communication item settings when that has been implemented
+            return True
+
+        all_bios = response['bios']
+
+        for bio in all_bios:
+            if bio['communicationItemId'] == communication_item_id:
+                return bio['allowed'] == 'true'
+
+        raise CommunicationItemNotFoundException
+
+    def _make_request(self, url: str, va_profile_id: str, bio_type: str = None):
+        start_time = monotonic()
 
         self.logger.info(f"Querying VA Profile with ID {va_profile_id}")
 
         try:
-            response = requests.get(
-                f"{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/{va_profile_id}/{bio_type}",
-                cert=(self.ssl_cert_path, self.ssl_key_path)
-            )
+            response = requests.get(url, cert=(self.ssl_cert_path, self.ssl_key_path))
             response.raise_for_status()
 
         except requests.HTTPError as e:
@@ -117,7 +150,9 @@ class VAProfileClient:
                 exception = VAProfileNonRetryableException(message)
                 exception.failure_reason = message
                 raise exception
-            self._validate_response(response_json, va_profile_id, bio_type)
+
+            if bio_type:
+                self._validate_response(response_json, va_profile_id, bio_type)
 
             self.statsd_client.incr("clients.va-profile.success")
             return response_json
