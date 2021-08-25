@@ -13,24 +13,14 @@ fileignoreconfig:
       checksum: a7c7933ff437793580b334307a180ef0e587f2b811c1162b14ec1d403640605c
     - filename: ci/docker-compose-local.yml
       checksum: cdd8fc418af65b72fa3c770bd949aea93960432dbf423e91bd347d9dbfda4c55
-    - filename: .env.example
-      checksum: 5512142b488c312a1722a03fb3c1faf9b6374ac8aaaea082d99c2aa9d3eb48b3
     - filename: ci/docker-compose-local.yml
       checksum: bfa2ed19d0b33d303b96e29cb925c2b0dccd5efcdaa988b6c5ddc163ae812d1a
-    - filename: .env.example
-      checksum: 5f22d894dbf4f27c1b0b6831a716b36dbe4c9fd309a6f0f486ca6feafffde0e1
-    - filename: .env.example
-      checksum: 967705ddebb3e8378a81ee52f73c2477b9d6738b0c383622c3eabc69d08d43a8
     - filename: scripts/postman/notification-api.postman_collection.json
       checksum: 32ab98203b010a45ced5b99588795ed1f542bb350c2a90fb8eee4c4bd2b11535
     - filename: README.md
       checksum: 32935f617721f8cf06be7cd4f36d35cc303ba19dd6b6e025bf0660f628e4a55a
     - filename: ci/docker-compose-local.yml
       checksum: 1f8f629c6457841ceeec6af0c1525a792cc2a2eee31528e403129312d17bf28a
-    - filename: .env.example
-      checksum: 32182b74436c734e14cba982b0cb8e77b0ba978a4fa9db637031012a0054e3b4
-    - filename: .env.example
-      checksum: 9ea1a9bc9290537e83fa1aa5d06108753f381a891a87aac2b608d6989b72d9bd
     - filename: app/celery/research_mode_tasks.py
       checksum: 728b881021a8ddbc5e7fb690190f2da7b69b2f32ac751ba52b5714bd15ff4803
     - filename: app/config.py
@@ -45,10 +35,8 @@ fileignoreconfig:
       checksum: b275bb504d07e20888d222c31f12246b79aa554bea84c4d3028f110b0f9d473c
     - filename: ci/docker-compose-test.yml
       checksum: 2a18b2897becf05d4456b2c987f448eeb5a276741ec62cc4e554b439abe1e925
-    - filename: .env.example
-      checksum: 6242425670a169d0b5698f38bf80379715ccc36710db21aeb19aef1d13802c8d
     - filename: ci/.docker-env.example
-      checksum: bcdc1399f1bead93f69578908271b493f6c66170b48a231a6dd330b33eb15a0d
+      checksum: 59e780d4d81dd66d4366eb34f8a362b20b05cac142478230a31c4b7365a69c83
     - filename: app/config.py
       checksum: fc23095eea0a9f6c4c1c7069e956dac3ccd11b2e5c1f68fff3d851a0ff468962
     - filename: load_testing/.envrc.example
@@ -212,4 +200,6 @@ fileignoreconfig:
     - filename: README.md
       checksum: 723a622caee8477317b532d54e9352e483d53b53b5443ab2b53ec45934efa21a
     - filename: cd/application-deployment/dev/vaec-api-task-definition.json
-      checksum: 3765b919b1e9d8e42a3d99e9271c99212fede129ac3991e6464c1fe23956c197      
+      checksum: 3765b919b1e9d8e42a3d99e9271c99212fede129ac3991e6464c1fe23956c197
+    - filename: .env.example
+      checksum: f6ff3c1e7486e94db7158a9b4dfb3fc5b329b33f1aa2d08cc3ffbcaf763c105d

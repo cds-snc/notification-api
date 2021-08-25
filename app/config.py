@@ -229,13 +229,13 @@ class Config(object):
     EMAIL_COMPLAINT_TEMPLATE_ID = '064e85da-c238-47a3-b9a7-21493ea23dd3'
 
     CELERY_SETTINGS = {
-        'broker_url': os.getenv("BROKER_URL", 'sqs://'),
+        'broker_url': os.getenv("BROKER_URL", 'sqs://sqs.us-gov-west-1.amazonaws.com'),
         'broker_transport_options': {
             'region': AWS_REGION,
             'polling_interval': 1,  # 1 second
             'visibility_timeout': 310,
             'queue_name_prefix': NOTIFICATION_QUEUE_PREFIX,
-            'is_secure': os.getenv("BROKER_SSL_ENABLED") == 'True',
+            'is_secure': os.getenv("BROKER_SSL_ENABLED", 'True') == 'True',
         },
         'worker_enable_remote_control': False,
         'enable_utc': True,
