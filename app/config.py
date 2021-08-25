@@ -234,7 +234,8 @@ class Config(object):
             'region': AWS_REGION,
             'polling_interval': 1,  # 1 second
             'visibility_timeout': 310,
-            'queue_name_prefix': NOTIFICATION_QUEUE_PREFIX
+            'queue_name_prefix': NOTIFICATION_QUEUE_PREFIX,
+            'is_secure': os.getenv("BROKER_SSL_ENABLED") == 'True',
         },
         'worker_enable_remote_control': False,
         'enable_utc': True,
