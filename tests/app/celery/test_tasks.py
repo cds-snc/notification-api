@@ -589,7 +589,7 @@ def test_save_sms_should_use_redis_cache_to_retrieve_service_and_template_when_p
     sms_sender.sms_sender = "+16502532222"
 
     mocked_get_sender_id = mocker.patch("app.celery.tasks.dao_get_service_sms_senders_by_id", return_value=sms_sender)
-    celery_task = 'deliver_throttled_sms' if sender_id else "deliver_sms"
+    celery_task = "deliver_throttled_sms" if sender_id else "deliver_sms"
     mocked_deliver_sms = mocker.patch(f"app.celery.provider_tasks.{celery_task}.apply_async")
     json_template_date = {"data": template_schema.dump(sample_template_with_placeholders).data}
     json_service_data = {"data": service_schema.dump(sample_template_with_placeholders.service).data}
