@@ -21,6 +21,8 @@ from app.schema_validation import validate
 from app.v2.errors import RateLimitError
 from app.v2.notifications.notification_schemas import post_sms_response, post_email_response
 from app.va.identifier import IdentifierType
+from app.va.va_profile import VAProfileClient
+from app.va.va_profile.va_profile_client import CommunicationItemNotFoundException
 from tests import create_authorization_header
 
 from tests.app.db import (
@@ -940,3 +942,69 @@ def test_post_notification_returns_501_when_recipient_identifiers_present_and_fe
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), auth_header])
     assert response.status_code == 501
+
+
+def test_user_has_given_permissions_to_send_message_should_return_true_if_template_has_no_communication_item_id(
+        client, mocker
+):
+    # TODO: note that this test will be incorrect once we add default communication item preference logic
+    from app.v2.notifications.post_notifications import user_has_given_permissions_to_send_message
+    mock_template = mocker.Mock()
+    mock_template.communication_item_id = None
+    mocker.patch('app.v2.notifications.post_notifications.dao_get_template_by_id', return_value=mock_template)
+
+    assert user_has_given_permissions_to_send_message('VAPROFILEID', '1', 'some-template-id')
+
+
+def test_user_has_given_permissions_to_send_message_should_return_true_if_user_does_not_have_communication_item(
+        client, mocker
+):
+    from app.v2.notifications.post_notifications import user_has_given_permissions_to_send_message
+    mock_template = mocker.Mock()
+    mock_template.communication_item_id = 'some-communication-item-id'
+    mocker.patch('app.v2.notifications.post_notifications.dao_get_template_by_id', return_value=mock_template)
+
+    mocked_va_profile_client = mocker.Mock(VAProfileClient)
+    mocked_va_profile_client.get_is_communication_allowed = mocker.Mock(side_effect=CommunicationItemNotFoundException)
+    mocker.patch(
+        'app.v2.notifications.post_notifications.va_profile_client',
+        new=mocked_va_profile_client
+    )
+
+    assert user_has_given_permissions_to_send_message('VAPROFILEID', '1', 'some-template-id')
+
+
+def test_user_has_given_permissions_to_send_message_should_return_false_if_user_denies_permissions(
+        client, mocker
+):
+    from app.v2.notifications.post_notifications import user_has_given_permissions_to_send_message
+    mock_template = mocker.Mock()
+    mock_template.communication_item_id = 'some-communication-item-id'
+    mocker.patch('app.v2.notifications.post_notifications.dao_get_template_by_id', return_value=mock_template)
+
+    mocked_va_profile_client = mocker.Mock(VAProfileClient)
+    mocked_va_profile_client.get_is_communication_allowed = mocker.Mock(return_value=False)
+    mocker.patch(
+        'app.v2.notifications.post_notifications.va_profile_client',
+        new=mocked_va_profile_client
+    )
+
+    assert not user_has_given_permissions_to_send_message('VAPROFILEID', '1', 'some-template-id')
+
+
+def test_user_has_given_permissions_to_send_message_should_return_true_if_user_grants_permissions(
+        client, mocker
+):
+    from app.v2.notifications.post_notifications import user_has_given_permissions_to_send_message
+    mock_template = mocker.Mock()
+    mock_template.communication_item_id = 'some-communication-item-id'
+    mocker.patch('app.v2.notifications.post_notifications.dao_get_template_by_id', return_value=mock_template)
+
+    mocked_va_profile_client = mocker.Mock(VAProfileClient)
+    mocked_va_profile_client.get_is_communication_allowed = mocker.Mock(return_value=True)
+    mocker.patch(
+        'app.v2.notifications.post_notifications.va_profile_client',
+        new=mocked_va_profile_client
+    )
+
+    assert user_has_given_permissions_to_send_message('VAPROFILEID', '1', 'some-template-id')

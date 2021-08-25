@@ -5,13 +5,13 @@ import werkzeug
 from flask import request, jsonify, current_app, abort
 from notifications_utils.recipients import try_validate_and_format_phone_number
 
-from app import api_user, authenticated_service, notify_celery, document_download_client
+from app import api_user, authenticated_service, notify_celery, document_download_client, va_profile_client
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.notifications_dao import update_notification_status_by_reference
-from app.dao.templates_dao import get_precompiled_letter_template
+from app.dao.templates_dao import get_precompiled_letter_template, dao_get_template_by_id
 from app.feature_flags import accept_recipient_identifiers_enabled
 from app.letters.utils import upload_letter_pdf
 from app.models import (
@@ -25,7 +25,9 @@ from app.models import (
     NOTIFICATION_CREATED,
     NOTIFICATION_SENDING,
     NOTIFICATION_DELIVERED,
-    NOTIFICATION_PENDING_VIRUS_CHECK)
+    NOTIFICATION_PENDING_VIRUS_CHECK,
+    RecipientIdentifier
+)
 from app.notifications.process_letter_notifications import (
     create_letter_notification
 )
@@ -58,6 +60,7 @@ from app.v2.notifications.notification_schemas import (
     post_letter_request,
     post_precompiled_letter_request
 )
+from app.va.va_profile.va_profile_client import CommunicationItemNotFoundException
 
 
 @v2_notification_blueprint.route('/{}'.format(LETTER_TYPE), methods=['POST'])
@@ -378,3 +381,18 @@ def get_reply_to_text(notification_type, form, template):
         reply_to = template.get_reply_to_text()
 
     return reply_to
+
+
+def user_has_given_permissions_to_send_message(id_type: str, id_value: str, template_id: str) -> bool:
+    identifier = RecipientIdentifier(id_type=id_type, id_value=id_value)
+    template = dao_get_template_by_id(template_id)
+
+    communication_item_id = template.communication_item_id
+
+    if not communication_item_id:
+        return True
+
+    try:
+        return va_profile_client.get_is_communication_allowed(identifier, communication_item_id)
+    except CommunicationItemNotFoundException:
+        return True
