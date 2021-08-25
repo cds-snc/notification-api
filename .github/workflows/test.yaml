@@ -1,8 +1,8 @@
 on:
   push:
   schedule:
-    - cron: '1 0-12,20-23 * * 1-5'
-    - cron: '1 * * * 0,6'
+    - cron: '2 0-12,20-23 * * 1-5'
+    - cron: '2 * * * 0,6'
 name: Continuous Integration Testing
 jobs:
   test:
