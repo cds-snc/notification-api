@@ -41,10 +41,13 @@ def test_get_notifications_valid_json(input):
 def test_get_notifications_request_invalid_statuses(
         invalid_statuses, valid_statuses
 ):
-    partial_error_status = "is not one of " \
-        "[cancelled, created, sending, sent, delivered, pending, failed, " \
-        "technical-failure, temporary-failure, permanent-failure, pending-virus-check, " \
-        "validation-failed, virus-scan-failed, returned-letter, pii-check-failed, accepted, received]"
+    partial_error_status = (
+        "is not one of "
+        "[cancelled, created, sending, sent, delivered, pending, failed, "
+        "technical-failure, temporary-failure, permanent-failure, pending-virus-check, "
+        "validation-failed, virus-scan-failed, returned-letter, pii-check-failed, preferences-declined, "
+        "accepted, received]"
+    )
 
     with pytest.raises(ValidationError) as e:
         validate({'status': invalid_statuses + valid_statuses}, get_notifications_request)
@@ -93,7 +96,7 @@ def test_get_notifications_request_invalid_statuses_and_template_types():
         assert "status {} is not one of [cancelled, created, sending, sent, delivered, " \
             "pending, failed, technical-failure, temporary-failure, permanent-failure, " \
             "pending-virus-check, validation-failed, virus-scan-failed, returned-letter, " \
-            "pii-check-failed, accepted, received]".format(
+            "pii-check-failed, preferences-declined, accepted, received]".format(
                 invalid_status
             ) in error_messages
 
