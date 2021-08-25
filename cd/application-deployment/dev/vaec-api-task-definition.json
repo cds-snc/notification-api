@@ -79,10 +79,6 @@
           "value": "sqs://sqs.us-gov-west-1.amazonaws.com"
         },
         {
-          "name": "BROKER_SSL_ENABLED",
-          "value": "True"
-        },
-        {
           "name": "NOTIFICATION_QUEUE_PREFIX",
           "value": "dev-notification-"
         },
