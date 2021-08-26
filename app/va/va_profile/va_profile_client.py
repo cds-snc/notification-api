@@ -84,7 +84,10 @@ class VAProfileClient:
         identifier_type = IdentifierType(recipient_identifier.id_type)
         oid = OIDS.get(identifier_type)
 
-        url = f'{self.va_profile_url}/communication/v1/{oid}/{recipient_id}/communication-permissions'
+        url = (
+            f'{self.va_profile_url}:7005/communication-hub/communication/v1/'
+            f'{oid}/{recipient_id}/communication-permissions'
+        )
         response = self._make_request(url, recipient_id)
         self.logger.info('Made request to communication-permissions VAProfile endpoint for '
                          f'user {recipient_identifier}')
