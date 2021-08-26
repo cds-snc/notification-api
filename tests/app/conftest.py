@@ -338,11 +338,11 @@ def sample_email_template_with_html(notify_db, notify_db_session):
 
 
 @pytest.fixture(scope="function")
-def sample_email_template_with_html(notify_db, notify_db_session):
+def sample_email_template_with_advanced_html(notify_db, notify_db_session):
     return sample_email_template(
         notify_db,
         notify_db_session,
-        content="Hello ((name))\nThis is an email from GOV.UK with <em>some HTML</em>",
+        content="<div style='color: pink' dir='rtl'>((name)) <em>some HTML</em> that should be right aligned</div>",
         subject_line="((name)) <em>some HTML</em>",
     )
 
