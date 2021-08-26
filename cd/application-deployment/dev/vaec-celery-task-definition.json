@@ -131,6 +131,14 @@
         {
           "name": "CHECK_GITHUB_SCOPE_ENABLED",
           "value": "True"
+        },
+        {
+          "name": "API_MESSAGE_LIMIT_ENABLED",
+          "value": "True"
+        },
+        {
+          "name": "API_RATE_LIMIT_ENABLED",
+          "value": "True"
         }
       ],
       "secrets": [
@@ -173,14 +181,6 @@
         {
           "name": "VANOTIFY_SSL_KEY",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/cert/vanotify-va-key"
-        },
-        {
-          "name": "API_MESSAGE_LIMIT_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "API_RATE_LIMIT_ENABLED",
-          "value": "True"
         }
       ],
       "command": [
