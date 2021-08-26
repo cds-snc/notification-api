@@ -10,7 +10,7 @@ from app.va.va_profile import (
     VAProfileNonRetryableException,
     VAProfileRetryableException
 )
-from app.va.identifier import is_fhir_format, transform_from_fhir_format, transform_to_fhir_format, OIDS
+from app.va.identifier import is_fhir_format, transform_from_fhir_format, transform_to_fhir_format, OIDS, IdentifierType
 
 
 class CommunicationItemNotFoundException(Exception):
@@ -81,9 +81,10 @@ class VAProfileClient:
     ) -> bool:
         self.logger.info(f'Called get_is_communication_allowed()')
         recipient_id = transform_to_fhir_format(recipient_identifier)
-        oid = OIDS.get(recipient_identifier.id_type)
+        identifier_type = IdentifierType(recipient_identifier.id_type)
+        oid = OIDS.get(identifier_type)
 
-        url = f'{self.va_profile_url}communication/v1/{oid}/{recipient_id}/communication-permissions'
+        url = f'{self.va_profile_url}/communication/v1/{oid}/{recipient_id}/communication-permissions'
         response = self._make_request(url, recipient_id)
         self.logger.info('Made request to communication-permissions VAProfile endpoint for '
                          f'user {recipient_identifier}')
@@ -96,7 +97,7 @@ class VAProfileClient:
         all_bios = response['bios']
 
         for bio in all_bios:
-            if bio['communicationItemId'] == communication_item_id:
+            if str(bio['communicationItemId']) == str(communication_item_id):
                 self.logger.info(f'Found communication item id {communication_item_id} on user {recipient_id}')
                 self.logger.info(f'Value of allowed is {bio["allowed"]}')
                 self.statsd_client.incr("clients.va-profile.get-communication-item-permission.success")
