@@ -194,7 +194,10 @@ def test_should_send_personalised_template_with_html_enabled(sample_email_templa
     )
 
     assert "<!DOCTYPE html" in app.aws_ses_client.send_email.call_args[1]["html_body"]
-    assert "<div style='color: pink' dir='rtl'>Jo <em>some HTML</em> that should be right aligned</div>" in app.aws_ses_client.send_email.call_args[1]["html_body"]
+    assert (
+        "<div style='color: pink' dir='rtl'>Jo <em>some HTML</em> that should be right aligned</div>"
+        in app.aws_ses_client.send_email.call_args[1]["html_body"]
+    )
 
 
 def test_should_not_send_email_message_when_service_is_inactive_notifcation_is_in_tech_failure(
