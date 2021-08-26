@@ -79,13 +79,17 @@ class VAProfileClient:
     def get_is_communication_allowed(
             self, recipient_identifier, communication_item_id: str
     ) -> bool:
+        self.logger.info(f'Called get_is_communication_allowed()')
         recipient_id = transform_to_fhir_format(recipient_identifier)
         oid = OIDS.get(recipient_identifier.id_type)
 
         url = f'{self.va_profile_url}communication/v1/{oid}/{recipient_id}/communication-permissions'
         response = self._make_request(url, recipient_id)
+        self.logger.info('Made request to communication-permissions VAProfile endpoint for '
+                         f'user {recipient_identifier}')
 
         if response.get('messages', None):
+            self.logger.info(f'User {recipient_id} has no permissions')
             # TODO: use default communication item settings when that has been implemented
             return True
 
@@ -93,8 +97,12 @@ class VAProfileClient:
 
         for bio in all_bios:
             if bio['communicationItemId'] == communication_item_id:
+                self.logger.info(f'Found communication item id {communication_item_id} on user {recipient_id}')
+                self.logger.info(f'Value of allowed is {bio["allowed"]}')
+                self.statsd_client.incr("clients.va-profile.get-communication-item-permission.success")
                 return bio['allowed'] == 'true'
 
+        self.logger.info(f'User {recipient_id} did not have communication item {communication_item_id}')
         raise CommunicationItemNotFoundException
 
     def _make_request(self, url: str, va_profile_id: str, bio_type: str = None):

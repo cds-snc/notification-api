@@ -393,6 +393,7 @@ def get_reply_to_text(notification_type, form, template):
 
 def user_has_given_permissions_to_send_message(id_type: str, id_value: str, template_id: str) -> bool:
     if not is_feature_enabled(FeatureFlag.CHECK_USER_COMMUNICATION_PERMISSIONS_ENABLED):
+        current_app.logger.info(f'Communication item permissions feature flag is off')
         return True
 
     identifier = RecipientIdentifier(id_type=id_type, id_value=id_value)
@@ -401,6 +402,7 @@ def user_has_given_permissions_to_send_message(id_type: str, id_value: str, temp
     communication_item_id = template.communication_item_id
 
     if not communication_item_id:
+        current_app.logger.info(f'User {id_value} does not have requested communication item id')
         return True
 
     try:
