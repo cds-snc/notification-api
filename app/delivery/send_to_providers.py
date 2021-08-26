@@ -98,6 +98,14 @@ def send_sms_to_provider(notification):
         statsd_client.incr(statsd_key)
 
 
+def is_service_allowed_html(service: Service) -> bool:
+    """
+    If a service id is present in ALLOW_HTML_SERVICE_IDS, then they are allowed to put html
+    in email templates.
+    """
+    return str(service.id) in current_app.config["ALLOW_HTML_SERVICE_IDS"]
+
+
 def send_email_to_provider(notification: Notification):
     service = notification.service
     if not service.active:
@@ -166,12 +174,11 @@ def send_email_to_provider(notification: Notification):
             if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True"
             else None
         )
-
         html_email = HTMLEmailTemplate(
             template_dict,
             values=personalisation_data,
             jinja_path=debug_template_path,
-            allow_html=(str(service.id) in current_app.config["ALLOW_HTML_SERVICE_IDS"]),
+            allow_html=is_service_allowed_html(service),
             **get_html_email_options(service),
         )
 

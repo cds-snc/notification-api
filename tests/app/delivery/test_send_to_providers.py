@@ -29,6 +29,7 @@ from app.models import (
     KEY_TYPE_TEST,
     EmailBranding,
     Notification,
+    Service,
 )
 from tests.app.conftest import document_download_response, sample_email_template
 from tests.app.db import (
@@ -945,3 +946,14 @@ def test_notification_passes_if_message_contains_phone_number(sample_email_templ
     send_mock.assert_called()
 
     assert Notification.query.get(db_notification.id).status == "sending"
+
+
+def test_is_service_allowed_html(sample_service: Service, notify_api):
+    assert not send_to_providers.is_service_allowed_html(sample_service)
+    with set_config_values(
+        notify_api,
+        {
+            "ALLOW_HTML_SERVICE_IDS": str(sample_service.id),
+        },
+    ):
+        assert send_to_providers.is_service_allowed_html(sample_service)
