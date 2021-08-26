@@ -1,0 +1,60 @@
+{
+  "predicates": [
+    {
+      "matches": {
+        "path": "/communication/v1/2.16.840.1.113883.4.349/1243%5EPI%5E200VETS%5EUSDVA/communication-permissions$"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "is": {
+        "statusCode": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body":
+        {
+          "txAuditId": "b8c82dd0-65d9-4e50-bd3e-cd83a4844ff0",
+          "status": "COMPLETED_SUCCESS",
+          "bios": [
+            {
+              "createDate": "2021-08-02T17:22:27Z",
+              "updateDate": "2021-08-02T17:22:27Z",
+              "txAuditId": "59bde0dc-a9c1-4066-bec1-f54ad1282b33",
+              "sourceSystem": "VAPROFILE-TEST-PARTNER",
+              "sourceDate": "2021-08-02T17:11:16Z",
+              "originatingSourceSystem": "release testing",
+              "sourceSystemUser": "Maria",
+              "communicationPermissionId": 2481,
+              "vaProfileId": 1243,
+              "communicationChannelId": 1,
+              "communicationItemId": 1,
+              "communicationChannelName": "Text",
+              "communicationItemCommonName": "Board of Veterans' Appeals hearing reminder",
+              "allowed": true,
+              "confirmationDate": "2021-08-02T17:11:16Z"
+            },
+            {
+              "createDate": "2021-08-02T17:23:30Z",
+              "updateDate": "2021-08-02T17:23:30Z",
+              "txAuditId": "fe7cf35a-ab2a-4ce0-ad8b-7514a391d94f",
+              "sourceSystem": "VAPROFILE-TEST-PARTNER",
+              "sourceDate": "2021-08-02T17:11:16Z",
+              "originatingSourceSystem": "release testing",
+              "sourceSystemUser": "Maria",
+              "communicationPermissionId": 2482,
+              "vaProfileId": 1243,
+              "communicationChannelId": 2,
+              "communicationItemId": "b39afd8d-8ccf-4dfb-bb4b-8ffc6e5e647c",
+              "communicationChannelName": "Email",
+              "communicationItemCommonName": "COVID-19 Updates",
+              "allowed": true,
+              "confirmationDate": "2021-08-02T17:11:16Z"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
