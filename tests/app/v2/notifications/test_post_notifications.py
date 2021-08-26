@@ -4,6 +4,7 @@ import pytest
 from freezegun import freeze_time
 
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
+from app.feature_flags import FeatureFlag
 from app.models import (
     ScheduledNotification,
     EMAIL_TYPE,
@@ -33,6 +34,12 @@ from tests.app.db import (
     create_service_with_inbound_number,
     create_api_key
 )
+from tests.app.oauth.test_rest import mock_toggle
+
+
+@pytest.fixture
+def check_user_communication_permissions_enabled(mocker):
+    mock_toggle(mocker, FeatureFlag.CHECK_USER_COMMUNICATION_PERMISSIONS_ENABLED, 'True')
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
@@ -945,7 +952,7 @@ def test_post_notification_returns_501_when_recipient_identifiers_present_and_fe
 
 
 def test_user_has_given_permissions_to_send_message_should_return_true_if_template_has_no_communication_item_id(
-        client, mocker
+        client, mocker, check_user_communication_permissions_enabled
 ):
     # TODO: note that this test will be incorrect once we add default communication item preference logic
     from app.v2.notifications.post_notifications import user_has_given_permissions_to_send_message
@@ -957,7 +964,7 @@ def test_user_has_given_permissions_to_send_message_should_return_true_if_templa
 
 
 def test_user_has_given_permissions_to_send_message_should_return_true_if_user_does_not_have_communication_item(
-        client, mocker
+        client, mocker, check_user_communication_permissions_enabled
 ):
     from app.v2.notifications.post_notifications import user_has_given_permissions_to_send_message
     mock_template = mocker.Mock()
@@ -975,7 +982,7 @@ def test_user_has_given_permissions_to_send_message_should_return_true_if_user_d
 
 
 def test_user_has_given_permissions_to_send_message_should_return_false_if_user_denies_permissions(
-        client, mocker
+        client, mocker, check_user_communication_permissions_enabled
 ):
     from app.v2.notifications.post_notifications import user_has_given_permissions_to_send_message
     mock_template = mocker.Mock()
@@ -993,7 +1000,7 @@ def test_user_has_given_permissions_to_send_message_should_return_false_if_user_
 
 
 def test_user_has_given_permissions_to_send_message_should_return_true_if_user_grants_permissions(
-        client, mocker
+        client, mocker, check_user_communication_permissions_enabled
 ):
     from app.v2.notifications.post_notifications import user_has_given_permissions_to_send_message
     mock_template = mocker.Mock()
@@ -1008,3 +1015,61 @@ def test_user_has_given_permissions_to_send_message_should_return_true_if_user_g
     )
 
     assert user_has_given_permissions_to_send_message('VAPROFILEID', '1', 'some-template-id')
+
+
+def test_process_notification_with_recipient_identifier_should_send_if_user_has_permissions(
+        client, mocker, check_user_communication_permissions_enabled
+):
+    mocker.patch('app.v2.notifications.post_notifications.user_has_given_permissions_to_send_message',
+                 return_value=True)
+    mocker.patch('app.v2.notifications.post_notifications.persist_notification')
+    send_to_queue = mocker.patch(
+        'app.v2.notifications.post_notifications.send_to_queue_for_recipient_info_based_on_recipient_identifier')
+
+    mock_api_key = mocker.Mock()
+    mock_api_key.id = 'some-id'
+    mock_api_key.key_type = 'some-type'
+
+    mock_template = mocker.Mock()
+    mock_template.id = 'template-id'
+    mock_template.version = 1
+
+    mock_service = mocker.Mock()
+
+    form = {'recipient_identifier': {'id_type': 'foo', 'id_value': 'bar'}}
+
+    from app.v2.notifications.post_notifications import process_notification_with_recipient_identifier
+    process_notification_with_recipient_identifier(
+        form=form, notification_type='sms', api_key=mock_api_key, template=mock_template, service=mock_service
+    )
+
+    send_to_queue.assert_called_once()
+
+
+def test_process_notification_with_recipient_identifier_should_not_send_if_user_lacks_permissions(
+        client, mocker, check_user_communication_permissions_enabled
+):
+    mocker.patch('app.v2.notifications.post_notifications.user_has_given_permissions_to_send_message',
+                 return_value=False)
+    mocker.patch('app.v2.notifications.post_notifications.persist_notification')
+    send_to_queue = mocker.patch(
+        'app.v2.notifications.post_notifications.send_to_queue_for_recipient_info_based_on_recipient_identifier')
+
+    mock_api_key = mocker.Mock()
+    mock_api_key.id = 'some-id'
+    mock_api_key.key_type = 'some-type'
+
+    mock_template = mocker.Mock()
+    mock_template.id = 'template-id'
+    mock_template.version = 1
+
+    mock_service = mocker.Mock()
+
+    form = {'recipient_identifier': {'id_type': 'foo', 'id_value': 'bar'}}
+
+    from app.v2.notifications.post_notifications import process_notification_with_recipient_identifier
+    process_notification_with_recipient_identifier(
+        form=form, notification_type='sms', api_key=mock_api_key, template=mock_template, service=mock_service
+    )
+
+    send_to_queue.assert_not_called()

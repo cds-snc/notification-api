@@ -43,6 +43,10 @@
           "value": "True"
         },
         {
+          "name": "CHECK_USER_COMMUNICATION_PERMISSIONS_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "EMAIL_PASSWORD_LOGIN_ENABLED",
           "value": "True"
         },

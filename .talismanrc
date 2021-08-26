@@ -203,3 +203,33 @@ fileignoreconfig:
       checksum: 3765b919b1e9d8e42a3d99e9271c99212fede129ac3991e6464c1fe23956c197
     - filename: .env.example
       checksum: f6ff3c1e7486e94db7158a9b4dfb3fc5b329b33f1aa2d08cc3ffbcaf763c105d
+    - filename: cd/application-deployment/perf/vaec-celery-beat-task-definition.json
+      checksum: 8f8a3037604369b570222fe6466d86dcc9946c4c02e94f64988c11496835cd18
+    - filename: cd/application-deployment/prod/vaec-celery-task-definition.json
+      checksum: 84bd09d96034c172b58455f0cd71436a1536b3373a1d96b1d81cb4fcc8f3db85
+    - filename: cd/application-deployment/dev/vaec-celery-beat-task-definition.json
+      checksum: 52ad26ff7ef4c16a12f99819b5072a2057a6f179358eb27e0eafd400ebbfd4a7
+    - filename: cd/application-deployment/prod/vaec-celery-beat-task-definition.json
+      checksum: b6631b7a5adedb136c62111d282140c7faa0b71948f488d6cfbd8ff0dc989ee2
+    - filename: cd/application-deployment/staging/vaec-celery-task-definition.json
+      checksum: 9dde90a91d9e7fc0148f4cdb9cf827891b530f0d00ea3434ae790fa7a614fbaf
+    - filename: cd/application-deployment/perf/vaec-api-task-definition.json
+      checksum: fe9605ccc9d980083594239224aca2ca980dde7b7761bed6adb74b1951c4dbec
+    - filename: cd/application-deployment/perf/vaec-celery-task-definition.json
+      checksum: ff5caa00463be43d06ab32607bf21e358664095fbfb7d669804eace8fbd57628
+    - filename: cd/application-deployment/staging/vaec-celery-beat-task-definition.json
+      checksum: 5526eba4fc06f591aa31a1390e71f719665e3acc6f4a3f6167a27fb53205be12
+    - filename: cd/application-deployment/dev/vaec-celery-task-definition.json
+      checksum: 225024e7b6f20ba061284452c5bc7ace71f0963d34641278d1fd5fdc1c5b050d
+    - filename: cd/application-deployment/prod/vaec-api-task-definition.json
+      checksum: 6f1a0d79ca7319205cb2f8abe712ef94a59fef9e614e10f6d01223b7986ed1b7
+    - filename: cd/application-deployment/staging/vaec-api-task-definition.json
+      checksum: 6d43b96dd5970ea705cda64d06d1952b2305bf16c5e054e143d49d086d9a60e7
+    - filename: cd/application-deployment/dev/vaec-api-task-definition.json
+      checksum: c2e5feaa674bc21ef4fc9f4cddc69bb1a370a5fe2eb628a46ef763f45ec3c221
+    - filename: app/feature_flags.py
+      checksum: 5a602b50619ac74917cb9eb62384be4a59f60a04fb33822744365559ddb1d7dd
+    - filename: app/v2/notifications/post_notifications.py
+      checksum: b9c5ca3e0c3b077d1b6f8bf73d70cb037519bd16e2eba71d8a83829d1ccd3af5
+    - filename: tests/app/v2/notifications/test_post_notifications.py
+      checksum: 762b9b8c1a47ab0e9131618e91582e387f972e9a10ac9b10dca91a1e1eefcc92

@@ -25,6 +25,10 @@
           "value": "run_celery.py"
         },
         {
+          "name": "CHECK_USER_COMMUNICATION_PERMISSIONS_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "API_HOST_NAME",
           "value": "https://api.notifications.va.gov"
         },

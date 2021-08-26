@@ -101,6 +101,10 @@
           "value": "False"
         },
         {
+          "name": "CHECK_USER_COMMUNICATION_PERMISSIONS_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "REDIS_ENABLED",
           "value": "False"
         }

@@ -27,6 +27,10 @@
           "value": "production"
         },
         {
+          "name": "CHECK_USER_COMMUNICATION_PERMISSIONS_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "FLASK_APP",
           "value": "application.py"
         },

@@ -12,7 +12,7 @@ from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template, dao_get_template_by_id
-from app.feature_flags import accept_recipient_identifiers_enabled
+from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
 from app.letters.utils import upload_letter_pdf
 from app.models import (
     SMS_TYPE,
@@ -26,7 +26,7 @@ from app.models import (
     NOTIFICATION_SENDING,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PENDING_VIRUS_CHECK,
-    RecipientIdentifier
+    RecipientIdentifier, NOTIFICATION_PREFERENCES_DECLINED
 )
 from app.notifications.process_letter_notifications import (
     create_letter_notification
@@ -239,6 +239,12 @@ def process_notification_with_recipient_identifier(*, form, notification_type, a
                                                    reply_to_text=None):
     personalisation = process_document_uploads(form.get('personalisation'), service)
 
+    has_permissions = user_has_given_permissions_to_send_message(
+        form['recipient_identifier']['id_type'], form['recipient_identifier']['id_value'],
+        template.id
+    )
+    notification_status = NOTIFICATION_CREATED if has_permissions else NOTIFICATION_PREFERENCES_DECLINED
+
     notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
@@ -249,13 +255,15 @@ def process_notification_with_recipient_identifier(*, form, notification_type, a
         key_type=api_key.key_type,
         client_reference=form.get('reference', None),
         reply_to_text=reply_to_text,
-        recipient_identifier=form.get('recipient_identifier', None)
+        recipient_identifier=form.get('recipient_identifier', None),
+        status=notification_status
     )
 
-    send_to_queue_for_recipient_info_based_on_recipient_identifier(
-        notification=notification,
-        id_type=form['recipient_identifier']['id_type']
-    )
+    if has_permissions:
+        send_to_queue_for_recipient_info_based_on_recipient_identifier(
+            notification=notification,
+            id_type=form['recipient_identifier']['id_type']
+        )
 
     return notification
 
@@ -384,6 +392,9 @@ def get_reply_to_text(notification_type, form, template):
 
 
 def user_has_given_permissions_to_send_message(id_type: str, id_value: str, template_id: str) -> bool:
+    if not is_feature_enabled(FeatureFlag.CHECK_USER_COMMUNICATION_PERMISSIONS_ENABLED):
+        return True
+
     identifier = RecipientIdentifier(id_type=id_type, id_value=id_value)
     template = dao_get_template_by_id(template_id)
 

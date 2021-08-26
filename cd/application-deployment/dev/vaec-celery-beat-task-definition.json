@@ -29,6 +29,10 @@
           "value": "https://dev.api.notifications.va.gov"
         },
         {
+          "name": "CHECK_USER_COMMUNICATION_PERMISSIONS_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "NOTIFICATION_QUEUE_PREFIX",
           "value": "dev-notification-"
         },
