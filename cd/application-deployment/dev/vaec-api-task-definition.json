@@ -31,6 +31,14 @@
           "value": "https://dev.api.notifications.va.gov"
         },
         {
+          "name": "API_MESSAGE_LIMIT_ENABLED",
+          "value": "True"
+        },
+        {
+          "name": "API_RATE_LIMIT_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "AWS_PINPOINT_APP_ID",
           "value": "df55c01206b742d2946ef226410af94f"
         },

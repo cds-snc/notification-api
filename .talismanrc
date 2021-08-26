@@ -202,6 +202,7 @@ fileignoreconfig:
     - filename: cd/application-deployment/dev/vaec-api-task-definition.json
       checksum: 3765b919b1e9d8e42a3d99e9271c99212fede129ac3991e6464c1fe23956c197
     - filename: .env.example
+<<<<<<< HEAD
       checksum: f6ff3c1e7486e94db7158a9b4dfb3fc5b329b33f1aa2d08cc3ffbcaf763c105d
     - filename: cd/application-deployment/perf/vaec-celery-beat-task-definition.json
       checksum: 8f8a3037604369b570222fe6466d86dcc9946c4c02e94f64988c11496835cd18
@@ -233,3 +234,11 @@ fileignoreconfig:
       checksum: b9c5ca3e0c3b077d1b6f8bf73d70cb037519bd16e2eba71d8a83829d1ccd3af5
     - filename: tests/app/v2/notifications/test_post_notifications.py
       checksum: 762b9b8c1a47ab0e9131618e91582e387f972e9a10ac9b10dca91a1e1eefcc92
+    - filename: tests/app/v2/notifications/test_post_notifications.py
+      checksum: 2a7b2d6ab3c27a7c6b774b29373905000eec7d4c7b68cf53966597a1988557c9
+    - filename: ci/.docker-env.example
+      checksum: 59e780d4d81dd66d4366eb34f8a362b20b05cac142478230a31c4b7365a69c83
+    - filename: .env.example
+      checksum: 26bbba4cf20074086cbdabe0e99c5e4df4d420dcabc5f85709ba3767c86b7b20
+    - filename: ci/.docker-env.example
+      checksum: 4af4bbda6aca3668194444ea256ad07d0c3b7a706619093751663a584f9d45fb

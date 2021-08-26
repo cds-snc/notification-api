@@ -120,6 +120,8 @@ class Config(object):
     # URL of redis instance
     REDIS_URL = os.getenv('REDIS_URL')
     REDIS_ENABLED = os.getenv('REDIS_ENABLED') == 'True'
+    API_RATE_LIMIT_ENABLED = os.getenv('API_RATE_LIMIT_ENABLED', 'False') == 'True'
+    API_MESSAGE_LIMIT_ENABLED = os.getenv('API_MESSAGE_LIMIT_ENABLED', 'False') == 'True'
     EXPIRE_CACHE_TEN_MINUTES = 600
     EXPIRE_CACHE_EIGHT_DAYS = 8 * 24 * 60 * 60
 
@@ -451,8 +453,6 @@ class Config(object):
 
     # Feature flags
     GOVDELIVERY_EMAIL_CLIENT_ENABLED = True
-    API_RATE_LIMIT_ENABLED = False
-    API_MESSAGE_LIMIT_ENABLED = False
     SWITCH_SLOW_SMS_PROVIDER_ENABLED = False
 
     # Google Analytics
