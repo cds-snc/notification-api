@@ -166,6 +166,45 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     assert call(statsd_key) in statsd_mock.incr.call_args_list
 
 
+def test_should_send_personalised_template_with_html_enabled(sample_email_template_with_html, mocker):
+    db_notification = create_notification(
+        template=sample_email_template_with_html,
+        to_field="jo.smith@example.com",
+        personalisation={"name": "Jo"},
+    )
+
+    mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    # TODO: Review if we really need this mock
+    statsd_mock = mocker.patch("app.delivery.send_to_providers.statsd_client")
+
+    send_to_providers.send_email_to_provider(db_notification)
+
+    app.aws_ses_client.send_email.assert_called_once_with(
+        '"Sample service" <sample.service@notification.canada.ca>',
+        "jo.smith@example.com",
+        "Jo <em>some HTML</em>",
+        body="Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n",
+        html_body=ANY,
+        reply_to_address=None,
+        attachments=[],
+    )
+
+    assert "<!DOCTYPE html" in app.aws_ses_client.send_email.call_args[1]["html_body"]
+    assert "<em>some HTML</em>" in app.aws_ses_client.send_email.call_args[1]["html_body"]
+
+    notification = Notification.query.filter_by(id=db_notification.id).one()
+    assert notification.status == "sending"
+    assert notification.sent_at <= datetime.utcnow()
+    assert notification.sent_by == "ses"
+    assert notification.personalisation == {"name": "Jo"}
+
+    statsd_timing_calls = statsd_mock.timing_with_dates.call_args_list
+    statsd_key = "email.no-attachments.process_type-normal"
+    assert call("email.total-time", notification.sent_at, notification.created_at) in statsd_timing_calls
+    assert call(statsd_key, notification.sent_at, notification.created_at) in statsd_timing_calls
+    assert call(statsd_key) in statsd_mock.incr.call_args_list
+
+
 def test_should_not_send_email_message_when_service_is_inactive_notifcation_is_in_tech_failure(
     sample_service, sample_notification, mocker
 ):

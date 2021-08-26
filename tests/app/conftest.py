@@ -338,6 +338,16 @@ def sample_email_template_with_html(notify_db, notify_db_session):
 
 
 @pytest.fixture(scope="function")
+def sample_email_template_with_html(notify_db, notify_db_session):
+    return sample_email_template(
+        notify_db,
+        notify_db_session,
+        content="Hello ((name))\nThis is an email from GOV.UK with <em>some HTML</em>",
+        subject_line="((name)) <em>some HTML</em>",
+    )
+
+
+@pytest.fixture(scope="function")
 def sample_api_key(notify_db, notify_db_session, service=None, key_type=KEY_TYPE_NORMAL, name=None):
     if service is None:
         service = create_service(check_if_service_exists=True)
