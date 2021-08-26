@@ -7,6 +7,7 @@ class IdentifierType(Enum):
     PID = 'PID'
     ICN = 'ICN'
     BIRLSID = 'BIRLSID'
+    EDIPI = 'EDIPI'
 
     @staticmethod
     def values():
@@ -21,11 +22,16 @@ FHIR_FORMAT_SUFFIXES = {
     IdentifierType.ICN: "^NI^200M^USVHA",
     IdentifierType.PID: "^PI^200CORP^USVBA",
     IdentifierType.VA_PROFILE_ID: "^PI^200VETS^USDVA",
-    IdentifierType.BIRLSID: "^PI^200BRLS^USVBA"
+    IdentifierType.BIRLSID: "^PI^200BRLS^USVBA",
+    IdentifierType.EDIPI: '^NI^200DOD^USDOD'
 }
 
 OIDS = {
-    IdentifierType.VA_PROFILE_ID: '2.16.840.1.113883.4.349'
+    IdentifierType.ICN: '2.16.840.1.113883.4.349',
+    IdentifierType.PID: '2.16.840.1.113883.4.349',
+    IdentifierType.VA_PROFILE_ID: '2.16.840.1.113883.4.349',
+    IdentifierType.BIRLSID: '2.16.840.1.113883.4.349',
+    IdentifierType.EDIPI: '2.16.840.1.113883.3.42.10001.100001.12',
 }
 
 
