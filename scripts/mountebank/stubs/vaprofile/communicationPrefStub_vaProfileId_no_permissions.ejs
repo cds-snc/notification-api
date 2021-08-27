@@ -1,0 +1,25 @@
+{
+  "predicates": [
+    {
+      "matches": {
+        "path": "/communication/v1/2.16.840.1.113883.4.349/1243%5EPI%5E200VETS%5EUSDVA/communication-permissions$"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "is": {
+        "statusCode": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body":
+        {
+          "messages":[{"code":"CP310","key":"PermissionNotFound","text":"Permission not found for vaProfileId 1243","severity":"ERROR"}],
+          "txAuditId":"d10fdbe0-691a-4317-97fd-be248ca3c45f",
+          "status":"COMPLETED_SUCCESS"
+        }
+      }
+    }
+  ]
+}
