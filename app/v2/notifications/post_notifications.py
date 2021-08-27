@@ -10,6 +10,7 @@ from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_
 from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
+from app.dao.communication_item_dao import get_communication_item
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template, dao_get_template_by_id
 from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
@@ -405,7 +406,9 @@ def user_has_given_permissions_to_send_message(id_type: str, id_value: str, temp
         current_app.logger.info(f'User {id_value} does not have requested communication item id')
         return True
 
+    communication_item = get_communication_item(communication_item_id)
+
     try:
-        return va_profile_client.get_is_communication_allowed(identifier, communication_item_id)
+        return va_profile_client.get_is_communication_allowed(identifier, communication_item.va_profile_item_id)
     except CommunicationItemNotFoundException:
         return True
