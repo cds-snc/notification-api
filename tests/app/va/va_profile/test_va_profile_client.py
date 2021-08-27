@@ -607,7 +607,7 @@ class TestCommunicationPermissions:
                     "communicationItemId": 1,
                     "communicationChannelName": "Text",
                     "communicationItemCommonName": "Board of Veterans' Appeals hearing reminder",
-                    "allowed": 'true',
+                    "allowed": True,
                     "confirmationDate": "2021-08-02T17:11:16Z"
                 }
             ]
@@ -640,7 +640,7 @@ class TestCommunicationPermissions:
                     "communicationItemId": 'some-valid-id',
                     "communicationChannelName": "Text",
                     "communicationItemCommonName": "Board of Veterans' Appeals hearing reminder",
-                    "allowed": 'false',
+                    "allowed": False,
                     "confirmationDate": "2021-08-02T17:11:16Z"
                 }
             ]
@@ -694,7 +694,7 @@ class TestCommunicationPermissions:
                     "communicationItemId": 1,
                     "communicationChannelName": "Text",
                     "communicationItemCommonName": "Board of Veterans' Appeals hearing reminder",
-                    "allowed": 'true',
+                    "allowed": True,
                     "confirmationDate": "2021-08-02T17:11:16Z"
                 },
                 {
@@ -711,7 +711,7 @@ class TestCommunicationPermissions:
                     "communicationItemId": 2,
                     "communicationChannelName": "Email",
                     "communicationItemCommonName": "COVID-19 Updates",
-                    "allowed": 'true',
+                    "allowed": True,
                     "confirmationDate": "2021-08-02T17:11:16Z"
                 },
                 {
@@ -726,7 +726,7 @@ class TestCommunicationPermissions:
                     "communicationItemId": 'some-valid-id',
                     "communicationChannelName": "Text",
                     "communicationItemCommonName": "Appointment reminders",
-                    "allowed": 'true'
+                    "allowed": True
                 }
             ]
         }

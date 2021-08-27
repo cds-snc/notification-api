@@ -539,6 +539,9 @@ The ID value in the stub url is the number after `v1/` (e.g., `2003` for `/cuf/c
 
 ---
 
+For the VA Profile communication item endpoint, you will need to remove the port (`:443`) from the URL before you
+make the request while running locally.
+
 ## Adding Environment Variables to Task Definition files
 When adding environment variables to any `<filename>-task-definition.json` file, make sure you add them to the corresponding
 `celery`and `celery-beat` files as well. We want to try and keep these consistent with each other.

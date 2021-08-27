@@ -105,7 +105,7 @@ class VAProfileClient:
                 self.logger.info(f'Found communication item id {communication_item_id} on user {recipient_id}')
                 self.logger.info(f'Value of allowed is {bio["allowed"]}')
                 self.statsd_client.incr("clients.va-profile.get-communication-item-permission.success")
-                return bio['allowed'] == 'true'
+                return bio['allowed'] is True
 
         self.logger.info(f'User {recipient_id} did not have communication item {communication_item_id}')
         raise CommunicationItemNotFoundException

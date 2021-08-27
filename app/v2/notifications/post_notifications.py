@@ -409,6 +409,9 @@ def user_has_given_permissions_to_send_message(id_type: str, id_value: str, temp
     communication_item = get_communication_item(communication_item_id)
 
     try:
-        return va_profile_client.get_is_communication_allowed(identifier, communication_item.va_profile_item_id)
+        is_allowed = va_profile_client.get_is_communication_allowed(identifier, communication_item.va_profile_item_id)
+        current_app.logger.info(f'Value of permission for item {communication_item.va_profile_item_id} for user '
+                                f'{id_value}: {is_allowed}')
+        return is_allowed
     except CommunicationItemNotFoundException:
         return True
