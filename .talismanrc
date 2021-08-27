@@ -245,3 +245,5 @@ fileignoreconfig:
       checksum: a326b179766468e8d86a19ce7a5fac45a552b04e2194d492145cb87cd2c1d3c6
     - filename: scripts/mountebank/stubs/vaprofile/communicationPrefStub_vaProfileId_no_permissions.ejs
       checksum: 98dd89a9d7cbd00e3b061d6fa15d34813a149129cf2eaa1e8d42f75d2b53c18b
+    - filename: cd/application-deployment/dev/vaec-celery-beat-task-definition.json
+      checksum: 44ad7f8ac24ad6497c8153f05eb2ad533c8de7a63a8eea143ca7a3d3d9e8b035
