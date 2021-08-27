@@ -132,7 +132,15 @@
         },
         {
           "name": "REDIS_ENABLED",
-          "value": "False"
+          "value": "True"
+        },
+        {
+          "name": "API_MESSAGE_LIMIT_ENABLED",
+          "value": "True"
+        },
+        {
+          "name": "API_RATE_LIMIT_ENABLED",
+          "value": "True"
         }
       ],
       "secrets": [

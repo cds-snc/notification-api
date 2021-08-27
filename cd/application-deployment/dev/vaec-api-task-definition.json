@@ -107,11 +107,11 @@
           "value": "True"
         },
         {
-          "name": "REDIS_ENABLED",
+          "name": "PROVIDER_STRATEGIES_ENABLED",
           "value": "True"
         },
         {
-          "name": "PROVIDER_STRATEGIES_ENABLED",
+          "name": "REDIS_ENABLED",
           "value": "True"
         },
         {
