@@ -85,7 +85,7 @@ class VAProfileClient:
         oid = OIDS.get(identifier_type)
 
         url = (
-            f'{self.va_profile_url}:443/communication-hub/communication/v1/'
+            f'{self.va_profile_url}/communication-hub/communication/v1/'
             f'{oid}/{recipient_id}/communication-permissions'
         )
         self.logger.info(f'VA Profile URL used for making request to get communication-permissions: {url}')
