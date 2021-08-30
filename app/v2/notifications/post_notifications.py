@@ -5,15 +5,15 @@ import werkzeug
 from flask import request, jsonify, current_app, abort
 from notifications_utils.recipients import try_validate_and_format_phone_number
 
-from app import api_user, authenticated_service, notify_celery, document_download_client, va_profile_client
+from app import api_user, authenticated_service, notify_celery, document_download_client
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
+from app.celery.communication_item_tasks import process_communication_item_request
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
-from app.dao.communication_item_dao import get_communication_item
 from app.dao.notifications_dao import update_notification_status_by_reference
-from app.dao.templates_dao import get_precompiled_letter_template, dao_get_template_by_id
-from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
+from app.dao.templates_dao import get_precompiled_letter_template
+from app.feature_flags import accept_recipient_identifiers_enabled
 from app.letters.utils import upload_letter_pdf
 from app.models import (
     SMS_TYPE,
@@ -26,8 +26,7 @@ from app.models import (
     NOTIFICATION_CREATED,
     NOTIFICATION_SENDING,
     NOTIFICATION_DELIVERED,
-    NOTIFICATION_PENDING_VIRUS_CHECK,
-    RecipientIdentifier, NOTIFICATION_PREFERENCES_DECLINED
+    NOTIFICATION_PENDING_VIRUS_CHECK
 )
 from app.notifications.process_letter_notifications import (
     create_letter_notification
@@ -36,8 +35,8 @@ from app.notifications.process_notifications import (
     persist_notification,
     persist_scheduled_notification,
     send_notification_to_queue,
-    simulated_recipient,
-    send_to_queue_for_recipient_info_based_on_recipient_identifier)
+    simulated_recipient
+)
 from app.notifications.validators import (
     validate_and_format_recipient,
     check_rate_limiting,
@@ -61,7 +60,6 @@ from app.v2.notifications.notification_schemas import (
     post_letter_request,
     post_precompiled_letter_request
 )
-from app.va.va_profile.va_profile_client import CommunicationItemNotFoundException
 
 
 @v2_notification_blueprint.route('/{}'.format(LETTER_TYPE), methods=['POST'])
@@ -240,12 +238,6 @@ def process_notification_with_recipient_identifier(*, form, notification_type, a
                                                    reply_to_text=None):
     personalisation = process_document_uploads(form.get('personalisation'), service)
 
-    has_permissions = user_has_given_permissions_to_send_message(
-        form['recipient_identifier']['id_type'], form['recipient_identifier']['id_value'],
-        template.id
-    )
-    notification_status = NOTIFICATION_CREATED if has_permissions else NOTIFICATION_PREFERENCES_DECLINED
-
     notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
@@ -256,15 +248,18 @@ def process_notification_with_recipient_identifier(*, form, notification_type, a
         key_type=api_key.key_type,
         client_reference=form.get('reference', None),
         reply_to_text=reply_to_text,
-        recipient_identifier=form.get('recipient_identifier', None),
-        status=notification_status
+        recipient_identifier=form.get('recipient_identifier', None)
     )
 
-    if has_permissions:
-        send_to_queue_for_recipient_info_based_on_recipient_identifier(
-            notification=notification,
-            id_type=form['recipient_identifier']['id_type']
-        )
+    process_communication_item_request.apply_async(
+        [
+            form['recipient_identifier']['id_type'],
+            form['recipient_identifier']['id_value'],
+            template.id,
+            notification
+        ],
+        queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
+    )
 
     return notification
 
@@ -390,28 +385,3 @@ def get_reply_to_text(notification_type, form, template):
         reply_to = template.get_reply_to_text()
 
     return reply_to
-
-
-def user_has_given_permissions_to_send_message(id_type: str, id_value: str, template_id: str) -> bool:
-    if not is_feature_enabled(FeatureFlag.CHECK_USER_COMMUNICATION_PERMISSIONS_ENABLED):
-        current_app.logger.info(f'Communication item permissions feature flag is off')
-        return True
-
-    identifier = RecipientIdentifier(id_type=id_type, id_value=id_value)
-    template = dao_get_template_by_id(template_id)
-
-    communication_item_id = template.communication_item_id
-
-    if not communication_item_id:
-        current_app.logger.info(f'User {id_value} does not have requested communication item id')
-        return True
-
-    communication_item = get_communication_item(communication_item_id)
-
-    try:
-        is_allowed = va_profile_client.get_is_communication_allowed(identifier, communication_item.va_profile_item_id)
-        current_app.logger.info(f'Value of permission for item {communication_item.va_profile_item_id} for user '
-                                f'{id_value}: {is_allowed}')
-        return is_allowed
-    except CommunicationItemNotFoundException:
-        return True

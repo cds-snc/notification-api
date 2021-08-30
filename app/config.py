@@ -56,6 +56,7 @@ class QueueNames(object):
     LOOKUP_CONTACT_INFO = 'lookup-contact-info-tasks'
     LOOKUP_VA_PROFILE_ID = 'lookup-va-profile-id-tasks'
     DELIVERY_RECEIPTS = 'delivery-receipts'
+    COMMUNICATION_ITEM_PERMISSIONS = 'communication-item-permissions'
 
     @staticmethod
     def all_queues():
@@ -75,7 +76,8 @@ class QueueNames(object):
             # QueueNames.LETTERS,
             QueueNames.LOOKUP_CONTACT_INFO,
             QueueNames.LOOKUP_VA_PROFILE_ID,
-            QueueNames.DELIVERY_RECEIPTS
+            QueueNames.DELIVERY_RECEIPTS,
+            QueueNames.COMMUNICATION_ITEM_PERMISSIONS
         ]
 
 
