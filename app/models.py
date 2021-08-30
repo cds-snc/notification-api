@@ -1672,7 +1672,8 @@ class Notification(db.Model):
                     "id_value": recipient_identifier.id_value
                 }
                 for recipient_identifier in self.recipient_identifiers.values()
-            ]
+            ],
+            'billing_code': self.billing_code
         }
 
         if self.notification_type == LETTER_TYPE:
