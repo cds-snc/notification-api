@@ -13,9 +13,7 @@ from app.va.va_profile.va_profile_client import CommunicationItemNotFoundExcepti
 
 @notify_celery.task(bind=True, name="process-communication-item-request", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def process_communication_item_request(
-        self, id_type: str, id_value: str, template_id: str, notification: Notification
-) -> bool:
+def process_communication_item_request(self, id_type: str, id_value: str, template_id: str, notification: Notification):
     if user_has_given_permission(id_type, id_value, template_id):
         send_to_queue_for_recipient_info_based_on_recipient_identifier(
             notification=notification,
