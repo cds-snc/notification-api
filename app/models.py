@@ -1450,6 +1450,7 @@ class Notification(db.Model):
     status_reason = db.Column(db.String, nullable=True)
 
     postage = db.Column(db.String, nullable=True)
+    billing_code = db.Column(db.String(256), nullable=True)
     CheckConstraint("""
         CASE WHEN notification_type = 'letter' THEN
             postage is not null and postage in ('first', 'second')
@@ -1730,6 +1731,7 @@ class NotificationHistory(db.Model, HistoryModel):
 
     postage = db.Column(db.String, nullable=True)
     status_reason = db.Column(db.String, nullable=True)
+    billing_code = db.Column(db.String(256), nullable=True)
     CheckConstraint("""
         CASE WHEN notification_type = 'letter' THEN
             postage is not null and postage in ('first', 'second')
