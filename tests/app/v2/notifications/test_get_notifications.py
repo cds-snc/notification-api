@@ -24,7 +24,8 @@ def test_get_notification_by_id_returns_200(
         template=sample_template,
         billable_units=billable_units,
         sent_by=provider,
-        scheduled_for="2017-05-12 15:15"
+        scheduled_for="2017-05-12 15:15",
+        billing_code="billing_code"
     )
 
     # another
@@ -77,7 +78,8 @@ def test_get_notification_by_id_returns_200(
         'completed_at': sample_notification.completed_at(),
         'scheduled_for': '2017-05-12T19:15:00.000000Z',
         'postage': None,
-        'recipient_identifiers': []
+        'recipient_identifiers': [],
+        'billing_code': sample_notification.billing_code
     }
 
     assert json_response == expected_response
@@ -138,7 +140,8 @@ def test_get_notification_by_id_with_placeholders_and_recipient_identifiers_retu
         'completed_at': sample_notification.completed_at(),
         'scheduled_for': None,
         'postage': None,
-        'recipient_identifiers': recipient_identifiers if recipient_identifiers else []
+        'recipient_identifiers': recipient_identifiers if recipient_identifiers else [],
+        'billing_code': None
     }
 
     assert json_response == expected_response
