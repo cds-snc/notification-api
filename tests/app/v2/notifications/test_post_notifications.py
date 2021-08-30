@@ -965,3 +965,28 @@ def test_post_notification_returns_501_when_recipient_identifiers_present_and_fe
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), auth_header])
     assert response.status_code == 501
+
+
+def test_post_notification_returns_400_when_billing_code_length_exceeds_max(client, mocker, sample_email_template):
+    mocker.patch(
+        'app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled',
+        return_value=False
+    )
+
+    data = {
+        "template_id": sample_email_template.id,
+        "email_address": "someemail@test.com",
+        "billing_code": (
+            "awpeoifhwaepoifjaajf5alsdkfj5asdlkfja5sdlkfjasd5lkfjaeoifjapweoighaeiofjawieofjaeiopwfghaepiofhposihfpaowe"
+            "ifjafjsdlkfjsldfkjsdlkfjsldkjpoeifjapseoifhapoeifjaspoeifhaeoihfeopifhaepoifjeaioghaeoifjaepoifjaepighaepo"
+            "ifjaepoifhaepogihaewoipfjeaiopfjaeopighaepiwofjaeopiwfjaepoifj"
+        )
+    }
+
+    auth_header = create_authorization_header(service_id=sample_email_template.service_id)
+    response = client.post(
+        path="v2/notifications/email",
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header])
+
+    assert response.status_code == 400
