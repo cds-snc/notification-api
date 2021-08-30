@@ -148,7 +148,8 @@ post_sms_request = {
         "template_id": uuid,
         "personalisation": personalisation,
         "scheduled_for": {"type": ["string", "null"], "format": "datetime_within_next_day"},
-        "sms_sender_id": uuid
+        "sms_sender_id": uuid,
+        "billing_code": {"type": "string", "maxLength": 256}
     },
     "required": ["template_id"],
     "anyOf": [
