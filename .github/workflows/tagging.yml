@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [create-staging-tags]
     steps:
-    - uses: actions/github-script@v3
+    - uses: actions/github-script@v4.1
       with:
         github-token: ${{secrets.GH_ACCESS_TOKEN}}
         script: |

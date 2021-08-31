@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Choose environment
         id: choose-environment
-        uses: actions/github-script@v3
+        uses: actions/github-script@v4.1
         with:
           script: |
             const mapEventToEnvironment = () => {
@@ -30,7 +30,7 @@ jobs:
             core.setOutput('ref', ref);
 
       - name: Start VAEC deployment
-        uses: actions/github-script@v3
+        uses: actions/github-script@v4.1
         if: ${{ steps.choose-environment.outputs.environment }}
         with:
           github-token: ${{secrets.GH_ACCESS_TOKEN}}
