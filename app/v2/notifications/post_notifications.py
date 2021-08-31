@@ -256,7 +256,7 @@ def process_notification_with_recipient_identifier(*, form, notification_type, a
             form['recipient_identifier']['id_type'],
             form['recipient_identifier']['id_value'],
             template.id,
-            notification
+            notification.id
         ],
         queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
     )

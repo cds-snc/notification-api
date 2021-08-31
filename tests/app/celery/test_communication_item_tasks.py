@@ -37,8 +37,11 @@ def test_process_communication_item_request_should_send_if_user_has_permissions(
         'app.celery.communication_item_tasks.send_to_queue_for_recipient_info_based_on_recipient_identifier'
     )
     mock_notification = mocker.Mock()
+    mock_notification.id = 'some-id'
 
-    process_communication_item_request('VAPROFILEID', '1', uuid.uuid4(), mock_notification)
+    mocker.patch('app.celery.communication_item_tasks.get_notification_by_id', return_value=mock_notification)
+
+    process_communication_item_request('VAPROFILEID', '1', uuid.uuid4(), mock_notification.id)
 
     send_to_queue.assert_called_once()
 
@@ -55,7 +58,9 @@ def test_process_communication_item_request_should_not_send_if_user_has_permissi
     mock_notification = mocker.Mock()
     mock_notification.id = 'some-id'
 
-    process_communication_item_request('VAPROFILEID', '1', uuid.uuid4(), mock_notification)
+    mocker.patch('app.celery.communication_item_tasks.get_notification_by_id', return_value=mock_notification)
+
+    process_communication_item_request('VAPROFILEID', '1', uuid.uuid4(), mock_notification.id)
 
     send_to_queue.assert_not_called()
     update_notification.assert_called_once_with('some-id', NOTIFICATION_PREFERENCES_DECLINED)

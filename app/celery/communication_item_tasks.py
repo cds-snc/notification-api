@@ -3,24 +3,28 @@ from notifications_utils.statsd_decorators import statsd
 
 from app import notify_celery, va_profile_client
 from app.dao.communication_item_dao import get_communication_item
-from app.dao.notifications_dao import update_notification_status_by_id
+from app.dao.notifications_dao import update_notification_status_by_id, get_notification_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.feature_flags import FeatureFlag, is_feature_enabled
-from app.models import RecipientIdentifier, Notification, NOTIFICATION_PREFERENCES_DECLINED
+from app.models import RecipientIdentifier, NOTIFICATION_PREFERENCES_DECLINED
 from app.notifications.process_notifications import send_to_queue_for_recipient_info_based_on_recipient_identifier
 from app.va.va_profile.va_profile_client import CommunicationItemNotFoundException
 
 
 @notify_celery.task(bind=True, name="process-communication-item-request", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def process_communication_item_request(self, id_type: str, id_value: str, template_id: str, notification: Notification):
+def process_communication_item_request(self, id_type: str, id_value: str, template_id: str, notification_id: str):
+    current_app.logger.info(f"Looking up contact information for notification_id:{notification_id}.")
+
+    notification = get_notification_by_id(notification_id)
+
     if user_has_given_permission(id_type, id_value, template_id):
         send_to_queue_for_recipient_info_based_on_recipient_identifier(
             notification=notification,
             id_type=id_type
         )
     else:
-        update_notification_status_by_id(notification.id, NOTIFICATION_PREFERENCES_DECLINED)
+        update_notification_status_by_id(notification_id, NOTIFICATION_PREFERENCES_DECLINED)
 
 
 def user_has_given_permission(id_type: str, id_value: str, template_id: str):
