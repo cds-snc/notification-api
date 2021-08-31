@@ -257,3 +257,5 @@ fileignoreconfig:
       checksum: e80cb5ea114ff0c93a29e26c3de1cb83c9dcca224e8eeed3842b7e1a2382f3c2
     - filename: app/models.py
       checksum: 98822d8a42d23ac2f2cef9d2a91a78ffdd19d4b77ea4c04ac38451b691517781
+    - filename: app/v2/notifications/post_notifications.py
+      checksum: cd97f08c61b908b2a90c10878b074cc3b4a44a33e963796b34b8ecc7ae50918a
