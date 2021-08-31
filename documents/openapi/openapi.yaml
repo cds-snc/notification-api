@@ -1595,6 +1595,8 @@ components:
         scheduled_for:
           type: string
           format: datetime within next day
+        billing_code:
+          type: string
       required:
         - template_id
     SMSNotificationRequest:
