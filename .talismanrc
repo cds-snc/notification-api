@@ -247,3 +247,5 @@ fileignoreconfig:
       checksum: 98dd89a9d7cbd00e3b061d6fa15d34813a149129cf2eaa1e8d42f75d2b53c18b
     - filename: cd/application-deployment/dev/vaec-celery-beat-task-definition.json
       checksum: 44ad7f8ac24ad6497c8153f05eb2ad533c8de7a63a8eea143ca7a3d3d9e8b035
+    - filename: app/notifications/process_notifications.py
+      checksum: 3d7adfa4bb4792370c6645e640f1b1e091807c199d3c8f74e701da1f0de7fac1
