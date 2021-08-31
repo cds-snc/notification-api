@@ -29,7 +29,6 @@ Authlib==0.15.3
 flask-jwt-extended==4.1.0
 flask-cors==3.0.10
 
-newrelic==5.12.0.140
 notifications-python-client==5.7.1
 python-dotenv==0.10.3
 pwnedpasswords==2.0.0
