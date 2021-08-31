@@ -897,7 +897,6 @@ def test_post_notification_returns_400_when_get_json_throws_exception(client, sa
     assert response.status_code == 400
 
 
-@pytest.mark.skip(reason='Test is failing in pipeline only, need to figure out why')
 @pytest.mark.parametrize(
     'expected_type, expected_value, task',
     [
@@ -919,11 +918,12 @@ def test_should_process_notification_successfully_with_recipient_identifiers(
         'app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled',
         return_value=True
     )
-    process_communication_item_request = mocker.patch(
-        'app.celery.communication_item_tasks.process_communication_item_request.apply_async',
-    )
     mocker.patch(
         f'{task}.apply_async')
+
+    send_to_queue = mocker.patch(
+        'app.v2.notifications.post_notifications.send_to_queue_for_recipient_info_based_on_recipient_identifier'
+    )
     data = {
         "template_id": sample_email_template.id,
         "recipient_identifier": {'id_type': expected_type, 'id_value': expected_value}
@@ -941,9 +941,7 @@ def test_should_process_notification_successfully_with_recipient_identifiers(
     assert notification.status == NOTIFICATION_CREATED
     assert notification.recipient_identifiers[expected_type].id_type == expected_type
     assert notification.recipient_identifiers[expected_type].id_value == expected_value
-    assert process_communication_item_request.called_once_with(
-        expected_type, expected_value, sample_email_template.id, notification
-    )
+    send_to_queue.assert_called_once()
 
 
 def test_post_notification_returns_501_when_recipient_identifiers_present_and_feature_flag_disabled(

@@ -14,6 +14,7 @@ from notifications_utils.timezones import convert_local_timezone_to_utc
 
 from app import redis_store
 from app.celery import provider_tasks
+from app.celery.communication_item_tasks import process_communication_item_request
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.letters_pdf_tasks import create_letters_pdf
@@ -171,17 +172,25 @@ def _get_delivery_task(notification, research_mode=False, queue=None):
     return deliver_task, queue
 
 
-def send_to_queue_for_recipient_info_based_on_recipient_identifier(notification, id_type):
+def send_to_queue_for_recipient_info_based_on_recipient_identifier(
+        notification: Notification, id_type: str, id_value: str, template_id: uuid
+) -> None:
     deliver_task, deliver_queue = _get_delivery_task(notification)
     if id_type == IdentifierType.VA_PROFILE_ID.value:
         tasks = [
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
+            process_communication_item_request.si(
+                id_type, id_value, template_id, notification.id
+            ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS),
             deliver_task.si(notification.id).set(queue=deliver_queue)
         ]
     else:
         tasks = [
             lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
+            process_communication_item_request.si(
+                id_type, id_value, template_id, notification.id
+            ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS),
             deliver_task.si(notification.id).set(queue=deliver_queue)
         ]
 

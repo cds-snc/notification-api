@@ -8,7 +8,6 @@ from notifications_utils.recipients import try_validate_and_format_phone_number
 from app import api_user, authenticated_service, notify_celery, document_download_client
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
-from app.celery.communication_item_tasks import process_communication_item_request
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.notifications_dao import update_notification_status_by_reference
@@ -35,7 +34,7 @@ from app.notifications.process_notifications import (
     persist_notification,
     persist_scheduled_notification,
     send_notification_to_queue,
-    simulated_recipient
+    simulated_recipient, send_to_queue_for_recipient_info_based_on_recipient_identifier
 )
 from app.notifications.validators import (
     validate_and_format_recipient,
@@ -141,6 +140,7 @@ def post_notification(notification_type):
             reply_to_text=reply_to
         )
     else:
+        # TODO: need to change this logic to check for recipient_identifiers first
         if 'email_address' in form or 'phone_number' in form:
             notification = process_sms_or_email_notification(
                 form=form,
@@ -252,14 +252,11 @@ def process_notification_with_recipient_identifier(*, form, notification_type, a
         recipient_identifier=form.get('recipient_identifier', None)
     )
 
-    process_communication_item_request.apply_async(
-        [
-            form['recipient_identifier']['id_type'],
-            form['recipient_identifier']['id_value'],
-            template.id,
-            notification.id
-        ],
-        queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
+    send_to_queue_for_recipient_info_based_on_recipient_identifier(
+        notification=notification,
+        id_type=form['recipient_identifier']['id_type'],
+        id_value=form['recipient_identifier']['id_value'],
+        template_id=template.id
     )
 
     return notification

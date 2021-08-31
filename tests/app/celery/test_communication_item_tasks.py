@@ -28,41 +28,31 @@ def mock_communication_item(mocker):
     mocker.patch('app.celery.communication_item_tasks.get_communication_item', return_value=mock_communication_item)
 
 
-def test_process_communication_item_request_should_send_if_user_has_permissions(
+def test_process_communication_item_request_should_not_update_notification_status_if_user_has_permissions(
         client, mocker, check_user_communication_permissions_enabled
 ):
     mocker.patch('app.celery.communication_item_tasks.user_has_given_permission',
                  return_value=True)
-    send_to_queue = mocker.patch(
-        'app.celery.communication_item_tasks.send_to_queue_for_recipient_info_based_on_recipient_identifier'
-    )
     mock_notification = mocker.Mock()
     mock_notification.id = 'some-id'
-
-    mocker.patch('app.celery.communication_item_tasks.get_notification_by_id', return_value=mock_notification)
+    update_notification = mocker.patch('app.celery.communication_item_tasks.update_notification_status_by_id')
 
     process_communication_item_request('VAPROFILEID', '1', uuid.uuid4(), mock_notification.id)
+    update_notification.assert_not_called()
 
-    send_to_queue.assert_called_once()
 
-
-def test_process_communication_item_request_should_not_send_if_user_has_permissions(
+def test_process_communication_item_request_should_not_send_if_user_does_not_give_permissions(
         client, mocker, check_user_communication_permissions_enabled
 ):
     mocker.patch('app.celery.communication_item_tasks.user_has_given_permission',
                  return_value=False)
     update_notification = mocker.patch('app.celery.communication_item_tasks.update_notification_status_by_id')
-    send_to_queue = mocker.patch(
-        'app.celery.communication_item_tasks.send_to_queue_for_recipient_info_based_on_recipient_identifier'
-    )
+
     mock_notification = mocker.Mock()
     mock_notification.id = 'some-id'
 
-    mocker.patch('app.celery.communication_item_tasks.get_notification_by_id', return_value=mock_notification)
-
     process_communication_item_request('VAPROFILEID', '1', uuid.uuid4(), mock_notification.id)
 
-    send_to_queue.assert_not_called()
     update_notification.assert_called_once_with('some-id', NOTIFICATION_PREFERENCES_DECLINED)
 
 
@@ -74,7 +64,8 @@ def test_user_has_given_permission_should_return_true_if_template_has_no_communi
     mock_template.communication_item_id = None
     mocker.patch('app.celery.communication_item_tasks.dao_get_template_by_id', return_value=mock_template)
 
-    assert user_has_given_permission('VAPROFILEID', '1', str(uuid.uuid4()))
+    mock_task = mocker.Mock()
+    assert user_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')
 
 
 def test_user_has_given_permission_should_return_true_if_user_does_not_have_communication_item(
@@ -87,7 +78,8 @@ def test_user_has_given_permission_should_return_true_if_user_does_not_have_comm
         new=mocked_va_profile_client
     )
 
-    assert user_has_given_permission('VAPROFILEID', '1', str(uuid.uuid4()))
+    mock_task = mocker.Mock()
+    assert user_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')
 
 
 def test_user_has_given_permission_should_return_false_if_user_denies_permissions(
@@ -100,7 +92,8 @@ def test_user_has_given_permission_should_return_false_if_user_denies_permission
         new=mocked_va_profile_client
     )
 
-    assert not user_has_given_permission('VAPROFILEID', '1', str(uuid.uuid4()))
+    mock_task = mocker.Mock()
+    assert not user_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')
 
 
 def test_user_has_given_permission_should_return_true_if_user_grants_permissions(
@@ -113,4 +106,5 @@ def test_user_has_given_permission_should_return_true_if_user_grants_permissions
         new=mocked_va_profile_client
     )
 
-    assert user_has_given_permission('VAPROFILEID', '1', str(uuid.uuid4()))
+    mock_task = mocker.Mock()
+    assert user_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')

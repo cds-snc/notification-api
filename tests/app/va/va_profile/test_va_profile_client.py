@@ -617,7 +617,7 @@ class TestCommunicationPermissions:
         recipient_identifier = RecipientIdentifier(id_type='VAPROFILEID', id_value='1')
 
         with pytest.raises(CommunicationItemNotFoundException):
-            test_va_profile_client.get_is_communication_allowed(recipient_identifier, 'some-id')
+            test_va_profile_client.get_is_communication_allowed(recipient_identifier, 'some-id', 'some-notification-id')
 
     def test_get_is_communication_allowed_should_return_false_if_communication_item_is_not_allowed_on_user(
             self, test_va_profile_client, rmock
@@ -649,7 +649,9 @@ class TestCommunicationPermissions:
 
         recipient_identifier = RecipientIdentifier(id_type='VAPROFILEID', id_value='1')
 
-        assert not test_va_profile_client.get_is_communication_allowed(recipient_identifier, 'some-valid-id')
+        assert not test_va_profile_client.get_is_communication_allowed(
+            recipient_identifier, 'some-valid-id', 'some-notification-id'
+        )
 
     def test_get_is_communication_allowed_should_return_true_if_user_has_no_permissions(
             self, test_va_profile_client, rmock
@@ -671,7 +673,9 @@ class TestCommunicationPermissions:
 
         recipient_identifier = RecipientIdentifier(id_type='VAPROFILEID', id_value='1')
 
-        assert test_va_profile_client.get_is_communication_allowed(recipient_identifier, 'some-random-id')
+        assert test_va_profile_client.get_is_communication_allowed(
+            recipient_identifier, 'some-random-id', 'some-notification-id'
+        )
 
     def test_get_is_communication_allowed_should_return_true_if_user_allows_communication_item(
             self, test_va_profile_client, rmock
@@ -734,4 +738,6 @@ class TestCommunicationPermissions:
 
         recipient_identifier = RecipientIdentifier(id_type='VAPROFILEID', id_value='1')
 
-        assert test_va_profile_client.get_is_communication_allowed(recipient_identifier, 'some-valid-id')
+        assert test_va_profile_client.get_is_communication_allowed(
+            recipient_identifier, 'some-valid-id', 'some-notification-id'
+        )

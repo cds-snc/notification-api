@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from freezegun import freeze_time
 from collections import namedtuple
 
+from app.celery.communication_item_tasks import process_communication_item_request
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.provider_tasks import deliver_email, deliver_sms
@@ -598,10 +599,26 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
 
 
 @pytest.mark.parametrize('id_type, notification_type, expected_tasks', [
-    (IdentifierType.VA_PROFILE_ID.value, EMAIL_TYPE, [lookup_contact_info, deliver_email]),
-    (IdentifierType.VA_PROFILE_ID.value, SMS_TYPE, [lookup_contact_info, deliver_sms]),
-    (IdentifierType.ICN.value, EMAIL_TYPE, [lookup_va_profile_id, lookup_contact_info, deliver_email]),
-    (IdentifierType.ICN.value, SMS_TYPE, [lookup_va_profile_id, lookup_contact_info, deliver_sms]),
+    (
+        IdentifierType.VA_PROFILE_ID.value,
+        EMAIL_TYPE,
+        [lookup_contact_info, process_communication_item_request, deliver_email]
+    ),
+    (
+        IdentifierType.VA_PROFILE_ID.value,
+        SMS_TYPE,
+        [lookup_contact_info, process_communication_item_request, deliver_sms]
+    ),
+    (
+        IdentifierType.ICN.value,
+        EMAIL_TYPE,
+        [lookup_va_profile_id, lookup_contact_info, process_communication_item_request, deliver_email]
+    ),
+    (
+        IdentifierType.ICN.value,
+        SMS_TYPE,
+        [lookup_va_profile_id, lookup_contact_info, process_communication_item_request, deliver_sms]
+    ),
 ])
 def test_send_notification_to_correct_queue_to_lookup_contact_info(
         client,
@@ -617,7 +634,11 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
         notification_type=notification_type
     )
 
-    send_to_queue_for_recipient_info_based_on_recipient_identifier(notification, id_type)
+    mock_template_id = uuid.uuid4()
+
+    send_to_queue_for_recipient_info_based_on_recipient_identifier(
+        notification, id_type, 'some_id_value', mock_template_id
+    )
 
     args, _ = mocked_chain.call_args
     for called_task, expected_task in zip(args, expected_tasks):
