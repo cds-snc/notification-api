@@ -99,7 +99,7 @@ class VAProfileClient:
         if response.get('messages', None):
             self.logger.info(f'User {recipient_id} has no permissions for notification {notification_id}')
             # TODO: use default communication item settings when that has been implemented
-            return True
+            raise CommunicationItemNotFoundException
 
         all_bios = response['bios']
 

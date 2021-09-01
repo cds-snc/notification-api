@@ -19,15 +19,15 @@ from app.va.va_profile.va_profile_client import CommunicationItemNotFoundExcepti
 @statsd(namespace="tasks")
 def lookup_recipient_communication_permissions(
         self, id_type: str, id_value: str, template_id: str, notification_id: str
-):
+) -> None:
     current_app.logger.info(f"Looking up contact information for notification_id:{notification_id}.")
 
-    if not user_has_given_permission(self, id_type, id_value, template_id, notification_id):
+    if not recipient_has_given_permission(self, id_type, id_value, template_id, notification_id):
         update_notification_status_by_id(notification_id, NOTIFICATION_PREFERENCES_DECLINED)
         self.request.chain = None
 
 
-def user_has_given_permission(task, id_type: str, id_value: str, template_id: str, notification_id: str):
+def recipient_has_given_permission(task, id_type: str, id_value: str, template_id: str, notification_id: str) -> bool:
     if not is_feature_enabled(FeatureFlag.CHECK_USER_COMMUNICATION_PERMISSIONS_ENABLED):
         current_app.logger.info(f'Communication item permissions feature flag is off')
         return True

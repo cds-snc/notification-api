@@ -140,7 +140,6 @@ def post_notification(notification_type):
             reply_to_text=reply_to
         )
     else:
-        # TODO: need to change this logic to check for recipient_identifiers first
         if 'email_address' in form or 'phone_number' in form:
             notification = process_sms_or_email_notification(
                 form=form,

@@ -653,7 +653,7 @@ class TestCommunicationPermissions:
             recipient_identifier, 'some-valid-id', 'some-notification-id'
         )
 
-    def test_get_is_communication_allowed_should_return_true_if_user_has_no_permissions(
+    def test_get_is_communication_allowed_should_raise_exception_if_recipient_has_no_permissions(
             self, test_va_profile_client, rmock
     ):
         # TODO: Note that this behavior will change once we starting using default communication item permissions
@@ -673,9 +673,10 @@ class TestCommunicationPermissions:
 
         recipient_identifier = RecipientIdentifier(id_type='VAPROFILEID', id_value='1')
 
-        assert test_va_profile_client.get_is_communication_allowed(
-            recipient_identifier, 'some-random-id', 'some-notification-id'
-        )
+        with pytest.raises(CommunicationItemNotFoundException):
+            test_va_profile_client.get_is_communication_allowed(
+                recipient_identifier, 'some-random-id', 'some-notification-id'
+            )
 
     def test_get_is_communication_allowed_should_return_true_if_user_allows_communication_item(
             self, test_va_profile_client, rmock

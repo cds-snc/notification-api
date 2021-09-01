@@ -4,7 +4,7 @@ import pytest
 
 from app.celery.lookup_recipient_communication_permissions_task import (
     lookup_recipient_communication_permissions,
-    user_has_given_permission
+    recipient_has_given_permission
 )
 from app.feature_flags import FeatureFlag
 from app.models import NOTIFICATION_PREFERENCES_DECLINED
@@ -33,10 +33,10 @@ def mock_communication_item(mocker):
                  return_value=mock_communication_item)
 
 
-def test_lookup_recipient_communication_permissions_should_not_update_notification_status_if_user_has_permissions(
+def test_lookup_recipient_communication_permissions_should_not_update_notification_status_if_recipient_has_permissions(
         client, mocker, check_user_communication_permissions_enabled
 ):
-    mocker.patch('app.celery.lookup_recipient_communication_permissions_task.user_has_given_permission',
+    mocker.patch('app.celery.lookup_recipient_communication_permissions_task.recipient_has_given_permission',
                  return_value=True)
     mock_notification = mocker.Mock()
     mock_notification.id = 'some-id'
@@ -48,10 +48,10 @@ def test_lookup_recipient_communication_permissions_should_not_update_notificati
     update_notification.assert_not_called()
 
 
-def test_lookup_recipient_communication_permissions_should_not_send_if_user_does_not_give_permissions(
+def test_lookup_recipient_communication_permissions_should_not_send_if_recipient_has_given_permission(
         client, mocker, check_user_communication_permissions_enabled
 ):
-    mocker.patch('app.celery.lookup_recipient_communication_permissions_task.user_has_given_permission',
+    mocker.patch('app.celery.lookup_recipient_communication_permissions_task.recipient_has_given_permission',
                  return_value=False)
     update_notification = mocker.patch(
         'app.celery.lookup_recipient_communication_permissions_task.update_notification_status_by_id'
@@ -65,7 +65,7 @@ def test_lookup_recipient_communication_permissions_should_not_send_if_user_does
     update_notification.assert_called_once_with('some-id', NOTIFICATION_PREFERENCES_DECLINED)
 
 
-def test_user_has_given_permission_should_return_true_if_template_has_no_communication_item_id(
+def test_recipient_has_given_permission_should_return_true_if_template_has_no_communication_item_id(
         client, mocker, check_user_communication_permissions_enabled
 ):
     # TODO: note that this test will be incorrect once we add default communication item preference logic
@@ -75,10 +75,10 @@ def test_user_has_given_permission_should_return_true_if_template_has_no_communi
                  return_value=mock_template)
 
     mock_task = mocker.Mock()
-    assert user_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')
+    assert recipient_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')
 
 
-def test_user_has_given_permission_should_return_true_if_user_does_not_have_communication_item(
+def test_recipient_has_given_permission_should_return_true_if_user_does_not_have_communication_item(
         client, mocker, check_user_communication_permissions_enabled, mock_template, mock_communication_item
 ):
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
@@ -89,10 +89,10 @@ def test_user_has_given_permission_should_return_true_if_user_does_not_have_comm
     )
 
     mock_task = mocker.Mock()
-    assert user_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')
+    assert recipient_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')
 
 
-def test_user_has_given_permission_should_return_false_if_user_denies_permissions(
+def test_recipient_has_given_permission_should_return_false_if_user_denies_permissions(
         client, mocker, check_user_communication_permissions_enabled, mock_template, mock_communication_item
 ):
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
@@ -103,10 +103,10 @@ def test_user_has_given_permission_should_return_false_if_user_denies_permission
     )
 
     mock_task = mocker.Mock()
-    assert not user_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')
+    assert not recipient_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')
 
 
-def test_user_has_given_permission_should_return_true_if_user_grants_permissions(
+def test_recipient_has_given_permission_should_return_true_if_user_grants_permissions(
         client, mocker, check_user_communication_permissions_enabled, mock_template, mock_communication_item
 ):
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
@@ -117,4 +117,4 @@ def test_user_has_given_permission_should_return_true_if_user_grants_permissions
     )
 
     mock_task = mocker.Mock()
-    assert user_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')
+    assert recipient_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')
