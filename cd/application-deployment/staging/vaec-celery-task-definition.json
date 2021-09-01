@@ -26,7 +26,7 @@
         },
         {
           "name": "CHECK_USER_COMMUNICATION_PERMISSIONS_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "API_HOST_NAME",
