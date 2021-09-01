@@ -64,4 +64,5 @@ def user_has_given_permission(task, id_type: str, id_value: str, template_id: st
             )
             raise NotificationTechnicalFailureException(message) from e
     except CommunicationItemNotFoundException:
+        current_app.logger.info(f'Communication item for user {id_value} not found on notification {notification_id}')
         return True
