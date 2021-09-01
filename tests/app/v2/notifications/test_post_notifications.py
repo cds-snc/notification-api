@@ -1010,7 +1010,6 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
     send_to_queue.assert_called_once()
 
 
-@pytest.mark.skip(reason='wip')
 @pytest.mark.parametrize('notification_type', ["email", "sms"])
 def test_post_notification_updates_notification_status_when_recipient_declines_communications(
         client,
@@ -1023,32 +1022,26 @@ def test_post_notification_updates_notification_status_when_recipient_declines_c
         'app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled',
         return_value=True
     )
-    send_to_queue = mocker.patch(
-        'app.v2.notifications.post_notifications.send_notification_to_queue'
-    )
-    comm_prefs_task = mocker.patch(
-        'app.v2.notifications.post_notifications.lookup_recipient_communication_permissions.apply_async',
-    )
-    mocker.patch(
-        'app.celery.lookup_recipient_communication_permissions_task.recipient_has_given_permission',
-        return_value=False
-    )
 
     expected_id_type = IdentifierType.VA_PROFILE_ID.value
     expected_id_value = 'some va profile id'
 
+    template = (sample_email_template if notification_type == 'email' else sample_sms_template_with_html)
+
     if notification_type == "email":
         data = {
-            "template_id": sample_email_template.id,
+            "template_id": template.id,
             "email_address": "some-email@test.com",
             "recipient_identifier": {
                 'id_type': expected_id_type,
                 'id_value': expected_id_value
             }
         }
+
+        personalisation = None
     else:
         data = {
-            "template_id": sample_sms_template_with_html.id,
+            "template_id": template.id,
             "phone_number": "+16502532222",
             "recipient_identifier": {
                 'id_type': expected_id_type,
@@ -1058,9 +1051,32 @@ def test_post_notification_updates_notification_status_when_recipient_declines_c
                 "Name": "Flowers"
             }
         }
+
+        personalisation = data["personalisation"]
+
+    notification = mocker.Mock(Notification,
+                               service_id=template.service_id,
+                               service=template.service,
+                               template_id=template.id,
+                               template=template,
+                               personalisation=personalisation,
+                               status=NOTIFICATION_PREFERENCES_DECLINED,
+                               client_reference='ref1',
+                               billing_code=None,
+                               template_version=1,
+                               id='some-id')
+    mocker.patch(
+        'app.v2.notifications.post_notifications.persist_notification',
+        return_value=notification
+    )
+    send_to_queue = mocker.patch(
+        'app.v2.notifications.post_notifications.send_notification_to_queue'
+    )
+    mocker.patch(
+        'app.v2.notifications.post_notifications.lookup_recipient_communication_permissions.apply_async',
+    )
     auth_header = create_authorization_header(
-        service_id=(sample_email_template.service_id if notification_type == 'email'
-                    else sample_sms_template_with_html.service_id)
+        service_id=template.service_id,
     )
     response = client.post(
         path=f"v2/notifications/{notification_type}",
@@ -1068,11 +1084,7 @@ def test_post_notification_updates_notification_status_when_recipient_declines_c
         headers=[('Content-Type', 'application/json'), auth_header])
 
     assert response.status_code == 201
-    assert Notification.query.count() == 1
-    notification = Notification.query.one()
-    assert notification.status == NOTIFICATION_PREFERENCES_DECLINED
 
-    comm_prefs_task.assert_called_once()
     send_to_queue.assert_not_called()
 
 
