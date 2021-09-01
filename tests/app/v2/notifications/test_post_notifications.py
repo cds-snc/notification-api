@@ -897,7 +897,7 @@ def test_post_notification_returns_400_when_get_json_throws_exception(client, sa
     assert response.status_code == 400
 
 
-@pytest.mark.skip(reason='failing for some reason')
+@pytest.mark.skip(reason='failing in pipeline for some reason')
 @pytest.mark.parametrize(
     'expected_type, expected_value, task',
     [
