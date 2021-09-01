@@ -4,7 +4,6 @@ import pytest
 from freezegun import freeze_time
 
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
-from app.feature_flags import FeatureFlag
 from app.models import (
     ScheduledNotification,
     EMAIL_TYPE,
@@ -31,12 +30,6 @@ from tests.app.db import (
     create_service_with_inbound_number,
     create_api_key
 )
-from tests.app.oauth.test_rest import mock_toggle
-
-
-@pytest.fixture
-def check_user_communication_permissions_enabled(mocker):
-    mock_toggle(mocker, FeatureFlag.CHECK_USER_COMMUNICATION_PERMISSIONS_ENABLED, 'True')
 
 
 @pytest.fixture
