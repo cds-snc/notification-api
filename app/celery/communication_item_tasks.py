@@ -13,9 +13,13 @@ from app.va.va_profile import VAProfileRetryableException
 from app.va.va_profile.va_profile_client import CommunicationItemNotFoundException
 
 
-@notify_celery.task(bind=True, name="process-communication-item-request", max_retries=5, default_retry_delay=300)
+@notify_celery.task(
+    bind=True, name="lookup-recipient-communication-permissions", max_retries=5, default_retry_delay=300
+)
 @statsd(namespace="tasks")
-def process_communication_item_request(self, id_type: str, id_value: str, template_id: str, notification_id: str):
+def lookup_recipient_communication_permissions(
+        self, id_type: str, id_value: str, template_id: str, notification_id: str
+):
     current_app.logger.info(f"Looking up contact information for notification_id:{notification_id}.")
 
     if not user_has_given_permission(self, id_type, id_value, template_id, notification_id):

@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from freezegun import freeze_time
 from collections import namedtuple
 
-from app.celery.communication_item_tasks import process_communication_item_request
+from app.celery.communication_item_tasks import lookup_recipient_communication_permissions
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.provider_tasks import deliver_email, deliver_sms
@@ -602,22 +602,22 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
     (
         IdentifierType.VA_PROFILE_ID.value,
         EMAIL_TYPE,
-        [lookup_contact_info, process_communication_item_request, deliver_email]
+        [lookup_contact_info, lookup_recipient_communication_permissions, deliver_email]
     ),
     (
         IdentifierType.VA_PROFILE_ID.value,
         SMS_TYPE,
-        [lookup_contact_info, process_communication_item_request, deliver_sms]
+        [lookup_contact_info, lookup_recipient_communication_permissions, deliver_sms]
     ),
     (
         IdentifierType.ICN.value,
         EMAIL_TYPE,
-        [lookup_va_profile_id, lookup_contact_info, process_communication_item_request, deliver_email]
+        [lookup_va_profile_id, lookup_contact_info, lookup_recipient_communication_permissions, deliver_email]
     ),
     (
         IdentifierType.ICN.value,
         SMS_TYPE,
-        [lookup_va_profile_id, lookup_contact_info, process_communication_item_request, deliver_sms]
+        [lookup_va_profile_id, lookup_contact_info, lookup_recipient_communication_permissions, deliver_sms]
     ),
 ])
 def test_send_notification_to_correct_queue_to_lookup_contact_info(

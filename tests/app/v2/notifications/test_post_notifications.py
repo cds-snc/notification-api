@@ -905,13 +905,6 @@ def test_should_process_notification_successfully_with_va_profile_id_identifier(
     mocked_contact_info_lookup_task = mocker.patch(
         'app.celery.contact_information_tasks.lookup_contact_info.apply_async'
     )
-    mocked_communication_pref_lookup_task = mocker.patch(
-        'app.celery.communication_item_tasks.process_communication_item_request.apply_async'
-    )
-
-    mocked_deliver_email_task = mocker.patch(
-        'app.celery.provider_tasks.deliver_email.apply_async'
-    )
 
     expected_type = IdentifierType.VA_PROFILE_ID.value
     expected_value = 'some va profile id'
@@ -935,8 +928,6 @@ def test_should_process_notification_successfully_with_va_profile_id_identifier(
     assert notification.recipient_identifiers[expected_type].id_value == expected_value
 
     mocked_contact_info_lookup_task.assert_called_once()
-    mocked_communication_pref_lookup_task.assert_called_once()
-    mocked_deliver_email_task.assert_called_once()
 
 
 @pytest.mark.parametrize(

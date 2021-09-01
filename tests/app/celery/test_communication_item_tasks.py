@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from app.celery.communication_item_tasks import process_communication_item_request, user_has_given_permission
+from app.celery.communication_item_tasks import lookup_recipient_communication_permissions, user_has_given_permission
 from app.feature_flags import FeatureFlag
 from app.models import NOTIFICATION_PREFERENCES_DECLINED
 from app.va.va_profile.va_profile_client import CommunicationItemNotFoundException, VAProfileClient
@@ -28,7 +28,7 @@ def mock_communication_item(mocker):
     mocker.patch('app.celery.communication_item_tasks.get_communication_item', return_value=mock_communication_item)
 
 
-def test_process_communication_item_request_should_not_update_notification_status_if_user_has_permissions(
+def test_lookup_recipient_communication_permissions_should_not_update_notification_status_if_user_has_permissions(
         client, mocker, check_user_communication_permissions_enabled
 ):
     mocker.patch('app.celery.communication_item_tasks.user_has_given_permission',
@@ -37,11 +37,11 @@ def test_process_communication_item_request_should_not_update_notification_statu
     mock_notification.id = 'some-id'
     update_notification = mocker.patch('app.celery.communication_item_tasks.update_notification_status_by_id')
 
-    process_communication_item_request('VAPROFILEID', '1', uuid.uuid4(), mock_notification.id)
+    lookup_recipient_communication_permissions('VAPROFILEID', '1', uuid.uuid4(), mock_notification.id)
     update_notification.assert_not_called()
 
 
-def test_process_communication_item_request_should_not_send_if_user_does_not_give_permissions(
+def test_lookup_recipient_communication_permissions_should_not_send_if_user_does_not_give_permissions(
         client, mocker, check_user_communication_permissions_enabled
 ):
     mocker.patch('app.celery.communication_item_tasks.user_has_given_permission',
@@ -51,7 +51,7 @@ def test_process_communication_item_request_should_not_send_if_user_does_not_giv
     mock_notification = mocker.Mock()
     mock_notification.id = 'some-id'
 
-    process_communication_item_request('VAPROFILEID', '1', uuid.uuid4(), mock_notification.id)
+    lookup_recipient_communication_permissions('VAPROFILEID', '1', uuid.uuid4(), mock_notification.id)
 
     update_notification.assert_called_once_with('some-id', NOTIFICATION_PREFERENCES_DECLINED)
 
