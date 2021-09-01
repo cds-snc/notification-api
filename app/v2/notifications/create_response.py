@@ -41,5 +41,6 @@ def __create_notification_response(notification, url_root, scheduled_for):
                 str(notification.template_id)
             )
         },
+        "billing_code": notification.billing_code if notification.billing_code else None,
         "scheduled_for": scheduled_for if scheduled_for else None
     }
