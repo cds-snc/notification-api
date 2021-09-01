@@ -20,8 +20,9 @@ from app.schema_validation import validate
 from app.v2.errors import RateLimitError
 from app.v2.notifications.notification_schemas import post_sms_response, post_email_response
 from app.va.identifier import IdentifierType
-from tests import create_authorization_header
+from app.config import QueueNames
 
+from tests import create_authorization_header
 from tests.app.db import (
     create_service,
     create_template,
@@ -934,6 +935,73 @@ def test_should_process_notification_successfully_with_recipient_identifiers(
     assert notification.recipient_identifiers[expected_type].id_value == expected_value
 
     mocked_task.assert_called_once()
+
+
+@pytest.mark.parametrize('notification_type', ["email", "sms"])
+def test_should_post_notification_successfully_with_recipient_identifier_and_contact_info(
+        client,
+        mocker,
+        sample_email_template,
+        sample_sms_template_with_html,
+        notification_type
+):
+    mocker.patch(
+        'app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled',
+        return_value=True
+    )
+    mocker.patch(
+        'app.v2.notifications.post_notifications.send_notification_to_queue'
+    )
+    mocked_task = mocker.patch(
+        'app.v2.notifications.post_notifications.lookup_recipient_communication_permissions.apply_async',
+    )
+
+    expected_id_type = IdentifierType.VA_PROFILE_ID.value
+    expected_id_value = 'some va profile id'
+
+    if notification_type == "email":
+        data = {
+            "template_id": sample_email_template.id,
+            "email_address": "some-email@test.com",
+            "recipient_identifier": {
+                'id_type': expected_id_type,
+                'id_value': expected_id_value
+            }
+        }
+    else:
+        data = {
+            "template_id": sample_sms_template_with_html.id,
+            "phone_number": "+16502532222",
+            "recipient_identifier": {
+                'id_type': expected_id_type,
+                'id_value': expected_id_value
+            },
+            "personalisation": {
+                "Name": "Flowers"
+            }
+        }
+    auth_header = create_authorization_header(
+        service_id=(sample_email_template.service_id if notification_type == 'email'
+                    else sample_sms_template_with_html.service_id)
+    )
+    response = client.post(
+        path=f"v2/notifications/{notification_type}",
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header])
+
+    assert response.status_code == 201
+    assert Notification.query.count() == 1
+    assert RecipientIdentifier.query.count() == 1
+    notification = Notification.query.one()
+    assert notification.status == NOTIFICATION_CREATED
+    assert notification.recipient_identifiers[expected_id_type].id_type == expected_id_type
+    assert notification.recipient_identifiers[expected_id_type].id_value == expected_id_value
+
+    mocked_task.assert_called_once_with([expected_id_type,
+                                         expected_id_value,
+                                         str(data['template_id']),
+                                         str(notification.id)],
+                                        queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
 
 
 def test_post_notification_returns_501_when_recipient_identifiers_present_and_feature_flag_disabled(

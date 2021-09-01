@@ -59,6 +59,9 @@ from app.v2.notifications.notification_schemas import (
     post_letter_request,
     post_precompiled_letter_request
 )
+from app.celery.lookup_recipient_communication_permissions_task import (
+    lookup_recipient_communication_permissions
+)
 
 
 @v2_notification_blueprint.route('/{}'.format(LETTER_TYPE), methods=['POST'])
@@ -216,6 +219,20 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         recipient_identifier=form.get('recipient_identifier', None),
         billing_code=form.get('billing_code', None)
     )
+
+    recipient_identifier = form.get('recipient_identifier')
+    if recipient_identifier:
+        lookup_recipient_communication_permissions.apply_async(
+            [
+                recipient_identifier['id_type'],
+                recipient_identifier['id_value'],
+                str(template.id),
+                str(notification.id)
+            ],
+            queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
+        )
+
+    # TODO://  add handling if notification prefs declines
 
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:
