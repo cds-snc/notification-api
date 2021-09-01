@@ -25,7 +25,8 @@ from app.models import (
     NOTIFICATION_CREATED,
     NOTIFICATION_SENDING,
     NOTIFICATION_DELIVERED,
-    NOTIFICATION_PENDING_VIRUS_CHECK
+    NOTIFICATION_PENDING_VIRUS_CHECK,
+    NOTIFICATION_PREFERENCES_DECLINED
 )
 from app.notifications.process_letter_notifications import (
     create_letter_notification
@@ -232,7 +233,8 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
         )
 
-    # TODO://  add handling if notification prefs declines
+    if notification.status == NOTIFICATION_PREFERENCES_DECLINED:
+        return notification
 
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:
