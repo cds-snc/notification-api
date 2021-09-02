@@ -30,7 +30,7 @@ def lookup_recipient_communication_permissions(
 
 
 def recipient_has_given_permission(task, id_type: str, id_value: str, template_id: str, notification_id: str) -> bool:
-    if not is_feature_enabled(FeatureFlag.CHECK_USER_COMMUNICATION_PERMISSIONS_ENABLED):
+    if not is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED):
         current_app.logger.info(f'Communication item permissions feature flag is off')
         return True
 

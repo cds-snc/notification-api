@@ -27,7 +27,7 @@
           "value": "production"
         },
         {
-          "name": "CHECK_USER_COMMUNICATION_PERMISSIONS_ENABLED",
+          "name": "CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED",
           "value": "False"
         },
         {

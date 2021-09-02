@@ -463,7 +463,7 @@ class Config(object):
     GOOGLE_ANALYTICS_URL = os.getenv('GOOGLE_ANALYTICS_URL', 'https://www.google-analytics.com/collect')
     GOOGLE_ANALYTICS_TID = os.getenv('GOOGLE_ANALYTICS_TID', 'UA-50123418-17')
 
-    CHECK_USER_COMMUNICATION_PERMISSIONS_ENABLED = True
+    CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED = True
 
 ######################
 # Config overrides ###
