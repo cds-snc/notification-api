@@ -94,10 +94,10 @@ class VAProfileClient:
         )
         response = self._make_request(url, recipient_id)
         self.logger.info('Made request to communication-permissions VAProfile endpoint for '
-                         f'user {recipient_identifier} for notification {notification_id}')
+                         f'recipient {recipient_identifier} for notification {notification_id}')
 
         if response.get('messages', None):
-            self.logger.info(f'User {recipient_id} has no permissions for notification {notification_id}')
+            self.logger.info(f'Recipient {recipient_id} has no permissions for notification {notification_id}')
             # TODO: use default communication item settings when that has been implemented
             raise CommunicationItemNotFoundException
 
@@ -105,13 +105,13 @@ class VAProfileClient:
 
         for bio in all_bios:
             if str(bio['communicationItemId']) == str(communication_item_id):
-                self.logger.info(f'Found communication item id {communication_item_id} on user {recipient_id} for '
+                self.logger.info(f'Found communication item id {communication_item_id} on recipient {recipient_id} for '
                                  f'notification {notification_id}')
                 self.logger.info(f'Value of allowed is {bio["allowed"]} for notification {notification_id}')
                 self.statsd_client.incr("clients.va-profile.get-communication-item-permission.success")
                 return bio['allowed'] is True
 
-        self.logger.info(f'User {recipient_id} did not have communication item {communication_item_id} for '
+        self.logger.info(f'Recipient {recipient_id} did not have communication item {communication_item_id} for '
                          f'notification {notification_id}')
         raise CommunicationItemNotFoundException
 
@@ -130,7 +130,7 @@ class VAProfileClient:
 
             failure_reason = (
                 f'Received {responses[e.response.status_code]} HTTP error ({e.response.status_code}) while making a '
-                'request to obtain contact info from VA Profile'
+                'request to obtain info from VA Profile'
             )
 
             if e.response.status_code in [429, 500, 502, 503, 504]:

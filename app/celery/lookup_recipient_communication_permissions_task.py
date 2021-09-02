@@ -31,7 +31,7 @@ def lookup_recipient_communication_permissions(
 
 def recipient_has_given_permission(task, id_type: str, id_value: str, template_id: str, notification_id: str) -> bool:
     if not is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED):
-        current_app.logger.info(f'Communication item permissions feature flag is off')
+        current_app.logger.info(f'Recipient communication permissions feature flag is off')
         return True
 
     identifier = RecipientIdentifier(id_type=id_type, id_value=id_value)
@@ -41,7 +41,7 @@ def recipient_has_given_permission(task, id_type: str, id_value: str, template_i
 
     if not communication_item_id:
         current_app.logger.info(
-            f'User {id_value} does not have requested communication item id for notification {notification_id}'
+            f'Recipient {id_value} does not have requested communication item id for notification {notification_id}'
         )
         return True
 
@@ -51,7 +51,7 @@ def recipient_has_given_permission(task, id_type: str, id_value: str, template_i
         is_allowed = va_profile_client.get_is_communication_allowed(
             identifier, communication_item.va_profile_item_id, notification_id
         )
-        current_app.logger.info(f'Value of permission for item {communication_item.va_profile_item_id} for user '
+        current_app.logger.info(f'Value of permission for item {communication_item.va_profile_item_id} for recipient '
                                 f'{id_value} for notification {notification_id}: {is_allowed}')
         return is_allowed
     except VAProfileRetryableException as e:
@@ -61,7 +61,7 @@ def recipient_has_given_permission(task, id_type: str, id_value: str, template_i
         except task.MaxRetriesExceededError:
             message = (
                 'RETRY FAILED: Max retries reached. '
-                f'The task lookup_contact_info failed for notification {notification_id}. '
+                f'The task lookup_recipient_communication_permissions failed for notification {notification_id}. '
                 'Notification has been updated to technical-failure'
             )
 
@@ -70,5 +70,6 @@ def recipient_has_given_permission(task, id_type: str, id_value: str, template_i
             )
             raise NotificationTechnicalFailureException(message) from e
     except CommunicationItemNotFoundException:
-        current_app.logger.info(f'Communication item for user {id_value} not found on notification {notification_id}')
+        current_app.logger.info(f'Communication item for recipient {id_value} not found on notification '
+                                f'{notification_id}')
         return True
