@@ -314,7 +314,8 @@ def test_post_email_notification_returns_201(client, sample_email_template_with_
     data = {
         "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
         "template_id": sample_email_template_with_placeholders.id,
-        "personalisation": {"name": "Bob"}
+        "personalisation": {"name": "Bob"},
+        "billing_code": "TESTCODE"
     }
     if reference:
         data.update({"reference": reference})
@@ -330,6 +331,7 @@ def test_post_email_notification_returns_201(client, sample_email_template_with_
     assert notification.status == NOTIFICATION_CREATED
     assert notification.postage is None
     assert resp_json['id'] == str(notification.id)
+    assert resp_json['billing_code'] == "TESTCODE"
     assert resp_json['reference'] == reference
     assert notification.reference is None
     assert notification.reply_to_text is None
@@ -968,7 +970,8 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
             "recipient_identifier": {
                 'id_type': expected_id_type,
                 'id_value': expected_id_value
-            }
+            },
+            "billing_code": "TESTCODE"
         }
     else:
         data = {
@@ -980,7 +983,8 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
             },
             "personalisation": {
                 "Name": "Flowers"
-            }
+            },
+            "billing_code": "TESTCODE"
         }
     auth_header = create_authorization_header(
         service_id=(sample_email_template.service_id if notification_type == 'email'
