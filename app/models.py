@@ -47,6 +47,11 @@ SMS_TYPE = 'sms'
 EMAIL_TYPE = 'email'
 LETTER_TYPE = 'letter'
 
+VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES = {
+    EMAIL_TYPE: 'Email',
+    SMS_TYPE: 'Text'
+}
+
 TEMPLATE_TYPES = [SMS_TYPE, EMAIL_TYPE, LETTER_TYPE]
 
 template_types = db.Enum(*TEMPLATE_TYPES, name='template_type')

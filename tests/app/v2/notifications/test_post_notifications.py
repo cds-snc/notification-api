@@ -1008,7 +1008,8 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
     comm_prefs_task.assert_called_once_with([expected_id_type,
                                              expected_id_value,
                                              str(data['template_id']),
-                                             str(notification.id)],
+                                             str(notification.id),
+                                             notification_type],
                                             queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
 
     send_to_queue.assert_called_once()

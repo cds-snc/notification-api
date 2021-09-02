@@ -7,7 +7,7 @@ from app.celery.lookup_recipient_communication_permissions_task import (
     recipient_has_given_permission
 )
 from app.feature_flags import FeatureFlag
-from app.models import NOTIFICATION_PREFERENCES_DECLINED
+from app.models import NOTIFICATION_PREFERENCES_DECLINED, SMS_TYPE
 from app.va.va_profile.va_profile_client import CommunicationItemNotFoundException, VAProfileClient
 from tests.app.oauth.test_rest import mock_toggle
 
@@ -44,7 +44,7 @@ def test_lookup_recipient_communication_permissions_should_not_update_notificati
         'app.celery.lookup_recipient_communication_permissions_task.update_notification_status_by_id'
     )
 
-    lookup_recipient_communication_permissions('VAPROFILEID', '1', uuid.uuid4(), mock_notification.id)
+    lookup_recipient_communication_permissions('VAPROFILEID', '1', uuid.uuid4(), mock_notification.id, SMS_TYPE)
     update_notification.assert_not_called()
 
 
@@ -60,7 +60,7 @@ def test_lookup_recipient_communication_permissions_should_not_send_if_recipient
     mock_notification = mocker.Mock()
     mock_notification.id = 'some-id'
 
-    lookup_recipient_communication_permissions('VAPROFILEID', '1', uuid.uuid4(), mock_notification.id)
+    lookup_recipient_communication_permissions('VAPROFILEID', '1', uuid.uuid4(), mock_notification.id, SMS_TYPE)
 
     update_notification.assert_called_once_with('some-id', NOTIFICATION_PREFERENCES_DECLINED)
 
@@ -75,7 +75,9 @@ def test_recipient_has_given_permission_should_return_true_if_template_has_no_co
                  return_value=mock_template)
 
     mock_task = mocker.Mock()
-    assert recipient_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')
+    assert recipient_has_given_permission(
+        mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id', SMS_TYPE
+    )
 
 
 def test_recipient_has_given_permission_should_return_true_if_user_does_not_have_communication_item(
@@ -89,7 +91,9 @@ def test_recipient_has_given_permission_should_return_true_if_user_does_not_have
     )
 
     mock_task = mocker.Mock()
-    assert recipient_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')
+    assert recipient_has_given_permission(
+        mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id', SMS_TYPE
+    )
 
 
 def test_recipient_has_given_permission_should_return_false_if_user_denies_permissions(
@@ -103,7 +107,9 @@ def test_recipient_has_given_permission_should_return_false_if_user_denies_permi
     )
 
     mock_task = mocker.Mock()
-    assert not recipient_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')
+    assert not recipient_has_given_permission(
+        mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id', SMS_TYPE
+    )
 
 
 def test_recipient_has_given_permission_should_return_true_if_user_grants_permissions(
@@ -117,4 +123,6 @@ def test_recipient_has_given_permission_should_return_true_if_user_grants_permis
     )
 
     mock_task = mocker.Mock()
-    assert recipient_has_given_permission(mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id')
+    assert recipient_has_given_permission(
+        mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id', SMS_TYPE
+    )

@@ -180,7 +180,7 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
         tasks = [
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
             lookup_recipient_communication_permissions.si(
-                id_type, id_value, template_id, notification.id
+                id_type, id_value, template_id, notification.id, notification.notification_type
             ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS),
             deliver_task.si(notification.id).set(queue=deliver_queue)
         ]
@@ -189,7 +189,7 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
             lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
             lookup_recipient_communication_permissions.si(
-                id_type, id_value, template_id, notification.id
+                id_type, id_value, template_id, notification.id, notification.notification_type
             ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS),
             deliver_task.si(notification.id).set(queue=deliver_queue)
         ]

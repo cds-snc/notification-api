@@ -77,8 +77,10 @@ class VAProfileClient:
         return phone_number
 
     def get_is_communication_allowed(
-            self, recipient_identifier, communication_item_id: str, notification_id: str
+            self, recipient_identifier, communication_item_id: str, notification_id: str, notification_type: str
     ) -> bool:
+        from app.models import VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES
+
         self.logger.info(f'Called get_is_communication_allowed for notification {notification_id}')
         recipient_id = transform_to_fhir_format(recipient_identifier)
         identifier_type = IdentifierType(recipient_identifier.id_type)
@@ -86,7 +88,7 @@ class VAProfileClient:
 
         url = (
             f'{self.va_profile_url}/communication-hub/communication/v1/'
-            f'{oid}/{recipient_id}/communication-permissions'
+            f'{oid}/{recipient_id}/communication-permissions?communicationItemId={communication_item_id}'
         )
         self.logger.info(
             f'VA Profile URL used for making request to get communication-permissions for notification '
@@ -104,9 +106,9 @@ class VAProfileClient:
         all_bios = response['bios']
 
         for bio in all_bios:
-            if str(bio['communicationItemId']) == str(communication_item_id):
-                self.logger.info(f'Found communication item id {communication_item_id} on recipient {recipient_id} for '
-                                 f'notification {notification_id}')
+            self.logger.info(f'Found communication item id {communication_item_id} on recipient {recipient_id} for '
+                             f'notification {notification_id}')
+            if bio['communicationChannelName'] == VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES[notification_type]:
                 self.logger.info(f'Value of allowed is {bio["allowed"]} for notification {notification_id}')
                 self.statsd_client.incr("clients.va-profile.get-communication-item-permission.success")
                 return bio['allowed'] is True

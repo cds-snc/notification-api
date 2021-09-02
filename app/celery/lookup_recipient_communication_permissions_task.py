@@ -18,18 +18,20 @@ from app.va.va_profile.va_profile_client import CommunicationItemNotFoundExcepti
 )
 @statsd(namespace="tasks")
 def lookup_recipient_communication_permissions(
-        self, id_type: str, id_value: str, template_id: str, notification_id: str
+        self, id_type: str, id_value: str, template_id: str, notification_id: str, notification_type: str
 ) -> None:
     current_app.logger.info(f"Looking up contact information for notification_id:{notification_id}.")
 
-    if not recipient_has_given_permission(self, id_type, id_value, template_id, notification_id):
+    if not recipient_has_given_permission(self, id_type, id_value, template_id, notification_id, notification_type):
         update_notification_status_by_id(notification_id, NOTIFICATION_PREFERENCES_DECLINED)
         current_app.logger.info(f"Recipient for notification {notification_id}"
                                 f"has declined permission to receive notifications")
         self.request.chain = None
 
 
-def recipient_has_given_permission(task, id_type: str, id_value: str, template_id: str, notification_id: str) -> bool:
+def recipient_has_given_permission(
+        task, id_type: str, id_value: str, template_id: str, notification_id: str, notification_type: str
+) -> bool:
     if not is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED):
         current_app.logger.info(f'Recipient communication permissions feature flag is off')
         return True
@@ -49,7 +51,7 @@ def recipient_has_given_permission(task, id_type: str, id_value: str, template_i
 
     try:
         is_allowed = va_profile_client.get_is_communication_allowed(
-            identifier, communication_item.va_profile_item_id, notification_id
+            identifier, communication_item.va_profile_item_id, notification_id, notification_type
         )
         current_app.logger.info(f'Value of permission for item {communication_item.va_profile_item_id} for recipient '
                                 f'{id_value} for notification {notification_id}: {is_allowed}')

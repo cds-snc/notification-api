@@ -228,7 +228,8 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
                 recipient_identifier['id_type'],
                 recipient_identifier['id_value'],
                 str(template.id),
-                str(notification.id)
+                str(notification.id),
+                notification_type
             ],
             queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
         )
