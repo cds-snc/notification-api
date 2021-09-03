@@ -128,7 +128,8 @@ valid_json_with_optionals = {
     "phone_number": "6502532222",
     "template_id": str(uuid.uuid4()),
     "reference": "reference from caller",
-    "personalisation": {"key": "value"}
+    "personalisation": {"key": "value"},
+    "billing_code": "TESTCODE"
 }
 
 
