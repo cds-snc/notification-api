@@ -19,7 +19,7 @@ from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
-from app.feature_flags import accept_recipient_identifiers_enabled
+from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
 
 from app.models import (
     EMAIL_TYPE,
@@ -179,20 +179,31 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
     if id_type == IdentifierType.VA_PROFILE_ID.value:
         tasks = [
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
-            lookup_recipient_communication_permissions.si(
-                id_type, id_value, template_id, notification.id, notification.notification_type
-            ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS),
             deliver_task.si(notification.id).set(queue=deliver_queue)
         ]
+        if is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED):
+            tasks.insert(
+                1,
+                lookup_recipient_communication_permissions.si(
+                    id_type, id_value, template_id, notification.id, notification.notification_type
+                ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
+            )
+
     else:
+        # TODO: use va profile id so we don't hit mpi multiple times?
         tasks = [
             lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
-            lookup_recipient_communication_permissions.si(
-                id_type, id_value, template_id, notification.id, notification.notification_type
-            ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS),
             deliver_task.si(notification.id).set(queue=deliver_queue)
         ]
+
+        if is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED):
+            tasks.insert(
+                2,
+                lookup_recipient_communication_permissions.si(
+                    id_type, id_value, template_id, notification.id, notification.notification_type
+                ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
+            )
 
     chain(*tasks).apply_async()
 

@@ -12,7 +12,7 @@ from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
-from app.feature_flags import accept_recipient_identifiers_enabled
+from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
 from app.letters.utils import upload_letter_pdf
 from app.models import (
     SMS_TYPE,
@@ -222,7 +222,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
     )
 
     recipient_identifier = form.get('recipient_identifier')
-    if recipient_identifier:
+    if recipient_identifier and is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED):
         lookup_recipient_communication_permissions.apply_async(
             [
                 recipient_identifier['id_type'],
@@ -234,8 +234,8 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
         )
 
-    if notification.status == NOTIFICATION_PREFERENCES_DECLINED:
-        return notification
+        if notification.status == NOTIFICATION_PREFERENCES_DECLINED:  # TODO: will not ever get here bc of queue stuff
+            return notification
 
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:

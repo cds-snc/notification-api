@@ -7,7 +7,6 @@ from app.dao.communication_item_dao import get_communication_item
 from app.dao.notifications_dao import update_notification_status_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import NotificationTechnicalFailureException
-from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.models import RecipientIdentifier, NOTIFICATION_PREFERENCES_DECLINED, NOTIFICATION_TECHNICAL_FAILURE
 from app.va.va_profile import VAProfileRetryableException
 from app.va.va_profile.va_profile_client import CommunicationItemNotFoundException
@@ -32,14 +31,10 @@ def lookup_recipient_communication_permissions(
 def recipient_has_given_permission(
         task, id_type: str, id_value: str, template_id: str, notification_id: str, notification_type: str
 ) -> bool:
-    if not is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED):
-        current_app.logger.info(f'Recipient communication permissions feature flag is off')
-        return True
-
     identifier = RecipientIdentifier(id_type=id_type, id_value=id_value)
     template = dao_get_template_by_id(template_id)
 
-    communication_item_id = template.communication_item_id
+    communication_item_id = template.communication_item_id  # TODO: move this out of task
 
     if not communication_item_id:
         current_app.logger.info(
