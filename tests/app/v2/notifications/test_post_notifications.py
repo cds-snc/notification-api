@@ -13,16 +13,17 @@ from app.models import (
     SMS_TYPE,
     UPLOAD_DOCUMENT,
     INTERNATIONAL_SMS_TYPE,
-    RecipientIdentifier
+    RecipientIdentifier,
+    Notification
 )
 from flask import json, current_app
 
-from app.models import Notification
 from app.schema_validation import validate
 from app.v2.errors import RateLimitError
 from app.v2.notifications.notification_schemas import post_sms_response, post_email_response
 from app.va.identifier import IdentifierType
 from app.config import QueueNames
+from app.feature_flags import FeatureFlag
 
 from tests import create_authorization_header
 from tests.app.db import (
@@ -33,6 +34,7 @@ from tests.app.db import (
     create_service_with_inbound_number,
     create_api_key
 )
+from tests.app.oauth.test_rest import mock_toggle
 
 
 @pytest.fixture
@@ -59,6 +61,11 @@ def mock_api_key(mocker):
     mock_api_key.key_type = 'some-type'
 
     return mock_api_key
+
+
+@pytest.fixture
+def check_recipient_communication_permissions_enabled(mocker):
+    mock_toggle(mocker, FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED, 'True')
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
@@ -953,7 +960,8 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
         enable_accept_recipient_identifiers_enabled_feature_flag,
         sample_email_template,
         sample_sms_template_with_html,
-        notification_type
+        notification_type,
+        check_recipient_communication_permissions_enabled
 ):
     send_to_queue = mocker.patch(
         'app.v2.notifications.post_notifications.send_notification_to_queue'
@@ -1026,7 +1034,8 @@ def test_post_notification_updates_notification_status_when_recipient_declines_c
         enable_accept_recipient_identifiers_enabled_feature_flag,
         sample_email_template,
         sample_sms_template_with_html,
-        notification_type
+        notification_type,
+        check_recipient_communication_permissions_enabled
 ):
     expected_id_type = IdentifierType.VA_PROFILE_ID.value
     expected_id_value = 'some va profile id'

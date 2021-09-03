@@ -30,8 +30,11 @@ from app.notifications.process_notifications import (
 from notifications_utils.recipients import validate_and_format_phone_number, validate_and_format_email_address
 from app.v2.errors import BadRequestError
 from app.va.identifier import IdentifierType
+from app.feature_flags import FeatureFlag
+
 
 from tests.app.db import create_service, create_template
+from tests.app.oauth.test_rest import mock_toggle
 
 
 def test_create_content_for_notification_passes(sample_email_template):
@@ -598,6 +601,11 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
     assert notification.recipient_identifiers == {}
 
 
+@pytest.fixture
+def check_recipient_communication_permissions_enabled(mocker):
+    mock_toggle(mocker, FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED, 'True')
+
+
 @pytest.mark.parametrize('id_type, notification_type, expected_tasks', [
     (
         IdentifierType.VA_PROFILE_ID.value,
@@ -625,7 +633,8 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
         mocker,
         notification_type,
         id_type,
-        expected_tasks
+        expected_tasks,
+        check_recipient_communication_permissions_enabled
 ):
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
 
