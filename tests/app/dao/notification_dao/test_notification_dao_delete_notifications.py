@@ -356,3 +356,14 @@ def test_insert_update_notification_history_updates_history_with_new_status(samp
     history = NotificationHistory.query.get(notification_2.id)
     assert history.status == 'delivered'
     assert not NotificationHistory.query.get(notification_1.id)
+
+
+def test_insert_update_notification_history_updates_history_with_billing_code(sample_template):
+    notification_1 = create_notification(template=sample_template, created_at=datetime.utcnow() - timedelta(days=3))
+    notification_2 = create_notification(template=sample_template, created_at=datetime.utcnow() - timedelta(days=8),
+                                         billing_code='TESTCODE')
+    insert_update_notification_history(
+        'sms', datetime.utcnow() - timedelta(days=7), sample_template.service_id)
+    history = NotificationHistory.query.get(notification_2.id)
+    assert history.billing_code == 'TESTCODE'
+    assert not NotificationHistory.query.get(notification_1.id)

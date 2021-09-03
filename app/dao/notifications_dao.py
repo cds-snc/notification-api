@@ -393,6 +393,7 @@ def insert_update_notification_history(notification_type, date_to_delete_from, s
         set_={"notification_status": stmt.excluded.status,
               "reference": stmt.excluded.reference,
               "billable_units": stmt.excluded.billable_units,
+              "billing_code": stmt.excluded.billing_code,
               "updated_at": stmt.excluded.updated_at,
               "sent_at": stmt.excluded.sent_at,
               "sent_by": stmt.excluded.sent_by
