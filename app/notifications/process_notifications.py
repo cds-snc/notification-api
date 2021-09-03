@@ -173,7 +173,7 @@ def _get_delivery_task(notification, research_mode=False, queue=None):
 
 
 def send_to_queue_for_recipient_info_based_on_recipient_identifier(
-        notification: Notification, id_type: str, id_value: str, template_id: uuid
+        notification: Notification, id_type: str, id_value: str, communication_item_id: uuid
 ) -> None:
     deliver_task, deliver_queue = _get_delivery_task(notification)
     if id_type == IdentifierType.VA_PROFILE_ID.value:
@@ -181,11 +181,11 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
             deliver_task.si(notification.id).set(queue=deliver_queue)
         ]
-        if is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED):
+        if is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED) and communication_item_id:
             tasks.insert(
                 1,
                 lookup_recipient_communication_permissions.si(
-                    id_type, id_value, template_id, notification.id, notification.notification_type
+                    id_type, id_value, notification.id, notification.notification_type, communication_item_id
                 ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
             )
 
@@ -197,11 +197,11 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
             deliver_task.si(notification.id).set(queue=deliver_queue)
         ]
 
-        if is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED):
+        if is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED) and communication_item_id:
             tasks.insert(
                 2,
                 lookup_recipient_communication_permissions.si(
-                    id_type, id_value, template_id, notification.id, notification.notification_type
+                    id_type, id_value, notification.id, notification.notification_type, communication_item_id
                 ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
             )
 

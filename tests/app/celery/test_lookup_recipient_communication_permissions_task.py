@@ -1,5 +1,3 @@
-import uuid
-
 import pytest
 
 from app.celery.lookup_recipient_communication_permissions_task import (
@@ -7,15 +5,7 @@ from app.celery.lookup_recipient_communication_permissions_task import (
     recipient_has_given_permission
 )
 from app.models import NOTIFICATION_PREFERENCES_DECLINED, SMS_TYPE
-from app.va.va_profile.va_profile_client import CommunicationItemNotFoundException, VAProfileClient
-
-
-@pytest.fixture
-def mock_template(mocker):
-    mock_template = mocker.Mock()
-    mock_template.communication_item_id = 'some-communication-item-id'
-    mocker.patch('app.celery.lookup_recipient_communication_permissions_task.dao_get_template_by_id',
-                 return_value=mock_template)
+from app.va.va_profile.va_profile_client import VAProfileClient
 
 
 @pytest.fixture
@@ -37,11 +27,13 @@ def test_lookup_recipient_communication_permissions_should_not_update_notificati
         'app.celery.lookup_recipient_communication_permissions_task.update_notification_status_by_id'
     )
 
-    lookup_recipient_communication_permissions('VAPROFILEID', '1', uuid.uuid4(), mock_notification.id, SMS_TYPE)
+    lookup_recipient_communication_permissions(
+        'VAPROFILEID', '1', mock_notification.id, SMS_TYPE, 'some-communication-item-id'
+    )
     update_notification.assert_not_called()
 
 
-def test_lookup_recipient_communication_permissions_should_not_send_if_recipient_has_given_permission(
+def test_lookup_recipient_communication_permissions_should_not_send_if_recipient_has_not_given_permission(
         client, mocker
 ):
     mocker.patch('app.celery.lookup_recipient_communication_permissions_task.recipient_has_given_permission',
@@ -53,44 +45,15 @@ def test_lookup_recipient_communication_permissions_should_not_send_if_recipient
     mock_notification = mocker.Mock()
     mock_notification.id = 'some-id'
 
-    lookup_recipient_communication_permissions('VAPROFILEID', '1', uuid.uuid4(), mock_notification.id, SMS_TYPE)
+    lookup_recipient_communication_permissions(
+        'VAPROFILEID', '1', mock_notification.id, SMS_TYPE, 'some-communication-item-id'
+    )
 
     update_notification.assert_called_once_with('some-id', NOTIFICATION_PREFERENCES_DECLINED)
 
 
-def test_recipient_has_given_permission_should_return_true_if_template_has_no_communication_item_id(
-        client, mocker
-):
-    # TODO: note that this test will be incorrect once we add default communication item preference logic
-    mock_template = mocker.Mock()
-    mock_template.communication_item_id = None
-    mocker.patch('app.celery.lookup_recipient_communication_permissions_task.dao_get_template_by_id',
-                 return_value=mock_template)
-
-    mock_task = mocker.Mock()
-    assert recipient_has_given_permission(
-        mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id', SMS_TYPE
-    )
-
-
-def test_recipient_has_given_permission_should_return_true_if_user_does_not_have_communication_item(
-        client, mocker, mock_template, mock_communication_item
-):
-    mocked_va_profile_client = mocker.Mock(VAProfileClient)
-    mocked_va_profile_client.get_is_communication_allowed = mocker.Mock(side_effect=CommunicationItemNotFoundException)
-    mocker.patch(
-        'app.celery.lookup_recipient_communication_permissions_task.va_profile_client',
-        new=mocked_va_profile_client
-    )
-
-    mock_task = mocker.Mock()
-    assert recipient_has_given_permission(
-        mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id', SMS_TYPE
-    )
-
-
 def test_recipient_has_given_permission_should_return_false_if_user_denies_permissions(
-        client, mocker, mock_template, mock_communication_item
+        client, mocker, mock_communication_item
 ):
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
     mocked_va_profile_client.get_is_communication_allowed = mocker.Mock(return_value=False)
@@ -101,12 +64,12 @@ def test_recipient_has_given_permission_should_return_false_if_user_denies_permi
 
     mock_task = mocker.Mock()
     assert not recipient_has_given_permission(
-        mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id', SMS_TYPE
+        mock_task, 'VAPROFILEID', '1', 'some-notification-id', SMS_TYPE, 'some-communication-id'
     )
 
 
 def test_recipient_has_given_permission_should_return_true_if_user_grants_permissions(
-        client, mocker, mock_template, mock_communication_item
+        client, mocker, mock_communication_item
 ):
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
     mocked_va_profile_client.get_is_communication_allowed = mocker.Mock(return_value=True)
@@ -117,5 +80,5 @@ def test_recipient_has_given_permission_should_return_true_if_user_grants_permis
 
     mock_task = mocker.Mock()
     assert recipient_has_given_permission(
-        mock_task, 'VAPROFILEID', '1', str(uuid.uuid4()), 'some-notification-id', SMS_TYPE
+        mock_task, 'VAPROFILEID', '1', 'some-notification-id', SMS_TYPE, 'some-communication-id'
     )

@@ -36,6 +36,14 @@ from tests.app.db import (
 
 
 @pytest.fixture
+def enable_accept_recipient_identifiers_enabled_feature_flag(mocker):
+    mocker.patch(
+        'app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled',
+        return_value=True
+    )
+
+
+@pytest.fixture
 def mock_template_with_version(mocker):
     mock_template = mocker.Mock()
     mock_template.id = 'template-id'
@@ -908,15 +916,12 @@ def test_post_notification_returns_400_when_get_json_throws_exception(client, sa
 def test_should_process_notification_successfully_with_recipient_identifiers(
         client,
         mocker,
+        enable_accept_recipient_identifiers_enabled_feature_flag,
         expected_type,
         expected_value,
         task,
         sample_email_template
 ):
-    mocker.patch(
-        'app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled',
-        return_value=True
-    )
     mocked_task = mocker.patch(
         f'{task}.apply_async')
 
@@ -945,14 +950,11 @@ def test_should_process_notification_successfully_with_recipient_identifiers(
 def test_should_post_notification_successfully_with_recipient_identifier_and_contact_info(
         client,
         mocker,
+        enable_accept_recipient_identifiers_enabled_feature_flag,
         sample_email_template,
         sample_sms_template_with_html,
         notification_type
 ):
-    mocker.patch(
-        'app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled',
-        return_value=True
-    )
     send_to_queue = mocker.patch(
         'app.v2.notifications.post_notifications.send_notification_to_queue'
     )
@@ -964,8 +966,9 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
     expected_id_value = 'some va profile id'
 
     if notification_type == "email":
+        template = sample_email_template
         data = {
-            "template_id": sample_email_template.id,
+            "template_id": template.id,
             "email_address": "some-email@test.com",
             "recipient_identifier": {
                 'id_type': expected_id_type,
@@ -974,8 +977,9 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
             "billing_code": "TESTCODE"
         }
     else:
+        template = sample_sms_template_with_html
         data = {
-            "template_id": sample_sms_template_with_html.id,
+            "template_id": template.id,
             "phone_number": "+16502532222",
             "recipient_identifier": {
                 'id_type': expected_id_type,
@@ -1007,9 +1011,9 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
 
     comm_prefs_task.assert_called_once_with([expected_id_type,
                                              expected_id_value,
-                                             str(data['template_id']),
                                              str(notification.id),
-                                             notification_type],
+                                             notification_type,
+                                             template.communication_item_id],
                                             queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
 
     send_to_queue.assert_called_once()
@@ -1019,15 +1023,11 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
 def test_post_notification_updates_notification_status_when_recipient_declines_communications(
         client,
         mocker,
+        enable_accept_recipient_identifiers_enabled_feature_flag,
         sample_email_template,
         sample_sms_template_with_html,
         notification_type
 ):
-    mocker.patch(
-        'app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled',
-        return_value=True
-    )
-
     expected_id_type = IdentifierType.VA_PROFILE_ID.value
     expected_id_value = 'some va profile id'
 

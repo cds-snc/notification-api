@@ -222,14 +222,17 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
     )
 
     recipient_identifier = form.get('recipient_identifier')
-    if recipient_identifier and is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED):
+    if (
+            recipient_identifier
+            and is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED)
+            and template.communication_item_id):
         lookup_recipient_communication_permissions.apply_async(
             [
                 recipient_identifier['id_type'],
                 recipient_identifier['id_value'],
-                str(template.id),
                 str(notification.id),
-                notification_type
+                notification_type,
+                template.communication_item_id
             ],
             queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
         )
@@ -276,7 +279,7 @@ def process_notification_with_recipient_identifier(*, form, notification_type, a
         notification=notification,
         id_type=form['recipient_identifier']['id_type'],
         id_value=form['recipient_identifier']['id_value'],
-        template_id=template.id
+        communication_item_id=template.communication_item_id
     )
 
     return notification

@@ -16,6 +16,7 @@ from app.clients.email import EmailClient
 from app.clients.sms import SmsClient
 from app.clients.sms.firetext import FiretextClient
 from app.dao.api_key_dao import save_model_api_key
+from app.dao.communication_item_dao import dao_create_communication_item
 from app.dao.invited_user_dao import save_invited_user
 from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import dao_create_notification
@@ -56,7 +57,7 @@ from app.models import (
     LETTER_TYPE,
     NOTIFICATION_STATUS_TYPES_COMPLETED,
     SERVICE_PERMISSION_TYPES,
-    ServiceEmailReplyTo, User
+    ServiceEmailReplyTo, User, CommunicationItem
 )
 from tests import create_authorization_header
 from tests.app.db import (
@@ -468,13 +469,17 @@ def sample_email_template(
             service_permissions=permissions,
             check_if_service_exists=True,
             smtp_user="smtp_user")
+    communication_item = CommunicationItem(id=uuid.uuid4(), va_profile_item_id=1, name='some name')
+    dao_create_communication_item(communication_item)
+
     data = {
         'name': template_name,
         'template_type': template_type,
         'content': content,
         'service': service,
         'created_by': user,
-        'subject': subject_line
+        'subject': subject_line,
+        'communication_item_id': communication_item.id
     }
     template = Template(**data)
     dao_create_template(template)

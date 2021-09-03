@@ -5,7 +5,6 @@ from app import notify_celery, va_profile_client
 from app.config import QueueNames
 from app.dao.communication_item_dao import get_communication_item
 from app.dao.notifications_dao import update_notification_status_by_id
-from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import NotificationTechnicalFailureException
 from app.models import RecipientIdentifier, NOTIFICATION_PREFERENCES_DECLINED, NOTIFICATION_TECHNICAL_FAILURE
 from app.va.va_profile import VAProfileRetryableException
@@ -17,11 +16,13 @@ from app.va.va_profile.va_profile_client import CommunicationItemNotFoundExcepti
 )
 @statsd(namespace="tasks")
 def lookup_recipient_communication_permissions(
-        self, id_type: str, id_value: str, template_id: str, notification_id: str, notification_type: str
+        self, id_type: str, id_value: str, notification_id: str, notification_type: str, communication_item_id: str
 ) -> None:
     current_app.logger.info(f"Looking up contact information for notification_id:{notification_id}.")
 
-    if not recipient_has_given_permission(self, id_type, id_value, template_id, notification_id, notification_type):
+    if not recipient_has_given_permission(
+            self, id_type, id_value, notification_id, notification_type, communication_item_id
+    ):
         update_notification_status_by_id(notification_id, NOTIFICATION_PREFERENCES_DECLINED)
         current_app.logger.info(f"Recipient for notification {notification_id}"
                                 f"has declined permission to receive notifications")
@@ -29,18 +30,13 @@ def lookup_recipient_communication_permissions(
 
 
 def recipient_has_given_permission(
-        task, id_type: str, id_value: str, template_id: str, notification_id: str, notification_type: str
+        task, id_type: str,
+        id_value: str,
+        notification_id: str,
+        notification_type: str,
+        communication_item_id: str
 ) -> bool:
     identifier = RecipientIdentifier(id_type=id_type, id_value=id_value)
-    template = dao_get_template_by_id(template_id)
-
-    communication_item_id = template.communication_item_id  # TODO: move this out of task
-
-    if not communication_item_id:
-        current_app.logger.info(
-            f'Recipient {id_value} does not have requested communication item id for notification {notification_id}'
-        )
-        return True
 
     communication_item = get_communication_item(communication_item_id)
 

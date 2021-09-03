@@ -4,6 +4,7 @@ import json
 from datetime import datetime, date, timedelta
 
 from app import db
+from app.dao.communication_item_dao import dao_create_communication_item
 from app.dao.email_branding_dao import dao_create_email_branding
 from app.dao.inbound_sms_dao import dao_create_inbound_sms
 from app.dao.invited_org_user_dao import save_invited_org_user
@@ -60,7 +61,7 @@ from app.models import (
     Domain,
     NotificationHistory,
     RecipientIdentifier, NOTIFICATION_STATUS_TYPES_COMPLETED,
-    DELIVERY_STATUS_CALLBACK_TYPE, WEBHOOK_CHANNEL_TYPE
+    DELIVERY_STATUS_CALLBACK_TYPE, WEBHOOK_CHANNEL_TYPE, CommunicationItem
 )
 
 
@@ -195,6 +196,9 @@ def create_template(
         postage=None,
         process_type='normal',
 ):
+    communication_item = CommunicationItem(id=uuid.uuid4(), va_profile_item_id=1, name='some name')
+    dao_create_communication_item(communication_item)
+
     data = {
         'name': template_name or '{} Template Name'.format(template_type),
         'template_type': template_type,
@@ -204,7 +208,8 @@ def create_template(
         'reply_to': reply_to,
         'hidden': hidden,
         'folder': folder,
-        'process_type': process_type
+        'process_type': process_type,
+        'communication_item_id': communication_item.id
     }
     if template_type == LETTER_TYPE:
         data["postage"] = postage or "second"
