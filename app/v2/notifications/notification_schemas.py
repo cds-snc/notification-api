@@ -204,7 +204,7 @@ post_email_request = {
         "personalisation": personalisation,
         "scheduled_for": {"type": ["string", "null"], "format": "datetime_within_next_day"},
         "email_reply_to_id": uuid,
-        "billing_code": {"type": "string", "maxLength": 256}
+        "billing_code": {"type": ["string", "null"], "maxLength": 256}
     },
     "required": ["template_id"],
     "anyOf": [
