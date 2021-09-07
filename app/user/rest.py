@@ -460,7 +460,7 @@ def send_contact_request(user_id):
         current_app.logger.exception(e)
 
     if contact.is_demo_request():
-        return "no freshdesk ticket", 204
+        return jsonify({}), 204
     status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
 
