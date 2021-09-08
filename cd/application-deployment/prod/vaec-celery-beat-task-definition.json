@@ -25,6 +25,10 @@
           "value": "run_celery_beat.py"
         },
         {
+          "name": "SMS_SENDER_RATE_LIMIT_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED",
           "value": "False"
         },

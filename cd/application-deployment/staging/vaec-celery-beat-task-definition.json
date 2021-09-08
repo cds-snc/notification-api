@@ -29,6 +29,10 @@
           "value": "run_celery_beat.py"
         },
         {
+          "name": "SMS_SENDER_RATE_LIMIT_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "API_HOST_NAME",
           "value": "https://staging.api.notifications.va.gov"
         },

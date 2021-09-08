@@ -43,6 +43,10 @@
           "value": "localhost"
         },
         {
+          "name": "SMS_SENDER_RATE_LIMIT_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "GRANICUS_URL",
           "value": "https://stage-tms.govdelivery.com"
         },

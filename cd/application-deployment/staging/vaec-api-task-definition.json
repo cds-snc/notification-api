@@ -31,6 +31,10 @@
           "value": "True"
         },
         {
+          "name": "SMS_SENDER_RATE_LIMIT_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "FLASK_APP",
           "value": "application.py"
         },

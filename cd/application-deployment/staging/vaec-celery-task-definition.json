@@ -33,6 +33,10 @@
           "value": "https://staging.api.notifications.va.gov"
         },
         {
+          "name": "SMS_SENDER_RATE_LIMIT_ENABLED",
+          "value": "False"
+        },O
+        {
           "name": "NOTIFICATION_QUEUE_PREFIX",
           "value": "staging-notification-"
         },

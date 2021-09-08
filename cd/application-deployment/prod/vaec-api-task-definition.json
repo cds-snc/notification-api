@@ -23,6 +23,10 @@
       ],
       "environment": [
         {
+          "name": "SMS_SENDER_RATE_LIMIT_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "NOTIFY_ENVIRONMENT",
           "value": "production"
         },

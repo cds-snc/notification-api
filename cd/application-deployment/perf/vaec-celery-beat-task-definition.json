@@ -85,6 +85,10 @@
           "value": "True"
         },
         {
+          "name": "SMS_SENDER_RATE_LIMIT_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL",
           "value": "LOAD_BALANCING"
         },

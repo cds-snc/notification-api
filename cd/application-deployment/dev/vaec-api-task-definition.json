@@ -123,6 +123,10 @@
           "value": "HIGHEST_PRIORITY"
         },
         {
+          "name": "SMS_SENDER_RATE_LIMIT_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "STATSD_HOST",
           "value": "localhost"
         },
