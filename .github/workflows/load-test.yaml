@@ -41,6 +41,6 @@ jobs:
         with:
           instance-id-ssm-parameter-path: /utility/locust/instance
           commands: >-
-            "su - locust -c \"cd notification-api && git pull &>/dev/null\"",
-            "su - locust -c \"locust -f notification-api/load_testing/locustfile.py --headless -u ${{ github.event.inputs.num_users }} -r ${{ github.event.inputs.spawn_rate }} --host https://${{ github.event.inputs.environment }}.api.notifications.va.gov --run-time ${{ github.event.inputs.run_time }} --csv results 2>/dev/null\"",
-            "su - locust -c \"cat results_stats.csv\""
+            "sudo su - locust -c \"cd notification-api && git pull &>/dev/null\"",
+            "sudo su - locust -c \"locust -f notification-api/load_testing/locustfile.py --headless -u ${{ github.event.inputs.num_users }} -r ${{ github.event.inputs.spawn_rate }} --host https://${{ github.event.inputs.environment }}.api.notifications.va.gov --run-time ${{ github.event.inputs.run_time }} --csv results 2>/dev/null\"",
+            "sudo su - locust -c \"cat results_stats.csv\""
