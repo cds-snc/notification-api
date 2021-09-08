@@ -1092,6 +1092,43 @@ def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
     assert not deliver_mock.called
 
 
+def test_send_sms_returns_a_429_limit_exceeded_if_sms_sender_rate_limit_exceeded(
+        client,
+        sample_service,
+        mocker
+):
+    sample = create_template(sample_service, template_type="sms")
+    persist_mock = mocker.patch('app.notifications.rest.persist_notification')
+    deliver_mock = mocker.patch('app.notifications.rest.send_notification_to_queue')
+    sms_sender_mock = mocker.patch('app.dao.service_sms_sender_dao.dao_get_service_sms_sender_by_id')
+    sms_sender_mock.rate_limit = mocker.Mock()
+
+    mocker.patch(
+        'app.notifications.validators.check_sms_sender_over_rate_limit',
+        side_effect=RateLimitError("LIMIT", "INTERVAL", "TYPE"))
+
+    data = {
+        'to': "6502532222",
+        'template': str(sample.id)
+    }
+
+    auth_header = create_authorization_header(service_id=sample.service_id)
+
+    response = client.post(
+        path='/notifications/{}'.format("sms"),
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header])
+
+    message = json.loads(response.data)['message']
+    result = json.loads(response.data)['result']
+    assert response.status_code == 429
+    assert result == 'error'
+    assert message == 'Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds'
+
+    assert not persist_mock.called
+    assert not deliver_mock.called
+
+
 def test_should_allow_store_original_number_on_sms_notification(client, sample_template, mocker):
     mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
 

@@ -70,9 +70,9 @@ def check_sms_sender_over_rate_limit(sms_sender, api_key):
 
 
 def check_rate_limiting(service, sms_sender, api_key):
+    check_sms_sender_over_rate_limit(sms_sender, api_key)
     check_service_over_api_rate_limit(service, api_key)
     check_service_over_daily_message_limit(api_key.key_type, service)
-    check_sms_sender_over_rate_limit(sms_sender, api_key)
 
 
 def check_template_is_for_notification_type(notification_type, template_type):
