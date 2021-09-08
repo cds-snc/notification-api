@@ -50,6 +50,32 @@ def test_add_service_sms_sender_return_404_when_service_does_not_exist(admin_req
     assert response_json['message'] == 'No result found'
 
 
+def test_add_service_sms_sender_return_404_when_rate_limit_too_small(admin_request, mocker):
+    added_service_sms_sender = ServiceSmsSender(created_at=datetime.utcnow(), rate_limit=1)
+    mocker.patch(
+        'app.service.sms_sender_rest.dao_add_sms_sender_for_service',
+        return_value=added_service_sms_sender
+    )
+    mocker.patch(
+        'app.service.sms_sender_rest.dao_fetch_service_by_id',
+        return_value=Service()
+    )
+
+    response_json = admin_request.post(
+        'service_sms_sender.add_service_sms_sender',
+        service_id=uuid.uuid4(),
+        _data={
+            "sms_sender": 'second',
+            "is_default": False,
+            "rate_limit": 0,
+        },
+        _expected_status=400
+    )
+
+    assert response_json['errors'][0]['error'] == 'ValidationError'
+    assert response_json['errors'][0]['message'] == 'rate_limit 0 is less than the minimum of 1'
+
+
 def test_update_service_sms_sender(admin_request, notify_db_session):
     service = create_service()
     service_sms_sender = create_service_sms_sender(service=service, sms_sender='1235', is_default=False)

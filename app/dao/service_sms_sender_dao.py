@@ -44,7 +44,7 @@ def dao_get_sms_sender_by_service_id_and_number(service_id: str, number: str) ->
 
 
 @transactional
-def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_number_id=None):
+def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_number_id=None, rate_limit=None):
     default_sms_sender = _get_default_sms_sender_for_service(service_id=service_id)
 
     if not default_sms_sender and not is_default:
@@ -66,7 +66,8 @@ def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_n
         service_id=service_id,
         sms_sender=sms_sender,
         is_default=is_default,
-        inbound_number_id=inbound_number_id
+        inbound_number_id=inbound_number_id,
+        rate_limit=rate_limit
     )
 
     db.session.add(new_sms_sender)
