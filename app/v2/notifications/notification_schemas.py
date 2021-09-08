@@ -150,7 +150,6 @@ post_sms_request = {
         "scheduled_for": {"type": ["string", "null"], "format": "datetime_within_next_day"},
         "sms_sender_id": uuid,
         "billing_code": {"type": ["string", "null"], "maxLength": 256},
-        "rate_limit": {"type": "integer", "minimum": 1}
     },
     "required": ["template_id"],
     "anyOf": [

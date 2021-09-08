@@ -11,6 +11,7 @@ from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.notifications_dao import update_notification_status_by_reference
+from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
 from app.letters.utils import upload_letter_pdf
@@ -125,7 +126,8 @@ def post_notification(notification_type):
 
     check_service_can_schedule_notification(authenticated_service.permissions, scheduled_for)
 
-    check_rate_limiting(authenticated_service, api_user)
+    sms_sender = dao_get_service_sms_sender_by_id(authenticated_service.id, form.get("sms_sender"))
+    check_rate_limiting(authenticated_service, sms_sender, api_user)
 
     template, template_with_content = validate_template(
         form['template_id'],
