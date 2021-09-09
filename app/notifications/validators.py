@@ -65,7 +65,7 @@ def check_sms_sender_over_rate_limit(service_id, sms_sender_id, api_key):
 
     sms_sender = dao_get_service_sms_sender_by_id(service_id, sms_sender_id)
     if current_app.config['REDIS_ENABLED']:
-        cache_key = rate_limit_cache_key(sms_sender.id, api_key.key_type)
+        cache_key = sms_sender.inbound_number
         rate_limit = sms_sender.rate_limit
         interval = 60
         if redis_store.exceeded_rate_limit(cache_key, rate_limit, interval):
