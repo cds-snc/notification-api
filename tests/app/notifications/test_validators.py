@@ -534,7 +534,7 @@ class TestSmsSenderRateLimit:
             )
             assert e.value.status_code == 429
             assert e.value.message == (
-                'Exceeded rate limit for key type LIVE of '
+                'Exceeded rate limit of '
                 f'{sms_sender.rate_limit} requests per 60 seconds'
             )
             assert e.value.fields == []

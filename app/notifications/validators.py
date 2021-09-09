@@ -31,7 +31,7 @@ def check_service_over_api_rate_limit(service, api_key):
         interval = 60
         if redis_store.exceeded_rate_limit(cache_key, rate_limit, interval):
             current_app.logger.info(f"service {service.id} has been rate limited for throughput")
-            raise RateLimitError(rate_limit, interval, api_key.key_type)
+            raise RateLimitError(rate_limit, interval, key_type=api_key.key_type)
 
 
 def check_service_over_daily_message_limit(key_type, service):
@@ -70,7 +70,7 @@ def check_sms_sender_over_rate_limit(service_id, sms_sender_id, api_key):
         interval = 60
         if redis_store.exceeded_rate_limit(cache_key, rate_limit, interval):
             current_app.logger.info(f"sms sender {sms_sender.id} has been rate limited for throughput")
-            raise RateLimitError(rate_limit, interval, api_key.key_type)
+            raise RateLimitError(rate_limit, interval)
 
 
 def check_rate_limiting(service, api_key):
