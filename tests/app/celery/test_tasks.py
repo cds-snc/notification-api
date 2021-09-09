@@ -535,6 +535,34 @@ def test_should_save_sms_if_restricted_service_and_valid_number(notify_db_sessio
     )
 
 
+def test_save_sms_should_call_deliver_sms_with_rate_limiting_if_sender_id_provided(notify_db_session, mocker):
+    user = create_user(mobile_number="6502532222")
+    service = create_service(user=user, restricted=True)
+    template = create_template(service=service)
+    notification = _notification_json(template, "+16502532222")
+    sender_id = uuid.uuid4()
+
+    deliver_sms = mocker.patch('app.celery.provider_tasks.deliver_sms_with_rate_limiting.apply_async')
+    mock_sms_sender = mocker.Mock()
+    mock_sms_sender.sms_sender = 'from_number'
+    mocker.patch('app.celery.tasks.dao_get_service_sms_sender_by_id',
+                 return_value=mock_sms_sender)
+
+    notification_id = uuid.uuid4()
+    encrypt_notification = encryption.encrypt(notification)
+    save_sms(
+        service.id,
+        notification_id,
+        encrypt_notification,
+        sender_id
+    )
+
+    deliver_sms.assert_called_once_with(
+        [str(notification_id), sender_id],
+        queue="send-sms-tasks"
+    )
+
+
 def test_save_email_should_save_default_email_reply_to_text_on_notification(notify_db_session, mocker):
     service = create_service()
     create_reply_to_email(service=service, email_address='reply_to@digital.gov.uk', is_default=True)

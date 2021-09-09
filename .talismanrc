@@ -243,3 +243,7 @@ fileignoreconfig:
       checksum: e1ed8804630d7e37618dc182c4c94fd71e3e155fa934b5cbb49a3cd3c0459ad1
     - filename: app/v2/notifications/post_notifications.py
       checksum: bfd5cb3ea085d0e200dc370634550342f76594a4d2baa9b4f3b31f99820a9448
+    - filename: app/celery/tasks.py
+      checksum: b00617c24837dece1b9f4923f0486c1bfeaf29a6f6f8029b2e7e6eea3c597d9c
+    - filename: tests/app/celery/test_tasks.py
+      checksum: 469f814f2ba74fab665e05ac7a9a3da235a991e0403e8c62d4c692a42ac9cff0

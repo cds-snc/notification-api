@@ -210,10 +210,16 @@ def save_sms(self,
         )
 
         # TODO: check if sms sender id has rate limit, potentially use different queue if so
-        provider_tasks.deliver_sms.apply_async(
-            [str(saved_notification.id)],
-            queue=QueueNames.SEND_SMS if not service.research_mode else QueueNames.RESEARCH_MODE
-        )
+        if sender_id:
+            provider_tasks.deliver_sms_with_rate_limiting.apply_async(
+                [str(saved_notification.id), sender_id],
+                queue=QueueNames.SEND_SMS if not service.research_mode else QueueNames.RESEARCH_MDOE
+            )
+        else:
+            provider_tasks.deliver_sms.apply_async(
+                [str(saved_notification.id)],
+                queue=QueueNames.SEND_SMS if not service.research_mode else QueueNames.RESEARCH_MODE
+            )
 
         current_app.logger.debug(
             "SMS {} created at {} for job {}".format(
