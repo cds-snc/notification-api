@@ -513,8 +513,8 @@ class TestSmsSenderRateLimit:
         with freeze_time('2016-01-01 12:00:00.000000'):
             mock_toggle(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
 
-            MockServiceSmsSender = namedtuple('ServiceSmsSender', ['id', 'rate_limit', 'inbound_number'])
-            sms_sender = MockServiceSmsSender(id='some-id', rate_limit=3000, inbound_number='+18888888888')
+            MockServiceSmsSender = namedtuple('ServiceSmsSender', ['id', 'rate_limit', 'sms_sender'])
+            sms_sender = MockServiceSmsSender(id='some-id', rate_limit=3000, sms_sender='+18888888888')
 
             api_key_type = 'normal'
 

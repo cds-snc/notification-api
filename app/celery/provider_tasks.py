@@ -59,13 +59,13 @@ def deliver_sms(self, notification_id):
 def deliver_sms_with_rate_limiting(self, notification_id, sender_id):
     from app.notifications.validators import check_sms_sender_over_rate_limit
     try:
-        current_app.logger.info(f'Start sending SMS for notification id: {notification_id}')
+        current_app.logger.info(f'Start sending SMS with rate limiting for notification id: {notification_id}')
         notification = notifications_dao.get_notification_by_id(notification_id)
         if not notification:
             raise NoResultFound()
         check_sms_sender_over_rate_limit(notification.service_id, sender_id)
         send_to_providers.send_sms_to_provider(notification)
-        current_app.logger.info(f'Successfully sent sms for notification id: {notification_id}')
+        current_app.logger.info(f'Successfully sent sms with rate limiting for notification id: {notification_id}')
     except InvalidProviderException as e:
         current_app.logger.exception(e)
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
@@ -85,11 +85,21 @@ def deliver_sms_with_rate_limiting(self, notification_id, sender_id):
         sms_sender = dao_get_service_sms_sender_by_id(notification.service_id, sender_id)
         self.retry(queue=QueueNames.RETRY, countdown=60 / sms_sender.rate_limit)
     except Exception:
-        # do we want to retry for general exceptions? if so, how do we have max retries?
-        current_app.logger.exception(
-            f'SMS notification delivery for id: {notification_id} failed'
-        )
-        self.retry(queue=QueueNames.RETRY)
+        try:
+            current_app.logger.exception(
+                f'SMS notification delivery for id: {notification_id} failed'
+            )
+            if self.request.retries == 0:
+                self.retry(queue=QueueNames.RETRY, max_retries=48, countdown=0)
+            else:
+                self.retry(queue=QueueNames.RETRY, max_retries=48, countdown=300)
+        except self.MaxRetriesExceededError:
+            message = (
+                'RETRY FAILED: Max retries reached. The task send_sms_to_provider failed for '
+                f'notification {notification_id}. Notification has been updated to technical-failure'
+            )
+            update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+            raise NotificationTechnicalFailureException(message)
 
 
 @notify_celery.task(bind=True, name="deliver_email", max_retries=48, default_retry_delay=300)

@@ -61,11 +61,13 @@ def check_sms_sender_over_rate_limit(service_id, sms_sender_id):
         not is_feature_enabled(FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED)
         or sms_sender_id is None
     ):
+        current_app.logger.info('Skipping sms sender rate limit check')
         return
 
     sms_sender = dao_get_service_sms_sender_by_id(service_id, sms_sender_id)
     if current_app.config['REDIS_ENABLED']:
-        cache_key = sms_sender.inbound_number
+        current_app.logger.info('Checking sms sender rate limit')
+        cache_key = sms_sender.sms_sender
         rate_limit = sms_sender.rate_limit
         interval = 60
         if redis_store.exceeded_rate_limit(cache_key, rate_limit, interval):
