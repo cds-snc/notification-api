@@ -173,6 +173,21 @@ def test_send_sms_should_not_switch_providers_on_non_provider_failure(
     assert switch_provider_mock.called is False
 
 
+def test_deliver_sms_with_rate_limiting_should_deliver_if_rate_limit_not_exceeded(sample_notification, mocker):
+    MockSmsSender = namedtuple('ServiceSmsSender', ['rate_limit'])
+    sms_sender = MockSmsSender(rate_limit=50)
+
+    mocker.patch(
+        'app.notifications.validators.check_sms_sender_over_rate_limit'
+    )
+    send_to_provider = mocker.patch('app.delivery.send_to_providers.send_sms_to_provider')
+    mocker.patch('app.celery.provider_tasks.dao_get_service_sms_sender_by_id', return_value=sms_sender)
+
+    deliver_sms_with_rate_limiting(sample_notification.id, 'some-sender-id')
+
+    send_to_provider.assert_called_once_with(sample_notification)
+
+
 def test_deliver_sms_with_rate_limiting_should_retry_if_rate_limit_exceeded(sample_notification, mocker):
     MockSmsSender = namedtuple('ServiceSmsSender', ['rate_limit'])
     sms_sender = MockSmsSender(rate_limit=50)
