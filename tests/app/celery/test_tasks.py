@@ -1149,7 +1149,7 @@ def test_save_sms_uses_non_default_sms_sender_reply_to_text_if_provided(mocker, 
     new_sender = service_sms_sender_dao.dao_add_sms_sender_for_service(service.id, 'new-sender', False)
 
     notification = _notification_json(template, to="6502532222")
-    mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+    mocker.patch('app.celery.provider_tasks.deliver_sms_with_rate_limiting.apply_async')
 
     notification_id = uuid.uuid4()
     save_sms(
