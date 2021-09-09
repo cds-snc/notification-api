@@ -73,9 +73,8 @@ def check_sms_sender_over_rate_limit(service_id, sms_sender_id, api_key):
             raise RateLimitError(rate_limit, interval, api_key.key_type)
 
 
-def check_rate_limiting(service, sms_sender_id, api_key):
+def check_rate_limiting(service, api_key):
     check_service_over_api_rate_limit(service, api_key)
-    check_sms_sender_over_rate_limit(service.id, sms_sender_id, api_key)
     check_service_over_daily_message_limit(api_key.key_type, service)
 
 
