@@ -41,6 +41,7 @@ Contains:
 - [Running Code Scans](#running-code-scans)
     - [Bandit](#bandit)
     - [Safety](#safety)
+- [Using our Endpoints](#using-our-endpoints)
 - [Testing template changes](#testing-template-changes)
 - [Using Mountebank stubs for MPI/VAProfile](#using-mountebank-stubs)
 - [Frequent problems](#frequent-problems)
@@ -478,6 +479,34 @@ make check-dependencies
 ```
 
 ---
+## Using our Endpoints
+If you are trying to hit our endpoints while running the app locally, make sure you are using `http` and not `https.`
+For all other environments, use `https` instead of `http`. If you get some sort of seemingly random error, double check
+those first!
+
+You will need to set several environment variables in order to get the endpoints to work properly. They are as 
+follows:
+- notification-api-url (either `127.0.0.1:6011` for local or our endpoints for everything else)
+- notification-client-secret (the values for dev through prod should be in param store or 1Password)
+- notification-admin-id: should be notify-admin for all environments
+- api-key-id: not needed for local, should be in param store or 1Password for other environments
+
+### Sending a notification
+A lot of our endpoints in Postman have some scripting that saves ids to environment variables, so you might see some
+of these variables populated after you make requests.
+
+- Grab a service id by using the Get Services endpoint. This variable should be saved as service-id in env vars.
+  VANotify is a good one to use.
+- Find a template that you want to use on the service using the Get Templates for Service endpoint. Make sure it's
+  same type as the notification you want to send (e.g., email, sms)
+- Create or get a user id by making requests to Create User or Get Users. Make sure the user you get/create has
+  permissions to send notifications. The id should be saved as user-id in env vars
+- Create a service api key using the Create API Key endpoint. This variable should be saved as service-api-key in env
+  vars
+- Make a request with the various Send SMS/Email endpoints depending on your recipient. Once sent, the notification-id
+  will be saved as an env var.
+- To get updates on what's happening with the notification, you can make a request to the Notification Status endpoint
+  and see what the notification_status currently is
 
 ## Testing template changes
 
