@@ -56,7 +56,7 @@ def check_service_over_daily_message_limit(key_type, service):
             raise TooManyRequestsError(service.message_limit)
 
 
-def check_sms_sender_over_rate_limit(service_id, sms_sender_id, api_key):
+def check_sms_sender_over_rate_limit(service_id, sms_sender_id):
     if (
         not is_feature_enabled(FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED)
         or sms_sender_id is None

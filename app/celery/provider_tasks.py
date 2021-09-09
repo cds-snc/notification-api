@@ -10,9 +10,12 @@ from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
 from app.config import QueueNames
 from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
+from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
 from app.delivery import send_to_providers
 from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException, InvalidProviderException
 from app.models import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
+from app.notifications.validators import check_sms_sender_over_rate_limit
+from app.v2.errors import RateLimitError
 
 
 @notify_celery.task(bind=True, name="deliver_sms", max_retries=48, default_retry_delay=300)
@@ -50,6 +53,43 @@ def deliver_sms(self, notification_id):
                       "Notification has been updated to technical-failure".format(notification_id)
             update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
             raise NotificationTechnicalFailureException(message)
+
+
+@notify_celery.task(bind=True, name='deliver_sms_with_rate_limiting')
+@statsd(namespace='tasks')
+def deliver_sms_with_rate_limiting(self, notification_id, sender_id):
+    try:
+        current_app.logger.info(f'Start sending SMS for notification id: {notification_id}')
+        notification = notifications_dao.get_notification_by_id(notification_id)
+        if not notification:
+            raise NoResultFound()
+        check_sms_sender_over_rate_limit(notification.service_id, sender_id)
+        send_to_providers.send_sms_to_provider(notification)
+        current_app.logger.info(f'Successfully sent sms for notification id: {notification_id}')
+    except InvalidProviderException as e:
+        current_app.logger.exception(e)
+        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        raise NotificationTechnicalFailureException(str(e))
+    except NonRetryableException:
+        current_app.logger.exception(
+            f'SMS notification delivery for id: {notification_id} failed. Not retrying.'
+        )
+        update_notification_status_by_id(notification_id, NOTIFICATION_PERMANENT_FAILURE)
+        notification = notifications_dao.get_notification_by_id(notification_id)
+        check_and_queue_callback_task(notification)
+    except RateLimitError:
+        current_app.logger.exception(
+            f'SMS notification delivery for id: {notification_id} failed due to rate limit being exceeded. Will retry.'
+        )
+
+        sms_sender = dao_get_service_sms_sender_by_id(notification.service_id, sender_id)
+        self.retry(queue=QueueNames.RETRY, countdown=60 / sms_sender.rate_limit)
+    except Exception:
+        # do we want to retry for general exceptions? if so, how do we have max retries?
+        current_app.logger.exception(
+            f'SMS notification delivery for id: {notification_id} failed'
+        )
+        self.retry(queue=QueueNames.RETRY)
 
 
 @notify_celery.task(bind=True, name="deliver_email", max_retries=48, default_retry_delay=300)
