@@ -14,7 +14,6 @@ from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
 from app.delivery import send_to_providers
 from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException, InvalidProviderException
 from app.models import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
-from app.notifications.validators import check_sms_sender_over_rate_limit
 from app.v2.errors import RateLimitError
 
 
@@ -58,6 +57,7 @@ def deliver_sms(self, notification_id):
 @notify_celery.task(bind=True, name='deliver_sms_with_rate_limiting')
 @statsd(namespace='tasks')
 def deliver_sms_with_rate_limiting(self, notification_id, sender_id):
+    from app.notifications.validators import check_sms_sender_over_rate_limit
     try:
         current_app.logger.info(f'Start sending SMS for notification id: {notification_id}')
         notification = notifications_dao.get_notification_by_id(notification_id)

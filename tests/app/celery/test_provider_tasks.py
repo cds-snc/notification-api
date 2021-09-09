@@ -178,7 +178,7 @@ def test_deliver_sms_with_rate_limiting_should_retry_if_rate_limit_exceeded(samp
     sms_sender = MockSmsSender(rate_limit=50)
 
     mocker.patch(
-        'app.celery.provider_tasks.check_sms_sender_over_rate_limit',
+        'app.notifications.validators.check_sms_sender_over_rate_limit',
         side_effect=RateLimitError('Non Provider Exception', sms_sender.rate_limit)
     )
 

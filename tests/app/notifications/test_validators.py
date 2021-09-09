@@ -19,7 +19,7 @@ from app.notifications.validators import (
     check_service_email_reply_to_id,
     check_service_sms_sender_id,
     check_service_letter_contact_id,
-    check_reply_to, check_sms_sender_over_rate_limit
+    check_reply_to
 )
 
 from app.v2.errors import (
@@ -509,6 +509,7 @@ class TestSmsSenderRateLimit:
     def test_that_when_sms_sender_rate_exceed_rate_limit_request_fails(
             self, sample_service, mocker
     ):
+        from app.notifications.validators import check_sms_sender_over_rate_limit
         with freeze_time('2016-01-01 12:00:00.000000'):
             mock_toggle(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
 
@@ -525,7 +526,7 @@ class TestSmsSenderRateLimit:
             api_key = create_api_key(sample_service, key_type=api_key_type)
 
             with pytest.raises(RateLimitError) as e:
-                check_sms_sender_over_rate_limit(sample_service, sms_sender.id, api_key)
+                check_sms_sender_over_rate_limit(sample_service, sms_sender.id)
 
             assert app.redis_store.exceeded_rate_limit.called_with(
                 f'{sms_sender.id}-{api_key.key_type}',
@@ -540,6 +541,8 @@ class TestSmsSenderRateLimit:
             assert e.value.fields == []
 
     def test_that_when_not_exceeded_sms_sender_rate_limit_request_succeeds(self, sample_service, mocker):
+        from app.notifications.validators import check_sms_sender_over_rate_limit
+
         with freeze_time('2016-01-01 12:00:00.000000'):
             MockServiceSmsSender = namedtuple('ServiceSmsSender', ['id', 'rate_limit'])
             sms_sender = MockServiceSmsSender(id='some-id', rate_limit=10)
@@ -551,7 +554,7 @@ class TestSmsSenderRateLimit:
             sample_service.restricted = True
             api_key = create_api_key(sample_service)
 
-            check_sms_sender_over_rate_limit(sample_service, sms_sender.id, api_key)
+            check_sms_sender_over_rate_limit(sample_service, sms_sender.id)
             assert app.redis_store.exceeded_rate_limit.called_with(
                 f'{str(sms_sender.id)}-{api_key.key_type}',
                 10,
