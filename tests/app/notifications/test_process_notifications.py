@@ -174,7 +174,7 @@ def test_persist_notification_does_not_increment_cache_if_test_key(
 def test_persist_notification_with_optionals(sample_job, sample_api_key, mocker):
     assert Notification.query.count() == 0
     assert NotificationHistory.query.count() == 0
-    mocked_redis = mocker.patch('app.notifications.process_notificatioedis_store.get')
+    mocked_redis = mocker.patch('app.notifications.process_notifications.redis_store.get')
     n_id = uuid.uuid4()
     created_at = datetime.datetime(2016, 11, 11, 16, 8, 18)
     persist_notification(
@@ -283,13 +283,23 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
 ):
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     template = sample_email_template if notification_type else sample_sms_template_with_html
-    Notification = namedtuple('Notification', ['id', 'key_type', 'notification_type', 'created_at', 'template'])
+    MockService = namedtuple('Service', ['id'])
+    service = MockService(id='some service id')
+
+    MockSmsSender = namedtuple('ServiceSmsSender', ['service_id', 'sms_sender', 'rate_limit'])
+    sms_sender = MockSmsSender(service_id=service.id, sms_sender='+18888888888', rate_limit=None)
+
+    Notification = namedtuple('Notification', [
+        'id', 'key_type', 'notification_type', 'created_at', 'template', 'service_id', 'reply_to_text'
+    ])
     notification = Notification(
         id=uuid.uuid4(),
         key_type=key_type,
         notification_type=notification_type,
         created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
-        template=template
+        template=template,
+        service_id=service,
+        reply_to_text=sms_sender.sms_sender,
     )
 
     send_notification_to_queue(notification=notification, research_mode=research_mode, queue=requested_queue)
