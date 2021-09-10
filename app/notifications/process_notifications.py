@@ -142,7 +142,10 @@ def persist_notification(
 def send_notification_to_queue(notification, research_mode, queue=None, recipient_id_type: str = None):
     deliver_task, queue = _get_delivery_task(notification, research_mode, queue)
 
-    communication_item_id = notification.template.communication_item_id
+    template = notification.template
+
+    if template:
+        communication_item_id = template.communication_item_id
 
     try:
         tasks = [deliver_task.si(str(notification.id)).set(queue=queue)]

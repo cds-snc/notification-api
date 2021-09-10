@@ -169,7 +169,6 @@ def test_switch_providers_on_slow_delivery_does_nothing_if_toggle_is_off(
 @freeze_time("2017-05-01 14:00:00")
 def test_should_send_all_scheduled_notifications_to_deliver_queue(sample_template, mocker):
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
-    # mocked = mocker.patch('app.celery.provider_tasks.deliver_sms')
     mock_sms_sender = mocker.patch('app.notifications.process_notifications.'
                                    'dao_get_sms_sender_by_service_id_and_number')
     mock_sms_sender.rate_limit = mocker.Mock()
