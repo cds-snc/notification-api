@@ -12,7 +12,6 @@ from app.celery.lookup_recipient_communication_permissions_task import lookup_re
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.provider_tasks import deliver_email, deliver_sms
-from app.config import QueueNames
 from app.feature_flags import FeatureFlag
 from app.models import (
     Notification,
@@ -300,17 +299,196 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         return_value=None
     )
 
+    Notification = namedtuple('Notification', ['id', 'key_type', 'notification_type', 'created_at', 'template', 'service_id', 'reply_to_text'])
     notification = Notification(
         id=uuid.uuid4(),
         key_type=key_type,
         notification_type=notification_type,
         created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
         template=template,
-        service_id=service,
-        reply_to_text=sms_sender.sms_sender,
+        service_id=service.id,
+        reply_to_text='+11111111111'
     )
 
     send_notification_to_queue(notification=notification, research_mode=research_mode, queue=requested_queue)
+
+    args, _ = mocked_chain.call_args
+    for called_task, expected_task in zip(args, expected_tasks):
+        assert called_task.name == expected_task.name
+        called_task_notification_arg = args[0].args[0]
+        assert called_task_notification_arg == str(notification.id)
+
+@pytest.mark.parametrize((
+    'research_mode, '
+    'requested_queue, '
+    'notification_type, '
+    'key_type, '
+    'expected_queue, '
+    'request_recipient_id_type, '
+    'request_recipient_id_value, '
+    'expected_tasks'
+), [
+    (
+        True,
+        None,
+        'sms',
+        'normal',
+        'research-mode-tasks',
+        IdentifierType.VA_PROFILE_ID.value, 'some va profile id',
+        [lookup_recipient_communication_permissions, deliver_sms]
+    ),
+    (
+        True,
+        None,
+        'email',
+        'normal',
+        'research-mode-tasks',
+        IdentifierType.PID.value,
+        'some pid',
+        [lookup_recipient_communication_permissions, deliver_email]
+    ),
+    (
+        True,
+        None,
+        'email',
+        'team',
+        'research-mode-tasks',
+        IdentifierType.ICN.value,
+        'some icn',
+        [lookup_recipient_communication_permissions, deliver_email]
+    ),
+    (
+        True,
+        'notify-internal-tasks',
+        'email',
+        'normal',
+        'research-mode-tasks',
+        IdentifierType.VA_PROFILE_ID.value,
+        'some va profile id',
+        [lookup_recipient_communication_permissions, deliver_email]
+    ),
+    (
+        False,
+        None,
+        'sms',
+        'normal',
+        'send-sms-tasks',
+        IdentifierType.PID.value,
+        'some pid',
+        [lookup_recipient_communication_permissions, deliver_sms]
+    ),
+    (
+        False,
+        None,
+        'email',
+        'normal',
+        'send-email-tasks',
+        IdentifierType.ICN.value,
+        'some icn',
+        [lookup_recipient_communication_permissions, deliver_email]
+    ),
+    (
+        False,
+        None,
+        'sms',
+        'team',
+        'send-sms-tasks',
+        IdentifierType.VA_PROFILE_ID.value,
+        'some va profile id',
+        [lookup_recipient_communication_permissions, deliver_sms]
+    ),
+    (
+        False,
+        None,
+        'sms',
+        'test',
+        'research-mode-tasks',
+        IdentifierType.PID.value,
+        'some pid',
+        [lookup_recipient_communication_permissions, deliver_sms]
+    ),
+    (
+        False,
+        'notify-internal-tasks',
+        'sms',
+        'normal',
+        'notify-internal-tasks',
+        IdentifierType.ICN.value,
+        'some icn',
+        [lookup_recipient_communication_permissions, deliver_sms]
+    ),
+    (
+        False,
+        'notify-internal-tasks',
+        'email',
+        'normal',
+        'notify-internal-tasks',
+        IdentifierType.VA_PROFILE_ID.value,
+        'some va profile id',
+        [lookup_recipient_communication_permissions, deliver_email]
+    ),
+    (
+        False,
+        'notify-internal-tasks',
+        'sms',
+        'test',
+        'research-mode-tasks',
+        IdentifierType.PID.value,
+        'some pid',
+        [lookup_recipient_communication_permissions, deliver_sms]
+    ),
+])
+def test_send_notification_to_queue_with_recipient_identifiers(
+    notify_db,
+    notify_db_session,
+    research_mode,
+    requested_queue,
+    notification_type,
+    key_type,
+    expected_queue,
+    request_recipient_id_type,
+    request_recipient_id_value,
+    expected_tasks,
+    mocker,
+    sample_email_template,
+    sample_sms_template_with_html,
+):
+    mocker.patch(
+        'app.notifications.process_notifications.is_feature_enabled',
+        return_value=True
+    )
+    mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
+    template = sample_email_template if notification_type else sample_sms_template_with_html
+    TestNotification = namedtuple(
+        'Notification', ['id', 'key_type', 'notification_type', 'created_at', 'template', 'recipient_identifiers', 'service_id', 'reply_to_text']
+    )
+    notification_id = uuid.uuid4()
+
+    MockService = namedtuple('Service', ['id'])
+    service = MockService(id='some service id')
+
+    MockSmsSender = namedtuple('ServiceSmsSender', ['sms_sender'])
+    sms_sender = MockSmsSender(sms_sender='+11111111111')
+
+    notification = TestNotification(
+        id=notification_id,
+        key_type=key_type,
+        notification_type=notification_type,
+        created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+        template=template,
+        service_id=service,
+        reply_to_text=sms_sender.sms_sender,
+        recipient_identifiers={f"{request_recipient_id_type}": RecipientIdentifier(
+            notification_id=notification_id,
+            id_type=request_recipient_id_type,
+            id_value=request_recipient_id_value
+        )})
+
+    send_notification_to_queue(
+        notification=notification,
+        research_mode=research_mode,
+        queue=requested_queue,
+        recipient_id_type=request_recipient_id_type)
 
     args, _ = mocked_chain.call_args
     for called_task, expected_task in zip(args, expected_tasks):
@@ -493,7 +671,7 @@ def test_send_notification_to_queue_with_recipient_identifiers(
             id_type=request_recipient_id_type,
             id_value=request_recipient_id_value
         )},
-        service_id=service,
+        service_id=service.id,
         reply_to_text=sms_sender.sms_sender,
         sms_sender=sms_sender
     )
@@ -922,6 +1100,9 @@ def test_send_notification_with_sms_sender_rate_limit_uses_rate_limit_delivery_t
     MockSmsSender = namedtuple('ServiceSmsSender', ['service_id', 'sms_sender', 'rate_limit'])
     sms_sender = MockSmsSender(service_id=service.id, sms_sender='+18888888888', rate_limit=2)
 
+    MockTemplate = namedtuple('MockTemplate', ['communication_item_id'])
+    template = MockTemplate(communication_item_id=1)
+
     mocker.patch(
         'app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number',
         return_value=sms_sender
@@ -931,7 +1112,8 @@ def test_send_notification_with_sms_sender_rate_limit_uses_rate_limit_delivery_t
         id=str(uuid.uuid4()),
         notification_type='sms',
         reply_to_text=sms_sender.sms_sender,
-        service_id=service.id
+        service_id=service.id,
+        template=template
     )
 
     send_notification_to_queue(notification, False)
@@ -944,9 +1126,15 @@ def test_send_notification_without_sms_sender_rate_limit_uses_regular_delivery_t
         mocker
 ):
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
+    deliver_sms_with_rate_limiting = mocker.patch(
+        'app.celery.provider_tasks.deliver_sms_with_rate_limiting.apply_async'
+    )
 
     MockService = namedtuple('Service', ['id'])
     service = MockService(id='some service id')
+
+    MockTemplate = namedtuple('MockTemplate', ['communication_item_id'])
+    template = MockTemplate(communication_item_id=1)
 
     MockSmsSender = namedtuple('ServiceSmsSender', ['service_id', 'sms_sender', 'rate_limit'])
     sms_sender = MockSmsSender(service_id=service.id, sms_sender='+18888888888', rate_limit=None)
@@ -960,9 +1148,11 @@ def test_send_notification_without_sms_sender_rate_limit_uses_regular_delivery_t
         id=str(uuid.uuid4()),
         notification_type='sms',
         reply_to_text=sms_sender.sms_sender,
-        service_id=service.id
+        service_id=service.id,
+        template=template
     )
 
     send_notification_to_queue(notification, False)
 
     assert mocked_chain.call_args[0][0].task == 'deliver_sms'
+    deliver_sms_with_rate_limiting.assert_not_called()
