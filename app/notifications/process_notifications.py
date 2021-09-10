@@ -191,8 +191,10 @@ def _get_delivery_task(notification, research_mode=False, queue=None):
         if not queue:
             queue = QueueNames.SEND_SMS
 
-        sms_sender = dao_get_sms_sender_by_service_id_and_number(notification.service_id, notification.reply_to_text)
-        if sms_sender and sms_sender.rate_limit:
+        sms_sender = dao_get_sms_sender_by_service_id_and_number(notification.service_id,
+                                                                 notification.reply_to_text)
+
+        if is_feature_enabled(FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED) and sms_sender and sms_sender.rate_limit:
             deliver_task = provider_tasks.deliver_sms_with_rate_limiting
         else:
             deliver_task = provider_tasks.deliver_sms

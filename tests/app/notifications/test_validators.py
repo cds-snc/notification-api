@@ -526,7 +526,7 @@ class TestSmsSenderRateLimit:
             api_key = create_api_key(sample_service, key_type=api_key_type)
 
             with pytest.raises(RateLimitError) as e:
-                check_sms_sender_over_rate_limit(sample_service, sms_sender.id)
+                check_sms_sender_over_rate_limit(sample_service, sms_sender.rate_limit)
 
             assert app.redis_store.exceeded_rate_limit.called_with(
                 f'{sms_sender.id}-{api_key.key_type}',

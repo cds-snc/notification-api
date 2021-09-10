@@ -10,7 +10,6 @@ from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
 from app.config import QueueNames
 from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
-from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
 from app.delivery import send_to_providers
 from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException, InvalidProviderException
 from app.models import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
@@ -56,14 +55,14 @@ def deliver_sms(self, notification_id):
 
 @notify_celery.task(bind=True, name='deliver_sms_with_rate_limiting')
 @statsd(namespace='tasks')
-def deliver_sms_with_rate_limiting(self, notification_id, sender_id):
+def deliver_sms_with_rate_limiting(self, notification_id, rate_limit):
     from app.notifications.validators import check_sms_sender_over_rate_limit
     try:
         current_app.logger.info(f'Start sending SMS with rate limiting for notification id: {notification_id}')
         notification = notifications_dao.get_notification_by_id(notification_id)
         if not notification:
             raise NoResultFound()
-        check_sms_sender_over_rate_limit(notification.service_id, sender_id)
+        check_sms_sender_over_rate_limit(notification.reply_to_text, rate_limit)
         send_to_providers.send_sms_to_provider(notification)
         current_app.logger.info(f'Successfully sent sms with rate limiting for notification id: {notification_id}')
     except InvalidProviderException as e:
@@ -82,8 +81,7 @@ def deliver_sms_with_rate_limiting(self, notification_id, sender_id):
             f'SMS notification delivery for id: {notification_id} failed due to rate limit being exceeded. Will retry.'
         )
 
-        sms_sender = dao_get_service_sms_sender_by_id(notification.service_id, sender_id)
-        self.retry(queue=QueueNames.RETRY, countdown=60 / sms_sender.rate_limit)
+        self.retry(queue=QueueNames.RETRY, countdown=60 / rate_limit)
     except Exception:
         try:
             current_app.logger.exception(

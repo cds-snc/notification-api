@@ -36,10 +36,11 @@ from app.dao.notifications_dao import (
 )
 from app.dao.provider_details_dao import get_current_provider
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
-from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
+from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id, dao_get_sms_sender_by_service_id_and_number
 from app.dao.services_dao import dao_fetch_service_by_id, fetch_todays_total_message_count
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import DVLAException, NotificationTechnicalFailureException
+from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.models import (
     DVLA_RESPONSE_STATUS_SENT,
     EMAIL_TYPE,
@@ -209,10 +210,10 @@ def save_sms(self,
             reply_to_text=reply_to_text
         )
 
-        # TODO: check if sms sender id has rate limit, potentially use different queue if so
-        if sender_id:
+        rate_limit = dao_get_sms_sender_by_service_id_and_number(service_id, reply_to_text).rate_limit
+        if is_feature_enabled(FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED) and rate_limit:
             provider_tasks.deliver_sms_with_rate_limiting.apply_async(
-                [str(saved_notification.id), sender_id],
+                [str(saved_notification.id), rate_limit],
                 queue=QueueNames.SEND_SMS if not service.research_mode else QueueNames.RESEARCH_MODE
             )
         else:

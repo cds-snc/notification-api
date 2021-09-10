@@ -140,6 +140,7 @@ def test_post_sms_notification_uses_inbound_number_as_sender(client, notify_db_s
 
 def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(client, notify_db_session, mocker):
     service = create_service_with_inbound_number(inbound_number='6502532222')
+    mocker.patch('app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number')
 
     template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
@@ -208,6 +209,7 @@ def test_post_sms_notification_uses_sms_sender_id_reply_to(
 ):
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender='6502532222')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
+    mocker.patch('app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number')
     data = {
         'phone_number': '+16502532222',
         'template_id': str(sample_template_with_placeholders.id),

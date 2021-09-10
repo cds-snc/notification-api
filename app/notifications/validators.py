@@ -10,7 +10,6 @@ from notifications_utils.clients.redis import rate_limit_cache_key, daily_limit_
 
 from app.dao import services_dao, templates_dao
 from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
-from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.models import (
     INTERNATIONAL_SMS_TYPE, SMS_TYPE, EMAIL_TYPE, LETTER_TYPE,
     KEY_TYPE_TEST, KEY_TYPE_TEAM, SCHEDULE_NOTIFICATIONS
@@ -56,22 +55,14 @@ def check_service_over_daily_message_limit(key_type, service):
             raise TooManyRequestsError(service.message_limit)
 
 
-def check_sms_sender_over_rate_limit(service_id, sms_sender_id):
-    if (
-        not is_feature_enabled(FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED)
-        or sms_sender_id is None
-    ):
-        current_app.logger.info('Skipping sms sender rate limit check')
-        return
-
-    sms_sender = dao_get_service_sms_sender_by_id(service_id, sms_sender_id)
+def check_sms_sender_over_rate_limit(reply_to_text, rate_limit):
     if current_app.config['REDIS_ENABLED']:
         current_app.logger.info('Checking sms sender rate limit')
-        cache_key = sms_sender.sms_sender
-        rate_limit = sms_sender.rate_limit
+        cache_key = reply_to_text
+        rate_limit = rate_limit
         interval = 60
         if redis_store.exceeded_rate_limit(cache_key, rate_limit, interval):
-            current_app.logger.info(f"sms sender {sms_sender.id} has been rate limited for throughput")
+            current_app.logger.info(f"sms sender {reply_to_text} has been rate limited for throughput")
             raise RateLimitError(rate_limit, interval)
 
 

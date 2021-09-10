@@ -28,6 +28,7 @@ from app.celery.tasks import (
 )
 from app.config import QueueNames
 from app.dao import jobs_dao, service_email_reply_to_dao, service_sms_sender_dao
+from app.feature_flags import FeatureFlag
 from app.models import (
     Job,
     Notification,
@@ -54,6 +55,7 @@ from tests.app.db import (
     create_service_with_defined_sms_sender,
     create_notification_history
 )
+from tests.app.oauth.test_rest import mock_toggle
 from tests.conftest import set_config_values
 
 
@@ -536,6 +538,7 @@ def test_should_save_sms_if_restricted_service_and_valid_number(notify_db_sessio
 
 
 def test_save_sms_should_call_deliver_sms_with_rate_limiting_if_sender_id_provided(notify_db_session, mocker):
+    mock_toggle(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     user = create_user(mobile_number="6502532222")
     service = create_service(user=user, restricted=True)
     template = create_template(service=service)
@@ -545,7 +548,10 @@ def test_save_sms_should_call_deliver_sms_with_rate_limiting_if_sender_id_provid
     deliver_sms = mocker.patch('app.celery.provider_tasks.deliver_sms_with_rate_limiting.apply_async')
     mock_sms_sender = mocker.Mock()
     mock_sms_sender.sms_sender = 'from_number'
+    mock_sms_sender.rate_limit = 30
     mocker.patch('app.celery.tasks.dao_get_service_sms_sender_by_id',
+                 return_value=mock_sms_sender)
+    mocker.patch('app.celery.tasks.dao_get_sms_sender_by_service_id_and_number',
                  return_value=mock_sms_sender)
 
     notification_id = uuid.uuid4()
@@ -558,7 +564,7 @@ def test_save_sms_should_call_deliver_sms_with_rate_limiting_if_sender_id_provid
     )
 
     deliver_sms.assert_called_once_with(
-        [str(notification_id), sender_id],
+        [str(notification_id), mock_sms_sender.rate_limit],
         queue="send-sms-tasks"
     )
 
@@ -1131,6 +1137,8 @@ def test_save_sms_uses_sms_sender_reply_to_text(mocker, notify_db_session):
 
     notification = _notification_json(template, to="6502532222")
     mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+    mock_sms_sender = mocker.patch('app.celery.tasks.dao_get_sms_sender_by_service_id_and_number')
+    mock_sms_sender.rate_limit = mocker.Mock()
 
     notification_id = uuid.uuid4()
     save_sms(
@@ -1144,12 +1152,13 @@ def test_save_sms_uses_sms_sender_reply_to_text(mocker, notify_db_session):
 
 
 def test_save_sms_uses_non_default_sms_sender_reply_to_text_if_provided(mocker, notify_db_session):
+    mock_toggle(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     service = create_service_with_defined_sms_sender(sms_sender_value='07123123123')
     template = create_template(service=service)
     new_sender = service_sms_sender_dao.dao_add_sms_sender_for_service(service.id, 'new-sender', False)
 
     notification = _notification_json(template, to="6502532222")
-    mocker.patch('app.celery.provider_tasks.deliver_sms_with_rate_limiting.apply_async')
+    mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
 
     notification_id = uuid.uuid4()
     save_sms(
