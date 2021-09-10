@@ -11,6 +11,7 @@ from app.celery.lookup_recipient_communication_permissions_task import lookup_re
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.provider_tasks import deliver_email, deliver_sms
+from app.config import QueueNames
 from app.models import (
     Notification,
     NotificationHistory,
@@ -279,12 +280,30 @@ def test_send_notification_to_queue(
     mocker,
 ):
     mocked = mocker.patch('app.celery.{}.apply_async'.format(expected_task))
-    Notification = namedtuple('Notification', ['id', 'key_type', 'notification_type', 'created_at'])
+
+    MockService = namedtuple('Service', ['id'])
+    service = MockService(id='some service id')
+
+    MockSmsSender = namedtuple('ServiceSmsSender', ['service_id', 'sms_sender', 'rate_limit'])
+    sms_sender = MockSmsSender(service_id=service.id, sms_sender='+18888888888', rate_limit=None)
+
+    Notification = namedtuple(
+        'Notification',
+        ['id', 'key_type', 'notification_type', 'created_at', 'service_id', 'reply_to_text']
+    )
+
+    mocker.patch(
+        'app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number',
+        return_value=None
+    )
+
     notification = Notification(
         id=uuid.uuid4(),
         key_type=key_type,
         notification_type=notification_type,
         created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+        service_id=service,
+        reply_to_text=sms_sender.sms_sender,
     )
 
     send_notification_to_queue(notification=notification, research_mode=research_mode, queue=requested_queue)
@@ -652,3 +671,98 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
     args, _ = mocked_chain.call_args
     for called_task, expected_task in zip(args, expected_tasks):
         assert called_task.name == expected_task.name
+
+
+def test_send_notification_with_sms_sender_rate_limit_uses_rate_limit_delivery_task(
+        client,
+        mocker
+):
+    deliver_sms = mocker.patch('app.celery.provider_tasks.deliver_sms_with_rate_limiting.apply_async')
+
+    MockService = namedtuple('Service', ['id'])
+    service = MockService(id='some service id')
+
+    MockSmsSender = namedtuple('ServiceSmsSender', ['service_id', 'sms_sender', 'rate_limit'])
+    sms_sender = MockSmsSender(service_id=service.id, sms_sender='+18888888888', rate_limit=2)
+
+    mocker.patch(
+        'app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number',
+        return_value=sms_sender
+    )
+
+    notification = Notification(
+        id=str(uuid.uuid4()),
+        notification_type='sms',
+        reply_to_text=sms_sender.sms_sender,
+        service_id=service.id
+    )
+
+    send_notification_to_queue(notification, False)
+
+    deliver_sms.assert_called_once_with([str(notification.id)], queue=QueueNames.SEND_SMS)
+
+
+def test_send_notification_without_sms_sender_rate_limit_uses_regular_delivery_task(
+        client,
+        mocker
+):
+    deliver_sms_with_rate_limiting = mocker.patch(
+        'app.celery.provider_tasks.deliver_sms_with_rate_limiting.apply_async'
+    )
+    deliver_sms = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+
+    MockService = namedtuple('Service', ['id'])
+    service = MockService(id='some service id')
+
+    MockSmsSender = namedtuple('ServiceSmsSender', ['service_id', 'sms_sender', 'rate_limit'])
+    sms_sender = MockSmsSender(service_id=service.id, sms_sender='+18888888888', rate_limit=None)
+
+    mocker.patch(
+        'app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number',
+        return_value=sms_sender
+    )
+
+    notification = Notification(
+        id=str(uuid.uuid4()),
+        notification_type='sms',
+        reply_to_text=sms_sender.sms_sender,
+        service_id=service.id
+    )
+
+    send_notification_to_queue(notification, False)
+
+    deliver_sms_with_rate_limiting.assert_not_called()
+    deliver_sms.assert_called_once_with([str(notification.id)], queue=QueueNames.SEND_SMS)
+
+
+def test_send_notification_without_sms_sender_uses_regular_delivery_task(
+        client,
+        mocker
+):
+    deliver_sms_with_rate_limiting = mocker.patch(
+        'app.celery.provider_tasks.deliver_sms_with_rate_limiting.apply_async'
+    )
+    deliver_sms = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+
+    MockService = namedtuple('Service', ['id'])
+    service = MockService(id='some service id')
+
+    MockSmsSender = namedtuple('ServiceSmsSender', ['service_id', 'sms_sender', 'rate_limit'])
+    sms_sender = MockSmsSender(service_id=service.id, sms_sender='+18888888888', rate_limit=None)
+
+    mocker.patch(
+        'app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number',
+        return_value=None
+    )
+
+    notification = Notification(
+        id=str(uuid.uuid4()),
+        notification_type='sms',
+        reply_to_text=sms_sender.sms_sender,
+        service_id=service.id
+    )
+
+    send_notification_to_queue(notification, False)
+
+    deliver_sms_with_rate_limiting.assert_not_called()
+    deliver_sms.assert_called_once_with([str(notification.id)], queue=QueueNames.SEND_SMS)

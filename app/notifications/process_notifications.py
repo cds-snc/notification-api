@@ -19,6 +19,7 @@ from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
+from app.dao.service_sms_sender_dao import dao_get_sms_sender_by_service_id_and_number
 from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
 
 from app.models import (
@@ -159,7 +160,12 @@ def _get_delivery_task(notification, research_mode=False, queue=None):
     if notification.notification_type == SMS_TYPE:
         if not queue:
             queue = QueueNames.SEND_SMS
-        deliver_task = provider_tasks.deliver_sms
+
+        sms_sender = dao_get_sms_sender_by_service_id_and_number(notification.service_id, notification.reply_to_text)
+        if sms_sender and sms_sender.rate_limit:
+            deliver_task = provider_tasks.deliver_sms_with_rate_limiting
+        else:
+            deliver_task = provider_tasks.deliver_sms
     if notification.notification_type == EMAIL_TYPE:
         if not queue:
             queue = QueueNames.SEND_EMAIL
