@@ -12,7 +12,7 @@ from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
-from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
+from app.feature_flags import accept_recipient_identifiers_enabled
 from app.letters.utils import upload_letter_pdf
 from app.models import (
     SMS_TYPE,
@@ -25,8 +25,7 @@ from app.models import (
     NOTIFICATION_CREATED,
     NOTIFICATION_SENDING,
     NOTIFICATION_DELIVERED,
-    NOTIFICATION_PENDING_VIRUS_CHECK,
-    NOTIFICATION_PREFERENCES_DECLINED
+    NOTIFICATION_PENDING_VIRUS_CHECK
 )
 from app.notifications.process_letter_notifications import (
     create_letter_notification
@@ -59,9 +58,6 @@ from app.v2.notifications.notification_schemas import (
     post_email_request,
     post_letter_request,
     post_precompiled_letter_request
-)
-from app.celery.lookup_recipient_communication_permissions_task import (
-    lookup_recipient_communication_permissions
 )
 
 
@@ -205,6 +201,8 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
 
     personalisation = process_document_uploads(form.get('personalisation'), service, simulated=simulated)
 
+    recipient_identifier = form.get('recipient_identifier', None)
+
     notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
@@ -217,28 +215,9 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         client_reference=form.get('reference', None),
         simulated=simulated,
         reply_to_text=reply_to_text,
-        recipient_identifier=form.get('recipient_identifier', None),
+        recipient_identifier=recipient_identifier,
         billing_code=form.get('billing_code', None)
     )
-
-    recipient_identifier = form.get('recipient_identifier')
-    if (
-            recipient_identifier
-            and is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED)
-            and template.communication_item_id):
-        lookup_recipient_communication_permissions.apply_async(
-            [
-                recipient_identifier['id_type'],
-                recipient_identifier['id_value'],
-                str(notification.id),
-                notification_type,
-                template.communication_item_id
-            ],
-            queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
-        )
-
-        if notification.status == NOTIFICATION_PREFERENCES_DECLINED:  # TODO: will not ever get here bc of queue stuff
-            return notification
 
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:
@@ -248,10 +227,12 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
         else:
             queue_name = QueueNames.PRIORITY if template.process_type == PRIORITY else None
+            recipient_id_type = recipient_identifier.get('id_type') if recipient_identifier else None
             send_notification_to_queue(
                 notification=notification,
                 research_mode=service.research_mode,
-                queue=queue_name
+                queue=queue_name,
+                recipient_id_type=recipient_id_type
             )
 
     return notification

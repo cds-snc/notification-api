@@ -20,7 +20,6 @@ from app.models import (
     SMS_TYPE
 )
 from app import db
-import app.celery.tasks
 
 from tests import create_authorization_header
 
@@ -200,7 +199,7 @@ def test_send_user_sms_code(client,
 
     auth_header = create_authorization_header()
     mocked = mocker.patch('app.user.rest.create_secret_code', return_value='11111')
-    mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+    mocked_task = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
 
     resp = client.post(
         url_for('user.send_user_2fa_code', code_type='sms', user_id=sample_user.id),
@@ -208,7 +207,7 @@ def test_send_user_sms_code(client,
         headers=[('Content-Type', 'application/json'), auth_header])
     assert resp.status_code == 204
 
-    assert mocked.call_count == 1
+    mocked.assert_called_once()
     assert VerifyCode.query.one().check_code('11111')
 
     notification = Notification.query.one()
@@ -217,10 +216,12 @@ def test_send_user_sms_code(client,
     assert str(notification.service_id) == current_app.config['NOTIFY_SERVICE_ID']
     assert notification.reply_to_text == notify_service.get_default_sms_sender()
 
-    app.celery.provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-        ([str(notification.id)]),
-        queue="notify-internal-tasks"
-    )
+    result_notification_id, result_queue = mocked_task.call_args
+    result_id, *rest = result_notification_id[0]
+    assert result_id == str(notification.id)
+
+    assert result_queue['queue'] == 'notify-internal-tasks'
+    mocked_task.assert_called_once()
 
 
 @freeze_time("2016-01-01 11:09:00.061258")
@@ -233,7 +234,7 @@ def test_send_user_code_for_sms_with_optional_to_field(client,
     """
     to_number = '+447119876757'
     mocked = mocker.patch('app.user.rest.create_secret_code', return_value='11111')
-    mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+    mocked_task = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
     auth_header = create_authorization_header()
 
     resp = client.post(
@@ -242,13 +243,16 @@ def test_send_user_code_for_sms_with_optional_to_field(client,
         headers=[('Content-Type', 'application/json'), auth_header])
 
     assert resp.status_code == 204
-    assert mocked.call_count == 1
+    mocked.assert_called_once()
     notification = Notification.query.first()
     assert notification.to == to_number
-    app.celery.provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-        ([str(notification.id)]),
-        queue="notify-internal-tasks"
-    )
+
+    result_notification_id, result_queue = mocked_task.call_args
+    result_id, *rest = result_notification_id[0]
+    assert result_id == str(notification.id)
+
+    assert result_queue['queue'] == 'notify-internal-tasks'
+    mocked_task.assert_called_once()
 
 
 @freeze_time("2016-01-01 11:09:00.061258")
@@ -329,7 +333,14 @@ def test_send_new_user_email_verification(client,
     assert resp.status_code == 204
     notification = Notification.query.first()
     assert VerifyCode.query.count() == 0
-    mocked.assert_called_once_with(([str(notification.id)]), queue="notify-internal-tasks")
+
+    result_notification_id, result_queue = mocked.call_args
+    result_id, *rest = result_notification_id[0]
+    assert result_id == str(notification.id)
+
+    assert result_queue['queue'] == 'notify-internal-tasks'
+    mocked.assert_called_once()
+
     assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
 
 
@@ -424,16 +435,19 @@ def test_send_user_email_code(
         _data=data,
         _expected_status=204
     )
-    noti = Notification.query.one()
-    assert noti.reply_to_text == email_2fa_code_template.service.get_default_reply_to_email_address()
-    assert noti.to == sample_user.email_address
-    assert str(noti.template_id) == current_app.config['EMAIL_2FA_TEMPLATE_ID']
-    assert noti.personalisation['name'] == 'Test User'
-    assert noti.personalisation['url'].startswith(expected_auth_url)
-    deliver_email.assert_called_once_with(
-        [str(noti.id)],
-        queue='notify-internal-tasks'
-    )
+    notification = Notification.query.one()
+    assert notification.reply_to_text == email_2fa_code_template.service.get_default_reply_to_email_address()
+    assert notification.to == sample_user.email_address
+    assert str(notification.template_id) == current_app.config['EMAIL_2FA_TEMPLATE_ID']
+    assert notification.personalisation['name'] == 'Test User'
+    assert notification.personalisation['url'].startswith(expected_auth_url)
+
+    result_notification_id, result_queue = deliver_email.call_args
+    result_id, *rest = result_notification_id[0]
+    assert result_id == str(notification.id)
+
+    assert result_queue['queue'] == 'notify-internal-tasks'
+    deliver_email.assert_called_once()
 
 
 def test_send_user_email_code_with_urlencoded_next_param(admin_request, mocker, sample_user, email_2fa_code_template):

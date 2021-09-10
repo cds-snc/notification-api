@@ -2796,8 +2796,13 @@ def test_verify_reply_to_email_address_should_send_verification_email(
     notification = Notification.query.first()
     assert notification.template_id == verify_reply_to_address_email_template.id
     assert response["data"] == {"id": str(notification.id)}
-    mocked.assert_called_once_with([str(notification.id)], queue="notify-internal-tasks")
     assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
+
+    result_notification_id, result_queue = mocked.call_args
+    result_id, *rest = result_notification_id[0]
+    assert result_id == str(notification.id)
+    assert result_queue['queue'] == "notify-internal-tasks"
+    mocked.assert_called_once()
 
 
 def test_verify_reply_to_email_address_doesnt_allow_duplicates(admin_request, notify_db, notify_db_session, mocker):

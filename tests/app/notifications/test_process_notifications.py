@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from freezegun import freeze_time
 from collections import namedtuple
 
+from app.celery import letters_pdf_tasks
 from app.celery.lookup_recipient_communication_permissions_task import lookup_recipient_communication_permissions
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
@@ -21,6 +22,7 @@ from app.models import (
     EMAIL_TYPE,
     SMS_TYPE,
     RecipientIdentifier)
+from app.notifications.exceptions import RecipientIdentifierNotFoundException
 from app.notifications.process_notifications import (
     create_content_for_notification,
     persist_notification,
@@ -31,11 +33,9 @@ from app.notifications.process_notifications import (
 from notifications_utils.recipients import validate_and_format_phone_number, validate_and_format_email_address
 from app.v2.errors import BadRequestError
 from app.va.identifier import IdentifierType
-from app.feature_flags import FeatureFlag
 
 
 from tests.app.db import create_service, create_template
-from tests.app.oauth.test_rest import mock_toggle
 
 
 def test_create_content_for_notification_passes(sample_email_template):
@@ -174,7 +174,7 @@ def test_persist_notification_does_not_increment_cache_if_test_key(
 def test_persist_notification_with_optionals(sample_job, sample_api_key, mocker):
     assert Notification.query.count() == 0
     assert NotificationHistory.query.count() == 0
-    mocked_redis = mocker.patch('app.notifications.process_notifications.redis_store.get')
+    mocked_redis = mocker.patch('app.notifications.process_notificatioedis_store.get')
     n_id = uuid.uuid4()
     created_at = datetime.datetime(2016, 11, 11, 16, 8, 18)
     persist_notification(
@@ -252,23 +252,23 @@ def test_persist_notification_increments_cache_if_key_exists(sample_template, sa
 
 
 @pytest.mark.parametrize((
-    'research_mode, requested_queue, notification_type, key_type, expected_queue, expected_task'
+    'research_mode, requested_queue, notification_type, key_type, expected_queue, expected_tasks'
 ), [
-    (True, None, 'sms', 'normal', 'research-mode-tasks', 'provider_tasks.deliver_sms'),
-    (True, None, 'email', 'normal', 'research-mode-tasks', 'provider_tasks.deliver_email'),
-    (True, None, 'email', 'team', 'research-mode-tasks', 'provider_tasks.deliver_email'),
-    (True, None, 'letter', 'normal', 'research-mode-tasks', 'letters_pdf_tasks.create_letters_pdf'),
-    (False, None, 'sms', 'normal', 'send-sms-tasks', 'provider_tasks.deliver_sms'),
-    (False, None, 'email', 'normal', 'send-email-tasks', 'provider_tasks.deliver_email'),
-    (False, None, 'sms', 'team', 'send-sms-tasks', 'provider_tasks.deliver_sms'),
-    (False, None, 'letter', 'normal', 'create-letters-pdf-tasks', 'letters_pdf_tasks.create_letters_pdf'),
-    (False, None, 'sms', 'test', 'research-mode-tasks', 'provider_tasks.deliver_sms'),
-    (True, 'notify-internal-tasks', 'email', 'normal', 'research-mode-tasks', 'provider_tasks.deliver_email'),
-    (False, 'notify-internal-tasks', 'sms', 'normal', 'notify-internal-tasks', 'provider_tasks.deliver_sms'),
-    (False, 'notify-internal-tasks', 'email', 'normal', 'notify-internal-tasks', 'provider_tasks.deliver_email'),
-    (False, 'notify-internal-tasks', 'sms', 'test', 'research-mode-tasks', 'provider_tasks.deliver_sms'),
+    (True, None, 'sms', 'normal', 'research-mode-tasks', [deliver_sms]),
+    (True, None, 'email', 'normal', 'research-mode-tasks', [deliver_email]),
+    (True, None, 'email', 'team', 'research-mode-tasks', [deliver_email]),
+    (True, None, 'letter', 'normal', 'research-mode-tasks', [letters_pdf_tasks.create_letters_pdf]),
+    (False, None, 'sms', 'normal', 'send-sms-tasks', [deliver_sms]),
+    (False, None, 'email', 'normal', 'send-email-tasks', [deliver_email]),
+    (False, None, 'sms', 'team', 'send-sms-tasks', [deliver_sms]),
+    (False, None, 'letter', 'normal', 'create-letters-pdf-tasks', [letters_pdf_tasks.create_letters_pdf]),
+    (False, None, 'sms', 'test', 'research-mode-tasks', [deliver_sms]),
+    (True, 'notify-internal-tasks', 'email', 'normal', 'research-mode-tasks', [deliver_email]),
+    (False, 'notify-internal-tasks', 'sms', 'normal', 'notify-internal-tasks', [deliver_sms]),
+    (False, 'notify-internal-tasks', 'email', 'normal', 'notify-internal-tasks', [deliver_email]),
+    (False, 'notify-internal-tasks', 'sms', 'test', 'research-mode-tasks', [deliver_sms]),
 ])
-def test_send_notification_to_queue(
+def test_send_notification_to_queue_with_no_recipient_identifiers(
     notify_db,
     notify_db_session,
     research_mode,
@@ -276,46 +276,234 @@ def test_send_notification_to_queue(
     notification_type,
     key_type,
     expected_queue,
-    expected_task,
+    expected_tasks,
     mocker,
+    sample_email_template,
+    sample_sms_template_with_html,
 ):
-    mocked = mocker.patch('app.celery.{}.apply_async'.format(expected_task))
-
-    MockService = namedtuple('Service', ['id'])
-    service = MockService(id='some service id')
-
-    MockSmsSender = namedtuple('ServiceSmsSender', ['service_id', 'sms_sender', 'rate_limit'])
-    sms_sender = MockSmsSender(service_id=service.id, sms_sender='+18888888888', rate_limit=None)
-
-    Notification = namedtuple(
-        'Notification',
-        ['id', 'key_type', 'notification_type', 'created_at', 'service_id', 'reply_to_text']
-    )
-
-    mocker.patch(
-        'app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number',
-        return_value=None
-    )
-
+    mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
+    template = sample_email_template if notification_type else sample_sms_template_with_html
+    Notification = namedtuple('Notification', ['id', 'key_type', 'notification_type', 'created_at', 'template'])
     notification = Notification(
         id=uuid.uuid4(),
         key_type=key_type,
         notification_type=notification_type,
         created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
-        service_id=service,
-        reply_to_text=sms_sender.sms_sender,
+        template=template
     )
 
     send_notification_to_queue(notification=notification, research_mode=research_mode, queue=requested_queue)
 
-    mocked.assert_called_once_with([str(notification.id)], queue=expected_queue)
+    args, _ = mocked_chain.call_args
+    for called_task, expected_task in zip(args, expected_tasks):
+        assert called_task.name == expected_task.name
+        called_task_notification_arg = args[0].args[0]
+        assert called_task_notification_arg == str(notification.id)
+
+
+@pytest.mark.parametrize((
+    'research_mode, '
+    'requested_queue, '
+    'notification_type, '
+    'key_type, '
+    'expected_queue, '
+    'request_recipient_id_type, '
+    'request_recipient_id_value, '
+    'expected_tasks'
+), [
+    (
+        True,
+        None,
+        'sms',
+        'normal',
+        'research-mode-tasks',
+        IdentifierType.VA_PROFILE_ID.value, 'some va profile id',
+        [lookup_recipient_communication_permissions, deliver_sms]
+    ),
+    (
+        True,
+        None,
+        'email',
+        'normal',
+        'research-mode-tasks',
+        IdentifierType.PID.value,
+        'some pid',
+        [lookup_recipient_communication_permissions, deliver_email]
+    ),
+    (
+        True,
+        None,
+        'email',
+        'team',
+        'research-mode-tasks',
+        IdentifierType.ICN.value,
+        'some icn',
+        [lookup_recipient_communication_permissions, deliver_email]
+    ),
+    (
+        True,
+        'notify-internal-tasks',
+        'email',
+        'normal',
+        'research-mode-tasks',
+        IdentifierType.VA_PROFILE_ID.value,
+        'some va profile id',
+        [lookup_recipient_communication_permissions, deliver_email]
+    ),
+    (
+        False,
+        None,
+        'sms',
+        'normal',
+        'send-sms-tasks',
+        IdentifierType.PID.value,
+        'some pid',
+        [lookup_recipient_communication_permissions, deliver_sms]
+    ),
+    (
+        False,
+        None,
+        'email',
+        'normal',
+        'send-email-tasks',
+        IdentifierType.ICN.value,
+        'some icn',
+        [lookup_recipient_communication_permissions, deliver_email]
+    ),
+    (
+        False,
+        None,
+        'sms',
+        'team',
+        'send-sms-tasks',
+        IdentifierType.VA_PROFILE_ID.value,
+        'some va profile id',
+        [lookup_recipient_communication_permissions, deliver_sms]
+    ),
+    (
+        False,
+        None,
+        'sms',
+        'test',
+        'research-mode-tasks',
+        IdentifierType.PID.value,
+        'some pid',
+        [lookup_recipient_communication_permissions, deliver_sms]
+    ),
+    (
+        False,
+        'notify-internal-tasks',
+        'sms',
+        'normal',
+        'notify-internal-tasks',
+        IdentifierType.ICN.value,
+        'some icn',
+        [lookup_recipient_communication_permissions, deliver_sms]
+    ),
+    (
+        False,
+        'notify-internal-tasks',
+        'email',
+        'normal',
+        'notify-internal-tasks',
+        IdentifierType.VA_PROFILE_ID.value,
+        'some va profile id',
+        [lookup_recipient_communication_permissions, deliver_email]
+    ),
+    (
+        False,
+        'notify-internal-tasks',
+        'sms',
+        'test',
+        'research-mode-tasks',
+        IdentifierType.PID.value,
+        'some pid',
+        [lookup_recipient_communication_permissions, deliver_sms]
+    ),
+])
+def test_send_notification_to_queue_with_recipient_identifiers(
+    notify_db,
+    notify_db_session,
+    research_mode,
+    requested_queue,
+    notification_type,
+    key_type,
+    expected_queue,
+    request_recipient_id_type,
+    request_recipient_id_value,
+    expected_tasks,
+    mocker,
+    sample_email_template,
+    sample_sms_template_with_html,
+):
+    mocker.patch(
+        'app.notifications.process_notifications.is_feature_enabled',
+        return_value=True
+    )
+    mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
+    template = sample_email_template if notification_type else sample_sms_template_with_html
+    TestNotification = namedtuple(
+        'Notification', ['id', 'key_type', 'notification_type', 'created_at', 'template', 'recipient_identifiers']
+    )
+    notification_id = uuid.uuid4()
+    notification = TestNotification(
+        id=notification_id,
+        key_type=key_type,
+        notification_type=notification_type,
+        created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+        template=template,
+        recipient_identifiers={f"{request_recipient_id_type}": RecipientIdentifier(
+            notification_id=notification_id,
+            id_type=request_recipient_id_type,
+            id_value=request_recipient_id_value
+        )})
+
+    send_notification_to_queue(
+        notification=notification,
+        research_mode=research_mode,
+        queue=requested_queue,
+        recipient_id_type=request_recipient_id_type)
+
+    args, _ = mocked_chain.call_args
+    for called_task, expected_task in zip(args, expected_tasks):
+        assert called_task.name == expected_task.name
+        called_task_args = args[0]
+        assert request_recipient_id_type == called_task_args.args[0]
+        assert request_recipient_id_value == called_task_args.args[1]
 
 
 def test_send_notification_to_queue_throws_exception_deletes_notification(sample_notification, mocker):
-    mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async', side_effect=Boto3Error("EXPECTED"))
+    mocker.patch(
+        'app.notifications.process_notifications.is_feature_enabled',
+        return_value=False
+    )
+    mocked_chain = mocker.patch('app.notifications.process_notifications.chain', side_effect=Boto3Error("EXPECTED"))
     with pytest.raises(Boto3Error):
         send_notification_to_queue(sample_notification, False)
-    mocked.assert_called_once_with([(str(sample_notification.id))], queue='send-sms-tasks')
+    args, _ = mocked_chain.call_args
+    for called_task, expected_task in zip(args, ['send-sms-tasks']):
+        assert called_task.args[0] == str(sample_notification.id)
+        assert called_task.options['queue'] == expected_task
+
+    assert Notification.query.count() == 0
+    assert NotificationHistory.query.count() == 0
+
+
+def test_send_notification_to_queue_throws_exception_deletes_notification_when_recipient_identifier_not_found(
+        sample_notification, mocker
+):
+    mocker.patch(
+        'app.notifications.process_notifications.is_feature_enabled',
+        return_value=True
+    )
+    mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
+    notification_no_recipient_id = sample_notification
+    with pytest.raises(RecipientIdentifierNotFoundException):
+        send_notification_to_queue(
+            notification=notification_no_recipient_id, research_mode=False, recipient_id_type='rid'
+        )
+
+    mocked_chain.assert_not_called()
 
     assert Notification.query.count() == 0
     assert NotificationHistory.query.count() == 0
@@ -620,11 +808,6 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
     assert notification.recipient_identifiers == {}
 
 
-@pytest.fixture
-def check_recipient_communication_permissions_enabled(mocker):
-    mock_toggle(mocker, FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED, 'True')
-
-
 @pytest.mark.parametrize('id_type, notification_type, expected_tasks', [
     (
         IdentifierType.VA_PROFILE_ID.value,
@@ -652,9 +835,13 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
         mocker,
         notification_type,
         id_type,
-        expected_tasks,
-        check_recipient_communication_permissions_enabled
+        expected_tasks
 ):
+    mocker.patch(
+        'app.notifications.process_notifications.is_feature_enabled',
+        return_value=True
+    )
+
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
 
     notification = Notification(

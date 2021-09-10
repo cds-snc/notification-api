@@ -168,7 +168,7 @@ def test_switch_providers_on_slow_delivery_does_nothing_if_toggle_is_off(
 
 @freeze_time("2017-05-01 14:00:00")
 def test_should_send_all_scheduled_notifications_to_deliver_queue(sample_template, mocker):
-    mocked = mocker.patch('app.celery.provider_tasks.deliver_sms')
+    mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     message_to_deliver = create_notification(template=sample_template, scheduled_for="2017-05-01 13:15")
     create_notification(template=sample_template, scheduled_for="2017-05-01 10:15", status='delivered')
     create_notification(template=sample_template)
@@ -179,7 +179,11 @@ def test_should_send_all_scheduled_notifications_to_deliver_queue(sample_templat
 
     send_scheduled_notifications()
 
-    mocked.apply_async.assert_called_once_with([str(message_to_deliver.id)], queue='send-sms-tasks')
+    args, _ = mocked_chain.call_args
+    for called_task, expected_task in zip(args, ['send-sms-tasks']):
+        assert called_task.options['queue'] == expected_task
+        assert called_task.args[0] == str(message_to_deliver.id)
+
     scheduled_notifications = dao_get_scheduled_notifications()
     assert not scheduled_notifications
 
@@ -306,34 +310,37 @@ def test_check_job_status_task_sets_jobs_to_error(mocker, sample_template):
     assert job_2.job_status == JOB_STATUS_IN_PROGRESS
 
 
-def test_replay_created_notifications(notify_db_session, sample_service, mocker):
-    email_delivery_queue = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
-    sms_delivery_queue = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+@pytest.mark.parametrize(
+    "notification_type, expected_delivery_status", [
+        ('email', 'delivered'),
+        ('sms', 'sending')
+    ])
+def test_replay_created_notifications(
+    notify_db_session, sample_service, mocker, notification_type, expected_delivery_status
+):
+    mocked = mocker.patch(f'app.celery.provider_tasks.deliver_{notification_type}.apply_async')
 
-    sms_template = create_template(service=sample_service, template_type='sms')
-    email_template = create_template(service=sample_service, template_type='email')
+    template = create_template(service=sample_service, template_type=notification_type)
+
     older_than = (60 * 60 * 4) + (60 * 15)  # 4 hours 15 minutes
-    # notifications expected to be resent
-    old_sms = create_notification(template=sms_template, created_at=datetime.utcnow() - timedelta(seconds=older_than),
-                                  status='created')
-    old_email = create_notification(template=email_template,
-                                    created_at=datetime.utcnow() - timedelta(seconds=older_than),
-                                    status='created')
-    # notifications that are not to be resent
-    create_notification(template=sms_template, created_at=datetime.utcnow() - timedelta(seconds=older_than),
-                        status='sending')
-    create_notification(template=email_template, created_at=datetime.utcnow() - timedelta(seconds=older_than),
-                        status='delivered')
-    create_notification(template=sms_template, created_at=datetime.utcnow(),
+    old_notification = create_notification(template=template,
+                                           created_at=datetime.utcnow() - timedelta(seconds=older_than),
+                                           status='created')
+    create_notification(template=template, created_at=datetime.utcnow() - timedelta(seconds=older_than),
+                        status=expected_delivery_status)
+    create_notification(template=template, created_at=datetime.utcnow(),
                         status='created')
-    create_notification(template=email_template, created_at=datetime.utcnow(),
+    create_notification(template=template, created_at=datetime.utcnow(),
                         status='created')
 
     replay_created_notifications()
-    email_delivery_queue.assert_called_once_with([str(old_email.id)],
-                                                 queue='send-email-tasks')
-    sms_delivery_queue.assert_called_once_with([str(old_sms.id)],
-                                               queue="send-sms-tasks")
+
+    result_notification_id, result_queue = mocked.call_args
+    result_id, *rest = result_notification_id[0]
+    assert result_id == str(old_notification.id)
+
+    assert result_queue['queue'] == f'send-{notification_type}-tasks'
+    mocked.assert_called_once()
 
 
 def test_check_job_status_task_does_not_raise_error(sample_template):

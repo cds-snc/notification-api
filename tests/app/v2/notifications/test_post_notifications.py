@@ -5,7 +5,6 @@ from freezegun import freeze_time
 
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
-    NOTIFICATION_PREFERENCES_DECLINED,
     ScheduledNotification,
     EMAIL_TYPE,
     NOTIFICATION_CREATED,
@@ -110,7 +109,7 @@ def test_post_sms_notification_uses_inbound_number_as_sender(client, notify_db_s
     service = create_service_with_inbound_number(inbound_number='1')
 
     template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
-    mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+    mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     data = {
         'phone_number': '+16502532222',
         'template_id': str(template.id),
@@ -131,14 +130,19 @@ def test_post_sms_notification_uses_inbound_number_as_sender(client, notify_db_s
     assert resp_json['id'] == str(notification_id)
     assert resp_json['content']['from_number'] == '1'
     assert notifications[0].reply_to_text == '1'
-    mocked.assert_called_once_with([str(notification_id)], queue='send-sms-tasks')
+
+    mocked_chain.assert_called_once()
+    args, _ = mocked_chain.call_args
+    for called_task, expected_task in zip(args, ['send-sms-tasks']):
+        assert called_task.options['queue'] == expected_task
+        assert called_task.args[0] == str(notification_id)
 
 
 def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(client, notify_db_session, mocker):
     service = create_service_with_inbound_number(inbound_number='6502532222')
 
     template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
-    mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+    mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     data = {
         'phone_number': '+16502532222',
         'template_id': str(template.id),
@@ -159,14 +163,19 @@ def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(client, no
     assert resp_json['id'] == str(notification_id)
     assert resp_json['content']['from_number'] == '+16502532222'
     assert notifications[0].reply_to_text == '+16502532222'
-    mocked.assert_called_once_with([str(notification_id)], queue='send-sms-tasks')
+
+    mocked_chain.assert_called_once()
+    args, _ = mocked_chain.call_args
+    for called_task, expected_task in zip(args, ['send-sms-tasks']):
+        assert called_task.options['queue'] == expected_task
+        assert called_task.args[0] == str(notification_id)
 
 
 def test_post_sms_notification_returns_201_with_sms_sender_id(
         client, sample_template_with_placeholders, mocker
 ):
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender='123456')
-    mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+    mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     data = {
         'phone_number': '+16502532222',
         'template_id': str(sample_template_with_placeholders.id),
@@ -186,14 +195,19 @@ def test_post_sms_notification_returns_201_with_sms_sender_id(
     notifications = Notification.query.all()
     assert len(notifications) == 1
     assert notifications[0].reply_to_text == sms_sender.sms_sender
-    mocked.assert_called_once_with([resp_json['id']], queue='send-sms-tasks')
+
+    mocked_chain.assert_called_once()
+    args, _ = mocked_chain.call_args
+    for called_task, expected_task in zip(args, ['send-sms-tasks']):
+        assert called_task.options['queue'] == expected_task
+        assert called_task.args[0] == resp_json['id']
 
 
 def test_post_sms_notification_uses_sms_sender_id_reply_to(
         client, sample_template_with_placeholders, mocker
 ):
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender='6502532222')
-    mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+    mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     data = {
         'phone_number': '+16502532222',
         'template_id': str(sample_template_with_placeholders.id),
@@ -213,7 +227,12 @@ def test_post_sms_notification_uses_sms_sender_id_reply_to(
     notifications = Notification.query.all()
     assert len(notifications) == 1
     assert notifications[0].reply_to_text == '+16502532222'
-    mocked.assert_called_once_with([resp_json['id']], queue='send-sms-tasks')
+
+    mocked_chain.assert_called_once()
+    args, _ = mocked_chain.call_args
+    for called_task, expected_task in zip(args, ['send-sms-tasks']):
+        assert called_task.options['queue'] == expected_task
+        assert called_task.args[0] == resp_json['id']
 
 
 def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after_post_notification(
@@ -416,14 +435,12 @@ def test_send_notification_uses_priority_queue_when_template_is_marked_as_priori
     key_send_to,
     send_to
 ):
-    mocker.patch('app.celery.provider_tasks.deliver_{}.apply_async'.format(notification_type))
-
     sample = create_template(
         service=sample_service,
         template_type=notification_type,
         process_type='priority'
     )
-    mocked = mocker.patch('app.celery.provider_tasks.deliver_{}.apply_async'.format(notification_type))
+    mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
 
     data = {
         key_send_to: send_to,
@@ -433,14 +450,20 @@ def test_send_notification_uses_priority_queue_when_template_is_marked_as_priori
     auth_header = create_authorization_header(service_id=sample.service_id)
 
     response = client.post(
-        path='/v2/notifications/{}'.format(notification_type),
+        path=f'/v2/notifications/{notification_type}',
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), auth_header])
 
     notification_id = json.loads(response.data)['id']
 
     assert response.status_code == 201
-    mocked.assert_called_once_with([notification_id], queue='priority-tasks')
+
+    mocked_chain.assert_called_once()
+
+    args, _ = mocked_chain.call_args
+    for called_task, expected_task in zip(args, ['priority-tasks']):
+        assert called_task.options['queue'] == expected_task
+        assert called_task.args[0] == str(notification_id)
 
 
 @pytest.mark.parametrize(
@@ -958,17 +981,12 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
         client,
         mocker,
         enable_accept_recipient_identifiers_enabled_feature_flag,
+        check_recipient_communication_permissions_enabled,
         sample_email_template,
         sample_sms_template_with_html,
-        notification_type,
-        check_recipient_communication_permissions_enabled
+        notification_type
 ):
-    send_to_queue = mocker.patch(
-        'app.v2.notifications.post_notifications.send_notification_to_queue'
-    )
-    comm_prefs_task = mocker.patch(
-        'app.v2.notifications.post_notifications.lookup_recipient_communication_permissions.apply_async',
-    )
+    mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
 
     expected_id_type = IdentifierType.VA_PROFILE_ID.value
     expected_id_value = 'some va profile id'
@@ -998,10 +1016,8 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
             },
             "billing_code": "TESTCODE"
         }
-    auth_header = create_authorization_header(
-        service_id=(sample_email_template.service_id if notification_type == 'email'
-                    else sample_sms_template_with_html.service_id)
-    )
+    service = sample_email_template.service if notification_type == 'email' else sample_sms_template_with_html.service
+    auth_header = create_authorization_header(service_id=service.id)
     response = client.post(
         path=f"v2/notifications/{notification_type}",
         data=json.dumps(data),
@@ -1017,89 +1033,20 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
     # assert notification.recipient_identifiers[expected_id_type].id_type == expected_id_type
     # assert notification.recipient_identifiers[expected_id_type].id_value == expected_id_value
 
-    comm_prefs_task.assert_called_once_with([expected_id_type,
-                                             expected_id_value,
-                                             str(notification.id),
-                                             notification_type,
-                                             template.communication_item_id],
-                                            queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
+    mocked_chain.assert_called_once()
 
-    send_to_queue.assert_called_once()
-
-
-@pytest.mark.parametrize('notification_type', ["email", "sms"])
-def test_post_notification_updates_notification_status_when_recipient_declines_communications(
-        client,
-        mocker,
-        enable_accept_recipient_identifiers_enabled_feature_flag,
-        sample_email_template,
-        sample_sms_template_with_html,
-        notification_type,
-        check_recipient_communication_permissions_enabled
-):
-    expected_id_type = IdentifierType.VA_PROFILE_ID.value
-    expected_id_value = 'some va profile id'
-
-    template = (sample_email_template if notification_type == 'email' else sample_sms_template_with_html)
-
-    if notification_type == "email":
-        data = {
-            "template_id": template.id,
-            "email_address": "some-email@test.com",
-            "recipient_identifier": {
-                'id_type': expected_id_type,
-                'id_value': expected_id_value
-            }
-        }
-
-        personalisation = None
-    else:
-        data = {
-            "template_id": template.id,
-            "phone_number": "+16502532222",
-            "recipient_identifier": {
-                'id_type': expected_id_type,
-                'id_value': expected_id_value
-            },
-            "personalisation": {
-                "Name": "Flowers"
-            }
-        }
-
-        personalisation = data["personalisation"]
-
-    notification = mocker.Mock(Notification,
-                               service_id=template.service_id,
-                               service=template.service,
-                               template_id=template.id,
-                               template=template,
-                               personalisation=personalisation,
-                               status=NOTIFICATION_PREFERENCES_DECLINED,
-                               client_reference='ref1',
-                               billing_code=None,
-                               template_version=1,
-                               id='some-id')
-    mocker.patch(
-        'app.v2.notifications.post_notifications.persist_notification',
-        return_value=notification
-    )
-    send_to_queue = mocker.patch(
-        'app.v2.notifications.post_notifications.send_notification_to_queue'
-    )
-    mocker.patch(
-        'app.v2.notifications.post_notifications.lookup_recipient_communication_permissions.apply_async',
-    )
-    auth_header = create_authorization_header(
-        service_id=template.service_id,
-    )
-    response = client.post(
-        path=f"v2/notifications/{notification_type}",
-        data=json.dumps(data),
-        headers=[('Content-Type', 'application/json'), auth_header])
-
-    assert response.status_code == 201
-
-    send_to_queue.assert_not_called()
+    args, _ = mocked_chain.call_args
+    for called_task, expected_task in zip(args, [QueueNames.COMMUNICATION_ITEM_PERMISSIONS,
+                                                 f'send-{notification_type}-tasks']):
+        assert called_task.options['queue'] == expected_task
+        if expected_task == QueueNames.COMMUNICATION_ITEM_PERMISSIONS:
+            assert called_task.args == (expected_id_type,
+                                        expected_id_value,
+                                        str(notification.id),
+                                        notification.notification_type,
+                                        notification.template.communication_item_id)
+        else:
+            assert called_task.args[0] == str(notification.id)
 
 
 def test_post_notification_returns_501_when_recipient_identifiers_present_and_feature_flag_disabled(

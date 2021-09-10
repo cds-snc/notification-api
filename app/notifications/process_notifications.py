@@ -35,6 +35,7 @@ from app.dao.notifications_dao import (
     dao_create_notification,
     dao_delete_notification_by_id,
     dao_created_scheduled_notification)
+from app.notifications.exceptions import RecipientIdentifierNotFoundException
 
 from app.v2.errors import BadRequestError
 from app.utils import get_template_instance
@@ -55,30 +56,30 @@ def check_placeholders(template_object):
 
 
 def persist_notification(
-    *,
-    template_id,
-    template_version,
-    recipient=None,
-    service,
-    personalisation,
-    notification_type,
-    api_key_id,
-    key_type,
-    created_at=None,
-    job_id=None,
-    job_row_number=None,
-    reference=None,
-    client_reference=None,
-    notification_id=None,
-    simulated=False,
-    created_by_id=None,
-    status=NOTIFICATION_CREATED,
-    reply_to_text=None,
-    billable_units=None,
-    postage=None,
-    template_postage=None,
-    recipient_identifier=None,
-    billing_code=None
+        *,
+        template_id,
+        template_version,
+        recipient=None,
+        service,
+        personalisation,
+        notification_type,
+        api_key_id,
+        key_type,
+        created_at=None,
+        job_id=None,
+        job_row_number=None,
+        reference=None,
+        client_reference=None,
+        notification_id=None,
+        simulated=False,
+        created_by_id=None,
+        status=NOTIFICATION_CREATED,
+        reply_to_text=None,
+        billable_units=None,
+        postage=None,
+        template_postage=None,
+        recipient_identifier=None,
+        billing_code=None
 ):
     notification_created_at = created_at or datetime.utcnow()
     if not notification_id:
@@ -138,11 +139,32 @@ def persist_notification(
     return notification
 
 
-def send_notification_to_queue(notification, research_mode, queue=None):
+def send_notification_to_queue(notification, research_mode, queue=None, recipient_id_type: str = None):
     deliver_task, queue = _get_delivery_task(notification, research_mode, queue)
 
+    communication_item_id = notification.template.communication_item_id
+
     try:
-        deliver_task.apply_async([str(notification.id)], queue=queue)
+        tasks = [deliver_task.si(str(notification.id)).set(queue=queue)]
+        if (
+                recipient_id_type
+                and is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED)
+                and communication_item_id
+        ):
+            recipient_id_value = _get_recipient_identifier_value(notification.recipient_identifiers, recipient_id_type)
+            tasks.insert(
+                0,
+                lookup_recipient_communication_permissions.si(
+                    recipient_id_type,
+                    recipient_id_value,
+                    str(notification.id),
+                    notification.notification_type,
+                    communication_item_id
+                ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
+            )
+
+        chain(*tasks).apply_async()
+
     except Exception:
         dao_delete_notification_by_id(notification.id)
         raise
@@ -151,6 +173,14 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         "{} {} sent to the {} queue for delivery".format(notification.notification_type,
                                                          notification.id,
                                                          queue))
+
+
+def _get_recipient_identifier_value(notification_recipient_identifiers: dict, expected_recipient_id_type: str) -> str:
+    for id_type, recipient_identifier in notification_recipient_identifiers.items():
+        if id_type == expected_recipient_id_type:
+            return recipient_identifier.id_value
+
+    raise RecipientIdentifierNotFoundException
 
 
 def _get_delivery_task(notification, research_mode=False, queue=None):
@@ -196,7 +226,7 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
             )
 
     else:
-        # TODO: use va profile id so we don't hit mpi multiple times?
+        # TODO: pass va profile id to lookup comms prefs task, to prevent another lookup on MPI side under the hood
         tasks = [
             lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),

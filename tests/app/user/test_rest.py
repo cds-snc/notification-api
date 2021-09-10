@@ -693,7 +693,14 @@ def test_send_user_reset_password_should_send_reset_password_link(client,
 
     assert resp.status_code == 204
     notification = Notification.query.first()
-    mocked.assert_called_once_with([str(notification.id)], queue="notify-internal-tasks")
+
+    result_notification_id, result_queue = mocked.call_args
+    result_id, *rest = result_notification_id[0]
+    assert result_id == str(notification.id)
+
+    assert result_queue['queue'] == 'notify-internal-tasks'
+    mocked.assert_called_once()
+
     assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
 
 
@@ -757,7 +764,13 @@ def test_send_already_registered_email(client, sample_user, already_registered_t
     assert resp.status_code == 204
 
     notification = Notification.query.first()
-    mocked.assert_called_once_with(([str(notification.id)]), queue="notify-internal-tasks")
+    result_notification_id, result_queue = mocked.call_args
+    result_id, *rest = result_notification_id[0]
+    assert result_id == str(notification.id)
+
+    assert result_queue['queue'] == 'notify-internal-tasks'
+    mocked.assert_called_once()
+
     assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
 
 
@@ -817,9 +830,14 @@ def test_send_user_confirm_new_email_returns_204(client, sample_user, change_ema
                        headers=[('Content-Type', 'application/json'), auth_header])
     assert resp.status_code == 204
     notification = Notification.query.first()
-    mocked.assert_called_once_with(
-        ([str(notification.id)]),
-        queue="notify-internal-tasks")
+
+    result_notification_id, result_queue = mocked.call_args
+    result_id, *rest = result_notification_id[0]
+    assert result_id == str(notification.id)
+
+    assert result_queue['queue'] == 'notify-internal-tasks'
+    mocked.assert_called_once()
+
     assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
 
 
