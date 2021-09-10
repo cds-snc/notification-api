@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from locust import HttpUser, constant_pacing, task, tag
+from locust import HttpUser, constant_pacing, task
 
 load_dotenv()
 AUTH_HEADER = os.getenv("TEST_AUTH_HEADER")
@@ -18,24 +18,16 @@ class NotifyApiUser(HttpUser):
         self.headers = {"Authorization": AUTH_HEADER}
         self.json = {
             "email_address": "success@simulator.amazonses.com",
-            "template_id": "9c17633c-126a-4ad3-ad2f-b14c3a85314a",
-            "personalisation": {"colour": "Fulvous"},
+            "template_id": "5ebee3b7-63c0-4052-a8cb-387b818df627",
+            "personalisation": {},
         }
 
-    @task
-    def task(self):
-        pass
-
-class OneOffEmailMessage(NotifyApiUser):
-    @tag("one-off-email")
-    @task
-    def send_one_off_email_notifications(self):
+    @task(1)
+    def send_email_notifications(self):
         self.client.post("/v2/notifications/email", json=self.json, headers=self.headers)
 
-class OneOffEmailWithFileAttachmentMessage(NotifyApiUser):
-    @tag("one-off-email-attached")
-    @task
-    def send_one_off_email_with_attachment_notifications(self):
+    @task(2)
+    def send_email_with_attachment_notifications(self):
         self.json["personalisation"] = {
             "application_file": {
                 "file": "Q29udGVudCBvZiBBdHRhY2hlZCBmaWxl",
@@ -46,10 +38,8 @@ class OneOffEmailWithFileAttachmentMessage(NotifyApiUser):
 
         self.client.post("/v2/notifications/email", json=self.json, headers=self.headers)
 
-class OneOffEmailWithLinkMessage(NotifyApiUser):
-    @tag("one-off-email-link")
-    @task
-    def send_one_off_email_with_link_notifications(self):
+    @task(4)
+    def send_email_with_link_notifications(self):
         self.json["personalisation"] = {
             "var": {
                 "file": "Q29udGVudCBvZiBBdHRhY2hlZCBmaWxl",
