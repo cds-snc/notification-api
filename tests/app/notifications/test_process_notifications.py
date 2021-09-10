@@ -300,6 +300,10 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
     )
 
     Notification = namedtuple('Notification', ['id', 'key_type', 'notification_type', 'created_at', 'template', 'service_id', 'reply_to_text'])
+
+    MockSmsSender = namedtuple('ServiceSmsSender', ['service_id', 'sms_sender', 'rate_limit'])
+    sms_sender = MockSmsSender(service_id=service.id, sms_sender='+18888888888', rate_limit=None)
+
     notification = Notification(
         id=uuid.uuid4(),
         key_type=key_type,
@@ -307,7 +311,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
         template=template,
         service_id=service.id,
-        reply_to_text='+11111111111'
+        reply_to_text=sms_sender.sms_sender
     )
 
     send_notification_to_queue(notification=notification, research_mode=research_mode, queue=requested_queue)
