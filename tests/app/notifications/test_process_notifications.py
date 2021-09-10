@@ -452,8 +452,21 @@ def test_send_notification_to_queue_with_recipient_identifiers(
     )
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     template = sample_email_template if notification_type else sample_sms_template_with_html
+    MockService = namedtuple('Service', ['id'])
+    service = MockService(id=uuid.uuid4())
+    MockSmsSender = namedtuple('ServiceSmsSender', ['service_id', 'sms_sender', 'rate_limit'])
+    sms_sender = MockSmsSender(service_id=service.id, sms_sender='+18888888888', rate_limit=None)
     TestNotification = namedtuple(
-        'Notification', ['id', 'key_type', 'notification_type', 'created_at', 'template', 'recipient_identifiers']
+        'Notification', [
+            'id',
+            'key_type',
+            'notification_type',
+            'created_at',
+            'template',
+            'recipient_identifiers',
+            'service_id',
+            'reply_to_text'
+        ]
     )
     notification_id = uuid.uuid4()
     notification = TestNotification(
@@ -466,7 +479,10 @@ def test_send_notification_to_queue_with_recipient_identifiers(
             notification_id=notification_id,
             id_type=request_recipient_id_type,
             id_value=request_recipient_id_value
-        )})
+        )},
+        service_id=service,
+        reply_to_text=sms_sender.sms_sender
+    )
 
     send_notification_to_queue(
         notification=notification,
