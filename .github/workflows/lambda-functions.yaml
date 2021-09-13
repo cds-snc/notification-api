@@ -34,6 +34,9 @@ jobs:
           role-duration-seconds: 900
 
       - name: Install and package dependencies
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.6'
         run: |
           python3 -m venv venv
           source venv/bin/activate
