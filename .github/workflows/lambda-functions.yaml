@@ -33,10 +33,12 @@ jobs:
           role-skip-session-tagging: true
           role-duration-seconds: 900
 
-      - name: Install and package dependencies
+      - name: Set Python version
         uses: actions/setup-python@v2
         with:
           python-version: '3.6'
+
+     -  name: Install and package dependencies
         run: |
           python3 -m venv venv
           source venv/bin/activate
