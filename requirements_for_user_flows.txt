@@ -1,4 +1,4 @@
 pytest==3.10.1
 PyJWT==1.7.1
 requests
-boto3==1.15.9
+boto3==1.17.84
