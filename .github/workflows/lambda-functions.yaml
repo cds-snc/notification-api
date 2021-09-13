@@ -38,7 +38,7 @@ jobs:
         with:
           python-version: '3.6'
 
-     -  name: Install and package dependencies
+      - name: Install and package dependencies
         run: |
           python3 -m venv venv
           source venv/bin/activate
