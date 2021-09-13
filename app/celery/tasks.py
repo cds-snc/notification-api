@@ -212,7 +212,7 @@ def save_sms(self,
         # TODO: check if sms sender id has rate limit, potentially use different queue if so
         if sender_id:
             provider_tasks.deliver_sms_with_rate_limiting.apply_async(
-                [str(saved_notification.id), sender_id],
+                [str(saved_notification.id)],
                 queue=QueueNames.SEND_SMS if not service.research_mode else QueueNames.RESEARCH_MODE
             )
         else:

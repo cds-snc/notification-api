@@ -557,10 +557,7 @@ def test_save_sms_should_call_deliver_sms_with_rate_limiting_if_sender_id_provid
         sender_id
     )
 
-    deliver_sms.assert_called_once_with(
-        [str(notification_id), sender_id],
-        queue="send-sms-tasks"
-    )
+    deliver_sms.assert_called_once_with([str(notification_id)], queue="send-sms-tasks")
 
 
 def test_save_email_should_save_default_email_reply_to_text_on_notification(notify_db_session, mocker):
