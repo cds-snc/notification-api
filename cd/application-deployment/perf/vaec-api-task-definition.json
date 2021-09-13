@@ -116,7 +116,7 @@
         },
         {
           "name": "REDIS_ENABLED",
-          "value": "False"
+          "value": "True"
         }
       ],
       "secrets": [

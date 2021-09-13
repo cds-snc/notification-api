@@ -117,6 +117,10 @@
           "value": "True"
         },
         {
+          "name": "REDIS_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "UI_HOST_NAME",
           "value": "https://notifications.va.gov"
         }
