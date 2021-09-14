@@ -179,11 +179,12 @@ def send_notification_to_queue(notification, research_mode, queue=None, recipien
 
 
 def _get_recipient_identifier_value(notification_recipient_identifiers: dict, expected_recipient_id_type: str) -> str:
-    for id_type, recipient_identifier in notification_recipient_identifiers.items():
-        if id_type == expected_recipient_id_type:
-            return recipient_identifier.id_value
+    try:
+        if notification_recipient_identifiers[expected_recipient_id_type]:
+            return notification_recipient_identifiers[expected_recipient_id_type].id_value
 
-    raise RecipientIdentifierNotFoundException
+    except Exception:
+        raise RecipientIdentifierNotFoundException
 
 
 def _get_delivery_task(notification, research_mode=False, queue=None):
