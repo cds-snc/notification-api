@@ -18,7 +18,8 @@ from app.va.va_profile.va_profile_client import CommunicationItemNotFoundExcepti
 def lookup_recipient_communication_permissions(
         self, id_type: str, id_value: str, notification_id: str, notification_type: str, communication_item_id: str
 ) -> None:
-    current_app.logger.info(f"Looking up contact information for notification_id:{notification_id}.")
+    current_app.logger.info(f"Looking up communication preferences for notification_id:{notification_id} with "
+                            f"recipient_id_type:{id_type}.")
 
     if not recipient_has_given_permission(
             self, id_type, id_value, notification_id, notification_type, communication_item_id
