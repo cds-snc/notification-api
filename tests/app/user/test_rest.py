@@ -803,7 +803,7 @@ def test_send_contact_request_no_live_service(client, sample_user, mocker):
     data = {
         "name": sample_user.name,
         "email_address": sample_user.email_address,
-        "support_type": "demo",
+        "support_type": "ask_question",
     }
 
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
@@ -828,7 +828,7 @@ def test_send_contact_request_with_live_service(client, sample_service, mocker):
     data = {
         "name": sample_user.name,
         "email_address": sample_user.email_address,
-        "support_type": "demo",
+        "support_type": "ask_question",
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
     mocked_zendesk = mocker.patch("app.user.rest.ZenDeskSell.send_contact_request", return_value=200)
@@ -841,6 +841,29 @@ def test_send_contact_request_with_live_service(client, sample_service, mocker):
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
     mocked_zendesk.assert_called_once_with(ContactRequest(**data))
+
+
+def test_send_contact_request_demo(client, sample_user, mocker):
+    data = {
+        "name": sample_user.name,
+        "email_address": sample_user.email_address,
+        "support_type": "demo",
+    }
+    mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
+    mocked_zendesk = mocker.patch("app.user.rest.ZenDeskSell.send_contact_request", return_value="1")
+
+    resp = client.post(
+        url_for("user.send_contact_request", user_id=str(sample_user.id)),
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header()],
+    )
+    assert resp.status_code == 204
+
+    mocked_freshdesk.assert_not_called()
+
+    contact = ContactRequest(**data)
+    contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
+    mocked_zendesk.assert_called_once_with(contact)
 
 
 def test_send_contact_request_go_live(client, sample_service, mocker):
@@ -862,6 +885,25 @@ def test_send_contact_request_go_live(client, sample_service, mocker):
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
     mocked_zendesk.assert_called_once_with(sample_service, sample_user, ContactRequest(**data))
+
+
+def test_send_branding_request(client, sample_service, mocker):
+    sample_user = sample_service.users[0]
+    post_data = {
+        "service_name": sample_service.name,
+        "email_address": sample_user.email_address,
+        "serviceID": str(sample_service.id),
+        "filename": "branding_url",
+    }
+    mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
+
+    resp = client.post(
+        url_for("user.send_branding_request", user_id=str(sample_user.id)),
+        data=json.dumps(post_data),
+        headers=[("Content-Type", "application/json"), create_authorization_header()],
+    )
+    assert resp.status_code == 204
+    mocked_freshdesk.assert_called_once_with()
 
 
 def test_send_user_confirm_new_email_returns_204(client, sample_user, change_email_confirmation_template, mocker):

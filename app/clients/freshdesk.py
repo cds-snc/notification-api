@@ -17,18 +17,7 @@ class Freshdesk(object):
 
     def _generate_description(self):
         message = self.contact.message
-        if self.contact.is_demo_request():
-            message = "<br><br>".join(
-                [
-                    f"- user: {self.contact.name} {self.contact.email_address}",
-                    f"- department/org: {self.contact.department_org_name}",
-                    f"- program/service: {self.contact.program_service_name}",
-                    f"- intended recipients: {self.contact.intended_recipients}",
-                    f"- main use case: {self.contact.main_use_case}",
-                    f"- main use case details: {self.contact.main_use_case_details}",
-                ]
-            )
-        elif self.contact.is_go_live_request():
+        if self.contact.is_go_live_request():
             message = "<br>".join(
                 [
                     f"{self.contact.service_name} just requested to go live.",
@@ -40,6 +29,20 @@ class Freshdesk(object):
                     f"- Expected monthly volume: {self.contact.expected_volume}",
                     "---",
                     self.contact.service_url,
+                ]
+            )
+        elif self.contact.is_branding_request():
+            message = "<br>".join(
+                [
+                    f"A new logo has been uploaded by {self.contact.name} ({self.contact.email_address}) for the following service:",
+                    f"- Service id: {self.contact.service_id}",
+                    f"- Service name: {self.contact.service_name}",
+                    f"- Logo filename: {self.contact.branding_url}",
+                    "<hr>",
+                    f"Un nouveau logo a été téléchargé par {self.contact.name} ({self.contact.email_address}) pour le service suivant :",
+                    f"- Identifiant du service : {self.contact.service_id}",
+                    f"- Nom du service : {self.contact.service_name}",
+                    f"- Nom du fichier du logo : {self.contact.branding_url}",
                 ]
             )
 

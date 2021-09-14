@@ -338,6 +338,16 @@ def sample_email_template_with_html(notify_db, notify_db_session):
 
 
 @pytest.fixture(scope="function")
+def sample_email_template_with_advanced_html(notify_db, notify_db_session):
+    return sample_email_template(
+        notify_db,
+        notify_db_session,
+        content="<div style='color: pink' dir='rtl'>((name)) <em>some HTML</em> that should be right aligned</div>",
+        subject_line="((name)) <em>some HTML</em>",
+    )
+
+
+@pytest.fixture(scope="function")
 def sample_api_key(notify_db, notify_db_session, service=None, key_type=KEY_TYPE_NORMAL, name=None):
     if service is None:
         service = create_service(check_if_service_exists=True)
