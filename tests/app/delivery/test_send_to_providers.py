@@ -394,7 +394,7 @@ def test_send_email_to_provider_should_call_research_mode_task_response_task_if_
     persisted_notification = Notification.query.filter_by(id=notification.id).one()
     assert persisted_notification.to == "john@smith.com"
     assert persisted_notification.template_id == sample_email_template.id
-    assert persisted_notification.status == "sending"
+    assert persisted_notification.status == "sent"
     assert persisted_notification.sent_at <= datetime.utcnow()
     assert persisted_notification.created_at <= datetime.utcnow()
     assert persisted_notification.sent_by == "ses"
