@@ -188,50 +188,48 @@ def test_send_email_with_icn(notification_url, service_id, service_test_api_key,
     assert len(found_va_profile_ids) == 1
 
 
-# @pytest.mark.skip(reason='skipping so new code can get deployed, will unskip afterwards')
-# def test_send_text(notification_url, service_test_api_key, service_id, sms_template_id):
-#     service_jwt = encode_jwt(service_id, service_test_api_key)
-#
-#     sms_response = send_sms_with_phone_number(
-#         notification_url, service_jwt, sms_template_id, VALID_TEST_RECIPIENT_PHONE_NUMBER
-#     )
-#     assert sms_response.status_code == 201
-#     notification_id = get_notification_id(sms_response)
-#
-#     desired_status = 'delivered'
-#     notification_status_response = wait_for_status(
-#         notification_id,
-#         notification_url,
-#         service_id,
-#         service_test_api_key,
-#         desired_status
-#     )
-#
-#     assert notification_status_response['status'] == desired_status
-#     assert notification_status_response['phone_number'] == VALID_TEST_RECIPIENT_PHONE_NUMBER
-#     assert notification_status_response['sent_by'] is not None
+def test_send_text(notification_url, service_test_api_key, service_id, sms_template_id):
+    service_jwt = encode_jwt(service_id, service_test_api_key)
+
+    sms_response = send_sms_with_phone_number(
+        notification_url, service_jwt, sms_template_id, VALID_TEST_RECIPIENT_PHONE_NUMBER
+    )
+    assert sms_response.status_code == 201
+    notification_id = get_notification_id(sms_response)
+
+    desired_status = 'delivered'
+    notification_status_response = wait_for_status(
+        notification_id,
+        notification_url,
+        service_id,
+        service_test_api_key,
+        desired_status
+    )
+
+    assert notification_status_response['status'] == desired_status
+    assert notification_status_response['phone_number'] == VALID_TEST_RECIPIENT_PHONE_NUMBER
+    assert notification_status_response['sent_by'] is not None
 
 
-# @pytest.mark.skip(reason='skipping so new code can get deployed, will unskip afterwards')
-# def test_send_text_with_profile_id(notification_url, service_test_api_key, service_id, sms_template_id):
-#     service_jwt = encode_jwt(service_id, service_test_api_key)
-#
-#     sms_response = send_sms_with_va_profile_id(notification_url, service_jwt, sms_template_id)
-#     assert sms_response.status_code == 201
-#     notification_id = get_notification_id(sms_response)
-#
-#     desired_status = 'delivered'
-#     notification_status_response = wait_for_status(
-#         notification_id,
-#         notification_url,
-#         service_id,
-#         service_test_api_key,
-#         desired_status
-#     )
-#
-#     assert notification_status_response['status'] == desired_status
-#     assert notification_status_response['phone_number'] is not None
-#     assert notification_status_response['sent_by'] is not None
+def test_send_text_with_profile_id(notification_url, service_test_api_key, service_id, sms_template_id):
+    service_jwt = encode_jwt(service_id, service_test_api_key)
+
+    sms_response = send_sms_with_va_profile_id(notification_url, service_jwt, sms_template_id)
+    assert sms_response.status_code == 201
+    notification_id = get_notification_id(sms_response)
+
+    desired_status = 'delivered'
+    notification_status_response = wait_for_status(
+        notification_id,
+        notification_url,
+        service_id,
+        service_test_api_key,
+        desired_status
+    )
+
+    assert notification_status_response['status'] == desired_status
+    assert notification_status_response['phone_number'] is not None
+    assert notification_status_response['sent_by'] is not None
 
 
 def wait_for_status(
