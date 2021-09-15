@@ -81,7 +81,8 @@ def deliver_sms_with_rate_limiting(self, notification_id):
         check_and_queue_callback_task(notification)
     except RateLimitError:
         current_app.logger.exception(
-            f'SMS notification delivery for id: {notification_id} failed due to rate limit being exceeded. Will retry.'
+            f'SMS notification delivery for id: {notification_id} failed due to rate limit being exceeded. '
+            f'Will retry in {60 / sms_sender.rate_limit} seconds.'
         )
 
         self.retry(queue=QueueNames.RETRY, countdown=60 / sms_sender.rate_limit)
