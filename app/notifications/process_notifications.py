@@ -243,7 +243,9 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
             tasks.insert(
                 2,
                 lookup_recipient_communication_permissions.si(
-                    id_type, id_value, notification.id, notification.notification_type, communication_item_id
+                    notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_type,
+                    notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value, notification.id,
+                    notification.notification_type, communication_item_id
                 ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
             )
 

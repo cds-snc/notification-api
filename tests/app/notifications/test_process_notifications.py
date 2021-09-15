@@ -900,9 +900,16 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
 
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
 
+    notification_id = str(uuid.uuid4())
+
     notification = Notification(
-        id=str(uuid.uuid4()),
-        notification_type=notification_type
+        id=notification_id,
+        notification_type=notification_type,
+        recipient_identifiers={f"{IdentifierType.VA_PROFILE_ID.value}": RecipientIdentifier(
+            notification_id=notification_id,
+            id_type=IdentifierType.VA_PROFILE_ID.value,
+            id_value="updated va profile id"
+        )},
     )
 
     mock_template_id = uuid.uuid4()
