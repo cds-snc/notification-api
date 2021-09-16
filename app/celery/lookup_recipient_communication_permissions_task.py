@@ -22,12 +22,8 @@ def lookup_recipient_communication_permissions(
     current_app.logger.info(f"Looking up communication preferences for notification_id:{notification_id} with "
                             f"recipient_id_type:{id_type}.")
 
-    va_profile_id = id_value
-
-    # Assumes that VA PROFILE ID is provided and/or looked up and available by the time this task is executed
-    if id_type != IdentifierType.VA_PROFILE_ID.value:
-        notification = get_notification_by_id(notification_id)
-        va_profile_id = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value
+    notification = get_notification_by_id(notification_id)
+    va_profile_id = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value
 
     if not recipient_has_given_permission(
             self,

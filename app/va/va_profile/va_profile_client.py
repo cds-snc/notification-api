@@ -101,6 +101,7 @@ class VAProfileClient:
         if response.get('messages', None):
             self.logger.info(f'Recipient {recipient_id} has no permissions for notification {notification_id}')
             # TODO: use default communication item settings when that has been implemented
+            self.statsd_client.incr("clients.va-profile.get-communication-item-permission.no-permissions")
             raise CommunicationItemNotFoundException
 
         all_bios = response['bios']
