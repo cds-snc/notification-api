@@ -353,7 +353,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         'research-mode-tasks',
         IdentifierType.PID.value,
         'some pid',
-        [lookup_recipient_communication_permissions, deliver_email]
+        [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_email]
     ),
     (
         True,
@@ -363,7 +363,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         'research-mode-tasks',
         IdentifierType.ICN.value,
         'some icn',
-        [lookup_recipient_communication_permissions, deliver_email]
+        [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_email]
     ),
     (
         True,
@@ -383,7 +383,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         'send-sms-tasks',
         IdentifierType.PID.value,
         'some pid',
-        [lookup_recipient_communication_permissions, deliver_sms]
+        [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_sms]
     ),
     (
         False,
@@ -393,7 +393,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         'send-email-tasks',
         IdentifierType.ICN.value,
         'some icn',
-        [lookup_recipient_communication_permissions, deliver_email]
+        [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_email]
     ),
     (
         False,
@@ -413,7 +413,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         'research-mode-tasks',
         IdentifierType.PID.value,
         'some pid',
-        [lookup_recipient_communication_permissions, deliver_sms]
+        [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_sms]
     ),
     (
         False,
@@ -423,7 +423,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         'notify-internal-tasks',
         IdentifierType.ICN.value,
         'some icn',
-        [lookup_recipient_communication_permissions, deliver_sms]
+        [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_sms]
     ),
     (
         False,
@@ -443,7 +443,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         'research-mode-tasks',
         IdentifierType.PID.value,
         'some pid',
-        [lookup_recipient_communication_permissions, deliver_sms]
+        [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_sms]
     ),
 ])
 def test_send_notification_to_queue_with_recipient_identifiers(
@@ -514,9 +514,6 @@ def test_send_notification_to_queue_with_recipient_identifiers(
     args, _ = mocked_chain.call_args
     for called_task, expected_task in zip(args, expected_tasks):
         assert called_task.name == expected_task.name
-        called_task_args = args[0]
-        assert request_recipient_id_type == called_task_args.args[0]
-        assert request_recipient_id_value == called_task_args.args[1]
 
 
 def test_send_notification_to_queue_throws_exception_deletes_notification(sample_notification, mocker):
@@ -904,12 +901,7 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
 
     notification = Notification(
         id=notification_id,
-        notification_type=notification_type,
-        recipient_identifiers={f"{IdentifierType.VA_PROFILE_ID.value}": RecipientIdentifier(
-            notification_id=notification_id,
-            id_type=IdentifierType.VA_PROFILE_ID.value,
-            id_value="updated va profile id"
-        )},
+        notification_type=notification_type
     )
 
     mock_template_id = uuid.uuid4()

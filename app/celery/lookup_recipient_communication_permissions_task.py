@@ -4,11 +4,12 @@ from notifications_utils.statsd_decorators import statsd
 from app import notify_celery, va_profile_client
 from app.config import QueueNames
 from app.dao.communication_item_dao import get_communication_item
-from app.dao.notifications_dao import update_notification_status_by_id
+from app.dao.notifications_dao import get_notification_by_id, update_notification_status_by_id
 from app.exceptions import NotificationTechnicalFailureException
 from app.models import RecipientIdentifier, NOTIFICATION_PREFERENCES_DECLINED, NOTIFICATION_TECHNICAL_FAILURE
 from app.va.va_profile import VAProfileRetryableException
 from app.va.va_profile.va_profile_client import CommunicationItemNotFoundException
+from app.va.identifier import IdentifierType
 
 
 @notify_celery.task(
@@ -21,8 +22,20 @@ def lookup_recipient_communication_permissions(
     current_app.logger.info(f"Looking up communication preferences for notification_id:{notification_id} with "
                             f"recipient_id_type:{id_type}.")
 
+    va_profile_id = id_value
+
+    # Assumes that VA PROFILE ID is provided and/or looked up and available by the time this task is executed
+    if id_type != IdentifierType.VA_PROFILE_ID.value:
+        notification = get_notification_by_id(notification_id)
+        va_profile_id = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value
+
     if not recipient_has_given_permission(
-            self, id_type, id_value, notification_id, notification_type, communication_item_id
+            self,
+            IdentifierType.VA_PROFILE_ID.value,
+            va_profile_id,
+            notification_id,
+            notification_type,
+            communication_item_id
     ):
         update_notification_status_by_id(notification_id, NOTIFICATION_PREFERENCES_DECLINED)
         current_app.logger.info(f"Recipient for notification {notification_id}"

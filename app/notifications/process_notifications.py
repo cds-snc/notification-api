@@ -166,6 +166,9 @@ def send_notification_to_queue(notification, research_mode, queue=None, recipien
                 ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
             )
 
+            if recipient_id_type != IdentifierType.VA_PROFILE_ID.value:
+                tasks.insert(0, lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID))
+
         chain(*tasks).apply_async()
 
     except Exception:
@@ -232,7 +235,6 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
             )
 
     else:
-        # TODO: pass va profile id to lookup comms prefs task, to prevent another lookup on MPI side under the hood
         tasks = [
             lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
@@ -243,8 +245,8 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
             tasks.insert(
                 2,
                 lookup_recipient_communication_permissions.si(
-                    notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_type,
-                    notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value, notification.id,
+                    id_type,
+                    id_value, notification.id,
                     notification.notification_type, communication_item_id
                 ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
             )
