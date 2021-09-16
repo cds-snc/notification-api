@@ -180,6 +180,10 @@
         {
           "name": "GITHUB_CLIENT_SECRET",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/github-client-secret"
+        },
+        {
+          "name": "REDIS_URL",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/redis/url"
         }
       ]
     },
