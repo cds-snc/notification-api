@@ -54,7 +54,7 @@ def deliver_sms(self, notification_id):
             raise NotificationTechnicalFailureException(message)
 
 
-@notify_celery.task(bind=True, name='deliver_sms_with_rate_limiting')
+@notify_celery.task(bind=True, name='deliver_sms_with_rate_limiting', max_retries=None)
 @statsd(namespace='tasks')
 def deliver_sms_with_rate_limiting(self, notification_id):
     from app.notifications.validators import check_sms_sender_over_rate_limit
