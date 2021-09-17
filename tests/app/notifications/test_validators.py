@@ -7,6 +7,7 @@ from notifications_utils import SMS_CHAR_COUNT_LIMIT
 
 import app
 from app.feature_flags import FeatureFlag
+from app import redis_store
 from app.models import SMS_TYPE, EMAIL_TYPE, LETTER_TYPE
 from app.notifications.validators import (
     check_service_over_daily_message_limit,
@@ -516,22 +517,19 @@ class TestSmsSenderRateLimit:
             MockServiceSmsSender = namedtuple('ServiceSmsSender', ['id', 'rate_limit', 'sms_sender'])
             sms_sender = MockServiceSmsSender(id='some-id', rate_limit=3000, sms_sender='+18888888888')
 
-            api_key_type = 'normal'
-
-            mocker.patch('app.redis_store.exceeded_rate_limit', return_value=True)
+            is_rate_limit_exceeded = mocker.patch(
+                'app.notifications.validators.is_rate_limit_exceeded', return_value=True
+            )
             mocker.patch('app.notifications.validators.services_dao')
             mocker.patch('app.notifications.validators.dao_get_service_sms_sender_by_id', return_value=sms_sender)
 
             sample_service.restricted = True
-            api_key = create_api_key(sample_service, key_type=api_key_type)
 
             with pytest.raises(RateLimitError) as e:
                 check_sms_sender_over_rate_limit(sample_service, sms_sender.id)
 
-            assert app.redis_store.exceeded_rate_limit.called_with(
-                f'{sms_sender.id}-{api_key.key_type}',
-                sample_service.rate_limit,
-                60
+            is_rate_limit_exceeded.assert_called_once_with(
+                redis_store, sms_sender.sms_sender, sample_service.rate_limit, 60
             )
             assert e.value.status_code == 429
             assert e.value.message == (
@@ -544,19 +542,17 @@ class TestSmsSenderRateLimit:
         from app.notifications.validators import check_sms_sender_over_rate_limit
 
         with freeze_time('2016-01-01 12:00:00.000000'):
-            MockServiceSmsSender = namedtuple('ServiceSmsSender', ['id', 'rate_limit'])
-            sms_sender = MockServiceSmsSender(id='some-id', rate_limit=10)
+            mock_toggle(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
+            MockServiceSmsSender = namedtuple('ServiceSmsSender', ['id', 'sms_sender', 'rate_limit'])
+            sms_sender = MockServiceSmsSender(id='some-id', sms_sender='+11111111111', rate_limit=10)
 
-            mocker.patch('app.redis_store.exceeded_rate_limit', return_value=False)
+            is_rate_limit_exceeded = mocker.patch(
+                'app.notifications.validators.is_rate_limit_exceeded', return_value=False
+            )
             mocker.patch('app.notifications.validators.services_dao')
             mocker.patch('app.notifications.validators.dao_get_service_sms_sender_by_id', return_value=sms_sender)
 
             sample_service.restricted = True
-            api_key = create_api_key(sample_service)
 
             check_sms_sender_over_rate_limit(sample_service, sms_sender.id)
-            assert app.redis_store.exceeded_rate_limit.called_with(
-                f'{str(sms_sender.id)}-{api_key.key_type}',
-                10,
-                60
-            )
+            is_rate_limit_exceeded.assert_called_once_with(redis_store, str(sms_sender.sms_sender), 10, 60)

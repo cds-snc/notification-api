@@ -3,7 +3,7 @@ from notifications_utils.recipients import InvalidEmailError
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import notify_celery
+from app import notify_celery, redis_store
 from app.celery.exceptions import NonRetryableException
 from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
@@ -14,6 +14,7 @@ from app.dao.service_sms_sender_dao import dao_get_sms_sender_by_service_id_and_
 from app.delivery import send_to_providers
 from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException, InvalidProviderException
 from app.models import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
+from app.redis.redis_client import update_redis_cache_key_for
 from app.v2.errors import RateLimitError
 
 
@@ -67,6 +68,7 @@ def deliver_sms_with_rate_limiting(self, notification_id):
                                                                  notification.reply_to_text)
         check_sms_sender_over_rate_limit(notification.service_id, sms_sender.id)
         send_to_providers.send_sms_to_provider(notification)
+        update_redis_cache_key_for(redis_store, sms_sender.sms_sender)
         current_app.logger.info(f'Successfully sent sms with rate limiting for notification id: {notification_id}')
     except InvalidProviderException as e:
         current_app.logger.exception(e)
