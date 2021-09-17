@@ -68,7 +68,7 @@ class NotifyApiUser(HttpUser):
     def send_sms_notifications(self):
         self.json = {
             "phone_number": "12897682684",
-            "template_id": "d8234b4d-4def-4ad6-aafe-526a24ee5f19"
+            "template_id": "83d01f06-a818-4134-bd69-ce90a2949280"
         }
 
         self.client.post("/v2/notifications/sms", json=self.json, headers=self.headers)
