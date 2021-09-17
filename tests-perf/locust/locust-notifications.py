@@ -19,15 +19,22 @@ class NotifyApiUser(HttpUser):
         super(NotifyApiUser, self).__init__(*args, **kwargs)
 
         self.headers = {"Authorization": AUTH_HEADER}
+        self.template_id = "5ebee3b7-63c0-4052-a8cb-387b818df627"
         self.email = "success@simulator.amazonses.com"
         self.json = {
             "email_address": self.email,
-            "template_id": "5ebee3b7-63c0-4052-a8cb-387b818df627",
+            "template_id": self.template_id,
             "personalisation": {},
         }
 
     @task(1)
     def send_email_notifications(self):
+        self.json = {
+            "email_address": self.email,
+            "template_id": "a59b313d-8de2-4973-ac2f-66de7ec0b239",
+            "personalisation": {},
+        }
+
         self.client.post("/v2/notifications/email", json=self.json, headers=self.headers)
 
     @task(2)
