@@ -59,7 +59,7 @@ class NotifyApiUser(HttpUser):
         self.json = {
             "name": f"My bulk name {datetime.utcnow().isoformat()}",
             "template_id": "5ebee3b7-63c0-4052-a8cb-387b818df627",
-            "csv": rows_to_csv([["email address", "var"], *job_line(self.email, 2)])
+            "csv": rows_to_csv([["email address", "application_file"], *job_line(self.email, 2)])
         }
 
         self.client.post("/v2/notifications/bulk", json=self.json, headers=self.headers)
