@@ -526,10 +526,10 @@ class TestSmsSenderRateLimit:
             sample_service.restricted = True
 
             with pytest.raises(RateLimitError) as e:
-                check_sms_sender_over_rate_limit(sample_service, sms_sender.id)
+                check_sms_sender_over_rate_limit(sample_service, sms_sender.id, 'some-id')
 
             is_rate_limit_exceeded.assert_called_once_with(
-                redis_store, sms_sender.sms_sender, sample_service.rate_limit, 60
+                redis_store, sms_sender.sms_sender, sample_service.rate_limit, 60, 'some-id'
             )
             assert e.value.status_code == 429
             assert e.value.message == (
@@ -554,5 +554,5 @@ class TestSmsSenderRateLimit:
 
             sample_service.restricted = True
 
-            check_sms_sender_over_rate_limit(sample_service, sms_sender.id)
-            is_rate_limit_exceeded.assert_called_once_with(redis_store, str(sms_sender.sms_sender), 10, 60)
+            check_sms_sender_over_rate_limit(sample_service, sms_sender.id, 'some-id')
+            is_rate_limit_exceeded.assert_called_once_with(redis_store, str(sms_sender.sms_sender), 10, 60, 'some-id')

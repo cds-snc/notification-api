@@ -4,7 +4,12 @@ from time import time
 from flask import current_app
 
 
-def is_rate_limit_exceeded(redis_client: RedisClient, cache_key, limit, interval, raise_exception=False):
+def is_rate_limit_exceeded(
+        redis_client: RedisClient, cache_key, limit, interval, notification_id, raise_exception=False
+):
+    current_app.logger.info(
+        f'Attempting to check rate limit for redis cache key of {cache_key} for notification {notification_id}'
+    )
     cache_key = prepare_value(cache_key)
     if redis_client.active:
         try:
@@ -24,7 +29,8 @@ def is_rate_limit_exceeded(redis_client: RedisClient, cache_key, limit, interval
         return False
 
 
-def update_redis_cache_key_for(redis_client: RedisClient, cache_key: str, raise_exception=False):
+def update_redis_cache_key_for(redis_client: RedisClient, cache_key: str, notification_id, raise_exception=False):
+    current_app.logger.info(f'Attempting to update redis cache key of {cache_key} for notification {notification_id}')
     cache_key = prepare_value(cache_key)
     if redis_client.active:
         try:
