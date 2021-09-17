@@ -6,7 +6,7 @@
 aws-wsgi==0.2.7
 boto==2.49.0
 cffi==1.14.5
-celery[sqs]==5.0.5
+celery[sqs]==5.1.2
 docopt==0.6.2
 fido2==0.9.1
 Flask-Bcrypt==0.7.1
@@ -86,12 +86,12 @@ future==0.18.2
 greenlet==1.0.0
 Jinja2==2.11.3
 jmespath==0.10.0
-kombu==5.0.2
+kombu==5.1.0
 Mako==1.1.4
 MarkupSafe==1.1.1
 mistune==0.8.4
 orderedset==2.0.3
-packaging==20.9
+packaging==20.9 
 phonenumbers==8.12.21
 prompt-toolkit==3.0.18
 pyasn1==0.4.8
