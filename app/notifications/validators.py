@@ -70,7 +70,7 @@ def check_sms_sender_over_rate_limit(service_id, sms_sender_id):
         cache_key = sms_sender.sms_sender
         rate_limit = sms_sender.rate_limit
         interval = 60
-        if redis_store.exceeded_sending_rate_limit(cache_key, rate_limit, interval):
+        if redis_store.exceeded_rate_limit(cache_key, rate_limit, interval, keep_latest_time_in_cache=False):
             current_app.logger.info(f"sms sender {sms_sender.id} has been rate limited for throughput")
             raise RateLimitError(rate_limit, interval)
 
