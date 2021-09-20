@@ -7,18 +7,17 @@ from locust import HttpUser, constant_pacing, task
 from tests_smoke.smoke.common import job_line, rows_to_csv
 
 load_dotenv()
-AUTH_HEADER = os.getenv("TEST_AUTH_HEADER")
 
 
 class NotifyApiUser(HttpUser):
 
     wait_time = constant_pacing(60)
-    host = "https://api.staging.notification.cdssandbox.xyz"
+    host = os.getenv("LOAD_TEST_DOMAIN", "https://api.staging.notification.cdssandbox.xyz")
 
     def __init__(self, *args, **kwargs):
         super(NotifyApiUser, self).__init__(*args, **kwargs)
 
-        self.headers = {"Authorization": AUTH_HEADER}
+        self.headers = {"Authorization": os.getenv("TEST_AUTH_HEADER")}
         self.email = "success@simulator.amazonses.com"
         self.template_id = "5ebee3b7-63c0-4052-a8cb-387b818df627"
 
