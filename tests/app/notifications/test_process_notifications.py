@@ -22,7 +22,6 @@ from app.models import (
     EMAIL_TYPE,
     SMS_TYPE,
     RecipientIdentifier)
-from app.notifications.exceptions import RecipientIdentifierNotFoundException
 from app.notifications.process_notifications import (
     create_content_for_notification,
     persist_notification,
@@ -529,34 +528,6 @@ def test_send_notification_to_queue_throws_exception_deletes_notification(sample
     for called_task, expected_task in zip(args, ['send-sms-tasks']):
         assert called_task.args[0] == str(sample_notification.id)
         assert called_task.options['queue'] == expected_task
-
-    assert Notification.query.count() == 0
-    assert NotificationHistory.query.count() == 0
-
-
-def test_send_notification_to_queue_throws_exception_deletes_notification_when_recipient_identifier_not_found(
-        sample_notification, mocker
-):
-    mocker.patch(
-        'app.notifications.process_notifications.is_feature_enabled',
-        return_value=True
-    )
-    mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
-
-    sms_sender = mocker.Mock()
-    sms_sender.rate_limit = 1
-    mocker.patch(
-        'app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number',
-        return_value=sms_sender
-    )
-
-    notification_no_recipient_id = sample_notification
-    with pytest.raises(RecipientIdentifierNotFoundException):
-        send_notification_to_queue(
-            notification=notification_no_recipient_id, research_mode=False, recipient_id_type='rid'
-        )
-
-    mocked_chain.assert_not_called()
 
     assert Notification.query.count() == 0
     assert NotificationHistory.query.count() == 0

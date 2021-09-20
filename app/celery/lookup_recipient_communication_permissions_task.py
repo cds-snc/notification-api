@@ -17,13 +17,14 @@ from app.va.identifier import IdentifierType
 )
 @statsd(namespace="tasks")
 def lookup_recipient_communication_permissions(
-        self, id_type: str, id_value: str, notification_id: str, notification_type: str, communication_item_id: str
+        self, notification_id: str
 ) -> None:
-    current_app.logger.info(f"Looking up communication preferences for notification_id:{notification_id} with "
-                            f"recipient_id_type:{id_type}.")
+    current_app.logger.info(f"Looking up communication preferences for notification_id:{notification_id}")
 
     notification = get_notification_by_id(notification_id)
     va_profile_id = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value
+    communication_item_id = notification.template.communication_item_id
+    notification_type = notification.notification_type
 
     if not recipient_has_given_permission(
             self,

@@ -35,7 +35,6 @@ from app.dao.notifications_dao import (
     dao_create_notification,
     dao_delete_notification_by_id,
     dao_created_scheduled_notification)
-from app.notifications.exceptions import RecipientIdentifierNotFoundException
 
 from app.v2.errors import BadRequestError
 from app.utils import get_template_instance
@@ -154,16 +153,11 @@ def send_notification_to_queue(notification, research_mode, queue=None, recipien
                 and is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED)
                 and communication_item_id
         ):
-            recipient_id_value = _get_recipient_identifier_value(notification.recipient_identifiers, recipient_id_type)
             tasks.insert(
                 0,
-                lookup_recipient_communication_permissions.si(
-                    recipient_id_type,
-                    recipient_id_value,
-                    str(notification.id),
-                    notification.notification_type,
-                    communication_item_id
-                ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
+                lookup_recipient_communication_permissions
+                .si(str(notification.id))
+                .set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
             )
 
             if recipient_id_type != IdentifierType.VA_PROFILE_ID.value:
@@ -179,15 +173,6 @@ def send_notification_to_queue(notification, research_mode, queue=None, recipien
         "{} {} sent to the {} queue for delivery".format(notification.notification_type,
                                                          notification.id,
                                                          queue))
-
-
-def _get_recipient_identifier_value(notification_recipient_identifiers: dict, expected_recipient_id_type: str) -> str:
-    try:
-        if notification_recipient_identifiers[expected_recipient_id_type]:
-            return notification_recipient_identifiers[expected_recipient_id_type].id_value
-
-    except Exception:
-        raise RecipientIdentifierNotFoundException
 
 
 def _get_delivery_task(notification, research_mode=False, queue=None):
@@ -229,9 +214,9 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
         if is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED) and communication_item_id:
             tasks.insert(
                 1,
-                lookup_recipient_communication_permissions.si(
-                    id_type, id_value, notification.id, notification.notification_type, communication_item_id
-                ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
+                lookup_recipient_communication_permissions
+                .si(notification.id)
+                .set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
             )
 
     else:
@@ -244,11 +229,9 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
         if is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED) and communication_item_id:
             tasks.insert(
                 2,
-                lookup_recipient_communication_permissions.si(
-                    id_type,
-                    id_value, notification.id,
-                    notification.notification_type, communication_item_id
-                ).set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
+                lookup_recipient_communication_permissions
+                .si(notification.id)
+                .set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
             )
 
     chain(*tasks).apply_async()
