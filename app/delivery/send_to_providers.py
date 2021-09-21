@@ -69,7 +69,8 @@ def send_sms_to_provider(notification):
             show_prefix=service.prefix_sms,
         )
 
-        if len(str(template)) == 0:
+        template_content = str(template)
+        if not template_content or template_content.isspace():
             empty_message_failure(notification=notification)
             return
 

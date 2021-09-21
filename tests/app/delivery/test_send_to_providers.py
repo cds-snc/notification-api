@@ -270,6 +270,26 @@ def test_should_not_send_sms_message_when_message_is_empty(sample_service, mocke
     assert Notification.query.get(notification.id).status == "technical-failure"
 
 
+@pytest.mark.parametrize("client_send", ["app.aws_sns_client.send_sms"])
+def test_should_not_send_sms_message_when_message_is_whitespace(sample_service, mocker, client_send):
+    sample_service.prefix_sms = False
+    template = create_template(sample_service, content="((var))")
+    notification = create_notification(
+        template=template,
+        personalisation={"var": " "},
+        to_field="+16502532222",
+        status="created",
+        reply_to_text=sample_service.get_default_sms_sender(),
+    )
+
+    send_mock = mocker.patch(client_send, return_value="reference")
+
+    send_to_providers.send_sms_to_provider(notification)
+
+    send_mock.assert_not_called()
+    assert Notification.query.get(notification.id).status == "technical-failure"
+
+
 def test_send_sms_should_use_template_version_from_notification_not_latest(sample_template, mocker):
     db_notification = create_notification(
         template=sample_template,
