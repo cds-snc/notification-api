@@ -338,6 +338,16 @@ def sample_email_template_with_html(notify_db, notify_db_session):
 
 
 @pytest.fixture(scope="function")
+def sample_email_template_with_advanced_html(notify_db, notify_db_session):
+    return sample_email_template(
+        notify_db,
+        notify_db_session,
+        content="<div style='color: pink' dir='rtl'>((name)) <em>some HTML</em> that should be right aligned</div>",
+        subject_line="((name)) <em>some HTML</em>",
+    )
+
+
+@pytest.fixture(scope="function")
 def sample_api_key(notify_db, notify_db_session, service=None, key_type=KEY_TYPE_NORMAL, name=None):
     if service is None:
         service = create_service(check_if_service_exists=True)
@@ -1194,8 +1204,8 @@ def document_download_response(override={}):
     # https://github.com/cds-snc/notification-document-download-api/blob/master/app/upload/views.py
     base = {
         "id": "document-id",
-        "direct_file_url": "https://direct-file-url.localdomain",
-        "url": "https://frontend-url.localdomain",
+        "direct_file_url": "http://direct-file-url.localdomain",
+        "url": "http://frontend-url.localdomain",
         "mlwr_sid": "mlwr-sid",
         "filename": "filename",
         "sending_method": "sending_method",

@@ -16,7 +16,6 @@ from app.dao.provider_details_dao import (
 )
 from app.delivery import send_to_providers
 from app.exceptions import (
-    InvalidUrlException,
     MalwarePendingException,
     NotificationTechnicalFailureException,
 )
@@ -30,6 +29,7 @@ from app.models import (
     KEY_TYPE_TEST,
     EmailBranding,
     Notification,
+    Service,
 )
 from tests.app.conftest import document_download_response, sample_email_template
 from tests.app.db import (
@@ -164,6 +164,40 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     assert call("email.total-time", notification.sent_at, notification.created_at) in statsd_timing_calls
     assert call(statsd_key, notification.sent_at, notification.created_at) in statsd_timing_calls
     assert call(statsd_key) in statsd_mock.incr.call_args_list
+
+
+def test_should_send_personalised_template_with_html_enabled(sample_email_template_with_advanced_html, mocker, notify_api):
+    db_notification = create_notification(
+        template=sample_email_template_with_advanced_html,
+        to_field="jo.smith@example.com",
+        personalisation={"name": "Jo"},
+    )
+
+    mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+
+    with set_config_values(
+        notify_api,
+        {
+            "ALLOW_HTML_SERVICE_IDS": str(db_notification.service.id),
+        },
+    ):
+        send_to_providers.send_email_to_provider(db_notification)
+
+    app.aws_ses_client.send_email.assert_called_once_with(
+        '"Sample service" <sample.service@notification.canada.ca>',
+        "jo.smith@example.com",
+        "Jo <em>some HTML</em>",
+        body="<div style='color: pink' dir='rtl'>Jo <em>some HTML</em> that should be right aligned</div>\n",
+        html_body=ANY,
+        reply_to_address=None,
+        attachments=[],
+    )
+
+    assert "<!DOCTYPE html" in app.aws_ses_client.send_email.call_args[1]["html_body"]
+    assert (
+        "<div style='color: pink' dir='rtl'>Jo <em>some HTML</em> that should be right aligned</div>"
+        in app.aws_ses_client.send_email.call_args[1]["html_body"]
+    )
 
 
 def test_should_not_send_email_message_when_service_is_inactive_notifcation_is_in_tech_failure(
@@ -878,7 +912,7 @@ def test_notification_document_with_pdf_attachment(
         attachments=attachments,
     )
     if not filename_attribute_present:
-        assert "https://foo.bar/url" in send_mock.call_args[1]["html_body"]
+        assert "http://foo.bar/url" in send_mock.call_args[1]["html_body"]
 
     notification = Notification.query.get(db_notification.id)
     assert notification.status == "sending"
@@ -888,94 +922,6 @@ def test_notification_document_with_pdf_attachment(
         statsd_key = "email.with-attachments.process_type-normal"
         assert call(statsd_key, notification.sent_at, notification.created_at) in statsd_calls
         assert call(statsd_key) in statsd_mock.incr.call_args_list
-
-
-@pytest.mark.parametrize(
-    "filename_attribute_present, filename",
-    [
-        (True, None),
-        (True, "custom_filename.pdf"),
-    ],
-)
-def test_notification_document_with_illegal_url_attachment(
-    mocker,
-    notify_db,
-    notify_db_session,
-    filename_attribute_present,
-    filename,
-):
-    template = sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
-    personalisation = {
-        "file": document_download_response(
-            {
-                "direct_file_url": "file://foo.bar/direct_file_url",
-                "url": "https://foo.bar/url",
-                "mime_type": "application/pdf",
-                "mlwr_sid": "false",
-            }
-        )
-    }
-    if filename_attribute_present:
-        personalisation["file"]["document"]["filename"] = filename
-        personalisation["file"]["document"]["sending_method"] = "attach"
-    else:
-        personalisation["file"]["document"]["sending_method"] = "link"
-
-    db_notification = create_notification(template=template, personalisation=personalisation)
-
-    # See https://stackoverflow.com/a/34929900
-    cm = MagicMock()
-    cm.read.return_value = "request_content"
-    cm.__enter__.return_value = cm
-    urlopen_mock = mocker.patch("app.delivery.send_to_providers.urllib.request.urlopen")
-    urlopen_mock.return_value = cm
-
-    with pytest.raises(InvalidUrlException):
-        send_to_providers.send_email_to_provider(db_notification)
-
-
-@pytest.mark.parametrize(
-    "filename_attribute_present, filename",
-    [
-        (False, None),
-        (False, "custom_filename.pdf"),
-    ],
-)
-def test_notification_document_with_illegal_url_link(
-    mocker,
-    notify_db,
-    notify_db_session,
-    filename_attribute_present,
-    filename,
-):
-    template = sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
-    personalisation = {
-        "file": document_download_response(
-            {
-                "direct_file_url": "s3://foo.bar/direct_file_url",
-                "url": "file://foo.bar/url",
-                "mime_type": "application/pdf",
-                "mlwr_sid": "false",
-            }
-        )
-    }
-    if filename_attribute_present:
-        personalisation["file"]["document"]["filename"] = filename
-        personalisation["file"]["document"]["sending_method"] = "attach"
-    else:
-        personalisation["file"]["document"]["sending_method"] = "link"
-
-    db_notification = create_notification(template=template, personalisation=personalisation)
-
-    # See https://stackoverflow.com/a/34929900
-    cm = MagicMock()
-    cm.read.return_value = "request_content"
-    cm.__enter__.return_value = cm
-    urlopen_mock = mocker.patch("app.delivery.send_to_providers.urllib.request.urlopen")
-    urlopen_mock.return_value = cm
-
-    with pytest.raises(InvalidUrlException):
-        send_to_providers.send_email_to_provider(db_notification)
 
 
 def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
@@ -1034,3 +980,14 @@ def test_notification_passes_if_message_contains_phone_number(sample_email_templ
     send_mock.assert_called()
 
     assert Notification.query.get(db_notification.id).status == "sending"
+
+
+def test_is_service_allowed_html(sample_service: Service, notify_api):
+    assert not send_to_providers.is_service_allowed_html(sample_service)
+    with set_config_values(
+        notify_api,
+        {
+            "ALLOW_HTML_SERVICE_IDS": str(sample_service.id),
+        },
+    ):
+        assert send_to_providers.is_service_allowed_html(sample_service)
