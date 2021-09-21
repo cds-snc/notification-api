@@ -202,6 +202,12 @@ def check_sms_content_char_count(content_count):
         raise BadRequestError(message=message)
 
 
+def check_content_is_not_empty_or_just_whitespace(content):
+    if not content or content.isspace():
+        message = "Message is empty or just whitespace"
+        raise BadRequestError(message=message)
+
+
 def validate_template_exists(template_id, service):
     template = check_template_exists_by_id_and_service(template_id, service)
     check_template_is_active(template)
@@ -217,6 +223,8 @@ def validate_template(template_id, personalisation, service, notification_type):
     template_with_content = create_content_for_notification(template, personalisation)
     if template.template_type == SMS_TYPE:
         check_sms_content_char_count(template_with_content.content_count)
+
+    check_content_is_not_empty_or_just_whitespace(str(template_with_content))
 
     return template, template_with_content
 
