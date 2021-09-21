@@ -42,7 +42,7 @@ from app.models import (
     Notification,
     Service,
 )
-from app.utils import get_logo_url
+from app.utils import get_logo_url, is_blank
 
 
 def send_sms_to_provider(notification):
@@ -69,8 +69,7 @@ def send_sms_to_provider(notification):
             show_prefix=service.prefix_sms,
         )
 
-        template_content = str(template)
-        if not template_content or template_content.isspace():
+        if is_blank(template):
             empty_message_failure(notification=notification)
             return
 
