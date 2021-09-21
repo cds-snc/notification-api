@@ -34,7 +34,7 @@ from app.models import (
 from app.notifications.process_notifications import create_content_for_notification
 from app.service.sender import send_notification_to_service_users
 from app.service.utils import service_allowed_to_send_to
-from app.utils import get_document_url, get_public_notify_type_text
+from app.utils import get_document_url, get_public_notify_type_text, is_blank
 from app.v2.errors import (
     BadRequestError,
     LiveServiceTooManyRequestsError,
@@ -200,11 +200,6 @@ def check_sms_content_char_count(content_count):
     if content_count > SMS_CHAR_COUNT_LIMIT:
         message = "Content for template has a character count greater than the limit of {}".format(SMS_CHAR_COUNT_LIMIT)
         raise BadRequestError(message=message)
-
-
-def is_blank(content):
-    content = str(content)
-    return not content or content.isspace()
 
 
 def check_content_is_not_blank(content):
