@@ -1,4 +1,5 @@
 from .exceptions import (  # noqa: F401
+    VAProfileIdNotFoundException,
     VAProfileRetryableException,
     VAProfileNonRetryableException,
     NoContactInfoException

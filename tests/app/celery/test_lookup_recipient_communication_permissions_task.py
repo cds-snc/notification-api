@@ -36,6 +36,23 @@ def mock_notification_with_vaprofile_id(mocker, notification_type=SMS_TYPE) -> N
         })
 
 
+def mock_notification_without_vaprofile_id(mocker, notification_type=SMS_TYPE) -> Notification:
+    id = uuid.uuid4()
+    Notification = namedtuple('Notification', ['id', 'notification_type', 'template', 'recipient_identifiers'])
+    MockTemplate = namedtuple('MockTemplate', ['communication_item_id'])
+    template = MockTemplate(communication_item_id=1)
+    return Notification(
+        id=id,
+        notification_type=notification_type,
+        template=template,
+        recipient_identifiers={
+            f"{IdentifierType.PID.value}": RecipientIdentifier(
+                notification_id=id,
+                id_type=IdentifierType.PID.value,
+                id_value='pid-id'),
+        })
+
+
 def test_lookup_recipient_communication_permissions_should_not_update_notification_status_if_recipient_has_permissions(
         client, mocker
 ):
@@ -149,3 +166,17 @@ def test_recipient_has_given_permission_is_called_with_va_profile_id(
         str(notification.id),
         notification_type,
         notification.template.communication_item_id)
+
+
+def test_lookup_recipient_communication_permissions_raises_exception_with_non_va_profile_id(
+    client, mocker
+):
+    notification = mock_notification_without_vaprofile_id(mocker)
+
+    mocker.patch(
+        'app.celery.lookup_recipient_communication_permissions_task.get_notification_by_id',
+        return_value=notification
+    )
+
+    with pytest.raises(Exception):
+        lookup_recipient_communication_permissions(str(notification.id))

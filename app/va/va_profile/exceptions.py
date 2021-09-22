@@ -2,6 +2,10 @@ class VAProfileException(Exception):
     pass
 
 
+class VAProfileIdNotFoundException(VAProfileException):
+    failure_reason = 'No VA Profile Id was found'
+
+
 class VAProfileRetryableException(VAProfileException):
     failure_reason = 'Retryable VAProfile error occurred'
 

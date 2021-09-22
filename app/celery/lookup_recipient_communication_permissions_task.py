@@ -1,3 +1,4 @@
+from app.va.va_profile.exceptions import VAProfileIdNotFoundException
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 
@@ -22,7 +23,17 @@ def lookup_recipient_communication_permissions(
     current_app.logger.info(f"Looking up communication preferences for notification_id:{notification_id}")
 
     notification = get_notification_by_id(notification_id)
-    va_profile_id = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value
+
+    try:
+        notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value]
+    except (KeyError) as e:
+        current_app.logger.info(f'{VAProfileIdNotFoundException.failure_reason} on notification '
+                                f'{notification_id}')
+        raise VAProfileIdNotFoundException from e
+
+    va_profile_recipient_identifier = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value]
+
+    va_profile_id = va_profile_recipient_identifier.id_value
     communication_item_id = notification.template.communication_item_id
     notification_type = notification.notification_type
 
