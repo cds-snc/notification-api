@@ -113,6 +113,8 @@ jobs:
           cache-from: type=gha,scope=api
           cache-to: type=gha,scope=api
 
+      - uses: actions/checkout@v2
+
       - name: Perform twistlock scan
         uses: ./.github/actions/run-commands-on-ec2
         env:
