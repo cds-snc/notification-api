@@ -87,10 +87,8 @@ jobs:
       IMAGE_REPOSITORY: "notification_api"
       IMAGE_TAG: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v2
-      - name: Build docker image
-        run: |
-          docker build -t $IMAGE_REPOSITORY:$IMAGE_TAG -f ci/Dockerfile .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1.6.0
 
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -106,12 +104,14 @@ jobs:
         id: login-ecr-vaec
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Publish to VAEC ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr-vaec.outputs.registry }}
-        run: |
-          docker tag $IMAGE_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$IMAGE_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$IMAGE_REPOSITORY:$IMAGE_TAG
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          file: ci/Dockerfile
+          push: true
+          tags: ${{ steps.login-ecr-vaec.outputs.registry }}/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api
 
       - name: Perform twistlock scan
         uses: ./.github/actions/run-commands-on-ec2
