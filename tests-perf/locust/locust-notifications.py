@@ -1,7 +1,14 @@
-import sys, os
+""" locust-notifications.py
+   isort:skip_file
+"""
+# flake8: noqa
+
+import os
+import sys
+from datetime import datetime
+
 sys.path.append(os.path.abspath(os.path.join("..", "tests_smoke")))
 
-from datetime import datetime
 from dotenv import load_dotenv
 from locust import HttpUser, constant_pacing, task
 from tests_smoke.smoke.common import job_line, rows_to_csv
@@ -30,7 +37,7 @@ class NotifyApiUser(HttpUser):
     @task(2)
     def send_email_with_attachment_notifications(self):
         personalisation = {
-            "application_file": "arbitrary text for this variable", 
+            "application_file": "arbitrary text for this variable",
             "attached_file": {
                 "file": "Q29udGVudCBvZiBBdHRhY2hlZCBmaWxl",
                 "filename": "attached_file.txt",
@@ -51,7 +58,6 @@ class NotifyApiUser(HttpUser):
             }
         }
         json = self.__email_json(self.template_id, personalisation)
-
 
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
@@ -74,7 +80,7 @@ class NotifyApiUser(HttpUser):
 
         self.client.post("/v2/notifications/sms", json=json, headers=self.headers)
 
-    def __email_json(self, template_id, personalisation = {}):
+    def __email_json(self, template_id, personalisation={}):
         return {
             "email_address": self.email,
             "template_id": template_id,
