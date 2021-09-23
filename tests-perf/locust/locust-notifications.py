@@ -30,7 +30,8 @@ class NotifyApiUser(HttpUser):
     @task(2)
     def send_email_with_attachment_notifications(self):
         personalisation = {
-            "application_file": {
+            "application_file": "arbitrary text for this variable", 
+            "attached_file": {
                 "file": "Q29udGVudCBvZiBBdHRhY2hlZCBmaWxl",
                 "filename": "attached_file.txt",
                 "sending_method": "attach",
