@@ -335,7 +335,6 @@ def test_should_attach_the_current_api_key_to_current_app(notify_api, sample_ser
     with notify_api.test_request_context(), notify_api.test_client() as client:
         token = __create_token(sample_api_key.service_id)
         response = client.get("/notifications", headers={"Authorization": "Bearer {}".format(token)})
-        import pdb; pdb.set_trace()
         assert response.status_code == 200
         assert api_user == sample_api_key
 
