@@ -49,6 +49,7 @@ update_service_sms_sender_request = {
     "properties": {
         "sms_sender": {"type": "string"},
         "is_default": {"type": "boolean"},
+        "rate_limit": {"type": "integer", "minimum": 1},
         "inbound_number_id": uuid
     }
 }
