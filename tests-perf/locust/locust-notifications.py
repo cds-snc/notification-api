@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath(os.path.join("..", "tests_smoke")))
 
 from dotenv import load_dotenv
 from locust import HttpUser, constant_pacing, task
-from tests_smoke.smoke.common import job_line, rows_to_csv
+from tests_smoke.smoke.common import job_line, rows_to_csv  # type: ignore
 
 load_dotenv()
 
