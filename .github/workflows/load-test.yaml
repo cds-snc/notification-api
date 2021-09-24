@@ -8,7 +8,7 @@ on:
         required: true
         default: 'perf'
       commit_sha:
-        description: 'The commit containing code you want to load test'
+        description: 'The commit SHA containing code you want to load test'
         required: true
       run_time:
         description: 'Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.)'
