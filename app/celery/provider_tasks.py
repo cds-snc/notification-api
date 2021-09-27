@@ -85,7 +85,7 @@ def deliver_sms_with_rate_limiting(self, notification_id):
             f'Will retry in {60 / sms_sender.rate_limit} seconds.'
         )
 
-        self.retry(queue=QueueNames.RETRY, max_retries=None, countdown=60 / sms_sender.rate_limit)
+        self.retry(queue=QueueNames.RATE_LIMIT_RETRY, max_retries=None, countdown=60 / sms_sender.rate_limit)
     except Exception:
         try:
             current_app.logger.exception(

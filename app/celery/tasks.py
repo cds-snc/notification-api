@@ -213,7 +213,6 @@ def save_sms(self,
         sms_sender = dao_get_sms_sender_by_service_id_and_number(notification.get(service_id),
                                                                  notification.get(reply_to_text))
 
-        # TODO: potentially use different queue
         if is_feature_enabled(FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED) and sms_sender and sms_sender.rate_limit:
             provider_tasks.deliver_sms_with_rate_limiting.apply_async(
                 [str(saved_notification.id)],

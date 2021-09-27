@@ -205,4 +205,6 @@ def test_deliver_sms_with_rate_limiting_should_retry_if_rate_limit_exceeded(samp
 
     deliver_sms_with_rate_limiting(sample_notification.id)
 
-    retry.assert_called_once_with(queue=QueueNames.RETRY, max_retries=None, countdown=60 / sms_sender.rate_limit)
+    retry.assert_called_once_with(
+        queue=QueueNames.RATE_LIMIT_RETRY, max_retries=None, countdown=60 / sms_sender.rate_limit
+    )
