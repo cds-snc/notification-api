@@ -71,7 +71,7 @@ def process_pinpoint_results(self, response):
         record_status = pinpoint_message['attributes']['record_status']
         current_app.logger.info(
             f'received callback from Pinpoint with event_type of {event_type} and record_status of {record_status}'
-            f'with reference {reference}'
+            f' with reference {reference}'
         )
         notification_status = get_notification_status(event_type, record_status, reference)
 
@@ -152,8 +152,8 @@ def check_notification_status(notification: Notification, notification_status: s
     # do not update if status has not changed
     if notification_status == notification.status:
         current_app.logger.info(
-            f'Pinpoint callback received the same status of {notification_status} for '
-            f'notification {notification_status})'
+            f'Pinpoint callback received the same status of {notification_status} for'
+            f' notification {notification_status})'
         )
         should_exit = True
     # do not update if notification status is in a final state
@@ -167,6 +167,6 @@ def log_notification_status_warning(notification, status: str) -> None:
     time_diff = datetime.datetime.utcnow() - (notification.updated_at or notification.created_at)
     current_app.logger.warning(
         f'Invalid callback received. Notification id {notification.id} received a status update to {status}'
-        f'{time_diff} after being set to {notification.status}. {notification.notification_type} '
-        f'sent by {notification.sent_by}'
+        f' {time_diff} after being set to {notification.status}. {notification.notification_type}'
+        f' sent by {notification.sent_by}'
     )
