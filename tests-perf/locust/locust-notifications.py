@@ -43,13 +43,13 @@ class NotifyApiUser(HttpUser):
             sms_id=os.getenv("LOAD_TEST_SMS_TEMPLATE_ID", "83d01f06-a818-4134-bd69-ce90a2949280"),
         )
 
-    @task(1)
+    @task(16)
     def send_email_notifications(self):
         json = self.__email_json(self.template_group.email_id)
 
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
-    @task(2)
+    @task(8)
     def send_email_with_attachment_notifications(self):
         personalisation = {
             "attached_file": {
@@ -75,7 +75,7 @@ class NotifyApiUser(HttpUser):
 
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
-    @task(8)
+    @task(2)
     def send_bulk_notifications(self):
         json = {
             "name": f"My bulk name {datetime.utcnow().isoformat()}",
@@ -85,7 +85,7 @@ class NotifyApiUser(HttpUser):
 
         self.client.post("/v2/notifications/bulk", json=json, headers=self.headers)
 
-    @task(16)
+    @task(1)
     def send_sms_notifications(self):
         json = {
             "phone_number": self.phone_number,
