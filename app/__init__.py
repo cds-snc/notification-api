@@ -199,8 +199,7 @@ def register_blueprint(application):
     letter_branding_blueprint.before_request(requires_admin_auth)
     application.register_blueprint(letter_branding_blueprint)
 
-    # support_blueprint.before_request(requires_admin_auth)
-    support_blueprint.before_request(requires_no_auth)
+    support_blueprint.before_request(requires_admin_auth)
     application.register_blueprint(support_blueprint, url_prefix="/support")
 
 

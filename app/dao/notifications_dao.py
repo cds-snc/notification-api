@@ -192,18 +192,6 @@ def get_notification_by_id(notification_id, service_id=None, _raise=False):
     return query.one() if _raise else query.first()
 
 
-@statsd(namespace="dao")
-def get_notification_history_by_id(notification_history_id, service_id=None, _raise=False):
-    filters = [NotificationHistory.id == notification_history_id]
-
-    if service_id:
-        filters.append(NotificationHistory.service_id == service_id)
-
-    query = db.on_reader().query(NotificationHistory).filter(*filters)
-
-    return query.one() if _raise else query.first()
-
-
 def get_notifications(filter_dict=None):
     return _filter_query(Notification.query, filter_dict=filter_dict)
 
