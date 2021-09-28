@@ -116,14 +116,13 @@ def register_blueprint(application):
     from app.service.callback_rest import service_callback_blueprint
     from app.service.rest import service_blueprint
     from app.status.healthcheck import status as status_blueprint
+    from app.support.rest import support_blueprint
     from app.template.rest import template_blueprint
     from app.template_folder.rest import template_folder_blueprint
     from app.template_statistics.rest import (
         template_statistics as template_statistics_blueprint,
     )
     from app.user.rest import user_blueprint
-
-    from app.support.rest import support_blueprint
 
     service_blueprint.before_request(requires_admin_auth)
     application.register_blueprint(service_blueprint, url_prefix="/service")

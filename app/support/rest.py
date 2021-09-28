@@ -1,7 +1,8 @@
 from flask import Blueprint, jsonify
 from sqlalchemy.orm.exc import NoResultFound
-from app.dao.services_dao import dao_fetch_service_by_id
+
 from app.dao.jobs_dao import dao_get_job_by_id
+from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import get_user_by_id
 from app.errors import register_errors
