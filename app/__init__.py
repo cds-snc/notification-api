@@ -123,6 +123,8 @@ def register_blueprint(application):
     )
     from app.user.rest import user_blueprint
 
+    from app.support.rest import support_blueprint
+
     service_blueprint.before_request(requires_admin_auth)
     application.register_blueprint(service_blueprint, url_prefix="/service")
 
@@ -197,6 +199,9 @@ def register_blueprint(application):
 
     letter_branding_blueprint.before_request(requires_admin_auth)
     application.register_blueprint(letter_branding_blueprint)
+
+    support_blueprint.before_request(requires_admin_auth)
+    application.register_blueprint(support_blueprint, url_prefix="/support")
 
 
 def register_v2_blueprints(application):
