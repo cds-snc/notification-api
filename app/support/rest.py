@@ -95,8 +95,7 @@ def user_query(id):
 
 
 @support_blueprint.route("/<uuid:id>", methods=["GET"])
-def get_id_info(id):
-
+def query_id(id):
     for query_func in [user_query, service_query, template_query, job_query, notification_query]:
         results = query_func(id)
         if results:
