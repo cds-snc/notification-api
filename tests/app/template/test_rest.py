@@ -9,8 +9,11 @@ import botocore
 import pytest
 import requests_mock
 from PyPDF2.utils import PdfReadError
+from flask import url_for
+from flask_jwt_extended import create_access_token
 from freezegun import freeze_time
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
+from notifications_utils.template import HTMLEmailTemplate
 
 
 from app.models import (
@@ -26,7 +29,7 @@ from app.dao.service_permissions_dao import dao_add_service_permission
 from tests import create_authorization_header
 from tests.app.db import (
     create_service, create_letter_contact, create_template, create_notification,
-    create_template_folder,
+    create_template_folder, create_user,
 )
 from tests.conftest import set_config_values
 
@@ -1644,3 +1647,33 @@ def test_preview_letter_template_precompiled_png_template_preview_pdf_error(
 
             assert request['message'] == "Error extracting requested page from PDF file for notification_id {} type " \
                                          "{} {}".format(notification.id, type(PdfReadError()), error_message)
+
+
+class TestGenerateHtmlPreviewForContent:
+
+    def test_should_generate_html_preview_for_content(self, client, sample_service):
+        user = create_user(platform_admin=True)
+        token = create_access_token(user)
+
+        response = client.post(
+            url_for('template.generate_html_preview_for_content', service_id=sample_service.id),
+            data=json.dumps({
+                'content': 'Foo'
+            }),
+            headers=[
+                ('Content-Type', 'application/json'),
+                ('Authorization', f'Bearer {token}')
+            ]
+        )
+
+        expected_preview_html = HTMLEmailTemplate(
+            {
+                'content': 'Foo',
+                'subject': ''
+            },
+            values={},
+            preview_mode=True
+        )
+
+        assert response.data.decode('utf-8') == str(expected_preview_html)
+        assert response.headers['Content-type'] == 'text/html; charset=utf-8'
