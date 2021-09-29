@@ -101,4 +101,4 @@ def query_id(id):
         if results:
             return jsonify(results)
 
-    return jsonify(data={"type": "no result found"})
+    return jsonify({"type": "no result found"})
