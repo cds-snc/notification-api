@@ -24,6 +24,7 @@ from app.dao.provider_details_dao import (
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import (
+    InvalidUrlException,
     MalwarePendingException,
     NotificationTechnicalFailureException,
 )
@@ -110,7 +111,7 @@ def is_service_allowed_html(service: Service) -> bool:
     return str(service.id) in current_app.config["ALLOW_HTML_SERVICE_IDS"]
 
 
-def send_email_to_provider(notification: Notification):
+def send_email_to_provider(notification: Notification):  # noqa (C901 too complex)
     service = notification.service
     if not service.active:
         technical_failure(notification=notification)

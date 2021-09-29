@@ -1205,7 +1205,7 @@ def document_download_response(override={}):
     base = {
         "id": "document-id",
         "direct_file_url": "http://direct-file-url.localdomain",
-        "url": "http://frontend-url.localdomain",
+        "url": "https://frontend-url.localdomain",
         "mlwr_sid": "mlwr-sid",
         "filename": "filename",
         "sending_method": "sending_method",
