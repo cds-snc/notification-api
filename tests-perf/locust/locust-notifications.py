@@ -34,7 +34,7 @@ class NotifyApiUser(HttpUser):
 
         self.headers = {"Authorization": os.getenv("TEST_AUTH_HEADER")}
         self.email = os.getenv("LOAD_TEST_EMAIL", "success@simulator.amazonses.com")
-        self.phone_number = os.getenv("LOAD_TEST_PHONE_NUMBER", "12897682684")
+        self.phone_number = os.getenv("LOAD_TEST_PHONE_NUMBER", "16132532222")
         self.template_group = NotifyApiUserTemplateGroup(
             bulk_email_id=os.getenv("LOAD_TEST_BULK_EMAIL_TEMPLATE_ID", "5ebee3b7-63c0-4052-a8cb-387b818df627"),
             email_id=os.getenv("LOAD_TEST_EMAIL_TEMPLATE_ID", "a59b313d-8de2-4973-ac2f-66de7ec0b239"),
