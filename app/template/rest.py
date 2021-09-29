@@ -78,7 +78,7 @@ def create_template(service_id):
     permissions = fetched_service.permissions
 
     request_body = request.get_json()
-    if ('created_by' not in request_body or request_body['created_by'] is None) and current_user:
+    if current_user:
         request_body['created_by'] = str(current_user.id)
 
     template_json = validate(request_body, post_create_template_schema)
