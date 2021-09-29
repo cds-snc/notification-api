@@ -249,3 +249,23 @@ fileignoreconfig:
       checksum: 469f814f2ba74fab665e05ac7a9a3da235a991e0403e8c62d4c692a42ac9cff0
     - filename: app/template/rest.py
       checksum: 4f300f5136873066acede094b788ccca6707c05f14c22979adb64ea2e60569eb
+    - filename: scripts/postman/development.postman_environment.json
+      checksum: a1debc4234ef557d8dc130fb366b542b195c4344e309172485ea4e74c6627507
+    - filename: scripts/postman/performance.postman_environment.json
+      checksum: 58ff1624306779c58e8fa9fbc4320f3a27f84b380cbbd9dffb3381448ed8d1b6
+    - filename: scripts/postman/staging.postman_environment.json
+      checksum: d17fbba8b74445cc2cbc6e1e73bd0888d235aa010d13614a7138f40dbe299333
+    - filename: scripts/postman/notification-api.postman_collection.json
+      checksum: 2d814aacc0f4025c92ccc7aa512d4db7d2136d038fc01c1b294c657ab5293c7a
+    - filename: scripts/postman/development.postman_environment.json
+      checksum: 430f84dec469ac7dba882cb836815a6bbdb4234615afccac37169345b56d42c8
+    - filename: scripts/postman/performance.postman_environment.json
+      checksum: 7d8ed1eb0bb17c7f72f30bdfce8150c20d75f3d570d4df65f45ed4ed307c5201
+    - filename: scripts/postman/staging.postman_environment.json
+      checksum: eee906c2ae08f8ea152af26d655364785493d0d3a743f684dd06649793dc43df
+    - filename: scripts/postman/development.postman_environment.json
+      checksum: 750e0712ccb3fe0e07f9ba73dbe83998ec71d70b88d852100cc27ca8e6fcd58e
+    - filename: scripts/postman/performance.postman_environment.json
+      checksum: da23e04452219ad6a3c968fa851702068c7cb5873aa8765370817c035503d080
+    - filename: scripts/postman/staging.postman_environment.json
+      checksum: f797a8f61a12bb39e360979cc1088850c7d755203603e7d3a425f77540d7fecd
