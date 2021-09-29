@@ -14,12 +14,12 @@ post_create_template_schema = {
         "template_type": {"enum": TEMPLATE_TYPES},
         "service": uuid,
         "communication_item_id": uuid,
-        "process_type": {"emun": TEMPLATE_PROCESS_TYPE},
+        "process_type": {"enum": TEMPLATE_PROCESS_TYPE},
         "content": {"type": "string"},
         "subject": {"type": "string"},
         "created_by": uuid,
         "parent_folder_id": uuid,
-        "postage": {"type": "string"},
+        "postage": {"type": "string"}
     },
     "if": {
         "properties": {

@@ -207,6 +207,7 @@ def user_reset_failed_login_count(user_id):
 def verify_user_password(user_id):
     user_to_verify = get_user_by_id(user_id=user_id)
     data = request.get_json()
+
     try:
         txt_pwd = data['password']
     except KeyError:

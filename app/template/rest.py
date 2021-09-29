@@ -8,6 +8,7 @@ from flask import (
     current_app,
     jsonify,
     request)
+from flask_jwt_extended import current_user
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.pdf import extract_page_from_pdf
 from notifications_utils.template import SMSMessageTemplate
@@ -75,7 +76,12 @@ def create_template(service_id):
     fetched_service = dao_fetch_service_by_id(service_id=service_id)
     # permissions needs to be placed here otherwise marshmallow will interfere with versioning
     permissions = fetched_service.permissions
-    template_json = validate(request.get_json(), post_create_template_schema)
+
+    request_body = request.get_json()
+    if ('created_by' not in request_body or request_body['created_by'] is None) and current_user:
+        request_body['created_by'] = str(current_user.id)
+
+    template_json = validate(request_body, post_create_template_schema)
 
     validate_communication_items.validate_communication_item_id(template_json)
     validate_providers.validate_template_providers(template_json)
