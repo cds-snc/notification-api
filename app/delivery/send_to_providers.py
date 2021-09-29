@@ -42,7 +42,7 @@ from app.models import (
     Notification,
     Service,
 )
-from app.utils import get_logo_url
+from app.utils import get_logo_url, is_blank
 
 
 def send_sms_to_provider(notification):
@@ -68,6 +68,10 @@ def send_sms_to_provider(notification):
             prefix=service.name,
             show_prefix=service.prefix_sms,
         )
+
+        if is_blank(template):
+            empty_message_failure(notification=notification)
+            return
 
         if service.research_mode or notification.key_type == KEY_TYPE_TEST:
             notification.reference = send_sms_response(provider.get_name(), notification.to)
@@ -278,6 +282,16 @@ def technical_failure(notification):
     dao_update_notification(notification)
     raise NotificationTechnicalFailureException(
         "Send {} for notification id {} to provider is not allowed: service {} is inactive".format(
+            notification.notification_type, notification.id, notification.service_id
+        )
+    )
+
+
+def empty_message_failure(notification):
+    notification.status = NOTIFICATION_TECHNICAL_FAILURE
+    dao_update_notification(notification)
+    current_app.logger.error(
+        "Send {} for notification id {} (service {}) is not allowed: empty message".format(
             notification.notification_type, notification.id, notification.service_id
         )
     )
