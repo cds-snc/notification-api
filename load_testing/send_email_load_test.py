@@ -6,7 +6,7 @@ from send_notification_load_test import SendNotification
 
 class SendEmail(SendNotification):
     @task
-    def send_email(self):
+    def send(self):
         headers = {
             'Authorization': f"Bearer {self._get_jwt().decode('utf-8')}"
         }

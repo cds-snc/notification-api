@@ -2,7 +2,7 @@ import time
 import os
 import jwt
 import boto3
-from locust import HttpUser
+from locust import HttpUser, task
 from urllib.parse import urlparse
 
 
@@ -45,3 +45,7 @@ class SendNotification(HttpUser):
         combo.update(header)
         encoded_jwt = jwt.encode(combo, self.api_key, algorithm='HS256')
         return encoded_jwt
+
+    @task
+    def send(self):
+        raise NotImplementedError
