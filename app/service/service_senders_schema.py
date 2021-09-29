@@ -35,7 +35,7 @@ add_service_sms_sender_request = {
         "sms_sender": {"type": "string"},
         "is_default": {"type": "boolean"},
         "inbound_number_id": uuid,
-        "rate_limit": {"type": "integer", "minimum": 1}
+        "rate_limit": {"type": ["integer", "null"], "minimum": 1}
     },
     "required": ["sms_sender", "is_default"]
 }
@@ -49,7 +49,7 @@ update_service_sms_sender_request = {
     "properties": {
         "sms_sender": {"type": "string"},
         "is_default": {"type": "boolean"},
-        "rate_limit": {"type": "integer", "minimum": 1},
+        "rate_limit": {"type": ["integer", "null"], "minimum": 1},
         "inbound_number_id": uuid
     }
 }
