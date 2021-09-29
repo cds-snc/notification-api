@@ -85,7 +85,7 @@ class NotifyApiUser(HttpUser):
 
         self.client.post("/v2/notifications/bulk", json=json, headers=self.headers)
 
-    @task(1)
+    @task(10)
     def send_sms_notifications(self):
         json = {
             "phone_number": self.phone_number,
