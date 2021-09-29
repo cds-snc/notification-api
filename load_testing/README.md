@@ -31,5 +31,5 @@ direnv allow
 Now, run Locust with the following command:
 
 ```shell
-locust -f locustfile.py -u 1 -r 1 --run-time 10s --host https://dev.api.notifications.va.gov --headless
+locust -f send_email_load_test.py -u 1 -r 1 --run-time 10s --host https://dev.api.notifications.va.gov --headless
 ```
