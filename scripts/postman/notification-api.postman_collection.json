@@ -102,7 +102,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"password\": \"password\",\n    \"email_address\": \"testuser+admin@thoughtworks.com\"\n}"
+							"raw": "{\n    \"password\": \"your-password-here\",\n    \"email_address\": \"must-be-admin-user\"\n}"
 						},
 						"url": {
 							"raw": "{{notification-api-url-private}}/auth/login",
@@ -362,7 +362,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"Test User\",\n    \"password\": \"JDJiJDEwJDRFSXJaTVhXdzQ2UjRlVlJBU0ZMdXVtWXlXbXlRWXl3YlpnVllSbDNsMTZ4bE40NzdZYnE2\",\n    \"email_address\": \"saman.moshafi@thoughtworks.com\",\n    \"mobile_number\": \"+17035017710\",\n    \"state\": \"active\",\n    \"user_permissions\": [\n        \"manage_templates\",\n        \"send_texts\",\n        \"manage_settings\",\n        \"send_emails\",\n        \"manage_api_keys\"\n    ],\n    \"auth_type\": \"sms_auth\",\n    \"platform_admin\": true\n}"
+							"raw": "{\n    \"name\": \"Test User\",\n    \"password\": \"some password\",\n    \"email_address\": \"some email\",\n    \"mobile_number\": \"+16502532222\",\n    \"state\": \"active\",\n    \"user_permissions\": [\n        \"manage_templates\",\n        \"send_texts\",\n        \"manage_settings\",\n        \"send_emails\",\n        \"manage_api_keys\"\n    ],\n    \"auth_type\": \"sms_auth\",\n    \"platform_admin\": true\n}"
 						},
 						"url": {
 							"raw": "{{notification-api-url}}/user",
@@ -727,7 +727,7 @@
 			"name": "/v2/notifications",
 			"item": [
 				{
-					"name": "for SMS",
+					"name": "send SMS",
 					"item": [
 						{
 							"name": "send sms with phone_number",
@@ -954,7 +954,7 @@
 					]
 				},
 				{
-					"name": "for EMAIL",
+					"name": "send EMAIL",
 					"item": [
 						{
 							"name": "send email with email_address",
