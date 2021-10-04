@@ -1,6 +1,6 @@
 import json
+from unittest import mock
 import pytest
-import mock
 from uuid import UUID
 
 from flask import url_for

@@ -1,8 +1,8 @@
 from datetime import timedelta, datetime, date
 from uuid import UUID
+from unittest import mock
 
 import pytest
-import mock
 from notifications_utils.timezones import convert_utc_to_local_timezone
 
 from app.dao.fact_notification_status_dao import (
