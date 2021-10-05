@@ -11,7 +11,8 @@ from app.dao.service_sms_sender_dao import (
     dao_get_sms_senders_by_service_id,
     dao_get_sms_sender_by_service_id_and_number
 )
-from app.service.exceptions import SmsSenderDefaultValidationException, SmsSenderInboundNumberIntegrityException
+from app.service.exceptions import SmsSenderDefaultValidationException, SmsSenderInboundNumberIntegrityException, \
+    SmsSenderRateLimitIntegrityException
 from app.exceptions import ArchiveValidationError
 from app.models import ServiceSmsSender, InboundNumber
 from tests.app.db import (
@@ -116,6 +117,40 @@ class TestDaoAddSmsSenderForService:
 
         new_sms_sender_after_updates = ServiceSmsSender.query.filter_by(id=new_sms_sender.id).one()
         assert new_sms_sender_after_updates.is_default
+
+    def test_raises_exception_if_rate_limit_value_provided_without_interval(self, notify_db_session):
+        service = create_service()
+
+        service_sms_senders = ServiceSmsSender.query.filter_by(service_id=service.id).all()
+        assert len(service_sms_senders) == 1
+
+        with pytest.raises(SmsSenderRateLimitIntegrityException) as e:
+            dao_add_sms_sender_for_service(
+                service_id=service.id,
+                sms_sender='new_sms',
+                is_default=False,
+                inbound_number_id=None,
+                rate_limit=1
+            )
+
+        assert 'Must provide both rate limit value and interval' in str(e.value)
+
+    def test_raises_exception_if_rate_limit_interval_provided_without_value(self, notify_db_session):
+        service = create_service()
+
+        service_sms_senders = ServiceSmsSender.query.filter_by(service_id=service.id).all()
+        assert len(service_sms_senders) == 1
+
+        with pytest.raises(SmsSenderRateLimitIntegrityException) as e:
+            dao_add_sms_sender_for_service(
+                service_id=service.id,
+                sms_sender='new_sms',
+                is_default=False,
+                inbound_number_id=None,
+                rate_limit_interval=1
+            )
+
+        assert 'Must provide both rate limit value and interval' in str(e.value)
 
     def test_raises_exception_if_adding_number_to_use_already_allocated_inbound_number(self, notify_db_session):
         service_with_inbound_number = create_service_with_inbound_number()

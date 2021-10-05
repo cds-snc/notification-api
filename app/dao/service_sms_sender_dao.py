@@ -6,7 +6,8 @@ from app import db
 from app.dao.dao_utils import transactional
 from app.exceptions import ArchiveValidationError
 from app.models import ServiceSmsSender, InboundNumber
-from app.service.exceptions import SmsSenderDefaultValidationException, SmsSenderInboundNumberIntegrityException
+from app.service.exceptions import SmsSenderDefaultValidationException, SmsSenderInboundNumberIntegrityException, \
+    SmsSenderRateLimitIntegrityException
 
 
 def insert_service_sms_sender(service, sms_sender):
@@ -44,7 +45,8 @@ def dao_get_sms_sender_by_service_id_and_number(service_id: str, number: str) ->
 
 
 @transactional
-def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_number_id=None, rate_limit=None):
+def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_number_id=None, rate_limit=None,
+                                   rate_limit_interval=None):
     default_sms_sender = _get_default_sms_sender_for_service(service_id=service_id)
 
     if not default_sms_sender and not is_default:
@@ -52,6 +54,11 @@ def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_n
 
     if is_default:
         _set_default_sms_sender_to_not_default(default_sms_sender)
+
+    if bool(rate_limit) ^ bool(rate_limit_interval):
+        raise SmsSenderRateLimitIntegrityException(
+            'Must provide both rate limit value and interval'
+        )
 
     if inbound_number_id:
         inbound_number = _allocate_inbound_number_for_service(service_id, inbound_number_id)

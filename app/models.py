@@ -689,7 +689,8 @@ class ServiceSmsSender(db.Model):
             "inbound_number_id": str(self.inbound_number_id) if self.inbound_number_id else None,
             "created_at": self.created_at.strftime(DATETIME_FORMAT),
             "updated_at": self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None,
-            "rate_limit": self.rate_limit if self.rate_limit else None
+            "rate_limit": self.rate_limit if self.rate_limit else None,
+            "rate_limit_interval": self.rate_limit_interval if self.rate_limit_interval else None
         }
 
 

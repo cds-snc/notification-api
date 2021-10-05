@@ -4,3 +4,7 @@ class SmsSenderDefaultValidationException(Exception):
 
 class SmsSenderInboundNumberIntegrityException(Exception):
     pass
+
+
+class SmsSenderRateLimitIntegrityException(Exception):
+    pass
