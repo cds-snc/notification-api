@@ -513,8 +513,10 @@ class TestSmsSenderRateLimit:
         with freeze_time('2016-01-01 12:00:00.000000'):
             mock_toggle(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
 
-            MockServiceSmsSender = namedtuple('ServiceSmsSender', ['id', 'rate_limit', 'sms_sender'])
-            sms_sender = MockServiceSmsSender(id='some-id', rate_limit=3000, sms_sender='+18888888888')
+            MockServiceSmsSender = namedtuple('ServiceSmsSender',
+                                              ['id', 'rate_limit', 'rate_limit_interval', 'sms_sender'])
+            sms_sender = MockServiceSmsSender(id='some-id', rate_limit=3000,
+                                              rate_limit_interval=60, sms_sender='+18888888888')
 
             is_rate_limit_exceeded = mocker.patch(
                 'app.notifications.validators.redis_store.exceeded_rate_limit', return_value=True
@@ -542,8 +544,10 @@ class TestSmsSenderRateLimit:
 
         with freeze_time('2016-01-01 12:00:00.000000'):
             mock_toggle(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
-            MockServiceSmsSender = namedtuple('ServiceSmsSender', ['id', 'sms_sender', 'rate_limit'])
-            sms_sender = MockServiceSmsSender(id='some-id', sms_sender='+11111111111', rate_limit=10)
+            MockServiceSmsSender = namedtuple('ServiceSmsSender', ['id', 'sms_sender',
+                                                                   'rate_limit', 'rate_limit_interval'])
+            sms_sender = MockServiceSmsSender(id='some-id', sms_sender='+11111111111',
+                                              rate_limit=10, rate_limit_interval=60)
 
             is_rate_limit_exceeded = mocker.patch(
                 'app.notifications.validators.redis_store.exceeded_rate_limit', return_value=False
