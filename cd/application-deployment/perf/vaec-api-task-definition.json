@@ -112,7 +112,7 @@
         },
         {
           "name": "CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "REDIS_ENABLED",
