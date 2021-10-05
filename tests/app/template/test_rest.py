@@ -16,6 +16,7 @@ from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.template import HTMLEmailTemplate
 
 from app.dao.permissions_dao import permission_dao
+from app.feature_flags import FeatureFlag
 from app.models import (
     EMAIL_TYPE,
     LETTER_TYPE,
@@ -31,6 +32,7 @@ from tests.app.db import (
     create_service, create_letter_contact, create_template, create_notification,
     create_template_folder, create_user,
 )
+from tests.app.oauth.test_rest import mock_toggle
 from tests.conftest import set_config_values
 
 
@@ -1714,3 +1716,32 @@ class TestGenerateHtmlPreviewForContent:
 
         assert response.data.decode('utf-8') == str(expected_preview_html)
         assert response.headers['Content-type'] == 'text/html; charset=utf-8'
+
+
+class TestTemplateNameAlreadyExists:
+    def test_create_template_should_return_400_if_template_name_already_exists_on_service(
+            self, mocker, client, sample_service, sample_user
+    ):
+        mock_toggle(mocker, FeatureFlag.CHECK_TEMPLATE_NAME_EXISTS_ENABLED, 'True')
+        mocker.patch('app.template.rest.template_name_already_exists_on_service', return_value=True)
+
+        data = {
+            'name': 'my template',
+            'template_type': EMAIL_TYPE,
+            'content': 'template <b>content</b>',
+            'service': str(sample_service.id),
+            'created_by': str(sample_user.id),
+            'subject': 'subject'
+        }
+
+        data = json.dumps(data)
+        auth_header = create_authorization_header()
+
+        response = client.post(
+            f'/service/{sample_service.id}/template',
+            headers=[('Content-Type', 'application/json'), auth_header],
+            data=data
+        )
+
+        assert response.status_code == 400
+        assert json.loads(response.data)['message']['content'][0] == 'Template name already exists in service.'

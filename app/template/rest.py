@@ -36,9 +36,10 @@ from app.errors import (
     register_errors,
     InvalidRequest
 )
+from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.letters.utils import get_letter_pdf
 from app.models import SMS_TYPE, Template, SECOND_CLASS, LETTER_TYPE
-from app.notifications.validators import service_has_permission, check_reply_to
+from app.notifications.validators import service_has_permission, check_reply_to, template_name_already_exists_on_service
 from app.provider_details import validate_providers
 from app.schema_validation import validate
 from app.schemas import (template_schema, template_history_schema)
@@ -88,6 +89,14 @@ def create_template(service_id):
 
     folder = validate_parent_folder(template_json=template_json)
     new_template = Template.from_json(template_json, folder)
+
+    if (
+            is_feature_enabled(FeatureFlag.CHECK_TEMPLATE_NAME_EXISTS_ENABLED)
+            and template_name_already_exists_on_service(service_id, new_template.name)
+    ):
+        message = 'Template name already exists in service.'
+        errors = {'content': [message]}
+        raise InvalidRequest(errors, status_code=400)
 
     if not service_has_permission(new_template.template_type, permissions):
         message = "Creating {} templates is not allowed".format(
