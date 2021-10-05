@@ -149,6 +149,14 @@ def update_template(service_id, template_id):
     updated_template = dict(template_schema.dump(fetched_template).data.items())
     updated_template.update(data)
 
+    if (
+            is_feature_enabled(FeatureFlag.CHECK_TEMPLATE_NAME_EXISTS_ENABLED)
+            and template_name_already_exists_on_service(service_id, updated_template['name'])
+    ):
+        message = 'Template name already exists in service.'
+        errors = {'content': [message]}
+        raise InvalidRequest(errors, status_code=400)
+
     # Check if there is a change to make.
     if _template_has_not_changed(current_data, updated_template):
         return jsonify(data=updated_template), 200

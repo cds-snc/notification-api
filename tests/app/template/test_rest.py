@@ -1745,3 +1745,24 @@ class TestTemplateNameAlreadyExists:
 
         assert response.status_code == 400
         assert json.loads(response.data)['message']['content'][0] == 'Template name already exists in service.'
+
+    def test_update_should_not_update_a_template_if_name_already_exists(self, mocker, client, sample_user):
+        mock_toggle(mocker, FeatureFlag.CHECK_TEMPLATE_NAME_EXISTS_ENABLED, 'True')
+        mocker.patch('app.template.rest.template_name_already_exists_on_service', return_value=True)
+
+        service = create_service(service_permissions=[EMAIL_TYPE])
+        template = create_template(service, template_type="email", postage="second")
+        data = {
+            'name': template.name
+        }
+        data = json.dumps(data)
+        auth_header = create_authorization_header()
+
+        update_response = client.post(
+            f'/service/{service.id}/template/{template.id}',
+            headers=[('Content-Type', 'application/json'), auth_header],
+            data=data
+        )
+
+        assert update_response.status_code == 400
+        assert json.loads(update_response.data)['message']['content'][0] == 'Template name already exists in service.'
