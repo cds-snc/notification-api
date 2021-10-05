@@ -674,7 +674,7 @@ class ServiceSmsSender(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
     rate_limit = db.Column(db.Integer, nullable=True)
-    rate_limit_unit = db.Enum('PER_SECOND', 'PER_MINUTE')
+    rate_limit_interval = db.Column(db.Integer, nullable=True)
 
     def get_reply_to_text(self):
         return try_validate_and_format_phone_number(self.sms_sender)
@@ -1304,11 +1304,6 @@ NOTIFICATION_VIRUS_SCAN_FAILED = 'virus-scan-failed'
 NOTIFICATION_RETURNED_LETTER = 'returned-letter'
 NOTIFICATION_CONTAINS_PII = 'pii-check-failed'
 NOTIFICATION_PREFERENCES_DECLINED = 'preferences-declined'
-
-PER_SECOND = 'PER_SECOND'
-PER_MINUTE = 'PER_MINUTE'
-RATE_LIMIT_UNIT_TYPES = [PER_SECOND, PER_MINUTE]
-rate_limit_unit_enum = db.Enum(*RATE_LIMIT_UNIT_TYPES, name='rate_limit_unit')
 
 
 NOTIFICATION_STATUS_TYPES_FAILED = [
