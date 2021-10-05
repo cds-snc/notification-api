@@ -102,6 +102,16 @@ def dao_get_template_by_id_and_service_id(template_id, service_id, version=None)
     return Template.query.filter_by(id=template_id, hidden=False, service_id=service_id).one()
 
 
+def dao_get_templates_by_service_id_and_name(service_id, template_name, version=None):
+    if version is not None:
+        return TemplateHistory.query.filter_by(
+            hidden=False,
+            service_id=service_id,
+            name=template_name,
+            version=version).one()
+    return Template.query.filter_by(hidden=False, service_id=service_id, name=template_name)
+
+
 def dao_get_template_by_id(template_id, version=None):
     if version is not None:
         return TemplateHistory.query.filter_by(
