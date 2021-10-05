@@ -45,6 +45,10 @@
           "value": "True"
         },
         {
+          "name": "CHECK_TEMPLATE_NAME_EXISTS_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED",
           "value": "True"
         },

@@ -121,6 +121,10 @@
           "value": "True"
         },
         {
+          "name": "CHECK_TEMPLATE_NAME_EXISTS_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "UI_HOST_NAME",
           "value": "https://notifications.va.gov"
         }

@@ -139,6 +139,10 @@
         {
           "name": "API_RATE_LIMIT_ENABLED",
           "value": "True"
+        },
+        {
+          "name": "CHECK_TEMPLATE_NAME_EXISTS_ENABLED",
+          "value": "False"
         }
       ],
       "secrets": [

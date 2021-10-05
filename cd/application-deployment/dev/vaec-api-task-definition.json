@@ -55,6 +55,10 @@
           "value": "True"
         },
         {
+          "name": "CHECK_TEMPLATE_NAME_EXISTS_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "EMAIL_PASSWORD_LOGIN_ENABLED",
           "value": "True"
         },
