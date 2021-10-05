@@ -118,7 +118,9 @@ class TestDaoAddSmsSenderForService:
         new_sms_sender_after_updates = ServiceSmsSender.query.filter_by(id=new_sms_sender.id).one()
         assert new_sms_sender_after_updates.is_default
 
-    def test_raises_exception_if_rate_limit_value_provided_without_interval(self, notify_db_session):
+    @pytest.mark.parametrize('rate_limit, rate_limit_interval', ([1, None], [None, 1]))
+    def test_raises_exception_if_only_one_of_rate_limit_value_and_interval_provided(self, notify_db_session,
+                                                                                    rate_limit, rate_limit_interval):
         service = create_service()
 
         service_sms_senders = ServiceSmsSender.query.filter_by(service_id=service.id).all()
@@ -130,24 +132,8 @@ class TestDaoAddSmsSenderForService:
                 sms_sender='new_sms',
                 is_default=False,
                 inbound_number_id=None,
-                rate_limit=1
-            )
-
-        assert 'Must provide both rate limit value and interval' in str(e.value)
-
-    def test_raises_exception_if_rate_limit_interval_provided_without_value(self, notify_db_session):
-        service = create_service()
-
-        service_sms_senders = ServiceSmsSender.query.filter_by(service_id=service.id).all()
-        assert len(service_sms_senders) == 1
-
-        with pytest.raises(SmsSenderRateLimitIntegrityException) as e:
-            dao_add_sms_sender_for_service(
-                service_id=service.id,
-                sms_sender='new_sms',
-                is_default=False,
-                inbound_number_id=None,
-                rate_limit_interval=1
+                rate_limit=rate_limit,
+                rate_limit_interval=rate_limit_interval
             )
 
         assert 'Must provide both rate limit value and interval' in str(e.value)
@@ -223,6 +209,22 @@ class TestDaoUpdateServiceUpdateSmsSender:
 
         new_sms_sender_after_updates = ServiceSmsSender.query.filter_by(id=new_sms_sender.id).one()
         assert new_sms_sender_after_updates.is_default
+
+    @pytest.mark.parametrize('rate_limit, rate_limit_interval', ([1, None], [None, 1]))
+    def test_raises_exception_if_only_one_of_rate_limit_value_and_interval_provided(self, notify_db_session,
+                                                                                    rate_limit, rate_limit_interval):
+        service = create_service()
+        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
+
+        with pytest.raises(SmsSenderRateLimitIntegrityException) as e:
+            dao_update_service_sms_sender(
+                service_id=service.id,
+                service_sms_sender_id=existing_sms_sender.id,
+                rate_limit=rate_limit,
+                rate_limit_interval=rate_limit_interval
+            )
+
+        assert 'Cannot update sender to have only one of rate limit value and interval' in str(e.value)
 
     def test_raises_exception_if_update_would_result_in_no_default_sms_sender(self, notify_db_session):
         service = create_service()

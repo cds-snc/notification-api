@@ -83,7 +83,6 @@ def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_n
 
 @transactional
 def dao_update_service_sms_sender(service_id, service_sms_sender_id, **kwargs):
-
     if 'is_default' in kwargs:
         default_sms_sender = _get_default_sms_sender_for_service(service_id)
         is_default = kwargs['is_default']
@@ -98,6 +97,18 @@ def dao_update_service_sms_sender(service_id, service_sms_sender_id, **kwargs):
         _allocate_inbound_number_for_service(service_id, kwargs['inbound_number_id'])
 
     sms_sender_to_update = ServiceSmsSender.query.get(service_sms_sender_id)
+
+    if 'rate_limit' in kwargs and ('rate_limit_interval' not in kwargs or not kwargs['rate_limit_interval']):
+        if not sms_sender_to_update.rate_limit_interval:
+            raise SmsSenderRateLimitIntegrityException(
+                'Cannot update sender to have only one of rate limit value and interval'
+            )
+
+    if 'rate_limit_interval' in kwargs and ('rate_limit' not in kwargs or not kwargs['rate_limit']):
+        if not sms_sender_to_update.rate_limit:
+            raise SmsSenderRateLimitIntegrityException(
+                'Cannot update sender to have only one of rate limit value and interval'
+            )
 
     if 'sms_sender' in kwargs and sms_sender_to_update.inbound_number_id:
         raise SmsSenderInboundNumberIntegrityException(
