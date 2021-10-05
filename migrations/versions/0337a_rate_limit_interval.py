@@ -17,6 +17,8 @@ def upgrade():
     op.drop_column('service_sms_senders', 'rate_limit_unit')
     op.execute('DROP TYPE rate_limit_unit')
     op.add_column('service_sms_senders', sa.Column('rate_limit_interval', sa.Integer(), nullable=True))
+    op.execute("UPDATE service_sms_senders SET rate_limit_interval = 60 "
+               "WHERE rate_limit_interval IS NULL AND rate_limit IS NOT NULL")
     op.create_check_constraint(
         "ck_rate_limit_requires_value_and_interval",
         "service_sms_senders",
