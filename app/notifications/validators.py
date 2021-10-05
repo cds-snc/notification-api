@@ -10,6 +10,7 @@ from notifications_utils.clients.redis import rate_limit_cache_key, daily_limit_
 
 from app.dao import services_dao, templates_dao
 from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
+from app.dao.templates_dao import dao_get_number_of_templates_by_service_id_and_name
 from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.models import (
     INTERNATIONAL_SMS_TYPE, SMS_TYPE, EMAIL_TYPE, LETTER_TYPE,
@@ -204,3 +205,7 @@ def check_service_letter_contact_id(service_id, letter_contact_id, notification_
             message = 'letter_contact_id {} does not exist in database for service id {}'\
                 .format(letter_contact_id, service_id)
             raise BadRequestError(message=message)
+
+
+def template_name_already_exists_on_service(service_id, template_name):
+    return dao_get_number_of_templates_by_service_id_and_name(service_id, template_name) > 0

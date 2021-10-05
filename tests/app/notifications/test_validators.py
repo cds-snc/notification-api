@@ -557,3 +557,19 @@ class TestSmsSenderRateLimit:
             is_rate_limit_exceeded.assert_called_once_with(
                 str(sms_sender.sms_sender), 10, 60, keep_latest_time_in_cache=False
             )
+
+
+class TestTemplateNameAlreadyExistsOnService:
+    def test_that_template_name_already_exists_on_service_returns_true(self, mocker):
+        from app.notifications.validators import template_name_already_exists_on_service
+
+        mocker.patch('app.notifications.validators.dao_get_number_of_templates_by_service_id_and_name', return_value=1)
+
+        assert template_name_already_exists_on_service('some service id', 'some template name')
+
+    def test_that_template_name_already_exists_on_service_returns_false(self, mocker):
+        from app.notifications.validators import template_name_already_exists_on_service
+
+        mocker.patch('app.notifications.validators.dao_get_number_of_templates_by_service_id_and_name', return_value=0)
+
+        assert not template_name_already_exists_on_service('some service id', 'some template name')

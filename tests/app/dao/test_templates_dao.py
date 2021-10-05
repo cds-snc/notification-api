@@ -11,7 +11,7 @@ from app.dao.templates_dao import (
     dao_get_all_templates_for_service,
     dao_update_template,
     dao_get_template_versions,
-    dao_redact_template, dao_update_template_reply_to, dao_get_templates_by_service_id_and_name
+    dao_redact_template, dao_update_template_reply_to, dao_get_number_of_templates_by_service_id_and_name
 )
 from app.models import (
     Template,
@@ -458,19 +458,19 @@ def test_can_get_template_then_redacted_returns_right_values(sample_template):
 
 
 def test_can_get_template_by_service_id_and_name(sample_template):
-    templates = dao_get_templates_by_service_id_and_name(
+    num_templates = dao_get_number_of_templates_by_service_id_and_name(
         service_id=sample_template.service_id, template_name=sample_template.name
     )
 
-    assert templates.count() == 1
+    assert num_templates == 1
 
 
 def test_does_not_find_template_by_service_id_and_invalid_name(sample_template):
-    templates = dao_get_templates_by_service_id_and_name(
+    num_templates = dao_get_number_of_templates_by_service_id_and_name(
         service_id=sample_template.service_id, template_name='some random template name'
     )
 
-    assert templates.count() == 0
+    assert num_templates == 0
 
 
 def test_get_template_versions(sample_template):
