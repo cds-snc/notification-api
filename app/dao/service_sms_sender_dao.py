@@ -55,7 +55,7 @@ def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_n
     if is_default:
         _set_default_sms_sender_to_not_default(default_sms_sender)
 
-    if bool(rate_limit) ^ bool(rate_limit_interval):
+    if (rate_limit and not rate_limit_interval) or (rate_limit_interval and not rate_limit):
         raise SmsSenderRateLimitIntegrityException(
             'Must provide both rate limit value and interval'
         )
@@ -74,7 +74,8 @@ def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_n
         sms_sender=sms_sender,
         is_default=is_default,
         inbound_number_id=inbound_number_id,
-        rate_limit=rate_limit
+        rate_limit=rate_limit,
+        rate_limit_interval=rate_limit_interval
     )
 
     db.session.add(new_sms_sender)
@@ -98,13 +99,15 @@ def dao_update_service_sms_sender(service_id, service_sms_sender_id, **kwargs):
 
     sms_sender_to_update = ServiceSmsSender.query.get(service_sms_sender_id)
 
-    if 'rate_limit' in kwargs and ('rate_limit_interval' not in kwargs or not kwargs['rate_limit_interval']):
+    if 'rate_limit' in kwargs and kwargs['rate_limit'] \
+            and ('rate_limit_interval' not in kwargs or not kwargs['rate_limit_interval']):
         if not sms_sender_to_update.rate_limit_interval:
             raise SmsSenderRateLimitIntegrityException(
                 'Cannot update sender to have only one of rate limit value and interval'
             )
 
-    if 'rate_limit_interval' in kwargs and ('rate_limit' not in kwargs or not kwargs['rate_limit']):
+    if 'rate_limit_interval' in kwargs and kwargs['rate_limit_interval'] \
+            and ('rate_limit' not in kwargs or not kwargs['rate_limit']):
         if not sms_sender_to_update.rate_limit:
             raise SmsSenderRateLimitIntegrityException(
                 'Cannot update sender to have only one of rate limit value and interval'

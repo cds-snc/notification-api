@@ -8,7 +8,10 @@ from app.dao.service_sms_sender_dao import (
     dao_get_service_sms_sender_by_id,
     dao_get_sms_senders_by_service_id
 )
-from app.service.exceptions import SmsSenderDefaultValidationException, SmsSenderInboundNumberIntegrityException
+from app.service.exceptions import \
+    SmsSenderDefaultValidationException, \
+    SmsSenderInboundNumberIntegrityException, \
+    SmsSenderRateLimitIntegrityException
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.errors import register_errors
 from app.schema_validation import validate
@@ -28,6 +31,7 @@ service_sms_sender_blueprint.before_request(validate_admin_auth)
 service_sms_sender_blueprint.before_request(_validate_service_exists)
 
 
+@service_sms_sender_blueprint.errorhandler(SmsSenderRateLimitIntegrityException)
 @service_sms_sender_blueprint.errorhandler(SmsSenderDefaultValidationException)
 @service_sms_sender_blueprint.errorhandler(SmsSenderInboundNumberIntegrityException)
 def handle_errors(error):
