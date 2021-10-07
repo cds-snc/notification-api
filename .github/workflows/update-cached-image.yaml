@@ -1,6 +1,9 @@
 name: Update cached Docker image
 
 on:
+  schedule:
+    # every weekday at 5am
+    - cron: '0 5 * * 1-5'
   workflow_dispatch:
 
 jobs:
