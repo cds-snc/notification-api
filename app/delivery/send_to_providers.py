@@ -149,6 +149,9 @@ def send_email_to_provider(notification: Notification):  # noqa (C901 too comple
             if sending_method == "attach":
                 # Prevent URL patterns like file:// ftp:// that may lead to security local file read vulnerabilities
                 if not personalisation_data[key]["document"]["direct_file_url"].lower().startswith("http"):
+                    current_app.logger.error(
+                        f"Notification {notification.id} contains an invalid direct_file_url {personalisation_data[key]['document']['direct_file_url']}"
+                    )
                     raise InvalidUrlException
 
                 try:
@@ -171,7 +174,10 @@ def send_email_to_provider(notification: Notification):  # noqa (C901 too comple
                     )
                 del personalisation_data[key]
             else:
-                if not personalisation_data[key]["document"]["url"].lower().startswith("https"):
+                if not personalisation_data[key]["document"]["url"].lower().startswith("http"):
+                    current_app.logger.error(
+                        f"Notification {notification.id} contains an invalid direct_file_url {personalisation_data[key]['document']['direct_file_url']}"
+                    )
                     raise InvalidUrlException
                 personalisation_data[key] = personalisation_data[key]["document"]["url"]
 
