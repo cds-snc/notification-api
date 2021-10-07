@@ -883,7 +883,7 @@ def test_notification_document_with_pdf_attachment(
         "file": document_download_response(
             {
                 "direct_file_url": "http://foo.bar/direct_file_url",
-                "url": "https://foo.bar/url",
+                "url": "http://foo.bar/url",
                 "mime_type": "application/pdf",
                 "mlwr_sid": "false",
             }
@@ -933,7 +933,7 @@ def test_notification_document_with_pdf_attachment(
         attachments=attachments,
     )
     if not filename_attribute_present:
-        assert "https://foo.bar/url" in send_mock.call_args[1]["html_body"]
+        assert "http://foo.bar/url" in send_mock.call_args[1]["html_body"]
 
     notification = Notification.query.get(db_notification.id)
     assert notification.status == "sending"
@@ -964,7 +964,7 @@ def test_notification_document_with_illegal_url_attachment(
         "file": document_download_response(
             {
                 "direct_file_url": "file://foo.bar/direct_file_url",
-                "url": "https://foo.bar/url",
+                "url": "http://foo.bar/url",
                 "mime_type": "application/pdf",
                 "mlwr_sid": "false",
             }
