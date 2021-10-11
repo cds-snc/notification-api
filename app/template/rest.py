@@ -151,9 +151,10 @@ def update_template(service_id, template_id):
 
     if (
             is_feature_enabled(FeatureFlag.CHECK_TEMPLATE_NAME_EXISTS_ENABLED)
-            and template_name_already_exists_on_service(service_id, updated_template['name'])
+            and data.get('name')
+            and template_name_already_exists_on_service(service_id, data.get('name'))
     ):
-        message = 'Template name already exists in service.'
+        message = 'Template name already exists in service. Please change template name.'
         errors = {'content': [message]}
         raise InvalidRequest(errors, status_code=400)
 

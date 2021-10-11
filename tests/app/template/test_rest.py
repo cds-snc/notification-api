@@ -1768,4 +1768,7 @@ class TestTemplateNameAlreadyExists:
         )
 
         assert update_response.status_code == 400
-        assert json.loads(update_response.data)['message']['content'][0] == 'Template name already exists in service.'
+        assert (
+            json.loads(update_response.data)['message']['content'][0]
+            == 'Template name already exists in service. Please change template name.'
+        )
