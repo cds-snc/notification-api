@@ -18,7 +18,7 @@
       "environment": [
         {
           "name": "NOTIFY_ENVIRONMENT",
-          "value": "production"
+          "value": "performance"
         },
         {
           "name": "FLASK_APP",
