@@ -1744,7 +1744,10 @@ class TestTemplateNameAlreadyExists:
         )
 
         assert response.status_code == 400
-        assert json.loads(response.data)['message']['content'][0] == 'Template name already exists in service.'
+        assert (
+            json.loads(response.data)['message']['content'][0]
+            == 'Template name already exists in service. Please change template name.'
+        )
 
     def test_update_should_not_update_a_template_if_name_already_exists(self, mocker, client, sample_user):
         mock_toggle(mocker, FeatureFlag.CHECK_TEMPLATE_NAME_EXISTS_ENABLED, 'True')

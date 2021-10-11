@@ -94,7 +94,7 @@ def create_template(service_id):
             is_feature_enabled(FeatureFlag.CHECK_TEMPLATE_NAME_EXISTS_ENABLED)
             and template_name_already_exists_on_service(service_id, new_template.name)
     ):
-        message = 'Template name already exists in service.'
+        message = 'Template name already exists in service. Please change template name.'
         errors = {'content': [message]}
         raise InvalidRequest(errors, status_code=400)
 
