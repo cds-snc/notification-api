@@ -3,7 +3,6 @@ import datetime
 import json
 from typing import Tuple
 
-import iso8601
 from celery.exceptions import Retry
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
@@ -119,7 +118,7 @@ def get_notification_status(event_type: str, record_status: str, reference: str)
 
 
 def attempt_to_get_notification(
-        reference: str, notification_status: str, event_timestamp: str
+        reference: str, notification_status: str, event_timestamp_in_ms: str
 ) -> Tuple[Notification, bool, bool]:
     should_retry = False
     notification = None
@@ -128,7 +127,7 @@ def attempt_to_get_notification(
         notification = dao_get_notification_by_reference(reference)
         should_exit = check_notification_status(notification, notification_status)
     except NoResultFound:
-        message_time = iso8601.parse_date(event_timestamp).replace(tzinfo=None)
+        message_time = datetime.datetime.fromtimestamp(int(event_timestamp_in_ms) / 1000)
         if datetime.datetime.utcnow() - message_time < datetime.timedelta(minutes=5):
             should_retry = True
         else:
