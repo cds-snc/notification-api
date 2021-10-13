@@ -123,6 +123,11 @@ def attempt_to_get_notification(
     should_retry = False
     notification = None
 
+    current_app.logger.info(f'Calculating time diff for reference {reference}')
+    message_time = datetime.datetime.fromtimestamp(int(event_timestamp_in_ms) / 1000)
+    difference = datetime.datetime.utcnow() - message_time
+    current_app.logger.info(f'Difference for reference {reference} is {difference}')
+
     try:
         notification = dao_get_notification_by_reference(reference)
         should_exit = check_notification_status(notification, notification_status)
