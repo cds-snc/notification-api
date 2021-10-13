@@ -946,79 +946,27 @@ def test_notification_document_with_pdf_attachment(
 
 
 @pytest.mark.parametrize(
-    "filename_attribute_present, filename",
+    "sending_method",
     [
-        (True, None),
-        (True, "custom_filename.pdf"),
+        ("attach"),
+        ("link"),
     ],
 )
-def test_notification_document_with_illegal_url_attachment(
-    mocker,
-    notify_db,
-    notify_db_session,
-    filename_attribute_present,
-    filename,
-):
+def test_notification_with_bad_file_attachment_url(mocker, notify_db, notify_db_session, sending_method):
     template = sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
     personalisation = {
         "file": document_download_response(
             {
-                "direct_file_url": "file://foo.bar/direct_file_url",
-                "url": "http://foo.bar/url",
+                "direct_file_url": "file://foo.bar/file.txt",
+                "url": "file://foo.bar/file.txt",
                 "mime_type": "application/pdf",
                 "mlwr_sid": "false",
             }
         )
     }
-    if filename_attribute_present:
-        personalisation["file"]["document"]["filename"] = filename
-        personalisation["file"]["document"]["sending_method"] = "attach"
-    else:
-        personalisation["file"]["document"]["sending_method"] = "link"
-
-    db_notification = create_notification(template=template, personalisation=personalisation)
-
-    # See https://stackoverflow.com/a/34929900
-    cm = MagicMock()
-    cm.read.return_value = "request_content"
-    cm.__enter__.return_value = cm
-    urlopen_mock = mocker.patch("app.delivery.send_to_providers.urllib.request.urlopen")
-    urlopen_mock.return_value = cm
-
-    with pytest.raises(InvalidUrlException):
-        send_to_providers.send_email_to_provider(db_notification)
-
-
-@pytest.mark.parametrize(
-    "filename_attribute_present, filename",
-    [
-        (False, None),
-        (False, "custom_filename.pdf"),
-    ],
-)
-def test_notification_document_with_illegal_url_link(
-    mocker,
-    notify_db,
-    notify_db_session,
-    filename_attribute_present,
-    filename,
-):
-    template = sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
-    personalisation = {
-        "file": document_download_response(
-            {
-                "direct_file_url": "http://foo.bar/direct_file_url",
-                "url": "file://foo.bar/url",
-                "mime_type": "application/pdf",
-                "mlwr_sid": "false",
-            }
-        )
-    }
-    if filename_attribute_present:
-        personalisation["file"]["document"]["filename"] = filename
-        personalisation["file"]["document"]["sending_method"] = "attach"
-    else:
-        personalisation["file"]["document"]["sending_method"] = "link"
+    personalisation["file"]["document"]["sending_method"] = sending_method
+    if sending_method == "attach":
+        personalisation["file"]["document"]["filename"] = "file.pdf"
 
     db_notification = create_notification(template=template, personalisation=personalisation)
 
