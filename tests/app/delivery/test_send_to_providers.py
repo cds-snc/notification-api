@@ -957,8 +957,8 @@ def test_notification_with_bad_file_attachment_url(mocker, notify_db, notify_db_
     personalisation = {
         "file": document_download_response(
             {
-                "direct_file_url": "file://foo.bar/file.txt",
-                "url": "file://foo.bar/file.txt",
+                "direct_file_url": "file://foo.bar/file.txt" if sending_method == "attach" else "http://foo.bar/file.txt",
+                "url": "file://foo.bar/file.txt" if sending_method == "link" else "http://foo.bar/file.txt",
                 "mime_type": "application/pdf",
                 "mlwr_sid": "false",
             }
@@ -966,7 +966,7 @@ def test_notification_with_bad_file_attachment_url(mocker, notify_db, notify_db_
     }
     personalisation["file"]["document"]["sending_method"] = sending_method
     if sending_method == "attach":
-        personalisation["file"]["document"]["filename"] = "file.pdf"
+        personalisation["file"]["document"]["filename"] = "file.txt"
 
     db_notification = create_notification(template=template, personalisation=personalisation)
 
