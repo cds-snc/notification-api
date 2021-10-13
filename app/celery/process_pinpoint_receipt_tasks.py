@@ -74,11 +74,6 @@ def process_pinpoint_results(self, response):
         )
         notification_status = get_notification_status(event_type, record_status, reference)
 
-        current_app.logger.info(f'Calculating time diff for reference {reference}')
-        message_time = datetime.datetime.fromtimestamp(int(pinpoint_message['event_timestamp']) / 1000)
-        difference = datetime.datetime.utcnow() - message_time
-        current_app.logger.info(f'Difference for reference {reference} is {difference}')
-
         notification, should_retry, should_exit = attempt_to_get_notification(
             reference, notification_status, pinpoint_message['event_timestamp']
         )
