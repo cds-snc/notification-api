@@ -123,10 +123,9 @@ def attempt_to_get_notification(
     should_retry = False
     notification = None
 
-    current_app.logger.info(f'Calculating time diff for reference {reference}')
     message_time = datetime.datetime.fromtimestamp(int(event_timestamp_in_ms) / 1000)
     difference = datetime.datetime.utcnow() - message_time
-    current_app.logger.info(f'Difference for reference {reference} is {difference}')
+    current_app.logger.info(f'Time since Pinpoint event was received for reference {reference} is {difference}')
 
     try:
         notification = dao_get_notification_by_reference(reference)
@@ -134,6 +133,9 @@ def attempt_to_get_notification(
     except NoResultFound:
         message_time = datetime.datetime.fromtimestamp(int(event_timestamp_in_ms) / 1000)
         if datetime.datetime.utcnow() - message_time < datetime.timedelta(minutes=5):
+            current_app.logger.info(
+                f'Pinpoint callback event for reference {reference} was received less than five minutes ago.'
+            )
             should_retry = True
         else:
             current_app.logger.warning(
