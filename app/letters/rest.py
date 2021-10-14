@@ -13,7 +13,5 @@ register_errors(letter_job)
 @letter_job.route("/letters/returned", methods=["POST"])
 def create_process_returned_letters_job():
     references = validate(request.get_json(), letter_references)
-
     process_returned_letters_list.apply_async([references["references"]], queue=QueueNames.DATABASE)
-
     return jsonify(references=references["references"]), 200
