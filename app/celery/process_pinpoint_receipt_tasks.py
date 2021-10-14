@@ -123,9 +123,10 @@ def attempt_to_get_notification(
     should_retry = False
     notification = None
 
-    message_time = datetime.datetime.fromtimestamp(int(event_timestamp_in_ms) / 1000)
-    difference = datetime.datetime.utcnow() - message_time
-    current_app.logger.info(f'Time since Pinpoint event was received for reference {reference} is {difference}')
+    if is_feature_enabled(FeatureFlag.PINPOINT_EVENT_TIME_LOG_ENABLED):
+        message_time = datetime.datetime.fromtimestamp(int(event_timestamp_in_ms) / 1000)
+        difference = datetime.datetime.utcnow() - message_time
+        current_app.logger.info(f'Time since Pinpoint event was received for reference {reference} is {difference}')
 
     try:
         notification = dao_get_notification_by_reference(reference)

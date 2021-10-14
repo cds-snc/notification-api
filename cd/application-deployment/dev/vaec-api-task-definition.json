@@ -63,6 +63,10 @@
           "value": "True"
         },
         {
+          "name": "PINPOINT_EVENT_TIME_LOG_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL",
           "value": "LOAD_BALANCING"
         },

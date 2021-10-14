@@ -143,6 +143,10 @@
         {
           "name": "CHECK_TEMPLATE_NAME_EXISTS_ENABLED",
           "value": "False"
+        },
+        {
+          "name": "PINPOINT_EVENT_TIME_LOG_ENABLED",
+          "value": "True"
         }
       ],
       "secrets": [
