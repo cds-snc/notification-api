@@ -1,6 +1,6 @@
 on:
   push:
-name: CI testing
+name: Python tests
 jobs:
   test:
     runs-on: ubuntu-latest
