@@ -190,8 +190,8 @@ def test_deliver_sms_with_rate_limiting_should_deliver_if_rate_limit_not_exceede
 
 
 def test_deliver_sms_with_rate_limiting_should_retry_if_rate_limit_exceeded(sample_notification, mocker):
-    MockSmsSender = namedtuple('ServiceSmsSender', ['id', 'rate_limit'])
-    sms_sender = MockSmsSender(id=uuid.uuid4(), rate_limit=50)
+    MockSmsSender = namedtuple('ServiceSmsSender', ['id', 'rate_limit', 'rate_limit_interval'])
+    sms_sender = MockSmsSender(id=uuid.uuid4(), rate_limit=50, rate_limit_interval=1)
 
     mocker.patch(
         'app.notifications.validators.check_sms_sender_over_rate_limit',
@@ -206,5 +206,6 @@ def test_deliver_sms_with_rate_limiting_should_retry_if_rate_limit_exceeded(samp
     deliver_sms_with_rate_limiting(sample_notification.id)
 
     retry.assert_called_once_with(
-        queue=QueueNames.RATE_LIMIT_RETRY, max_retries=None, countdown=60 / sms_sender.rate_limit
+        queue=QueueNames.RATE_LIMIT_RETRY, max_retries=None,
+        countdown=sms_sender.rate_limit_interval / sms_sender.rate_limit
     )
