@@ -34,5 +34,5 @@ AWS_SES_ENDPOINT_URL=http://host.docker.internal:4566
 GITHUB_CLIENT_ID=fake-id
 GITHUB_CLIENT_SECRET=fake-secret
 
-REDIS_ENABLED='False'
+REDIS_ENABLED='True'
 REDIS_URL=redis://localhost:6379/0

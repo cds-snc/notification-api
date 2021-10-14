@@ -64,4 +64,9 @@ services:
       - 7006:7006
       - 7007:7007
     command: start --configfile /mountebank/imposters.ejs --allowInjection
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+
 

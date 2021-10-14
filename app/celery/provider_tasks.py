@@ -80,12 +80,13 @@ def deliver_sms_with_rate_limiting(self, notification_id):
         notification = notifications_dao.get_notification_by_id(notification_id)
         check_and_queue_callback_task(notification)
     except RateLimitError:
+        retry_time = sms_sender.rate_limit_interval / sms_sender.rate_limit
         current_app.logger.info(
             f'SMS notification delivery for id: {notification_id} failed due to rate limit being exceeded. '
-            f'Will retry in {60 / sms_sender.rate_limit} seconds.'
+            f'Will retry in {retry_time} seconds.'
         )
 
-        self.retry(queue=QueueNames.RATE_LIMIT_RETRY, max_retries=None, countdown=60 / sms_sender.rate_limit)
+        self.retry(queue=QueueNames.RATE_LIMIT_RETRY, max_retries=None, countdown=retry_time)
     except Exception:
         try:
             current_app.logger.exception(

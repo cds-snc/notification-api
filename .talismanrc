@@ -275,3 +275,5 @@ fileignoreconfig:
       checksum: 5fcf0ba960144f3b016c4de4c3b5ee6a204fa7c6bc4b7f6bdcf1e0ad6aa85f33
     - filename: tests/app/notifications/test_validators.py
       checksum: 0b6e063e444b39231fbe016f7f45e4236fb3560d26eb94ac84559cc5d45140f0
+    - filename: ci/.docker-env.example
+      checksum: 6eb3dbfaddb1c0de7fe7b0d4637193d8dbe4db4d49f69412281ae63441dd8ac8
