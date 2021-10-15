@@ -16,6 +16,7 @@ from app.dao.provider_details_dao import (
 )
 from app.delivery import send_to_providers
 from app.exceptions import (
+    InvalidUrlException,
     MalwarePendingException,
     NotificationTechnicalFailureException,
 )
@@ -942,6 +943,42 @@ def test_notification_document_with_pdf_attachment(
         statsd_key = "email.with-attachments.process_type-normal"
         assert call(statsd_key, notification.sent_at, notification.created_at) in statsd_calls
         assert call(statsd_key) in statsd_mock.incr.call_args_list
+
+
+@pytest.mark.parametrize(
+    "sending_method",
+    [
+        ("attach"),
+        ("link"),
+    ],
+)
+def test_notification_with_bad_file_attachment_url(mocker, notify_db, notify_db_session, sending_method):
+    template = sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
+    personalisation = {
+        "file": document_download_response(
+            {
+                "direct_file_url": "file://foo.bar/file.txt" if sending_method == "attach" else "http://foo.bar/file.txt",
+                "url": "file://foo.bar/file.txt" if sending_method == "link" else "http://foo.bar/file.txt",
+                "mime_type": "application/pdf",
+                "mlwr_sid": "false",
+            }
+        )
+    }
+    personalisation["file"]["document"]["sending_method"] = sending_method
+    if sending_method == "attach":
+        personalisation["file"]["document"]["filename"] = "file.txt"
+
+    db_notification = create_notification(template=template, personalisation=personalisation)
+
+    # See https://stackoverflow.com/a/34929900
+    cm = MagicMock()
+    cm.read.return_value = "request_content"
+    cm.__enter__.return_value = cm
+    urlopen_mock = mocker.patch("app.delivery.send_to_providers.urllib.request.urlopen")
+    urlopen_mock.return_value = cm
+
+    with pytest.raises(InvalidUrlException):
+        send_to_providers.send_email_to_provider(db_notification)
 
 
 def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
