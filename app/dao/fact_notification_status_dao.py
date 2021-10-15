@@ -500,6 +500,65 @@ def fetch_stats_for_all_services_by_date_range(start_date, end_date, include_fro
     return query.all()
 
 
+def fetch_template_usage_for_service_with_given_template(service_id, template_id):
+    stats = db.session.query(
+        FactNotificationStatus.template_id.label('template_id'),
+        Template.name.label('name'),
+        Template.template_type.label('template_type'),
+        func.sum(FactNotificationStatus.notification_count).label('count')
+    ).join(
+        Template, FactNotificationStatus.template_id == Template.id
+    ).filter(
+        FactNotificationStatus.service_id == service_id,
+        FactNotificationStatus.template_id == template_id,
+        FactNotificationStatus.key_type != KEY_TYPE_TEST,
+        FactNotificationStatus.notification_status != NOTIFICATION_CANCELLED,
+    ).group_by(
+        FactNotificationStatus.template_id,
+        Template.name,
+        Template.template_type
+    ).order_by(
+        Template.name
+    )
+
+    today = get_local_timezone_midnight_in_utc(datetime.utcnow())
+
+    stats_for_today = db.session.query(
+        Notification.template_id.label('template_id'),
+        Template.name.label('name'),
+        Template.template_type.label('template_type'),
+        func.count().label('count')
+    ).join(
+        Template, Notification.template_id == Template.id,
+    ).filter(
+        Notification.created_at >= today,
+        Notification.service_id == service_id,
+        Notification.template_id == template_id,
+        Notification.key_type != KEY_TYPE_TEST,
+        Notification.status != NOTIFICATION_CANCELLED
+    ).group_by(
+        Notification.template_id,
+        Template.name,
+        Template.template_type
+    )
+
+    all_stats_table = stats.union_all(stats_for_today).subquery()
+    query = db.session.query(
+        all_stats_table.c.template_id,
+        all_stats_table.c.name,
+        all_stats_table.c.template_type,
+        func.cast(func.sum(all_stats_table.c.count), Integer).label('count'),
+    ).group_by(
+        all_stats_table.c.template_id,
+        all_stats_table.c.name,
+        all_stats_table.c.template_type,
+    ).order_by(
+        all_stats_table.c.name
+    )
+
+    return query.all()
+
+
 def fetch_monthly_template_usage_for_service(start_date, end_date, service_id):
     # services_dao.replaces dao_fetch_monthly_historical_usage_by_template_for_service
     stats = db.session.query(
