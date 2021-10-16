@@ -182,7 +182,9 @@ def send_email_to_provider(notification: Notification):
                     )
                 del personalisation_data[key]
             else:
-                personalisation_data[key] = personalisation_data[key]["document"]["url"]
+                direct_file_url = personalisation_data[key]["document"]["direct_file_url"]
+                filename = personalisation_data[key]["document"].get("filename")
+                personalisation_data[key] = f"{direct_file_url}&filename={filename}"
 
         template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
 
