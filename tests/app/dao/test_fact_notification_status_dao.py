@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta, datetime, date
 from uuid import UUID
 from unittest import mock
@@ -18,7 +19,7 @@ from app.dao.fact_notification_status_dao import (
     get_total_sent_notifications_for_day_and_type,
     get_total_notifications_sent_for_api_key,
     get_last_send_for_api_key,
-    get_api_key_ranked_by_notifications_created
+    get_api_key_ranked_by_notifications_created, fetch_template_usage_for_service_with_given_template
 )
 from app.models import (
     FactNotificationStatus,
@@ -779,3 +780,113 @@ def test_fetch_monthly_notification_statuses_per_service_for_rows_that_should_be
 
     results = fetch_monthly_notification_statuses_per_service(date(2019, 3, 1), date(2019, 3, 31))
     assert len(results) == 0
+
+
+class TestFetchTemplateUsageForServiceWithGivenTemplate:
+    @freeze_time('2021-10-18 14:00')
+    def test_fetch_template_usage_for_service_with_given_template_gets_everything_if_dates_not_specified(
+            self, notify_db_session
+    ):
+        valid_service = create_service(service_name='valid service')
+        valid_template = create_template(valid_service)
+
+        create_ft_notification_status(date(2019, 3, 15), service=valid_service, template=valid_template)
+        create_ft_notification_status(date(2021, 3, 15), service=valid_service, template=valid_template)
+        create_ft_notification_status(date(2021, 10, 18), service=valid_service, template=valid_template)
+
+        results = fetch_template_usage_for_service_with_given_template(valid_service.id, valid_template.id)
+        assert results[0][1] == 3
+
+    @freeze_time('2021-10-18 14:00')
+    def test_fetch_template_usage_for_service_with_given_template_gets_notifications_before_end_date(
+            self, notify_db_session
+    ):
+        valid_service = create_service(service_name='valid service')
+        valid_template = create_template(valid_service)
+
+        create_ft_notification_status(date(2019, 3, 15), service=valid_service, template=valid_template)
+        create_ft_notification_status(date(2021, 3, 15), service=valid_service, template=valid_template)
+        create_ft_notification_status(date(2021, 10, 18), service=valid_service, template=valid_template)
+
+        results = fetch_template_usage_for_service_with_given_template(
+            valid_service.id, valid_template.id, end_date=datetime(2021, 10, 17)
+        )
+        assert results[0][1] == 2
+
+    @freeze_time('2021-10-18 14:00')
+    def test_fetch_template_usage_for_service_with_given_template_gets_notifications_after_start_date(
+            self, notify_db_session
+    ):
+        valid_service = create_service(service_name='valid service')
+        valid_template = create_template(valid_service)
+
+        create_ft_notification_status(date(2019, 3, 15), service=valid_service, template=valid_template)
+        create_ft_notification_status(date(2021, 3, 15), service=valid_service, template=valid_template)
+        create_ft_notification_status(date(2021, 10, 18), service=valid_service, template=valid_template)
+
+        results = fetch_template_usage_for_service_with_given_template(
+            valid_service.id, valid_template.id, start_date=datetime(2020, 1, 1)
+        )
+        assert results[0][1] == 2
+
+    @freeze_time('2021-10-18 14:00')
+    def test_fetch_template_usage_for_service_with_given_template_gets_notifications_between_dates(
+            self, notify_db_session
+    ):
+        valid_service = create_service(service_name='valid service')
+        valid_template = create_template(valid_service)
+
+        create_ft_notification_status(date(2019, 3, 15), service=valid_service, template=valid_template)
+        create_ft_notification_status(date(2021, 3, 15), service=valid_service, template=valid_template)
+        create_ft_notification_status(date(2021, 10, 18), service=valid_service, template=valid_template)
+
+        results = fetch_template_usage_for_service_with_given_template(
+            valid_service.id, valid_template.id, start_date=datetime(2019, 3, 16), end_date=datetime(2021, 10, 17)
+        )
+        assert results[0][1] == 1
+
+    @freeze_time('2021-10-18 14:00')
+    def test_fetch_template_usage_for_service_with_given_template_gets_no_notifications(
+            self, notify_db_session
+    ):
+        valid_service = create_service(service_name='valid service')
+        valid_template = create_template(valid_service)
+
+        create_ft_notification_status(date(2019, 3, 15), service=valid_service, template=valid_template)
+        create_ft_notification_status(date(2021, 3, 15), service=valid_service, template=valid_template)
+        create_ft_notification_status(date(2021, 10, 18), service=valid_service, template=valid_template)
+
+        results = fetch_template_usage_for_service_with_given_template(
+            valid_service.id, valid_template.id, start_date=datetime(2018, 3, 16), end_date=datetime(2018, 10, 17)
+        )
+        assert not results
+
+    @freeze_time('2021-10-18 14:00')
+    def test_fetch_template_usage_for_service_with_given_template_gets_no_notifications_if_template_id_incorrect(
+            self, notify_db_session
+    ):
+        valid_service = create_service(service_name='valid service')
+        valid_template = create_template(valid_service)
+
+        create_ft_notification_status(date(2019, 3, 15), service=valid_service, template=valid_template)
+        create_ft_notification_status(date(2021, 3, 15), service=valid_service, template=valid_template)
+        create_ft_notification_status(date(2021, 10, 18), service=valid_service, template=valid_template)
+
+        results = fetch_template_usage_for_service_with_given_template(valid_service.id, uuid.uuid4())
+
+        assert not results
+
+    @freeze_time('2021-10-18 14:00')
+    def test_fetch_template_usage_for_service_with_given_template_gets_no_notifications_if_service_id_incorrect(
+            self, notify_db_session
+    ):
+        valid_service = create_service(service_name='valid service')
+        valid_template = create_template(valid_service)
+
+        create_ft_notification_status(date(2019, 3, 15), service=valid_service, template=valid_template)
+        create_ft_notification_status(date(2021, 3, 15), service=valid_service, template=valid_template)
+        create_ft_notification_status(date(2021, 10, 18), service=valid_service, template=valid_template)
+
+        results = fetch_template_usage_for_service_with_given_template(uuid.uuid4(), valid_template.id)
+
+        assert not results
