@@ -115,13 +115,10 @@ def is_service_allowed_html(service: Service) -> bool:
 
 # Prevent URL patterns like file:// ftp:// that may lead to security local file read vulnerabilities
 def check_file_url(file_info: Dict[str, str], notification_id: UUID):
-    if file_info.get("sending_method") == "attach":
-        url_key = "direct_file_url"
-    else:
-        url_key = "url"
-
-    if not file_info[url_key].lower().startswith("http"):
-        current_app.logger.error(f"Notification {notification_id} contains an invalid {url_key} {file_info[url_key]}")
+    if not file_info["direct_file_url"].lower().startswith("http"):
+        current_app.logger.error(
+            f"Notification {notification_id} contains an invalid direct_file_url {file_info['direct_file_url']}"
+        )
         raise InvalidUrlException
 
 
@@ -163,7 +160,6 @@ def send_email_to_provider(notification: Notification):
 
             if sending_method == "attach":
                 try:
-
                     req = urllib.request.Request(personalisation_data[key]["document"]["direct_file_url"])
                     with urllib.request.urlopen(req) as response:
                         buffer = response.read()

@@ -933,7 +933,7 @@ def test_notification_document_with_pdf_attachment(
         attachments=attachments,
     )
     if not filename_attribute_present:
-        assert "http://foo.bar/url" in send_mock.call_args[1]["html_body"]
+        assert "http://foo.bar/direct_file_url" in send_mock.call_args[1]["html_body"]
 
     notification = Notification.query.get(db_notification.id)
     assert notification.status == "sending"
@@ -957,8 +957,8 @@ def test_notification_with_bad_file_attachment_url(mocker, notify_db, notify_db_
     personalisation = {
         "file": document_download_response(
             {
-                "direct_file_url": "file://foo.bar/file.txt" if sending_method == "attach" else "http://foo.bar/file.txt",
-                "url": "file://foo.bar/file.txt" if sending_method == "link" else "http://foo.bar/file.txt",
+                "direct_file_url": "file://foo.bar/file.txt",
+                "url": "http://foo.bar/file.txt",
                 "mime_type": "application/pdf",
                 "mlwr_sid": "false",
             }
