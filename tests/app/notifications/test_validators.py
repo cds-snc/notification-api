@@ -518,8 +518,8 @@ class TestSmsSenderRateLimit:
             sms_sender = MockServiceSmsSender(id='some-id', rate_limit=3000,
                                               rate_limit_interval=60, sms_sender='+18888888888')
 
-            is_rate_limit_exceeded = mocker.patch(
-                'app.notifications.validators.redis_store.exceeded_rate_limit', return_value=True
+            should_throttle = mocker.patch(
+                'app.notifications.validators.redis_store.should_throttle', return_value=True
             )
             mocker.patch('app.notifications.validators.services_dao')
             mocker.patch('app.notifications.validators.dao_get_service_sms_sender_by_id', return_value=sms_sender)
@@ -529,8 +529,8 @@ class TestSmsSenderRateLimit:
             with pytest.raises(RateLimitError) as e:
                 check_sms_sender_over_rate_limit(sample_service, sms_sender.id)
 
-            is_rate_limit_exceeded.assert_called_once_with(
-                sms_sender.sms_sender, sample_service.rate_limit, 60, keep_latest_time_in_cache=False
+            should_throttle.assert_called_once_with(
+                sms_sender.sms_sender, sample_service.rate_limit, 60
             )
             assert e.value.status_code == 429
             assert e.value.message == (
@@ -549,8 +549,8 @@ class TestSmsSenderRateLimit:
             sms_sender = MockServiceSmsSender(id='some-id', sms_sender='+11111111111',
                                               rate_limit=10, rate_limit_interval=60)
 
-            is_rate_limit_exceeded = mocker.patch(
-                'app.notifications.validators.redis_store.exceeded_rate_limit', return_value=False
+            should_throttle = mocker.patch(
+                'app.notifications.validators.redis_store.should_throttle', return_value=False
             )
             mocker.patch('app.notifications.validators.services_dao')
             mocker.patch('app.notifications.validators.dao_get_service_sms_sender_by_id', return_value=sms_sender)
@@ -558,8 +558,8 @@ class TestSmsSenderRateLimit:
             sample_service.restricted = True
 
             check_sms_sender_over_rate_limit(sample_service, sms_sender.id)
-            is_rate_limit_exceeded.assert_called_once_with(
-                str(sms_sender.sms_sender), 10, 60, keep_latest_time_in_cache=False
+            should_throttle.assert_called_once_with(
+                str(sms_sender.sms_sender), 10, 60
             )
 
 

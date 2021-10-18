@@ -239,8 +239,6 @@ fileignoreconfig:
       checksum: 1ffc8d0248badb46e3676c19591fed85537bb519d0d1dcf8281b2de098ff47b4
     - filename: cd/application-deployment/staging/vaec-celery-task-definition.json
       checksum: 3da8ec57ad2b2af95d34bb758e936b6ceb45a8301cd0dcd463b2754908b2810b
-    - filename: app/notifications/validators.py
-      checksum: e1ed8804630d7e37618dc182c4c94fd71e3e155fa934b5cbb49a3cd3c0459ad1
     - filename: app/v2/notifications/post_notifications.py
       checksum: bfd5cb3ea085d0e200dc370634550342f76594a4d2baa9b4f3b31f99820a9448
     - filename: app/celery/tasks.py
@@ -272,8 +270,20 @@ fileignoreconfig:
     - filename: app/models.py
       checksum: 9e17209f4c547479d5162383e1055f5fb6a2843e4024c7c9c899bcdab84924f5
     - filename: app/notifications/validators.py
-      checksum: 5fcf0ba960144f3b016c4de4c3b5ee6a204fa7c6bc4b7f6bdcf1e0ad6aa85f33
+      checksum: 7660f017c0462141816cbf32466e2c3a2eed61f3aacd5dde7ec42cde5d337510
     - filename: tests/app/notifications/test_validators.py
-      checksum: 0b6e063e444b39231fbe016f7f45e4236fb3560d26eb94ac84559cc5d45140f0
+      checksum: efce5afc3015a7bdcae7e027da762acf1fefe782b30a5a92855b253cad6c3050
     - filename: ci/.docker-env.example
       checksum: 6eb3dbfaddb1c0de7fe7b0d4637193d8dbe4db4d49f69412281ae63441dd8ac8
+    - filename: requirements-app.txt
+      checksum: 45aba00528f1e77c2324c4af006a6f6f8a4e93a2f053b940e2d7c3d680cbe0cb
+    - filename: requirements.txt
+      checksum: f1597fdd5927bb7f551fef1501477326b3b8f60502dd6c87ef7513b9c0df8476
+    - filename: app/notifications/validators.py
+      checksum: 7660f017c0462141816cbf32466e2c3a2eed61f3aacd5dde7ec42cde5d337510
+    - filename: requirements-app.txt
+      checksum: 45aba00528f1e77c2324c4af006a6f6f8a4e93a2f053b940e2d7c3d680cbe0cb
+    - filename: tests/app/notifications/test_validators.py
+      checksum: efce5afc3015a7bdcae7e027da762acf1fefe782b30a5a92855b253cad6c3050
+    - filename: requirements.txt
+      checksum: f1597fdd5927bb7f551fef1501477326b3b8f60502dd6c87ef7513b9c0df8476
