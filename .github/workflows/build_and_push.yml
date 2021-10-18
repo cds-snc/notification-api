@@ -32,7 +32,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: ${{ fromJSON(needs.changes.outputs.images) }}
+        image: ${{ fromJSON(needs.changes.outputs.images) }}-lambda
 
     steps:
       - name: Checkout
