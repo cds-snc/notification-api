@@ -1,0 +1,43 @@
+name: Notify Performance / Load Tests
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:11.8
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: perf_test_notification_api
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - name: Install libcurl
+        run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+      - uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Run performance tests
+        run: /bin/bash -c "pip install -r requirements_for_test.txt && locust --headless --config tests-perf/locust/locust.conf -f tests-perf/locust/locust-notifications.py"
+      - name: Notify Slack channel if this performance test job fails
+        if: ${{ failure() && github.ref == 'refs/heads/master' }}
+        run: |
+          json="{'text':'Scheduled CI Performance testing failed: <https://github.com/cds-snc/notification-api/actions|GitHub actions>'}"
+          curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
