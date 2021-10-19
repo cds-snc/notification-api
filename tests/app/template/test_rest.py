@@ -3,7 +3,7 @@ import json
 import random
 import string
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 import botocore
 import pytest
@@ -30,7 +30,7 @@ from app.dao.service_permissions_dao import dao_add_service_permission
 from tests import create_authorization_header
 from tests.app.db import (
     create_service, create_letter_contact, create_template, create_notification,
-    create_template_folder, create_user,
+    create_template_folder, create_user, create_ft_notification_status,
 )
 from tests.app.oauth.test_rest import mock_toggle
 from tests.conftest import set_config_values
@@ -1772,3 +1772,123 @@ class TestTemplateNameAlreadyExists:
             json.loads(update_response.data)['message']['content'][0]
             == 'Template name already exists in service. Please change template name.'
         )
+
+
+class TestServiceTemplateUsageStats:
+    def test_get_specific_template_usage_stats(self, admin_request, notify_db, notify_db_session):
+        service = create_service(service_name="ABCDEF", smtp_user="foo")
+        template = create_template(service)
+
+        create_ft_notification_status(date(2021, 3, 15), service=service, template=template)
+        create_ft_notification_status(date(2021, 3, 17), service=service, template=template)
+        create_ft_notification_status(
+            date(2021, 10, 10), service=service, template=template, notification_status='sent'
+        )
+        create_ft_notification_status(
+            date(2021, 10, 10), service=service, template=template, notification_status='permanent_failure'
+        )
+
+        resp = admin_request.get(
+            'template.get_specific_template_usage_stats', service_id=service.id, template_id=template.id
+        )
+
+        assert resp['data'] == {
+            'service_id': str(service.id),
+            'template_id': str(template.id),
+            'stats': {
+                'delivered': 2,
+                'permanent_failure': 1,
+                'sent': 1
+            }
+        }
+
+    @freeze_time('2021-10-18 14:00')
+    def test_get_specific_template_usage_with_start_date(self, admin_request, notify_db, notify_db_session):
+        service = create_service(service_name="ABCDEF", smtp_user="foo")
+        template = create_template(service)
+
+        create_ft_notification_status(date(2021, 3, 15), service=service, template=template)
+        create_ft_notification_status(date(2021, 3, 17), service=service, template=template)
+        create_ft_notification_status(
+            date(2021, 10, 10), service=service, template=template, notification_status='sent'
+        )
+        create_ft_notification_status(
+            date(2021, 10, 10), service=service, template=template, notification_status='permanent_failure'
+        )
+
+        resp = admin_request.get(
+            'template.get_specific_template_usage_stats',
+            service_id=service.id,
+            template_id=template.id,
+            start_date=date(2021, 3, 16)
+        )
+
+        assert resp['data'] == {
+            'service_id': str(service.id),
+            'template_id': str(template.id),
+            'stats': {
+                'delivered': 1,
+                'permanent_failure': 1,
+                'sent': 1
+            }
+        }
+
+    @freeze_time('2021-10-18 14:00')
+    def test_get_specific_template_usage_with_end_date(self, admin_request, notify_db, notify_db_session):
+        service = create_service(service_name="ABCDEF", smtp_user="foo")
+        template = create_template(service)
+
+        create_ft_notification_status(date(2021, 3, 15), service=service, template=template)
+        create_ft_notification_status(date(2021, 3, 17), service=service, template=template)
+        create_ft_notification_status(
+            date(2021, 10, 10), service=service, template=template, notification_status='sent'
+        )
+        create_ft_notification_status(
+            date(2021, 10, 10), service=service, template=template, notification_status='permanent_failure'
+        )
+
+        resp = admin_request.get(
+            'template.get_specific_template_usage_stats',
+            service_id=service.id,
+            template_id=template.id,
+            end_date=date(2021, 3, 18)
+        )
+
+        assert resp['data'] == {
+            'service_id': str(service.id),
+            'template_id': str(template.id),
+            'stats': {
+                'delivered': 2
+            }
+        }
+
+    @freeze_time('2021-10-18 14:00')
+    def test_get_specific_template_usage_with_start_and_end_date(self, admin_request, notify_db, notify_db_session):
+        service = create_service(service_name="ABCDEF", smtp_user="foo")
+        template = create_template(service)
+
+        create_ft_notification_status(date(2021, 3, 15), service=service, template=template)
+        create_ft_notification_status(date(2021, 3, 17), service=service, template=template)
+        create_ft_notification_status(
+            date(2021, 10, 10), service=service, template=template, notification_status='sent'
+        )
+        create_ft_notification_status(
+            date(2021, 10, 12), service=service, template=template, notification_status='permanent_failure'
+        )
+
+        resp = admin_request.get(
+            'template.get_specific_template_usage_stats',
+            service_id=service.id,
+            template_id=template.id,
+            start_date=date(2021, 3, 17),
+            end_date=date(2021, 10, 11)
+        )
+
+        assert resp['data'] == {
+            'service_id': str(service.id),
+            'template_id': str(template.id),
+            'stats': {
+                'delivered': 1,
+                'sent': 1
+            }
+        }

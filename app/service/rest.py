@@ -26,8 +26,7 @@ from app.dao.fact_notification_status_dao import (
     fetch_notification_status_for_service_by_month,
     fetch_notification_status_for_service_for_day,
     fetch_notification_status_for_service_for_today_and_7_previous_days,
-    fetch_stats_for_all_services_by_date_range, fetch_monthly_template_usage_for_service,
-    fetch_template_usage_for_service_with_given_template
+    fetch_stats_for_all_services_by_date_range, fetch_monthly_template_usage_for_service
 )
 from app.dao.organisation_dao import dao_get_organisation_by_service_id
 from app.dao.service_data_retention_dao import (
@@ -94,7 +93,6 @@ from app.service.service_senders_schema import (
     add_service_email_reply_to_request,
     add_service_letter_contact_block_request
 )
-from app.service.service_stats_schema import service_template_stats_request
 from app.service.utils import get_whitelist_objects
 from app.service.sender import send_notification_to_service_users
 from app.service.send_notification import send_one_off_notification, send_pdf_letter_notification
@@ -665,37 +663,6 @@ def get_monthly_template_usage(service_id):
         return jsonify(stats=stats), 200
     except ValueError:
         raise InvalidRequest('Year must be a number', status_code=400)
-
-
-@service_blueprint.route('/<uuid:service_id>/notifications/template_usage/<uuid:template_id>', methods=['GET'])
-@requires_admin_auth()
-def get_specific_template_usage(service_id, template_id):
-    start_date = None
-    end_date = None
-
-    if request.args:
-        validate(request.args, service_template_stats_request)
-
-        start_date = (
-            datetime.strptime(request.args.get('start_date'), '%Y-%m-%d')
-            if request.args.get('start_date') else None
-        )
-        end_date = (
-            datetime.strptime(request.args.get('end_date'), '%Y-%m-%d')
-            if request.args.get('end_date') else None
-        )
-
-    data = fetch_template_usage_for_service_with_given_template(
-        service_id=service_id,
-        template_id=template_id,
-        start_date=start_date,
-        end_date=end_date
-    )
-    stats = {}
-    for i in data:
-        stats[i.status] = i.count
-
-    return jsonify(data={'service_id': service_id, 'template_id': template_id, 'stats': stats}), 200
 
 
 @service_blueprint.route('/<uuid:service_id>/send-notification', methods=['POST'])

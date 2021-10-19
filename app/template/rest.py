@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime
 from io import BytesIO
 
 import botocore
@@ -18,6 +19,7 @@ from notifications_utils.template import HTMLEmailTemplate
 
 from app.authentication.auth import requires_admin_auth_or_user_in_service, requires_user_in_service_or_admin
 from app.communication_item import validate_communication_items
+from app.dao.fact_notification_status_dao import fetch_template_usage_for_service_with_given_template
 from app.dao.notifications_dao import get_notification_by_id
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
@@ -43,7 +45,7 @@ from app.notifications.validators import service_has_permission, check_reply_to,
 from app.provider_details import validate_providers
 from app.schema_validation import validate
 from app.schemas import (template_schema, template_history_schema)
-from app.template.template_schemas import post_create_template_schema
+from app.template.template_schemas import post_create_template_schema, template_stats_request
 from app.utils import get_template_instance, get_public_notify_type_text
 
 template_blueprint = Blueprint('template', __name__, url_prefix='/service/<uuid:service_id>/template')
@@ -375,6 +377,37 @@ def preview_letter_template_by_notification_id(service_id, notification_id, file
         response_content = _get_png_preview_or_overlaid_pdf(url, data, notification.id, json=True)
 
     return jsonify({"content": response_content})
+
+
+@template_blueprint.route('/stats/<uuid:template_id>', methods=['GET'])
+@requires_admin_auth_or_user_in_service(required_permission='manage_templates')
+def get_specific_template_usage_stats(service_id, template_id):
+    start_date = None
+    end_date = None
+
+    if request.args:
+        validate(request.args, template_stats_request)
+
+        start_date = (
+            datetime.strptime(request.args.get('start_date'), '%Y-%m-%d')
+            if request.args.get('start_date') else None
+        )
+        end_date = (
+            datetime.strptime(request.args.get('end_date'), '%Y-%m-%d')
+            if request.args.get('end_date') else None
+        )
+
+    data = fetch_template_usage_for_service_with_given_template(
+        service_id=service_id,
+        template_id=template_id,
+        start_date=start_date,
+        end_date=end_date
+    )
+    stats = {}
+    for i in data:
+        stats[i.status] = i.count
+
+    return jsonify(data={'service_id': service_id, 'template_id': template_id, 'stats': stats}), 200
 
 
 def _get_png_preview_or_overlaid_pdf(url, data, notification_id, json=True):
