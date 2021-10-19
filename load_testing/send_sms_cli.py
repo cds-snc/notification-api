@@ -22,13 +22,14 @@ def send_sms(count, phone):
     _api_key = read_from_ssm('api_key')
     api_key = f'some_key-{service_id}-{_api_key}'
 
-    notifications_client = NotificationsAPIClient(api_key)
+    notifications_client = NotificationsAPIClient(api_key, base_url='https://perf.api.notifications.va.gov')
     for x in range(count):
-        notifications_client.send_sms_notification(
+        response = notifications_client.send_sms_notification(
             phone_number=phone,
             template_id=sms_template_id,
             sms_sender_id=sms_sender_id
         )
+        print(f'Sent sms with id: {response["id"]}')
 
 
 if __name__ == '__main__':
