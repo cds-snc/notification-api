@@ -23,11 +23,12 @@ assignees: ''
 # Cross Functional Checklist
 
 Testing:
-  - [ ] integration for API
-  - [ ] Cypress (e2e) for UI
+  - [ ] integration test for API
 
 Monitoring:
-  - [ ] statsd and datadog
+  - [ ] statsd metrics
+  - [ ] datadog graphs
+  - [ ] datadog alterts
 
 Security:
   - [ ] auth permissions
@@ -39,17 +40,13 @@ Transform requests to business models in our API
 Documentation:
   - [ ] Readmes
   - [ ] Project specific
-  - [ ] Support 
+  - [ ] Support
   - [ ] Openapi
   - [ ] ADR
   - [ ] Tech Debt wall
 
 Mountebank
-- [ ] UI - create mocks for any API calls
 - [ ] API - create mocks for any external services calls
-
-Accessibility
-- [ ] E2E & Testrail
 
 Postman
 - [ ] Update collection whenever we change our API
