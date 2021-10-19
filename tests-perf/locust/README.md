@@ -18,7 +18,7 @@ Our stress-tests can also act as load-tests that are ran against our build pipel
 
 ## How to configure the stress tests
 
-There is an override system that [Locust implements with configuration parameters](https://docs.locust.io/en/stable/configuration.html). It can read values from the command-line, environment variables or custom configuration file. The order is, as defined by its own documnentation:
+There is an override system that [Locust implements with configuration parameters](https://docs.locust.io/en/stable/configuration.html). It can read values from the command-line, environment variables or custom configuration file. The order is, as defined by its own documentation:
 
 ```doc
 ~/locust.conf -> ./locust.conf -> (file specified using --conf) -> env vars -> cmd args
@@ -28,7 +28,7 @@ Latest values read will override previous ones, hence command-line arguments wil
 
 The current directory has a `locust.conf` file where default configuration values are defined.
 
-Note that the `host` value can also be defined within the `User` classes such as found in the `locust-notifications.py` file. This overriden value from its parent is the default values but will be overriden by the enumerated mechanism above.
+Note that the `host` value can also be defined within the `User` classes such as found in the `locust-notifications.py` file. This overridden value from its parent is the default values but will be overridden by the enumerated mechanism above.
 
 You should not have to modify the configuration to run the stress-tests locally.
 
