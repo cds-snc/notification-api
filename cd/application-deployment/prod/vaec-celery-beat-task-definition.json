@@ -125,10 +125,6 @@
           "value": "False"
         },
         {
-          "name": "PINPOINT_EVENT_TIME_LOG_ENABLED",
-          "value": "False"
-        },
-        {
           "name": "UI_HOST_NAME",
           "value": "https://notifications.va.gov"
         }
