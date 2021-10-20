@@ -407,7 +407,7 @@ def get_specific_template_usage_stats(service_id, template_id):
     for i in data:
         stats[i.status] = i.count
 
-    return jsonify(data={'service_id': service_id, 'template_id': template_id, 'stats': stats}), 200
+    return jsonify(data=stats), 200
 
 
 def _get_png_preview_or_overlaid_pdf(url, data, notification_id, json=True):

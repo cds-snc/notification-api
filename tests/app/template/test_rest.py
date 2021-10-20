@@ -1793,13 +1793,9 @@ class TestServiceTemplateUsageStats:
         )
 
         assert resp['data'] == {
-            'service_id': str(service.id),
-            'template_id': str(template.id),
-            'stats': {
-                'delivered': 2,
-                'permanent_failure': 1,
-                'sent': 1
-            }
+            'delivered': 2,
+            'permanent_failure': 1,
+            'sent': 1
         }
 
     @freeze_time('2021-10-18 14:00')
@@ -1824,13 +1820,9 @@ class TestServiceTemplateUsageStats:
         )
 
         assert resp['data'] == {
-            'service_id': str(service.id),
-            'template_id': str(template.id),
-            'stats': {
-                'delivered': 1,
-                'permanent_failure': 1,
-                'sent': 1
-            }
+            'delivered': 1,
+            'permanent_failure': 1,
+            'sent': 1
         }
 
     @freeze_time('2021-10-18 14:00')
@@ -1855,11 +1847,7 @@ class TestServiceTemplateUsageStats:
         )
 
         assert resp['data'] == {
-            'service_id': str(service.id),
-            'template_id': str(template.id),
-            'stats': {
-                'delivered': 2
-            }
+            'delivered': 2
         }
 
     @freeze_time('2021-10-18 14:00')
@@ -1885,10 +1873,6 @@ class TestServiceTemplateUsageStats:
         )
 
         assert resp['data'] == {
-            'service_id': str(service.id),
-            'template_id': str(template.id),
-            'stats': {
-                'delivered': 1,
-                'sent': 1
-            }
+            'delivered': 1,
+            'sent': 1
         }
