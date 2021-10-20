@@ -379,7 +379,7 @@ def preview_letter_template_by_notification_id(service_id, notification_id, file
     return jsonify({"content": response_content})
 
 
-@template_blueprint.route('/stats/<uuid:template_id>', methods=['GET'])
+@template_blueprint.route('/<uuid:template_id>/stats', methods=['GET'])
 @requires_admin_auth_or_user_in_service(required_permission='manage_templates')
 def get_specific_template_usage_stats(service_id, template_id):
     start_date = None
