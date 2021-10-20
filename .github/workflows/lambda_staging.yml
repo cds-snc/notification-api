@@ -1,5 +1,5 @@
 
-name: Build and Push Container to ECR, deploy to lambda
+name: Push and deploy lambda to staging
 
 on:
   workflow_dispatch:
