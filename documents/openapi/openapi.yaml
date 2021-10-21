@@ -788,7 +788,41 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-
+  '/service/{service_id}/template/{template_id}/stats':
+    get:
+      summary: Get usage statistics for a particular template on a service
+      tags:
+        - template
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/TemplateId'
+        - in: query
+          name: start_date
+          schema:
+            type: date
+          required: false
+          description: Oldest date to get stats for
+        - in: query
+          name: end_date
+          schema:
+            type: date
+          required: false
+          description: Newest date to get stats for
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: dictionary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/AdminAuthError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /communication-item:
     get:
       summary: Get a list of all communication items
