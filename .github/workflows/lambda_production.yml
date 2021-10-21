@@ -1,5 +1,5 @@
 
-name: Push lambda to production ECR
+name: Build and push lambda image to production
 
 on:
   workflow_dispatch:
