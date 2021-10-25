@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "5c7f0829-0171-4140-b88d-1edea1da6bfc",
+		"_postman_id": "729863dc-219f-400d-b549-60db3ee91c11",
 		"name": "notification-api",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -2071,6 +2071,226 @@
 							"response": []
 						},
 						{
+							"name": "create html preview",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
+											"",
+											"// Set headers for JWT",
+											"var header = {",
+											"\t'typ': 'JWT',",
+											"\t'alg': 'HS256'",
+											"};",
+											"",
+											"// Prepare timestamp in seconds",
+											"var currentTimestamp = Math.floor(Date.now() / 1000)",
+											"",
+											"var data = {",
+											"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
+											"\t'iat': currentTimestamp,",
+											"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
+											"\t'jti': 'jwt_nonce'",
+											"}",
+											"",
+											"",
+											"function base64url(source) {",
+											"    // Encode in classical base64",
+											"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+											"    ",
+											"    // Remove padding equal characters",
+											"    encodedSource = encodedSource.replace(/=+$/, '')",
+											"    ",
+											"    // Replace characters according to base64url specifications",
+											"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+											"    encodedSource = encodedSource.replace(/\\//g, '_')",
+											"    ",
+											"    return encodedSource",
+											"}",
+											"",
+											"// encode header",
+											"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+											"var encodedHeader = base64url(stringifiedHeader)",
+											"",
+											"// encode data",
+											"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+											"var encodedData = base64url(stringifiedData)",
+											"",
+											"// build token",
+											"var token = `${encodedHeader}.${encodedData}`",
+											"",
+											"// sign token",
+											"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+											"signature = base64url(signature)",
+											"var signedToken = `${token}.${signature}`",
+											"",
+											"pm.environment.set('jwt_signed', signedToken)",
+											"console.log('Signed and encoded JWT', signedToken)"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{jwt_signed}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"type": "text",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"content\": \"#Confirmation\\n\\n##Hello\\n\\nHello ((name)),\\n\\n((placeholder)) __bold text__ \\n\\n--------\"\n}"
+								},
+								"url": {
+									"raw": "{{notification-api-url}}/service/{{service-id}}/template/preview",
+									"host": [
+										"{{notification-api-url}}"
+									],
+									"path": [
+										"service",
+										"{{service-id}}",
+										"template",
+										"preview"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get html preview",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// JWT generation script adapted from",
+											"// https://gist.github.com/corbanb/",
+											"",
+											"var jwtSecret = pm.environment.get('notification-client-secret') || ''",
+											"",
+											"// Set headers for JWT",
+											"var header = {",
+											"\t'typ': 'JWT',",
+											"\t'alg': 'HS256'",
+											"};",
+											"",
+											"// Prepare timestamp in seconds",
+											"var currentTimestamp = Math.floor(Date.now() / 1000)",
+											"",
+											"var data = {",
+											"\t'iss': pm.environment.get(\"notification-admin-id\") || '',",
+											"\t'iat': currentTimestamp,",
+											"\t'exp': currentTimestamp + 30, // expiry time is 30 seconds from time of creation",
+											"\t'jti': 'jwt_nonce'",
+											"}",
+											"",
+											"",
+											"function base64url(source) {",
+											"    // Encode in classical base64",
+											"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+											"    ",
+											"    // Remove padding equal characters",
+											"    encodedSource = encodedSource.replace(/=+$/, '')",
+											"    ",
+											"    // Replace characters according to base64url specifications",
+											"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+											"    encodedSource = encodedSource.replace(/\\//g, '_')",
+											"    ",
+											"    return encodedSource",
+											"}",
+											"",
+											"// encode header",
+											"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+											"var encodedHeader = base64url(stringifiedHeader)",
+											"",
+											"// encode data",
+											"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+											"var encodedData = base64url(stringifiedData)",
+											"",
+											"// build token",
+											"var token = `${encodedHeader}.${encodedData}`",
+											"",
+											"// sign token",
+											"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+											"signature = base64url(signature)",
+											"var signedToken = `${token}.${signature}`",
+											"",
+											"pm.environment.set('jwt_signed', signedToken)",
+											"console.log('Signed and encoded JWT', signedToken)"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{jwt_signed}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"type": "text",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{notification-api-url}}/service/{{service-id}}/template/{{template-id}}/preview-html",
+									"host": [
+										"{{notification-api-url}}"
+									],
+									"path": [
+										"service",
+										"{{service-id}}",
+										"template",
+										"{{template-id}}",
+										"preview-html"
+									]
+								}
+							},
+							"response": []
+						},
+						{
 							"name": "get template",
 							"event": [
 								{
@@ -2301,7 +2521,6 @@
 							},
 							"response": []
 						}
-
 					]
 				},
 				{
