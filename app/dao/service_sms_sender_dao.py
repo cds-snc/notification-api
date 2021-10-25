@@ -55,6 +55,15 @@ def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_n
     if is_default:
         _set_default_sms_sender_to_not_default(default_sms_sender)
 
+    if rate_limit is not None and rate_limit < 1:
+        raise SmsSenderRateLimitIntegrityException(
+            'Rate limit value cannot be below 1'
+        )
+    if rate_limit_interval is not None and rate_limit_interval < 1:
+        raise SmsSenderRateLimitIntegrityException(
+            'Rate limit interval cannot be below 1'
+        )
+
     # TO DO: Refactor validation after merging inbound number & sms_sender
     if (rate_limit and not rate_limit_interval) or (rate_limit_interval and not rate_limit):
         raise SmsSenderRateLimitIntegrityException(
@@ -100,7 +109,15 @@ def dao_update_service_sms_sender(service_id, service_sms_sender_id, **kwargs):
 
     sms_sender_to_update = ServiceSmsSender.query.get(service_sms_sender_id)
 
-    # TO DO: Refactor validation after merging inbound number & sms_sender
+    if 'rate_limit' in kwargs and kwargs['rate_limit'] is not None and kwargs['rate_limit'] < 1:
+        raise SmsSenderRateLimitIntegrityException(
+            'Rate limit value cannot be below 1'
+        )
+    if 'rate_limit' in kwargs and kwargs['rate_limit_interval'] is not None and kwargs['rate_limit_interval'] < 1:
+        raise SmsSenderRateLimitIntegrityException(
+            'Rate limit interval cannot be below 1'
+        )
+
     if 'rate_limit' in kwargs and kwargs['rate_limit'] \
             and ('rate_limit_interval' not in kwargs or not kwargs['rate_limit_interval']):
         if not sms_sender_to_update.rate_limit_interval:
