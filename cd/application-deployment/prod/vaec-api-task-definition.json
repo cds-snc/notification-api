@@ -24,7 +24,7 @@
       "environment": [
         {
           "name": "SMS_SENDER_RATE_LIMIT_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "NOTIFY_ENVIRONMENT",

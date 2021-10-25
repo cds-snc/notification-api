@@ -9,13 +9,16 @@ queue.
 In this `send-sms-with-rate-limiting` task, we use Redis to determine if the rate limit has been exceeded.
 We first remove all entries from the Redis cache associated with the SMS sender id that are outside of the time interval
 of our rate limit. We then add a new timestamp entry to the Redis cache, and determine how many entries have a timestamp
-withn a minute. If the number of entries are over the rate limit, we attempt to retry the delivery sms task in a certain
+within a minute. If the number of entries are over the rate limit, we attempt to retry the delivery sms task in a certain
 amount of time based on the rate limit (specifically, `rate_limit / rate_limit_interval`). The retry task is added to a
 retry queue specifically for rate-limited tasks.
 
 Note that the SMS sender rate limit is distinct from the rate limit set on a service. The service rate limit 
 determines how many requests can be made to our API to send a notification, not the rate at which the SMSes are
 actually sent out.
+
+In order to update an SMS sender that already has a rate limit configured, set `rate_limit` and `rate_limit_interval`
+to `null`.
 
 
 ## Getting Template Stats
