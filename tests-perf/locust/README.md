@@ -129,4 +129,4 @@ in your browser
 ##### Step 7. Shut down the server when you are finished
 
 To avoid incurring charges on resources that are not being used please put the instances into a 
-stopped state when you are finished with the performance testing. 
+stopped state when you are finished with the performance testing.
