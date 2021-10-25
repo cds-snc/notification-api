@@ -16,3 +16,13 @@ retry queue specifically for rate-limited tasks.
 Note that the SMS sender rate limit is distinct from the rate limit set on a service. The service rate limit 
 determines how many requests can be made to our API to send a notification, not the rate at which the SMSes are
 actually sent out.
+
+
+## Getting Template Stats
+Every day, the `create-nightly-notification-status-for-day` celery task runs which converts the notifications
+from today into FactNotificationStatus objects and inserts them into the `ft_notification_status` table. The
+`notifications` table does not keep Notifications older than a week, so the `ft_notification_status` table
+needs to be queried to get older stats. As a result, the `get_specific_template_usage_stats()` method in
+`template/rest.py` relies on a method, `fetch_template_usage_for_service_with_given_template()`, that first
+queries the `ft_notification_status` table and then the `notifications` table if the user needs to get stats
+from today.
