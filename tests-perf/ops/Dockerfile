@@ -16,8 +16,6 @@ COPY . /app
 
 RUN set -ex && pip3 install -r requirements_for_test.txt
 
-RUN make generate-version-file
-
 ARG GIT_SHA
 
 ENV GIT_SHA=${GIT_SHA} \ 
