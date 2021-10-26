@@ -7,6 +7,10 @@ class NotificationTechnicalFailureException(Exception):
     pass
 
 
+class NotificationPermanentFailureException(Exception):
+    pass
+
+
 class ArchiveValidationError(Exception):
     pass
 

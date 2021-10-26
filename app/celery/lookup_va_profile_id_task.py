@@ -1,5 +1,5 @@
 from app.config import QueueNames
-from app.exceptions import NotificationTechnicalFailureException
+from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
 from app.models import RecipientIdentifier, NOTIFICATION_TECHNICAL_FAILURE, \
     NOTIFICATION_PERMANENT_FAILURE
 from flask import current_app
@@ -7,9 +7,9 @@ from notifications_utils.statsd_decorators import statsd
 from app import notify_celery
 from app.dao import notifications_dao
 from app import mpi_client
-from app.va.identifier import IdentifierType
+from app.va.identifier import IdentifierType, UnsupportedIdentifierException
 from app.va.mpi import MpiRetryableException, BeneficiaryDeceasedException, \
-    IdentifierNotFound, MultipleActiveVaProfileIdsException
+    IdentifierNotFound, MultipleActiveVaProfileIdsException, IncorrectNumberOfIdentifiersException
 
 
 @notify_celery.task(bind=True, name="lookup-va-profile-id-tasks", max_retries=48, default_retry_delay=300)
@@ -45,15 +45,18 @@ def lookup_va_profile_id(self, notification_id):
             )
             raise NotificationTechnicalFailureException(message) from e
 
-    except (BeneficiaryDeceasedException, IdentifierNotFound, MultipleActiveVaProfileIdsException) as e:
+    except (BeneficiaryDeceasedException, IdentifierNotFound, MultipleActiveVaProfileIdsException,
+            UnsupportedIdentifierException, IncorrectNumberOfIdentifiersException) as e:
         message = f"{e.__class__.__name__} - {str(e)}: " \
                   f"Can't proceed after querying MPI for VA Profile ID for {notification_id}. " \
                   "Stopping execution of following tasks. Notification has been updated to permanent-failure."
         current_app.logger.warning(message)
         self.request.chain = None
+        status_reason = e.failure_reason if hasattr(e, 'failure_reason') else 'Unknown inconsistency in data object'
         notifications_dao.update_notification_status_by_id(
-            notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.failure_reason
+            notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=status_reason
         )
+        raise NotificationPermanentFailureException(message) from e
 
     except Exception as e:
         message = f"Failed to retrieve VA Profile ID from MPI for notification: {notification_id} " \
