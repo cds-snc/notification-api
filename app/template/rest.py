@@ -389,11 +389,11 @@ def get_specific_template_usage_stats(service_id, template_id):
         validate(request.args, template_stats_request)
 
         start_date = (
-            datetime.strptime(request.args.get('start_date'), '%Y-%m-%d')
+            datetime.strptime(request.args.get('start_date'), '%Y-%m-%d').date()
             if request.args.get('start_date') else None
         )
         end_date = (
-            datetime.strptime(request.args.get('end_date'), '%Y-%m-%d')
+            datetime.strptime(request.args.get('end_date'), '%Y-%m-%d').date()
             if request.args.get('end_date') else None
         )
 

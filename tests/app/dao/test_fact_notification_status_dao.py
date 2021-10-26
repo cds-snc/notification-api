@@ -809,7 +809,7 @@ class TestFetchTemplateUsageForServiceWithGivenTemplate:
         create_ft_notification_status(date(2021, 10, 18), service=valid_service, template=valid_template)
 
         results = fetch_template_usage_for_service_with_given_template(
-            valid_service.id, valid_template.id, end_date=datetime(2021, 10, 17)
+            valid_service.id, valid_template.id, end_date=date(2021, 10, 17)
         )
         assert results[0][1] == 2
 
@@ -825,7 +825,7 @@ class TestFetchTemplateUsageForServiceWithGivenTemplate:
         create_ft_notification_status(date(2021, 10, 18), service=valid_service, template=valid_template)
 
         results = fetch_template_usage_for_service_with_given_template(
-            valid_service.id, valid_template.id, start_date=datetime(2020, 1, 1)
+            valid_service.id, valid_template.id, start_date=date(2020, 1, 1)
         )
         assert results[0][1] == 2
 
@@ -841,7 +841,7 @@ class TestFetchTemplateUsageForServiceWithGivenTemplate:
         create_ft_notification_status(date(2021, 10, 18), service=valid_service, template=valid_template)
 
         results = fetch_template_usage_for_service_with_given_template(
-            valid_service.id, valid_template.id, start_date=datetime(2019, 3, 16), end_date=datetime(2021, 10, 17)
+            valid_service.id, valid_template.id, start_date=date(2019, 3, 16), end_date=date(2021, 10, 17)
         )
         assert results[0][1] == 1
 
@@ -857,7 +857,7 @@ class TestFetchTemplateUsageForServiceWithGivenTemplate:
         create_ft_notification_status(date(2021, 10, 18), service=valid_service, template=valid_template)
 
         results = fetch_template_usage_for_service_with_given_template(
-            valid_service.id, valid_template.id, start_date=datetime(2018, 3, 16), end_date=datetime(2018, 10, 17)
+            valid_service.id, valid_template.id, start_date=date(2018, 3, 16), end_date=date(2018, 10, 17)
         )
         assert not results
 

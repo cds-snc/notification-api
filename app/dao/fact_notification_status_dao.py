@@ -720,7 +720,7 @@ def _get_fact_notification_status_filters(end_date, service_id, start_date, temp
 
 
 def _should_get_todays_stats(start_date=None, end_date=None):
-    current_time = datetime.utcnow()
+    current_time = datetime.utcnow().date()
     if not start_date and not end_date:
         return True
 
