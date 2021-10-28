@@ -52,9 +52,8 @@ def lookup_va_profile_id(self, notification_id):
                   "Stopping execution of following tasks. Notification has been updated to permanent-failure."
         current_app.logger.warning(message)
         self.request.chain = None
-        status_reason = e.failure_reason if hasattr(e, 'failure_reason') else 'Unknown inconsistency in data object'
         notifications_dao.update_notification_status_by_id(
-            notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=status_reason
+            notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.failure_reason
         )
         raise NotificationPermanentFailureException(message) from e
 

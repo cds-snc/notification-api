@@ -4,7 +4,6 @@ import requests
 import iso8601
 from time import monotonic
 from http.client import responses
-
 from app.va.va_profile import (
     NoContactInfoException,
     VAProfileNonRetryableException,
@@ -14,7 +13,7 @@ from app.va.identifier import is_fhir_format, transform_from_fhir_format, transf
 
 
 class CommunicationItemNotFoundException(Exception):
-    pass
+    failure_reason = 'No communication bio found from VA Profile'
 
 
 class PhoneNumberType(Enum):

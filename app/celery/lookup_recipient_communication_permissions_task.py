@@ -45,7 +45,8 @@ def lookup_recipient_communication_permissions(
             notification_type,
             communication_item_id
     ):
-        update_notification_status_by_id(notification_id, NOTIFICATION_PREFERENCES_DECLINED)
+        update_notification_status_by_id(notification_id, NOTIFICATION_PREFERENCES_DECLINED,
+                                         status_reason="Contact preferences set to false")
         current_app.logger.info(f"Recipient for notification {notification_id}"
                                 f"has declined permission to receive notifications")
         self.request.chain = None
