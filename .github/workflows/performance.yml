@@ -1,8 +1,8 @@
 name: Notify Performance / Load Tests
 
-on:
-  schedule:
-    - cron: '0 0 * * *' # every day at midnight 
+on: []
+  # schedule:
+  #   - cron: '0 0 * * *' # every day at midnight 
 
 jobs:
   test:
