@@ -90,37 +90,13 @@ def test_lookup_recipient_communication_permissions_updates_notification_status_
         'app.celery.lookup_recipient_communication_permissions_task.update_notification_status_by_id'
     )
 
-    lookup_recipient_communication_permissions(notification.id)
+    lookup_recipient_communication_permissions(str(notification.id))
 
     update_notification.assert_called_with(
-        notification.id,
+        str(notification.id),
         NOTIFICATION_PREFERENCES_DECLINED,
         status_reason="Contact preferences set to false"
     )
-
-
-def test_lookup_recipient_communication_permissions_should_not_send_if_recipient_has_not_given_permission(
-        client, mocker
-):
-    notification = mock_notification_with_vaprofile_id(mocker)
-
-    mocker.patch('app.celery.lookup_recipient_communication_permissions_task.recipient_has_given_permission',
-                 return_value=False)
-
-    mocker.patch(
-        'app.celery.lookup_recipient_communication_permissions_task.get_notification_by_id',
-        return_value=notification
-    )
-    update_notification = mocker.patch(
-        'app.celery.lookup_recipient_communication_permissions_task.update_notification_status_by_id'
-    )
-
-    lookup_recipient_communication_permissions(str(notification.id))
-
-    update_notification.assert_called_once_with(
-        str(notification.id),
-        NOTIFICATION_PREFERENCES_DECLINED,
-        status_reason="Contact preferences set to false")
 
 
 def test_recipient_has_given_permission_should_return_false_if_user_denies_permissions(
