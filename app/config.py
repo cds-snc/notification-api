@@ -491,6 +491,9 @@ class Test(Development):
 
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
 
+    # FEATURE FLAGS
+    FF_BATCH_INSERTION = os.getenv("FF_BATCH_INSERTION", False)
+
 
 class Production(Config):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")
