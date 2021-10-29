@@ -10,6 +10,7 @@ from app.va.va_profile import (
     VAProfileRetryableException
 )
 from app.va.identifier import is_fhir_format, transform_from_fhir_format, transform_to_fhir_format, OIDS, IdentifierType
+from app.va.va_profile.exceptions import VAProfileIDNotFoundException
 
 
 class CommunicationItemNotFoundException(Exception):
@@ -162,14 +163,7 @@ class VAProfileClient:
             if response_status != self.SUCCESS_STATUS:
                 self.statsd_client.incr(f"clients.va-profile.error.{response_status}")
 
-                message = (
-                    f'Response status was {response_status} for VA Profile ID {va_profile_id} '
-                    f'with AuditId {response_json.get(self.TX_AUDIT_ID)}'
-                )
-
-                exception = VAProfileNonRetryableException(message)
-                exception.failure_reason = message
-                raise exception
+                raise VAProfileIDNotFoundException
 
             if bio_type:
                 self._validate_response(response_json, va_profile_id, bio_type)

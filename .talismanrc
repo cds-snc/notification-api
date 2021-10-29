@@ -287,3 +287,5 @@ fileignoreconfig:
       checksum: efce5afc3015a7bdcae7e027da762acf1fefe782b30a5a92855b253cad6c3050
     - filename: requirements.txt
       checksum: f1597fdd5927bb7f551fef1501477326b3b8f60502dd6c87ef7513b9c0df8476
+    - filename: app/va/va_profile/va_profile_client.py
+      checksum: 2942cb80f53433d4c129c2fbd43ba7b28f252d2daf30ad2c93bf8255d3d1e179

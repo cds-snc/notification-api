@@ -18,5 +18,9 @@ class NoContactInfoException(VAProfileNonRetryableException):
     failure_reason = 'No contact info found from VA Profile'
 
 
+class VAProfileIDNotFoundException(VAProfileNonRetryableException):
+    failure_reason = 'No VA Profile account found'
+
+
 class ContactPreferencesException(VAProfileNonRetryableException):
     failure_reason = 'VA Profile contact preferences not allowing contact'
