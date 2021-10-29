@@ -1,8 +1,7 @@
 name: Notify Performance / Load Tests
 
-on: []
-  # schedule:
-  #   - cron: '0 0 * * *' # every day at midnight 
+on:
+  workflow_dispatch:
 
 jobs:
   test:
