@@ -12,7 +12,7 @@ Usage:
     - cleanup: Delete the test queue and its messages.
 
 Example:
-        test_sqs_queue_rate.py
+        test_sqs_queue_rate.py test
 """
 
 import boto3
@@ -28,18 +28,18 @@ sqs = boto3.resource("sqs", region_name=AWS_REGION)
 
 
 def cleanup_batch_queue(queue_name: str):
-    q = _get_queue(queue_name)
+    q = _sqs_get_queue(queue_name)
     if q:
         q.delete()
         print(f"Deleted queue {queue_name}")
 
 
 def setup_queue(queue_name: str):
-    q = _create_or_get_queue(queue_name)
+    q = _sqs_create_or_get_queue(queue_name)
     if not q:
         return None
     entries = _get_entries(group_id=0, num=TEST_TOTAL_MSG)
-    response = _create_messages(q, entries)
+    response = _sqs_send_messages(q, entries)
     return response
 
 
@@ -68,26 +68,13 @@ def _create_msg(group_id: int = 0, counter: int = -1):
         }
 
 
-def _create_messages(queue, messages: list) -> list:
-    responses = []
-    for batch in _chunk(messages, SQS_MAX_SEND):
-        response = queue.send_messages(Entries=batch)
-        responses.append(response)
-    return responses
+def _get_entries(group_id: int = 0, num: int = 5) -> list[dict]:
+    itr = _create_msg(group_id)
+    entries = [next(itr) for _ in range(num)]
+    return entries
 
 
-def _create_or_get_queue(queue_name: str):
-    try:
-        queue = sqs.get_queue_by_name(QueueName=queue_name)
-        return queue
-    except sqs.meta.client.exceptions.QueueDoesNotExist:
-        return _create_queue(queue_name)
-    else:
-        print(f"Could not get or create queue {queue_name}!")
-        return None
-
-
-def _create_queue(queue_name: str):
+def _sqs_create_queue(queue_name: str):
     try:
         queue = sqs.create_queue(
             QueueName=queue_name, Attributes={"ContentBasedDeduplication": "true", "DelaySeconds": "1", "FifoQueue": "true"}
@@ -99,13 +86,18 @@ def _create_queue(queue_name: str):
         return None
 
 
-def _get_entries(group_id: int = 0, num: int = 5) -> list[dict]:
-    itr = _create_msg(group_id)
-    entries = [next(itr) for _ in range(num)]
-    return entries
+def _sqs_create_or_get_queue(queue_name: str):
+    try:
+        queue = sqs.get_queue_by_name(QueueName=queue_name)
+        return queue
+    except sqs.meta.client.exceptions.QueueDoesNotExist:
+        return _sqs_create_queue(queue_name)
+    else:
+        print(f"Could not get or create queue {queue_name}!")
+        return None
 
 
-def _get_queue(queue_name: str):
+def _sqs_get_queue(queue_name: str):
     try:
         queue = sqs.get_queue_by_name(QueueName=queue_name)
         return queue
@@ -117,6 +109,14 @@ def _get_queue(queue_name: str):
     else:
         print(f"Could not get or create queue {queue_name}!")
         return None
+
+
+def _sqs_send_messages(queue, messages: list) -> list:
+    responses = []
+    for batch in _chunk(messages, SQS_MAX_SEND):
+        response = queue.send_messages(Entries=batch)
+        responses.append(response)
+    return responses
 
 
 if __name__ == "__main__":
