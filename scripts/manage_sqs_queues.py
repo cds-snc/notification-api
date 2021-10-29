@@ -1,10 +1,9 @@
 """
-
 Script to manage SQS queues. Can list or delete queues.
 
 Uses boto, so relies on correctly set up AWS access keys and tokens.
 
-In principle use this script to dump details of all queues in a gievn environment, and then
+In principle use this script to dump details of all queues in a given environment, and then
 manipulate the resultant CSV file so that it contains the queues you want to delete.
 
 Very hands on. Starter for a more automagic process.
@@ -26,9 +25,10 @@ from datetime import datetime
 import boto3
 from docopt import docopt
 
-FILE_NAME = "/tmp/queues.csv"
+AWS_REGION = "ca-central-1"
+FILE_NAME = "queues.csv"
 
-client = boto3.client("sqs", region_name="eu-west-1")
+client = boto3.client("sqs", region_name=AWS_REGION)
 
 
 def _formatted_date_from_timestamp(timestamp):
@@ -63,7 +63,7 @@ def delete_queue(queue_url):
 
 
 def output_to_csv(queue_attributes):
-    with open(FILE_NAME, "w") as csvfile:
+    with open(FILE_NAME, "w", newline="") as csvfile:
         fieldnames = [
             "Queue Name",
             "Queue URL",
@@ -87,6 +87,15 @@ def output_to_csv(queue_attributes):
             )
 
 
+def output_to_std(queue_attributes):
+    SEP = "\t"
+    print(f"Queue Name{SEP}URL{SEP}# Messages{SEP}Delayed{SEP}Not Visible{SEP}Created")
+    for qa in queue_attributes:
+        created_at = _formatted_date_from_timestamp(qa["CreatedTimestamp"])
+        line = f"{qa['QueueArn']}{SEP}{qa['QueueUrl']}{SEP}{qa['ApproximateNumberOfMessages']}{SEP}{qa['ApproximateNumberOfMessagesDelayed']}{SEP}{qa['ApproximateNumberOfMessagesNotVisible']}{SEP}{created_at}"
+        print(line)
+
+
 def read_from_csv():
     queue_urls = []
     with open(FILE_NAME, "r") as csvfile:
@@ -105,7 +114,7 @@ if __name__ == "__main__":
         queue_attributes = []
         for queue in queues:
             queue_attributes.append(get_queue_attributes(queue))
-        output_to_csv(queue_attributes)
+        output_to_std(queue_attributes)
     elif arguments["<action>"] == "delete":
         queues_to_delete = read_from_csv()
         for queue in queues_to_delete:
