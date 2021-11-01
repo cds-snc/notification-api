@@ -108,9 +108,9 @@ class MpiClient:
         return va_profile_ids[0]
 
     def _validate_response(self, response_json, notification_id, fhir_identifier):
-        if response_json.get('details')["text"] == "ICN/VPID Does Not Exist":
-            raise NoSuchIdentifierException
         if response_json.get('severity'):
+            if response_json.get('details').get("text") == "ICN/VPID Does Not Exist":
+                raise NoSuchIdentifierException
             error_message = \
                 f"MPI returned error: {response_json} " \
                 f"for notification {notification_id} with fhir {fhir_identifier}"
