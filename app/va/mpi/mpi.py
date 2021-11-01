@@ -1,4 +1,5 @@
 import requests
+import json
 from time import monotonic
 from http.client import responses
 from app.va.identifier import (
@@ -12,6 +13,7 @@ from app.va.mpi import (
     MpiNonRetryableException,
     MpiRetryableException,
     IdentifierNotFound,
+    NoSuchIdentifierException,
     IncorrectNumberOfIdentifiersException,
     MultipleActiveVaProfileIdsException,
     BeneficiaryDeceasedException
@@ -107,6 +109,8 @@ class MpiClient:
         return va_profile_ids[0]
 
     def _validate_response(self, response_json, notification_id, fhir_identifier):
+        if json.load(response_json)["details"]["text"] == "ICN/VPID Does Not Exist":
+            raise NoSuchIdentifierException
         if response_json.get('severity'):
             error_message = \
                 f"MPI returned error: {response_json} " \

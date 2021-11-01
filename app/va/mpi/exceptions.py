@@ -22,5 +22,9 @@ class MultipleActiveVaProfileIdsException(MpiNonRetryableException):
     failure_reason = 'Multiple active VA Profile ids found from MPI'
 
 
-class BeneficiaryDeceasedException(MpiException):
+class BeneficiaryDeceasedException(MpiNonRetryableException):
     failure_reason = 'Beneficiary found to be deceased after getting VA Profile id from MPI'
+
+
+class NoSuchIdentifierException(MpiNonRetryableException):
+    failure_reason = 'Mpi Profile not found for this identifier'

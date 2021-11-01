@@ -9,7 +9,8 @@ from app.dao import notifications_dao
 from app import mpi_client
 from app.va.identifier import IdentifierType, UnsupportedIdentifierException
 from app.va.mpi import MpiRetryableException, BeneficiaryDeceasedException, \
-    IdentifierNotFound, MultipleActiveVaProfileIdsException, IncorrectNumberOfIdentifiersException
+    IdentifierNotFound, MultipleActiveVaProfileIdsException, IncorrectNumberOfIdentifiersException, \
+    NoSuchIdentifierException
 
 
 @notify_celery.task(bind=True, name="lookup-va-profile-id-tasks", max_retries=48, default_retry_delay=300)
@@ -46,7 +47,7 @@ def lookup_va_profile_id(self, notification_id):
             raise NotificationTechnicalFailureException(message) from e
 
     except (BeneficiaryDeceasedException, IdentifierNotFound, MultipleActiveVaProfileIdsException,
-            UnsupportedIdentifierException, IncorrectNumberOfIdentifiersException) as e:
+            UnsupportedIdentifierException, IncorrectNumberOfIdentifiersException, NoSuchIdentifierException) as e:
         message = f"{e.__class__.__name__} - {str(e)}: " \
                   f"Can't proceed after querying MPI for VA Profile ID for {notification_id}. " \
                   "Stopping execution of following tasks. Notification has been updated to permanent-failure."
