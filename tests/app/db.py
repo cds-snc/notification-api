@@ -238,6 +238,7 @@ def create_notification(
     reply_to_text=None,
     created_by_id=None,
     postage=None,
+    save_notification=True
 ):
     """
     Creates in memory Notification Model

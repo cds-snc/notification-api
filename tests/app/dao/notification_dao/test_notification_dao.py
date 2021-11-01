@@ -1766,3 +1766,7 @@ def test_send_method_stats_by_service(sample_service, sample_organisation):
         )
         == []
     )
+
+
+def test_bulk_insert_notification():
+    pass
