@@ -7,7 +7,7 @@ from app.va.va_profile import VAProfileRetryableException, VAProfileNonRetryable
 from app.config import QueueNames
 from app.dao.notifications_dao import get_notification_by_id, dao_update_notification, update_notification_status_by_id
 from app.models import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE, EMAIL_TYPE, SMS_TYPE
-from app.exceptions import NotificationTechnicalFailureException
+from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
 
 
 @notify_celery.task(bind=True, name="lookup-contact-info-tasks", max_retries=48, default_retry_delay=300)
@@ -64,9 +64,9 @@ def lookup_contact_info(self, notification_id):
             'Notification has been updated to technical-failure'
         )
         update_notification_status_by_id(
-            notification_id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=e.failure_reason
+            notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.failure_reason
         )
-        raise NotificationTechnicalFailureException(message) from e
+        raise NotificationPermanentFailureException(message) from e
 
     else:
         notification.to = recipient
