@@ -3,7 +3,7 @@ import uuid
 import pytest
 
 from app.celery.contact_information_tasks import lookup_contact_info
-from app.exceptions import NotificationTechnicalFailureException
+from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
 from app.models import Notification, RecipientIdentifier, NOTIFICATION_TECHNICAL_FAILURE, \
     NOTIFICATION_PERMANENT_FAILURE, LETTER_TYPE, EMAIL_TYPE, SMS_TYPE
 from app.va.identifier import IdentifierType
@@ -103,13 +103,13 @@ def test_should_not_retry_on_non_retryable_exception(client, mocker, notificatio
 
     mocked_retry = mocker.patch('app.celery.contact_information_tasks.lookup_contact_info.retry')
 
-    with pytest.raises(NotificationTechnicalFailureException):
+    with pytest.raises(NotificationPermanentFailureException):
         lookup_contact_info(notification.id)
 
     mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
 
     mocked_update_notification_status_by_id.assert_called_with(
-        notification.id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=exception.failure_reason
+        notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=exception.failure_reason
     )
 
     mocked_retry.assert_not_called()
@@ -220,7 +220,7 @@ def test_should_update_notification_to_permanent_failure_on_no_contact_info_exce
     [
         (
             VAProfileRetryableException,
-            True,
+            NotificationTechnicalFailureException,
             NOTIFICATION_TECHNICAL_FAILURE,
             VAProfileRetryableException.failure_reason
         ),
@@ -232,8 +232,8 @@ def test_should_update_notification_to_permanent_failure_on_no_contact_info_exce
         ),
         (
             VAProfileNonRetryableException,
-            True,
-            NOTIFICATION_TECHNICAL_FAILURE,
+            NotificationPermanentFailureException,
+            NOTIFICATION_PERMANENT_FAILURE,
             VAProfileNonRetryableException.failure_reason
         )
     ]
@@ -264,7 +264,7 @@ def test_exception_sets_failure_reason_if_thrown(
     )
 
     if throws_additional_exception:
-        with pytest.raises(NotificationTechnicalFailureException):
+        with pytest.raises(throws_additional_exception):
             lookup_contact_info(notification.id)
     else:
         lookup_contact_info(notification.id)
