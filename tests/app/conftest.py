@@ -46,11 +46,9 @@ from app.models import (
     ProviderDetailsHistory,
     ProviderRates,
     ScheduledNotification,
-    ServiceWhitelist,
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEST,
     KEY_TYPE_TEAM,
-    MOBILE_TYPE,
     EMAIL_TYPE,
     INBOUND_SMS_TYPE,
     SMS_TYPE,
@@ -70,6 +68,9 @@ from tests.app.db import (
     create_letter_contact,
     create_invited_org_user,
     create_job
+)
+from tests.app.factories import (
+    service_whitelist
 )
 
 
@@ -1287,19 +1288,11 @@ def notify_service(notify_db, notify_db_session):
 
 
 @pytest.fixture(scope='function')
-def sample_service_whitelist(notify_db, notify_db_session, service=None, email_address=None, mobile_number=None):
-    if service is None:
-        service = create_service(check_if_service_exists=True)
-
-    if email_address:
-        whitelisted_user = ServiceWhitelist.from_string(service.id, EMAIL_TYPE, email_address)
-    elif mobile_number:
-        whitelisted_user = ServiceWhitelist.from_string(service.id, MOBILE_TYPE, mobile_number)
-    else:
-        whitelisted_user = ServiceWhitelist.from_string(service.id, EMAIL_TYPE, 'whitelisted_user@digital.gov.uk')
-
-    notify_db.session.add(whitelisted_user)
-    notify_db.session.commit()
+def sample_service_whitelist(db_session):
+    service = create_service(check_if_service_exists=True)
+    whitelisted_user = service_whitelist.a_service_whitelist(service_id=service.id)
+    db_session.add(whitelisted_user)
+    db_session.commit()
     return whitelisted_user
 
 

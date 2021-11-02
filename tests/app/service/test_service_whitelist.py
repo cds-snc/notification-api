@@ -5,7 +5,7 @@ from flask import url_for
 from flask_jwt_extended import create_access_token
 
 from tests.app.db import create_user
-from tests.app.factories.service_whitelist import a_service_whitelist
+from tests.app.factories.service_whitelist import a_service_whitelist, email_service_whitelist
 from app.models import (
     ServiceWhitelist, Permission, MANAGE_SETTINGS,
     MOBILE_TYPE, EMAIL_TYPE)
@@ -28,7 +28,7 @@ class TestGetServiceWhitelist:
 
     @pytest.mark.parametrize('platform_admin', [False, True])
     def test_get_whitelist_returns_data(self, db_session, client, sample_service, platform_admin):
-        service_whitelist = a_service_whitelist(sample_service.id)
+        service_whitelist = email_service_whitelist(sample_service.id)
         dao_add_and_commit_whitelisted_contacts([service_whitelist])
 
         response = client.get(

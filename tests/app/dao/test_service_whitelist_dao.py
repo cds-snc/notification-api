@@ -23,7 +23,7 @@ def test_fetch_service_whitelist_ignores_other_service(sample_service_whitelist)
     assert len(dao_fetch_service_whitelist(uuid.uuid4())) == 0
 
 
-def test_add_and_commit_whitelisted_contacts_saves_data(sample_service):
+def test_add_and_commit_whitelisted_contacts_saves_data(db_session, sample_service):
     whitelist = ServiceWhitelist.from_string(sample_service.id, EMAIL_TYPE, 'foo@example.com')
 
     dao_add_and_commit_whitelisted_contacts([whitelist])
@@ -33,7 +33,7 @@ def test_add_and_commit_whitelisted_contacts_saves_data(sample_service):
     assert db_contents[0].id == whitelist.id
 
 
-def test_remove_service_whitelist_only_removes_for_my_service(notify_db, notify_db_session):
+def test_remove_service_whitelist_only_removes_for_my_service(db_session):
     service_1 = create_service(service_name="service 1")
     service_2 = create_service(service_name="service 2")
     dao_add_and_commit_whitelisted_contacts([
@@ -47,10 +47,10 @@ def test_remove_service_whitelist_only_removes_for_my_service(notify_db, notify_
     assert len(service_2.whitelist) == 1
 
 
-def test_remove_service_whitelist_does_not_commit(notify_db, sample_service_whitelist):
+def test_remove_service_whitelist_does_not_commit(db_session, sample_service_whitelist):
     dao_remove_service_whitelist(sample_service_whitelist.service_id)
 
     # since dao_remove_service_whitelist doesn't commit, we can still rollback its changes
-    notify_db.session.rollback()
+    db_session.rollback()
 
     assert ServiceWhitelist.query.count() == 1
