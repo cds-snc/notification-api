@@ -200,6 +200,7 @@ def register_blueprint(application):
     from app.service.rest import service_blueprint
     from app.service.callback_rest import service_callback_blueprint
     from app.service.sms_sender_rest import service_sms_sender_blueprint
+    from app.service.whitelist_rest import service_whitelist_blueprint
     from app.user.rest import user_blueprint
     from app.template.rest import template_blueprint
     from app.status.healthcheck import status as status_blueprint
@@ -289,6 +290,7 @@ def register_blueprint(application):
 
     application.register_blueprint(service_callback_blueprint)
     application.register_blueprint(service_sms_sender_blueprint)
+    application.register_blueprint(service_whitelist_blueprint)
 
     organisation_blueprint.before_request(validate_admin_auth)
     application.register_blueprint(organisation_blueprint, url_prefix='/organisations')

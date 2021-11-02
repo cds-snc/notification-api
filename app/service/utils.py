@@ -6,23 +6,7 @@ from flask import current_app
 from notifications_utils.recipients import allowed_to_send_to
 
 from app.models import (
-    ServiceWhitelist,
-    MOBILE_TYPE, EMAIL_TYPE,
     KEY_TYPE_TEST, KEY_TYPE_TEAM, KEY_TYPE_NORMAL, Service)
-
-
-def get_recipients_from_request(request_json, key, type):
-    return [(type, recipient) for recipient in request_json.get(key)]
-
-
-def get_whitelist_objects(service_id, request_json):
-    return [
-        ServiceWhitelist.from_string(service_id, type, recipient)
-        for type, recipient in (
-            get_recipients_from_request(request_json, 'phone_numbers', MOBILE_TYPE)
-            + get_recipients_from_request(request_json, 'email_addresses', EMAIL_TYPE)
-        )
-    ]
 
 
 def service_allowed_to_send_to(recipient, service, key_type, allow_whitelisted_recipients=True):
