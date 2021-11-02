@@ -906,10 +906,6 @@ def test_post_notification_without_document_upload_permission(client, notify_db_
         content="Document: ((document))"
     )
 
-    mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
-    document_download_mock = mocker.patch('app.v2.notifications.post_notifications.document_download_client')
-    document_download_mock.upload_document.return_value = 'https://document-url/'
-
     data = {
         "email_address": service.users[0].email_address,
         "template_id": template.id,
