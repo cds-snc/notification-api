@@ -2,7 +2,7 @@ import functools
 import string
 from datetime import datetime, timedelta
 
-from boto3.exceptions import ClientError
+from botocore.exceptions import ClientError
 from flask import current_app
 from notifications_utils.international_billing_rates import INTERNATIONAL_BILLING_RATES
 from notifications_utils.recipients import (
