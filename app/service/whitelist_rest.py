@@ -1,4 +1,4 @@
-from app.authentication.auth import validate_admin_auth
+from app.authentication.auth import create_validator_for_user_in_service_or_admin
 from app.errors import (InvalidRequest, register_errors)
 from flask import current_app, Blueprint, jsonify, request
 from app.dao.services_dao import dao_fetch_service_by_id
@@ -8,11 +8,11 @@ from app.dao.service_whitelist_dao import (
     dao_fetch_service_whitelist,
     dao_remove_service_whitelist
 )
-from app.models import (MOBILE_TYPE, EMAIL_TYPE, ServiceWhitelist)
+from app.models import (MANAGE_SETTINGS, MOBILE_TYPE, EMAIL_TYPE, ServiceWhitelist)
 
 
 def _validate_service_exists():
-    # This will throw NoResultFound Exception which will be turned  into 404 response by global error hanlders
+    # This will throw NoResultFound Exception which will be turned into 404 response by global error hanlders
     dao_fetch_service_by_id(request.view_args.get('service_id'))
 
 
@@ -21,7 +21,9 @@ service_whitelist_blueprint = Blueprint(
     __name__,
     url_prefix='/service/<uuid:service_id>/whitelist'
 )
-service_whitelist_blueprint.before_request(validate_admin_auth)
+service_whitelist_blueprint.before_request(
+    create_validator_for_user_in_service_or_admin(required_permission=MANAGE_SETTINGS)
+)
 service_whitelist_blueprint.before_request(_validate_service_exists)
 
 register_errors(service_whitelist_blueprint)
