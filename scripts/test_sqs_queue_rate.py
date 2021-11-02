@@ -15,11 +15,11 @@ Example:
         test_sqs_queue_rate.py test
 """
 
+import uuid
+
 import boto3
 from botocore.exceptions import ClientError
 from docopt import docopt
-import uuid
-
 
 AWS_REGION = "ca-central-1"
 QUEUE_NAME = "test-rate-sqs.fifo"
