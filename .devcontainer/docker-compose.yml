@@ -1,36 +1,44 @@
-version: '3'
+version: '3.8'
 
 services:
-  dev:
-    build: 
+  app:
+    build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
-    entrypoint: notify-dev-entrypoint.sh
-    environment:
-      SQLALCHEMY_DATABASE_URI: postgresql://postgres:chummy@db/notification_api
+      args:
+        # Update 'VARIANT' to pick a version of Python: 3, 3.10, 3.9, 3.8, 3.7, 3.6
+        # Append -bullseye or -buster to pin to an OS version.
+        # Use -bullseye variants on local arm64/Apple Silicon.
+        VARIANT: "3.10"
+        # Optional Node.js version to install
+        NODE_VERSION: "16"
+
     volumes:
-      - ..:/workspace:cached   
+      - ..:/workspace:cached
+    init: true
+
+    # Overrides default command so things don't shut down after the process ends.
     command: sleep infinity
-    ports: 
-      - 8000:8000
-      - 8001:8001
-    links: 
-      - db
+
+    # Runs app on the same network as the database container, allows "forwardPorts" in devcontainer.json function.
+    network_mode: service:db
+    # Uncomment the next line to use a non-root user for all processes.
+    # user: vscode
+
+    # Use "forwardPorts" in **devcontainer.json** to forward an app port locally.
+    # (Adding the "ports" property to this file will not forward from a Codespace.)
 
   db:
-    image: postgres:11.2
+    image: postgres:latest
+    restart: unless-stopped
     volumes:
-    - ./initdb:/docker-entrypoint-initdb.d
-    restart: always
-    command:
-      - "postgres"
-      - "-c"
-      - "listen_addresses=*"
+      - postgres-data:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: chummy
-      POSTGRES_HOST_AUTH_METHOD: trust
-    expose:
-      - "5432" 
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
+    # Add "forwardPorts": ["5432"] to **devcontainer.json** to forward PostgreSQL locally.
+    # (Adding the "ports" property to this file will not forward from a Codespace.)
+
+volumes:
+  postgres-data: null
