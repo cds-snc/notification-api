@@ -1,5 +1,5 @@
 
-name: Build and Push Container to ECR, deploy to lambda
+name: Build and push lambda image to production
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
 
 env:
   GITHUB_SHA: ${{ github.sha }}
-  REGISTRY: ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.ca-central-1.amazonaws.com/notify
+  REGISTRY: ${{ secrets.PRODUCTION_ECR_ACCOUNT }}.dkr.ecr.ca-central-1.amazonaws.com/notify
 
 jobs:
   changes:
@@ -50,8 +50,8 @@ jobs:
         id: aws-creds
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.PRODUCTION_ECR_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.PRODUCTION_ECR_SECRET_ACCESS_KEY }}
           aws-region: ca-central-1
 
       - name: Login to ECR
@@ -65,9 +65,3 @@ jobs:
 
       - name: Logout of Amazon ECR
         run: docker logout ${{ steps.login-ecr.outputs.registry }}
-
-      - name: Deploy lambda
-        run: |
-          aws lambda update-function-code \
-            --function-name ${{ matrix.image }} \
-            --image-uri $REGISTRY/${{ matrix.image }}:latest
