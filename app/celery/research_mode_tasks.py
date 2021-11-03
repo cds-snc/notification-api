@@ -1,6 +1,5 @@
 import base64
 
-from app.notifications.aws_sns_status_callback import SNS_STATUS_FAILURE, SNS_STATUS_SUCCESS
 import random
 from datetime import datetime, timedelta
 import json
@@ -162,6 +161,8 @@ def twilio_callback(notification_id, to):
 
 
 def sns_callback(reference, to):
+    from app.notifications.aws_sns_status_callback import SNS_STATUS_FAILURE, SNS_STATUS_SUCCESS
+
     if to.strip().endswith(temp_fail) or to.strip().endswith(perm_fail):
         status = SNS_STATUS_FAILURE
     else:
