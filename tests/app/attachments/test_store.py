@@ -37,7 +37,7 @@ def test_attachment_key_with_uuid(store):
 
 def test_put_attachment(store):
     service_id = uuid.uuid4()
-    ret = store.put(service_id, mock.Mock(), sending_method='link')
+    ret = store.put(service_id, mock.Mock(), sending_method='link', mimetype='application/pdf')
 
     assert ret == {
         'id': Matcher('UUID length match', lambda x: len(str(x)) == 36),
@@ -60,7 +60,7 @@ def test_put_attachment(store):
 
 def test_put_attachment_attach_tmp_dir(store):
     service_id = uuid.uuid4()
-    ret = store.put(service_id, mock.Mock(), sending_method='attach')
+    ret = store.put(service_id, mock.Mock(), sending_method='attach', mimetype='application/pdf')
 
     assert ret == {
         'id': Matcher('UUID length match', lambda x: len(str(x)) == 36),
