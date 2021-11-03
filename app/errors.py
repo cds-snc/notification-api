@@ -116,3 +116,10 @@ def register_errors(blueprint):
         e = getattr(e, 'original_exception', e)
         current_app.logger.exception(e)
         return jsonify(result='error', message="Internal server error"), 500
+
+
+def invalid_data_v2(error):
+    response = jsonify(error.to_dict_v2())
+    response.status_code = error.status_code
+    current_app.logger.info(error)
+    return response

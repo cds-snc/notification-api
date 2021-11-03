@@ -137,10 +137,6 @@ class TestUpdateServiceWhitelist:
         )
 
         assert response.status_code == 400
-        assert json.loads(response.get_data(as_text=True)) == {
-            'result': 'error',
-            'message': 'Invalid whitelist: "" is not a valid email address or phone number'
-        }
         whitelist = ServiceWhitelist.query.one()
         assert whitelist.id == service_whitelist.id
 
@@ -180,3 +176,52 @@ class TestUpdateServiceWhitelist:
             ])
 
         assert response.status_code == 403
+
+    @pytest.mark.parametrize('data, error_type, error_message', [
+        ({'phone_numbers': ['6502532222']}, 'ValidationError', 'email_addresses is a required property'),
+        ({'email_addresses': ['test@test.com']}, 'ValidationError', 'phone_numbers is a required property'),
+        ({
+            'phone_numbers': [],
+            'email_addresses': [1]},
+            'ValidationError',
+            'email_addresses 1 is not of type string'
+         ),
+        ({
+            'phone_numbers': [True],
+            'email_addresses': ['test@test.com']},
+            'ValidationError',
+            'phone_numbers True is not of type string'
+         ),
+        ({
+            'phone_numbers': ['6502532222'],
+            'email_addresses': ['not-an-email']},
+            'InvalidRequest',
+            'Invalid whitelist: "not-an-email" is not a valid email address or phone number'
+         ),
+        ({
+            'phone_numbers': ['not-a-phone'],
+            'email_addresses': ['test@test.com']},
+            'InvalidRequest',
+            'Invalid whitelist: "not-a-phone" is not a valid email address or phone number'
+         )
+    ])
+    def test_update_whitelist_returns_json_validation_errors(self, client, db_session, sample_service,
+                                                             data, error_type, error_message):
+        service_whitelist = a_service_whitelist(sample_service.id)
+        dao_add_and_commit_whitelisted_contacts([service_whitelist])
+
+        response = client.put(
+            url_for('service_whitelist.update_whitelist', service_id=sample_service.id),
+            data=json.dumps(data),
+            headers=[
+                ('Content-Type', 'application/json'),
+                _create_auth_header(service=sample_service)
+            ]
+        )
+
+        assert response.status_code == 400
+        assert json.loads(response.get_data(as_text=True)) == {
+            'errors': [{'error': error_type,
+                       'message': error_message}],
+            'status_code': 400
+        }
