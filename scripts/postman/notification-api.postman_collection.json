@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "729863dc-219f-400d-b549-60db3ee91c11",
+		"_postman_id": "3cdb3a49-b454-49fe-8953-861545da4ac8",
 		"name": "notification-api",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -74,7 +74,12 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									""
+									"if (pm.response.code == 200) {",
+									"    var jsonData = pm.response.json(); ",
+									"    if (jsonData.result === \"success\") {",
+									"        pm.environment.set(\"user_jwt\", jsonData.token);",
+									"    }",
+									"} "
 								],
 								"type": "text/javascript"
 							}
@@ -4137,6 +4142,143 @@
 										"api-key",
 										"revoke",
 										"{{api-key-id}}"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "/whitelist",
+					"item": [
+						{
+							"name": "get service whitelist",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{user_jwt}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text",
+										"disabled": true
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{notification-api-url}}/service/{{service-id}}/whitelist",
+									"host": [
+										"{{notification-api-url}}"
+									],
+									"path": [
+										"service",
+										"{{service-id}}",
+										"whitelist"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "update service whitelist",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disabledSystemHeaders": {
+									"content-type": true
+								}
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{user_jwt}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"email_addresses\": [\n        \"success@simulator.amazonses.com\",\n        \"bounce@simulator.amazonses.com\",\n        \"suppressionlist@simulator.amazonses.com\",\n        \"complaint@simulator.amazonses.com\",\n        \"ooto@simulator.amazonses.com\"\n    ],\n    \"phone_numbers\": []\n}"
+								},
+								"url": {
+									"raw": "{{notification-api-url}}/service/{{service-id}}/whitelist",
+									"host": [
+										"{{notification-api-url}}"
+									],
+									"path": [
+										"service",
+										"{{service-id}}",
+										"whitelist"
 									]
 								}
 							},
