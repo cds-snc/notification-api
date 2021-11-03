@@ -1,12 +1,12 @@
 import os
 import uuid
-from typing_extensions import TypedDict, Literal
+from typing_extensions import TypedDict
 
 import boto3
 from botocore.exceptions import ClientError as BotoClientError
 from botocore.response import StreamingBody
 
-SendingMethod = Literal['attach', 'link']
+from app.attachments.types import SendingMethod
 
 
 class AttachmentStoreError(Exception):
@@ -26,7 +26,7 @@ class AttachmentStore:
             service_id: uuid.UUID,
             attachment_stream,
             sending_method: SendingMethod,
-            mimetype: str = 'application/pdf'
+            mimetype: str
     ) -> TypedDict('PutReturn', {'id': uuid.UUID, 'encryption_key': bytes}):
 
         encryption_key = self.generate_encryption_key()
