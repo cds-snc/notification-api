@@ -115,6 +115,14 @@
         {
           "name": "CHECK_TEMPLATE_NAME_EXISTS_ENABLED",
           "value": "False"
+        },
+        {
+          "name": "EMAIL_ATTACHMENTS_ENABLED",
+          "value": "False"
+        },
+        {
+          "name": "ATTACHMENTS_BUCKET",
+          "value": "perf-notifications-va-gov-attachments"
         }
       ],
       "secrets": [

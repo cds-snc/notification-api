@@ -32,6 +32,10 @@
           "name": "API_RATE_LIMIT_ENABLED",
           "value": "True"
         },
+        {
+          "name": "ATTACHMENTS_BUCKET",
+          "value": "dev-notifications-va-gov-attachments"
+        },
          {
           "name": "AWS_PINPOINT_APP_ID",
           "value": "df55c01206b742d2946ef226410af94f"

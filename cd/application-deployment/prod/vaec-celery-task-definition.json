@@ -127,6 +127,10 @@
         {
           "name": "UI_HOST_NAME",
           "value": "https://notifications.va.gov"
+        },
+        {
+          "name": "ATTACHMENTS_BUCKET",
+          "value": "prod-notifications-va-gov-attachments"
         }
       ],
       "secrets": [

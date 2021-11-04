@@ -147,6 +147,10 @@
         {
           "name": "EMAIL_ATTACHMENTS_ENABLED",
           "value": "True"
+        },
+        {
+          "name": "ATTACHMENTS_BUCKET",
+          "value": "staging-notifications-va-gov-attachments"
         }
       ],
       "secrets": [
