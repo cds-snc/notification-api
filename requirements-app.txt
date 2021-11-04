@@ -12,7 +12,8 @@ Flask-Bcrypt==0.7.1
 flask-marshmallow==0.14.0
 Flask-Migrate==2.7.0
 git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd1a20a21e682262#egg=Flask-SQLAlchemy==2.3.2.dev20190108
-Flask==1.1.2
+# Flask-SQLAlchemy==2.5.1 # TODO: Update to latest soon!
+Flask==2.0.2
 click-datetime==0.2
 eventlet==0.30.2 # currently 0.31.0+ breaks gunicorn. Test the docker image if upgrading!
 gunicorn==20.1.0
@@ -43,9 +44,9 @@ awscli-cwlogs>=1.4.6,<1.5
 
 
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
-itsdangerous==0.24  # pyup: <1.0.0
+itsdangerous==2.0  # pyup: <1.0.0
 
-git+https://github.com/cds-snc/notifier-utils.git@46.3.0#egg=notifications-utils
+git+https://github.com/cds-snc/notifier-utils.git@46.4.0#egg=notifications-utils
 
 # MLWR
 socketio-client==0.5.6

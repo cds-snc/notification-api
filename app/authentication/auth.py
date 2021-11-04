@@ -120,17 +120,17 @@ def requires_auth():
             decode_jwt_token(auth_token, api_key.secret)
         except TokenDecodeError:
             continue
-        except TokenExpiredError:
+        except TokenExpiredError as tee:
             try:
                 decoded_token = decode_token(auth_token)
             except PyJWTError:
                 continue
             current_app.logger.info(f'JWT: iat value was {decoded_token["iat"]} while server clock is {epoch_seconds()}')
             err_msg = "Error: Your system clock must be accurate to within 30 seconds"
-            raise AuthError(err_msg, 403, service_id=service.id, api_key_id=api_key.id)
+            raise AuthError(err_msg, 403, service_id=service.id, api_key_id=api_key.id) from tee
 
         _auth_with_api_key(api_key, service)
-        return
+        break
     else:
         # service has API keys, but none matching the one the user provided
         raise AuthError("Invalid token: signature, api token not found", 403, service_id=service.id)
@@ -141,8 +141,8 @@ def _auth_by_api_key(auth_token):
         # take last 36 chars of string so that it works even if the full key is provided.
         auth_token = auth_token[-36:]
         api_key = get_api_key_by_secret(auth_token)
-    except NoResultFound:
-        raise AuthError("Invalid token: API key not found", 403)
+    except NoResultFound as nrf:
+        raise AuthError("Invalid token: API key not found", 403) from nrf
     _auth_with_api_key(api_key, api_key.service)
 
 
@@ -157,10 +157,9 @@ def _auth_with_api_key(api_key, service):
     g.service_id = api_key.service_id
     _request_ctx_stack.top.authenticated_service = service
     _request_ctx_stack.top.api_user = api_key
+    user_agent = request.headers.get("User-Agent")
     current_app.logger.info(
-        "API authorised for service {} with api key {}, using client {}".format(
-            service.id, api_key.id, request.headers.get("User-Agent")
-        )
+        f"API authorised for service {service.id} with api key {api_key.id}, using client {user_agent}"
     )
 
 
