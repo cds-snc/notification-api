@@ -185,7 +185,11 @@ def create_app(application):
 
     oauth_registry.init_app(application)
 
-    attachment_store.init_app(application)
+    attachment_store.init_app(
+        endpoint_url=application.config['AWS_S3_ENDPOINT_URL'],
+        bucket=application.config['ATTACHMENTS_BUCKET'],
+        logger=application.logger
+    )
 
     jwt.init_app(application)
 

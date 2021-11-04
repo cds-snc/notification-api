@@ -16,10 +16,13 @@ class AttachmentStoreError(Exception):
 class AttachmentStore:
     def __init__(self, bucket=None):
         self.bucket = bucket
+        self.s3 = None
+        self.logger = None
 
-    def init_app(self, app):
-        self.s3 = boto3.client("s3", endpoint_url=app.config['AWS_S3_ENDPOINT_URL'])
-        self.bucket = app.config['ATTACHMENTS_BUCKET']
+    def init_app(self, endpoint_url: str, bucket: str, logger):
+        self.s3 = boto3.client("s3", endpoint_url=endpoint_url)
+        self.bucket = bucket
+        self.logger = logger
 
     def put(
             self,
@@ -32,9 +35,12 @@ class AttachmentStore:
         encryption_key = self.generate_encryption_key()
         attachment_id = uuid.uuid4()
 
+        attachment_key = self.get_attachment_key(service_id, attachment_id, sending_method)
+
+        self.logger.info(f"putting attachment object in s3 with key {attachment_key} and mimetype {mimetype}")
         self.s3.put_object(
             Bucket=self.bucket,
-            Key=self.get_attachment_key(service_id, attachment_id, sending_method),
+            Key=attachment_key,
             Body=attachment_stream,
             ContentType=mimetype,
             SSECustomerKey=encryption_key,

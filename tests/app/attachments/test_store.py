@@ -4,13 +4,13 @@ from unittest import mock
 import pytest
 from botocore.exceptions import ClientError as BotoClientError
 
-from tests.conftest import set_config, Matcher
+from tests.conftest import Matcher
 
 from app.attachments.store import AttachmentStore, AttachmentStoreError
 
 
 @pytest.fixture
-def store(mocker, notify_api):
+def store(mocker):
     mock_boto = mocker.patch('app.attachments.store.boto3')
     mock_boto.client.return_value.get_object.return_value = {
         'Body': mock.Mock(),
@@ -18,8 +18,7 @@ def store(mocker, notify_api):
         'ContentLength': 100
     }
     store = AttachmentStore()
-    with set_config(notify_api, 'ATTACHMENTS_BUCKET', 'test-bucket'):
-        store.init_app(notify_api)
+    store.init_app(endpoint_url='some-url', bucket='test-bucket', logger=mocker.Mock())
     return store
 
 
