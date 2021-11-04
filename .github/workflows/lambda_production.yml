@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: api-lambda
+        image: "api-lambda"
 
     steps:
       - name: Checkout
