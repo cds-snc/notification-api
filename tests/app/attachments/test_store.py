@@ -10,22 +10,17 @@ from app.attachments.store import AttachmentStore, AttachmentStoreError
 
 
 @pytest.fixture
-def store(mocker):
+def store(mocker, notify_api):
     mock_boto = mocker.patch('app.attachments.store.boto3')
     mock_boto.client.return_value.get_object.return_value = {
         'Body': mock.Mock(),
         'ContentType': 'application/pdf',
         'ContentLength': 100
     }
-    store = AttachmentStore(bucket='test-bucket')
-    return store
-
-
-def test_attachment_store_init_app(notify_api, store):
-    with set_config(notify_api, 'ATTACHMENTS_BUCKET', 'test-bucket-2'):
+    store = AttachmentStore()
+    with set_config(notify_api, 'ATTACHMENTS_BUCKET', 'test-bucket'):
         store.init_app(notify_api)
-
-    assert store.bucket == 'test-bucket-2'
+    return store
 
 
 def test_attachment_key_with_uuid(store):
