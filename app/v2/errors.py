@@ -103,6 +103,14 @@ def register_errors(blueprint):
         current_app.logger.info('API AuthError, client: {} error: {}'.format(request.headers.get('User-Agent'), error))
         return jsonify(error.to_dict_v2()), error.code
 
+    @blueprint.errorhandler(NotImplementedError)
+    def not_implemented(e):
+        current_app.logger.warning(e)
+        return jsonify(
+            status_code=501,
+            errors=[{"error": e.__class__.__name__, "message": "Not implemented"}]
+        ), 501
+
     @blueprint.errorhandler(Exception)
     def internal_server_error(error):
         current_app.logger.exception(error)

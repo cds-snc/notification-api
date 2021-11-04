@@ -12,7 +12,7 @@ from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
-from app.feature_flags import accept_recipient_identifiers_enabled
+from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
 from app.letters.utils import upload_letter_pdf
 from app.models import (
     SMS_TYPE,
@@ -270,6 +270,9 @@ def process_document_uploads(personalisation_data, service, simulated=False):
     file_keys = [k for k, v in (personalisation_data or {}).items() if isinstance(v, dict) and 'file' in v]
     if not file_keys:
         return personalisation_data
+
+    if not is_feature_enabled(FeatureFlag.EMAIL_ATTACHMENTS_ENABLED):
+        raise NotImplementedError
 
     personalisation_data = personalisation_data.copy()
 

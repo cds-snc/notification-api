@@ -34,6 +34,7 @@ from tests.app.db import (
     create_service_with_inbound_number,
     create_api_key
 )
+from tests.app.factories.feature_flag import mock_feature_flag
 from tests.app.oauth.test_rest import mock_toggle
 
 
@@ -843,6 +844,8 @@ def test_post_email_notification_with_archived_reply_to_id_returns_400(client, s
 def test_post_notification_with_document_upload(
     client, notify_db_session, mocker, filename, file_data, sending_method
 ):
+    mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
+
     service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
     content = "See attached file."
     if sending_method == "link":
@@ -1115,6 +1118,8 @@ def test_post_notification_with_document_upload_not_base64_file(
 def test_post_notification_with_document_upload_simulated(
     client, notify_db_session, mocker
 ):
+    mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
+
     service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
     template = create_template(
         service=service, template_type="email", content="Document: ((document))"

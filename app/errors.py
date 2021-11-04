@@ -107,6 +107,11 @@ def register_errors(blueprint):
         current_app.logger.info(e)
         return jsonify(result='error', message="No result found"), 404
 
+    @blueprint.errorhandler(NotImplementedError)
+    def not_implemented(e):
+        current_app.logger.warning(e)
+        return jsonify(result='error', message="Not Implemented"), 501
+
     # this must be defined after all other error handlers since it catches the generic Exception object
     @blueprint.app_errorhandler(500)
     @blueprint.errorhandler(Exception)

@@ -59,6 +59,10 @@
           "value": "True"
         },
         {
+          "name": "EMAIL_ATTACHMENTS_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "EMAIL_PASSWORD_LOGIN_ENABLED",
           "value": "True"
         },
