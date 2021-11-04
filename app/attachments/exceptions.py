@@ -1,0 +1,2 @@
+class UnsupportedMimeTypeException(Exception):
+    pass

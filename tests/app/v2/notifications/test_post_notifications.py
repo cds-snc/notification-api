@@ -1,4 +1,5 @@
 import base64
+import os
 import uuid
 
 import pytest
@@ -835,40 +836,47 @@ def test_post_email_notification_with_archived_reply_to_id_returns_400(client, s
 
 
 @pytest.mark.parametrize(
-    "filename, file_data, sending_method",
+    "file_name, file_data, sending_method",
     [
         ("good name.txt", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
         ("good name.txt", "VGV4dCBjb250ZW50IGhlcmU=", "link"),
     ],
 )
 def test_post_notification_with_document_upload(
-    client, notify_db_session, mocker, filename, file_data, sending_method
+    client, notify_db_session, mocker, file_name, file_data, sending_method
 ):
     mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
 
     service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
-    content = "See attached file."
-    if sending_method == "link":
-        content = "Document: ((document))"
-    template = create_template(service=service, template_type="email", content=content)
-
-    mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
-    document_download_mock = mocker.patch(
-        "app.v2.notifications.post_notifications.document_download_client.upload_document"
+    template = create_template(
+        service=service,
+        template_type='email',
+        content="Document"
     )
-    document_download_mock.return_value = "https://document-url/"
-    decoded_file = base64.b64decode(file_data)
+
+    mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
+    upload_attachment_mock = mocker.patch('app.v2.notifications.post_notifications.upload_attachment')
+    mock_uploaded_attachment = {
+        'id': str(uuid.uuid4()),
+        'encryption_key': str(os.urandom(32)),
+        'sending_method': 'attach',
+        'mime_type': "application/pdf",
+        'file_name': "file.pdf",
+        'file_size': 22,
+        'file_extension': "pdf",
+    }
+    upload_attachment_mock.return_value = mock_uploaded_attachment
 
     data = {
         "email_address": service.users[0].email_address,
         "template_id": template.id,
         "personalisation": {
-            "document": {
+            "some_attachment": {
                 "file": file_data,
-                "filename": filename,
-                "sending_method": sending_method,
+                "filename": file_name,
+                "sending_method": sending_method
             }
-        },
+        }
     }
 
     auth_header = create_authorization_header(service_id=service.id)
@@ -881,58 +889,22 @@ def test_post_notification_with_document_upload(
     assert response.status_code == 201, response.get_data(as_text=True)
     resp_json = json.loads(response.get_data(as_text=True))
     assert validate(resp_json, post_email_response) == resp_json
-    document_download_mock.assert_called_once_with(
-        service.id,
-        {"file": decoded_file, "filename": filename, "sending_method": sending_method},
+    upload_attachment_mock.assert_called_once_with(
+        **{
+            "service_id": service.id,
+            "file_data": base64.b64decode(file_data),
+            "file_name": file_name,
+            "sending_method": sending_method
+        },
     )
 
     notification = Notification.query.one()
     assert notification.status == NOTIFICATION_CREATED
-    assert notification.personalisation == {"document": "https://document-url/"}
-
-    if sending_method == "link":
-        assert resp_json["content"]["body"] == "Document: https://document-url/"
-    else:
-        assert resp_json["content"]["body"] == "See attached file."
-
-
-@pytest.mark.parametrize(
-    "filename, file_data, sending_method",
-    [
-        ("", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
-        ("1", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
-    ],
-)
-def test_post_notification_with_document_upload_bad_filename(
-    client, notify_db_session, filename, file_data, sending_method
-):
-    service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
-    content = "See attached file."
-    template = create_template(service=service, template_type="email", content=content)
-    data = {
-        "email_address": service.users[0].email_address,
-        "template_id": template.id,
-        "personalisation": {
-            "document": {
-                "file": file_data,
-                "filename": filename,
-                "sending_method": sending_method,
-            }
-        },
+    assert notification.personalisation == {
+        'some_attachment': mock_uploaded_attachment
     }
 
-    auth_header = create_authorization_header(service_id=service.id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    assert response.status_code == 400
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert "ValidationError" in resp_json["errors"][0]["error"]
-    assert filename in resp_json["errors"][0]["message"]
-    assert "too short" in resp_json["errors"][0]["message"]
+    assert resp_json['content']['body'] == 'Document'
 
 
 def test_post_notification_with_document_upload_long_filename(
