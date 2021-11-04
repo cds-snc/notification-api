@@ -158,9 +158,7 @@ def _auth_with_api_key(api_key, service):
     _request_ctx_stack.top.authenticated_service = service
     _request_ctx_stack.top.api_user = api_key
     user_agent = request.headers.get("User-Agent")
-    current_app.logger.info(
-        f"API authorised for service {service.id} with api key {api_key.id}, using client {user_agent}"
-    )
+    current_app.logger.info(f"API authorised for service {service.id} with api key {api_key.id}, using client {user_agent}")
 
 
 def __get_token_issuer(auth_token):
