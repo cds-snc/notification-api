@@ -260,7 +260,9 @@ def init_app(app):
 
     @app.errorhandler(WerkzeugHTTPException)
     def werkzeug_exception(e):
-        return make_response(jsonify(result="error", message=e.description), e.code, e.get_headers())
+        # Make sure we will send a JSON content-type by purging error provided one.
+        headers = [h for h in e.get_headers() if h[0] != "Content-Type"]
+        return make_response(jsonify(result="error", message=e.description), e.code, headers)
 
     @app.errorhandler(404)
     def page_not_found(e):
