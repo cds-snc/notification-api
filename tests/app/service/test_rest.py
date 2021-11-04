@@ -2,6 +2,7 @@ import json
 import uuid
 from datetime import date, datetime, timedelta
 from functools import partial
+from typing import no_type_check
 from unittest.mock import ANY, call
 
 import pytest
@@ -2061,6 +2062,7 @@ def test_search_for_notification_by_to_field_return_400_for_letter_type(client, 
     assert error_message["message"] == "Only email and SMS can use search by recipient"
 
 
+@no_type_check
 @pytest.mark.parametrize("set_go_live_user", [True, False])
 def test_update_service_calls_send_notification_as_service_becomes_live(
     notify_db: RoutingSQLAlchemy,
