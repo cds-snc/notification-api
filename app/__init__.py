@@ -34,6 +34,7 @@ from app.oauth.registry import oauth_registry
 from app.va.va_profile import VAProfileClient
 from app.va.mpi import MpiClient
 from app.encryption import Encryption
+from app.attachments.store import AttachmentStore
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 DATE_FORMAT = "%Y-%m-%d"
@@ -81,6 +82,8 @@ performance_platform_client = PerformancePlatformClient()
 document_download_client = DocumentDownloadClient()
 va_profile_client = VAProfileClient()
 mpi_client = MpiClient()
+
+attachment_store = AttachmentStore()
 
 clients = Clients()
 
@@ -181,6 +184,8 @@ def create_app(application):
     )
 
     oauth_registry.init_app(application)
+
+    attachment_store.init_app(application)
 
     jwt.init_app(application)
 

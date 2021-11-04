@@ -15,10 +15,10 @@ class AttachmentStoreError(Exception):
 
 class AttachmentStore:
     def __init__(self, bucket=None):
-        self.s3 = boto3.client("s3")
         self.bucket = bucket
 
     def init_app(self, app):
+        self.s3 = boto3.client("s3", endpoint_url=app.config['AWS_S3_ENDPOINT_URL'])
         self.bucket = app.config['ATTACHMENTS_BUCKET']
 
     def put(

@@ -35,8 +35,6 @@ fileignoreconfig:
       checksum: b275bb504d07e20888d222c31f12246b79aa554bea84c4d3028f110b0f9d473c
     - filename: ci/docker-compose-test.yml
       checksum: 2a18b2897becf05d4456b2c987f448eeb5a276741ec62cc4e554b439abe1e925
-    - filename: ci/.docker-env.example
-      checksum: 59e780d4d81dd66d4366eb34f8a362b20b05cac142478230a31c4b7365a69c83
     - filename: app/config.py
       checksum: fc23095eea0a9f6c4c1c7069e956dac3ccd11b2e5c1f68fff3d851a0ff468962
     - filename: load_testing/.envrc.example
@@ -185,12 +183,8 @@ fileignoreconfig:
       checksum: 762b9b8c1a47ab0e9131618e91582e387f972e9a10ac9b10dca91a1e1eefcc92
     - filename: tests/app/v2/notifications/test_post_notifications.py
       checksum: 2a7b2d6ab3c27a7c6b774b29373905000eec7d4c7b68cf53966597a1988557c9
-    - filename: ci/.docker-env.example
-      checksum: 59e780d4d81dd66d4366eb34f8a362b20b05cac142478230a31c4b7365a69c83
     - filename: .env.example
       checksum: 26bbba4cf20074086cbdabe0e99c5e4df4d420dcabc5f85709ba3767c86b7b20
-    - filename: ci/.docker-env.example
-      checksum: 4af4bbda6aca3668194444ea256ad07d0c3b7a706619093751663a584f9d45fb
     - filename: cd/application-deployment/dev/vaec-celery-task-definition.json
       checksum: a326b179766468e8d86a19ce7a5fac45a552b04e2194d492145cb87cd2c1d3c6
     - filename: scripts/mountebank/stubs/vaprofile/communicationPrefStub_vaProfileId_no_permissions.ejs
@@ -273,8 +267,6 @@ fileignoreconfig:
       checksum: 7660f017c0462141816cbf32466e2c3a2eed61f3aacd5dde7ec42cde5d337510
     - filename: tests/app/notifications/test_validators.py
       checksum: efce5afc3015a7bdcae7e027da762acf1fefe782b30a5a92855b253cad6c3050
-    - filename: ci/.docker-env.example
-      checksum: 6eb3dbfaddb1c0de7fe7b0d4637193d8dbe4db4d49f69412281ae63441dd8ac8
     - filename: requirements-app.txt
       checksum: 45aba00528f1e77c2324c4af006a6f6f8a4e93a2f053b940e2d7c3d680cbe0cb
     - filename: requirements.txt
@@ -290,4 +282,4 @@ fileignoreconfig:
     - filename: app/va/va_profile/va_profile_client.py
       checksum: 2942cb80f53433d4c129c2fbd43ba7b28f252d2daf30ad2c93bf8255d3d1e179
     - filename: ci/.docker-env.example
-      checksum: eca20f7c7cb3c3ba657897284dbcfe3c28328d6e945aa98335473637d1454c20
+      checksum: d55406c926ed456c542cd1b0bfba477e38e8af2bfe76b541b37fe504c84a4730

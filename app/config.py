@@ -176,6 +176,7 @@ class Config(object):
     AWS_SES_DEFAULT_REPLY_TO = os.getenv('AWS_SES_DEFAULT_REPLY_TO', 'Do Not Reply <VaNoReplyMessages@va.gov>')
     AWS_SES_CONFIGURATION_SET = os.getenv('AWS_SES_CONFIGURATION_SET', ses_configuration_sets[NOTIFY_ENVIRONMENT])
     AWS_SES_ENDPOINT_URL = os.getenv('AWS_SES_ENDPOINT_URL', 'https://email-fips.us-gov-west-1.amazonaws.com')
+    AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL', 'https://s3-fips.us-gov-west-1.amazonaws.com')
     AWS_PINPOINT_APP_ID = os.getenv('AWS_PINPOINT_APP_ID', 'df55c01206b742d2946ef226410af94f')
     AWS_SQS_URL = os.getenv('AWS_SQS_URL', '')
     CSV_UPLOAD_BUCKET_NAME = os.getenv('CSV_UPLOAD_BUCKET_NAME',
@@ -464,6 +465,11 @@ class Config(object):
     GOOGLE_ANALYTICS_ENABLED = str(True) == (os.getenv('GOOGLE_ANALYTICS_ENABLED', 'False'))
     GOOGLE_ANALYTICS_URL = os.getenv('GOOGLE_ANALYTICS_URL', 'https://www.google-analytics.com/collect')
     GOOGLE_ANALYTICS_TID = os.getenv('GOOGLE_ANALYTICS_TID', 'UA-50123418-17')
+
+    # Attachments
+
+    ATTACHMENTS_ALLOWED_MIME_TYPES = ['application/pdf']
+    ATTACHMENTS_BUCKET = os.getenv('ATTACHMENTS_BUCKET', 'dev-notifications-va-gov-attachments')
 
 
 ######################
