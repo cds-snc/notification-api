@@ -468,7 +468,7 @@ class Config(object):
 
     # Attachments
 
-    ATTACHMENTS_ALLOWED_MIME_TYPES = ['application/pdf']
+    ATTACHMENTS_ALLOWED_MIME_TYPES = ['text/calendar']
     ATTACHMENTS_BUCKET = os.getenv('ATTACHMENTS_BUCKET', 'dev-notifications-va-gov-attachments')
     MAX_CONTENT_LENGTH = 1024 * 1024  # = 1024 KB
 
