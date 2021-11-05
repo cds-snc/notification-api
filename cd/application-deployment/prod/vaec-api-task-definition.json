@@ -97,7 +97,7 @@
         ,
         {
           "name": "NOTIFICATION_FAILURE_REASON_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL",

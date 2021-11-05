@@ -21,6 +21,10 @@
           "value": "performance"
         },
         {
+          "name": "NOTIFICATION_FAILURE_REASON_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "FLASK_APP",
           "value": "run_celery_beat.py"
         },
