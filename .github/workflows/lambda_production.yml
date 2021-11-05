@@ -27,7 +27,6 @@ jobs:
           docker build \
           --build-arg git_sha=$GITHUB_SHA \
           -t $REGISTRY/${{ matrix.image }}:$GITHUB_SHA \
-          -t $REGISTRY/${{ matrix.image }}:latest . \
           -f ci/Dockerfile.lambda
 
       - name: Configure AWS credentials
@@ -45,7 +44,6 @@ jobs:
       - name: Push containers to ECR
         run: |
           docker push $REGISTRY/${{ matrix.image }}:$GITHUB_SHA
-          docker push $REGISTRY/${{ matrix.image }}:latest
 
       - name: Logout of Amazon ECR
         run: docker logout ${{ steps.login-ecr.outputs.registry }}
