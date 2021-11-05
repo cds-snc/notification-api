@@ -21,7 +21,7 @@ def store(mocker):
     ]
 )
 def test_document_upload_returns_link_to_frontend(
-        client,
+        notify_api,
         store,
         file_name,
         sending_method: SendingMethod,
@@ -34,7 +34,8 @@ def test_document_upload_returns_link_to_frontend(
         'encryption_key': encryption_key,
     }
 
-    response = upload_attachment(service_id, sending_method, b'%PDF-1.4 file contents', file_name)
+    with(set_config(notify_api, 'ATTACHMENTS_ALLOWED_MIME_TYPES', ['application/pdf'])):
+        response = upload_attachment(service_id, sending_method, b'%PDF-1.4 file contents', file_name)
 
     assert response == {
         'encryption_key': str(encryption_key),
