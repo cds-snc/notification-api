@@ -776,7 +776,7 @@ class TestPostNotificationWithAttachment:
 
         upload_attachment_mock = mocker.patch('app.v2.notifications.post_notifications.upload_attachment')
 
-        data = {
+        response = post_send_notification(client, service_with_upload_document_permission, 'email', {
             "email_address": "foo@bar.com",
             "template_id": template.id,
             "personalisation": {
@@ -786,9 +786,7 @@ class TestPostNotificationWithAttachment:
                     "sending_method": "attach"
                 }
             }
-        }
-
-        response = post_send_notification(client, service_with_upload_document_permission, 'email', data)
+        })
 
         assert response.status_code == 501
         upload_attachment_mock.assert_not_called()
@@ -812,7 +810,7 @@ class TestPostNotificationWithAttachment:
         }
         upload_attachment_mock.return_value = mock_uploaded_attachment
 
-        data = {
+        response = post_send_notification(client, service_with_upload_document_permission, 'email', {
             "email_address": "foo@bar.com",
             "template_id": template.id,
             "personalisation": {
@@ -822,9 +820,7 @@ class TestPostNotificationWithAttachment:
                     "sending_method": sending_method
                 }
             }
-        }
-
-        response = post_send_notification(client, service_with_upload_document_permission, 'email', data)
+        })
 
         assert response.status_code == 201, response.get_data(as_text=True)
         resp_json = json.loads(response.get_data(as_text=True))
@@ -845,23 +841,18 @@ class TestPostNotificationWithAttachment:
         }
 
     def test_long_filename(self, client, service_with_upload_document_permission, template):
-        file_data = self.base64_encoded_file
         filename = "a" * 256
-        sending_method = "attach"
-
-        data = {
+        response = post_send_notification(client, service_with_upload_document_permission, 'email', {
             "email_address": "foo@bar.com",
             "template_id": template.id,
             "personalisation": {
                 "document": {
-                    "file": file_data,
+                    "file": self.base64_encoded_file,
                     "filename": filename,
-                    "sending_method": sending_method,
+                    "sending_method": "attach",
                 }
             },
-        }
-
-        response = post_send_notification(client, service_with_upload_document_permission, 'email', data)
+        })
 
         assert response.status_code == 400
         resp_json = json.loads(response.get_data(as_text=True))
@@ -870,15 +861,13 @@ class TestPostNotificationWithAttachment:
         assert "too long" in resp_json["errors"][0]["message"]
 
     def test_filename_required_check(self, client, service_with_upload_document_permission, template):
-        data = {
+        response = post_send_notification(client, service_with_upload_document_permission, 'email', {
             "email_address": "foo@bar.com",
             "template_id": template.id,
             "personalisation": {
                 "document": {"file": self.base64_encoded_file, "sending_method": "attach"}
             },
-        }
-
-        response = post_send_notification(client, service_with_upload_document_permission, 'email', data)
+        })
 
         assert response.status_code == 400
         resp_json = json.loads(response.get_data(as_text=True))
@@ -886,13 +875,11 @@ class TestPostNotificationWithAttachment:
         assert "filename is a required property" in resp_json["errors"][0]["message"]
 
     def test_missing_sending_method(self, client, service_with_upload_document_permission, template):
-        data = {
+        response = post_send_notification(client, service_with_upload_document_permission, 'email', {
             "email_address": "foo@bar.com",
             "template_id": template.id,
             "personalisation": {"document": {"file": self.base64_encoded_file}},
-        }
-
-        response = post_send_notification(client, service_with_upload_document_permission, 'email', data)
+        })
 
         assert response.status_code == 400
         resp_json = json.loads(response.get_data(as_text=True))
@@ -900,7 +887,7 @@ class TestPostNotificationWithAttachment:
         assert "sending_method is a required property" in resp_json["errors"][0]["message"]
 
     def test_bad_sending_method(self, client, service_with_upload_document_permission, template):
-        data = {
+        response = post_send_notification(client, service_with_upload_document_permission, 'email', {
             "email_address": "foo@bar.com",
             "template_id": template.id,
             "personalisation": {
@@ -910,9 +897,7 @@ class TestPostNotificationWithAttachment:
                     "sending_method": "not-a-real-sending-method",
                 }
             },
-        }
-
-        response = post_send_notification(client, service_with_upload_document_permission, 'email', data)
+        })
 
         assert response.status_code == 400
         resp_json = json.loads(response.get_data(as_text=True))
@@ -922,7 +907,7 @@ class TestPostNotificationWithAttachment:
         )
 
     def test_not_base64_file(self, client, service_with_upload_document_permission, template):
-        data = {
+        response = post_send_notification(client, service_with_upload_document_permission, 'email', {
             "email_address": "foo@bar.com",
             "template_id": template.id,
             "personalisation": {
@@ -932,9 +917,7 @@ class TestPostNotificationWithAttachment:
                     "filename": "1.txt",
                 }
             },
-        }
-
-        response = post_send_notification(client, service_with_upload_document_permission, 'email', data)
+        })
 
         assert response.status_code == 400
         resp_json = json.loads(response.get_data(as_text=True))
@@ -984,13 +967,11 @@ class TestPostNotificationWithAttachment:
         )
         document_download_mock.upload_document.return_value = "https://document-url/"
 
-        data = {
+        response = post_send_notification(client, service, 'email', {
             "email_address": service.users[0].email_address,
             "template_id": template.id,
             "personalisation": {"document": {"file": "abababab"}},
-        }
-
-        response = post_send_notification(client, service, 'email', data)
+        })
 
         assert response.status_code == 400
 
