@@ -11,12 +11,12 @@ env:
   REGISTRY: ${{ secrets.PRODUCTION_API_LAMBDA_ECR_ACCOUNT }}.dkr.ecr.ca-central-1.amazonaws.com/notify
 
 jobs:
-  build-push-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        image: "api-lambda"
+        image: ["api-lambda"]
 
     steps:
       - name: Checkout
