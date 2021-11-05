@@ -29,30 +29,18 @@ personalisation = {
                     "type": "string",
                     "binaryEncoding": "base64",
                 },
+                "filename": {
+                    "minLength": 3,
+                    "maxLength": 255
+                },
                 "sending_method": {
                     "type": "string",
                     "enum": ["attach", "link"]
                 }
             },
             "required": [
-                "file", "sending_method"
-            ],
-            "if": {
-                "properties": {
-                    "sending_method": {
-                        "const": "attach"
-                    }
-                }
-            },
-            "then": {
-                "required": ["filename"],
-                "properties": {
-                    "filename": {
-                        "minLength": 3,
-                        "maxLength": 255
-                    }
-                }
-            }
+                "file", "filename"
+            ]
         }
     }
 }

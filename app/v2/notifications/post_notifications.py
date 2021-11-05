@@ -274,7 +274,7 @@ def process_document_uploads(personalisation_data, service, simulated=False):
         return personalisation_data
 
     if not is_feature_enabled(FeatureFlag.EMAIL_ATTACHMENTS_ENABLED):
-        raise NotImplementedError
+        raise NotImplementedError()
 
     personalisation_data = personalisation_data.copy()
 
@@ -282,6 +282,9 @@ def process_document_uploads(personalisation_data, service, simulated=False):
 
     if int(request.headers['Content-Length']) > current_app.config['MAX_CONTENT_LENGTH']:
         raise RequestEntityTooLarge()
+
+    if any(personalisation_data[key].get('sending_method') == 'link' for key in file_keys):
+        raise NotImplementedError()
 
     for key in file_keys:
         if simulated:

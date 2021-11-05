@@ -17,8 +17,7 @@ def store(mocker):
     "file_name, sending_method, expected_file_extension",
     [
         ('custom_file_name.pdf', 'attach', 'pdf'),
-        ('whatever', 'link', None),
-        (None, 'link', None),
+        ('whatever', 'link', None)
     ]
 )
 def test_document_upload_returns_link_to_frontend(
@@ -55,7 +54,6 @@ def test_document_upload_returns_link_to_frontend(
         (b'Canada', 'noextension', None, 'text/plain', 6),
         (b'foo,bar', 'file.csv', 'csv', 'text/csv', 7),
         (b'foo,bar', 'FILE.CSV', 'csv', 'text/csv', 7),
-        (b'foo,bar', None, None, 'text/plain', 7),
     ]
 )
 def test_document_upload_returns_size_and_mime(

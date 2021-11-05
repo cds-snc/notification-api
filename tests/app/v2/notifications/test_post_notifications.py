@@ -791,8 +791,30 @@ class TestPostNotificationWithAttachment:
         assert response.status_code == 501
         upload_attachment_mock.assert_not_called()
 
-    @pytest.mark.parametrize("sending_method", ["attach", "link"],)
-    def test_attachment_upload(
+    def test_returns_not_implemented_if_sending_method_is_link(
+            self, client, mocker, service_with_upload_document_permission, template
+    ):
+        mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
+
+        upload_attachment_mock = mocker.patch('app.v2.notifications.post_notifications.upload_attachment')
+
+        response = post_send_notification(client, service_with_upload_document_permission, 'email', {
+            "email_address": "foo@bar.com",
+            "template_id": template.id,
+            "personalisation": {
+                "some_attachment": {
+                    "file": self.base64_encoded_file,
+                    "filename": "attachment.pdf",
+                    "sending_method": "link"
+                }
+            }
+        })
+
+        assert response.status_code == 501
+        upload_attachment_mock.assert_not_called()
+
+    @pytest.mark.parametrize("sending_method", ["attach", None])
+    def test_attachment_upload_with_sending_method_attach(
             self, client, notify_db_session, mocker, sending_method, service_with_upload_document_permission, template
     ):
         mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
@@ -810,17 +832,21 @@ class TestPostNotificationWithAttachment:
         }
         upload_attachment_mock.return_value = mock_uploaded_attachment
 
-        response = post_send_notification(client, service_with_upload_document_permission, 'email', {
+        data = {
             "email_address": "foo@bar.com",
             "template_id": template.id,
             "personalisation": {
                 "some_attachment": {
                     "file": self.base64_encoded_file,
                     "filename": "file.pdf",
-                    "sending_method": sending_method
                 }
             }
-        })
+        }
+
+        if sending_method:
+            data["personalisation"]["some_attachment"]["sending_method"] = sending_method
+
+        response = post_send_notification(client, service_with_upload_document_permission, 'email', data)
 
         assert response.status_code == 201, response.get_data(as_text=True)
         resp_json = json.loads(response.get_data(as_text=True))
@@ -830,7 +856,7 @@ class TestPostNotificationWithAttachment:
                 "service_id": service_with_upload_document_permission.id,
                 "file_data": base64.b64decode(self.base64_encoded_file),
                 "file_name": "file.pdf",
-                "sending_method": sending_method
+                "sending_method": "attach"
             },
         )
 
@@ -891,18 +917,6 @@ class TestPostNotificationWithAttachment:
         assert "ValidationError" in resp_json["errors"][0]["error"]
         assert "filename is a required property" in resp_json["errors"][0]["message"]
 
-    def test_missing_sending_method(self, client, service_with_upload_document_permission, template):
-        response = post_send_notification(client, service_with_upload_document_permission, 'email', {
-            "email_address": "foo@bar.com",
-            "template_id": template.id,
-            "personalisation": {"document": {"file": self.base64_encoded_file}},
-        })
-
-        assert response.status_code == 400
-        resp_json = json.loads(response.get_data(as_text=True))
-        assert "ValidationError" in resp_json["errors"][0]["error"]
-        assert "sending_method is a required property" in resp_json["errors"][0]["message"]
-
     def test_bad_sending_method(self, client, service_with_upload_document_permission, template):
         response = post_send_notification(client, service_with_upload_document_permission, 'email', {
             "email_address": "foo@bar.com",
@@ -957,7 +971,7 @@ class TestPostNotificationWithAttachment:
         data = {
             "email_address": "simulate-delivered@notifications.va.gov",
             "template_id": template.id,
-            "personalisation": {"document": {"file": "abababab", "sending_method": "link"}},
+            "personalisation": {"document": {"file": "abababab", "filename": "file.pdf"}},
         }
 
         response = post_send_notification(client, service, 'email', data)
