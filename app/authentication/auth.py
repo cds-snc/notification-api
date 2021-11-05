@@ -1,7 +1,7 @@
 import functools
 from typing import Callable
 
-from flask import request, _request_ctx_stack, current_app, g
+from flask import request, current_app, g
 from flask_jwt_extended import verify_jwt_in_request, current_user
 from flask_jwt_extended.config import config
 from flask_jwt_extended.exceptions import NoAuthorizationError, InvalidHeaderError, JWTDecodeError
@@ -179,8 +179,8 @@ def validate_service_api_key_auth():
             raise AuthError("Invalid token: API key revoked", 403, service_id=service.id, api_key_id=api_key.id)
 
         g.service_id = api_key.service_id
-        _request_ctx_stack.top.authenticated_service = service
-        _request_ctx_stack.top.api_user = api_key
+        g.api_user = api_key
+        g.authenticated_service = service
         current_app.logger.info('API authorised for service {} with api key {}, using client {}'.format(
             service.id,
             api_key.id,

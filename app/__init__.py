@@ -4,7 +4,7 @@ import string
 import uuid
 from dotenv import load_dotenv
 
-from flask import _request_ctx_stack, request, g, jsonify, make_response
+from flask import request, g, jsonify, make_response
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy as _SQLAlchemy
 from flask_marshmallow import Marshmallow
@@ -92,8 +92,8 @@ from app.oauth.jwt_manager import jwt  # noqa
 from app.provider_details.provider_service import ProviderService # noqa
 provider_service = ProviderService()
 
-api_user = LocalProxy(lambda: _request_ctx_stack.top.api_user)
-authenticated_service = LocalProxy(lambda: _request_ctx_stack.top.authenticated_service)
+api_user = LocalProxy(lambda: g.api_user)
+authenticated_service = LocalProxy(lambda: g.authenticated_service)
 
 
 def create_app(application):
