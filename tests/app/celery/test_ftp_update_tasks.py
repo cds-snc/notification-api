@@ -30,6 +30,7 @@ from tests.app.db import (
     create_notification,
     create_notification_history,
     create_service_callback_api,
+    save_notification,
 )
 from tests.conftest import set_config
 
@@ -73,11 +74,13 @@ def test_update_letter_notification_statuses_when_notification_does_not_exist_up
 def test_update_letter_notifications_statuses_raises_dvla_exception(notify_api, mocker, sample_letter_template):
     valid_file = "ref-foo|Failed|1|Unsorted"
     mocker.patch("app.celery.tasks.s3.get_s3_file", return_value=valid_file)
-    create_notification(
-        sample_letter_template,
-        reference="ref-foo",
-        status=NOTIFICATION_SENDING,
-        billable_units=0,
+    save_notification(
+        create_notification(
+            sample_letter_template,
+            reference="ref-foo",
+            status=NOTIFICATION_SENDING,
+            billable_units=0,
+        )
     )
 
     with pytest.raises(DVLAException) as e:
@@ -127,17 +130,21 @@ def test_update_letter_notifications_statuses_builds_updates_list(notify_api, mo
 
 
 def test_update_letter_notifications_statuses_persisted(notify_api, mocker, sample_letter_template):
-    sent_letter = create_notification(
-        sample_letter_template,
-        reference="ref-foo",
-        status=NOTIFICATION_SENDING,
-        billable_units=1,
+    sent_letter = save_notification(
+        create_notification(
+            sample_letter_template,
+            reference="ref-foo",
+            status=NOTIFICATION_SENDING,
+            billable_units=1,
+        )
     )
-    failed_letter = create_notification(
-        sample_letter_template,
-        reference="ref-bar",
-        status=NOTIFICATION_SENDING,
-        billable_units=2,
+    failed_letter = save_notification(
+        create_notification(
+            sample_letter_template,
+            reference="ref-bar",
+            status=NOTIFICATION_SENDING,
+            billable_units=2,
+        )
     )
     create_service_callback_api(service=sample_letter_template.service, url="https://original_url.com")
     valid_file = "{}|Sent|1|Unsorted\n{}|Failed|2|Sorted".format(sent_letter.reference, failed_letter.reference)
@@ -162,11 +169,13 @@ def test_update_letter_notifications_statuses_persisted(notify_api, mocker, samp
 
 
 def test_update_letter_notifications_does_not_call_send_callback_if_no_db_entry(notify_api, mocker, sample_letter_template):
-    sent_letter = create_notification(
-        sample_letter_template,
-        reference="ref-foo",
-        status=NOTIFICATION_SENDING,
-        billable_units=0,
+    sent_letter = save_notification(
+        create_notification(
+            sample_letter_template,
+            reference="ref-foo",
+            status=NOTIFICATION_SENDING,
+            billable_units=0,
+        )
     )
     valid_file = "{}|Sent|1|Unsorted\n".format(sent_letter.reference)
     mocker.patch("app.celery.tasks.s3.get_s3_file", return_value=valid_file)
@@ -178,8 +187,8 @@ def test_update_letter_notifications_does_not_call_send_callback_if_no_db_entry(
 
 
 def test_update_letter_notifications_to_sent_to_dvla_updates_based_on_notification_references(client, sample_letter_template):
-    first = create_notification(sample_letter_template, reference="first ref")
-    second = create_notification(sample_letter_template, reference="second ref")
+    first = save_notification(create_notification(sample_letter_template, reference="first ref"))
+    second = save_notification(create_notification(sample_letter_template, reference="second ref"))
 
     dt = datetime.utcnow()
     with freeze_time(dt):
@@ -195,8 +204,8 @@ def test_update_letter_notifications_to_sent_to_dvla_updates_based_on_notificati
 def test_update_letter_notifications_to_error_updates_based_on_notification_references(
     sample_letter_template,
 ):
-    first = create_notification(sample_letter_template, reference="first ref")
-    second = create_notification(sample_letter_template, reference="second ref")
+    first = save_notification(create_notification(sample_letter_template, reference="first ref"))
+    second = save_notification(create_notification(sample_letter_template, reference="second ref"))
     create_service_callback_api(service=sample_letter_template.service, url="https://original_url.com")
     dt = datetime.utcnow()
     with freeze_time(dt):
@@ -214,7 +223,7 @@ def test_update_letter_notifications_to_error_updates_based_on_notification_refe
 def test_check_billable_units_when_billable_units_matches_page_count(client, sample_letter_template, mocker, notification_update):
     mock_logger = mocker.patch("app.celery.tasks.current_app.logger.error")
 
-    create_notification(sample_letter_template, reference="REFERENCE_ABC", billable_units=1)
+    save_notification(create_notification(sample_letter_template, reference="REFERENCE_ABC", billable_units=1))
 
     check_billable_units(notification_update)
 
@@ -226,7 +235,7 @@ def test_check_billable_units_when_billable_units_does_not_match_page_count(
 ):
     mock_logger = mocker.patch("app.celery.tasks.current_app.logger.exception")
 
-    notification = create_notification(sample_letter_template, reference="REFERENCE_ABC", billable_units=3)
+    notification = save_notification(create_notification(sample_letter_template, reference="REFERENCE_ABC", billable_units=3))
 
     check_billable_units(notification_update)
 

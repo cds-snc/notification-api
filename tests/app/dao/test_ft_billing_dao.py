@@ -31,6 +31,7 @@ from tests.app.db import (
     create_rate,
     create_service,
     create_template,
+    save_notification,
     set_up_usage_data,
 )
 
@@ -84,13 +85,13 @@ def test_fetch_billing_data_for_today_includes_data_with_the_right_status(
     service = create_service()
     template = create_template(service=service, template_type="email")
     for status in ["created", "technical-failure"]:
-        create_notification(template=template, status=status)
+        save_notification(create_notification(template=template, status=status))
 
     today = convert_utc_to_local_timezone(datetime.utcnow())
     results = fetch_billing_data_for_day(today)
     assert results == []
     for status in ["delivered", "sending", "temporary-failure"]:
-        create_notification(template=template, status=status)
+        save_notification(create_notification(template=template, status=status))
     results = fetch_billing_data_for_day(today)
     assert len(results) == 1
     assert results[0].notifications_sent == 3
@@ -102,7 +103,7 @@ def test_fetch_billing_data_for_today_includes_data_with_the_right_key_type(
     service = create_service()
     template = create_template(service=service, template_type="email")
     for key_type in ["normal", "test", "team"]:
-        create_notification(template=template, status="delivered", key_type=key_type)
+        save_notification(create_notification(template=template, status="delivered", key_type=key_type))
 
     today = convert_utc_to_local_timezone(datetime.utcnow())
     results = fetch_billing_data_for_day(today)
@@ -118,19 +119,23 @@ def test_fetch_billing_data_for_today_includes_data_with_the_right_date(
     process_day = datetime(2018, 4, 1, 13, 30, 0)
     service = create_service()
     template = create_template(service=service, template_type="email")
-    create_notification(template=template, status="delivered", created_at=process_day)
-    create_notification(
-        template=template,
-        status="delivered",
-        created_at=datetime(2018, 4, 1, 4, 23, 23),
+    save_notification(create_notification(template=template, status="delivered", created_at=process_day))
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            created_at=datetime(2018, 4, 1, 4, 23, 23),
+        )
     )
 
-    create_notification(
-        template=template,
-        status="delivered",
-        created_at=datetime(2018, 3, 31, 20, 23, 23),
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            created_at=datetime(2018, 3, 31, 20, 23, 23),
+        )
     )
-    create_notification(template=template, status="sending", created_at=process_day + timedelta(days=1))
+    save_notification(create_notification(template=template, status="sending", created_at=process_day + timedelta(days=1)))
 
     day_under_test = convert_utc_to_local_timezone(process_day)
     results = fetch_billing_data_for_day(day_under_test)
@@ -144,8 +149,8 @@ def test_fetch_billing_data_for_day_is_grouped_by_template_and_notification_type
     service = create_service()
     email_template = create_template(service=service, template_type="email")
     sms_template = create_template(service=service, template_type="sms")
-    create_notification(template=email_template, status="delivered")
-    create_notification(template=sms_template, status="delivered")
+    save_notification(create_notification(template=email_template, status="delivered"))
+    save_notification(create_notification(template=sms_template, status="delivered"))
 
     today = convert_utc_to_local_timezone(datetime.utcnow())
     results = fetch_billing_data_for_day(today)
@@ -159,8 +164,8 @@ def test_fetch_billing_data_for_day_is_grouped_by_service(notify_db_session):
     service_2 = create_service(service_name="Service 2")
     email_template = create_template(service=service_1)
     sms_template = create_template(service=service_2)
-    create_notification(template=email_template, status="delivered")
-    create_notification(template=sms_template, status="delivered")
+    save_notification(create_notification(template=email_template, status="delivered"))
+    save_notification(create_notification(template=sms_template, status="delivered"))
 
     today = convert_utc_to_local_timezone(datetime.utcnow())
     results = fetch_billing_data_for_day(today)
@@ -172,8 +177,8 @@ def test_fetch_billing_data_for_day_is_grouped_by_service(notify_db_session):
 def test_fetch_billing_data_for_day_is_grouped_by_provider(notify_db_session):
     service = create_service()
     template = create_template(service=service)
-    create_notification(template=template, status="delivered", sent_by="sns")
-    create_notification(template=template, status="delivered", sent_by="pinpoint")
+    save_notification(create_notification(template=template, status="delivered", sent_by="sns"))
+    save_notification(create_notification(template=template, status="delivered", sent_by="pinpoint"))
 
     today = convert_utc_to_local_timezone(datetime.utcnow())
     results = fetch_billing_data_for_day(today)
@@ -185,8 +190,8 @@ def test_fetch_billing_data_for_day_is_grouped_by_provider(notify_db_session):
 def test_fetch_billing_data_for_day_is_grouped_by_rate_mulitplier(notify_db_session):
     service = create_service()
     template = create_template(service=service)
-    create_notification(template=template, status="delivered", rate_multiplier=1)
-    create_notification(template=template, status="delivered", rate_multiplier=2)
+    save_notification(create_notification(template=template, status="delivered", rate_multiplier=1))
+    save_notification(create_notification(template=template, status="delivered", rate_multiplier=2))
 
     today = convert_utc_to_local_timezone(datetime.utcnow())
     results = fetch_billing_data_for_day(today)
@@ -198,8 +203,8 @@ def test_fetch_billing_data_for_day_is_grouped_by_rate_mulitplier(notify_db_sess
 def test_fetch_billing_data_for_day_is_grouped_by_international(notify_db_session):
     service = create_service()
     template = create_template(service=service)
-    create_notification(template=template, status="delivered", international=True)
-    create_notification(template=template, status="delivered", international=False)
+    save_notification(create_notification(template=template, status="delivered", international=True))
+    save_notification(create_notification(template=template, status="delivered", international=False))
 
     today = convert_utc_to_local_timezone(datetime.utcnow())
     results = fetch_billing_data_for_day(today)
@@ -213,12 +218,12 @@ def test_fetch_billing_data_for_day_is_grouped_by_notification_type(notify_db_se
     sms_template = create_template(service=service, template_type="sms")
     email_template = create_template(service=service, template_type="email")
     letter_template = create_template(service=service, template_type="letter")
-    create_notification(template=sms_template, status="delivered")
-    create_notification(template=sms_template, status="delivered")
-    create_notification(template=sms_template, status="delivered")
-    create_notification(template=email_template, status="delivered")
-    create_notification(template=email_template, status="delivered")
-    create_notification(template=letter_template, status="delivered")
+    save_notification(create_notification(template=sms_template, status="delivered"))
+    save_notification(create_notification(template=sms_template, status="delivered"))
+    save_notification(create_notification(template=sms_template, status="delivered"))
+    save_notification(create_notification(template=email_template, status="delivered"))
+    save_notification(create_notification(template=email_template, status="delivered"))
+    save_notification(create_notification(template=letter_template, status="delivered"))
 
     today = convert_utc_to_local_timezone(datetime.utcnow())
     results = fetch_billing_data_for_day(today)
@@ -231,10 +236,10 @@ def test_fetch_billing_data_for_day_groups_by_postage(notify_db_session):
     service = create_service()
     letter_template = create_template(service=service, template_type="letter")
     email_template = create_template(service=service, template_type="email")
-    create_notification(template=letter_template, status="delivered", postage="first")
-    create_notification(template=letter_template, status="delivered", postage="first")
-    create_notification(template=letter_template, status="delivered", postage="second")
-    create_notification(template=email_template, status="delivered")
+    save_notification(create_notification(template=letter_template, status="delivered", postage="first"))
+    save_notification(create_notification(template=letter_template, status="delivered", postage="first"))
+    save_notification(create_notification(template=letter_template, status="delivered", postage="second"))
+    save_notification(create_notification(template=email_template, status="delivered"))
 
     today = convert_utc_to_local_timezone(datetime.utcnow())
     results = fetch_billing_data_for_day(today)
@@ -247,8 +252,8 @@ def test_fetch_billing_data_for_day_sets_postage_for_emails_and_sms_to_none(
     service = create_service()
     sms_template = create_template(service=service, template_type="sms")
     email_template = create_template(service=service, template_type="email")
-    create_notification(template=sms_template, status="delivered")
-    create_notification(template=email_template, status="delivered")
+    save_notification(create_notification(template=sms_template, status="delivered"))
+    save_notification(create_notification(template=email_template, status="delivered"))
 
     today = convert_utc_to_local_timezone(datetime.utcnow())
     results = fetch_billing_data_for_day(today)
@@ -290,8 +295,8 @@ def test_fetch_billing_data_for_day_returns_list_for_given_service(notify_db_ses
     service_2 = create_service(service_name="Service 2")
     template = create_template(service=service)
     template_2 = create_template(service=service_2)
-    create_notification(template=template, status="delivered")
-    create_notification(template=template_2, status="delivered")
+    save_notification(create_notification(template=template, status="delivered"))
+    save_notification(create_notification(template=template_2, status="delivered"))
 
     today = convert_utc_to_local_timezone(datetime.utcnow())
     results = fetch_billing_data_for_day(process_day=today, service_id=service.id)
@@ -305,9 +310,9 @@ def test_fetch_billing_data_for_day_bills_correctly_for_status(notify_db_session
     email_template = create_template(service=service, template_type="email")
     letter_template = create_template(service=service, template_type="letter")
     for status in NOTIFICATION_STATUS_TYPES:
-        create_notification(template=sms_template, status=status)
-        create_notification(template=email_template, status=status)
-        create_notification(template=letter_template, status=status)
+        save_notification(create_notification(template=sms_template, status=status))
+        save_notification(create_notification(template=email_template, status=status))
+        save_notification(create_notification(template=letter_template, status=status))
     today = convert_utc_to_local_timezone(datetime.utcnow())
     results = fetch_billing_data_for_day(process_day=today, service_id=service.id)
 
@@ -474,7 +479,7 @@ def test_fetch_monthly_billing_for_year_adds_data_for_today(notify_db_session):
             notification_type="email",
             rate=0.162,
         )
-    create_notification(template=template, status="delivered")
+    save_notification(create_notification(template=template, status="delivered"))
 
     assert db.session.query(FactBilling.bst_date).count() == 31
     results = fetch_monthly_billing_for_year(service_id=service.id, year=2018)
