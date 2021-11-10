@@ -42,6 +42,7 @@ from tests.app.db import (
     create_service_callback_api,
     create_service_data_retention,
     create_template,
+    save_notification,
 )
 
 
@@ -182,20 +183,29 @@ def test_should_call_delete_letter_notifications_more_than_week_in_task(notify_a
 
 def test_update_status_of_notifications_after_timeout(notify_api, sample_template):
     with notify_api.test_request_context():
-        not1 = create_notification(
-            template=sample_template,
-            status="sending",
-            created_at=datetime.utcnow() - timedelta(seconds=current_app.config.get("SENDING_NOTIFICATIONS_TIMEOUT_PERIOD") + 10),
+        not1 = save_notification(
+            create_notification(
+                template=sample_template,
+                status="sending",
+                created_at=datetime.utcnow()
+                - timedelta(seconds=current_app.config.get("SENDING_NOTIFICATIONS_TIMEOUT_PERIOD") + 10),
+            )
         )
-        not2 = create_notification(
-            template=sample_template,
-            status="created",
-            created_at=datetime.utcnow() - timedelta(seconds=current_app.config.get("SENDING_NOTIFICATIONS_TIMEOUT_PERIOD") + 10),
+        not2 = save_notification(
+            create_notification(
+                template=sample_template,
+                status="created",
+                created_at=datetime.utcnow()
+                - timedelta(seconds=current_app.config.get("SENDING_NOTIFICATIONS_TIMEOUT_PERIOD") + 10),
+            )
         )
-        not3 = create_notification(
-            template=sample_template,
-            status="pending",
-            created_at=datetime.utcnow() - timedelta(seconds=current_app.config.get("SENDING_NOTIFICATIONS_TIMEOUT_PERIOD") + 10),
+        not3 = save_notification(
+            create_notification(
+                template=sample_template,
+                status="pending",
+                created_at=datetime.utcnow()
+                - timedelta(seconds=current_app.config.get("SENDING_NOTIFICATIONS_TIMEOUT_PERIOD") + 10),
+            )
         )
         with pytest.raises(NotificationTechnicalFailureException) as e:
             timeout_notifications()
@@ -207,10 +217,13 @@ def test_update_status_of_notifications_after_timeout(notify_api, sample_templat
 
 def test_not_update_status_of_notification_before_timeout(notify_api, sample_template):
     with notify_api.test_request_context():
-        not1 = create_notification(
-            template=sample_template,
-            status="sending",
-            created_at=datetime.utcnow() - timedelta(seconds=current_app.config.get("SENDING_NOTIFICATIONS_TIMEOUT_PERIOD") - 10),
+        not1 = save_notification(
+            create_notification(
+                template=sample_template,
+                status="sending",
+                created_at=datetime.utcnow()
+                - timedelta(seconds=current_app.config.get("SENDING_NOTIFICATIONS_TIMEOUT_PERIOD") - 10),
+            )
         )
         timeout_notifications()
         assert not1.status == "sending"
@@ -218,8 +231,8 @@ def test_not_update_status_of_notification_before_timeout(notify_api, sample_tem
 
 def test_should_not_update_status_of_letter_notifications(client, sample_letter_template):
     created_at = datetime.utcnow() - timedelta(days=5)
-    not1 = create_notification(template=sample_letter_template, status="sending", created_at=created_at)
-    not2 = create_notification(template=sample_letter_template, status="created", created_at=created_at)
+    not1 = save_notification(create_notification(template=sample_letter_template, status="sending", created_at=created_at))
+    not2 = save_notification(create_notification(template=sample_letter_template, status="created", created_at=created_at))
 
     timeout_notifications()
 
@@ -230,10 +243,12 @@ def test_should_not_update_status_of_letter_notifications(client, sample_letter_
 def test_timeout_notifications_sends_status_update_to_service(client, sample_template, mocker):
     callback_api = create_service_callback_api(service=sample_template.service)
     mocked = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
-    notification = create_notification(
-        template=sample_template,
-        status="sending",
-        created_at=datetime.utcnow() - timedelta(seconds=current_app.config.get("SENDING_NOTIFICATIONS_TIMEOUT_PERIOD") + 10),
+    notification = save_notification(
+        create_notification(
+            template=sample_template,
+            status="sending",
+            created_at=datetime.utcnow() - timedelta(seconds=current_app.config.get("SENDING_NOTIFICATIONS_TIMEOUT_PERIOD") + 10),
+        )
     )
     timeout_notifications()
 
@@ -412,7 +427,7 @@ def test_delete_dvla_response_files_older_than_seven_days_does_not_remove_files(
 @freeze_time("2018-01-17 17:00:00")
 def test_alert_if_letter_notifications_still_sending(sample_letter_template, mocker):
     two_days_ago = datetime(2018, 1, 15, 13, 30)
-    create_notification(template=sample_letter_template, status="sending", sent_at=two_days_ago)
+    save_notification(create_notification(template=sample_letter_template, status="sending", sent_at=two_days_ago))
 
     mock_create_ticket = mocker.patch("app.celery.nightly_tasks.zendesk_client.create_ticket")
 
@@ -428,7 +443,7 @@ def test_alert_if_letter_notifications_still_sending(sample_letter_template, moc
 def test_alert_if_letter_notifications_still_sending_a_day_ago_no_alert(sample_letter_template, mocker):
     today = datetime.utcnow()
     one_day_ago = today - timedelta(days=1)
-    create_notification(template=sample_letter_template, status="sending", sent_at=one_day_ago)
+    save_notification(create_notification(template=sample_letter_template, status="sending", sent_at=one_day_ago))
 
     mock_create_ticket = mocker.patch("app.celery.nightly_tasks.zendesk_client.create_ticket")
 
@@ -439,9 +454,9 @@ def test_alert_if_letter_notifications_still_sending_a_day_ago_no_alert(sample_l
 @freeze_time("2018-01-17 17:00:00")
 def test_alert_if_letter_notifications_still_sending_only_alerts_sending(sample_letter_template, mocker):
     two_days_ago = datetime(2018, 1, 15, 13, 30)
-    create_notification(template=sample_letter_template, status="sending", sent_at=two_days_ago)
-    create_notification(template=sample_letter_template, status="delivered", sent_at=two_days_ago)
-    create_notification(template=sample_letter_template, status="failed", sent_at=two_days_ago)
+    save_notification(create_notification(template=sample_letter_template, status="sending", sent_at=two_days_ago))
+    save_notification(create_notification(template=sample_letter_template, status="delivered", sent_at=two_days_ago))
+    save_notification(create_notification(template=sample_letter_template, status="failed", sent_at=two_days_ago))
 
     mock_create_ticket = mocker.patch("app.celery.nightly_tasks.zendesk_client.create_ticket")
 
@@ -457,7 +472,7 @@ def test_alert_if_letter_notifications_still_sending_only_alerts_sending(sample_
 @freeze_time("2018-01-17 17:00:00")
 def test_alert_if_letter_notifications_still_sending_alerts_for_older_than_offset(sample_letter_template, mocker):
     three_days_ago = datetime(2018, 1, 14, 13, 30)
-    create_notification(template=sample_letter_template, status="sending", sent_at=three_days_ago)
+    save_notification(create_notification(template=sample_letter_template, status="sending", sent_at=three_days_ago))
 
     mock_create_ticket = mocker.patch("app.celery.nightly_tasks.zendesk_client.create_ticket")
 
@@ -473,7 +488,7 @@ def test_alert_if_letter_notifications_still_sending_alerts_for_older_than_offse
 @freeze_time("2018-01-14 17:00:00")
 def test_alert_if_letter_notifications_still_sending_does_nothing_on_the_weekend(sample_letter_template, mocker):
     yesterday = datetime(2018, 1, 13, 13, 30)
-    create_notification(template=sample_letter_template, status="sending", sent_at=yesterday)
+    save_notification(create_notification(template=sample_letter_template, status="sending", sent_at=yesterday))
 
     mock_create_ticket = mocker.patch("app.celery.nightly_tasks.zendesk_client.create_ticket")
 
@@ -486,8 +501,8 @@ def test_alert_if_letter_notifications_still_sending_does_nothing_on_the_weekend
 def test_monday_alert_if_letter_notifications_still_sending_reports_thursday_letters(sample_letter_template, mocker):
     thursday = datetime(2018, 1, 11, 13, 30)
     yesterday = datetime(2018, 1, 14, 13, 30)
-    create_notification(template=sample_letter_template, status="sending", sent_at=thursday)
-    create_notification(template=sample_letter_template, status="sending", sent_at=yesterday)
+    save_notification(create_notification(template=sample_letter_template, status="sending", sent_at=thursday))
+    save_notification(create_notification(template=sample_letter_template, status="sending", sent_at=yesterday))
 
     mock_create_ticket = mocker.patch("app.celery.nightly_tasks.zendesk_client.create_ticket")
 
@@ -504,8 +519,8 @@ def test_monday_alert_if_letter_notifications_still_sending_reports_thursday_let
 def test_tuesday_alert_if_letter_notifications_still_sending_reports_friday_letters(sample_letter_template, mocker):
     friday = datetime(2018, 1, 12, 13, 30)
     yesterday = datetime(2018, 1, 14, 13, 30)
-    create_notification(template=sample_letter_template, status="sending", sent_at=friday)
-    create_notification(template=sample_letter_template, status="sending", sent_at=yesterday)
+    save_notification(create_notification(template=sample_letter_template, status="sending", sent_at=friday))
+    save_notification(create_notification(template=sample_letter_template, status="sending", sent_at=yesterday))
 
     mock_create_ticket = mocker.patch("app.celery.nightly_tasks.zendesk_client.create_ticket")
 

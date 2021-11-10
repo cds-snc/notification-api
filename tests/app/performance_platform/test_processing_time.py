@@ -6,7 +6,7 @@ from app.performance_platform.processing_time import (
     send_processing_time_data,
     send_processing_time_to_performance_platform,
 )
-from tests.app.db import create_notification
+from tests.app.db import create_notification, save_notification
 
 
 @freeze_time("2016-10-18T06:00")
@@ -16,17 +16,21 @@ def test_send_processing_time_to_performance_platform_generates_correct_calls(mo
 
     created_at = datetime.utcnow() - timedelta(days=1)
 
-    create_notification(
-        sample_template,
-        created_at=created_at,
-        sent_at=created_at + timedelta(seconds=5),
+    save_notification(
+        create_notification(
+            sample_template,
+            created_at=created_at,
+            sent_at=created_at + timedelta(seconds=5),
+        )
     )
-    create_notification(
-        sample_template,
-        created_at=created_at,
-        sent_at=created_at + timedelta(seconds=15),
+    save_notification(
+        create_notification(
+            sample_template,
+            created_at=created_at,
+            sent_at=created_at + timedelta(seconds=15),
+        )
     )
-    create_notification(sample_template, created_at=datetime.utcnow() - timedelta(days=2))
+    save_notification(create_notification(sample_template, created_at=datetime.utcnow() - timedelta(days=2)))
 
     send_processing_time_to_performance_platform(date(2016, 10, 17))
 

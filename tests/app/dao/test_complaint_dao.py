@@ -13,6 +13,7 @@ from tests.app.db import (
     create_notification,
     create_service,
     create_template,
+    save_notification,
 )
 
 
@@ -72,9 +73,9 @@ def test_fetch_complaint_by_service_return_many(notify_db_session):
     service_2 = create_service(service_name="second")
     template_1 = create_template(service=service_1, template_type="email")
     template_2 = create_template(service=service_2, template_type="email")
-    notification_1 = create_notification(template=template_1)
-    notification_2 = create_notification(template=template_2)
-    notification_3 = create_notification(template=template_2)
+    notification_1 = save_notification(create_notification(template=template_1))
+    notification_2 = save_notification(create_notification(template=template_2))
+    notification_3 = save_notification(create_notification(template=template_2))
     complaint_1 = Complaint(
         notification_id=notification_1.id,
         service_id=service_1.id,

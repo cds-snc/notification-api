@@ -40,7 +40,7 @@ from app.models import (
     Notification,
 )
 from celery.exceptions import MaxRetriesExceededError, Retry
-from tests.app.db import create_letter_branding, create_notification
+from tests.app.db import create_letter_branding, create_notification, save_notification
 from tests.conftest import set_config_values
 
 
@@ -478,12 +478,14 @@ def test_process_letter_task_check_virus_scan_passed(
     bucket_config_name,
     destination_folder,
 ):
-    letter_notification = create_notification(
-        template=sample_letter_template,
-        billable_units=0,
-        status="pending-virus-check",
-        key_type=key_type,
-        reference="{} letter".format(key_type),
+    letter_notification = save_notification(
+        create_notification(
+            template=sample_letter_template,
+            billable_units=0,
+            status="pending-virus-check",
+            key_type=key_type,
+            reference="{} letter".format(key_type),
+        )
     )
     filename = "NOTIFY.{}".format(letter_notification.reference)
     source_bucket_name = current_app.config["LETTERS_SCAN_BUCKET_NAME"]

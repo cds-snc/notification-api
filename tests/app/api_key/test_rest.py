@@ -7,6 +7,7 @@ from tests.app.db import (
     create_notification,
     create_service,
     create_template,
+    save_notification,
 )
 
 
@@ -18,7 +19,8 @@ def test_get_api_key_stats_with_sends(admin_request, notify_db, notify_db_sessio
     total_sends = 10
 
     for x in range(total_sends):
-        create_notification(template=template, api_key=api_key)
+        notification = create_notification(template=template, api_key=api_key)
+        save_notification(notification)
 
     api_key_stats = admin_request.get("api_key.get_api_key_stats", api_key_id=api_key.id)["data"]
 
@@ -56,10 +58,10 @@ def test_get_api_keys_ranked(admin_request, notify_db, notify_db_session):
     template_email = create_template(service=service, template_type="email")
     total_sends = 10
 
-    create_notification(template=template_email, api_key=api_key_1)
+    save_notification(create_notification(template=template_email, api_key=api_key_1))
     for x in range(total_sends):
-        create_notification(template=template_email, api_key=api_key_1)
-        create_notification(template=template_email, api_key=api_key_2)
+        save_notification(create_notification(template=template_email, api_key=api_key_1))
+        save_notification(create_notification(template=template_email, api_key=api_key_2))
 
     api_keys_ranked = admin_request.get("api_key.get_api_keys_ranked", n_days_back=2)["data"]
 

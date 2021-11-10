@@ -16,6 +16,7 @@ from tests.app.db import (
     create_service,
     create_service_callback_api,
     create_template,
+    save_notification,
 )
 
 
@@ -25,12 +26,14 @@ def test_send_delivery_status_to_service_post_https_request_to_service_with_encr
     callback_api, template = _set_up_test_data(notification_type, "delivery_status")
     datestr = datetime(2017, 6, 20)
 
-    notification = create_notification(
-        template=template,
-        created_at=datestr,
-        updated_at=datestr,
-        sent_at=datestr,
-        status="sent",
+    notification = save_notification(
+        create_notification(
+            template=template,
+            created_at=datestr,
+            updated_at=datestr,
+            sent_at=datestr,
+            status="sent",
+        )
     )
     encrypted_status_update = _set_up_data_for_status_update(callback_api, notification)
     with requests_mock.Mocker() as request_mock:
@@ -92,12 +95,14 @@ def test__send_data_to_service_callback_api_retries_if_request_returns_500_with_
 ):
     callback_api, template = _set_up_test_data(notification_type, "delivery_status")
     datestr = datetime(2017, 6, 20)
-    notification = create_notification(
-        template=template,
-        created_at=datestr,
-        updated_at=datestr,
-        sent_at=datestr,
-        status="sent",
+    notification = save_notification(
+        create_notification(
+            template=template,
+            created_at=datestr,
+            updated_at=datestr,
+            sent_at=datestr,
+            status="sent",
+        )
     )
     encrypted_data = _set_up_data_for_status_update(callback_api, notification)
     mocked = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.retry")
@@ -115,12 +120,14 @@ def test__send_data_to_service_callback_api_does_not_retry_if_request_returns_40
 ):
     callback_api, template = _set_up_test_data(notification_type, "delivery_status")
     datestr = datetime(2017, 6, 20)
-    notification = create_notification(
-        template=template,
-        created_at=datestr,
-        updated_at=datestr,
-        sent_at=datestr,
-        status="sent",
+    notification = save_notification(
+        create_notification(
+            template=template,
+            created_at=datestr,
+            updated_at=datestr,
+            sent_at=datestr,
+            status="sent",
+        )
     )
     encrypted_data = _set_up_data_for_status_update(callback_api, notification)
     mocked = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.retry")
@@ -134,12 +141,14 @@ def test__send_data_to_service_callback_api_does_not_retry_if_request_returns_40
 def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(notify_db_session, mocker):
     callback_api, template = _set_up_test_data("email", "delivery_status")
     datestr = datetime(2017, 6, 20)
-    notification = create_notification(
-        template=template,
-        created_at=datestr,
-        updated_at=datestr,
-        sent_at=None,
-        status="technical-failure",
+    notification = save_notification(
+        create_notification(
+            template=template,
+            created_at=datestr,
+            updated_at=datestr,
+            sent_at=None,
+            status="technical-failure",
+        )
     )
     encrypted_data = _set_up_data_for_status_update(callback_api, notification)
     mocked = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.retry")

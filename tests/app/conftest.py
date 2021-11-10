@@ -63,6 +63,7 @@ from tests.app.db import (
     create_service,
     create_template,
     create_user,
+    save_notification,
 )
 
 
@@ -494,19 +495,21 @@ def sample_notification_with_job(
         template = create_template(service=service)
     if job is None:
         job = create_job(template=template)
-    return create_notification(
-        template=template,
-        job=job,
-        job_row_number=job_row_number if job_row_number is not None else None,
-        to_field=to_field,
-        status=status,
-        reference=reference,
-        created_at=created_at,
-        sent_at=sent_at,
-        billable_units=billable_units,
-        personalisation=personalisation,
-        api_key=api_key,
-        key_type=key_type,
+    return save_notification(
+        create_notification(
+            template=template,
+            job=job,
+            job_row_number=job_row_number if job_row_number is not None else None,
+            to_field=to_field,
+            status=status,
+            reference=reference,
+            created_at=created_at,
+            sent_at=sent_at,
+            billable_units=billable_units,
+            personalisation=personalisation,
+            api_key=api_key,
+            key_type=key_type,
+        )
     )
 
 
@@ -612,7 +615,7 @@ def sample_letter_notification(sample_letter_template):
         "address_line_6": "A6",
         "postcode": "A_POST",
     }
-    return create_notification(sample_letter_template, reference="foo", personalisation=address)
+    return save_notification(create_notification(sample_letter_template, reference="foo", personalisation=address))
 
 
 @pytest.fixture(scope="function")

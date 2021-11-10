@@ -11,7 +11,7 @@ from app.dao.templates_dao import dao_update_template
 from app.models import KEY_TYPE_NORMAL, KEY_TYPE_TEAM, KEY_TYPE_TEST, ApiKey
 from tests import create_authorization_header
 from tests.app.conftest import sample_notification as create_sample_notification
-from tests.app.db import create_api_key, create_notification
+from tests.app.db import create_api_key, create_notification, save_notification
 
 
 @pytest.mark.parametrize("type", ("email", "sms", "letter"))
@@ -229,10 +229,10 @@ def test_do_not_return_job_notifications_by_default(client, sample_template, sam
     normal_api_key = create_api_key(sample_template.service, KEY_TYPE_NORMAL)
     test_api_key = create_api_key(sample_template.service, KEY_TYPE_TEST)
 
-    create_notification(sample_template, job=sample_job)
-    normal_notification = create_notification(sample_template, api_key=normal_api_key)
-    team_notification = create_notification(sample_template, api_key=team_api_key)
-    test_notification = create_notification(sample_template, api_key=test_api_key)
+    save_notification(create_notification(sample_template, job=sample_job))
+    normal_notification = save_notification(create_notification(sample_template, api_key=normal_api_key))
+    team_notification = save_notification(create_notification(sample_template, api_key=team_api_key))
+    test_notification = save_notification(create_notification(sample_template, api_key=test_api_key))
 
     notification_objs = {
         KEY_TYPE_NORMAL: normal_notification,
@@ -423,8 +423,8 @@ def test_filter_by_template_type(client, notify_db, notify_db_session, sample_te
 
 
 def test_filter_by_multiple_template_types(client, sample_template, sample_email_template):
-    create_notification(sample_template)
-    create_notification(sample_email_template)
+    save_notification(create_notification(sample_template))
+    save_notification(create_notification(sample_email_template))
 
     auth_header = create_authorization_header(service_id=sample_email_template.service_id)
 
@@ -437,8 +437,8 @@ def test_filter_by_multiple_template_types(client, sample_template, sample_email
 
 
 def test_filter_by_status(client, sample_email_template):
-    create_notification(sample_email_template, status="delivered")
-    create_notification(sample_email_template)
+    save_notification(create_notification(sample_email_template, status="delivered"))
+    save_notification(create_notification(sample_email_template))
 
     auth_header = create_authorization_header(service_id=sample_email_template.service_id)
 
@@ -451,8 +451,8 @@ def test_filter_by_status(client, sample_email_template):
 
 
 def test_filter_by_multiple_statuses(client, sample_email_template):
-    create_notification(sample_email_template, status="delivered")
-    create_notification(sample_email_template, status="sending")
+    save_notification(create_notification(sample_email_template, status="delivered"))
+    save_notification(create_notification(sample_email_template, status="sending"))
 
     auth_header = create_authorization_header(service_id=sample_email_template.service_id)
 
@@ -465,9 +465,9 @@ def test_filter_by_multiple_statuses(client, sample_email_template):
 
 
 def test_filter_by_status_and_template_type(client, sample_template, sample_email_template):
-    create_notification(sample_template)
-    create_notification(sample_email_template)
-    create_notification(sample_email_template, status="delivered")
+    save_notification(create_notification(sample_template))
+    save_notification(create_notification(sample_email_template))
+    save_notification(create_notification(sample_email_template, status="delivered"))
 
     auth_header = create_authorization_header(service_id=sample_email_template.service_id)
 
@@ -482,7 +482,9 @@ def test_filter_by_status_and_template_type(client, sample_template, sample_emai
 
 def test_get_notification_by_id_returns_merged_template_content(client, sample_template_with_placeholders):
 
-    sample_notification = create_notification(sample_template_with_placeholders, personalisation={"name": "world"})
+    sample_notification = save_notification(
+        create_notification(sample_template_with_placeholders, personalisation={"name": "world"})
+    )
 
     auth_header = create_authorization_header(service_id=sample_notification.service_id)
 
@@ -496,7 +498,9 @@ def test_get_notification_by_id_returns_merged_template_content(client, sample_t
 
 
 def test_get_notification_by_id_returns_merged_template_content_for_email(client, sample_email_template_with_placeholders):
-    sample_notification = create_notification(sample_email_template_with_placeholders, personalisation={"name": "world"})
+    sample_notification = save_notification(
+        create_notification(sample_email_template_with_placeholders, personalisation={"name": "world"})
+    )
     auth_header = create_authorization_header(service_id=sample_notification.service_id)
 
     response = client.get("/notifications/{}".format(sample_notification.id), headers=[auth_header])

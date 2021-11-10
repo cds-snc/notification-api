@@ -4,7 +4,7 @@ from unittest.mock import Mock
 import pytest
 from freezegun import freeze_time
 
-from tests.app.db import create_notification
+from tests.app.db import create_notification, save_notification
 
 
 def set_up_get_all_from_hash(mock_redis, side_effect):
@@ -128,9 +128,9 @@ def test_get_template_statistics_for_service_by_day_returns_empty_list_if_no_tem
 
 
 def test_get_template_statistics_for_template_returns_last_notification(admin_request, sample_template):
-    create_notification(sample_template)
-    create_notification(sample_template)
-    notification_3 = create_notification(sample_template)
+    save_notification(create_notification(sample_template))
+    save_notification(create_notification(sample_template))
+    notification_3 = save_notification(create_notification(sample_template))
 
     json_resp = admin_request.get(
         "template_statistics.get_template_statistics_for_template_id",
