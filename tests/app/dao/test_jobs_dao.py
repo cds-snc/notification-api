@@ -23,6 +23,7 @@ from tests.app.db import (
     create_notification,
     create_service,
     create_template,
+    save_notification,
 )
 
 
@@ -31,11 +32,11 @@ def test_should_have_decorated_notifications_dao_functions():
 
 
 def test_should_count_of_statuses_for_notifications_associated_with_job(sample_template, sample_job):
-    create_notification(sample_template, job=sample_job, status="created")
-    create_notification(sample_template, job=sample_job, status="created")
-    create_notification(sample_template, job=sample_job, status="created")
-    create_notification(sample_template, job=sample_job, status="sending")
-    create_notification(sample_template, job=sample_job, status="delivered")
+    save_notification(create_notification(sample_template, job=sample_job, status="created"))
+    save_notification(create_notification(sample_template, job=sample_job, status="created"))
+    save_notification(create_notification(sample_template, job=sample_job, status="created"))
+    save_notification(create_notification(sample_template, job=sample_job, status="sending"))
+    save_notification(create_notification(sample_template, job=sample_job, status="delivered"))
 
     results = dao_get_notification_outcomes_for_job(sample_template.service_id, sample_job.id)
     assert {row.status: row.count for row in results} == {
@@ -53,8 +54,8 @@ def test_should_return_notifications_only_for_this_job(sample_template):
     job_1 = create_job(sample_template)
     job_2 = create_job(sample_template)
 
-    create_notification(sample_template, job=job_1, status="created")
-    create_notification(sample_template, job=job_2, status="sent")
+    save_notification(create_notification(sample_template, job=job_1, status="created"))
+    save_notification(create_notification(sample_template, job=job_2, status="sent"))
 
     results = dao_get_notification_outcomes_for_job(sample_template.service_id, job_1.id)
     assert {row.status: row.count for row in results} == {"created": 1}
@@ -67,7 +68,7 @@ def test_should_return_notifications_only_for_this_service(
     other_template = create_template(service=other_service)
     other_job = create_job(other_template)
 
-    create_notification(other_template, job=other_job)
+    save_notification(create_notification(other_template, job=other_job))
 
     assert len(dao_get_notification_outcomes_for_job(sample_notification_with_job.service_id, other_job.id)) == 0
     assert len(dao_get_notification_outcomes_for_job(other_service.id, sample_notification_with_job.id)) == 0
@@ -344,7 +345,7 @@ def assert_job_stat(job, result, sent, delivered, failed):
 @freeze_time("2019-06-13 13:00")
 def test_dao_cancel_letter_job_cancels_job_and_returns_number_of_cancelled_notifications(sample_letter_template, admin_request):
     job = create_job(template=sample_letter_template, notification_count=1, job_status="finished")
-    notification = create_notification(template=job.template, job=job, status="created")
+    notification = save_notification(create_notification(template=job.template, job=job, status="created"))
     result = dao_cancel_letter_job(job)
     assert result == 1
     assert notification.status == "cancelled"
@@ -354,7 +355,7 @@ def test_dao_cancel_letter_job_cancels_job_and_returns_number_of_cancelled_notif
 @freeze_time("2019-06-13 13:00")
 def test_can_letter_job_be_cancelled_returns_true_if_job_can_be_cancelled(sample_letter_template, admin_request):
     job = create_job(template=sample_letter_template, notification_count=1, job_status="finished")
-    create_notification(template=job.template, job=job, status="created")
+    save_notification(create_notification(template=job.template, job=job, status="created"))
     result, errors = can_letter_job_be_cancelled(job)
     assert result
     assert not errors
@@ -365,8 +366,8 @@ def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_notifica
     sample_letter_template, admin_request
 ):
     job = create_job(template=sample_letter_template, notification_count=2, job_status="finished")
-    create_notification(template=job.template, job=job, status="sending")
-    create_notification(template=job.template, job=job, status="created")
+    save_notification(create_notification(template=job.template, job=job, status="sending"))
+    save_notification(create_notification(template=job.template, job=job, status="created"))
     result, errors = can_letter_job_be_cancelled(job)
     assert not result
     assert errors == "It’s too late to cancel sending, these letters have already been sent."
@@ -378,7 +379,7 @@ def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_letters_
 ):
     with freeze_time("2019-06-13 13:00"):
         job = create_job(template=sample_letter_template, notification_count=1, job_status="finished")
-        letter = create_notification(template=job.template, job=job, status="created")
+        letter = save_notification(create_notification(template=job.template, job=job, status="created"))
 
     with freeze_time("2019-06-13 17:32"):
         result, errors = can_letter_job_be_cancelled(job)
@@ -391,7 +392,7 @@ def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_letters_
 @freeze_time("2019-06-13 13:00")
 def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_not_a_letter_job(sample_template, admin_request):
     job = create_job(template=sample_template, notification_count=1, job_status="finished")
-    create_notification(template=job.template, job=job, status="created")
+    save_notification(create_notification(template=job.template, job=job, status="created"))
     result, errors = can_letter_job_be_cancelled(job)
     assert not result
     assert errors == "Only letter jobs can be cancelled through this endpoint. This is not a letter job."
@@ -400,7 +401,7 @@ def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_not_a_le
 @freeze_time("2019-06-13 13:00")
 def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_job_not_finished(sample_letter_template, admin_request):
     job = create_job(template=sample_letter_template, notification_count=1, job_status="in progress")
-    create_notification(template=job.template, job=job, status="created")
+    save_notification(create_notification(template=job.template, job=job, status="created"))
     result, errors = can_letter_job_be_cancelled(job)
     assert not result
     assert errors == "We are still processing these letters, please try again in a minute."
@@ -411,7 +412,7 @@ def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_notifica
     sample_letter_template, admin_request
 ):
     job = create_job(template=sample_letter_template, notification_count=2, job_status="finished")
-    create_notification(template=job.template, job=job, status="created")
+    save_notification(create_notification(template=job.template, job=job, status="created"))
     result, errors = can_letter_job_be_cancelled(job)
     assert not result
     assert errors == "We are still processing these letters, please try again in a minute."

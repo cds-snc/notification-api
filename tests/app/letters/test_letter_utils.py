@@ -23,7 +23,7 @@ from app.models import (
     NOTIFICATION_VALIDATION_FAILED,
     PRECOMPILED_TEMPLATE_NAME,
 )
-from tests.app.db import create_notification
+from tests.app.db import create_notification, save_notification
 
 FROZEN_DATE_TIME = "2018-03-14 17:00:00"
 
@@ -246,7 +246,7 @@ def test_upload_letter_pdf_to_correct_bucket(sample_letter_notification, mocker,
 
 @pytest.mark.parametrize("postage,expected_postage", [("second", 2), ("first", 1)])
 def test_upload_letter_pdf_uses_postage_from_notification(sample_letter_template, mocker, postage, expected_postage):
-    letter_notification = create_notification(template=sample_letter_template, postage=postage)
+    letter_notification = save_notification(create_notification(template=sample_letter_template, postage=postage))
     mock_s3 = mocker.patch("app.letters.utils.s3upload")
 
     filename = get_letter_pdf_filename(

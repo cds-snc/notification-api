@@ -28,6 +28,7 @@ from tests.app.db import (
     create_service,
     create_template,
     create_template_folder,
+    save_notification,
 )
 from tests.conftest import set_config_values
 
@@ -1117,7 +1118,7 @@ def test_preview_letter_template_precompiled_pdf_file_type(notify_api, client, a
         hidden=True,
     )
 
-    notification = create_notification(template)
+    notification = save_notification(create_notification(template))
 
     with set_config_values(
         notify_api,
@@ -1153,7 +1154,7 @@ def test_preview_letter_template_precompiled_s3_error(notify_api, client, admin_
         hidden=True,
     )
 
-    notification = create_notification(template)
+    notification = save_notification(create_notification(template))
 
     with set_config_values(
         notify_api,
@@ -1211,7 +1212,7 @@ def test_preview_letter_template_precompiled_png_file_type_or_pdf_with_overlay(
         hidden=True,
     )
 
-    notification = create_notification(template)
+    notification = save_notification(create_notification(template))
 
     with set_config_values(
         notify_api,
@@ -1285,7 +1286,7 @@ def test_preview_letter_template_precompiled_png_file_type_hide_notify_tag_only_
         hidden=True,
     )
 
-    notification = create_notification(template)
+    notification = save_notification(create_notification(template))
 
     with set_config_values(
         notify_api,
@@ -1325,7 +1326,7 @@ def test_preview_letter_template_precompiled_png_template_preview_500_error(
         hidden=True,
     )
 
-    notification = create_notification(template)
+    notification = save_notification(create_notification(template))
 
     with set_config_values(
         notify_api,
@@ -1374,7 +1375,7 @@ def test_preview_letter_template_precompiled_png_template_preview_400_error(
         hidden=True,
     )
 
-    notification = create_notification(template)
+    notification = save_notification(create_notification(template))
 
     with set_config_values(
         notify_api,
@@ -1423,7 +1424,7 @@ def test_preview_letter_template_precompiled_png_template_preview_pdf_error(
         hidden=True,
     )
 
-    notification = create_notification(template)
+    notification = save_notification(create_notification(template))
 
     with set_config_values(
         notify_api,

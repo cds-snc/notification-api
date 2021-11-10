@@ -18,6 +18,7 @@ from tests.app.db import (
     create_notification,
     create_service,
     create_template,
+    save_notification,
 )
 
 
@@ -25,7 +26,7 @@ from tests.app.db import (
 # This test assumes the local timezone is EST
 def test_get_template_usage_by_month_returns_correct_data(admin_request, sample_template):
     create_ft_notification_status(utc_date=date(2017, 4, 2), template=sample_template, count=3)
-    create_notification(sample_template, created_at=datetime.utcnow())
+    save_notification(create_notification(sample_template, created_at=datetime.utcnow()))
 
     resp_json = admin_request.get(
         "service.get_monthly_template_usage",
@@ -62,7 +63,7 @@ def test_get_template_usage_by_month_returns_two_templates(admin_request, sample
     )
     create_ft_notification_status(utc_date=datetime(2017, 4, 1), template=template_one, count=1)
     create_ft_notification_status(utc_date=datetime(2017, 4, 1), template=sample_template, count=3)
-    create_notification(sample_template, created_at=datetime.utcnow())
+    save_notification(create_notification(sample_template, created_at=datetime.utcnow()))
 
     resp_json = admin_request.get(
         "service.get_monthly_template_usage",
@@ -109,7 +110,7 @@ def test_get_template_usage_by_month_returns_two_templates(admin_request, sample
 def test_get_service_notification_statistics(admin_request, sample_service, sample_template, today_only, stats):
     create_ft_notification_status(date(2000, 1, 1), "sms", sample_service, count=1)
     with freeze_time("2000-01-02T12:00:00"):
-        create_notification(sample_template, status="created")
+        save_notification(create_notification(sample_template, status="created"))
         resp = admin_request.get(
             "service.get_service_notification_statistics",
             service_id=sample_template.service_id,
@@ -230,11 +231,11 @@ def test_get_monthly_notification_stats_combines_todays_data_and_historic_stats(
         count=2,
     )  # noqa
 
-    create_notification(sample_template, created_at=datetime(2016, 6, 5), status="created")
-    create_notification(sample_template, created_at=datetime(2016, 6, 5), status="delivered")
+    save_notification(create_notification(sample_template, created_at=datetime(2016, 6, 5), status="created"))
+    save_notification(create_notification(sample_template, created_at=datetime(2016, 6, 5), status="delivered"))
 
     # this doesn't get returned in the stats because it is old - it should be in ft_notification_status by now
-    create_notification(sample_template, created_at=datetime(2016, 6, 4), status="sending")
+    save_notification(create_notification(sample_template, created_at=datetime(2016, 6, 4), status="sending"))
 
     response = admin_request.get(
         "service.get_monthly_notification_stats",

@@ -16,7 +16,11 @@ from app.models import (
 )
 from app.notifications.callbacks import create_delivery_status_callback_data
 from tests.app.conftest import sample_notification as create_sample_notification
-from tests.app.db import create_notification, create_service_callback_api
+from tests.app.db import (
+    create_notification,
+    create_service_callback_api,
+    save_notification,
+)
 
 
 def test_process_sns_results_delivered(sample_template, notify_db, notify_db_session, mocker):
@@ -135,12 +139,14 @@ def test_sns_callback_should_not_retry_if_notification_is_old(client, notify_db,
 
 
 def test_process_sns_results_retry_called(sample_template, mocker):
-    create_notification(
-        sample_template,
-        reference="ref1",
-        sent_at=datetime.utcnow(),
-        status=NOTIFICATION_SENT,
-        sent_by="sns",
+    save_notification(
+        create_notification(
+            sample_template,
+            reference="ref1",
+            sent_at=datetime.utcnow(),
+            status=NOTIFICATION_SENT,
+            sent_by="sns",
+        )
     )
 
     mocker.patch(
@@ -155,12 +161,14 @@ def test_process_sns_results_retry_called(sample_template, mocker):
 def test_process_sns_results_does_not_process_other_providers(sample_template, mocker):
     mock_logger = mocker.patch("app.celery.process_sns_receipts_tasks.current_app.logger.exception")
     mock_dao = mocker.patch("app.dao.notifications_dao._update_notification_status")
-    create_notification(
-        sample_template,
-        reference="ref1",
-        sent_at=datetime.utcnow(),
-        status=NOTIFICATION_SENT,
-        sent_by="pinpoint",
+    save_notification(
+        create_notification(
+            sample_template,
+            reference="ref1",
+            sent_at=datetime.utcnow(),
+            status=NOTIFICATION_SENT,
+            sent_by="pinpoint",
+        )
     )
 
     process_sns_results(response=sns_success_callback(reference="ref1")) is None

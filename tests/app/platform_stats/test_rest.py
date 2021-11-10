@@ -11,6 +11,7 @@ from tests.app.db import (
     create_notification,
     create_service,
     create_template,
+    save_notification,
     set_up_usage_data,
 )
 
@@ -53,9 +54,9 @@ def test_get_platform_stats_with_real_query(admin_request, notify_db_session):
     create_ft_notification_status(date(2018, 10, 29), "sms", service_1, count=10)
     create_ft_notification_status(date(2018, 10, 29), "email", service_1, count=3)
 
-    create_notification(sms_template, created_at=datetime(2018, 10, 31, 11, 0, 0), key_type="test")
-    create_notification(sms_template, created_at=datetime(2018, 10, 31, 12, 0, 0), status="delivered")
-    create_notification(email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status="delivered")
+    save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 11, 0, 0), key_type="test"))
+    save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 12, 0, 0), status="delivered"))
+    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status="delivered"))
 
     response = admin_request.get(
         "platform_stats.get_platform_stats",

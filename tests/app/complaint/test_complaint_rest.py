@@ -10,13 +10,14 @@ from tests.app.db import (
     create_notification,
     create_service,
     create_template,
+    save_notification,
 )
 
 
 def test_get_all_complaints_returns_complaints_for_multiple_services(client, notify_db_session):
     service = create_service(service_name="service1")
     template = create_template(service=service)
-    notification = create_notification(template=template)
+    notification = save_notification(create_notification(template=template))
     complaint_1 = create_complaint()  # default service
     complaint_2 = create_complaint(service=service, notification=notification)
 
