@@ -8,6 +8,6 @@ mkdir -p $load_test_csv_directory_path/$current_time
 
 locust --headless --config tests-perf/locust/locust.conf --csv $load_test_csv_directory_path/$current_time/load_test
 
-aws s3 cp $load_test_csv_directory_path/ "s3://$load_test_aws_s3_bucket" --recursive | grep -q 'An error occurred' && exit 1
+aws s3 cp $perf_test_csv_directory_path/ "s3://$perf_test_aws_s3_bucket" --recursive || exit 1
 
 rm -rf $load_test_csv_directory_path/$current_time
