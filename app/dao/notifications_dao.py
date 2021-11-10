@@ -87,7 +87,7 @@ def dao_create_notification(notification):
 
 @statsd(namespace="dao")
 @transactional
-def bulk_insert_or_update_notifications(notifications):
+def bulk_insert_notifications(notifications):
     """
     Takes a list of models.Notifications and inserts or updates the DB
     with the list accordingly
@@ -100,12 +100,13 @@ def bulk_insert_or_update_notifications(notifications):
     ------
     None
     """
-
     for notification in notifications:
         if not notification.id:
             notification.id = create_uuid()
         if not notification.status:
             notification.status = NOTIFICATION_CREATED
+
+    # TODO: Add error handling (Redis queue?) for failed notifications
     return db.session.bulk_save_objects(notifications)
 
 
