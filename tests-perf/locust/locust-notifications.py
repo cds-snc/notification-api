@@ -27,20 +27,20 @@ NotifyApiUserTemplateGroup = make_dataclass('NotifyApiUserTemplateGroup', [
 class NotifyApiUser(HttpUser):
 
     wait_time = constant_pacing(60)
-    host = os.getenv("LOAD_TEST_DOMAIN", "https://api.staging.notification.cdssandbox.xyz")
+    host = os.getenv("PERF_TEST_DOMAIN", "https://api.staging.notification.cdssandbox.xyz")
 
     def __init__(self, *args, **kwargs):
         super(NotifyApiUser, self).__init__(*args, **kwargs)
 
         self.headers = {"Authorization": os.getenv("TEST_AUTH_HEADER")}
-        self.email = os.getenv("LOAD_TEST_EMAIL", "success@simulator.amazonses.com")
-        self.phone_number = os.getenv("LOAD_TEST_PHONE_NUMBER", "16132532222")
+        self.email = os.getenv("PERF_TEST_EMAIL", "success@simulator.amazonses.com")
+        self.phone_number = os.getenv("PERF_TEST_PHONE_NUMBER", "16132532222")
         self.template_group = NotifyApiUserTemplateGroup(
-            bulk_email_id=os.getenv("LOAD_TEST_BULK_EMAIL_TEMPLATE_ID", "5ebee3b7-63c0-4052-a8cb-387b818df627"),
-            email_id=os.getenv("LOAD_TEST_EMAIL_TEMPLATE_ID", "a59b313d-8de2-4973-ac2f-66de7ec0b239"),
-            email_with_attachment_id=os.getenv("LOAD_TEST_EMAIL_WITH_ATTACHMENT_TEMPLATE_ID", "a59b313d-8de2-4973-ac2f-66de7ec0b239"),
-            email_with_link_id=os.getenv("LOAD_TEST_EMAIL_WITH_LINK_TEMPLATE_ID", "5ebee3b7-63c0-4052-a8cb-387b818df627"),
-            sms_id=os.getenv("LOAD_TEST_SMS_TEMPLATE_ID", "83d01f06-a818-4134-bd69-ce90a2949280"),
+            bulk_email_id=os.getenv("PERF_TEST_BULK_EMAIL_TEMPLATE_ID", "5ebee3b7-63c0-4052-a8cb-387b818df627"),
+            email_id=os.getenv("PERF_TEST_EMAIL_TEMPLATE_ID", "a59b313d-8de2-4973-ac2f-66de7ec0b239"),
+            email_with_attachment_id=os.getenv("PERF_TEST_EMAIL_WITH_ATTACHMENT_TEMPLATE_ID", "a59b313d-8de2-4973-ac2f-66de7ec0b239"),
+            email_with_link_id=os.getenv("PERF_TEST_EMAIL_WITH_LINK_TEMPLATE_ID", "5ebee3b7-63c0-4052-a8cb-387b818df627"),
+            sms_id=os.getenv("PERF_TEST_SMS_TEMPLATE_ID", "83d01f06-a818-4134-bd69-ce90a2949280"),
         )
 
     @task(16)
