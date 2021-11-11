@@ -4,7 +4,6 @@ from typing_extensions import TypedDict
 
 import boto3
 from botocore.exceptions import ClientError as BotoClientError
-from botocore.response import StreamingBody
 
 from app.attachments.types import SendingMethod
 
@@ -58,7 +57,7 @@ class AttachmentStore:
             attachment_id: uuid.UUID,
             decryption_key: bytes,
             sending_method: SendingMethod
-    ) -> TypedDict('GetReturn', {'body': StreamingBody, 'mimetype': str, 'size': int}):
+    ) -> TypedDict('GetReturn', {'body': bytes, 'mimetype': str, 'size': int}):
         try:
             attachment = self.s3.get_object(
                 Bucket=self.bucket,
@@ -71,7 +70,7 @@ class AttachmentStore:
             raise AttachmentStoreError(e.response['Error'])
 
         return {
-            'body': attachment['Body'],
+            'body': attachment['Body'].read().decode('utf-8'),
             'mimetype': attachment['ContentType'],
             'size': attachment['ContentLength']
         }

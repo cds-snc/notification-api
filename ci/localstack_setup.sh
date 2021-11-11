@@ -1,1 +1,2 @@
 aws s3api create-bucket --bucket $ATTACHMENTS_BUCKET --region us-east-2 --endpoint-url http://localhost:4566
+aws ses verify-email-identity --email-address stage-notifications@notifications.va.gov --region us-east-2 --endpoint-url http://localhost:4566

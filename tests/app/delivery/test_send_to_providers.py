@@ -5,7 +5,6 @@ from unittest.mock import ANY
 import pytest
 import os
 
-import requests_mock
 from flask import current_app
 from notifications_utils.recipients import validate_and_format_phone_number
 from requests import HTTPError
@@ -17,7 +16,7 @@ from app.dao import (provider_details_dao, notifications_dao)
 from app.dao.provider_details_dao import dao_switch_sms_provider_to_provider_with_identifier
 from app.delivery import send_to_providers
 from app.delivery.send_to_providers import load_provider
-from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException, InvalidProviderException
+from app.exceptions import NotificationTechnicalFailureException, InvalidProviderException
 from app.feature_flags import FeatureFlag
 
 from app.models import (
@@ -773,7 +772,7 @@ def test_notification_can_have_document_attachment_without_mlwr_sid(
 ):
     mlwr_mock = mocker.patch('app.delivery.send_to_providers.check_mlwr')
     personalisation = {
-        "file": {"document": {"id": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
+        "file": {"id": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}
 
     db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
 
@@ -793,9 +792,8 @@ def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(
 ):
     mlwr_mock = mocker.patch('app.delivery.send_to_providers.check_mlwr')
     personalisation = {
-        "file": {
-            "document":
-                {"id": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar", "mlwr_sid": "false"}}}
+        "file": {"id": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar", "mlwr_sid": "false"}
+    }
 
     db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
 
@@ -807,88 +805,7 @@ def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(
     mlwr_mock.assert_not_called()
 
 
-def test_notification_raises_a_retry_exception_if_mlwr_state_is_missing(sample_email_template, mocker):
-    mocker.patch('app.aws_ses_client.send_email', return_value='reference')
-    mocker.patch('app.googleanalytics.pixels.build_ga_pixel_url', return_value='url')
-    mocker.patch('app.delivery.send_to_providers.check_mlwr', return_value={})
-    personalisation = {
-        "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
-
-    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
-
-    with pytest.raises(MalwarePendingException):
-        send_to_providers.send_email_to_provider(
-            db_notification,
-        )
-
-
-def test_notification_raises_a_retry_exception_if_mlwr_state_is_not_complete(sample_email_template, mocker):
-    mocker.patch('app.aws_ses_client.send_email', return_value='reference')
-    mocker.patch('app.googleanalytics.pixels.build_ga_pixel_url', return_value='url')
-    mocker.patch(
-        'app.delivery.send_to_providers.check_mlwr',
-        return_value={"state": "foo"})
-    personalisation = {
-        "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
-
-    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
-
-    with pytest.raises(MalwarePendingException):
-        send_to_providers.send_email_to_provider(
-            db_notification,
-        )
-
-
-def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_is_500(sample_email_template, mocker):
-    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
-    mocker.patch('app.googleanalytics.pixels.build_ga_pixel_url', return_value='url')
-    mocker.patch(
-        'app.delivery.send_to_providers.check_mlwr',
-        return_value={"state": "completed", "submission": {"max_score": 500}})
-    personalisation = {
-        "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
-
-    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
-
-    with pytest.raises(NotificationTechnicalFailureException) as e:
-        send_to_providers.send_email_to_provider(db_notification)
-        assert db_notification.id in e.value
-    send_mock.assert_not_called()
-
-    assert Notification.query.get(db_notification.id).status == 'virus-scan-failed'
-
-
-def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_above_500(sample_email_template, mocker):
-    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
-    mocker.patch('app.googleanalytics.pixels.build_ga_pixel_url', return_value='url')
-    mocker.patch(
-        'app.delivery.send_to_providers.check_mlwr',
-        return_value={"state": "completed", "submission": {"max_score": 501}})
-    personalisation = {
-        "file": {"document": {"mlwr_sid": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}}
-
-    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
-
-    with pytest.raises(NotificationTechnicalFailureException) as e:
-        send_to_providers.send_email_to_provider(db_notification)
-        assert db_notification.id in e.value
-    send_mock.assert_not_called()
-
-    assert Notification.query.get(db_notification.id).status == 'virus-scan-failed'
-
-
-@pytest.mark.parametrize("filename_attribute_present, filename, expected_filename", [
-    (False, "whatever", None),
-    (True, None, None),
-    (True, "custom_filename.pdf", "custom_filename.pdf"),
-])
-def test_notification_document_with_pdf_attachment(
-    mock_email_client,
-    sample_service_full_permissions,
-    filename_attribute_present,
-    filename,
-    expected_filename,
-):
+def test_notification_document_with_pdf_attachment(mocker, mock_email_client, sample_service_full_permissions):
     template = create_template(
         template_type='email',
         content='Here is your ((file))',
@@ -896,39 +813,32 @@ def test_notification_document_with_pdf_attachment(
     )
     personalisation = {
         "file": {
-            "document": {
-                "direct_file_url": "http://foo.bar/direct_file_url",
-                "url": "http://foo.bar/url",
-            },
-        },
+            "file_name": "some_file.pdf",
+            "sending_method": "attach",
+            "id": str(uuid.uuid4()),
+            "encryption_key": str(bytes(32))
+        }
     }
-    if filename_attribute_present:
-        personalisation["file"]["document"]["filename"] = filename
-        personalisation["file"]["document"]["sending_method"] = 'attach'
-    else:
-        personalisation["file"]["document"]["sending_method"] = 'link'
 
     db_notification = create_notification(template=template, personalisation=personalisation)
 
-    with requests_mock.Mocker() as request_mock:
-        request_mock.get(
-            'http://foo.bar/direct_file_url',
-            content='request_content'.encode(),
-            status_code=200
-        )
+    mock_attachment_store = mocker.Mock()
+    mocker.patch('app.delivery.send_to_providers.attachment_store', new=mock_attachment_store)
+    mock_attachment_store.get.return_value = {'body': 'request_content'.encode()}
 
-        send_to_providers.send_email_to_provider(db_notification)
+    send_to_providers.send_email_to_provider(db_notification)
 
-    attachments = []
-    if filename_attribute_present:
-        assert request_mock.request_history[0].url == 'http://foo.bar/direct_file_url'
-        attachments = [{'data': 'request_content'.encode(), 'name': expected_filename}]
+    _, kwargs = mock_attachment_store.get.call_args
+    assert kwargs == {
+        'service_id': sample_service_full_permissions.id,
+        'sending_method': personalisation["file"]["sending_method"],
+        'attachment_id': personalisation["file"]["id"],
+        'decryption_key': personalisation["file"]["encryption_key"],
+    }
+    attachments = [{'data': 'request_content'.encode(), 'name': "some_file.pdf"}]
 
     _, kwargs = mock_email_client.send_email.call_args
     assert kwargs['attachments'] == attachments
-
-    if not filename_attribute_present:
-        assert 'http://foo.bar/url' in kwargs['html_body']
 
     assert Notification.query.get(db_notification.id).status == 'sending'
 

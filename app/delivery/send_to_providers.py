@@ -1,7 +1,6 @@
 import re
 from datetime import datetime
 
-import requests
 import app.googleanalytics.pixels as gapixels
 from flask import current_app
 from notifications_utils.recipients import (
@@ -10,6 +9,7 @@ from notifications_utils.recipients import (
 )
 from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTemplate, SMSMessageTemplate
 
+from app import attachment_store
 from app import clients, statsd_client, create_uuid, provider_service
 from app.celery.research_mode_tasks import send_sms_response, send_email_response
 from app.clients.mlwr.mlwr import check_mlwr_score
@@ -21,7 +21,7 @@ from app.dao.provider_details_dao import (
     dao_toggle_sms_provider, get_provider_details_by_id
 )
 from app.dao.templates_dao import dao_get_template_by_id
-from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException, InvalidProviderException
+from app.exceptions import NotificationTechnicalFailureException, InvalidProviderException
 from app.feature_flags import (
     is_provider_enabled,
     is_gapixel_enabled,
@@ -103,50 +103,41 @@ def send_email_to_provider(notification):
         # TODO: remove that code or extract attachment handling to separate method
         # Extract any file objects from the personalization
         file_keys = [
-            k for k, v in (notification.personalisation or {}).items() if isinstance(v, dict) and 'document' in v
+            k for k, v in (notification.personalisation or {}).items() if isinstance(v, dict) and 'file_name' in v
         ]
         attachments = []
 
         personalisation_data = notification.personalisation.copy()
 
         for key in file_keys:
-            sending_method = personalisation_data[key]['document'].get('sending_method')
-
-            # Check if a MLWR sid exists
-            if (current_app.config["MLWR_HOST"]
-               and 'mlwr_sid' in personalisation_data[key]['document']
-               and personalisation_data[key]['document']['mlwr_sid'] != "false"):
-
-                mlwr_result = check_mlwr(personalisation_data[key]['document']['mlwr_sid'])
-
-                if "state" in mlwr_result and mlwr_result["state"] == "completed":
-                    # Update notification that it contains malware
-                    if "submission" in mlwr_result and mlwr_result["submission"]['max_score'] >= 500:
-                        malware_failure(notification=notification)
-                        return
-                else:
-                    # Throw error so celery will retry in sixty seconds
-                    raise MalwarePendingException
+            sending_method = personalisation_data[key].get('sending_method')
 
             if sending_method == 'attach':
                 try:
-                    response = requests.get(personalisation_data[key]['document']['direct_file_url'])
+                    result = attachment_store.get(
+                        service_id=service.id,
+                        attachment_id=personalisation_data[key]['id'],
+                        decryption_key=personalisation_data[key]['encryption_key'],
+                        sending_method='attach'
+                    )
 
-                    buffer = response.content
-                    filename = personalisation_data[key]['document'].get('filename')
                     attachments.append({
-                        "name": filename,
-                        "data": buffer
+                        "name": personalisation_data[key].get('file_name'),
+                        "data": result['body']
                     })
 
                 except Exception:
+                    attachment_key = attachment_store.get_attachment_key(
+                        service_id=service.id,
+                        attachment_id=personalisation_data[key]['id'],
+                        sending_method=sending_method
+                    )
                     current_app.logger.error(
-                        "Could not download and attach {}".format(
-                            personalisation_data[key]['document']['direct_file_url'])
+                        f"Could not download and attach {attachment_key}"
                     )
                 del personalisation_data[key]
             else:
-                personalisation_data[key] = personalisation_data[key]['document']['url']
+                personalisation_data[key] = personalisation_data[key]['url']
 
         template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
 

@@ -3,6 +3,7 @@ from unittest import mock
 
 import pytest
 from botocore.exceptions import ClientError as BotoClientError
+from botocore.response import StreamingBody
 
 from tests.conftest import Matcher
 
@@ -12,8 +13,9 @@ from app.attachments.store import AttachmentStore, AttachmentStoreError
 @pytest.fixture
 def store(mocker):
     mock_boto = mocker.patch('app.attachments.store.boto3')
+    mock_object_body = mock.Mock(StreamingBody)
     mock_boto.client.return_value.get_object.return_value = {
-        'Body': mock.Mock(),
+        'Body': mock_object_body,
         'ContentType': 'application/pdf',
         'ContentLength': 100
     }
