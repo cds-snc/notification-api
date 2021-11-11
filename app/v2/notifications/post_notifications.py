@@ -103,7 +103,6 @@ def post_precompiled_letter_notification():
 @v2_notification_blueprint.route('/<notification_type>', methods=['POST'])
 def post_notification(notification_type):
     try:
-        print("debugging! AAAAAAAA")
         request_json = request.get_json()
     except werkzeug.exceptions.BadRequest as e:
         raise BadRequestError(message="Error decoding arguments: {}".format(e.description),

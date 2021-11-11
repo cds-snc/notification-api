@@ -109,7 +109,8 @@ class MpiClient:
 
     def _validate_response(self, response_json, notification_id, fhir_identifier):
         if response_json.get('severity'):
-            if response_json.get('details').get("text") == "ICN/VPID Does Not Exist":
+            if response_json.get('details').get("text") == 'ICN/VPID Does Not Exist'\
+                    or response_json.get('details').get("text") == 'Invalid VPID Format':
                 raise NoSuchIdentifierException
             error_message = \
                 f"MPI returned error: {response_json} " \
