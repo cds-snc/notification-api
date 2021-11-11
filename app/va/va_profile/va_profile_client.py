@@ -188,13 +188,16 @@ class VAProfileClient:
     def _get_highest_order_phone_bio(self, response, va_profile_id):
         # First sort by phone type and then by create date
         # since reverse order is used, potential MOBILE bios will end up before HOME
-        sorted_bios = sorted(
-            (bio for bio in response['bios'] if bio['phoneType'] in PhoneNumberType.valid_type_values()),
-            key=lambda bio: (bio['phoneType'], iso8601.parse_date(bio['createDate'])),
-            reverse=True
-        )
-        return sorted_bios[0] if sorted_bios else \
-            self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
+        sorted_bios = None
+        if 'bios' in response:
+            sorted_bios = sorted(
+                (bio for bio in response['bios'] if bio['phoneType'] in PhoneNumberType.valid_type_values()),
+                key=lambda bio: (bio['phoneType'], iso8601.parse_date(bio['createDate'])),
+                reverse=True
+            )
+        if sorted_bios:
+            return sorted_bios[0]
+        self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
 
     def _raise_no_contact_info_exception(self, bio_type: str, va_profile_id: str, tx_audit_id: str):
         self.statsd_client.incr(f"clients.va-profile.get-{bio_type}.no-{bio_type}")
