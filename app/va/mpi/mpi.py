@@ -76,7 +76,7 @@ class MpiClient:
                 exception.failure_reason = failure_reason
                 raise exception from e
             else:
-                exception = MpiNonRetryableException(message)
+                exception = NoSuchIdentifierException(message)
                 exception.failure_reason = failure_reason
                 raise exception from e
         except requests.RequestException as e:
