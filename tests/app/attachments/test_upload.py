@@ -28,17 +28,16 @@ def test_document_upload_returns_link_to_frontend(
         expected_file_extension: str,
 ):
     service_id = uuid.uuid4()
-    encryption_key = bytes(32)
     store.put.return_value = {
         'id': 'ffffffff-ffff-ffff-ffff-ffffffffffff',
-        'encryption_key': encryption_key,
+        'encryption_key': 'fake-key',
     }
 
     with(set_config(notify_api, 'ATTACHMENTS_ALLOWED_MIME_TYPES', ['application/pdf'])):
         response = upload_attachment(service_id, sending_method, b'%PDF-1.4 file contents', file_name)
 
     assert response == {
-        'encryption_key': str(encryption_key),
+        'encryption_key': 'fake-key',
         'id': 'ffffffff-ffff-ffff-ffff-ffffffffffff',
         'sending_method': sending_method,
         'mime_type': 'application/pdf',
@@ -68,7 +67,7 @@ def test_document_upload_returns_size_and_mime(
 ):
     store.put.return_value = {
         'id': 'ffffffff-ffff-ffff-ffff-ffffffffffff',
-        'encryption_key': bytes(32),
+        'encryption_key': 'fake-key',
     }
     with(set_config(
             notify_api,
