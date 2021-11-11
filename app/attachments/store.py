@@ -1,5 +1,6 @@
 import os
 import uuid
+import base64
 from typing_extensions import TypedDict
 
 import boto3
@@ -29,7 +30,7 @@ class AttachmentStore:
             attachment_stream,
             sending_method: SendingMethod,
             mimetype: str
-    ) -> TypedDict('PutReturn', {'id': uuid.UUID, 'encryption_key': bytes}):
+    ) -> TypedDict('PutReturn', {'id': uuid.UUID, 'encryption_key': str}):
 
         encryption_key = self.generate_encryption_key()
         attachment_id = uuid.uuid4()
@@ -48,14 +49,14 @@ class AttachmentStore:
 
         return {
             'id': attachment_id,
-            'encryption_key': encryption_key
+            'encryption_key': base64.b64encode(encryption_key).decode('utf-8')
         }
 
     def get(
             self,
             service_id: uuid.UUID,
             attachment_id: uuid.UUID,
-            decryption_key: bytes,
+            decryption_key: str,
             sending_method: SendingMethod
     ) -> TypedDict('GetReturn', {'body': bytes, 'mimetype': str, 'size': int}):
         try:
@@ -64,7 +65,7 @@ class AttachmentStore:
             attachment = self.s3.get_object(
                 Bucket=self.bucket,
                 Key=attachment_key,
-                SSECustomerKey=decryption_key,
+                SSECustomerKey=base64.b64decode(decryption_key),
                 SSECustomerAlgorithm='AES256'
             )
 

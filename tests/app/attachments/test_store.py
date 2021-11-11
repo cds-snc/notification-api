@@ -1,4 +1,6 @@
+import os
 import uuid
+import base64
 from unittest import mock
 
 import pytest
@@ -8,6 +10,16 @@ from botocore.response import StreamingBody
 from tests.conftest import Matcher
 
 from app.attachments.store import AttachmentStore, AttachmentStoreError
+
+
+@pytest.fixture
+def encryption_key():
+    return os.urandom(32)
+
+
+@pytest.fixture
+def stringified_encryption_key(encryption_key):
+    return base64.b64encode(encryption_key).decode('utf-8')
 
 
 @pytest.fixture
@@ -35,10 +47,7 @@ def test_put_attachment(store):
     service_id = uuid.uuid4()
     ret = store.put(service_id, mock.Mock(), sending_method='link', mimetype='application/pdf')
 
-    assert ret == {
-        'id': Matcher('UUID length match', lambda x: len(str(x)) == 36),
-        'encryption_key': Matcher('32 bytes', lambda x: len(x) == 32 and isinstance(x, bytes))
-    }
+    assert len(str(ret['id'])) == 36
 
     store.s3.put_object.assert_called_once_with(
         Body=mock.ANY,
@@ -49,7 +58,7 @@ def test_put_attachment(store):
             lambda attachment_key:
                 attachment_key.startswith(f"{service_id}/") and len(attachment_key.split('/')[-1]) == 36
         ),
-        SSECustomerKey=ret['encryption_key'],
+        SSECustomerKey=base64.b64decode(ret['encryption_key']),
         SSECustomerAlgorithm='AES256'
     )
 
@@ -58,10 +67,7 @@ def test_put_attachment_attach_tmp_dir(store):
     service_id = uuid.uuid4()
     ret = store.put(service_id, mock.Mock(), sending_method='attach', mimetype='application/pdf')
 
-    assert ret == {
-        'id': Matcher('UUID length match', lambda x: len(str(x)) == 36),
-        'encryption_key': Matcher('32 bytes', lambda x: len(x) == 32 and isinstance(x, bytes))
-    }
+    assert len(str(ret['id'])) == 36
 
     store.s3.put_object.assert_called_once_with(
         Body=mock.ANY,
@@ -72,16 +78,16 @@ def test_put_attachment_attach_tmp_dir(store):
             lambda attachment_key:
                 attachment_key.startswith(f"tmp/{service_id}/") and len(attachment_key.split('/')[-1]) == 36
         ),
-        SSECustomerKey=ret['encryption_key'],
+        SSECustomerKey=base64.b64decode(ret['encryption_key']),
         SSECustomerAlgorithm='AES256'
     )
 
 
-def test_get_attachment(store):
+def test_get_attachment(store, encryption_key, stringified_encryption_key):
     service_id = uuid.uuid4()
     attachment_id = uuid.uuid4()
 
-    assert store.get(service_id, attachment_id, bytes(32), sending_method='link') == {
+    assert store.get(service_id, attachment_id, stringified_encryption_key, sending_method='link') == {
         'body': mock.ANY,
         'mimetype': 'application/pdf',
         'size': 100,
@@ -92,15 +98,15 @@ def test_get_attachment(store):
         Key=f"{service_id}/{attachment_id}",
         SSECustomerAlgorithm='AES256',
         # 32 null bytes
-        SSECustomerKey=bytes(32),
+        SSECustomerKey=encryption_key,
     )
 
 
-def test_get_attachment_attach_tmp_dir(store):
+def test_get_attachment_attach_tmp_dir(store, encryption_key, stringified_encryption_key):
     service_id = uuid.uuid4()
     attachment_id = uuid.uuid4()
 
-    assert store.get(service_id, attachment_id, bytes(32), sending_method='attach') == {
+    assert store.get(service_id, attachment_id, stringified_encryption_key, sending_method='attach') == {
         'body': mock.ANY,
         'mimetype': 'application/pdf',
         'size': 100,
@@ -111,11 +117,11 @@ def test_get_attachment_attach_tmp_dir(store):
         Key=f"tmp/{service_id}/{attachment_id}",
         SSECustomerAlgorithm='AES256',
         # 32 null bytes
-        SSECustomerKey=bytes(32),
+        SSECustomerKey=encryption_key,
     )
 
 
-def test_get_attachment_with_boto_error(store):
+def test_get_attachment_with_boto_error(store, stringified_encryption_key):
     store.s3.get_object = mock.Mock(side_effect=BotoClientError({
         'Error': {
             'Code': 'Error code',
@@ -124,4 +130,4 @@ def test_get_attachment_with_boto_error(store):
     }, 'GetObject'))
 
     with pytest.raises(AttachmentStoreError):
-        store.get(uuid.uuid4(), uuid.uuid4(), b'0f0f0f', sending_method='link')
+        store.get(uuid.uuid4(), uuid.uuid4(), stringified_encryption_key, sending_method='link')

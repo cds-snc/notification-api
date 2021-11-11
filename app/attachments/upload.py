@@ -31,7 +31,7 @@ def upload_attachment(service_id: uuid.UUID, sending_method: SendingMethod, file
 
     return {
         'id': str(attachment['id']),
-        'encryption_key': str(attachment['encryption_key']),
+        'encryption_key': attachment['encryption_key'],
         'sending_method': sending_method,
         'mime_type': mimetype,
         'file_name': file_name,
