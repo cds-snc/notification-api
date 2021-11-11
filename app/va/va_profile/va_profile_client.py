@@ -18,7 +18,6 @@ class CommunicationItemNotFoundException(Exception):
 
 
 class PhoneNumberType(Enum):
-
     MOBILE = 'MOBILE'
     HOME = 'HOME'
     WORK = 'WORK'
@@ -31,7 +30,6 @@ class PhoneNumberType(Enum):
 
 
 class VAProfileClient:
-
     SUCCESS_STATUS = 'COMPLETED_SUCCESS'
     EMAIL_BIO_TYPE = 'emails'
     PHONE_BIO_TYPE = 'telephones'
@@ -176,13 +174,16 @@ class VAProfileClient:
             self.statsd_client.timing("clients.va-profile.request-time", elapsed_time)
 
     def _get_most_recently_created_email_bio(self, response, va_profile_id):
-        sorted_bios = sorted(
-            response['bios'],
-            key=lambda bio: iso8601.parse_date(bio['createDate']),
-            reverse=True
-        )
-        return sorted_bios[0] if sorted_bios else \
-            self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
+        sorted_bios = None
+        if 'bios' in response:
+            sorted_bios = sorted(
+                response['bios'],
+                key=lambda bio: iso8601.parse_date(bio['createDate']),
+                reverse=True
+            )
+        if sorted_bios:
+            return sorted_bios[0]
+        self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
 
     def _get_highest_order_phone_bio(self, response, va_profile_id):
         # First sort by phone type and then by create date

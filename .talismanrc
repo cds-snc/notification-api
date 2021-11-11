@@ -295,3 +295,5 @@ fileignoreconfig:
       checksum: ba9bf74bba597cb0af72032e2d2e0f377753aa281644729db7bd09e4feb4e0f1
     - filename: cd/application-deployment/perf/vaec-celery-beat-task-definition.json
       checksum: fb096cd80adb5cc7916a504aac7b9657d1b5318f27479edc9a8e6b69ed3c4e9c
+    - filename: app/va/va_profile/va_profile_client.py
+      checksum: 22ef34db193aaeb0c4dc419d05f527f8f5bc23bc100c2673bed71c83413540f5c
