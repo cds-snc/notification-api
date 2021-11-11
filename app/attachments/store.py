@@ -59,9 +59,11 @@ class AttachmentStore:
             sending_method: SendingMethod
     ) -> TypedDict('GetReturn', {'body': bytes, 'mimetype': str, 'size': int}):
         try:
+            attachment_key = self.get_attachment_key(service_id, attachment_id, sending_method)
+            self.logger.info(f"getting attachment object from s3 with key {attachment_key}")
             attachment = self.s3.get_object(
                 Bucket=self.bucket,
-                Key=self.get_attachment_key(service_id, attachment_id, sending_method),
+                Key=attachment_key,
                 SSECustomerKey=decryption_key,
                 SSECustomerAlgorithm='AES256'
             )

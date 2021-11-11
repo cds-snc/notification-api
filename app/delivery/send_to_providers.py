@@ -126,14 +126,14 @@ def send_email_to_provider(notification):
                         "data": result['body']
                     })
 
-                except Exception:
+                except Exception as e:
                     attachment_key = attachment_store.get_attachment_key(
                         service_id=service.id,
                         attachment_id=personalisation_data[key]['id'],
                         sending_method=sending_method
                     )
                     current_app.logger.error(
-                        f"Could not download and attach {attachment_key}"
+                        f"Could not download and attach {attachment_key}: {str(e)}"
                     )
                 del personalisation_data[key]
             else:
