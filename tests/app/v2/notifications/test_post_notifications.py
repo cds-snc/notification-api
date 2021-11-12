@@ -1,5 +1,4 @@
 import base64
-import os
 import uuid
 
 import pytest
@@ -774,7 +773,7 @@ class TestPostNotificationWithAttachment:
     ):
         mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='False')
 
-        upload_attachment_mock = mocker.patch('app.v2.notifications.post_notifications.upload_attachment')
+        attachment_store_mock = mocker.patch('app.v2.notifications.post_notifications.attachment_store')
 
         response = post_send_notification(client, service_with_upload_document_permission, 'email', {
             "email_address": "foo@bar.com",
@@ -789,14 +788,14 @@ class TestPostNotificationWithAttachment:
         })
 
         assert response.status_code == 501
-        upload_attachment_mock.assert_not_called()
+        attachment_store_mock.put.assert_not_called()
 
     def test_returns_not_implemented_if_sending_method_is_link(
             self, client, mocker, service_with_upload_document_permission, template
     ):
         mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
 
-        upload_attachment_mock = mocker.patch('app.v2.notifications.post_notifications.upload_attachment')
+        attachment_store_mock = mocker.patch('app.v2.notifications.post_notifications.attachment_store')
 
         response = post_send_notification(client, service_with_upload_document_permission, 'email', {
             "email_address": "foo@bar.com",
@@ -811,7 +810,7 @@ class TestPostNotificationWithAttachment:
         })
 
         assert response.status_code == 501
-        upload_attachment_mock.assert_not_called()
+        attachment_store_mock.put.assert_not_called()
 
     @pytest.mark.parametrize("sending_method", ["attach", None])
     def test_attachment_upload_with_sending_method_attach(
@@ -820,17 +819,17 @@ class TestPostNotificationWithAttachment:
         mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
 
         mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
-        upload_attachment_mock = mocker.patch('app.v2.notifications.post_notifications.upload_attachment')
+        attachment_store_mock = mocker.patch('app.v2.notifications.post_notifications.attachment_store')
         mock_uploaded_attachment = {
-            'id': str(uuid.uuid4()),
-            'encryption_key': str(os.urandom(32)),
-            'sending_method': 'attach',
-            'mime_type': "application/pdf",
-            'file_name': "file.pdf",
-            'file_size': 22,
-            'file_extension': "pdf",
+            'id': 'fake-id',
+            'encryption_key': 'fake-key'
         }
-        upload_attachment_mock.return_value = mock_uploaded_attachment
+        attachment_store_mock.put.return_value = mock_uploaded_attachment
+
+        mocker.patch(
+            'app.v2.notifications.post_notifications.extract_and_validate_mimetype',
+            return_value='fake/mimetype'
+        )
 
         data = {
             "email_address": "foo@bar.com",
@@ -851,11 +850,11 @@ class TestPostNotificationWithAttachment:
         assert response.status_code == 201, response.get_data(as_text=True)
         resp_json = json.loads(response.get_data(as_text=True))
         assert validate(resp_json, post_email_response) == resp_json
-        upload_attachment_mock.assert_called_once_with(
+        attachment_store_mock.put.assert_called_once_with(
             **{
                 "service_id": service_with_upload_document_permission.id,
-                "file_data": base64.b64decode(self.base64_encoded_file),
-                "file_name": "file.pdf",
+                "attachment_stream": base64.b64decode(self.base64_encoded_file),
+                "mimetype": "fake/mimetype",
                 "sending_method": "attach"
             },
         )
@@ -863,7 +862,12 @@ class TestPostNotificationWithAttachment:
         notification = Notification.query.one()
         assert notification.status == NOTIFICATION_CREATED
         assert notification.personalisation == {
-            'some_attachment': mock_uploaded_attachment
+            'some_attachment': {
+                'file_name': 'file.pdf',
+                'sending_method': 'attach',
+                'id': 'fake-id',
+                'encryption_key': 'fake-key'
+            }
         }
 
     def test_long_filename(self, client, service_with_upload_document_permission, template):

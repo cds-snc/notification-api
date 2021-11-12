@@ -6,8 +6,8 @@ from flask import request, jsonify, current_app, abort
 from notifications_utils.recipients import try_validate_and_format_phone_number
 from werkzeug.exceptions import RequestEntityTooLarge
 
-from app import api_user, authenticated_service, notify_celery, document_download_client
-from app.attachments.upload import upload_attachment
+from app import api_user, authenticated_service, notify_celery, document_download_client, attachment_store
+from app.attachments.mimetype import extract_and_validate_mimetype
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.clients.document_download import DocumentDownloadError
@@ -291,12 +291,28 @@ def process_document_uploads(personalisation_data, service, simulated=False):
             personalisation_data[key] = document_download_client.get_upload_url(service.id) + '/test-document'
         else:
             try:
-                personalisation_data[key] = upload_attachment(
-                    service_id=service.id,
-                    sending_method=personalisation_data[key].get('sending_method', 'attach'),
+                sending_method = personalisation_data[key].get('sending_method', 'attach')
+                file_name = personalisation_data[key]['filename']
+
+                mimetype = extract_and_validate_mimetype(
                     file_data=personalisation_data[key]['file'],
-                    file_name=personalisation_data[key]['filename'],
+                    file_name=file_name
                 )
+
+                attachment = attachment_store.put(
+                    service_id=service.id,
+                    attachment_stream=personalisation_data[key]['file'],
+                    sending_method=sending_method,
+                    mimetype=mimetype
+                )
+
+                personalisation_data[key] = {
+                    'id': str(attachment['id']),
+                    'encryption_key': attachment['encryption_key'],
+                    'file_name': file_name,
+                    'sending_method': sending_method
+                }
+
             except DocumentDownloadError as e:
                 raise BadRequestError(message=e.message, status_code=e.status_code)
 
