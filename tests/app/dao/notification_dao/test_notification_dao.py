@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.dao.notifications_dao import (
+    bulk_insert_notifications,
     dao_create_notification,
     dao_created_scheduled_notification,
     dao_delete_notifications_by_id,
@@ -1766,3 +1767,15 @@ def test_send_method_stats_by_service(sample_service, sample_organisation):
         )
         == []
     )
+
+
+def test_bulk_insert_notification(sample_template):
+    assert len(Notification.query.all()) == 0
+    n1 = create_notification(sample_template, client_reference="happy")
+    n1.id = None
+    n1.status = None
+    n2 = create_notification(sample_template, client_reference="sad")
+    n3 = create_notification(sample_template, client_reference="loud")
+    bulk_insert_notifications([n1, n2, n3])
+    all_notifications = get_notifications_for_service(sample_template.service_id).items
+    assert len(all_notifications) == 3
