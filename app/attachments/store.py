@@ -1,9 +1,6 @@
 import os
 import uuid
 import base64
-
-from typing_extensions import TypedDict
-
 import boto3
 from botocore.exceptions import ClientError as BotoClientError
 
@@ -56,7 +53,7 @@ class AttachmentStore:
             attachment_id: uuid.UUID,
             decryption_key: str,
             sending_method: SendingMethod
-    ) -> TypedDict('GetReturn', {'body': bytes, 'mimetype': str, 'size': int}):
+    ) -> bytes:
         try:
             attachment_key = self.get_attachment_key(service_id, attachment_id, sending_method)
             self.logger.info(f"getting attachment object from s3 with key {attachment_key}")
@@ -70,11 +67,7 @@ class AttachmentStore:
         except BotoClientError as e:
             raise AttachmentStoreError(e.response['Error'])
 
-        return {
-            'body': attachment['Body'].read().decode('utf-8'),
-            'mimetype': attachment['ContentType'],
-            'size': attachment['ContentLength']
-        }
+        return attachment['Body'].read().decode('utf-8')
 
     @staticmethod
     def generate_encryption_key() -> bytes:

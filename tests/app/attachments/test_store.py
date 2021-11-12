@@ -87,11 +87,7 @@ def test_get_attachment(store, encryption_key, stringified_encryption_key):
     service_id = uuid.uuid4()
     attachment_id = uuid.uuid4()
 
-    assert store.get(service_id, attachment_id, stringified_encryption_key, sending_method='link') == {
-        'body': mock.ANY,
-        'mimetype': 'application/pdf',
-        'size': 100,
-    }
+    assert store.get(service_id, attachment_id, stringified_encryption_key, sending_method='link') == mock.ANY
 
     store.s3.get_object.assert_called_once_with(
         Bucket='test-bucket',
@@ -106,11 +102,7 @@ def test_get_attachment_attach_tmp_dir(store, encryption_key, stringified_encryp
     service_id = uuid.uuid4()
     attachment_id = uuid.uuid4()
 
-    assert store.get(service_id, attachment_id, stringified_encryption_key, sending_method='attach') == {
-        'body': mock.ANY,
-        'mimetype': 'application/pdf',
-        'size': 100,
-    }
+    assert store.get(service_id, attachment_id, stringified_encryption_key, sending_method='attach') == mock.ANY
 
     store.s3.get_object.assert_called_once_with(
         Bucket='test-bucket',

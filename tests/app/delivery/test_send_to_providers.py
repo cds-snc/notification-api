@@ -824,7 +824,7 @@ def test_notification_document_with_pdf_attachment(mocker, mock_email_client, sa
 
     mock_attachment_store = mocker.Mock()
     mocker.patch('app.delivery.send_to_providers.attachment_store', new=mock_attachment_store)
-    mock_attachment_store.get.return_value = {'body': 'request_content'.encode()}
+    mock_attachment_store.get.return_value = 'request_content'.encode()
 
     send_to_providers.send_email_to_provider(db_notification)
 

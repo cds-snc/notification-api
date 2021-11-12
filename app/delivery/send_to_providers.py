@@ -114,7 +114,7 @@ def send_email_to_provider(notification):
 
             if sending_method == 'attach':
                 try:
-                    result = attachment_store.get(
+                    file_data = attachment_store.get(
                         service_id=service.id,
                         attachment_id=personalisation_data[key]['id'],
                         decryption_key=personalisation_data[key]['encryption_key'],
@@ -123,7 +123,7 @@ def send_email_to_provider(notification):
 
                     attachments.append({
                         "name": personalisation_data[key].get('file_name'),
-                        "data": result['body']
+                        "data": file_data
                     })
 
                 except Exception as e:
