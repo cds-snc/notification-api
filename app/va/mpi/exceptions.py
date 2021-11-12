@@ -11,19 +11,19 @@ class MpiNonRetryableException(MpiException):
 
 
 class IncorrectNumberOfIdentifiersException(MpiNonRetryableException):
-    failure_reason = 'Incorrect number of identifiers when getting VA Profile id from MPI'
+    failure_reason = 'Incorrect number of identifiers associated with notification'
 
 
 class IdentifierNotFound(MpiNonRetryableException):
-    failure_reason = 'Identifier not found when getting VA Profile id from MPI'
+    failure_reason = 'Requested identifier not found in MPI correlation database'
 
 
 class MultipleActiveVaProfileIdsException(MpiNonRetryableException):
-    failure_reason = 'Multiple active VA Profile ids found from MPI'
+    failure_reason = 'Multiple active VA Profile ids found in MPI correlation database'
 
 
 class BeneficiaryDeceasedException(MpiNonRetryableException):
-    failure_reason = 'Beneficiary found to be deceased after getting VA Profile id from MPI'
+    failure_reason = 'Beneficiary has deceased status in MPI'
 
 
 class NoSuchIdentifierException(MpiNonRetryableException):

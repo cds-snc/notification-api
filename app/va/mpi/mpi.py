@@ -76,7 +76,7 @@ class MpiClient:
                 exception.failure_reason = failure_reason
                 raise exception from e
             else:
-                exception = NoSuchIdentifierException(message)
+                exception = MpiNonRetryableException(message)
                 exception.failure_reason = failure_reason
                 raise exception from e
         except requests.RequestException as e:
@@ -109,6 +109,8 @@ class MpiClient:
 
     def _validate_response(self, response_json, notification_id, fhir_identifier):
         if response_json.get('severity'):
+            # should not search for specific string
+
             if response_json.get('details').get("text") == 'ICN/VPID Does Not Exist'\
                     or response_json.get('details').get("text") == 'Invalid VPID Format':
                 raise NoSuchIdentifierException
