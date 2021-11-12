@@ -33,5 +33,7 @@ class LoadBalancingStrategy(ProviderSelectionStrategyInterface):
         )
 
         if providers:
-            [randomly_chosen_provider] = choices(providers, [provider.load_balancing_weight for provider in providers])
+            [randomly_chosen_provider] = choices(  # nosec
+                providers, [provider.load_balancing_weight for provider in providers]
+            )
             return randomly_chosen_provider
