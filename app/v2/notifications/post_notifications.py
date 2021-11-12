@@ -299,7 +299,7 @@ def process_document_uploads(personalisation_data, service, simulated=False):
                     file_name=file_name
                 )
 
-                attachment = attachment_store.put(
+                attachment_id, encryption_key = attachment_store.put(
                     service_id=service.id,
                     attachment_stream=personalisation_data[key]['file'],
                     sending_method=sending_method,
@@ -307,8 +307,8 @@ def process_document_uploads(personalisation_data, service, simulated=False):
                 )
 
                 personalisation_data[key] = {
-                    'id': str(attachment['id']),
-                    'encryption_key': attachment['encryption_key'],
+                    'id': str(attachment_id),
+                    'encryption_key': encryption_key,
                     'file_name': file_name,
                     'sending_method': sending_method
                 }

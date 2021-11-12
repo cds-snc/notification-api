@@ -47,7 +47,7 @@ def test_put_attachment(store):
     service_id = uuid.uuid4()
     ret = store.put(service_id, mock.Mock(), sending_method='link', mimetype='application/pdf')
 
-    assert len(str(ret['id'])) == 36
+    assert len(str(ret.attachment_id)) == 36
 
     store.s3.put_object.assert_called_once_with(
         Body=mock.ANY,
@@ -58,7 +58,7 @@ def test_put_attachment(store):
             lambda attachment_key:
                 attachment_key.startswith(f"{service_id}/") and len(attachment_key.split('/')[-1]) == 36
         ),
-        SSECustomerKey=base64.b64decode(ret['encryption_key']),
+        SSECustomerKey=base64.b64decode(ret.encryption_key),
         SSECustomerAlgorithm='AES256'
     )
 
@@ -67,7 +67,7 @@ def test_put_attachment_attach_tmp_dir(store):
     service_id = uuid.uuid4()
     ret = store.put(service_id, mock.Mock(), sending_method='attach', mimetype='application/pdf')
 
-    assert len(str(ret['id'])) == 36
+    assert len(str(ret.attachment_id)) == 36
 
     store.s3.put_object.assert_called_once_with(
         Body=mock.ANY,
@@ -78,7 +78,7 @@ def test_put_attachment_attach_tmp_dir(store):
             lambda attachment_key:
                 attachment_key.startswith(f"tmp/{service_id}/") and len(attachment_key.split('/')[-1]) == 36
         ),
-        SSECustomerKey=base64.b64decode(ret['encryption_key']),
+        SSECustomerKey=base64.b64decode(ret.encryption_key),
         SSECustomerAlgorithm='AES256'
     )
 

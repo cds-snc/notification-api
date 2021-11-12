@@ -1,12 +1,13 @@
 import os
 import uuid
 import base64
+
 from typing_extensions import TypedDict
 
 import boto3
 from botocore.exceptions import ClientError as BotoClientError
 
-from app.attachments.types import SendingMethod
+from app.attachments.types import SendingMethod, PutReturn
 
 
 class AttachmentStoreError(Exception):
@@ -30,7 +31,7 @@ class AttachmentStore:
             attachment_stream,
             sending_method: SendingMethod,
             mimetype: str
-    ) -> TypedDict('PutReturn', {'id': uuid.UUID, 'encryption_key': str}):
+    ) -> PutReturn:
 
         encryption_key = self.generate_encryption_key()
         attachment_id = uuid.uuid4()
@@ -47,10 +48,7 @@ class AttachmentStore:
             SSECustomerAlgorithm='AES256'
         )
 
-        return {
-            'id': attachment_id,
-            'encryption_key': base64.b64encode(encryption_key).decode('utf-8')
-        }
+        return PutReturn(attachment_id=attachment_id, encryption_key=base64.b64encode(encryption_key).decode('utf-8'))
 
     def get(
             self,
