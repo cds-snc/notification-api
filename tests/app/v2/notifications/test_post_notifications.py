@@ -820,10 +820,7 @@ class TestPostNotificationWithAttachment:
 
         mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
         attachment_store_mock = mocker.patch('app.v2.notifications.post_notifications.attachment_store')
-        mock_uploaded_attachment = {
-            'id': 'fake-id',
-            'encryption_key': 'fake-key'
-        }
+        mock_uploaded_attachment = ('fake-id', 'fake-key')
         attachment_store_mock.put.return_value = mock_uploaded_attachment
 
         mocker.patch(
