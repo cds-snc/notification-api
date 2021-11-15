@@ -1,10 +1,10 @@
 
 name: Build, push, and deploy lambda image to staging
 
-on:
-  workflow_dispatch:
-  push:
-    branches: [master]
+on: push
+  # workflow_dispatch:
+  # push:
+  #   branches: [master]
 
 env:
   IMAGE_TAG: ${GITHUB_SHA::7}
@@ -42,15 +42,15 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Push containers to ECR
-        run: |
-          docker push $REGISTRY/${{ matrix.image }}:$IMAGE_TAG
+      # - name: Push containers to ECR
+      #   run: |
+      #     docker push $REGISTRY/${{ matrix.image }}:$IMAGE_TAG
 
       - name: Logout of Amazon ECR
         run: docker logout ${{ steps.login-ecr.outputs.registry }}
 
-      - name: Deploy lambda
-        run: |
-          aws lambda update-function-code \
-            --function-name ${{ matrix.image }} \
-            --image-uri $REGISTRY/${{ matrix.image }}:$IMAGE_TAG
+      # - name: Deploy lambda
+      #   run: |
+      #     aws lambda update-function-code \
+      #       --function-name ${{ matrix.image }} \
+      #       --image-uri $REGISTRY/${{ matrix.image }}:$IMAGE_TAG
