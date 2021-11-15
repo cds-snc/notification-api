@@ -1,6 +1,7 @@
 import requests
 from time import monotonic
 from http.client import responses
+from functools import reduce
 from app.va.identifier import (
     IdentifierType,
     transform_to_fhir_format,
@@ -16,7 +17,16 @@ from app.va.mpi import (
     IncorrectNumberOfIdentifiersException,
     MultipleActiveVaProfileIdsException,
     BeneficiaryDeceasedException
+
 )
+
+exceptionCodeMappings = {
+    "GCID01": NoSuchIdentifierException,
+    "557": NoSuchIdentifierException,
+    "BR001": NoSuchIdentifierException,
+    "BRNOARG01": MpiNonRetryableException,
+    "556": MpiNonRetryableException
+}
 
 
 class MpiClient:
@@ -107,16 +117,25 @@ class MpiClient:
             )
         return va_profile_ids[0]
 
+    def _search_response(dictionary, keys, default=None):
+        return reduce(lambda d, key: d.get(key, default) if isinstance(d, dict) else d[0], keys.split("."),
+                      dictionary)
+
     def _validate_response(self, response_json, notification_id, fhir_identifier):
         if response_json.get('severity'):
-            if response_json.get('details').get("text") == 'ICN/VPID Does Not Exist'\
-                    or response_json.get('details').get("text") == 'Invalid VPID Format':
-                raise NoSuchIdentifierException
+            response_message = self.search_response(response_json, "details.text")
+            error_code = self.search_response(response_json, "details.coding.code")
             error_message = \
                 f"MPI returned error: {response_json} " \
-                f"for notification {notification_id} with fhir {fhir_identifier}"
+                f"for notification {notification_id} with fhir {fhir_identifier}" \
+                f"with response error code: {error_code}" \
+                f"and response text: {response_message}"
             self.statsd_client.incr("clients.mpi.error")
-            raise MpiNonRetryableException(error_message)
+            if exceptionCodeMappings.get(error_code):
+                exception = exceptionCodeMappings.get(error_code)
+                raise exception(error_message)
+            else:
+                raise MpiNonRetryableException(error_message)
 
     def _assert_not_deceased(self, response_json, fhir_identifier):
         if response_json.get('deceasedDateTime'):
