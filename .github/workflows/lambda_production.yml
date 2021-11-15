@@ -1,10 +1,10 @@
 
 name: Build and push lambda image to production
 
-on: push
-  # workflow_dispatch:
-  # push:
-  #   branches: [master]
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
 
 env:
   REGISTRY: ${{ secrets.PRODUCTION_API_LAMBDA_ECR_ACCOUNT }}.dkr.ecr.ca-central-1.amazonaws.com/notify
@@ -24,7 +24,7 @@ jobs:
       - name: Build container
         run: |
           docker build \
-          --build-arg git_sha=${GITHUB_SHA::7} \
+          --build-arg GIT_SHA=${GITHUB_SHA::7} \
           -t $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} \
           . \
           -f ci/Dockerfile.lambda
@@ -41,9 +41,9 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      # - name: Push containers to ECR
-      #   run: |
-      #     docker push $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7}
+      - name: Push containers to ECR
+        run: |
+          docker push $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7}
 
       - name: Logout of Amazon ECR
         run: docker logout ${{ steps.login-ecr.outputs.registry }}
