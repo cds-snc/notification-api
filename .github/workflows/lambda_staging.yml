@@ -7,7 +7,7 @@ on:
     branches: [master]
 
 env:
-  GITHUB_SHA: ${{ github.sha }}
+  IMAGE_TAG: ${GITHUB_SHA::7}
   REGISTRY: ${{ secrets.STAGING_API_LAMBDA_ECR_ACCOUNT }}.dkr.ecr.ca-central-1.amazonaws.com/notify
 
 jobs:
@@ -25,8 +25,8 @@ jobs:
       - name: Build container
         run: |
           docker build \
-          --build-arg git_sha=$GITHUB_SHA \
-          -t $REGISTRY/${{ matrix.image }}:$GITHUB_SHA \
+          --build-arg git_sha=$IMAGE_TAG \
+          -t $REGISTRY/${{ matrix.image }}:$IMAGE_TAG \
           . \
           -f ci/Dockerfile.lambda
 
@@ -44,7 +44,7 @@ jobs:
 
       - name: Push containers to ECR
         run: |
-          docker push $REGISTRY/${{ matrix.image }}:$GITHUB_SHA
+          docker push $REGISTRY/${{ matrix.image }}:$IMAGE_TAG
 
       - name: Logout of Amazon ECR
         run: docker logout ${{ steps.login-ecr.outputs.registry }}
@@ -53,4 +53,4 @@ jobs:
         run: |
           aws lambda update-function-code \
             --function-name ${{ matrix.image }} \
-            --image-uri $REGISTRY/${{ matrix.image }}:$GITHUB_SHA
+            --image-uri $REGISTRY/${{ matrix.image }}:$IMAGE_TAG
