@@ -770,12 +770,18 @@ class TestPostNotificationWithAttachment:
             content="See attached file"
         )
 
+    @pytest.fixture(autouse=True)
+    def attachment_store_mock(self, mocker):
+        return mocker.patch('app.v2.notifications.post_notifications.attachment_store')
+
+    @pytest.fixture(autouse=True)
+    def feature_toggle_enabled(self, mocker):
+        mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
+
     def test_returns_not_implemented_if_feature_flag_disabled(
-            self, client, mocker, service_with_upload_document_permission, template
+            self, client, mocker, service_with_upload_document_permission, template, attachment_store_mock
     ):
         mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='False')
-
-        attachment_store_mock = mocker.patch('app.v2.notifications.post_notifications.attachment_store')
 
         response = post_send_notification(client, service_with_upload_document_permission, 'email', {
             "email_address": "foo@bar.com",
@@ -793,12 +799,8 @@ class TestPostNotificationWithAttachment:
         attachment_store_mock.put.assert_not_called()
 
     def test_returns_not_implemented_if_sending_method_is_link(
-            self, client, mocker, service_with_upload_document_permission, template
+            self, client, service_with_upload_document_permission, template, attachment_store_mock
     ):
-        mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
-
-        attachment_store_mock = mocker.patch('app.v2.notifications.post_notifications.attachment_store')
-
         response = post_send_notification(client, service_with_upload_document_permission, 'email', {
             "email_address": "foo@bar.com",
             "template_id": template.id,
@@ -816,11 +818,15 @@ class TestPostNotificationWithAttachment:
 
     @pytest.mark.parametrize("sending_method", ["attach", None])
     def test_attachment_upload_with_sending_method_attach(
-            self, client, notify_db_session, mocker, sending_method, service_with_upload_document_permission, template
+            self,
+            client,
+            notify_db_session,
+            mocker,
+            sending_method,
+            service_with_upload_document_permission,
+            template,
+            attachment_store_mock
     ):
-        mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
-
-        attachment_store_mock = mocker.patch('app.v2.notifications.post_notifications.attachment_store')
         mock_uploaded_attachment = ('fake-id', 'fake-key')
         attachment_store_mock.put.return_value = mock_uploaded_attachment
 
@@ -869,14 +875,14 @@ class TestPostNotificationWithAttachment:
         }
 
     def test_attachment_upload_unsupported_mimetype(
-            self, client, notify_db_session, mocker, service_with_upload_document_permission, template
+            self,
+            client,
+            notify_db_session,
+            mocker,
+            service_with_upload_document_permission,
+            template,
+            attachment_store_mock
     ):
-        mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
-
-        attachment_store_mock = mocker.patch('app.v2.notifications.post_notifications.attachment_store')
-        mock_uploaded_attachment = ('fake-id', 'fake-key')
-        attachment_store_mock.put.return_value = mock_uploaded_attachment
-
         mocker.patch(
             'app.v2.notifications.post_notifications.extract_and_validate_mimetype',
             side_effect=UnsupportedMimeTypeException()
@@ -918,8 +924,7 @@ class TestPostNotificationWithAttachment:
         assert filename in resp_json["errors"][0]["message"]
         assert "too long" in resp_json["errors"][0]["message"]
 
-    def test_too_large_file(self, client, service_with_upload_document_permission, template, mocker):
-        mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
+    def test_too_large_file(self, client, service_with_upload_document_permission, template):
         response = post_send_notification(client, service_with_upload_document_permission, 'email', {
             "email_address": "foo@bar.com",
             "template_id": template.id,
@@ -987,8 +992,6 @@ class TestPostNotificationWithAttachment:
         assert "Incorrect padding" in resp_json["errors"][0]["message"]
 
     def test_simulated(self, client, notify_db_session, mocker):
-        mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
-
         service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
         template = create_template(
             service=service, template_type="email", content="Document: ((document))"
@@ -1016,25 +1019,22 @@ class TestPostNotificationWithAttachment:
         )
 
     def test_without_document_upload_permission(
-        self, client, notify_db_session, mocker
+        self, client, notify_db_session
     ):
         service = create_service(service_permissions=[EMAIL_TYPE])
         template = create_template(
             service=service, template_type="email", content="Document: ((document))"
         )
 
-        document_download_mock = mocker.patch(
-            "app.v2.notifications.post_notifications.document_download_client"
-        )
-        document_download_mock.upload_document.return_value = "https://document-url/"
-
         response = post_send_notification(client, service, 'email', {
             "email_address": service.users[0].email_address,
             "template_id": template.id,
-            "personalisation": {"document": {"file": "abababab"}},
+            "personalisation": {"document": {"file": "abababab", "filename": "foo.pdf"}},
         })
 
         assert response.status_code == 400
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert "Service is not allowed to send documents" in resp_json["errors"][0]["message"]
 
 
 def test_post_notification_returns_400_when_get_json_throws_exception(client, sample_email_template):
