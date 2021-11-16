@@ -1,20 +1,3 @@
-class DocumentDownloadError(Exception):
-    def __init__(self, message, status_code):
-        self.message = message
-        self.status_code = status_code
-
-    @classmethod
-    def from_exception(cls, e):
-        try:
-            message = e.response.json()['error']
-            status_code = e.response.status_code
-        except (TypeError, ValueError, AttributeError, KeyError):
-            message = 'connection error'
-            status_code = 503
-
-        return cls(message, status_code)
-
-
 class DocumentDownloadClient:
 
     def init_app(self, app):

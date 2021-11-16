@@ -290,31 +290,29 @@ def process_document_uploads(personalisation_data, service, simulated=False):
         if simulated:
             personalisation_data[key] = document_download_client.get_upload_url(service.id) + '/test-document'
         else:
+            sending_method = personalisation_data[key].get('sending_method', 'attach')
+            file_name = personalisation_data[key]['filename']
+
+            mimetype = extract_and_validate_mimetype(
+                file_data=personalisation_data[key]['file'],
+                file_name=file_name
+            )
             try:
-                sending_method = personalisation_data[key].get('sending_method', 'attach')
-                file_name = personalisation_data[key]['filename']
-
-                mimetype = extract_and_validate_mimetype(
-                    file_data=personalisation_data[key]['file'],
-                    file_name=file_name
-                )
-
                 attachment_id, encryption_key = attachment_store.put(
                     service_id=service.id,
                     attachment_stream=personalisation_data[key]['file'],
                     sending_method=sending_method,
                     mimetype=mimetype
                 )
-
+            except AttachmentStoreError as e:
+                raise BadRequestError(message="Unable to upload attachment object to store") from e
+            else:
                 personalisation_data[key] = {
                     'id': str(attachment_id),
                     'encryption_key': encryption_key,
                     'file_name': file_name,
                     'sending_method': sending_method
                 }
-
-            except AttachmentStoreError as e:
-                raise BadRequestError(message="Unable to upload attachment object to store") from e
 
     return personalisation_data
 
