@@ -6,6 +6,7 @@ from notifications_utils.recipients import InvalidEmailError
 from sqlalchemy.exc import DataError
 from sqlalchemy.orm.exc import NoResultFound
 
+from app.attachments.exceptions import UnsupportedMimeTypeException
 from app.authentication.auth import AuthError
 from app.errors import InvalidRequest
 
@@ -86,6 +87,12 @@ def register_errors(blueprint):
     def validation_error(error):
         current_app.logger.info(error)
         return jsonify(json.loads(error.message)), 400
+
+    @blueprint.errorhandler(UnsupportedMimeTypeException)
+    def unsupported_mime_type(error):
+        current_app.logger.info(error)
+        return jsonify(status_code=400,
+                       errors=[{"error": error.__class__.__name__, "message": str(error)}]), 400
 
     @blueprint.errorhandler(JobIncompleteError)
     def job_incomplete_error(error):

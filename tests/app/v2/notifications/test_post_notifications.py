@@ -4,6 +4,7 @@ import uuid
 import pytest
 from freezegun import freeze_time
 
+from app.attachments.exceptions import UnsupportedMimeTypeException
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
     ScheduledNotification,
@@ -866,6 +867,37 @@ class TestPostNotificationWithAttachment:
                 'encryption_key': 'fake-key'
             }
         }
+
+    def test_attachment_upload_unsupported_mimetype(
+            self, client, notify_db_session, mocker, service_with_upload_document_permission, template
+    ):
+        mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
+
+        mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
+        attachment_store_mock = mocker.patch('app.v2.notifications.post_notifications.attachment_store')
+        mock_uploaded_attachment = ('fake-id', 'fake-key')
+        attachment_store_mock.put.return_value = mock_uploaded_attachment
+
+        mocker.patch(
+            'app.v2.notifications.post_notifications.extract_and_validate_mimetype',
+            side_effect=UnsupportedMimeTypeException()
+        )
+
+        data = {
+            "email_address": "foo@bar.com",
+            "template_id": template.id,
+            "personalisation": {
+                "some_attachment": {
+                    "file": self.base64_encoded_file,
+                    "filename": "file.pdf",
+                }
+            }
+        }
+
+        response = post_send_notification(client, service_with_upload_document_permission, 'email', data)
+
+        assert response.status_code == 400
+        attachment_store_mock.put.assert_not_called()
 
     def test_long_filename(self, client, service_with_upload_document_permission, template):
         filename = "a" * 256
