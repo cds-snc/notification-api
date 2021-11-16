@@ -138,7 +138,7 @@ class MpiClient:
             if exception_code_mapping.get(error_code):
                 exception = exception_code_mapping.get(error_code)
                 exception_text = exception_substring.get(exception)
-                self.statsd_client.incr("clients.mpi.get_va_profile_id,error." + exception_text if exception_text
+                self.statsd_client.incr("clients.mpi.get_va_profile_id.error." + exception_text if exception_text
                                         else "clients.mpi.error")
                 raise exception(error_message)
             else:
