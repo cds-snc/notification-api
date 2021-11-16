@@ -137,9 +137,9 @@ class MpiClient:
                 f"for notification {notification_id} with fhir {fhir_identifier}"
             if exception_code_mapping.get(error_code):
                 exception = exception_code_mapping.get(error_code)
-                substring = exception_substring(exception)
-                self.statsd_client.incr(
-                    "clients.mpi.error." + substring if substring else "clients.mpi.error")
+                exception_text = exception_substring.get(exception)
+                self.statsd_client.incr("clients.mpi.get_va_profile_id,error." + exception_text if exception_text
+                                        else "clients.mpi.error")
                 raise exception(error_message)
             else:
                 self.statsd_client.incr("clients.mpi.error")
