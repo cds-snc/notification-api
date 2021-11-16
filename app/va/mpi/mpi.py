@@ -127,13 +127,10 @@ class MpiClient:
 
     def _validate_response(self, response_json, notification_id, fhir_identifier):
         if response_json.get('severity'):
-            response_message = _get_nested_value_from_response_body(response_json, "details.text")
             error_code = _get_nested_value_from_response_body(response_json, "details.coding.index.code")
             error_message = \
                 f"MPI returned error: {response_json} " \
-                f"for notification {notification_id} with fhir {fhir_identifier}" \
-                f"with response error code: {error_code}" \
-                f"and response text: {response_message}"
+                f"for notification {notification_id} with fhir {fhir_identifier}"
             self.statsd_client.incr("clients.mpi.error")
             if exception_code_mapping.get(error_code):
                 exception = exception_code_mapping.get(error_code)

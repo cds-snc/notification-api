@@ -13,26 +13,11 @@ from app.va.mpi import (
     IdentifierNotFound,
     IncorrectNumberOfIdentifiersException,
     MultipleActiveVaProfileIdsException,
-    BeneficiaryDeceasedException
+    BeneficiaryDeceasedException, NoSuchIdentifierException
 )
 from tests.app.factories.recipient_idenfier import sample_recipient_identifier
 
 SYSTEM_URN_OID = "urn:oid:2.16.840.1.113883.4.349"
-
-MPI_ERROR_RESPONSE = {
-    "severity": "error",
-    "code": "exception",
-    "details": {
-        "coding": [
-            {
-                "code": 557
-            }
-        ],
-        "text": "MVI[S]:INVALID REQUEST"
-    },
-    "resourceType": "OperationOutcome",
-    "id": "2020-12-02 12:14:39"
-}
 
 MPI_SECURITY_ERROR_RESPONSE = {
     "severity": "error",
@@ -228,13 +213,38 @@ class TestGetVaProfileId:
         with pytest.raises(IdentifierNotFound):
             mpi_client.get_va_profile_id(notification_with_recipient_identifier)
 
+    @pytest.mark.parametrize("error_code, error_text, expected_exception",
+                             [("GCID01", 'Correlation Does Not Exist', NoSuchIdentifierException),
+                              ("GCID01", 'ICN/VPID Does Not Exist', NoSuchIdentifierException),
+                              ("557", 'Invalid VPID format', NoSuchIdentifierException),
+                              ("557", 'MVI[S]:INVALID REQUEST', NoSuchIdentifierException),
+                              ("BR001", 'No ACTIVE Correlation found', NoSuchIdentifierException),
+                              ("BRNOARG01", 'Invalid MVI Registration Identification', MpiNonRetryableException),
+                              ("556", 'A USVHA National Id can only be set by MVI(MPI/PSIM)', MpiNonRetryableException),
+                              ])
     def test_should_throw_error_when_mpi_returns_error_response(
-            self, mpi_client, rmock, notification_with_recipient_identifier
+            self, mpi_client, rmock, notification_with_recipient_identifier, error_code, error_text,
+            expected_exception
     ):
-        rmock.get(ANY, json=MPI_ERROR_RESPONSE, status_code=200)
+        mpi_error_response = {
+            "severity": "error",
+            "code": "exception",
+            "details": {
+                "coding": [
+                    {
+                        "code": error_code
+                    }
+                ],
+                "text": error_text
+            },
+            "resourceType": "OperationOutcome",
+            "id": "2020-12-02 12:14:39"
+        }
+        rmock.get(ANY, json=mpi_error_response, status_code=200)
 
-        with pytest.raises(MpiNonRetryableException):
+        with pytest.raises(expected_exception) as e:
             mpi_client.get_va_profile_id(notification_with_recipient_identifier)
+            assert str(mpi_error_response) in e
 
     @pytest.mark.parametrize("http_status_code", [429, 500, 502, 503, 504])
     def test_should_throw_mpi_retryable_exception_when_mpi_returns_retryable_http_errors(
@@ -289,6 +299,5 @@ class TestGetVaProfileId:
             mpi_client.get_va_profile_id(notification_with_recipient_identifier)
 
             assert (
-                e.value.failure_reason
-                == 'MPI returned RequestException while querying for FHIR identifier'
+                e.value.failure_reason == 'MPI returned RequestException while querying for FHIR identifier'
             )
