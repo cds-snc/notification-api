@@ -1,8 +1,3 @@
-import requests
-
-from flask import current_app
-
-
 class DocumentDownloadError(Exception):
     def __init__(self, message, status_code):
         self.message = message
@@ -28,29 +23,3 @@ class DocumentDownloadClient:
 
     def get_upload_url(self, service_id):
         return "{}/services/{}/documents".format(self.api_host, service_id)
-
-    def upload_document(self, service_id, personalisation_key):
-        try:
-            response = requests.post(
-                self.get_upload_url(service_id),
-                headers={
-                    'Authorization': "Bearer {}".format(self.auth_token),
-                },
-                data={
-                    'filename': personalisation_key.get('filename'),
-                    'sending_method': personalisation_key['sending_method'],
-                },
-                files={
-                    'document': personalisation_key['file'],
-                }
-            )
-
-            response.raise_for_status()
-        except requests.RequestException as e:
-            error = DocumentDownloadError.from_exception(e)
-            current_app.logger.warning(
-                'Document download request failed with error: {}'.format(error.message)
-            )
-
-            raise error
-        return response.json()

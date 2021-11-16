@@ -36,14 +36,19 @@ class AttachmentStore:
         attachment_key = self.get_attachment_key(service_id, attachment_id, sending_method)
 
         self.logger.info(f"putting attachment object in s3 with key {attachment_key} and mimetype {mimetype}")
-        self.s3.put_object(
-            Bucket=self.bucket,
-            Key=attachment_key,
-            Body=attachment_stream,
-            ContentType=mimetype,
-            SSECustomerKey=encryption_key,
-            SSECustomerAlgorithm='AES256'
-        )
+
+        try:
+            self.s3.put_object(
+                Bucket=self.bucket,
+                Key=attachment_key,
+                Body=attachment_stream,
+                ContentType=mimetype,
+                SSECustomerKey=encryption_key,
+                SSECustomerAlgorithm='AES256'
+            )
+        except BotoClientError as e:
+            self.logger.error(f"error putting attachment object in s3: {e.response['Error']}")
+            raise AttachmentStoreError() from e
 
         return PutReturn(attachment_id=attachment_id, encryption_key=base64.b64encode(encryption_key).decode('utf-8'))
 
@@ -65,7 +70,8 @@ class AttachmentStore:
             )
 
         except BotoClientError as e:
-            raise AttachmentStoreError(e.response['Error'])
+            self.logger.error(f"error getting attachment object from s3: {e.response['Error']}")
+            raise AttachmentStoreError() from e
 
         return attachment['Body'].read().decode('utf-8')
 

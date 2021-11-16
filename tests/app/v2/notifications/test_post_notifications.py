@@ -5,6 +5,7 @@ import pytest
 from freezegun import freeze_time
 
 from app.attachments.exceptions import UnsupportedMimeTypeException
+from app.attachments.store import AttachmentStoreError
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
     ScheduledNotification,
@@ -775,6 +776,13 @@ class TestPostNotificationWithAttachment:
         return mocker.patch('app.v2.notifications.post_notifications.attachment_store')
 
     @pytest.fixture(autouse=True)
+    def validate_mimetype_mock(self, mocker):
+        return mocker.patch(
+            'app.v2.notifications.post_notifications.extract_and_validate_mimetype',
+            return_value='fake/mimetype'
+        )
+
+    @pytest.fixture(autouse=True)
     def feature_toggle_enabled(self, mocker):
         mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
 
@@ -830,11 +838,6 @@ class TestPostNotificationWithAttachment:
         mock_uploaded_attachment = ('fake-id', 'fake-key')
         attachment_store_mock.put.return_value = mock_uploaded_attachment
 
-        mocker.patch(
-            'app.v2.notifications.post_notifications.extract_and_validate_mimetype',
-            return_value='fake/mimetype'
-        )
-
         data = {
             "email_address": "foo@bar.com",
             "template_id": template.id,
@@ -881,12 +884,10 @@ class TestPostNotificationWithAttachment:
             mocker,
             service_with_upload_document_permission,
             template,
-            attachment_store_mock
+            attachment_store_mock,
+            validate_mimetype_mock
     ):
-        mocker.patch(
-            'app.v2.notifications.post_notifications.extract_and_validate_mimetype',
-            side_effect=UnsupportedMimeTypeException()
-        )
+        validate_mimetype_mock.side_effect = UnsupportedMimeTypeException()
 
         data = {
             "email_address": "foo@bar.com",
@@ -1035,6 +1036,28 @@ class TestPostNotificationWithAttachment:
         assert response.status_code == 400
         resp_json = json.loads(response.get_data(as_text=True))
         assert "Service is not allowed to send documents" in resp_json["errors"][0]["message"]
+
+    def test_attachment_store_error(
+        self, client, notify_db_session, service_with_upload_document_permission, template, attachment_store_mock
+    ):
+        attachment_store_mock.put.side_effect = AttachmentStoreError()
+
+        data = {
+            "email_address": "foo@bar.com",
+            "template_id": template.id,
+            "personalisation": {
+                "some_attachment": {
+                    "file": self.base64_encoded_file,
+                    "filename": "file.pdf",
+                }
+            }
+        }
+
+        response = post_send_notification(client, service_with_upload_document_permission, 'email', data)
+
+        assert response.status_code == 400
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert "Unable to upload attachment object to store" in resp_json["errors"][0]["message"]
 
 
 def test_post_notification_returns_400_when_get_json_throws_exception(client, sample_email_template):

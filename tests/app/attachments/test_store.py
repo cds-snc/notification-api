@@ -83,6 +83,18 @@ def test_put_attachment_attach_tmp_dir(store):
     )
 
 
+def test_put_attachment_with_boto_error(store, stringified_encryption_key):
+    store.s3.put_object = mock.Mock(side_effect=BotoClientError({
+        'Error': {
+            'Code': 'Error code',
+            'Message': 'Error message'
+        }
+    }, 'PutObject'))
+
+    with pytest.raises(AttachmentStoreError):
+        store.put(uuid.uuid4(), mock.Mock(), sending_method='attach', mimetype='application/pdf')
+
+
 def test_get_attachment(store, encryption_key, stringified_encryption_key):
     service_id = uuid.uuid4()
     attachment_id = uuid.uuid4()

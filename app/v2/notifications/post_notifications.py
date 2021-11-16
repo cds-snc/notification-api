@@ -8,9 +8,9 @@ from werkzeug.exceptions import RequestEntityTooLarge
 
 from app import api_user, authenticated_service, notify_celery, document_download_client, attachment_store
 from app.attachments.mimetype import extract_and_validate_mimetype
+from app.attachments.store import AttachmentStoreError
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
-from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
@@ -313,8 +313,8 @@ def process_document_uploads(personalisation_data, service, simulated=False):
                     'sending_method': sending_method
                 }
 
-            except DocumentDownloadError as e:
-                raise BadRequestError(message=e.message, status_code=e.status_code)
+            except AttachmentStoreError as e:
+                raise BadRequestError(message="Unable to upload attachment object to store") from e
 
     return personalisation_data
 
