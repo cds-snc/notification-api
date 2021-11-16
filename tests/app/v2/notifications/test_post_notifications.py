@@ -81,9 +81,18 @@ def check_recipient_communication_permissions_enabled(mocker):
     mock_toggle(mocker, FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED, 'True')
 
 
+@pytest.fixture(autouse=True)
+def mock_deliver_email(mocker):
+    return mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
+
+
+@pytest.fixture(autouse=True)
+def mock_deliver_sms(mocker):
+    return mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+
+
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
-def test_post_sms_notification_returns_201(client, sample_template_with_placeholders, mocker, reference):
-    mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+def test_post_sms_notification_returns_201(client, sample_template_with_placeholders, mock_deliver_sms, reference):
     data = {
         'phone_number': '+16502532222',
         'template_id': str(sample_template_with_placeholders.id),
@@ -112,7 +121,7 @@ def test_post_sms_notification_returns_201(client, sample_template_with_placehol
                                              sample_template_with_placeholders.id) \
            in resp_json['template']['uri']
     assert not resp_json["scheduled_for"]
-    assert mocked.called
+    assert mock_deliver_sms.called
 
 
 def test_post_sms_notification_uses_inbound_number_as_sender(client, notify_db_session, mocker):
@@ -231,10 +240,9 @@ def test_post_sms_notification_uses_sms_sender_id_reply_to(
 
 
 def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after_post_notification(
-        client, sample_template, mocker
+        client, sample_template
 ):
     sms_sender = create_service_sms_sender(service=sample_template.service, sms_sender='123456', is_default=False)
-    mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
     data = {
         'phone_number': '+16502532222',
         'template_id': str(sample_template.id),
@@ -326,8 +334,9 @@ def test_notification_returns_400_and_for_schema_problems(client, sample_templat
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
-def test_post_email_notification_returns_201(client, sample_email_template_with_placeholders, mocker, reference):
-    mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
+def test_post_email_notification_returns_201(
+        client, sample_email_template_with_placeholders, mock_deliver_email, reference
+):
     data = {
         "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
         "template_id": sample_email_template_with_placeholders.id,
@@ -360,7 +369,7 @@ def test_post_email_notification_returns_201(client, sample_email_template_with_
                                              str(sample_email_template_with_placeholders.id)) \
            in resp_json['template']['uri']
     assert not resp_json["scheduled_for"]
-    assert mocked.called
+    assert mock_deliver_email.called
 
 
 @pytest.mark.parametrize('recipient, notification_type', [
@@ -498,13 +507,12 @@ def test_post_sms_notification_returns_400_if_not_allowed_to_send_int_sms(
     ]
 
 
-def test_post_sms_notification_with_archived_reply_to_id_returns_400(client, sample_template, mocker):
+def test_post_sms_notification_with_archived_reply_to_id_returns_400(client, sample_template):
     archived_sender = create_service_sms_sender(
         sample_template.service,
         '12345',
         is_default=False,
         archived=True)
-    mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
     data = {
         "phone_number": '+16502532222',
         "template_id": sample_template.id,
@@ -576,11 +584,8 @@ def test_post_sms_notification_returns_400_if_number_not_whitelisted(
 def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms(
         sample_service,
         sample_template,
-        client,
-        mocker,
+        client
 ):
-    mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
-
     data = {
         'phone_number': '+20-12-1234-1234',
         'template_id': sample_template.id
@@ -592,8 +597,7 @@ def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms(
     assert response.headers['Content-type'] == 'application/json'
 
 
-def test_post_sms_should_persist_supplied_sms_number(client, sample_template_with_placeholders, mocker):
-    mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
+def test_post_sms_should_persist_supplied_sms_number(client, sample_template_with_placeholders, mock_deliver_sms):
     data = {
         'phone_number': '+16502532222',
         'template_id': str(sample_template_with_placeholders.id),
@@ -608,7 +612,7 @@ def test_post_sms_should_persist_supplied_sms_number(client, sample_template_wit
     notification_id = notifications[0].id
     assert '+16502532222' == notifications[0].to
     assert resp_json['id'] == str(notification_id)
-    assert mocked.called
+    assert mock_deliver_sms.called
 
 
 @pytest.mark.parametrize("notification_type, key_send_to, send_to",
@@ -695,9 +699,8 @@ def test_post_notification_with_wrong_type_of_sender(
     assert 'ValidationError' in resp_json['errors'][0]['error']
 
 
-def test_post_email_notification_with_valid_reply_to_id_returns_201(client, sample_email_template, mocker):
+def test_post_email_notification_with_valid_reply_to_id_returns_201(client, sample_email_template, mock_deliver_email):
     reply_to_email = create_reply_to_email(sample_email_template.service, 'test@test.com')
-    mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
     data = {
         "email_address": sample_email_template.service.users[0].email_address,
         "template_id": sample_email_template.id,
@@ -711,13 +714,12 @@ def test_post_email_notification_with_valid_reply_to_id_returns_201(client, samp
     notification = Notification.query.first()
     assert notification.reply_to_text == 'test@test.com'
     assert resp_json['id'] == str(notification.id)
-    assert mocked.called
+    assert mock_deliver_email.called
 
     assert notification.reply_to_text == reply_to_email.email_address
 
 
-def test_post_email_notification_with_invalid_reply_to_id_returns_400(client, sample_email_template, mocker, fake_uuid):
-    mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
+def test_post_email_notification_with_invalid_reply_to_id_returns_400(client, sample_email_template, fake_uuid):
     data = {
         "email_address": sample_email_template.service.users[0].email_address,
         "template_id": sample_email_template.id,
@@ -732,13 +734,12 @@ def test_post_email_notification_with_invalid_reply_to_id_returns_400(client, sa
     assert 'BadRequestError' in resp_json['errors'][0]['error']
 
 
-def test_post_email_notification_with_archived_reply_to_id_returns_400(client, sample_email_template, mocker):
+def test_post_email_notification_with_archived_reply_to_id_returns_400(client, sample_email_template):
     archived_reply_to = create_reply_to_email(
         sample_email_template.service,
         'reply_to@test.com',
         is_default=False,
         archived=True)
-    mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
     data = {
         "email_address": 'test@test.com',
         "template_id": sample_email_template.id,
@@ -819,7 +820,6 @@ class TestPostNotificationWithAttachment:
     ):
         mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
 
-        mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
         attachment_store_mock = mocker.patch('app.v2.notifications.post_notifications.attachment_store')
         mock_uploaded_attachment = ('fake-id', 'fake-key')
         attachment_store_mock.put.return_value = mock_uploaded_attachment
@@ -873,7 +873,6 @@ class TestPostNotificationWithAttachment:
     ):
         mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
 
-        mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
         attachment_store_mock = mocker.patch('app.v2.notifications.post_notifications.attachment_store')
         mock_uploaded_attachment = ('fake-id', 'fake-key')
         attachment_store_mock.put.return_value = mock_uploaded_attachment
@@ -995,7 +994,6 @@ class TestPostNotificationWithAttachment:
             service=service, template_type="email", content="Document: ((document))"
         )
 
-        mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
         document_download_mock = mocker.patch(
             "app.v2.notifications.post_notifications.document_download_client"
         )
@@ -1025,7 +1023,6 @@ class TestPostNotificationWithAttachment:
             service=service, template_type="email", content="Document: ((document))"
         )
 
-        mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
         document_download_mock = mocker.patch(
             "app.v2.notifications.post_notifications.document_download_client"
         )
