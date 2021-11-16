@@ -6,7 +6,7 @@ from flask import request, jsonify, current_app, abort
 from notifications_utils.recipients import try_validate_and_format_phone_number
 from werkzeug.exceptions import RequestEntityTooLarge
 
-from app import api_user, authenticated_service, notify_celery, document_download_client, attachment_store
+from app import api_user, authenticated_service, notify_celery, attachment_store
 from app.attachments.mimetype import extract_and_validate_mimetype
 from app.attachments.store import AttachmentStoreError
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
@@ -288,7 +288,7 @@ def process_document_uploads(personalisation_data, service, simulated=False):
 
     for key in file_keys:
         if simulated:
-            personalisation_data[key] = document_download_client.get_upload_url(service.id) + '/test-document'
+            personalisation_data[key] = 'simulated-attachment-url'
         else:
             sending_method = personalisation_data[key].get('sending_method', 'attach')
             file_name = personalisation_data[key]['filename']

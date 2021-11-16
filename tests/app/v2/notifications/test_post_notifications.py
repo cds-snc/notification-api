@@ -992,16 +992,11 @@ class TestPostNotificationWithAttachment:
         resp_json = json.loads(response.get_data(as_text=True))
         assert "Incorrect padding" in resp_json["errors"][0]["message"]
 
-    def test_simulated(self, client, notify_db_session, mocker):
+    def test_simulated(self, client, notify_db_session):
         service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
         template = create_template(
             service=service, template_type="email", content="Document: ((document))"
         )
-
-        document_download_mock = mocker.patch(
-            "app.v2.notifications.post_notifications.document_download_client"
-        )
-        document_download_mock.get_upload_url.return_value = "https://document-url"
 
         data = {
             "email_address": "simulate-delivered@notifications.va.gov",
@@ -1016,7 +1011,7 @@ class TestPostNotificationWithAttachment:
         assert validate(resp_json, post_email_response) == resp_json
 
         assert (
-            resp_json["content"]["body"] == "Document: https://document-url/test-document"
+            resp_json["content"]["body"] == "Document: simulated-attachment-url"
         )
 
     def test_without_document_upload_permission(
