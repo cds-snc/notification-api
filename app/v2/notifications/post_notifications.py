@@ -9,6 +9,7 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from app import api_user, authenticated_service, notify_celery, attachment_store
 from app.attachments.mimetype import extract_and_validate_mimetype
 from app.attachments.store import AttachmentStoreError
+from app.attachments.types import UploadedAttachmentMetadata
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.config import QueueNames, TaskNames
@@ -307,7 +308,7 @@ def process_document_uploads(personalisation_data, service, simulated=False):
             except AttachmentStoreError as e:
                 raise BadRequestError(message="Unable to upload attachment object to store") from e
             else:
-                personalisation_data[key] = {
+                personalisation_data[key]: UploadedAttachmentMetadata = {
                     'id': str(attachment_id),
                     'encryption_key': encryption_key,
                     'file_name': file_name,
