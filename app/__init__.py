@@ -357,7 +357,8 @@ def init_app(app):
 
     @app.before_request
     def reject_payload_over_max_content_length():
-        if int(request.headers['Content-Length']) > app.config['MAX_CONTENT_LENGTH']:
+        if app.config.get('MAX_CONTENT_LENGTH') \
+                and int(request.headers['Content-Length']) > app.config.get('MAX_CONTENT_LENGTH'):
             raise RequestEntityTooLarge()
 
     @app.before_request
