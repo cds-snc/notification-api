@@ -13,7 +13,6 @@ from app import attachment_store
 from app import clients, statsd_client, create_uuid, provider_service
 from app.attachments.types import UploadedAttachmentMetadata
 from app.celery.research_mode_tasks import send_sms_response, send_email_response
-from app.clients.mlwr.mlwr import check_mlwr_score
 from app.dao.notifications_dao import (
     dao_update_notification
 )
@@ -299,10 +298,6 @@ def malware_failure(notification):
         "Send {} for notification id {} to provider is not allowed. Notification contains malware".format(
             notification.notification_type,
             notification.id))
-
-
-def check_mlwr(sid):
-    return check_mlwr_score(sid)
 
 
 def contains_pii(notification, text_content):

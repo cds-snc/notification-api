@@ -764,47 +764,6 @@ def test_send_email_to_provider_should_format_email_address(
     assert kwargs['to_addresses'] == 'test@example.com'
 
 
-def test_notification_can_have_document_attachment_without_mlwr_sid(
-        sample_email_template,
-        mocker,
-        mock_email_client,
-        mocked_build_ga_pixel_url
-):
-    mlwr_mock = mocker.patch('app.delivery.send_to_providers.check_mlwr')
-    personalisation = {
-        "file": {"id": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar"}}
-
-    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
-
-    send_to_providers.send_email_to_provider(
-        db_notification,
-    )
-
-    mock_email_client.send_email.assert_called()
-    mlwr_mock.assert_not_called()
-
-
-def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(
-        sample_email_template,
-        mocker,
-        mock_email_client,
-        mocked_build_ga_pixel_url
-):
-    mlwr_mock = mocker.patch('app.delivery.send_to_providers.check_mlwr')
-    personalisation = {
-        "file": {"id": "foo", "direct_file_url": "http://foo.bar", "url": "http://foo.bar", "mlwr_sid": "false"}
-    }
-
-    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
-
-    send_to_providers.send_email_to_provider(
-        db_notification,
-    )
-
-    mock_email_client.send_email.assert_called()
-    mlwr_mock.assert_not_called()
-
-
 def test_notification_document_with_pdf_attachment(mocker, mock_email_client, sample_service_full_permissions):
     template = create_template(
         template_type='email',
