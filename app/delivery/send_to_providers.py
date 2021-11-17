@@ -11,8 +11,8 @@ from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTempla
 
 from app import attachment_store
 from app import clients, statsd_client, create_uuid, provider_service
+from app.attachments.types import UploadedAttachmentMetadata
 from app.celery.research_mode_tasks import send_sms_response, send_email_response
-from app.clients.mlwr.mlwr import check_mlwr_score
 from app.dao.notifications_dao import (
     dao_update_notification
 )
@@ -110,27 +110,26 @@ def send_email_to_provider(notification):
         personalisation_data = notification.personalisation.copy()
 
         for key in file_keys:
-            sending_method = personalisation_data[key].get('sending_method')
-
-            if sending_method == 'attach':
+            uploaded_attachment_metadata: UploadedAttachmentMetadata = personalisation_data[key]
+            if uploaded_attachment_metadata['sending_method'] == 'attach':
                 try:
                     file_data = attachment_store.get(
                         service_id=service.id,
-                        attachment_id=personalisation_data[key]['id'],
-                        decryption_key=personalisation_data[key]['encryption_key'],
-                        sending_method='attach'
+                        attachment_id=uploaded_attachment_metadata['id'],
+                        decryption_key=uploaded_attachment_metadata['encryption_key'],
+                        sending_method=uploaded_attachment_metadata['sending_method']
                     )
 
                     attachments.append({
-                        "name": personalisation_data[key].get('file_name'),
+                        "name": uploaded_attachment_metadata['file_name'],
                         "data": file_data
                     })
 
                 except Exception as e:
                     attachment_key = attachment_store.get_attachment_key(
                         service_id=service.id,
-                        attachment_id=personalisation_data[key]['id'],
-                        sending_method=sending_method
+                        attachment_id=uploaded_attachment_metadata['id'],
+                        sending_method=uploaded_attachment_metadata['sending_method']
                     )
                     current_app.logger.error(
                         f"Could not download and attach {attachment_key}: {str(e)}"
@@ -299,10 +298,6 @@ def malware_failure(notification):
         "Send {} for notification id {} to provider is not allowed. Notification contains malware".format(
             notification.notification_type,
             notification.id))
-
-
-def check_mlwr(sid):
-    return check_mlwr_score(sid)
 
 
 def contains_pii(notification, text_content):

@@ -28,6 +28,10 @@ exception_code_mapping = {
     "556": MpiNonRetryableException
 }
 
+exception_substring = {
+    NoSuchIdentifierException: "no_such_identifier"
+}
+
 
 def _get_nested_value_from_response_body(response_body, keys, default=None):
     return reduce(lambda d, key:
@@ -131,11 +135,14 @@ class MpiClient:
             error_message = \
                 f"MPI returned error: {response_json} " \
                 f"for notification {notification_id} with fhir {fhir_identifier}"
-            self.statsd_client.incr("clients.mpi.error")
             if exception_code_mapping.get(error_code):
                 exception = exception_code_mapping.get(error_code)
+                exception_text = exception_substring.get(exception)
+                self.statsd_client.incr("clients.mpi.get_va_profile_id.error." + exception_text if exception_text
+                                        else "clients.mpi.error")
                 raise exception(error_message)
             else:
+                self.statsd_client.incr("clients.mpi.error")
                 raise MpiNonRetryableException(error_message)
 
     def _assert_not_deceased(self, response_json, fhir_identifier):

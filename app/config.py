@@ -148,11 +148,6 @@ class Config(object):
     CRONITOR_ENABLED = False
     CRONITOR_KEYS = json.loads(os.getenv('CRONITOR_KEYS', '{}'))
 
-    # Antivirus
-    MLWR_HOST = os.getenv("MLWR_HOST", False)
-    MLWR_USER = os.getenv("MLWR_USER", "")
-    MLWR_KEY = os.getenv("MLWR_KEY", "")
-
     # SendGrid
     SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
 

@@ -14,13 +14,12 @@ from notifications_utils.clients.zendesk.zendesk_client import ZendeskClient
 from notifications_utils.clients.statsd.statsd_client import StatsdClient
 from notifications_utils.clients.redis.redis_client import RedisClient
 from notifications_utils import logging, request_helper
-from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
+from werkzeug.exceptions import HTTPException as WerkzeugHTTPException, RequestEntityTooLarge
 from werkzeug.local import LocalProxy
 
 from app.callback.sqs_client import SQSClient
 from app.celery.celery import NotifyCelery
 from app.clients import Clients
-from app.clients.document_download import DocumentDownloadClient
 from app.clients.email.aws_ses import AwsSesClient
 from app.clients.email.sendgrid_client import SendGridClient
 from app.clients.sms.firetext import FiretextClient
@@ -79,7 +78,6 @@ zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
 redis_store = RedisClient()
 performance_platform_client = PerformancePlatformClient()
-document_download_client = DocumentDownloadClient()
 va_profile_client = VAProfileClient()
 mpi_client = MpiClient()
 
@@ -167,7 +165,6 @@ def create_app(application):
     encryption.init_app(application)
     redis_store.init_app(application)
     performance_platform_client.init_app(application)
-    document_download_client.init_app(application)
     clients.init_app(
         sms_clients=[firetext_client,
                      mmg_client,
@@ -357,6 +354,11 @@ def init_app(app):
     @app.before_request
     def record_user_agent():
         statsd_client.incr("user-agent.{}".format(process_user_agent(request.headers.get('User-Agent', None))))
+
+    @app.before_request
+    def reject_payload_over_max_content_length():
+        if int(request.headers['Content-Length']) > app.config['MAX_CONTENT_LENGTH']:
+            raise RequestEntityTooLarge()
 
     @app.before_request
     def record_request_details():

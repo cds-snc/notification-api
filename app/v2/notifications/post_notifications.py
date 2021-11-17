@@ -4,11 +4,11 @@ import functools
 import werkzeug
 from flask import request, jsonify, current_app, abort
 from notifications_utils.recipients import try_validate_and_format_phone_number
-from werkzeug.exceptions import RequestEntityTooLarge
 
-from app import api_user, authenticated_service, notify_celery, document_download_client, attachment_store
+from app import api_user, authenticated_service, notify_celery, attachment_store
 from app.attachments.mimetype import extract_and_validate_mimetype
 from app.attachments.store import AttachmentStoreError
+from app.attachments.types import UploadedAttachmentMetadata
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.config import QueueNames, TaskNames
@@ -280,15 +280,12 @@ def process_document_uploads(personalisation_data, service, simulated=False):
 
     check_service_has_permission(UPLOAD_DOCUMENT, authenticated_service.permissions)
 
-    if int(request.headers['Content-Length']) > current_app.config['MAX_CONTENT_LENGTH']:
-        raise RequestEntityTooLarge()
-
     if any(personalisation_data[key].get('sending_method') == 'link' for key in file_keys):
         raise NotImplementedError()
 
     for key in file_keys:
         if simulated:
-            personalisation_data[key] = document_download_client.get_upload_url(service.id) + '/test-document'
+            personalisation_data[key] = 'simulated-attachment-url'
         else:
             sending_method = personalisation_data[key].get('sending_method', 'attach')
             file_name = personalisation_data[key]['filename']
@@ -307,7 +304,7 @@ def process_document_uploads(personalisation_data, service, simulated=False):
             except AttachmentStoreError as e:
                 raise BadRequestError(message="Unable to upload attachment object to store") from e
             else:
-                personalisation_data[key] = {
+                personalisation_data[key]: UploadedAttachmentMetadata = {
                     'id': str(attachment_id),
                     'encryption_key': encryption_key,
                     'file_name': file_name,

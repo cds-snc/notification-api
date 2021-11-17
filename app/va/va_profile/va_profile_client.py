@@ -139,6 +139,10 @@ class VAProfileClient:
                 exception.failure_reason = failure_reason
 
                 raise exception from e
+            elif e.response.status_code == 404:
+                exception = VAProfileIDNotFoundException(str(e))
+
+                raise exception from e
             else:
                 exception = VAProfileNonRetryableException(str(e))
                 exception.failure_reason = failure_reason

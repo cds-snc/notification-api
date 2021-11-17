@@ -46,13 +46,6 @@ itsdangerous==0.24
 
 git+https://github.com/department-of-veterans-affairs/notification-utils.git@1.0.65#egg=notification-utils==1.0.65
 
-# MLWR
-socketio-client==0.5.6
-pycryptodome==3.11.0
-bleach==4.1.0
-
-git+https://bitbucket.org/cse-assemblyline/assemblyline_client.git@v3.7.3#egg=assemblyline_client==v3.7.3
-
 ## The following requirements were added by pip freeze:
 alembic==1.7.4
 amqp==2.6.1
