@@ -925,22 +925,6 @@ class TestPostNotificationWithAttachment:
         assert filename in resp_json["errors"][0]["message"]
         assert "too long" in resp_json["errors"][0]["message"]
 
-    def test_too_large_file(self, client, service_with_upload_document_permission, template):
-        response = post_send_notification(client, service_with_upload_document_permission, 'email', {
-            "email_address": "foo@bar.com",
-            "template_id": template.id,
-            "personalisation": {
-                "document": {
-                    "file": base64.b64encode(b'a' * 1024 * 1024).decode('ascii'),
-                    "filename": "file.pdf",
-                    "sending_method": "attach",
-                }
-            },
-        })
-
-        assert response.status_code == 413
-        assert "Uploaded attachment exceeds file size limit" in response.json["errors"][0]["message"]
-
     def test_filename_required_check(self, client, service_with_upload_document_permission, template):
         response = post_send_notification(client, service_with_upload_document_permission, 'email', {
             "email_address": "foo@bar.com",

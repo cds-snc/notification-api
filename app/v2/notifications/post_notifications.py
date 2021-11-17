@@ -4,7 +4,6 @@ import functools
 import werkzeug
 from flask import request, jsonify, current_app, abort
 from notifications_utils.recipients import try_validate_and_format_phone_number
-from werkzeug.exceptions import RequestEntityTooLarge
 
 from app import api_user, authenticated_service, notify_celery, attachment_store
 from app.attachments.mimetype import extract_and_validate_mimetype
@@ -280,9 +279,6 @@ def process_document_uploads(personalisation_data, service, simulated=False):
     personalisation_data = personalisation_data.copy()
 
     check_service_has_permission(UPLOAD_DOCUMENT, authenticated_service.permissions)
-
-    if int(request.headers['Content-Length']) > current_app.config['MAX_CONTENT_LENGTH']:
-        raise RequestEntityTooLarge()
 
     if any(personalisation_data[key].get('sending_method') == 'link' for key in file_keys):
         raise NotImplementedError()

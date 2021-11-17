@@ -14,7 +14,7 @@ from notifications_utils.clients.zendesk.zendesk_client import ZendeskClient
 from notifications_utils.clients.statsd.statsd_client import StatsdClient
 from notifications_utils.clients.redis.redis_client import RedisClient
 from notifications_utils import logging, request_helper
-from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
+from werkzeug.exceptions import HTTPException as WerkzeugHTTPException, RequestEntityTooLarge
 from werkzeug.local import LocalProxy
 
 from app.callback.sqs_client import SQSClient
@@ -354,6 +354,11 @@ def init_app(app):
     @app.before_request
     def record_user_agent():
         statsd_client.incr("user-agent.{}".format(process_user_agent(request.headers.get('User-Agent', None))))
+
+    @app.before_request
+    def reject_payload_over_max_content_length():
+        if int(request.headers['Content-Length']) > app.config['MAX_CONTENT_LENGTH']:
+            raise RequestEntityTooLarge()
 
     @app.before_request
     def record_request_details():
