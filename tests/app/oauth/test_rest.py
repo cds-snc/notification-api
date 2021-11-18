@@ -363,6 +363,25 @@ class TestAuthorize:
             identity_provider_user_id=expected_user_id,
             name=expected_name)
 
+    def test_should_create_user_with_login_name_if_no_name_in_response(
+            self, client, notify_api, mocker
+    ):
+        github_user_with_no_name = github_user.copy()
+        github_user_with_no_name['name'] = None
+        github_user_with_no_name['login'] = 'some-user-name-that-is-not-a-real-name'
+
+        mock_github_responses(mocker, {'/user': github_user_with_no_name})
+
+        create_or_retrieve_user = mocker.patch('app.oauth.rest.create_or_retrieve_user')
+
+        mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
+
+        with set_config_values(notify_api, cookie_config):
+            client.get('/auth/authorize')
+
+        _args, kwargs = create_or_retrieve_user.call_args
+        assert kwargs['name'] == 'some-user-name-that-is-not-a-real-name'
+
 
 class TestRedeemToken:
 

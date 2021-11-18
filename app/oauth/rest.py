@@ -145,7 +145,7 @@ def _extract_github_user_info(email_resp: json, user_resp: json) -> Tuple[str, s
     verified_email = next(email.get('email') for email in email_resp.json()
                           if email.get('primary') and email.get('verified'))
 
-    verified_name = user_resp.json().get('name')
+    verified_name = user_resp.json().get('name') or user_resp.json().get('login')
     verified_user_id = user_resp.json().get('id')
 
     return verified_email, verified_user_id, verified_name
