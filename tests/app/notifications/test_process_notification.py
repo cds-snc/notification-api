@@ -20,6 +20,7 @@ from app.models import (
 from app.notifications.process_notifications import (
     create_content_for_notification,
     persist_notification,
+    persist_notifications,
     persist_scheduled_notification,
     send_notification_to_queue,
     simulated_recipient,
@@ -596,7 +597,7 @@ def test_persist_letter_notification_finds_correct_postage(
     assert persisted_notification.postage == expected_postage
 
 
-def test_persist_notification_with_billable_units_stores_correct_info(mocker):
+def test_persist_notification_with_billable_units_stores_correct_info(mocker, notify_db_session):
     service = create_service(service_permissions=[LETTER_TYPE])
     template = create_template(service, template_type=LETTER_TYPE)
     mocker.patch("app.dao.templates_dao.dao_get_template_by_id", return_value=template)
@@ -613,5 +614,43 @@ def test_persist_notification_with_billable_units_stores_correct_info(mocker):
         template_postage=template.postage,
     )
     persisted_notification = Notification.query.all()[0]
-
     assert persisted_notification.billable_units == 3
+
+
+class TestPersistNotifications:
+    def test_persist_notifications_list(self, sample_job, sample_api_key, notify_db_session):
+        persist_notifications(
+            [
+                dict(
+                    template_id=sample_job.template.id,
+                    template_version=sample_job.template.version,
+                    recipient="foo@bar.com",
+                    service=sample_job.service,
+                    personalisation=None,
+                    notification_type="email",
+                    api_key_id=sample_api_key.id,
+                    key_type=sample_api_key.key_type,
+                    job_id=sample_job.id,
+                    job_row_number=10,
+                    client_reference="ref from client",
+                ),
+                dict(
+                    template_id=sample_job.template.id,
+                    template_version=sample_job.template.version,
+                    recipient="foo2@bar.com",
+                    service=sample_job.service,
+                    personalisation=None,
+                    notification_type="email",
+                    api_key_id=sample_api_key.id,
+                    key_type=sample_api_key.key_type,
+                    job_id=sample_job.id,
+                    job_row_number=10,
+                    client_reference="ref from client",
+                ),
+            ]
+        )
+        persisted_notification = Notification.query.all()
+
+        assert persisted_notification[0].to == "foo@bar.com"
+        assert persisted_notification[1].to == "foo2@bar.com"
+        assert persisted_notification[0].service == sample_job.service
