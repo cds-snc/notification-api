@@ -297,3 +297,5 @@ fileignoreconfig:
       checksum: fb096cd80adb5cc7916a504aac7b9657d1b5318f27479edc9a8e6b69ed3c4e9c
     - filename: app/va/va_profile/va_profile_client.py
       checksum: 92ae208ffa16b46c91e959911b811d8fc82d274434dffc6e784f2c85682729f7
+    - filename: tests/app/oauth/test_rest.py
+      checksum: 4e7acd2db507c6cbc5aeb1912a7c98bd03892f4b63970d6475cb20edbd7edc20
