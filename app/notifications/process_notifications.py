@@ -149,6 +149,68 @@ def send_notification_to_queue(notification, research_mode, queue=None):
     )
 
 
+def persist_notifications(notifications):
+    """
+    Persist Notifications takes a list of json objects and creates a Notification
+    that gets bulk inserted into the DB.
+    """
+    
+    lofnotifications = []
+
+    for notification in notifications:
+        notification_created_at = notification.get("created_at") or datetime.utcnow()
+        if not notification["notification_id"]:
+            notification_id = uuid.uuid4()
+        notification_obj = Notification(
+            id=notification_id,
+            template_id=notification.get("template_id"),
+            template_version=notification.get("template_version"),
+            to=notification.get("recipient"),
+            service_id=notification.get("service.id"),
+            personalisation=notification.get("personalisation"),
+            notification_type=notification.get("notification_type"),
+            api_key_id=notification.get("api_key_id"),
+            key_type=notification.get("key_type"),
+            created_at=notification.get("notification_created_at"),
+            job_id=notification.get("job_id"),
+            job_row_number=notification.get("job_row_number"),
+            client_reference=notification.get("client_reference"),
+            reference=notification.get("reference"),
+            created_by_id=notification.get("created_by_id"),
+            status=notification.get("status"),
+            reply_to_text=notification.get("reply_to_text"),
+            billable_units=notification.get("billable_units"),
+        )
+
+        if notification.get("notification_type") == SMS_TYPE:
+            recipient = notification.get("recipient")
+            formatted_recipient = validate_and_format_phone_number(recipient, international=True)
+            recipient_info = get_international_phone_info(formatted_recipient)
+            notification_obj.normalised_to = formatted_recipient
+            notification_obj.international = recipient_info.international
+            notification_obj.phone_prefix = recipient_info.country_prefix
+            notification_obj.rate_multiplier = recipient_info.billable_units
+        elif notification.get("notification_type") == EMAIL_TYPE:
+            notification_obj.normalised_to = format_email_address(notification.get("to"))
+        elif notification.get("notification_type") == LETTER_TYPE:
+            notification_obj.postage = notification.get("postage") or notification.get("template_postage")
+
+        lofnotifications.append(notification_obj)
+        if notification.get("key_type") != KEY_TYPE_TEST:
+            if redis_store.get(redis.daily_limit_cache_key(notification.get("service").id)):
+                redis_store.incr(redis.daily_limit_cache_key(notification.get("service").id))
+
+        current_app.logger.info(
+            "{} {} created at {}".format(
+                notification.get("notification_type"),
+                notification.get("notification_id"),
+                notification.get("notification_created_at"),
+            )
+        )
+
+    return lofnotifications
+
+
 def simulated_recipient(to_address, notification_type):
     if notification_type == SMS_TYPE:
         formatted_simulated_numbers = [

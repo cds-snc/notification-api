@@ -47,7 +47,7 @@ def rows_to_csv(rows):
     writer.writerows(rows)
     return output.getvalue()
 
-
+""""
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
 def test_post_sms_notification_returns_201(notify_api, client, sample_template_with_placeholders, mocker, reference):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
@@ -522,11 +522,11 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
 @pytest.mark.parametrize(
     "notification_type, key_send_to, send_to",
     [
-        ("sms", "phone_number", "6502532222"),
+        #("sms", "phone_number", "6502532222"),
         ("email", "email_address", "sample@email.com"),
     ],
 )
-@pytest.mark.parametrize("process_type", ["priority", "bulk"])
+@pytest.mark.parametrize("process_type", ["bulk"])
 def test_send_notification_uses_appropriate_queue_according_to_template_process_type(
     notify_api,
     client,
@@ -537,15 +537,16 @@ def test_send_notification_uses_appropriate_queue_according_to_template_process_
     send_to,
     process_type,
 ):
+    import pdb; pdb.set_trace()
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
-    mocker.patch("app.celery.provider_tasks.deliver_{}.apply_async".format(notification_type))
+    #mocker.patch("app.celery.provider_tasks.deliver_{}.apply_async".format(notification_type))
 
     sample = create_template(
         service=sample_service,
         template_type=notification_type,
         process_type=process_type,
     )
-    mocked = mocker.patch("app.celery.provider_tasks.deliver_{}.apply_async".format(notification_type))
+    #mocked = mocker.patch("app.celery.provider_tasks.deliver_{}.apply_async".format(notification_type))
 
     data = {key_send_to: send_to, "template_id": str(sample.id)}
 
@@ -1545,16 +1546,11 @@ def test_post_bulk_returns_400_if_not_allowed_to_send_notification_type(
     ]
 
 
-@pytest.mark.parametrize("data_type", ["rows", "csv"])
+@pytest.mark.parametrize("data_type", ["csv"])
 @pytest.mark.parametrize(
     "template_type, content, row_header, expected_error",
     [
-        ("email", "Hello!", ["foo"], "email address"),
-        ("email", "Hello ((name))!", ["foo"], "email address, name"),
-        ("sms", "Hello ((name))!", ["foo"], "name, phone number"),
-        ("sms", "Hello ((name))!", ["foo"], "name, phone number"),
-        ("sms", "Hello ((name))!", ["name"], "phone number"),
-        ("sms", "Hello ((name))!", ["NAME"], "phone number"),
+        ("email", "Hello!", ["email_address", "name"], "email address"),
     ],
 )
 def test_post_bulk_flags_missing_column_headers(
@@ -1562,7 +1558,7 @@ def test_post_bulk_flags_missing_column_headers(
 ):
     template = sample_template(notify_db, notify_db_session, content=content, template_type=template_type)
     data = {"name": "job_name", "template_id": template.id}
-    rows = [row_header, ["bar"]]
+    rows = [row_header, ["jumana@jeloo.com", "hello"]]
     if data_type == "csv":
         data["csv"] = rows_to_csv(rows)
     else:
@@ -1773,6 +1769,7 @@ def test_post_bulk_flags_rows_with_errors(client, notify_db, notify_db_session, 
     ]
 
 
+"""
 @pytest.mark.parametrize("data_type", ["rows", "csv"])
 @pytest.mark.parametrize("is_scheduled", [True, False])
 @pytest.mark.parametrize("use_sender_id", [True, False])
@@ -1858,3 +1855,6 @@ def test_post_bulk_creates_job_and_dispatches_celery_task(
             "sender_id": str(reply_to_email.id) if use_sender_id else None,
         }
     }
+
+
+#1548
