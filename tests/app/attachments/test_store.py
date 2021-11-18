@@ -32,7 +32,12 @@ def store(mocker):
         'ContentLength': 100
     }
     store = AttachmentStore()
-    store.init_app(endpoint_url='some-url', bucket='test-bucket', logger=mocker.Mock())
+    store.init_app(
+        endpoint_url='some-url',
+        bucket='test-bucket',
+        logger=mocker.Mock(),
+        statsd_client=mocker.Mock()
+    )
     return store
 
 

@@ -3,6 +3,7 @@ import uuid
 import base64
 import boto3
 from botocore.exceptions import ClientError as BotoClientError
+from notifications_utils.clients.statsd.statsd_client import StatsdClient
 
 from app.attachments.types import SendingMethod, PutReturn
 
@@ -16,11 +17,13 @@ class AttachmentStore:
         self.bucket = bucket
         self.s3 = None
         self.logger = None
+        self.statsd_client = None
 
-    def init_app(self, endpoint_url: str, bucket: str, logger):
+    def init_app(self, endpoint_url: str, bucket: str, logger, statsd_client: StatsdClient):
         self.s3 = boto3.client("s3", endpoint_url=endpoint_url)
         self.bucket = bucket
         self.logger = logger
+        self.statsd_client = statsd_client
 
     def put(
             self,
@@ -48,9 +51,14 @@ class AttachmentStore:
             )
         except BotoClientError as e:
             self.logger.error(f"error putting attachment object in s3: {e.response['Error']}")
+            self.statsd_client.incr('attachments.put.error')
             raise AttachmentStoreError() from e
-
-        return PutReturn(attachment_id=attachment_id, encryption_key=base64.b64encode(encryption_key).decode('utf-8'))
+        else:
+            self.statsd_client.incr('attachments.put.success')
+            return PutReturn(
+                attachment_id=attachment_id,
+                encryption_key=base64.b64encode(encryption_key).decode('utf-8')
+            )
 
     def get(
             self,
@@ -71,9 +79,11 @@ class AttachmentStore:
 
         except BotoClientError as e:
             self.logger.error(f"error getting attachment object from s3: {e.response['Error']}")
+            self.statsd_client.incr('attachments.get.error')
             raise AttachmentStoreError() from e
-
-        return attachment['Body'].read().decode('utf-8')
+        else:
+            self.statsd_client.incr('attachments.get.success')
+            return attachment['Body'].read().decode('utf-8')
 
     @staticmethod
     def generate_encryption_key() -> bytes:
