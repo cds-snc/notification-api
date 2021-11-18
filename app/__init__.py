@@ -185,7 +185,8 @@ def create_app(application):
     attachment_store.init_app(
         endpoint_url=application.config['AWS_S3_ENDPOINT_URL'],
         bucket=application.config['ATTACHMENTS_BUCKET'],
-        logger=application.logger
+        logger=application.logger,
+        statsd_client=statsd_client
     )
 
     jwt.init_app(application)
