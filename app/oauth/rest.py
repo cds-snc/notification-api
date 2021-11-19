@@ -33,9 +33,14 @@ def _assert_github_login_toggle_enabled():
 
 @oauth_blueprint.route('/login', methods=['GET'])
 def login():
-    _assert_github_login_toggle_enabled()
-    redirect_uri = url_for('oauth.authorize', _external=True)
-    return oauth_registry.github.authorize_redirect(redirect_uri)
+    idp = request.args.get('idp')
+    if (idp == 'va'):
+        redirect_uri = url_for('oauth.callback', _external=True)
+        return oauth_registry.vasso.authorize_redirect(redirect_uri)
+    else:
+        _assert_github_login_toggle_enabled()
+        redirect_uri = url_for('oauth.authorize', _external=True)
+        return oauth_registry.github.authorize_redirect(redirect_uri)
 
 
 @oauth_blueprint.route('/login', methods=['POST'])
@@ -108,6 +113,33 @@ def authorize():
         return response
 
 
+@oauth_blueprint.route('/callback')
+def callback():
+    try:
+        tokens = oauth_registry.vasso.authorize_access_token()
+        user_info = oauth_registry.vasso.parse_id_token(tokens)
+        user = create_or_retrieve_user(
+            email_address=user_info['email'],
+            identity_provider_user_id=user_info['sub'],
+            name=user_info['name'])
+    except Exception as e:
+        response = make_response('', 401)
+        return response
+    else:
+        response = make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/success"))
+        response.set_cookie(
+            current_app.config['JWT_ACCESS_COOKIE_NAME'],
+            create_access_token(
+                identity=user
+            ),
+            httponly=True,
+            secure=current_app.config['SESSION_COOKIE_SECURE'],
+            samesite=current_app.config['SESSION_COOKIE_SAMESITE']
+        )
+        statsd_client.incr('oauth.authorization.success')
+        return response
+
+
 def make_github_get_request(endpoint: str, github_token) -> json:
     resp = oauth_registry.github.get(
         endpoint,
@@ -152,6 +184,7 @@ def _extract_github_user_info(email_resp: json, user_resp: json) -> Tuple[str, s
 
 
 @oauth_blueprint.route('/redeem-token', methods=['GET'])
+@oauth_blueprint.route('/token', methods=['GET'])
 def redeem_token():
     _assert_github_login_toggle_enabled()
     try:
