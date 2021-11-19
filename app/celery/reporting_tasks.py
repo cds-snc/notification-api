@@ -1,4 +1,7 @@
 from datetime import datetime, timedelta
+import io
+import boto3
+import csv
 
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
@@ -7,11 +10,15 @@ from notifications_utils.timezones import convert_utc_to_local_timezone
 from app import notify_celery
 from app.config import QueueNames
 from app.cronitor import cronitor
+from app.dao.services_dao import (
+    dao_fetch_service_by_id
+)
 from app.dao.fact_billing_dao import (
     fetch_billing_data_for_day,
     update_fact_billing
 )
 from app.dao.fact_notification_status_dao import fetch_notification_status_for_day, update_fact_notification_status
+from app.dao.templates_dao import dao_get_template_by_id
 
 
 @notify_celery.task(name="create-nightly-billing")
@@ -74,14 +81,15 @@ def create_nightly_notification_status(day_start=None):
         process_day = day_start - timedelta(days=i)
 
         create_nightly_notification_status_for_day.apply_async(
-            kwargs={'process_day': process_day.isoformat()},
+            kwargs={'process_day': process_day.isoformat(),
+                    'make_daily_csv': i == 0},
             queue=QueueNames.REPORTING
         )
 
 
 @notify_celery.task(name="create-nightly-notification-status-for-day")
 @statsd(namespace="tasks")
-def create_nightly_notification_status_for_day(process_day):
+def create_nightly_notification_status_for_day(process_day, make_daily_csv):
     process_day = datetime.strptime(process_day, "%Y-%m-%d").date()
 
     start = datetime.utcnow()
@@ -99,3 +107,36 @@ def create_nightly_notification_status_for_day(process_day):
             len(transit_data), process_day
         )
     )
+
+    if make_daily_csv:
+        generate_daily_notification_status_csv_report.apply_async(
+            kwargs={'transit_data': transit_data,
+                    "process_day": process_day},
+            queue=QueueNames.REPORTING
+        )
+
+
+@notify_celery.task(name="generate-daily-notification-status-csv-report")
+@statsd(namespace="tasks")
+def generate_daily_notification_status_csv_report(transit_data, process_day):
+    buff = io.StringIO()
+
+    writer = csv.writer(buff, dialect='excel', delimiter=',')
+    writer.writerow(["date", "service name", "service id", "template name", "template id", "status", "count"])
+    for row in transit_data:
+        formatted_row = [process_day,
+                         dao_fetch_service_by_id(row.service_id).name, row.service_id,
+                         dao_get_template_by_id(row.template_id).name, row.template_id, row.status,
+                         row.notification_count]
+        writer.writerow(formatted_row)
+
+    buff2 = io.BytesIO(buff.getvalue().encode())
+
+    bucket = 'changeme'
+    key = 'blah.csv'
+
+    client = boto3.client('s3')
+    client.upload_fileobj(buff2, bucket, key)
+
+
+    return
