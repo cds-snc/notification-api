@@ -204,10 +204,12 @@ def dao_fetch_services_near_limit():
         .order_by(desc(FactNotificationStatus.bst_date))
         .all()
     )
-    
+
+    today = convert_utc_to_local_timezone(datetime.utcnow())
+    three_months_ago = today.date() - timedelta(days=92)
     nearLimit = []
     for row in rollup:
-        if row.count >= 0.75 * row.message_limit:
+        if row.count >= 0.75 * row.message_limit and row.day > three_months_ago:
             nearLimit.append(row._asdict())
     return nearLimit
 
