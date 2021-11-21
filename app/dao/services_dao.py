@@ -189,6 +189,10 @@ def dao_fetch_live_services_data():
     return results
 
 
+def dao_fetch_services_near_limit():
+    return ["SJA"]
+
+
 def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Union[Service, Tuple[Service, dict]]:
     if use_cache:
         service_cache = redis_store.get(service_cache_key(service_id))

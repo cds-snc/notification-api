@@ -76,6 +76,7 @@ from app.dao.services_dao import (
     dao_fetch_all_services,
     dao_fetch_all_services_by_user,
     dao_fetch_live_services_data,
+    dao_fetch_services_near_limit,
     dao_fetch_service_by_id,
     dao_fetch_service_creator,
     dao_fetch_todays_stats_for_all_services,
@@ -203,6 +204,12 @@ def find_services_by_name():
 @service_blueprint.route("/live-services-data", methods=["GET"])
 def get_live_services_data():
     data = dao_fetch_live_services_data()
+    return jsonify(data=data)
+
+
+@service_blueprint.route("/services-near-limit", methods=["GET"])
+def get_services_near_limit():
+    data = dao_fetch_services_near_limit()
     return jsonify(data=data)
 
 
