@@ -8,7 +8,7 @@ from notifications_utils.clients.redis import service_cache_key
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql.expression import and_, asc, case, func
+from sqlalchemy.sql.expression import and_, asc, desc, case, func
 
 from app import db, redis_store
 from app.dao.dao_utils import VersionOptions, transactional, version_class
@@ -45,6 +45,7 @@ from app.models import (
     TemplateRedacted,
     User,
     VerifyCode,
+    FactNotificationStatus,
 )
 from app.utils import (
     email_address_is_nhs,
@@ -190,7 +191,25 @@ def dao_fetch_live_services_data():
 
 
 def dao_fetch_services_near_limit():
-    return ["SJA"]
+    rollup = (
+        db.session.query(
+            FactNotificationStatus.bst_date.label("day"),
+            FactNotificationStatus.service_id.label("service_id"),
+            Service.name.label("service_name"),
+            func.sum(FactNotificationStatus.notification_count).label("count"),
+            Service.message_limit.label("message_limit"),
+        )
+        .join(Service, Service.id == FactNotificationStatus.service_id)
+        .group_by(FactNotificationStatus.bst_date, FactNotificationStatus.service_id, Service.name, Service.message_limit)
+        .order_by(desc(FactNotificationStatus.bst_date))
+        .all()
+    )
+    
+    nearLimit = []
+    for row in rollup:
+        if row.count >= 0.75 * row.message_limit:
+            nearLimit.append(row._asdict())
+    return nearLimit
 
 
 def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Union[Service, Tuple[Service, dict]]:
