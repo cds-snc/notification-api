@@ -123,7 +123,7 @@ def register_blueprint(application):
     )
     from app.user.rest import user_blueprint
 
-    # service_blueprint.before_request(requires_admin_auth) SJA REVERT THIS
+    service_blueprint.before_request(requires_admin_auth)
     application.register_blueprint(service_blueprint, url_prefix="/service")
 
     user_blueprint.before_request(requires_admin_auth)
