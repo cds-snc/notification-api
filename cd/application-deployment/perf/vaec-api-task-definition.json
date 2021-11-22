@@ -27,6 +27,10 @@
           "value": "performance"
         },
         {
+          "name": "NIGHTLY_NOTIF_CSV_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "NOTIFICATION_FAILURE_REASON_ENABLED",
           "value": "True"
         },

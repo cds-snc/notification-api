@@ -19,6 +19,7 @@ from app.dao.fact_billing_dao import (
 )
 from app.dao.fact_notification_status_dao import fetch_notification_status_for_day, update_fact_notification_status
 from app.dao.templates_dao import dao_get_template_by_id
+from app.feature_flags import is_feature_enabled, FeatureFlag
 
 
 @notify_celery.task(name="create-nightly-billing")
@@ -81,15 +82,14 @@ def create_nightly_notification_status(day_start=None):
         process_day = day_start - timedelta(days=i)
 
         create_nightly_notification_status_for_day.apply_async(
-            kwargs={'process_day': process_day.isoformat(),
-                    'make_daily_csv': i == 0},
+            kwargs={'process_day': process_day.isoformat()},
             queue=QueueNames.REPORTING
         )
 
 
 @notify_celery.task(name="create-nightly-notification-status-for-day")
 @statsd(namespace="tasks")
-def create_nightly_notification_status_for_day(process_day, make_daily_csv):
+def create_nightly_notification_status_for_day(process_day):
     process_day = datetime.strptime(process_day, "%Y-%m-%d").date()
 
     start = datetime.utcnow()
@@ -108,7 +108,7 @@ def create_nightly_notification_status_for_day(process_day, make_daily_csv):
         )
     )
 
-    if make_daily_csv:
+    if is_feature_enabled(FeatureFlag.NIGHTLY_NOTIF_CSV_ENABLED):
         generate_daily_notification_status_csv_report.apply_async(
             kwargs={'transit_data': transit_data,
                     "process_day": process_day},

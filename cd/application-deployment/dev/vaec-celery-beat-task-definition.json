@@ -81,6 +81,10 @@
           "value": "True"
         },
         {
+          "name": "NIGHTLY_NOTIF_CSV_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "GRANICUS_URL",
           "value": "https://stage-tms.govdelivery.com"
         },

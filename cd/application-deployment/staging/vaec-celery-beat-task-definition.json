@@ -33,6 +33,10 @@
           "value": "True"
         },
         {
+          "name": "NIGHTLY_NOTIF_CSV_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "API_HOST_NAME",
           "value": "https://staging.api.notifications.va.gov"
         },

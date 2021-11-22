@@ -31,6 +31,10 @@
           "value": "True"
         },
         {
+          "name": "NIGHTLY_NOTIF_CSV_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "SMS_SENDER_RATE_LIMIT_ENABLED",
           "value": "True"
         },

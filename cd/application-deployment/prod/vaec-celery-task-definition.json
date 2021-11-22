@@ -29,6 +29,10 @@
           "value": "True"
         },
         {
+          "name": "NIGHTLY_NOTIF_CSV_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED",
           "value": "True"
         },
