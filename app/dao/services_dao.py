@@ -8,7 +8,7 @@ from notifications_utils.clients.redis import service_cache_key
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql.expression import and_, asc, desc, case, func
+from sqlalchemy.sql.expression import and_, asc, case, desc, func
 
 from app import db, redis_store
 from app.dao.dao_utils import VersionOptions, transactional, version_class
@@ -30,6 +30,7 @@ from app.models import (
     AnnualBilling,
     ApiKey,
     FactBilling,
+    FactNotificationStatus,
     InboundNumber,
     InvitedUser,
     Job,
@@ -45,7 +46,6 @@ from app.models import (
     TemplateRedacted,
     User,
     VerifyCode,
-    FactNotificationStatus,
 )
 from app.utils import (
     email_address_is_nhs,
