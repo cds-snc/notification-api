@@ -17,7 +17,9 @@ from app.dao.fact_billing_dao import (
     fetch_billing_data_for_day,
     update_fact_billing
 )
-from app.dao.fact_notification_status_dao import fetch_notification_status_for_day, update_fact_notification_status
+from app.dao.fact_notification_status_dao import (
+    fetch_notification_status_for_day,
+    update_fact_notification_status)
 from app.dao.templates_dao import dao_get_template_by_id
 from app.feature_flags import is_feature_enabled, FeatureFlag
 
@@ -85,6 +87,11 @@ def create_nightly_notification_status(day_start=None):
             kwargs={'process_day': process_day.isoformat()},
             queue=QueueNames.REPORTING
         )
+        if is_feature_enabled(FeatureFlag.NIGHTLY_NOTIF_CSV_ENABLED):
+            generate_daily_notification_status_csv_report.apply_async(
+                kwargs={'process_day': process_day.isoformat()},
+                queue=QueueNames.REPORTING
+            )
 
 
 @notify_celery.task(name="create-nightly-notification-status-for-day")
@@ -108,17 +115,12 @@ def create_nightly_notification_status_for_day(process_day):
         )
     )
 
-    if is_feature_enabled(FeatureFlag.NIGHTLY_NOTIF_CSV_ENABLED):
-        generate_daily_notification_status_csv_report.apply_async(
-            kwargs={'transit_data': transit_data,
-                    "process_day": process_day},
-            queue=QueueNames.REPORTING
-        )
-
 
 @notify_celery.task(name="generate-daily-notification-status-csv-report")
 @statsd(namespace="tasks")
-def generate_daily_notification_status_csv_report(transit_data, process_day):
+def generate_daily_notification_status_csv_report(process_day):
+    process_day = datetime.strptime(process_day, "%Y-%m-%d").date()
+    transit_data = fetch_notification_status_for_day(process_day)
     buff = io.StringIO()
 
     writer = csv.writer(buff, dialect='excel', delimiter=',')
@@ -130,13 +132,10 @@ def generate_daily_notification_status_csv_report(transit_data, process_day):
                          row.notification_count]
         writer.writerow(formatted_row)
 
-    buff2 = io.BytesIO(buff.getvalue().encode())
+    encoded_csv = io.BytesIO(buff.getvalue().encode())
 
-    bucket = 'changeme'
-    key = 'blah.csv'
+    bucket = 'notifications-va-gov-daily-stats'
+    csv_key = str(process_day).join(' .csv')
 
     client = boto3.client('s3')
-    client.upload_fileobj(buff2, bucket, key)
-
-
-    return
+    client.upload_fileobj(encoded_csv, bucket, csv_key)
