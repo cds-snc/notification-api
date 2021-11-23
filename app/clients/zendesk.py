@@ -1,15 +1,15 @@
 import json
-import requests
-from flask import current_app
 from typing import Dict, List, Optional, Tuple, Union
-from requests.auth import HTTPBasicAuth
 from urllib.parse import urljoin
 
-
+import requests
+from flask import current_app
+from requests.auth import HTTPBasicAuth
 
 from app.user.contact_request import ContactRequest
 
 __all__ = ["Zendesk"]
+
 
 class Zendesk(object):
     def init(self, contact: ContactRequest):
@@ -51,9 +51,8 @@ class Zendesk(object):
 
         return message
 
-
-   # Update for Zendesk API Ticket format
-   # read docs: https://developer.zendesk.com/rest_api/docs/core/tickets#create-ticket
+    # Update for Zendesk API Ticket format
+    # read docs: https://developer.zendesk.com/rest_api/docs/core/tickets#create-ticket
     def _generate_ticket(self) -> Dict[str, Union[str, int, List[str]]]:
         product_id = current_app.config[" "]
         if not product_id:
@@ -68,10 +67,10 @@ class Zendesk(object):
             "status": 2,
             "tags": self.contact.tags,
         }
-    
+
     def send_ticket(self) -> int:
         try:
-            api_url = current_app.config["ZENDESK_API_URL"] # Zendesk API URL
+            api_url = current_app.config["ZENDESK_API_URL"]  # Zendesk API URL
             if not api_url:
                 raise NotImplementedError
 

@@ -12,8 +12,8 @@ from flask import Blueprint, abort, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app.clients.zendesk import Zendesk
 from app.clients.freshdesk import Freshdesk
+from app.clients.zendesk import Zendesk
 from app.clients.zendesk_sell import ZenDeskSell
 from app.config import Config, QueueNames
 from app.dao.fido2_key_dao import (
@@ -466,6 +466,7 @@ def send_contact_request(user_id):
     status_code = Zendesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
 
+
 @user_blueprint.route("/<uuid:user_id>/branding-request", methods=["POST"])
 def send_branding_request(user_id):
 
@@ -491,7 +492,6 @@ def send_branding_request(user_id):
         # This means that get_user_by_id couldn't find a user
         current_app.logger.error(e)
         return jsonify({}), 400
-
 
     status_code = Freshdesk(contact).send_ticket()
     status_code = Zendesk(contact).send_ticket()
