@@ -463,37 +463,8 @@ def send_contact_request(user_id):
     if contact.is_demo_request():
         return jsonify({}), 204
     status_code = Freshdesk(contact).send_ticket()
-    return jsonify({"status_code": status_code}), 204
-
-
-@user_blueprint.route("/<uuid:user_id>/zendesk-branding-request", methods=["POST"])
-def send_zendesk_branding_request(user_id):
-    contact = None
-    data = request.json
-    try:
-        user = get_user_by_id(user_id=user_id)
-        contact = ContactRequest(
-            support_type="branding_request",
-            friendly_support_type="Branding request",
-            name=user.name,
-            email_address=user.email_address,
-            service_id=data["serviceID"],
-            service_name=data["service_name"],
-            branding_url=get_logo_url(data["filename"]),
-        )
-        contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
-
-    except TypeError as e:
-        current_app.logger.error(e)
-        return jsonify({}), 400
-    except NoResultFound as e:
-        # This means that get_user_by_id couldn't find a user
-        current_app.logger.error(e)
-        return jsonify({}), 400
-
     status_code = Zendesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
-
 
 @user_blueprint.route("/<uuid:user_id>/branding-request", methods=["POST"])
 def send_branding_request(user_id):
@@ -521,7 +492,9 @@ def send_branding_request(user_id):
         current_app.logger.error(e)
         return jsonify({}), 400
 
+
     status_code = Freshdesk(contact).send_ticket()
+    status_code = Zendesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
 
 
