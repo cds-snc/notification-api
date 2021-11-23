@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 
 import pytest
 from freezegun import freeze_time
@@ -26,6 +26,7 @@ from app.dao.services_dao import (
     dao_fetch_all_services,
     dao_fetch_all_services_by_user,
     dao_fetch_live_services_data,
+    dao_fetch_services_near_limit,
     dao_fetch_service_by_id,
     dao_fetch_service_by_inbound_number,
     dao_fetch_service_creator,
@@ -71,6 +72,7 @@ from tests.app.db import (
     create_api_key,
     create_email_branding,
     create_ft_billing,
+    create_ft_notification_status,
     create_inbound_number,
     create_invited_user,
     create_letter_branding,
@@ -574,6 +576,46 @@ def test_dao_fetch_live_services_data(sample_user):
     #         'sms_totals': 0, 'email_totals': 0, 'letter_totals': 1,
     #         'free_sms_fragment_limit': 300}
     # ]
+
+
+def test_dao_fetch_services_near_limit(sample_service):
+
+    sample_service.message_limit = 12
+
+    # too early
+    create_ft_notification_status(date(2018, 1, 5), "email", sample_service, count=12)
+
+    # too few notifications
+    create_ft_notification_status(date(2018, 2, 5), "email", sample_service, count=8)
+
+    # rolled up and enough notifications
+    create_ft_notification_status(date(2018, 2, 9), "email", sample_service, count=4)
+    create_ft_notification_status(date(2018, 2, 9), "email", sample_service, count=5)
+
+    # enough notifications
+    create_ft_notification_status(date(2018, 3, 7), "sms", sample_service, count=10)
+
+    with freeze_time("2018-05-01T12:00:00"):
+        # right_now
+        stats = dao_fetch_services_near_limit()
+
+    assert len(stats) == 2
+    assert stats == [
+        {
+            "day": date(2018, 3, 7),
+            "count": 10,
+            "message_limit": 12,
+            "service_id": sample_service.id,
+            "service_name": sample_service.name,
+        },
+        {
+            "day": date(2018, 2, 9),
+            "count": 9,
+            "message_limit": 12,
+            "service_id": sample_service.id,
+            "service_name": sample_service.name,
+        },
+    ]
 
 
 def test_get_service_by_id_returns_none_if_no_service(notify_db):
