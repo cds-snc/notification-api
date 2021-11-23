@@ -4,6 +4,7 @@ import boto3
 import csv
 
 from flask import current_app
+from celery import chain
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_utc_to_local_timezone
 
@@ -19,7 +20,8 @@ from app.dao.fact_billing_dao import (
 )
 from app.dao.fact_notification_status_dao import (
     fetch_notification_status_for_day,
-    update_fact_notification_status)
+    update_fact_notification_status,
+    fetch_monthly_notification_statuses_per_service)
 from app.dao.templates_dao import dao_get_template_by_id
 from app.feature_flags import is_feature_enabled, FeatureFlag
 
@@ -83,15 +85,16 @@ def create_nightly_notification_status(day_start=None):
     for i in range(0, 4):
         process_day = day_start - timedelta(days=i)
 
-        create_nightly_notification_status_for_day.apply_async(
-            kwargs={'process_day': process_day.isoformat()},
-            queue=QueueNames.REPORTING
-        )
+        tasks = [create_nightly_notification_status_for_day.si(process_day.isoformat()).set(queue=QueueNames.REPORTING)]
+
         if is_feature_enabled(FeatureFlag.NIGHTLY_NOTIF_CSV_ENABLED):
-            generate_daily_notification_status_csv_report.apply_async(
-                kwargs={'process_day': process_day.isoformat()},
-                queue=QueueNames.REPORTING
+            tasks.insert(
+                1,
+                generate_daily_notification_status_csv_report
+                .si(process_day.isoformat())
+                .set(queue=QueueNames.REPORTING)
             )
+        chain(*tasks).apply_async()
 
 
 @notify_celery.task(name="create-nightly-notification-status-for-day")
@@ -120,7 +123,7 @@ def create_nightly_notification_status_for_day(process_day):
 @statsd(namespace="tasks")
 def generate_daily_notification_status_csv_report(process_day):
     process_day = datetime.strptime(process_day, "%Y-%m-%d").date()
-    transit_data = fetch_notification_status_for_day(process_day)
+    transit_data = fetch_monthly_notification_statuses_per_service(process_day, process_day)
     buff = io.StringIO()
 
     writer = csv.writer(buff, dialect='excel', delimiter=',')

@@ -295,7 +295,6 @@ def get_api_key_ranked_by_notifications_created(n_days_back):
     start_date = datetime.utcnow() - timedelta(days=n_days_back)
 
     a = db.session.query(
-        Notification.api_key_id,
         Notification.service_id,
         func.max(Notification.created_at).label('last_notification_created'),
         case([
