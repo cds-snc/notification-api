@@ -15,6 +15,7 @@ WORKDIR /app
 COPY . /app
 
 RUN set -ex && pip3 install -r requirements_for_test.txt
+RUN echo "fs.file-max = 100000" >> /etc/sysctl.conf
 
 ARG GIT_SHA
 
