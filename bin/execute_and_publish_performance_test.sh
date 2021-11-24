@@ -6,7 +6,7 @@ perf_test_csv_directory_path=${PERF_TEST_CSV_DIRECTORY_PATH:-/tmp/notify_perform
 
 mkdir -p $perf_test_csv_directory_path/$current_time
 
-locust --headless --config tests-perf/locust/locust.conf --csv $perf_test_csv_directory_path/$current_time/perf_test
+locust --headless --config tests-perf/locust/locust.conf --html $perf_test_csv_directory_path/$current_time/index.html --csv $perf_test_csv_directory_path/$current_time/perf_test
 
 aws s3 cp $perf_test_csv_directory_path/ "s3://$perf_test_aws_s3_bucket" --recursive || exit 1
 
