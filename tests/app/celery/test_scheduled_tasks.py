@@ -186,8 +186,8 @@ def test_check_job_status_task_raises_job_incomplete_error(mocker, sample_templa
     job = create_job(
         template=sample_template,
         notification_count=3,
-        created_at=datetime.utcnow() - timedelta(minutes=61),
-        processing_started=datetime.utcnow() - timedelta(minutes=61),
+        created_at=datetime.utcnow() - timedelta(minutes=121),
+        processing_started=datetime.utcnow() - timedelta(minutes=121),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     save_notification(create_notification(template=sample_template, job=job))
@@ -208,8 +208,8 @@ def test_check_job_status_task_raises_job_incomplete_error_when_scheduled_job_is
         template=sample_template,
         notification_count=3,
         created_at=datetime.utcnow() - timedelta(hours=2),
-        scheduled_for=datetime.utcnow() - timedelta(minutes=61),
-        processing_started=datetime.utcnow() - timedelta(minutes=61),
+        scheduled_for=datetime.utcnow() - timedelta(minutes=121),
+        processing_started=datetime.utcnow() - timedelta(minutes=121),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
@@ -229,16 +229,16 @@ def test_check_job_status_task_raises_job_incomplete_error_for_multiple_jobs(moc
         template=sample_template,
         notification_count=3,
         created_at=datetime.utcnow() - timedelta(hours=2),
-        scheduled_for=datetime.utcnow() - timedelta(minutes=61),
-        processing_started=datetime.utcnow() - timedelta(minutes=61),
+        scheduled_for=datetime.utcnow() - timedelta(minutes=121),
+        processing_started=datetime.utcnow() - timedelta(minutes=121),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     job_2 = create_job(
         template=sample_template,
         notification_count=3,
         created_at=datetime.utcnow() - timedelta(hours=2),
-        scheduled_for=datetime.utcnow() - timedelta(minutes=61),
-        processing_started=datetime.utcnow() - timedelta(minutes=61),
+        scheduled_for=datetime.utcnow() - timedelta(minutes=121),
+        processing_started=datetime.utcnow() - timedelta(minutes=121),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
@@ -259,15 +259,15 @@ def test_check_job_status_task_only_sends_old_tasks(mocker, sample_template):
         template=sample_template,
         notification_count=3,
         created_at=datetime.utcnow() - timedelta(hours=2),
-        scheduled_for=datetime.utcnow() - timedelta(minutes=61),
-        processing_started=datetime.utcnow() - timedelta(minutes=61),
+        scheduled_for=datetime.utcnow() - timedelta(minutes=121),
+        processing_started=datetime.utcnow() - timedelta(minutes=121),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     job_2 = create_job(
         template=sample_template,
         notification_count=3,
-        created_at=datetime.utcnow() - timedelta(minutes=61),
-        processing_started=datetime.utcnow() - timedelta(minutes=59),
+        created_at=datetime.utcnow() - timedelta(minutes=121),
+        processing_started=datetime.utcnow() - timedelta(minutes=119),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
@@ -289,15 +289,15 @@ def test_check_job_status_task_sets_jobs_to_error(mocker, sample_template):
         template=sample_template,
         notification_count=3,
         created_at=datetime.utcnow() - timedelta(hours=2),
-        scheduled_for=datetime.utcnow() - timedelta(minutes=61),
-        processing_started=datetime.utcnow() - timedelta(minutes=61),
+        scheduled_for=datetime.utcnow() - timedelta(minutes=121),
+        processing_started=datetime.utcnow() - timedelta(minutes=121),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     job_2 = create_job(
         template=sample_template,
         notification_count=3,
-        created_at=datetime.utcnow() - timedelta(minutes=61),
-        processing_started=datetime.utcnow() - timedelta(minutes=59),
+        created_at=datetime.utcnow() - timedelta(minutes=121),
+        processing_started=datetime.utcnow() - timedelta(minutes=119),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
