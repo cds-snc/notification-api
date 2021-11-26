@@ -19,6 +19,4 @@ RUN echo "fs.file-max = 100000" >> /etc/sysctl.conf
 
 ARG GIT_SHA
 
-ENV GIT_SHA=${GIT_SHA}
-
 ENTRYPOINT [ "bin/execute_and_publish_performance_test.sh" ]
