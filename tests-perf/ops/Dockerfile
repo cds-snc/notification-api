@@ -17,6 +17,4 @@ COPY . /app
 RUN set -ex && pip3 install -r requirements_for_test.txt
 RUN echo "fs.file-max = 100000" >> /etc/sysctl.conf
 
-ARG GIT_SHA
-
 ENTRYPOINT [ "bin/execute_and_publish_performance_test.sh" ]
