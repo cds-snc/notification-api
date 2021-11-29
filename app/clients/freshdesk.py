@@ -87,4 +87,3 @@ class Freshdesk(object):
             content = json.loads(response.content)
             current_app.logger.warning(f"Failed to create Freshdesk ticket: {content['errors']}")
             raise e
-        
