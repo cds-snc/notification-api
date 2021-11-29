@@ -49,7 +49,7 @@ class NotifyApiUser(HttpUser):
 
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
-    @task(8)
+    @task(2)
     def send_email_with_attachment_notifications(self):
         personalisation = {
             "attached_file": {
@@ -62,7 +62,7 @@ class NotifyApiUser(HttpUser):
 
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
-    @task(4)
+    @task(2)
     def send_email_with_link_notifications(self):
         personalisation = {
             "application_file": {
@@ -75,7 +75,7 @@ class NotifyApiUser(HttpUser):
 
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
-    @task(2)
+    @task(8)
     def send_bulk_notifications(self):
         json = {
             "name": f"My bulk name {datetime.utcnow().isoformat()}",
@@ -85,7 +85,7 @@ class NotifyApiUser(HttpUser):
 
         self.client.post("/v2/notifications/bulk", json=json, headers=self.headers)
 
-    @task(10)
+    @task(16)
     def send_sms_notifications(self):
         json = {
             "phone_number": self.phone_number,
