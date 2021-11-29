@@ -95,4 +95,3 @@ class Zendesk(object):
             content = json.loads(response.content)
             current_app.logger.error(f"Failed to create Zendesk ticket: {content['errors']}")
             raise e
-        
