@@ -14,9 +14,10 @@ __all__ = ["Zendesk"]
 class Zendesk(object):
 
     # added from zendesk_sell code
-    def __init__(self):
+    def __init__(self, contact: ContactRequest):
         self.api_url = current_app.config["ZENDESK_API_URL"]
         self.token = current_app.config["ZENDESK_API_KEY"]
+        self.contact = contact
 
     def init(self, contact: ContactRequest):
         self.contact = contact
