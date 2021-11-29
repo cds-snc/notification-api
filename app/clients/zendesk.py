@@ -12,6 +12,12 @@ __all__ = ["Zendesk"]
 
 
 class Zendesk(object):
+
+    # added from zendesk_sell code
+    def __init__(self):
+        self.api_url = current_app.config["ZENDESK_API_URL"]
+        self.token = current_app.config["ZENDESK_API_KEY"]
+
     def init(self, contact: ContactRequest):
         self.contact = contact
 
@@ -77,9 +83,9 @@ class Zendesk(object):
             # The API and field definitions are defined here:
             # https://developer.zendesk.com/rest_api/docs/support/tickets
             response = requests.post(
-                urljoin(api_url, "/api/v2/tickets"),
+                urljoin(self.api_url, "/api/v2/tickets"),
                 json=self._generate_ticket(),
-                auth=HTTPBasicAuth(current_app.config["ZENDESK_API_KEY"], "x"),
+                auth=HTTPBasicAuth(self.token, "x"),
                 timeout=5,
             )
             response.raise_for_status()
@@ -87,10 +93,6 @@ class Zendesk(object):
             return response.status_code
         except requests.RequestException as e:
             content = json.loads(response.content)
-            current_app.logger.warning(f"Failed to create Zendesk ticket: {content['errors']}")
+            current_app.logger.error(f"Failed to create Zendesk ticket: {content['errors']}")
             raise e
-        except NotImplementedError:
-            # There are cases in development when we do not want to send to freshdesk
-            # because configuration is not defined, lets return a 200 OK
-            current_app.logger.warning("Did not send ticket to Zendesk")
-            return 200
+        
