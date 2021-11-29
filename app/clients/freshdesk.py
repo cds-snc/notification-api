@@ -85,5 +85,5 @@ class Freshdesk(object):
             return response.status_code
         except requests.RequestException as e:
             content = json.loads(response.content)
-            current_app.logger.warning(f"Failed to create Freshdesk ticket: {content['errors']}")
+            current_app.logger.error(f"Failed to create Freshdesk ticket: {content['errors']}")
             raise e
