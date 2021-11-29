@@ -71,13 +71,13 @@ service on staging when you run the locust test.
 
 #### Running the tests on EC2
 
-For convenience there are three EC2 servers that have already been created in the Notify staging account 
+For convenience there are three EC2 servers that have already been created in the Notify staging account
 such that you can log in and immediately run the locust tests. Each one of these servers target a different
-service, and you can find out which server targets which service by looking at the `TEST_AUTH_HEADER` entry in the .env 
-file.
+service, and you can find out which server targets which service by looking at the `PERF_TEST_AUTH_HEADER`
+entry in the .env file.
 
 These servers should be in a stopped state when performance tests aren't being run to avoid AWS
-charges on resources we're not actively using. 
+charges on resources we're not actively using.
 
 ##### Step 1. Logging into the EC2 servers
 
