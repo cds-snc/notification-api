@@ -32,7 +32,7 @@ class NotifyApiUser(HttpUser):
     def __init__(self, *args, **kwargs):
         super(NotifyApiUser, self).__init__(*args, **kwargs)
 
-        self.headers = {"Authorization": os.getenv("TEST_AUTH_HEADER")}
+        self.headers = {"Authorization": os.getenv("PERF_TEST_AUTH_HEADER")}
         self.email = os.getenv("PERF_TEST_EMAIL", "success@simulator.amazonses.com")
         self.phone_number = os.getenv("PERF_TEST_PHONE_NUMBER", "16132532222")
         self.template_group = NotifyApiUserTemplateGroup(
