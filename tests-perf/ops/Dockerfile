@@ -17,19 +17,4 @@ COPY . /app
 RUN set -ex && pip3 install -r requirements_for_test.txt
 RUN echo "fs.file-max = 100000" >> /etc/sysctl.conf
 
-ARG GIT_SHA
-
-ENV GIT_SHA=${GIT_SHA} \ 
-    PERF_TEST_PHONE_NUMBER=16132532222 \ 
-    PERF_TEST_EMAIL=success@simulator.amazonses.com \
-    PERF_TEST_AWS_S3_BUCKET=notify-perfortmance-test-results-staging \ 
-    PERF_TEST_CSV_DIRECTORY_PATH=/tmp/notify_performance_test \
-    PERF_TEST_DOMAIN=https://api.staging.notification.cdssandbox.xyz \
-    PERF_TEST_SMS_TEMPLATE_ID=83d01f06-a818-4134-bd69-ce90a2949280 \
-    PERF_TEST_BULK_EMAIL_TEMPLATE_ID=5ebee3b7-63c0-4052-a8cb-387b818df627 \
-    PERF_TEST_EMAIL_TEMPLATE_ID=a59b313d-8de2-4973-ac2f-66de7ec0b239 \
-    PERF_TEST_EMAIL_WITH_ATTACHMENT_TEMPLATE_ID=a59b313d-8de2-4973-ac2f-66de7ec0b239 \
-    PERF_TEST_EMAIL_WITH_LINK_TEMPLATE_ID=5ebee3b7-63c0-4052-a8cb-387b818df627 \
-    TEST_AUTH_HEADER="ApiKey-v1 c55039fc-c0e1-44db-a14e-b6a669148ec6"
-
 ENTRYPOINT [ "bin/execute_and_publish_performance_test.sh" ]
