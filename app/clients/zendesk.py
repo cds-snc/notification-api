@@ -61,7 +61,7 @@ class Zendesk(object):
     # Update for Zendesk API Ticket format
     # read docs: https://developer.zendesk.com/rest_api/docs/core/tickets#create-ticket
     def _generate_ticket(self) -> Dict[str, Union[str, int, List[str]]]:
-        product_id = current_app.config[" "]
+        product_id = 0
         if not product_id:
             raise NotImplementedError
 
