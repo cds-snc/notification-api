@@ -462,8 +462,12 @@ def send_contact_request(user_id):
 
     if contact.is_demo_request():
         return jsonify({}), 204
-    status_code = Freshdesk(contact).send_ticket()
+
     status_code = Zendesk(contact).send_ticket()
+    if status_code != 201:
+        current_app.logger.error(f"Zendesk error response code: {status_code}")
+
+    status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
 
 
@@ -493,8 +497,11 @@ def send_branding_request(user_id):
         current_app.logger.error(e)
         return jsonify({}), 400
 
-    status_code = Freshdesk(contact).send_ticket()
     status_code = Zendesk(contact).send_ticket()
+    if status_code != 201:
+        current_app.logger.error(f"Zendesk error response code: {status_code}")
+
+    status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
 
 
