@@ -89,7 +89,7 @@ def process_job(job_id):
         return
 
     service = job.service
-
+    import pdb; pdb.set_trace()
     if not service.active:
         job.job_status = JOB_STATUS_CANCELLED
         dao_update_job(job)

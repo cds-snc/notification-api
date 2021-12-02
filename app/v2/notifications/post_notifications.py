@@ -576,6 +576,7 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
 
 
 def create_bulk_job(service, api_key, template, form, recipient_csv):
+
     upload_id = upload_job_to_s3(service.id, recipient_csv.file_data)
     sender_id = form["validated_sender_id"]
 
@@ -591,6 +592,7 @@ def create_bulk_job(service, api_key, template, form, recipient_csv):
         "api_key": api_key.id,
         "sender_id": uuid.UUID(str(sender_id)) if sender_id else None,
     }
+
     if form.get("scheduled_for"):
         data["job_status"] = JOB_STATUS_SCHEDULED
         data["scheduled_for"] = form.get("scheduled_for")
@@ -598,7 +600,13 @@ def create_bulk_job(service, api_key, template, form, recipient_csv):
     job = job_schema.load(data).data
     dao_create_job(job)
 
+    import pdb; pdb.set_trace()
+    if True:
+        process_job(str(job.id))
+
+    """
     if job.job_status == JOB_STATUS_PENDING:
         process_job.apply_async([str(job.id)], queue=QueueNames.JOBS)
+    """
 
     return job

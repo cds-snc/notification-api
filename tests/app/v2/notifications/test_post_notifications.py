@@ -1769,7 +1769,6 @@ def test_post_bulk_flags_rows_with_errors(client, notify_db, notify_db_session, 
     ]
 
 
-"""
 @pytest.mark.parametrize("data_type", ["rows", "csv"])
 @pytest.mark.parametrize("is_scheduled", [True, False])
 @pytest.mark.parametrize("use_sender_id", [True, False])
@@ -1796,7 +1795,7 @@ def test_post_bulk_creates_job_and_dispatches_celery_task(
     api_key = create_api_key(service=sample_email_template.service)
     job_id = str(uuid.uuid4())
     upload_to_s3 = mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
-    process_job = mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
+    #process_job = mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
 
     response = client.post(
         "/v2/notifications/bulk",
@@ -1855,6 +1854,95 @@ def test_post_bulk_creates_job_and_dispatches_celery_task(
             "sender_id": str(reply_to_email.id) if use_sender_id else None,
         }
     }
+
+"""
+@pytest.mark.parametrize("data_type", ["csv"])
+@pytest.mark.parametrize("is_scheduled", [False])
+@pytest.mark.parametrize("use_sender_id", [False])
+@pytest.mark.parametrize("has_default_reply_to", [False])
+def test_post_bulk_creates_job_and_dispatches_celery_task(
+    client, sample_email_template, mocker, notify_user, notify_api, data_type, is_scheduled, use_sender_id, has_default_reply_to
+):
+    data = {"name": "job_name", "template_id": sample_email_template.id}
+    rows = [["email address"], ["foo@example.com"]]
+    if data_type == "csv":
+        data["csv"] = rows_to_csv(rows)
+    else:
+        data["rows"] = rows
+
+    if is_scheduled:
+        scheduled_for = datetime.utcnow() + timedelta(days=1)
+        data["scheduled_for"] = scheduled_for.isoformat()
+    if has_default_reply_to:
+        create_reply_to_email(sample_email_template.service, "test@test.com")
+    if use_sender_id:
+        reply_to_email = create_reply_to_email(sample_email_template.service, "custom@test.com", is_default=False)
+        data["reply_to_id"] = reply_to_email.id
+
+    api_key = create_api_key(service=sample_email_template.service)
+    job_id = str(uuid.uuid4())
+    upload_to_s3 = mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
+    #process_job = mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_email_template.service_id)],
+    )
+
+    upload_to_s3.assert_called_once_with(sample_email_template.service_id, "email address\r\nfoo@example.com")
+    if not is_scheduled:
+        process_job.assert_called_once_with([str(job_id)], queue="job-tasks")
+    else:
+        process_job.assert_not_called()
+
+    job = dao_get_job_by_id(job_id)
+    assert str(job.id) == job_id
+    assert job.service_id == sample_email_template.service_id
+    assert job.template_id == sample_email_template.id
+    assert job.notification_count == 1
+    assert job.template_version == sample_email_template.version
+    assert job.job_status == "scheduled" if is_scheduled else "pending"
+    assert job.original_file_name == "job_name"
+    if is_scheduled:
+        assert job.scheduled_for == scheduled_for
+    else:
+        assert job.scheduled_for is None
+    assert job.api_key_id == api_key.id
+    if use_sender_id:
+        assert job.sender_id == reply_to_email.id
+    else:
+        assert job.sender_id is None
+
+    assert response.status_code == 201
+
+    assert json.loads(response.get_data(as_text=True)) == {
+        "data": {
+            "api_key": {
+                "id": str(api_key.id),
+                "key_type": "normal",
+                "name": api_key.name,
+            },
+            "archived": False,
+            "created_at": f"{job.created_at.isoformat()}+00:00",
+            "created_by": {"id": str(notify_user.id), "name": notify_user.name},
+            "id": job_id,
+            "job_status": "scheduled" if is_scheduled else "pending",
+            "notification_count": 1,
+            "original_file_name": "job_name",
+            "processing_finished": None,
+            "processing_started": None,
+            "scheduled_for": f"{scheduled_for.isoformat()}+00:00" if is_scheduled else None,
+            "service": str(sample_email_template.service_id),
+            "service_name": {"name": sample_email_template.service.name},
+            "template": str(sample_email_template.id),
+            "template_version": sample_email_template.version,
+            "updated_at": None,
+            "sender_id": str(reply_to_email.id) if use_sender_id else None,
+        }
+    }
+
+
 
 
 #1548
