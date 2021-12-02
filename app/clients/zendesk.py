@@ -60,19 +60,16 @@ class Zendesk(object):
 
     # Update for Zendesk API Ticket format
     # read docs: https://developer.zendesk.com/rest_api/docs/core/tickets#create-ticket
-    def _generate_ticket(self) -> Dict[str, Union[str, int, List[str]]]:
-        product_id = 0
-        if not product_id:
-            raise NotImplementedError
+    def _generate_ticket(self) -> Dict[str, Dict[str, Union[str, int, List[str]]]]:
 
         return {
-            "product_id": int(product_id),
-            "subject": self.contact.friendly_support_type,
-            "comment": self._generate_description(),
-            "email": self.contact.email_address,
-            "priority": 1,
-            "status": 2,
-            "tags": self.contact.tags,
+            "ticket": {
+                "subject": self.contact.friendly_support_type,
+                "comment": self._generate_description(),
+                "email": self.contact.email_address,
+                "priority": 1,
+                "tags": self.contact.tags,
+            }
         }
 
     def send_ticket(self) -> int:
