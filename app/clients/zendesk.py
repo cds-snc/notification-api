@@ -83,7 +83,7 @@ class Zendesk(object):
             response = requests.post(
                 urljoin(self.api_url, "/api/v2/tickets"),
                 json=self._generate_ticket(),
-                auth=HTTPBasicAuth(self.token, "x"),
+                auth=HTTPBasicAuth(f"{self.contact.email_address}/token", self.token),
                 timeout=5,
             )
             response.raise_for_status()
