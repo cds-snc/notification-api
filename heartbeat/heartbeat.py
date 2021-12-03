@@ -6,9 +6,9 @@ import os
 from notifications_python_client.notifications import NotificationsAPIClient
 
 API_KEY = os.getenv("HEARTBEAT_API_KEY")
-BASE_URL = "https://api.notification.canada.ca"
+BASE_URL = os.getenv("BASE_URL")
 EMAIL_ADDRESS = "success@simulator.amazonses.com"
-TEMPLATE_ID = "7daa4f22-633b-4a7b-8b20-dfc5f66882bd"
+TEMPLATE_ID = os.getenv("TEMPLATE_ID")
 
 notifications_client = NotificationsAPIClient(API_KEY, base_url=BASE_URL)
 
