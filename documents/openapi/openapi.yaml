@@ -829,13 +829,15 @@ paths:
         - in: query
           name: start_date
           schema:
-            type: date
+            type: string
+            format: date
           required: false
           description: Oldest date to get stats for
         - in: query
           name: end_date
           schema:
-            type: date
+            type: string
+            format: date
           required: false
           description: Newest date to get stats for
       responses:
@@ -844,7 +846,7 @@ paths:
           content:
             application/json:
               schema:
-                type: dictionary
+                type: object
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1161,6 +1163,13 @@ components:
         $ref: '#/components/schemas/Id'
       required: true
       description: Notification identifier
+    ServiceSmsSenderId:
+      name: sms-sender-id
+      in: path
+      schema:
+        $ref: '#/components/schemas/Id'
+      required: true
+      description: Service SMS sender identifier
   responses:
     BadRequest:
       description: Bad Request
@@ -1999,6 +2008,32 @@ components:
       required:
         - id_type
         - id_value
+    ServiceSmsSender:
+      type: object
+      properties:
+        archived: 
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        id:
+          $ref: '#/components/schemas/Id'
+        inbound_number_id:
+          $ref: '#/components/schemas/Id'
+        is_default:
+          type: boolean
+        rate_limit:
+          type: integer
+        rate_limit_interval:
+          type: integer
+        service_id:
+          $ref: '#/components/schemas/Id'
+        sms_sender: 
+          type: string
+          format: phonenumber
+        updated_at:
+          type: string
+          format: date-time
   securitySchemes:
     adminAuth:
       description: "The admin user and secret are used to generate this authentication.  They are both defined as
