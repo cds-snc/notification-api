@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python heartbeat/heartbeat.py
+python heartbeat.py

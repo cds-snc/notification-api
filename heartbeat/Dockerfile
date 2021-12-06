@@ -8,12 +8,12 @@ RUN apk add --no-cache bash build-base git libtool cmake autoconf automake gcc m
 RUN python -m pip install wheel
 RUN python -m pip install --upgrade pip
 
-RUN set -ex && mkdir /app
+RUN set -ex && mkdir /heartbeat
 
-WORKDIR /app
+WORKDIR /heartbeat
 
-COPY . /app
+COPY . /heartbeat
 
-RUN set -ex && pip3 install -r requirements_for_test.txt
+RUN set -ex && pip3 install -r requirements.txt
 
 ENTRYPOINT [ "bin/execute_heartbeat.sh" ]
