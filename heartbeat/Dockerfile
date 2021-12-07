@@ -14,6 +14,6 @@ WORKDIR /heartbeat
 
 COPY . /heartbeat
 
-RUN set -ex && pip3 install -r requirements.txt
+RUN set -ex && pip3 install -r requirements_for_heartbeat.txt
 
 ENTRYPOINT [ "bin/execute_heartbeat.sh" ]
