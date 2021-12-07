@@ -65,10 +65,10 @@ class Zendesk(object):
         return {
             "ticket": {
                 "subject": self.contact.friendly_support_type,
-                "comment": self._generate_description(),
+                "description": self._generate_description(),
                 "email": self.contact.email_address,
                 "priority": 1,
-                "tags": self.contact.tags,
+                "tags": ["notification_api"],
             }
         }
 
