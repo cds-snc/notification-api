@@ -2,14 +2,15 @@
 Code to keep the lambda function alive.
 """
 import os
+import uuid
 from typing import List
 
 from notifications_python_client.notifications import NotificationsAPIClient
 
 API_KEY: str = os.getenv("TF_VAR_heartbeat_api_key", "")
-BASE_URL: List[str] = os.getenv("TF_VAR_heartbeat_base_url") # type: ignore
+BASE_URL: List[str] = os.getenv("TF_VAR_heartbeat_base_url")  # type: ignore
 EMAIL_ADDRESS = "success@simulator.amazonses.com"
-TEMPLATE_ID: uuid.UUID = os.getenv("TF_VAR_heartbeat_template_id") # type: ignore
+TEMPLATE_ID: uuid.UUID = os.getenv("TF_VAR_heartbeat_template_id")  # type: ignore
 
 if __name__ == "__main__":
     if not BASE_URL:
