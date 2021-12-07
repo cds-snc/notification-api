@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import requests
@@ -71,7 +71,7 @@ class Zendesk(object):
             }
         }
 
-    def send_ticket(self) -> int:
+    def send_ticket(self) -> Tuple[requests.models.Response, Optional[Exception]]:
         try:
             if not self.api_url or not self.token:
                 raise NotImplementedError
