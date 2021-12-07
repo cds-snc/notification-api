@@ -68,14 +68,13 @@ class Zendesk(object):
                 "description": self._generate_description(),
                 "email": self.contact.email_address,
                 "priority": 1,
-                "tags": ["notification_api"],
+                "tags": ["notification_api"],  # Tag used to auto-assign ticket to the notification support group
             }
         }
 
     def send_ticket(self) -> int:
         try:
-            api_url = current_app.config["ZENDESK_API_URL"]  # Zendesk API URL
-            if not api_url:
+            if not self.api_url or not self.token:
                 raise NotImplementedError
 
             # The API and field definitions are defined here:
@@ -87,9 +86,6 @@ class Zendesk(object):
                 timeout=5,
             )
             response.raise_for_status()
-
-            return response.status_code
+            return response, None
         except requests.RequestException as e:
-            content = json.loads(response.content)
-            current_app.logger.error(f"Failed to create Zendesk ticket: {content['errors']}")
-            raise e
+            return response, e
