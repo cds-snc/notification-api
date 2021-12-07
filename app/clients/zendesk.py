@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Union
 from urllib.parse import urljoin
 
 import requests
@@ -71,20 +71,19 @@ class Zendesk(object):
             }
         }
 
-    def send_ticket(self) -> Tuple[requests.models.Response, Optional[Exception]]:
-        try:
-            if not self.api_url or not self.token:
-                raise NotImplementedError
+    def send_ticket(self):
+        if not self.api_url or not self.token:
+            raise NotImplementedError
 
-            # The API and field definitions are defined here:
-            # https://developer.zendesk.com/rest_api/docs/support/tickets
-            response = requests.post(
-                urljoin(self.api_url, "/api/v2/tickets"),
-                json=self._generate_ticket(),
-                auth=HTTPBasicAuth(f"{self.contact.email_address}/token", self.token),
-                timeout=5,
-            )
-            response.raise_for_status()
-            return response, None
-        except requests.RequestException as e:
-            return response, e
+        # The API and field definitions are defined here:
+        # https://developer.zendesk.com/rest_api/docs/support/tickets
+        response = requests.post(
+            urljoin(self.api_url, "/api/v2/tickets"),
+            json=self._generate_ticket(),
+            auth=HTTPBasicAuth(f"{self.contact.email_address}/token", self.token),
+            timeout=5,
+        )
+        response.raise_for_status()
+        if response.status_code != 201:
+            current_app.logger.error(f"Zendesk api error; response code: {response.status_code}")
+            raise requests.HTTPError
