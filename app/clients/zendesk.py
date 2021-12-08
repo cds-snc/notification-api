@@ -83,7 +83,6 @@ class Zendesk(object):
             auth=HTTPBasicAuth(f"{self.contact.email_address}/token", self.token),
             timeout=5,
         )
-        response.raise_for_status()
+
         if response.status_code != 201:
-            current_app.logger.error(f"Zendesk api error; response code: {response.status_code}")
-            raise requests.HTTPError
+            raise requests.HTTPError(response.status_code, "Failed to create zendesk ticket")
