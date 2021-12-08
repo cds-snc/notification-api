@@ -34,7 +34,6 @@ flask-cors==3.0.10
 notifications-python-client==5.7.1
 python-dotenv==0.10.3
 pwnedpasswords==2.0.0
-sendgrid==6.9.1
 tldextract==2.2.1
 twilio==6.16
 nanoid==2.0.0
@@ -89,7 +88,6 @@ PyPDF2==1.26.0
 pyrsistent==0.18.0
 PySocks==1.7.1
 python-dateutil==2.8.2
-python-http-client==3.3.3
 python-json-logger==0.1.11
 pytz==2020.5
 PyYAML==5.4.1
@@ -100,12 +98,10 @@ rsa==4.7.2
 s3transfer==0.4.2
 six==1.16.0
 smartypants==2.0.1
-starkbank-ecdsa==2.0.1
 statsd==3.3.0
 typing-extensions==3.10.0.2
 urllib3==1.26.7
 vine==1.3.0
 webencodings==0.5.1
-websocket-client==1.2.1
 Werkzeug==2.0.2
 zipp==3.6.0

@@ -148,9 +148,6 @@ class Config(object):
     CRONITOR_ENABLED = False
     CRONITOR_KEYS = json.loads(os.getenv('CRONITOR_KEYS', '{}'))
 
-    # SendGrid
-    SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
-
     # PII check
     SCAN_FOR_PII = os.getenv("SCAN_FOR_PII", False)
 
