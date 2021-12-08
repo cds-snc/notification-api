@@ -86,7 +86,9 @@ def create_nightly_notification_status(day_start=None):
         process_day = day_start - timedelta(days=i)
 
         if is_feature_enabled(FeatureFlag.NIGHTLY_NOTIF_CSV_ENABLED):
-            tasks = [create_nightly_notification_status_for_day.si(process_day.isoformat()).set(queue=QueueNames.REPORTING)]
+            tasks = [
+                create_nightly_notification_status_for_day.si(process_day.isoformat()).set(queue=QueueNames.REPORTING)
+            ]
 
             tasks.insert(
                 1,
