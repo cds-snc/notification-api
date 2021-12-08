@@ -11,6 +11,7 @@ from app.celery.reporting_tasks import (
     create_nightly_notification_status_for_day,
 )
 from app.dao.fact_billing_dao import get_rate
+from app.feature_flags import FeatureFlag
 from app.models import (
     FactBilling,
     Notification,
@@ -21,6 +22,8 @@ from app.models import (
 
 from tests.app.db import create_service, create_template, create_notification, create_rate, create_letter_rate
 from notifications_utils.timezones import convert_utc_to_local_timezone
+
+from tests.app.oauth.test_rest import mock_toggle
 
 
 def mocker_get_rate(
@@ -54,6 +57,22 @@ def test_create_nightly_billing_triggers_tasks_for_days(notify_api, mocker, day_
     ('2019-07-21', ['2019-07-21', '2019-07-20', '2019-07-19', '2019-07-18']),
 ])
 def test_create_nightly_notification_status_triggers_tasks_for_days(notify_api, mocker, day_start, expected_kwargs):
+    mock_celery = mocker.patch('app.celery.reporting_tasks.create_nightly_notification_status_for_day')
+    create_nightly_notification_status(day_start)
+
+    assert mock_celery.apply_async.call_count == 4
+    for i in range(4):
+        assert mock_celery.apply_async.call_args_list[i][1]['kwargs'] == {'process_day': expected_kwargs[i]}
+
+
+@freeze_time('2019-08-01T04:30:00')
+@pytest.mark.parametrize('day_start, expected_kwargs', [
+    (None, ['2019-07-31', '2019-07-30', '2019-07-29', '2019-07-28']),
+    ('2019-07-21', ['2019-07-21', '2019-07-20', '2019-07-19', '2019-07-18']),
+])
+def test_create_nightly_notification_status_triggers_tasks_for_days_including_csv_generation_when_feature_flag_on(
+        notify_api, mocker, day_start, expected_kwargs):
+    mock_toggle(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     mock_celery = mocker.patch('app.celery.reporting_tasks.create_nightly_notification_status_for_day')
     create_nightly_notification_status(day_start)
 
