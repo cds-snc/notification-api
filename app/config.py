@@ -297,7 +297,7 @@ class Config(object):
             },
             'create-nightly-notification-status': {
                 'task': 'create-nightly-notification-status',
-                #'schedule': crontab(hour=0, minute=30),   after 'timeout-sending-notifications'
+                # 'schedule': crontab(hour=0, minute=30),   after 'timeout-sending-notifications',
                 'schedule': crontab(minute=1),
                 'options': {'queue': QueueNames.REPORTING}
             },

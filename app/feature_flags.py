@@ -24,7 +24,6 @@ class FeatureFlag(Enum):
     NIGHTLY_NOTIF_CSV_ENABLED = 'NIGHTLY_NOTIF_CSV_ENABLED'
 
 
-
 def is_provider_enabled(current_app, provider_identifier):
     if provider_identifier in PROVIDER_FEATURE_FLAGS:
         return current_app.config.get(PROVIDER_FEATURE_FLAGS[provider_identifier])

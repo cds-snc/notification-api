@@ -85,16 +85,21 @@ def create_nightly_notification_status(day_start=None):
     for i in range(0, 4):
         process_day = day_start - timedelta(days=i)
 
-        tasks = [create_nightly_notification_status_for_day.si(process_day.isoformat()).set(queue=QueueNames.REPORTING)]
-
         if is_feature_enabled(FeatureFlag.NIGHTLY_NOTIF_CSV_ENABLED):
+            tasks = [create_nightly_notification_status_for_day.si(process_day.isoformat()).set(queue=QueueNames.REPORTING)]
+
             tasks.insert(
                 1,
                 generate_daily_notification_status_csv_report
                 .si(process_day.isoformat())
                 .set(queue=QueueNames.REPORTING)
             )
-        chain(*tasks).apply_async()
+            chain(*tasks).apply_async()
+
+        else:
+            create_nightly_notification_status_for_day.apply_async(
+                kwargs={'process_day': process_day.isoformat()},
+                queue=QueueNames.REPORTING)
 
 
 @notify_celery.task(name="create-nightly-notification-status-for-day")
@@ -138,7 +143,7 @@ def generate_daily_notification_status_csv_report(process_day):
     encoded_csv = io.BytesIO(buff.getvalue().encode())
 
     bucket = 'notifications-va-gov-daily-stats'
-    csv_key = str(process_day).join(' .csv')
+    csv_key = str(process_day).join('.csv')
 
     client = boto3.client('s3')
     client.upload_fileobj(encoded_csv, bucket, csv_key)
