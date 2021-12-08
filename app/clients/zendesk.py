@@ -11,14 +11,9 @@ __all__ = ["Zendesk"]
 
 
 class Zendesk(object):
-
-    # added from zendesk_sell code
     def __init__(self, contact: ContactRequest):
         self.api_url = current_app.config["ZENDESK_API_URL"]
         self.token = current_app.config["ZENDESK_API_KEY"]
-        self.contact = contact
-
-    def init(self, contact: ContactRequest):
         self.contact = contact
 
     def _generate_description(self):
@@ -60,14 +55,13 @@ class Zendesk(object):
     # Update for Zendesk API Ticket format
     # read docs: https://developer.zendesk.com/rest_api/docs/core/tickets#create-ticket
     def _generate_ticket(self) -> Dict[str, Dict[str, Union[str, int, List[str]]]]:
-
         return {
             "ticket": {
                 "subject": self.contact.friendly_support_type,
                 "description": self._generate_description(),
                 "email": self.contact.email_address,
-                "priority": 1,
-                "tags": ["notification_api"],  # Tag used to auto-assign ticket to the notification support group
+                "tags": self.contact.tags
+                + ["notification_api"],  # Custom tag used to auto-assign ticket to the notification support group
             }
         }
 
