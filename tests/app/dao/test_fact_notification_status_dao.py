@@ -19,7 +19,8 @@ from app.dao.fact_notification_status_dao import (
     get_total_sent_notifications_for_day_and_type,
     get_total_notifications_sent_for_api_key,
     get_last_send_for_api_key,
-    get_api_key_ranked_by_notifications_created, fetch_template_usage_for_service_with_given_template
+    get_api_key_ranked_by_notifications_created, fetch_template_usage_for_service_with_given_template,
+    fetch_notification_statuses_per_service_and_template_for_date
 )
 from app.models import (
     FactNotificationStatus,
@@ -718,6 +719,37 @@ def test_get_total_sent_notifications_for_day_and_type_returns_zero_when_no_coun
     total = get_total_sent_notifications_for_day_and_type("2019-03-27", "sms")
 
     assert total == 0
+
+
+@freeze_time('2019-05-10 14:00')
+def test_fetch_notification_statuses_per_service_and_template_for_date(notify_db_session):
+    service_one = create_service(service_name='service one', service_id=UUID('e4e34c4e-73c1-4802-811c-3dd273f21da4'))
+    service_two = create_service(service_name='service two', service_id=UUID('b19d7aad-6f09-4198-8b62-f6cf126b87e5'))
+    template_one = create_template(service=service_one, template_name='template one')
+    template_two = create_template(service=service_two, template_name='template two')
+
+    create_ft_notification_status(date(2019, 4, 30), notification_type='sms', service=service_one,
+                                  template=template_one, notification_status=NOTIFICATION_DELIVERED,
+                                  count=2)
+    create_ft_notification_status(date(2019, 4, 30), notification_type='sms', service=service_two,
+                                  template=template_two, notification_status=NOTIFICATION_DELIVERED,
+                                  count=3)
+    create_ft_notification_status(date(2019, 4, 30), notification_type='sms', service=service_one,
+                                  template=template_one, notification_status=NOTIFICATION_PERMANENT_FAILURE,
+                                  count=5)
+    create_ft_notification_status(date(2019, 4, 30), notification_type='sms', service=service_two,
+                                  template=template_two, notification_status=NOTIFICATION_SENT,
+                                  count=7)
+
+    results = fetch_notification_statuses_per_service_and_template_for_date(date(2019, 4, 30))
+
+    assert len(results) == 4
+
+    # "service id", "template id", "status", "count"
+    assert [x for x in results[0]] == [service_one.id, template_one.id, NOTIFICATION_DELIVERED, 2]
+    assert [x for x in results[1]] == [service_two.id, template_two.id, NOTIFICATION_DELIVERED, 3]
+    assert [x for x in results[2]] == [service_one.id, template_one.id, NOTIFICATION_PERMANENT_FAILURE, 5]
+    assert [x for x in results[3]] == [service_two.id, template_two.id, NOTIFICATION_SENT, 7]
 
 
 @freeze_time('2019-05-10 14:00')

@@ -544,6 +544,19 @@ def fetch_template_usage_for_service_with_given_template(service_id, template_id
     return query.all()
 
 
+def fetch_notification_statuses_per_service_and_template_for_date(date):
+    query = db.session.query(
+        FactNotificationStatus.service_id.label('service_id'),
+        FactNotificationStatus.template_id.label('template_id'),
+        FactNotificationStatus.notification_status.label('status'),
+        FactNotificationStatus.notification_count.label('count')
+    ).filter(
+        FactNotificationStatus.bst_date == date.strftime("%Y-%m-%d")
+    )
+
+    return query.all()
+
+
 def fetch_monthly_template_usage_for_service(start_date, end_date, service_id):
     # services_dao.replaces dao_fetch_monthly_historical_usage_by_template_for_service
     stats = db.session.query(
