@@ -143,9 +143,7 @@ def generate_daily_notification_status_csv_report(process_day):
         writer.writerow(formatted_row)
 
     encoded_csv = io.BytesIO(buff.getvalue().encode())
-
-    bucket = 'notifications-va-gov-daily-stats'
     csv_key = str(process_day).join('.csv')
 
     client = boto3.client('s3')
-    client.upload_fileobj(encoded_csv, bucket, csv_key)
+    client.upload_fileobj(encoded_csv, current_app.config['DAILY_STATS_BUCKET_NAME'], csv_key)
