@@ -104,6 +104,11 @@ def warn_about_daily_message_limit(service, messages_sent):
                 },
                 include_user_fields=["name"],
             )
+            current_app.logger.info(
+                "service {} is approaching its daily limit, sent {} limit {}".format(
+                    service.id, int(messages_sent), service.message_limit
+                )
+            )
 
     # Send a warning when reaching the daily message limit
     if over_daily_message_limit:
