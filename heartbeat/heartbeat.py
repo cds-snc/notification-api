@@ -23,5 +23,10 @@ if __name__ == "__main__":
         print("Variable TEMPLATE_ID is missing")
     for base_url in BASE_URL:
         notifications_client = NotificationsAPIClient(API_KEY, base_url=base_url)
-        response = notifications_client.send_email_notification(email_address=EMAIL_ADDRESS, template_id=TEMPLATE_ID)
-        print("Email has been sent!")
+        try:
+            response = notifications_client.send_email_notification(email_address=EMAIL_ADDRESS, template_id=TEMPLATE_ID)
+            print("Email has been sent by {}!".format(base_url))
+        except Exception as e:
+            raise e
+
+    exit(0)
