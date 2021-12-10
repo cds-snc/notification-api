@@ -30,9 +30,9 @@ if __name__ == "__main__":
         except HTTPError as e:
             print("There was an error")
             print(e.status_code)
-            print(e._message)
+            print(e.message)
             raise
-        except Exception as e:
+        except Exception:
             raise
 
     exit(0)
