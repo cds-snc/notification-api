@@ -28,7 +28,7 @@ if __name__ == "__main__":
             response = notifications_client.send_email_notification(email_address=EMAIL_ADDRESS, template_id=TEMPLATE_ID)
             print("Email has been sent by {}!".format(base_url))
         except HTTPError as e:
-            print(f"Could not send heartbeat: status={e.status_code}, msg={e._message}")
+            print(f"Could not send heartbeat: status={e.status_code}, msg={e.message}")
             raise
         except Exception:
             raise
