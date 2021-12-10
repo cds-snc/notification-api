@@ -6,6 +6,7 @@ import os
 import uuid
 from typing import List
 
+from notifications_python_client.errors import HTTPError
 from notifications_python_client.notifications import NotificationsAPIClient
 
 API_KEY: str = os.getenv("heartbeat_api_key", "")
@@ -26,7 +27,12 @@ if __name__ == "__main__":
         try:
             response = notifications_client.send_email_notification(email_address=EMAIL_ADDRESS, template_id=TEMPLATE_ID)
             print("Email has been sent by {}!".format(base_url))
+        except HTTPError as e:
+            print("There was an error")
+            print(e.status_code)
+            print(e._message)
+            raise
         except Exception as e:
-            raise e
+            raise
 
     exit(0)
