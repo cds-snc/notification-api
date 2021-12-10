@@ -301,3 +301,5 @@ fileignoreconfig:
       checksum: 4e7acd2db507c6cbc5aeb1912a7c98bd03892f4b63970d6475cb20edbd7edc20
     - filename: app/celery/reporting_tasks.py
       checksum: 2dd2e476c7892a2bfa7dcc47c4f70405ce4ed48bda3128879835a9558b32704f
+    - filename: app/dao/fact_notification_status_dao.py
+      checksum: 1503b15fb58257b12b4857659323a5ca9b97784b2344148097298c70d69d4eca

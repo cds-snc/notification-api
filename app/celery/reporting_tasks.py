@@ -87,15 +87,13 @@ def create_nightly_notification_status(day_start=None):
 
         if is_feature_enabled(FeatureFlag.NIGHTLY_NOTIF_CSV_ENABLED):
             tasks = [
-                create_nightly_notification_status_for_day.si(process_day.isoformat()).set(queue=QueueNames.REPORTING)
+                create_nightly_notification_status_for_day.si(
+                    process_day.isoformat()
+                ).set(queue=QueueNames.REPORTING),
+                generate_daily_notification_status_csv_report.si(
+                    process_day.isoformat()
+                ).set(queue=QueueNames.REPORTING)
             ]
-
-            tasks.insert(
-                1,
-                generate_daily_notification_status_csv_report
-                .si(process_day.isoformat())
-                .set(queue=QueueNames.REPORTING)
-            )
             chain(*tasks).apply_async()
 
         else:
@@ -134,7 +132,10 @@ def generate_daily_notification_status_csv_report(process_day):
     buff = io.StringIO()
 
     writer = csv.writer(buff, dialect='excel', delimiter=',')
-    writer.writerow(["date", "service name", "service id", "template name", "template id", "status", "count"])
+    header = ["date", "service name", "service id", "template name", "template id", "status", "count"]
+    writer.writerow(header)
+    writer.writerows(transit_data)
+
     for row in transit_data:
         formatted_row = [process_day,
                          dao_fetch_service_by_id(row.service_id).name, row.service_id,
@@ -142,8 +143,7 @@ def generate_daily_notification_status_csv_report(process_day):
                          row.count]
         writer.writerow(formatted_row)
 
-    encoded_csv = io.BytesIO(buff.getvalue().encode())
     csv_key = str(process_day).join('.csv')
-
     client = boto3.client('s3')
-    client.upload_fileobj(encoded_csv, current_app.config['DAILY_STATS_BUCKET_NAME'], csv_key)
+    client.put_object(buff.getvalue(), current_app.config['DAILY_STATS_BUCKET_NAME'], csv_key)
+    buff.close()

@@ -731,12 +731,12 @@ def test_fetch_notification_statuses_per_service_and_template_for_date(notify_db
     create_ft_notification_status(date(2019, 4, 30), notification_type='sms', service=service_one,
                                   template=template_one, notification_status=NOTIFICATION_DELIVERED,
                                   count=2)
-    create_ft_notification_status(date(2019, 4, 30), notification_type='sms', service=service_two,
-                                  template=template_two, notification_status=NOTIFICATION_DELIVERED,
-                                  count=3)
     create_ft_notification_status(date(2019, 4, 30), notification_type='sms', service=service_one,
                                   template=template_one, notification_status=NOTIFICATION_PERMANENT_FAILURE,
                                   count=5)
+    create_ft_notification_status(date(2019, 4, 30), notification_type='sms', service=service_two,
+                                  template=template_two, notification_status=NOTIFICATION_DELIVERED,
+                                  count=3)
     create_ft_notification_status(date(2019, 4, 30), notification_type='sms', service=service_two,
                                   template=template_two, notification_status=NOTIFICATION_SENT,
                                   count=7)
@@ -745,11 +745,19 @@ def test_fetch_notification_statuses_per_service_and_template_for_date(notify_db
 
     assert len(results) == 4
 
-    # "service id", "template id", "status", "count"
-    assert [x for x in results[0]] == [service_one.id, template_one.id, NOTIFICATION_DELIVERED, 2]
-    assert [x for x in results[1]] == [service_two.id, template_two.id, NOTIFICATION_DELIVERED, 3]
-    assert [x for x in results[2]] == [service_one.id, template_one.id, NOTIFICATION_PERMANENT_FAILURE, 5]
-    assert [x for x in results[3]] == [service_two.id, template_two.id, NOTIFICATION_SENT, 7]
+    # "service id", "service name", "template id", "template name", "status", "count"
+    assert [x for x in results[0]] == [
+        service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_DELIVERED, 2
+    ]
+    assert [x for x in results[1]] == [
+        service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_PERMANENT_FAILURE, 5
+    ]
+    assert [x for x in results[2]] == [
+        service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_DELIVERED, 3
+    ]
+    assert [x for x in results[3]] == [
+        service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_SENT, 7
+    ]
 
 
 @freeze_time('2019-05-10 14:00')
