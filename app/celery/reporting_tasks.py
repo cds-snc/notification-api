@@ -11,9 +11,6 @@ from notifications_utils.timezones import convert_utc_to_local_timezone
 from app import notify_celery
 from app.config import QueueNames
 from app.cronitor import cronitor
-from app.dao.services_dao import (
-    dao_fetch_service_by_id
-)
 from app.dao.fact_billing_dao import (
     fetch_billing_data_for_day,
     update_fact_billing
@@ -22,7 +19,6 @@ from app.dao.fact_notification_status_dao import (
     fetch_notification_status_for_day,
     update_fact_notification_status,
     fetch_notification_statuses_per_service_and_template_for_date)
-from app.dao.templates_dao import dao_get_template_by_id
 from app.feature_flags import is_feature_enabled, FeatureFlag
 
 
