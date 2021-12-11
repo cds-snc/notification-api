@@ -136,13 +136,6 @@ def generate_daily_notification_status_csv_report(process_day):
     writer.writerow(header)
     writer.writerows(transit_data)
 
-    for row in transit_data:
-        formatted_row = [process_day,
-                         dao_fetch_service_by_id(row.service_id).name, row.service_id,
-                         dao_get_template_by_id(row.template_id).name, row.template_id, row.status,
-                         row.count]
-        writer.writerow(formatted_row)
-
     csv_key = str(process_day).join('.csv')
     client = boto3.client('s3')
     client.put_object(buff.getvalue(), current_app.config['DAILY_STATS_BUCKET_NAME'], csv_key)
