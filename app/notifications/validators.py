@@ -142,8 +142,8 @@ def check_template_is_for_notification_type(notification_type, template_type):
 def check_template_is_active(template):
     if template.archived:
         raise BadRequestError(
-            fields=[{"template": "Template has been deleted"}],
-            message="Template has been deleted",
+            fields=[{"template": f"Template {template.id} has been deleted"}],
+            message=f"Template {template.id} has been deleted",
         )
 
 
