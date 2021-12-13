@@ -269,7 +269,7 @@ def test_check_template_is_active_fails(sample_template):
     with pytest.raises(BadRequestError) as e:
         check_template_is_active(sample_template)
     assert e.value.status_code == 400
-    assert e.value.message == "Template has been deleted"
+    assert e.value.message == f"Template {sample_template.id} has been deleted"
     assert e.value.fields == [{"template": f"Template {sample_template.id} has been deleted"}]
 
 
