@@ -30,7 +30,5 @@ if __name__ == "__main__":
         except HTTPError as e:
             print(f"Could not send heartbeat: status={e.status_code}, msg={e.message}")
             raise
-        except Exception:
-            raise
 
     exit(0)
