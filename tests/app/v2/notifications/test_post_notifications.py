@@ -1504,7 +1504,7 @@ def test_post_bulk_with_archived_template(client, fake_uuid, notify_db, notify_d
 
     assert response.status_code == 400
     error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [{"error": "BadRequestError", "message": "Template has been deleted"}]
+    assert error_json["errors"] == [{"error": "BadRequestError", "message": f"Template {template.id} has been deleted"}]
 
 
 @pytest.mark.parametrize(
