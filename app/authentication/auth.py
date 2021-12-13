@@ -6,6 +6,7 @@ from flask_jwt_extended import verify_jwt_in_request, current_user
 from flask_jwt_extended.config import config
 from flask_jwt_extended.exceptions import NoAuthorizationError, InvalidHeaderError, JWTDecodeError
 from jwt import InvalidSignatureError
+from jwt.exceptions import ExpiredSignatureError
 from notifications_python_client.authentication import decode_jwt_token, get_token_issuer
 from notifications_python_client.errors import TokenDecodeError, TokenExpiredError, TokenIssuerError
 from notifications_utils import request_helper
@@ -82,6 +83,9 @@ def create_validator_for_user_in_service_or_admin(required_permission: str = Non
         try:
             service_id = request.view_args.get('service_id')
             verify_jwt_in_request()
+
+        except (NoAuthorizationError, ExpiredSignatureError) as e:
+            raise AuthError('', 401) from e
 
         except (NoAuthorizationError, InvalidHeaderError, JWTDecodeError, InvalidSignatureError) as e:
             raise AuthError('Could not decode valid JWT', 403) from e
