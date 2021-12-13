@@ -133,6 +133,6 @@ def generate_daily_notification_status_csv_report(process_day):
     writer.writerows(transit_data)
 
     csv_key = str(process_day).join('.csv')
-    client = boto3.client('s3')
+    client = boto3.client('s3', current_app.config['AWS_S3_ENDPOINT_URL'])
     client.put_object(buff.getvalue(), current_app.config['DAILY_STATS_BUCKET_NAME'], csv_key)
     buff.close()
