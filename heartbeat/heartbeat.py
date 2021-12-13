@@ -6,6 +6,7 @@ import os
 import uuid
 from typing import List
 
+from notifications_python_client.errors import HTTPError
 from notifications_python_client.notifications import NotificationsAPIClient
 
 API_KEY: str = os.getenv("heartbeat_api_key", "")
@@ -23,5 +24,11 @@ if __name__ == "__main__":
         print("Variable TEMPLATE_ID is missing")
     for base_url in BASE_URL:
         notifications_client = NotificationsAPIClient(API_KEY, base_url=base_url)
-        response = notifications_client.send_email_notification(email_address=EMAIL_ADDRESS, template_id=TEMPLATE_ID)
-        print("Email has been sent!")
+        try:
+            response = notifications_client.send_email_notification(email_address=EMAIL_ADDRESS, template_id=TEMPLATE_ID)
+            print("Email has been sent by {}!".format(base_url))
+        except HTTPError as e:
+            print(f"Could not send heartbeat: status={e.status_code}, msg={e.message}")
+            raise
+
+    exit(0)
