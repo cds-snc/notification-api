@@ -15,7 +15,8 @@ BASE_URL: List[str] = ast.literal_eval(os.getenv("heartbeat_base_url"))  # type:
 EMAIL_ADDRESS = "success@simulator.amazonses.com"
 TEMPLATE_ID: uuid.UUID = os.getenv("heartbeat_template_id")  # type: ignore
 
-if __name__ == "__main__":
+
+def handler(event, context):
     if not BASE_URL:
         print("Variable BASE_URL is missing")
     if not API_KEY:
@@ -25,10 +26,8 @@ if __name__ == "__main__":
     for base_url in BASE_URL:
         notifications_client = NotificationsAPIClient(API_KEY, base_url=base_url)
         try:
-            response = notifications_client.send_email_notification(email_address=EMAIL_ADDRESS, template_id=TEMPLATE_ID)
+            notifications_client.send_email_notification(email_address=EMAIL_ADDRESS, template_id=TEMPLATE_ID)
             print("Email has been sent by {}!".format(base_url))
         except HTTPError as e:
             print(f"Could not send heartbeat: status={e.status_code}, msg={e.message}")
             raise
-
-    exit(0)
