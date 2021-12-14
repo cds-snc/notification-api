@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 
 from flask_jwt_extended import create_access_token
+from jwt import ExpiredSignatureError
 
 from app.dao.services_dao import dao_add_user_to_service
 from tests.app.db import create_user, create_service
@@ -19,6 +20,10 @@ from app.dao.api_key_dao import get_unsigned_secrets, save_model_api_key, get_un
 from app.models import ApiKey, KEY_TYPE_NORMAL, PERMISSION_LIST, Permission
 from app.authentication.auth import AuthError, validate_admin_auth, validate_service_api_key_auth, \
     requires_admin_auth_or_user_in_service, requires_user_in_service_or_admin
+
+from notifications_python_client.errors import (
+    TokenExpiredError,
+)
 
 from tests.conftest import set_config
 
@@ -414,6 +419,26 @@ class TestRequiresUserInService:
             endpoint_that_requires_user_in_service()
 
         assert error.value.code == 403
+
+    def test_401_error_when_bearer_token_expired(self, client, db_session, mocker):
+
+        @requires_user_in_service_or_admin()
+        def endpoint_that_requires_user_in_service():
+            pass
+
+        user = create_user()
+        service = create_service(service_name='some-service')
+
+        token = create_access_token(identity=user)
+        mocker.patch("app.authentication.auth.verify_jwt_in_request", side_effect=ExpiredSignatureError)
+
+        request.view_args['service_id'] = service.id
+        request.headers = {'Authorization': 'Bearer {}'.format(token)}
+
+        with pytest.raises(AuthError) as error:
+            endpoint_that_requires_user_in_service()
+
+        assert error.value.code == 401
 
     @pytest.mark.parametrize('required_permission', PERMISSION_LIST)
     def test_accepts_jwt_with_permission_for_service(self, client, db_session, required_permission):
