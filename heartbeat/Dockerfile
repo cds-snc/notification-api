@@ -1,19 +1,12 @@
-FROM python:3.9-alpine3.13
+FROM public.ecr.aws/lambda/python:3.9
 
 ENV PYTHONDONTWRITEBYTECODE 1
 
-RUN apk add --no-cache bash build-base git libtool cmake autoconf automake gcc musl-dev postgresql-dev g++ libexecinfo-dev make libffi-dev libmagic libcurl curl-dev rust cargo && rm -rf /var/cache/apk/*
+# Install the function's dependencies
+COPY heartbeat/requirements_for_heartbeat.txt ${LAMBDA_TASK_ROOT}
+RUN python -m pip install -r requirements_for_heartbeat.txt
 
-# update pip
-RUN python -m pip install wheel
-RUN python -m pip install --upgrade pip
+# Copy function code
+COPY heartbeat/heartbeat.py ${LAMBDA_TASK_ROOT}
 
-RUN set -ex && mkdir /heartbeat
-
-WORKDIR /heartbeat
-
-COPY /heartbeat /heartbeat
-
-RUN set -ex && pip3 install -r requirements_for_heartbeat.txt
-
-ENTRYPOINT [ "/heartbeat/execute_heartbeat.sh" ]
+CMD [ "heartbeat.handler" ]
