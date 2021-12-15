@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.clients.freshdesk import Freshdesk
+from app.clients.zendesk import Zendesk
 from app.clients.zendesk_sell import ZenDeskSell
 from app.config import Config, QueueNames
 from app.dao.fido2_key_dao import (
@@ -461,6 +462,12 @@ def send_contact_request(user_id):
 
     if contact.is_demo_request():
         return jsonify({}), 204
+
+    try:
+        Zendesk(contact).send_ticket()
+    except Exception as e:
+        current_app.logger.exception(e)
+
     status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
 
@@ -490,6 +497,11 @@ def send_branding_request(user_id):
         # This means that get_user_by_id couldn't find a user
         current_app.logger.error(e)
         return jsonify({}), 400
+
+    try:
+        Zendesk(contact).send_ticket()
+    except Exception as e:
+        current_app.logger.exception(e)
 
     status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204

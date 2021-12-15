@@ -143,6 +143,7 @@ class Config(object):
     PERFORMANCE_PLATFORM_URL = "https://www.performance.service.gov.uk/data/govuk-notify/"
 
     # Zendesk
+    ZENDESK_API_URL = os.getenv("ZENDESK_API_URL")
     ZENDESK_API_KEY = os.getenv("ZENDESK_API_KEY")
     ZENDESK_SELL_API_URL = os.getenv("ZENDESK_SELL_API_URL")
     ZENDESK_SELL_API_KEY = os.getenv("ZENDESK_SELL_API_KEY")
