@@ -746,18 +746,16 @@ def test_fetch_notification_statuses_per_service_and_template_for_date(notify_db
     assert len(results) == 4
 
     # "service id", "service name", "template id", "template name", "status", "count"
-    assert [x for x in results[0]] == [
-        service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_DELIVERED, 2
+    notification_param_lists = [
+        [service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_DELIVERED, 2],
+        [service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_PERMANENT_FAILURE, 5],
+        [service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_DELIVERED, 3],
+        [service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_SENT, 7]
     ]
-    assert [x for x in results[1]] == [
-        service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_PERMANENT_FAILURE, 5
-    ]
-    assert [x for x in results[2]] == [
-        service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_DELIVERED, 3
-    ]
-    assert [x for x in results[3]] == [
-        service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_SENT, 7
-    ]
+
+    for param_list in notification_param_lists:
+        matches = [x for x in results if x == tuple(param_list)]
+        assert len(matches) == 1
 
 
 @freeze_time('2019-05-10 14:00')
