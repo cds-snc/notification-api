@@ -295,6 +295,7 @@ def get_api_key_ranked_by_notifications_created(n_days_back):
     start_date = datetime.utcnow() - timedelta(days=n_days_back)
 
     a = db.session.query(
+        Notification.api_key_id,
         Notification.service_id,
         func.max(Notification.created_at).label('last_notification_created'),
         case([
@@ -540,6 +541,27 @@ def fetch_template_usage_for_service_with_given_template(service_id, template_id
         )
     else:
         query = stats
+    return query.all()
+
+
+def fetch_notification_statuses_per_service_and_template_for_date(date):
+    query = db.session.query(
+        FactNotificationStatus.service_id.label('service_id'),
+        Service.name.label('service_name'),
+        FactNotificationStatus.template_id.label('template_id'),
+        Template.name.label('template_name'),
+        FactNotificationStatus.notification_status.label('status'),
+        FactNotificationStatus.notification_count.label('count')
+    ).join(
+        Template, FactNotificationStatus.template_id == Template.id
+    ).join(
+        Service, FactNotificationStatus.service_id == Service.id
+    ).filter(
+        FactNotificationStatus.key_type != KEY_TYPE_TEST,
+        Service.research_mode.is_(False),
+        FactNotificationStatus.bst_date == date.strftime("%Y-%m-%d")
+    )
+
     return query.all()
 
 

@@ -2,7 +2,7 @@
 # with package version changes made in requirements-app.txt
 
 cffi==1.14.0
-celery[sqs]==4.4.0
+celery[sqs]==4.4.0  # pyup: ignore 42498
 docopt==0.6.2
 fido2==0.7.0
 Flask-Bcrypt==0.7.1
@@ -32,7 +32,6 @@ flask-cors==3.0.10
 notifications-python-client==5.7.1
 python-dotenv==0.10.3
 pwnedpasswords==2.0.0
-sendgrid==6.8.1
 tldextract==2.2.1
 twilio==6.16
 nanoid==2.0.0
@@ -42,4 +41,4 @@ unidecode==1.1.1
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
 itsdangerous==0.24
 
-git+https://github.com/department-of-veterans-affairs/notification-utils.git@1.0.65#egg=notification-utils==1.0.65
+git+https://github.com/department-of-veterans-affairs/notification-utils.git@1.0.66#egg=notification-utils==1.0.66
