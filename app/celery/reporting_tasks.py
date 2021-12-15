@@ -122,8 +122,8 @@ def create_nightly_notification_status_for_day(process_day):
 
 @notify_celery.task(name="generate-daily-notification-status-csv-report")
 @statsd(namespace="tasks")
-def generate_daily_notification_status_csv_report(process_day):
-    process_day = datetime.strptime(process_day, "%Y-%m-%d").date()
+def generate_daily_notification_status_csv_report(process_day_string):
+    process_day = datetime.strptime(process_day_string, "%Y-%m-%d").date()
     transit_data = fetch_notification_statuses_per_service_and_template_for_date(process_day)
     buff = io.StringIO()
 
@@ -132,7 +132,7 @@ def generate_daily_notification_status_csv_report(process_day):
     writer.writerow(header)
     writer.writerows(transit_data)
 
-    csv_key = str(process_day).join('.csv')
+    csv_key = f'{process_day_string}.csv'
     client = boto3.client('s3', endpoint_url=current_app.config['AWS_S3_ENDPOINT_URL'])
     client.put_object(Body=buff.getvalue(), Bucket=current_app.config['DAILY_STATS_BUCKET_NAME'], Key=csv_key)
     buff.close()
