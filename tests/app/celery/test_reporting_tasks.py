@@ -1,14 +1,16 @@
+import uuid
 from datetime import datetime, timedelta, date
 from decimal import Decimal
 
 import pytest
 from freezegun import freeze_time
+from notifications_utils.timezones import convert_utc_to_local_timezone
 
 from app.celery.reporting_tasks import (
     create_nightly_billing,
     create_nightly_notification_status,
     create_nightly_billing_for_day,
-    create_nightly_notification_status_for_day,
+    create_nightly_notification_status_for_day, generate_daily_notification_status_csv_report,
 )
 from app.dao.fact_billing_dao import get_rate
 from app.feature_flags import FeatureFlag
@@ -19,10 +21,7 @@ from app.models import (
     EMAIL_TYPE,
     SMS_TYPE, FactNotificationStatus
 )
-
 from tests.app.db import create_service, create_template, create_notification, create_rate, create_letter_rate
-from notifications_utils.timezones import convert_utc_to_local_timezone
-
 from tests.app.oauth.test_rest import mock_toggle
 
 
@@ -502,3 +501,20 @@ def test_create_nightly_notification_status_for_day_respects_local_timezone(samp
 
     assert noti_status[0].bst_date == date(2019, 4, 1)
     assert noti_status[0].notification_status == 'created'
+
+
+def test_generate_daily_notification_status_csv_report(notify_api, mocker):
+    service_id = uuid.uuid4()
+    template_id = uuid.uuid4()
+    mock_transit_data = [(service_id, 'foo', template_id, 'bar', 'delivered', 1)]
+    mocker.patch('app.celery.reporting_tasks.fetch_notification_statuses_per_service_and_template_for_date',
+                 return_value=mock_transit_data)
+
+    mock_boto = mocker.patch('app.celery.reporting_tasks.boto3')
+    generate_daily_notification_status_csv_report('2021-12-16')
+
+    mock_boto.client.return_value.put_object.assert_called_once()
+    _, kwargs = mock_boto.client.return_value.put_object.call_args
+    assert kwargs['Key'] == '2021-12-16.csv'
+    assert kwargs['Body'] == f'service id,service name,template id,template name,status,count\r\n' \
+                             f'{service_id},foo,{template_id},bar,delivered,1\r\n'

@@ -303,3 +303,5 @@ fileignoreconfig:
       checksum: 1503b15fb58257b12b4857659323a5ca9b97784b2344148097298c70d69d4eca
     - filename: app/celery/reporting_tasks.py
       checksum: f02b02a1bc3ea472d752d2073a0332090308c15bb5eb87d70383a2421da6d886
+    - filename: tests/app/celery/test_reporting_tasks.py
+      checksum: 4f3214bd5540d1a8a01284f6bb6c64329147b4b656490a61246d8c5cec140622
