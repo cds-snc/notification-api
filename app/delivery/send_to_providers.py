@@ -112,28 +112,16 @@ def send_email_to_provider(notification):
         for key in file_keys:
             uploaded_attachment_metadata: UploadedAttachmentMetadata = personalisation_data[key]
             if uploaded_attachment_metadata['sending_method'] == 'attach':
-                try:
-                    file_data = attachment_store.get(
-                        service_id=service.id,
-                        attachment_id=uploaded_attachment_metadata['id'],
-                        decryption_key=uploaded_attachment_metadata['encryption_key'],
-                        sending_method=uploaded_attachment_metadata['sending_method']
-                    )
-
-                    attachments.append({
-                        "name": uploaded_attachment_metadata['file_name'],
-                        "data": file_data
-                    })
-
-                except Exception as e:
-                    attachment_key = attachment_store.get_attachment_key(
-                        service_id=service.id,
-                        attachment_id=uploaded_attachment_metadata['id'],
-                        sending_method=uploaded_attachment_metadata['sending_method']
-                    )
-                    current_app.logger.error(
-                        f"Could not download and attach {attachment_key}: {str(e)}"
-                    )
+                file_data = attachment_store.get(
+                    service_id=service.id,
+                    attachment_id=uploaded_attachment_metadata['id'],
+                    decryption_key=uploaded_attachment_metadata['encryption_key'],
+                    sending_method=uploaded_attachment_metadata['sending_method']
+                )
+                attachments.append({
+                    "name": uploaded_attachment_metadata['file_name'],
+                    "data": file_data
+                })
                 del personalisation_data[key]
             else:
                 personalisation_data[key] = personalisation_data[key]['url']

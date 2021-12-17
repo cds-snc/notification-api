@@ -67,18 +67,19 @@ class AttachmentStore:
             decryption_key: str,
             sending_method: SendingMethod
     ) -> bytes:
+        attachment_key = self.get_attachment_key(service_id, attachment_id, sending_method)
+        self.logger.info(f"getting attachment object from s3 with key {attachment_key}")
         try:
-            attachment_key = self.get_attachment_key(service_id, attachment_id, sending_method)
-            self.logger.info(f"getting attachment object from s3 with key {attachment_key}")
             attachment = self.s3.get_object(
                 Bucket=self.bucket,
                 Key=attachment_key,
                 SSECustomerKey=base64.b64decode(decryption_key),
                 SSECustomerAlgorithm='AES256'
             )
-
         except BotoClientError as e:
-            self.logger.error(f"error getting attachment object from s3: {e.response['Error']}")
+            self.logger.error(
+                f"error getting attachment object from 3 with key {attachment_key}: {e.response['Error']}"
+            )
             self.statsd_client.incr('attachments.get.error')
             raise AttachmentStoreError() from e
         else:

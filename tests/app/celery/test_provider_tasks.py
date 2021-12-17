@@ -7,6 +7,7 @@ from celery.exceptions import MaxRetriesExceededError
 from notifications_utils.recipients import InvalidEmailError
 
 import app
+from app.attachments.store import AttachmentStoreError
 from app.celery import provider_tasks
 from app.celery.exceptions import NonRetryableException
 from app.celery.provider_tasks import deliver_sms, deliver_email, deliver_sms_with_rate_limiting
@@ -106,16 +107,17 @@ def test_should_queue_callback_task_if_non_retryable_exception_is_thrown(sample_
 
 @pytest.mark.parametrize(
     'exception_class', [
-        Exception(),
-        AwsSesClientException(),
-        AwsSesClientThrottlingSendRateException(),
-        MaxRetriesExceededError()
+        Exception,
+        AwsSesClientException,
+        AwsSesClientThrottlingSendRateException,
+        MaxRetriesExceededError,
+        AttachmentStoreError
     ]
 )
 def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_email_task(
     sample_notification, mocker, exception_class
 ):
-    mocker.patch('app.delivery.send_to_providers.send_email_to_provider', side_effect=exception_class)
+    mocker.patch('app.delivery.send_to_providers.send_email_to_provider', side_effect=exception_class())
     mocker.patch('app.celery.provider_tasks.deliver_email.retry', side_effect=MaxRetriesExceededError())
 
     with pytest.raises(NotificationTechnicalFailureException) as e:
