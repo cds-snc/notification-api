@@ -1808,6 +1808,10 @@ components:
         personalisation:
           type: object
           description: The personalisation values created in the template must be defined here.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - $ref: '#/components/schemas/Attachment'
           example:
             "full_name": "John Smith"
             "claim_id": "123456"
@@ -2034,6 +2038,14 @@ components:
         updated_at:
           type: string
           format: date-time
+    Attachment:
+      type: object
+      properties:
+        file:
+          type: string
+          format: base64
+        filename:
+          type: string
   securitySchemes:
     adminAuth:
       description: "The admin user and secret are used to generate this authentication.  They are both defined as
