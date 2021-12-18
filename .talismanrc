@@ -304,4 +304,4 @@ fileignoreconfig:
     - filename: app/celery/reporting_tasks.py
       checksum: f02b02a1bc3ea472d752d2073a0332090308c15bb5eb87d70383a2421da6d886
     - filename: tests/app/va/vetext/test_client.py
-      checksum: 7fbcbeb50aaa66fa64dd62dd6c6af569132939ab1911cf71a23e073494ac01da
+      checksum: 23b37578febf39f9162f9d07a54a55cf67bce8d1fb31c4fd96db6e289805f20a
