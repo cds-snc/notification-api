@@ -364,14 +364,6 @@ def init_app(app):
         g.start = monotonic()
         g.endpoint = request.endpoint
 
-    @app.errorhandler(Exception)
-    def exception(error):
-        app.logger.exception(error)
-        # error.code is set for our exception types.
-        msg = getattr(error, 'message', str(error))
-        code = getattr(error, 'code', 500)
-        return jsonify(result='error', message=msg), code
-
     @app.errorhandler(WerkzeugHTTPException)
     def werkzeug_exception(e):
         return make_response(
@@ -384,6 +376,11 @@ def init_app(app):
     def page_not_found(e):
         msg = e.description or "Not found"
         return jsonify(result='error', message=msg), 404
+
+    @app.errorhandler(Exception)
+    def exception(error):
+        app.logger.exception(error)
+        return jsonify(result='error', message="Internal server error"), 500
 
 
 def create_uuid():

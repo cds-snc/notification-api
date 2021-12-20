@@ -445,6 +445,7 @@ class Config(object):
 
     JWT_ACCESS_COOKIE_NAME = 'vanotify_api_access_token'
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+    JWT_ERROR_MESSAGE_KEY = 'message'
     UI_HOST_NAME = os.getenv('UI_HOST_NAME', 'http://localhost:3000')
 
     SESSION_COOKIE_SECURE = str(True) == os.getenv('SESSION_COOKIE_SECURE', 'False')

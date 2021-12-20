@@ -16,7 +16,7 @@ from app.dao.services_dao import dao_fetch_service_by_id_with_api_keys
 
 class AuthError(Exception):
     def __init__(self, message, code, service_id=None, api_key_id=None):
-        self.message = {"token": [message]}
+        self.message = message
         self.short_message = message
         self.code = code
         self.service_id = service_id
