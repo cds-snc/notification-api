@@ -6,8 +6,6 @@ from authlib.integrations.base_client import OAuthError
 from flask import Blueprint, url_for, make_response, redirect, jsonify, current_app, request
 from flask_cors.core import get_cors_options, set_cors_headers
 from flask_jwt_extended import create_access_token, verify_jwt_in_request
-from flask_jwt_extended.exceptions import NoAuthorizationError
-from jwt import ExpiredSignatureError
 from requests import Response
 from requests.exceptions import HTTPError
 from sqlalchemy.orm.exc import NoResultFound
@@ -154,13 +152,11 @@ def _extract_github_user_info(email_resp: json, user_resp: json) -> Tuple[str, s
 @oauth_blueprint.route('/redeem-token', methods=['GET'])
 def redeem_token():
     _assert_github_login_toggle_enabled()
-    try:
-        verify_jwt_in_request(locations='cookies')
-    except (NoAuthorizationError, ExpiredSignatureError):
-        response = make_response('', 401)
-    else:
-        cookie = request.cookies.get(current_app.config['JWT_ACCESS_COOKIE_NAME'])
-        response = make_response(jsonify({'data': cookie}))
+
+    verify_jwt_in_request(locations='cookies')
+
+    cookie = request.cookies.get(current_app.config['JWT_ACCESS_COOKIE_NAME'])
+    response = make_response(jsonify({'data': cookie}))
 
     cors_options = {'origins': current_app.config['UI_HOST_NAME'], 'supports_credentials': True}
     set_cors_headers(response, get_cors_options(current_app, cors_options))

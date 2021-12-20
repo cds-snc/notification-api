@@ -5,6 +5,7 @@ from jsonschema import ValidationError
 from notifications_utils.recipients import InvalidEmailError
 from sqlalchemy.exc import DataError
 from sqlalchemy.orm.exc import NoResultFound
+from werkzeug.exceptions import InternalServerError
 
 from app.attachments.exceptions import UnsupportedMimeTypeException
 from app.authentication.auth import AuthError
@@ -125,7 +126,7 @@ def register_errors(blueprint):
             errors=[{"error": "Request entity too large", "message": "Uploaded attachment exceeds file size limit"}]
         ), 413
 
-    @blueprint.errorhandler(Exception)
+    @blueprint.errorhandler(InternalServerError)
     def internal_server_error(error):
         current_app.logger.exception(error)
         return jsonify(status_code=500,

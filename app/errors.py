@@ -7,6 +7,7 @@ from sqlalchemy.exc import DataError
 from sqlalchemy.orm.exc import NoResultFound
 from marshmallow import ValidationError
 from jsonschema import ValidationError as JsonSchemaValidationError
+from werkzeug.exceptions import InternalServerError
 from app.authentication.auth import AuthError
 from app.exceptions import ArchiveValidationError
 
@@ -114,7 +115,7 @@ def register_errors(blueprint):
 
     # this must be defined after all other error handlers since it catches the generic Exception object
     @blueprint.app_errorhandler(500)
-    @blueprint.errorhandler(Exception)
+    @blueprint.errorhandler(InternalServerError)
     def internal_server_error(e):
         # if e is a werkzeug InternalServerError then it may wrap the original exception. For more details see:
         # https://flask.palletsprojects.com/en/1.1.x/errorhandling/?highlight=internalservererror#unhandled-exceptions

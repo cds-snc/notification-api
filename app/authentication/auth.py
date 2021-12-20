@@ -4,14 +4,12 @@ from typing import Callable
 from flask import request, current_app, g
 from flask_jwt_extended import verify_jwt_in_request, current_user
 from flask_jwt_extended.config import config
-from flask_jwt_extended.exceptions import NoAuthorizationError, InvalidHeaderError, JWTDecodeError
-from jwt import InvalidSignatureError
-from jwt.exceptions import ExpiredSignatureError
 from notifications_python_client.authentication import decode_jwt_token, get_token_issuer
 from notifications_python_client.errors import TokenDecodeError, TokenExpiredError, TokenIssuerError
 from notifications_utils import request_helper
 from sqlalchemy.exc import DataError
 from sqlalchemy.orm.exc import NoResultFound
+
 
 from app.dao.services_dao import dao_fetch_service_by_id_with_api_keys
 
@@ -80,25 +78,16 @@ def create_validator_for_user_in_service_or_admin(required_permission: str = Non
         if request.method in config.exempt_methods:
             return
 
-        try:
-            service_id = request.view_args.get('service_id')
-            verify_jwt_in_request()
+        service_id = request.view_args.get('service_id')
+        verify_jwt_in_request()
 
-        except (NoAuthorizationError, ExpiredSignatureError) as e:
-            raise AuthError('', 401) from e
+        if (not any(service.id == service_id for service in current_user.services) and not current_user.platform_admin):
+            raise AuthError('User is not a member of the specified service', 403, service_id=service_id)
 
-        except (NoAuthorizationError, InvalidHeaderError, JWTDecodeError, InvalidSignatureError) as e:
-            raise AuthError('Could not decode valid JWT', 403) from e
-
-        else:
-            if (not any(service.id == service_id for service in current_user.services)
-               and not current_user.platform_admin):
-                raise AuthError('User is not a member of the specified service', 403, service_id=service_id)
-
-            if required_permission and not current_user.platform_admin:
-                user_permissions = current_user.get_permissions(service_id)
-                if required_permission not in user_permissions:
-                    raise AuthError(f'User does not have permission {required_permission}', 403, service_id=service_id)
+        if required_permission and not current_user.platform_admin:
+            user_permissions = current_user.get_permissions(service_id)
+            if required_permission not in user_permissions:
+                raise AuthError(f'User does not have permission {required_permission}', 403, service_id=service_id)
 
     return _validate_user_in_service_or_platform_admin
 
