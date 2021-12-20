@@ -1,6 +1,6 @@
 """
 
-Revision ID: 0339_add_push_notifications_permission
+Revision ID: 0339_add_push_notif_permission
 Revises: 0338_update_fact_notif_status
 Create Date: 2021-12-20 12:51:00.553275
 
@@ -9,7 +9,7 @@ from alembic import op
 from app.models import PUSH_NOTIFICATIONS
 
 
-revision = '0339_add_push_notifications_permission'
+revision = '0339_add_push_notif_permission'
 down_revision = '0338_update_fact_notif_status'
 
 
