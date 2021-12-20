@@ -338,6 +338,7 @@ PRECOMPILED_LETTER = 'precompiled_letter'
 UPLOAD_DOCUMENT = 'upload_document'
 EDIT_FOLDER_PERMISSIONS = 'edit_folder_permissions'
 UPLOAD_LETTERS = 'upload_letters'
+PUSH_NOTIFICATIONS = 'push_notifications'
 
 SERVICE_PERMISSION_TYPES = [
     EMAIL_TYPE,
@@ -351,6 +352,7 @@ SERVICE_PERMISSION_TYPES = [
     UPLOAD_DOCUMENT,
     EDIT_FOLDER_PERMISSIONS,
     UPLOAD_LETTERS,
+    PUSH_NOTIFICATIONS
 ]
 
 
