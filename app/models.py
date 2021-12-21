@@ -46,6 +46,7 @@ from app.va.identifier import IdentifierType
 SMS_TYPE = 'sms'
 EMAIL_TYPE = 'email'
 LETTER_TYPE = 'letter'
+PUSH_TYPE = 'push'
 
 VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES = {
     EMAIL_TYPE: 'Email',
@@ -338,12 +339,12 @@ PRECOMPILED_LETTER = 'precompiled_letter'
 UPLOAD_DOCUMENT = 'upload_document'
 EDIT_FOLDER_PERMISSIONS = 'edit_folder_permissions'
 UPLOAD_LETTERS = 'upload_letters'
-PUSH_NOTIFICATIONS = 'push_notifications'
 
 SERVICE_PERMISSION_TYPES = [
     EMAIL_TYPE,
     SMS_TYPE,
     LETTER_TYPE,
+    PUSH_TYPE,
     INTERNATIONAL_SMS_TYPE,
     INBOUND_SMS_TYPE,
     SCHEDULE_NOTIFICATIONS,
@@ -352,7 +353,6 @@ SERVICE_PERMISSION_TYPES = [
     UPLOAD_DOCUMENT,
     EDIT_FOLDER_PERMISSIONS,
     UPLOAD_LETTERS,
-    PUSH_NOTIFICATIONS
 ]
 
 
