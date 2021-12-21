@@ -126,7 +126,7 @@ def test_should_not_allow_invalid_secret(client, sample_api_key):
     )
     assert response.status_code == 403
     data = json.loads(response.get_data())
-    assert data['message'] == {"token": ['Invalid token: signature, api token not found']}
+    assert data['message'] == 'Invalid token: signature, api token not found'
 
 
 @pytest.mark.parametrize('scheme', ['bearer', 'Bearer'])
@@ -145,7 +145,7 @@ def test_should_not_allow_service_id_that_is_not_the_wrong_data_type(client, sam
     )
     assert response.status_code == 403
     data = json.loads(response.get_data())
-    assert data['message'] == {"token": ['Invalid token: service id is not the right data type']}
+    assert data['message'] == 'Invalid token: service id is not the right data type'
 
 
 def test_should_allow_valid_token_for_request_with_path_params_for_public_url(client, sample_api_key):
@@ -243,7 +243,7 @@ def test_authentication_returns_error_when_admin_client_has_no_secrets(client):
             headers={'Authorization': 'Bearer {}'.format(token)})
     assert response.status_code == 403
     error_message = json.loads(response.get_data())
-    assert error_message['message'] == {"token": ["Invalid token: signature, api token is not valid"]}
+    assert error_message['message'] == "Invalid token: signature, api token is not valid"
 
 
 def test_authentication_returns_error_when_admin_client_secret_is_invalid(client):
@@ -258,7 +258,7 @@ def test_authentication_returns_error_when_admin_client_secret_is_invalid(client
         headers={'Authorization': 'Bearer {}'.format(token)})
     assert response.status_code == 403
     error_message = json.loads(response.get_data())
-    assert error_message['message'] == {"token": ["Invalid token: signature, api token is not valid"]}
+    assert error_message['message'] == "Invalid token: signature, api token is not valid"
     current_app.config['ADMIN_CLIENT_SECRET'] = api_secret
 
 
@@ -277,7 +277,7 @@ def test_authentication_returns_error_when_service_doesnt_exit(
     )
     assert response.status_code == 403
     error_message = json.loads(response.get_data())
-    assert error_message['message'] == {'token': ['Invalid token: service not found']}
+    assert error_message['message'] == 'Invalid token: service not found'
 
 
 def test_authentication_returns_error_when_service_inactive(client, sample_api_key):
@@ -288,7 +288,7 @@ def test_authentication_returns_error_when_service_inactive(client, sample_api_k
 
     assert response.status_code == 403
     error_message = json.loads(response.get_data())
-    assert error_message['message'] == {'token': ['Invalid token: service is archived']}
+    assert error_message['message'] == 'Invalid token: service is archived'
 
 
 def test_authentication_returns_error_when_service_has_no_secrets(client,
