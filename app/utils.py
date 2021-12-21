@@ -95,7 +95,7 @@ def get_local_timezone_month_from_utc_column(column):
 
 
 def get_public_notify_type_text(notify_type, plural=False):
-    from app.models import (SMS_TYPE, UPLOAD_DOCUMENT, PRECOMPILED_LETTER)
+    from app.models import (SMS_TYPE, UPLOAD_DOCUMENT, PRECOMPILED_LETTER, PUSH_TYPE)
     notify_type_text = notify_type
     if notify_type == SMS_TYPE:
         notify_type_text = 'text message'
@@ -103,6 +103,8 @@ def get_public_notify_type_text(notify_type, plural=False):
         notify_type_text = 'document'
     if notify_type == PRECOMPILED_LETTER:
         notify_type_text = 'precompiled letter'
+    if notify_type == PUSH_TYPE:
+        notify_type_text = 'push notification'
 
     return '{}{}'.format(notify_type_text, 's' if plural else '')
 

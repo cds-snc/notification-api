@@ -42,7 +42,7 @@ class VETextClient:
             if e.response.status_code in [429, 500, 502, 503, 504]:
                 raise VETextRetryableException from e
                 # TODO: add retries?
-            if e.response.status_code == 400:
+            elif e.response.status_code == 400:
                 self._decode_bad_request_response(e)
             else:
                 raise VETextNonRetryableException from e

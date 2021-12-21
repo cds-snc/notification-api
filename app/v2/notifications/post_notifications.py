@@ -20,6 +20,7 @@ from app.models import (
     SMS_TYPE,
     EMAIL_TYPE,
     LETTER_TYPE,
+    PUSH_TYPE,
     UPLOAD_DOCUMENT,
     PRIORITY,
     KEY_TYPE_TEST,
@@ -61,6 +62,16 @@ from app.v2.notifications.notification_schemas import (
     post_letter_request,
     post_precompiled_letter_request
 )
+
+
+@v2_notification_blueprint.route('/push', methods=['POST'])
+def send_push_notification():
+    if not is_feature_enabled(FeatureFlag.PUSH_NOTIFICATIONS):
+        raise NotImplementedError()
+
+    check_service_has_permission(PUSH_TYPE, authenticated_service.permissions)
+
+    return jsonify({}), 201
 
 
 @v2_notification_blueprint.route('/{}'.format(LETTER_TYPE), methods=['POST'])

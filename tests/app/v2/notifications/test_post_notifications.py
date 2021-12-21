@@ -38,17 +38,7 @@ from tests.app.db import (
 )
 from tests.app.factories.feature_flag import mock_feature_flag
 from tests.app.oauth.test_rest import mock_toggle
-
-
-def post_send_notification(client, service, notification_type, payload):
-    return client.post(
-        path=f"/v2/notifications/{notification_type}",
-        data=json.dumps(payload),
-        headers=[
-            ('Content-Type', 'application/json'),
-            create_authorization_header(service_id=service.id)
-        ]
-    )
+from . import post_send_notification
 
 
 @pytest.fixture
