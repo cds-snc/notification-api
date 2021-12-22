@@ -31,6 +31,7 @@ from app.clients.performance_platform.performance_platform_client import Perform
 from app.oauth.registry import oauth_registry
 from app.va.va_profile import VAProfileClient
 from app.va.mpi import MpiClient
+from app.va.vetext import VETextClient
 from app.encryption import Encryption
 from app.attachments.store import AttachmentStore
 
@@ -78,6 +79,7 @@ redis_store = RedisClient()
 performance_platform_client = PerformancePlatformClient()
 va_profile_client = VAProfileClient()
 mpi_client = MpiClient()
+vetext_client = VETextClient()
 
 attachment_store = AttachmentStore()
 

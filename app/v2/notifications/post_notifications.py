@@ -5,7 +5,7 @@ import werkzeug
 from flask import request, jsonify, current_app, abort
 from notifications_utils.recipients import try_validate_and_format_phone_number
 
-from app import api_user, authenticated_service, notify_celery, attachment_store
+from app import api_user, authenticated_service, notify_celery, attachment_store, vetext_client
 from app.attachments.mimetype import extract_and_validate_mimetype
 from app.attachments.store import AttachmentStoreError
 from app.attachments.types import UploadedAttachmentMetadata
@@ -63,6 +63,7 @@ from app.v2.notifications.notification_schemas import (
     post_precompiled_letter_request,
     push_notification_request
 )
+from app.va.vetext import (VETextRetryableException, VETextNonRetryableException, VETextBadRequestException)
 
 
 @v2_notification_blueprint.route('/push', methods=['POST'])
@@ -71,9 +72,21 @@ def send_push_notification():
         raise NotImplementedError()
 
     check_service_has_permission(PUSH_TYPE, authenticated_service.permissions)
-    validate(request.get_json(), push_notification_request)
+    req_json = validate(request.get_json(), push_notification_request)
 
-    return jsonify({}), 201
+    try:
+        vetext_client.send_push_notification(
+            req_json['mobile_app'],
+            req_json['template_id'],
+            req_json['recipient_identifier']['id_value'],
+            req_json.get('personalisation')
+        )
+    except VETextBadRequestException as e:
+        raise BadRequestError(message=e.message, status_code=400)
+    except (VETextNonRetryableException, VETextRetryableException):
+        return jsonify(result='error', message="Invalid response from downstream service"), 502
+    else:
+        return jsonify(result='success'), 201
 
 
 @v2_notification_blueprint.route('/{}'.format(LETTER_TYPE), methods=['POST'])

@@ -1,6 +1,7 @@
 import pytest
 from app.feature_flags import FeatureFlag
 from app.models import PUSH_TYPE
+from app.va.vetext import VETextClient, VETextBadRequestException, VETextNonRetryableException, VETextRetryableException
 from tests.app.factories.feature_flag import mock_feature_flag
 from tests.app.db import (
     create_service,
@@ -87,7 +88,58 @@ class TestValidations:
 
 class TestPushSending:
 
-    def test_returns_201(self, client, service_with_push_permission):
+    @pytest.fixture()
+    def vetext_client(self, mocker):
+        client = mocker.Mock(spec=VETextClient)
+        mocker.patch('app.v2.notifications.post_notifications.vetext_client', client)
+        return client
+
+    def test_returns_201(self, client, service_with_push_permission, vetext_client):
         response = post_send_notification(client, service_with_push_permission, 'push', push_request)
 
         assert response.status_code == 201
+
+    @pytest.mark.parametrize('payload, personalisation', [
+        (push_request, None),
+        ({**push_request, 'personalisation': {'foo': 'bar'}}, {'foo': 'bar'})
+    ])
+    def test_makes_call_to_vetext_client(self, client, service_with_push_permission, vetext_client,
+                                         payload, personalisation):
+        post_send_notification(client, service_with_push_permission, 'push', payload)
+
+        vetext_client.send_push_notification.assert_called_once_with(
+            payload['mobile_app'],
+            payload['template_id'],
+            payload['recipient_identifier']['id_value'],
+            personalisation
+        )
+
+    @pytest.mark.parametrize('exception', [
+        VETextRetryableException,
+        VETextNonRetryableException
+    ])
+    def test_returns_502_on_exception_other_than_bad_request(self, client, service_with_push_permission, vetext_client,
+                                                             exception):
+        vetext_client.send_push_notification.side_effect = exception
+        response = post_send_notification(client, service_with_push_permission, 'push', push_request)
+
+        assert response.status_code == 502
+        resp_json = response.get_json()
+        assert resp_json['result'] == 'error'
+        assert resp_json['message'] == 'Invalid response from downstream service'
+
+    @pytest.mark.parametrize('exception', [
+        VETextBadRequestException(message='Invalid Application SID'),
+        VETextBadRequestException(message='Invalid Template SID'),
+    ])
+    def test_maps_bad_request_exception(self, client, service_with_push_permission, vetext_client,
+                                        exception):
+        vetext_client.send_push_notification.side_effect = exception
+        response = post_send_notification(client, service_with_push_permission, 'push', push_request)
+
+        assert response.status_code == 400
+        resp_json = response.get_json()
+        assert {
+            'error': 'BadRequestError',
+            'message': exception.message
+        } in resp_json['errors']
