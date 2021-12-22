@@ -19,8 +19,16 @@ def feature_toggle_enabled(mocker):
 
 
 push_request = {
-    "template_id": "not important"
+    "mobile_app": "some-mobile-app",
+    "template_id": "some-template-id",
+    "recipient_identifier": {"id_type": "ICN", "id_value": "some-icn"}
 }
+
+
+def push_request_without(key: str) -> dict:
+    payload = {**push_request}
+    payload.pop(key)
+    return payload
 
 
 def test_returns_not_implemented_if_feature_flag_disabled(client, mocker, service_with_push_permission):
@@ -38,8 +46,43 @@ class TestValidations:
         response = post_send_notification(client, service, 'push', push_request)
 
         assert response.status_code == 400
+        assert response.headers['Content-type'] == 'application/json'
         resp_json = response.get_json()
         assert "Service is not allowed to send push notifications" in resp_json["errors"][0]["message"]
+
+    @pytest.mark.parametrize("payload, error_msg", [
+        (push_request_without('template_id'), "template_id is a required property"),
+        (push_request_without('mobile_app'), "mobile_app is a required property"),
+        (push_request_without('recipient_identifier'), "recipient_identifier is a required property"),
+    ])
+    def test_required_fields(self, client, service_with_push_permission, payload, error_msg):
+        response = post_send_notification(client, service_with_push_permission, 'push', payload)
+
+        assert response.status_code == 400
+        assert response.headers['Content-type'] == 'application/json'
+        resp_json = response.get_json()
+        assert {
+            'error': 'ValidationError',
+            'message': error_msg
+        } in resp_json['errors']
+
+    @pytest.mark.parametrize("recipient_identifier, error_msg", [
+        ({"id_type": "ICN"}, "recipient_identifier id_value is a required property"),
+        ({"id_value": "foo"}, "recipient_identifier id_type is a required property"),
+        ({"id_type": "PID", "id_value": 'foo'}, "recipient_identifier PID is not one of [ICN]"),
+    ])
+    def test_recipient_identifier(self, client, service_with_push_permission, recipient_identifier, error_msg):
+        payload = {**push_request}
+        payload["recipient_identifier"] = recipient_identifier
+        response = post_send_notification(client, service_with_push_permission, 'push', payload)
+
+        assert response.status_code == 400
+        assert response.headers['Content-type'] == 'application/json'
+        resp_json = response.get_json()
+        assert {
+            'error': 'ValidationError',
+            'message': error_msg
+        } in resp_json['errors']
 
 
 class TestPushSending:

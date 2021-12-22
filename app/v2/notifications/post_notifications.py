@@ -60,7 +60,8 @@ from app.v2.notifications.notification_schemas import (
     post_sms_request,
     post_email_request,
     post_letter_request,
-    post_precompiled_letter_request
+    post_precompiled_letter_request,
+    push_notification_request
 )
 
 
@@ -70,6 +71,7 @@ def send_push_notification():
         raise NotImplementedError()
 
     check_service_has_permission(PUSH_TYPE, authenticated_service.permissions)
+    validate(request.get_json(), push_notification_request)
 
     return jsonify({}), 201
 
