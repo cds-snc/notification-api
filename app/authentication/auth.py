@@ -4,6 +4,8 @@ from typing import Callable
 from flask import request, current_app, g
 from flask_jwt_extended import verify_jwt_in_request, current_user
 from flask_jwt_extended.config import config
+from flask_jwt_extended.exceptions import JWTExtendedException
+from jwt.exceptions import ExpiredSignatureError
 from notifications_python_client.authentication import decode_jwt_token, get_token_issuer
 from notifications_python_client.errors import TokenDecodeError, TokenExpiredError, TokenIssuerError
 from notifications_utils import request_helper
@@ -98,7 +100,7 @@ def create_validator_for_admin_auth_or_user_in_service(required_permission: str 
         try:
             validate = create_validator_for_user_in_service_or_admin(required_permission)
             validate()
-        except AuthError:
+        except (JWTExtendedException, ExpiredSignatureError):
             validate_admin_auth()
 
     return _validate_admin_auth_or_user_in_service
