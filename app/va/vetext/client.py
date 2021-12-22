@@ -14,6 +14,7 @@ class Credentials(TypedDict):
 
 class VETextClient:
     STATSD_KEY = "clients.vetext"
+    TIMEOUT = 1.5
 
     def init_app(self, url: str, credentials: Credentials, logger: Logger, statsd: StatsdClient):
         self.base_url = url
@@ -33,7 +34,8 @@ class VETextClient:
             response = requests.post(
                 f"{self.base_url}/mobile/push/send",
                 auth=self.auth,
-                json=payload
+                json=payload,
+                timeout=self.TIMEOUT
             )
             response.raise_for_status()
         except requests.HTTPError as e:

@@ -61,6 +61,7 @@ def test_send_push_notification_correct_request(rmock, test_vetext_client):
     }
     expected_auth = 'Basic ' + b64encode(bytes(f"{MOCK_USER}:{MOCK_PASSWORD}", 'utf-8')).decode("ascii")
     assert request.headers.get('Authorization') == expected_auth
+    assert request.timeout == test_vetext_client.TIMEOUT
 
 
 class TestRequestExceptions:
@@ -142,11 +143,11 @@ class TestHTTPExceptions:
             "error": "Invalid Application SID"
         },
         {
-            "idType": "appSid",
+            "idType": "templateSid",
             "id": "bar",
             "success": False,
             "statusCode": 400,
-            "error": "Invalid Application SID"
+            "error": "Invalid Template SID"
         },
         {
             "success": False,
