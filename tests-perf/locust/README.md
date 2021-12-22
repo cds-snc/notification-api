@@ -58,75 +58,32 @@ You can also modify the *locust.config* file to enable the headless mode and def
 
 ### Performance Testing on AWS
 
-#### Overview 
+We run Notify performance tests on a daily manner through AWS ECS tasks
+running on a Fargate cluster. It is automatically triggered by a
+[CloudWatch event target](https://github.com/cds-snc/notification-terraform/blob/a5fcbf0d0e2ff5cd78952bf5c8f9f2dfd5d3c93c/aws/performance-test/cloudwatch.tf#L10).
 
-In the Notify staging account you will find an AMI image that you can use to spin up EC2 servers in which you can ssh into and
-run the performance testing. 
+It is possible to manually launch it though via the AWS console of the
+ECS task. In order to do so, perform the following steps:
 
-Use the following link to navigate to the [AMI image](https://ca-central-1.console.aws.amazon.com/ec2/v2/home?region=ca-central-1#Images:visibility=owned-by-me;name=locust-testing-image;sort=name).
-Following this right click on the image and click launch. You'll want to launch a minimum of a t2 large as locust is cpu intensive.
-
-By default the image is set up to target the [Jimmy Royer - GC Notify test](https://staging.notification.cdssandbox.xyz/services/2317d68b-f3ab-4949-956d-4367b488db4b)
-service on staging when you run the locust test. 
-
-#### Running the tests on EC2
-
-For convenience there are three EC2 servers that have already been created in the Notify staging account 
-such that you can log in and immediately run the locust tests. Each one of these servers target a different
-service, and you can find out which server targets which service by looking at the `TEST_AUTH_HEADER` entry in the .env 
-file.
-
-These servers should be in a stopped state when performance tests aren't being run to avoid AWS
-charges on resources we're not actively using. 
-
-##### Step 1. Logging into the EC2 servers
-
-You can find the PEM file (performance_testing.pem) to log into each one of the EC2 servers in the Shared-Notify staging folder 
-in lastpass. Download this file locally and then change its permissions such that it can only be accessed by the root user
-
-```shell
-$ chmod 400 performance_testing.pem
-```
-
-You can then ssh into any of the respective servers 
-
-```shell
-$ ssh -i performance_testing.pem ubuntu@{SERVER_IP_ADDRESS}
-```
-
-##### Step 2. Change into the root user on the server
-
-You'll need to change into the root user on the server. This is because we need to bind to port 80
-on the 0.0.0.0 host. 
-
-```shell
-$ sudo su
-```
-
-##### Step 4. Set the maximum number of files that can be open to 100240
-
-Locust requires a file descriptor limit of over 100000 usually by default ubuntu sets this at 1024. To set 
-this use the ulimit command 
-
-```shell
-$ ulimit -n 100240
-```
-##### Step 5. Activate the virtual environment
-
-```shell
-$ source venv/bin/activate
-```
-
-##### Step 6. Run the locust interface
-
-```shell
-$ locust -f tests-perf/locust/locust-notifications.py --web-host 0.0.0.0 --web-port 80
-```
-
-You should then be able to see the locust interface if you navigate to the server's IP address 
-in your browser
-
-##### Step 7. Shut down the server when you are finished
-
-To avoid incurring charges on resources that are not being used please put the instances into a 
-stopped state when you are finished with the performance testing. 
+1. [Log into the AWS console](https://cds-snc.awsapps.com/start#/)
+   for the staging environment.
+2. [Head over to the Task Definitions](https://ca-central-1.console.aws.amazon.com/ecs/home?region=ca-central-1#/taskDefinitions)
+   page within the ECS console.
+3. Select the `performance_test_cluster` task definition.
+4. Click on *Actions* button and select *Run*.
+5. On the new page, let's fill the following details to get the task
+   to run.
+   1. Leave the default cluster strategy as-is.
+   2. Select `Linux` as the operating system.
+   3. Leave task definition, platform version as-is.
+   4. Make sure the desired cluster is selected to run the task with.
+   5. Number of task and task group can be left as-is, normally set to 1 task.
+   6. For the VPC and security groups section, select the `notification-canada-ca` VPC.
+   7. Then select all public subnets, 3 at the moment of this writing.
+   8. Select the security group named `perf_test`.
+   9. Other options can be left as-is: you should be all set and ready.
+   10. Click the *Run Task* button!
+6. Once the task is ran, you can select it from the list of running tasks.
+    1. To see the logs of the running task and once you are in the task page, expand the container section. There should be a link to *View logs in CloudWatch* under the *Log Configuration* section.
+7. On performance test completion, [the results should be in the `notify-performance-test-results-staging` S3 bucket](https://s3.console.aws.amazon.com/s3/buckets/notify-performance-test-results-staging?region=ca-central-1&tab=objects). Look into the folder that represents the proper timestamp for the test execution and open the `index.html` file located within.
+8. The performance tests results should also be published [in this GitHub repository](https://github.com/cds-snc/notification-performance-test-results) every day at midnight. If you just executed the test, it will take some delay to have the tests published.

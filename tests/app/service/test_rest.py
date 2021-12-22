@@ -65,6 +65,7 @@ from tests.app.db import (
     create_template,
     create_template_folder,
     create_user,
+    save_notification,
 )
 
 
@@ -1534,7 +1535,7 @@ def test_get_all_notifications_for_service_in_order(notify_api, notify_db, notif
 
 
 def test_get_all_notifications_for_service_formatted_for_csv(client, sample_template):
-    notification = create_notification(template=sample_template)
+    notification = save_notification(create_notification(template=sample_template))
     auth_header = create_authorization_header()
 
     response = client.get(
@@ -1610,7 +1611,7 @@ def test_get_notification_for_service_includes_created_by(admin_request, sample_
 
 
 def test_get_notification_for_service_returns_old_template_version(admin_request, sample_template):
-    sample_notification = create_notification(sample_template)
+    sample_notification = save_notification(create_notification(sample_template))
     sample_notification.reference = "modified-inplace"
     sample_template.version = 2
     sample_template.content = "New template content"
@@ -1662,11 +1663,11 @@ def test_get_only_api_created_notifications_for_service(
     sample_user,
 ):
     # notification sent as a job
-    create_notification(sample_template, job=sample_job)
+    save_notification(create_notification(sample_template, job=sample_job))
     # notification sent as a one-off
-    create_notification(sample_template, one_off=True, created_by_id=sample_user.id)
+    save_notification(create_notification(sample_template, one_off=True, created_by_id=sample_user.id))
     # notification sent via API
-    without_job = create_notification(sample_template)
+    without_job = save_notification(create_notification(sample_template))
 
     resp = admin_request.get(
         "service.get_all_notifications_for_service",
@@ -1684,8 +1685,8 @@ def test_get_notifications_for_service_without_page_count(
     sample_template,
     sample_user,
 ):
-    create_notification(sample_template)
-    without_job = create_notification(sample_template)
+    save_notification(create_notification(sample_template))
+    without_job = save_notification(create_notification(sample_template))
 
     resp = admin_request.get(
         "service.get_all_notifications_for_service",
@@ -1963,7 +1964,7 @@ def test_get_detailed_services_for_date_range(sample_template, start_date_delta,
         notification_type="sms",
     )
 
-    create_notification(template=sample_template, created_at=datetime.utcnow(), status="delivered")
+    save_notification(create_notification(template=sample_template, created_at=datetime.utcnow(), status="delivered"))
 
     start_date = (datetime.utcnow() - timedelta(days=start_date_delta)).date()
     end_date = (datetime.utcnow() - timedelta(days=end_date_delta)).date()
@@ -1995,11 +1996,15 @@ def test_get_detailed_services_for_date_range(sample_template, start_date_delta,
 
 def test_search_for_notification_by_to_field(client, sample_template, sample_email_template):
 
-    notification1 = create_notification(template=sample_template, to_field="+16502532222", normalised_to="+16502532222")
-    notification2 = create_notification(
-        template=sample_email_template,
-        to_field="jack@gmail.com",
-        normalised_to="jack@gmail.com",
+    notification1 = save_notification(
+        create_notification(template=sample_template, to_field="+16502532222", normalised_to="+16502532222")
+    )
+    notification2 = save_notification(
+        create_notification(
+            template=sample_email_template,
+            to_field="jack@gmail.com",
+            normalised_to="jack@gmail.com",
+        )
     )
 
     response = client.get(
@@ -2015,8 +2020,8 @@ def test_search_for_notification_by_to_field(client, sample_template, sample_ema
 
 def test_search_for_notification_by_to_field_return_empty_list_if_there_is_no_match(client, notify_db, notify_db_session):
     create_notification = partial(create_sample_notification, notify_db, notify_db_session)
-    notification1 = create_notification(to_field="+16502532222")
-    create_notification(to_field="jack@gmail.com")
+    notification1 = save_notification(create_notification(to_field="+16502532222"))
+    save_notification(create_notification(to_field="jack@gmail.com"))
 
     response = client.get(
         "/service/{}/notifications?to={}&template_type={}".format(notification1.service_id, "+447700900800", "sms"),
@@ -2030,10 +2035,10 @@ def test_search_for_notification_by_to_field_return_empty_list_if_there_is_no_ma
 
 def test_search_for_notification_by_to_field_return_multiple_matches(client, notify_db, notify_db_session):
     create_notification = partial(create_sample_notification, notify_db, notify_db_session)
-    notification1 = create_notification(to_field="+16502532222", normalised_to="+16502532222")
-    notification2 = create_notification(to_field=" +165 0253 2222 ", normalised_to="+16502532222")
-    notification3 = create_notification(to_field="+1 650 253 2222", normalised_to="+16502532222")
-    notification4 = create_notification(to_field="jack@gmail.com", normalised_to="jack@gmail.com")
+    notification1 = save_notification(create_notification(to_field="+16502532222", normalised_to="+16502532222"))
+    notification2 = save_notification(create_notification(to_field=" +165 0253 2222 ", normalised_to="+16502532222"))
+    notification3 = save_notification(create_notification(to_field="+1 650 253 2222", normalised_to="+16502532222"))
+    notification4 = save_notification(create_notification(to_field="jack@gmail.com", normalised_to="jack@gmail.com"))
 
     response = client.get(
         "/service/{}/notifications?to={}&template_type={}".format(notification1.service_id, "+16502532222", "sms"),
@@ -2240,8 +2245,8 @@ def test_search_for_notification_by_to_field_filters_by_status(client, notify_db
         to_field="+16502532222",
         normalised_to="+16502532222",
     )
-    notification1 = create_notification(status="delivered")
-    create_notification(status="sending")
+    notification1 = save_notification(create_notification(status="delivered"))
+    save_notification(create_notification(status="sending"))
 
     response = client.get(
         "/service/{}/notifications?to={}&status={}&template_type={}".format(
@@ -2265,8 +2270,8 @@ def test_search_for_notification_by_to_field_filters_by_statuses(client, notify_
         to_field="+16502532222",
         normalised_to="+16502532222",
     )
-    notification1 = create_notification(status="delivered")
-    notification2 = create_notification(status="sending")
+    notification1 = save_notification(create_notification(status="delivered"))
+    notification2 = save_notification(create_notification(status="sending"))
 
     response = client.get(
         "/service/{}/notifications?to={}&status={}&status={}&template_type={}".format(
@@ -2377,9 +2382,9 @@ def test_get_all_notifications_for_service_includes_template_redacted(admin_requ
     dao_redact_template(redacted_template, sample_service.created_by_id)
 
     with freeze_time("2000-01-01"):
-        redacted_noti = create_notification(redacted_template)
+        redacted_noti = save_notification(create_notification(redacted_template))
     with freeze_time("2000-01-02"):
-        normal_noti = create_notification(normal_template)
+        normal_noti = save_notification(create_notification(normal_template))
 
     resp = admin_request.get("service.get_all_notifications_for_service", service_id=sample_service.id)
 
@@ -2401,9 +2406,9 @@ def test_get_all_notifications_for_service_includes_template_hidden(admin_reques
     )
 
     with freeze_time("2000-01-01"):
-        letter_noti = create_notification(letter_template)
+        letter_noti = save_notification(create_notification(letter_template))
     with freeze_time("2000-01-02"):
-        precompiled_noti = create_notification(precompiled_template)
+        precompiled_noti = save_notification(create_notification(precompiled_template))
 
     resp = admin_request.get("service.get_all_notifications_for_service", service_id=sample_service.id)
 

@@ -85,6 +85,31 @@ def dao_create_notification(notification):
     db.session.add(notification)
 
 
+@statsd(namespace="dao")
+@transactional
+def bulk_insert_notifications(notifications):
+    """
+    Takes a list of models.Notifications and inserts or updates the DB
+    with the list accordingly
+
+    Parameters:
+    ----------
+    notifications: lof models.Notification
+
+    Return:
+    ------
+    None
+    """
+    for notification in notifications:
+        if not notification.id:
+            notification.id = create_uuid()
+        if not notification.status:
+            notification.status = NOTIFICATION_CREATED
+
+    # TODO: Add error handling (Redis queue?) for failed notifications
+    return db.session.bulk_save_objects(notifications)
+
+
 def _decide_permanent_temporary_failure(current_status, status):
     # Firetext will send pending, then send either succes or fail.
     # If we go from pending to delivered we need to set failure type as temporary-failure

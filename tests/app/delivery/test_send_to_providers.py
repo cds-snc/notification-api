@@ -16,6 +16,7 @@ from app.dao.provider_details_dao import (
 )
 from app.delivery import send_to_providers
 from app.exceptions import (
+    InvalidUrlException,
     MalwarePendingException,
     NotificationTechnicalFailureException,
 )
@@ -39,6 +40,7 @@ from tests.app.db import (
     create_service_sms_sender,
     create_service_with_defined_sms_sender,
     create_template,
+    save_notification,
 )
 from tests.conftest import set_config_values
 
@@ -92,12 +94,14 @@ def test_provider_to_use(restore_provider_details):
 
 
 def test_should_send_personalised_template_to_correct_sms_provider_and_persist(sample_sms_template_with_html, mocker):
-    db_notification = create_notification(
-        template=sample_sms_template_with_html,
-        to_field="+16502532222",
-        personalisation={"name": "Jo"},
-        status="created",
-        reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender(),
+    db_notification = save_notification(
+        create_notification(
+            template=sample_sms_template_with_html,
+            to_field="+16502532222",
+            personalisation={"name": "Jo"},
+            status="created",
+            reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender(),
+        )
     )
 
     statsd_mock = mocker.patch("app.delivery.send_to_providers.statsd_client")
@@ -129,10 +133,12 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(s
 
 
 def test_should_send_personalised_template_to_correct_email_provider_and_persist(sample_email_template_with_html, mocker):
-    db_notification = create_notification(
-        template=sample_email_template_with_html,
-        to_field="jo.smith@example.com",
-        personalisation={"name": "Jo"},
+    db_notification = save_notification(
+        create_notification(
+            template=sample_email_template_with_html,
+            to_field="jo.smith@example.com",
+            personalisation={"name": "Jo"},
+        )
     )
 
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
@@ -167,10 +173,12 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
 
 
 def test_should_send_personalised_template_with_html_enabled(sample_email_template_with_advanced_html, mocker, notify_api):
-    db_notification = create_notification(
-        template=sample_email_template_with_advanced_html,
-        to_field="jo.smith@example.com",
-        personalisation={"name": "Jo"},
+    db_notification = save_notification(
+        create_notification(
+            template=sample_email_template_with_advanced_html,
+            to_field="jo.smith@example.com",
+            personalisation={"name": "Jo"},
+        )
     )
 
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
@@ -214,10 +222,12 @@ def test_should_not_send_email_message_when_service_is_inactive_notifcation_is_i
 
 
 def test_should_respect_custom_sending_domains(sample_service, mocker, sample_email_template_with_html):
-    db_notification = create_notification(
-        template=sample_email_template_with_html,
-        to_field="jo.smith@example.com",
-        personalisation={"name": "Jo"},
+    db_notification = save_notification(
+        create_notification(
+            template=sample_email_template_with_html,
+            to_field="jo.smith@example.com",
+            personalisation={"name": "Jo"},
+        )
     )
 
     sample_service.sending_domain = "foo.bar"
@@ -254,12 +264,14 @@ def test_should_not_send_sms_message_when_service_is_inactive_notifcation_is_in_
 def test_should_not_send_sms_message_when_message_is_empty_or_whitespace(sample_service, mocker, var):
     sample_service.prefix_sms = False
     template = create_template(sample_service, content="((var))")
-    notification = create_notification(
-        template=template,
-        personalisation={"var": var},
-        to_field="+16502532222",
-        status="created",
-        reply_to_text=sample_service.get_default_sms_sender(),
+    notification = save_notification(
+        create_notification(
+            template=template,
+            personalisation={"var": var},
+            to_field="+16502532222",
+            status="created",
+            reply_to_text=sample_service.get_default_sms_sender(),
+        )
     )
 
     send_mock = mocker.patch("app.aws_sns_client.send_sms", return_value="reference")
@@ -271,11 +283,13 @@ def test_should_not_send_sms_message_when_message_is_empty_or_whitespace(sample_
 
 
 def test_send_sms_should_use_template_version_from_notification_not_latest(sample_template, mocker):
-    db_notification = create_notification(
-        template=sample_template,
-        to_field="+16502532222",
-        status="created",
-        reply_to_text=sample_template.service.get_default_sms_sender(),
+    db_notification = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+16502532222",
+            status="created",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+        )
     )
 
     mocker.patch("app.aws_sns_client.send_sms", return_value="message_id_from_sns")
@@ -351,7 +365,7 @@ def test_should_not_have_sent_status_if_fake_callback_function_fails(sample_noti
 
 
 def test_should_not_send_to_provider_when_status_is_not_created(sample_template, mocker):
-    notification = create_notification(template=sample_template, status="sending")
+    notification = save_notification(create_notification(template=sample_template, status="sending"))
     mocker.patch("app.aws_sns_client.send_sms")
     response_mock = mocker.patch("app.delivery.send_to_providers.send_sms_response")
 
@@ -369,7 +383,7 @@ def test_should_send_sms_with_downgraded_content(notify_db_session, mocker):
     gsm_message = "?odz Housing Service: a é i o u ? foo barbaz???abc..."
     service = create_service(service_name="Łódź Housing Service")
     template = create_template(service, content=msg)
-    db_notification = create_notification(template=template, personalisation={"misc": placeholder})
+    db_notification = save_notification(create_notification(template=template, personalisation={"misc": placeholder}))
 
     mocker.patch("app.aws_sns_client.send_sms", return_value="message_id_from_sns")
 
@@ -382,7 +396,7 @@ def test_send_sms_should_use_service_sms_sender(sample_service, sample_template,
     mocker.patch("app.aws_sns_client.send_sms", return_value="message_id_from_sns")
 
     sms_sender = create_service_sms_sender(service=sample_service, sms_sender="123456", is_default=False)
-    db_notification = create_notification(template=sample_template, reply_to_text=sms_sender.sms_sender)
+    db_notification = save_notification(create_notification(template=sample_template, reply_to_text=sms_sender.sms_sender))
 
     send_to_providers.send_sms_to_provider(
         db_notification,
@@ -395,11 +409,13 @@ def test_send_sms_should_use_service_sms_sender(sample_service, sample_template,
 def test_send_email_to_provider_should_call_research_mode_task_response_task_if_research_mode(
     sample_service, sample_email_template, mocker, research_mode, key_type
 ):
-    notification = create_notification(
-        template=sample_email_template,
-        to_field="john@smith.com",
-        key_type=key_type,
-        billable_units=0,
+    notification = save_notification(
+        create_notification(
+            template=sample_email_template,
+            to_field="john@smith.com",
+            key_type=key_type,
+            billable_units=0,
+        )
     )
     sample_service.research_mode = research_mode
 
@@ -423,7 +439,7 @@ def test_send_email_to_provider_should_call_research_mode_task_response_task_if_
 
 
 def test_send_email_to_provider_should_not_send_to_provider_when_status_is_not_created(sample_email_template, mocker):
-    notification = create_notification(template=sample_email_template, status="sending")
+    notification = save_notification(create_notification(template=sample_email_template, status="sending"))
     mocker.patch("app.aws_ses_client.send_email")
     mocker.patch("app.delivery.send_to_providers.send_email_response")
 
@@ -435,7 +451,7 @@ def test_send_email_to_provider_should_not_send_to_provider_when_status_is_not_c
 def test_send_email_should_use_service_reply_to_email(sample_service, sample_email_template, mocker):
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
 
-    db_notification = create_notification(template=sample_email_template, reply_to_text="foo@bar.com")
+    db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="foo@bar.com"))
     create_reply_to_email(service=sample_service, email_address="foo@bar.com")
 
     send_to_providers.send_email_to_provider(
@@ -592,7 +608,9 @@ def __update_notification(notification_to_update, research_mode, expected_status
 def test_should_update_billable_units_and_status_according_to_research_mode_and_key_type(
     sample_template, mocker, research_mode, key_type, billable_units, expected_status
 ):
-    notification = create_notification(template=sample_template, billable_units=0, status="created", key_type=key_type)
+    notification = save_notification(
+        create_notification(template=sample_template, billable_units=0, status="created", key_type=key_type)
+    )
     mocker.patch("app.aws_sns_client.send_sms", return_value="message_id_from_sns")
     mocker.patch(
         "app.delivery.send_to_providers.send_sms_response",
@@ -630,22 +648,26 @@ def test_should_send_sms_to_international_providers(restore_provider_details, sa
 
     dao_switch_sms_provider_to_provider_with_identifier("firetext")
 
-    db_notification_uk = create_notification(
-        template=sample_sms_template_with_html,
-        to_field="+16135555555",
-        personalisation={"name": "Jo"},
-        status="created",
-        international=False,
-        reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender(),
+    db_notification_uk = save_notification(
+        create_notification(
+            template=sample_sms_template_with_html,
+            to_field="+16135555555",
+            personalisation={"name": "Jo"},
+            status="created",
+            international=False,
+            reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender(),
+        )
     )
 
-    db_notification_international = create_notification(
-        template=sample_sms_template_with_html,
-        to_field="+1613555555",
-        personalisation={"name": "Jo"},
-        status="created",
-        international=False,
-        reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender(),
+    db_notification_international = save_notification(
+        create_notification(
+            template=sample_sms_template_with_html,
+            to_field="+1613555555",
+            personalisation={"name": "Jo"},
+            status="created",
+            international=False,
+            reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender(),
+        )
     )
 
     mocker.patch("app.aws_sns_client.send_sms")
@@ -687,7 +709,7 @@ def test_should_handle_sms_sender_and_prefix_message(
     mocker.patch("app.aws_sns_client.send_sms", return_value="message_id_from_sns")
     service = create_service_with_defined_sms_sender(sms_sender_value=sms_sender, prefix_sms=prefix_sms)
     template = create_template(service, content="bar")
-    notification = create_notification(template, reply_to_text=sms_sender)
+    notification = save_notification(create_notification(template, reply_to_text=sms_sender))
 
     send_to_providers.send_sms_to_provider(notification)
 
@@ -702,7 +724,7 @@ def test_should_handle_sms_sender_and_prefix_message(
 def test_send_email_to_provider_uses_reply_to_from_notification(sample_email_template, mocker):
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
 
-    db_notification = create_notification(template=sample_email_template, reply_to_text="test@test.com")
+    db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="test@test.com"))
 
     send_to_providers.send_email_to_provider(
         db_notification,
@@ -722,7 +744,7 @@ def test_send_email_to_provider_uses_reply_to_from_notification(sample_email_tem
 def test_send_email_to_provider_should_format_reply_to_email_address(sample_email_template, mocker):
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
 
-    db_notification = create_notification(template=sample_email_template, reply_to_text="test@test.com\t")
+    db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="test@test.com\t"))
 
     send_to_providers.send_email_to_provider(
         db_notification,
@@ -774,7 +796,7 @@ def test_notification_can_have_document_attachment_without_mlwr_sid(sample_email
     del response["document"]["mlwr_sid"]
     personalisation = {"file": response}
 
-    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
+    db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
 
     send_to_providers.send_email_to_provider(
         db_notification,
@@ -789,7 +811,7 @@ def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(sample_e
     mlwr_mock = mocker.patch("app.delivery.send_to_providers.check_mlwr")
     personalisation = {"file": document_download_response({"mlwr_sid": "false"})}
 
-    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
+    db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
 
     send_to_providers.send_email_to_provider(
         db_notification,
@@ -804,7 +826,7 @@ def test_notification_raises_a_retry_exception_if_mlwr_state_is_missing(sample_e
     mocker.patch("app.delivery.send_to_providers.check_mlwr", return_value={})
     personalisation = {"file": document_download_response()}
 
-    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
+    db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
 
     with pytest.raises(MalwarePendingException):
         send_to_providers.send_email_to_provider(
@@ -817,7 +839,7 @@ def test_notification_raises_a_retry_exception_if_mlwr_state_is_not_complete(sam
     mocker.patch("app.delivery.send_to_providers.check_mlwr", return_value={"state": "foo"})
     personalisation = {"file": document_download_response()}
 
-    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
+    db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
 
     with pytest.raises(MalwarePendingException):
         send_to_providers.send_email_to_provider(
@@ -833,7 +855,7 @@ def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_is_5
     )
     personalisation = {"file": document_download_response()}
 
-    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
+    db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
 
     with pytest.raises(NotificationTechnicalFailureException) as e:
         send_to_providers.send_email_to_provider(db_notification)
@@ -851,7 +873,7 @@ def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_abov
     )
     personalisation = {"file": document_download_response()}
 
-    db_notification = create_notification(template=sample_email_template, personalisation=personalisation)
+    db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
 
     with pytest.raises(NotificationTechnicalFailureException) as e:
         send_to_providers.send_email_to_provider(db_notification)
@@ -894,7 +916,7 @@ def test_notification_document_with_pdf_attachment(
     else:
         personalisation["file"]["document"]["sending_method"] = "link"
 
-    db_notification = create_notification(template=template, personalisation=personalisation)
+    db_notification = save_notification(create_notification(template=template, personalisation=personalisation))
 
     statsd_mock = mocker.patch("app.delivery.send_to_providers.statsd_client")
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
@@ -944,15 +966,53 @@ def test_notification_document_with_pdf_attachment(
         assert call(statsd_key) in statsd_mock.incr.call_args_list
 
 
+@pytest.mark.parametrize(
+    "sending_method",
+    [
+        ("attach"),
+        ("link"),
+    ],
+)
+def test_notification_with_bad_file_attachment_url(mocker, notify_db, notify_db_session, sending_method):
+    template = sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
+    personalisation = {
+        "file": document_download_response(
+            {
+                "direct_file_url": "file://foo.bar/file.txt" if sending_method == "attach" else "http://foo.bar/file.txt",
+                "url": "file://foo.bar/file.txt" if sending_method == "link" else "http://foo.bar/file.txt",
+                "mime_type": "application/pdf",
+                "mlwr_sid": "false",
+            }
+        )
+    }
+    personalisation["file"]["document"]["sending_method"] = sending_method
+    if sending_method == "attach":
+        personalisation["file"]["document"]["filename"] = "file.txt"
+
+    db_notification = save_notification(create_notification(template=template, personalisation=personalisation))
+
+    # See https://stackoverflow.com/a/34929900
+    cm = MagicMock()
+    cm.read.return_value = "request_content"
+    cm.__enter__.return_value = cm
+    urlopen_mock = mocker.patch("app.delivery.send_to_providers.urllib.request.urlopen")
+    urlopen_mock.return_value = cm
+
+    with pytest.raises(InvalidUrlException):
+        send_to_providers.send_email_to_provider(db_notification)
+
+
 def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
     sample_email_template_with_html, mocker, notify_api
 ):
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
 
-    db_notification = create_notification(
-        template=sample_email_template_with_html,
-        to_field="jo.smith@example.com",
-        personalisation={"name": "046-454-286"},
+    db_notification = save_notification(
+        create_notification(
+            template=sample_email_template_with_html,
+            to_field="jo.smith@example.com",
+            personalisation={"name": "046-454-286"},
+        )
     )
 
     with set_config_values(
@@ -973,10 +1033,12 @@ def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
 def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(sample_email_template_with_html, mocker, notify_api):
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
 
-    db_notification = create_notification(
-        template=sample_email_template_with_html,
-        to_field="jo.smith@example.com",
-        personalisation={"name": "123-456-789"},
+    db_notification = save_notification(
+        create_notification(
+            template=sample_email_template_with_html,
+            to_field="jo.smith@example.com",
+            personalisation={"name": "123-456-789"},
+        )
     )
 
     send_to_providers.send_email_to_provider(db_notification)
@@ -989,10 +1051,12 @@ def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(sample_
 def test_notification_passes_if_message_contains_phone_number(sample_email_template_with_html, mocker):
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
 
-    db_notification = create_notification(
-        template=sample_email_template_with_html,
-        to_field="jo.smith@example.com",
-        personalisation={"name": "123-456-7890"},
+    db_notification = save_notification(
+        create_notification(
+            template=sample_email_template_with_html,
+            to_field="jo.smith@example.com",
+            personalisation={"name": "123-456-7890"},
+        )
     )
 
     send_to_providers.send_email_to_provider(db_notification)

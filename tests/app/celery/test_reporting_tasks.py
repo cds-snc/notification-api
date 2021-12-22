@@ -26,6 +26,7 @@ from tests.app.db import (
     create_rate,
     create_service,
     create_template,
+    save_notification,
 )
 
 
@@ -99,23 +100,27 @@ def test_create_nightly_billing_for_day_sms_rate_multiplier(
     mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
 
     # These are sms notifications
-    create_notification(
-        created_at=yesterday,
-        template=sample_template,
-        status="delivered",
-        sent_by="sns",
-        international=False,
-        rate_multiplier=1.0,
-        billable_units=1,
+    save_notification(
+        create_notification(
+            created_at=yesterday,
+            template=sample_template,
+            status="delivered",
+            sent_by="sns",
+            international=False,
+            rate_multiplier=1.0,
+            billable_units=1,
+        )
     )
-    create_notification(
-        created_at=yesterday,
-        template=sample_template,
-        status="delivered",
-        sent_by="sns",
-        international=False,
-        rate_multiplier=second_rate,
-        billable_units=1,
+    save_notification(
+        create_notification(
+            created_at=yesterday,
+            template=sample_template,
+            status="delivered",
+            sent_by="sns",
+            international=False,
+            rate_multiplier=second_rate,
+            billable_units=1,
+        )
     )
 
     records = FactBilling.query.all()
@@ -138,23 +143,27 @@ def test_create_nightly_billing_for_day_different_templates(sample_service, samp
 
     mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
 
-    create_notification(
-        created_at=yesterday,
-        template=sample_template,
-        status="delivered",
-        sent_by="sns",
-        international=False,
-        rate_multiplier=1.0,
-        billable_units=1,
+    save_notification(
+        create_notification(
+            created_at=yesterday,
+            template=sample_template,
+            status="delivered",
+            sent_by="sns",
+            international=False,
+            rate_multiplier=1.0,
+            billable_units=1,
+        )
     )
-    create_notification(
-        created_at=yesterday,
-        template=sample_email_template,
-        status="delivered",
-        sent_by="ses",
-        international=False,
-        rate_multiplier=0,
-        billable_units=0,
+    save_notification(
+        create_notification(
+            created_at=yesterday,
+            template=sample_email_template,
+            status="delivered",
+            sent_by="ses",
+            international=False,
+            rate_multiplier=0,
+            billable_units=0,
+        )
     )
 
     records = FactBilling.query.all()
@@ -181,14 +190,16 @@ def test_create_nightly_billing_for_day_different_sent_by(sample_service, sample
     mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
 
     # These are sms notifications
-    create_notification(
-        created_at=yesterday,
-        template=sample_template,
-        status="delivered",
-        sent_by="sns",
-        international=False,
-        rate_multiplier=1.0,
-        billable_units=1,
+    save_notification(
+        create_notification(
+            created_at=yesterday,
+            template=sample_template,
+            status="delivered",
+            sent_by="sns",
+            international=False,
+            rate_multiplier=1.0,
+            billable_units=1,
+        )
     )
 
     records = FactBilling.query.all()
@@ -212,21 +223,25 @@ def test_create_nightly_billing_for_day_different_letter_postage(notify_db_sessi
     mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
 
     for i in range(2):
+        save_notification(
+            create_notification(
+                created_at=yesterday,
+                template=sample_letter_template,
+                status="delivered",
+                sent_by="dvla",
+                billable_units=2,
+                postage="first",
+            )
+        )
+    save_notification(
         create_notification(
             created_at=yesterday,
             template=sample_letter_template,
             status="delivered",
             sent_by="dvla",
             billable_units=2,
-            postage="first",
+            postage="second",
         )
-    create_notification(
-        created_at=yesterday,
-        template=sample_letter_template,
-        status="delivered",
-        sent_by="dvla",
-        billable_units=2,
-        postage="second",
     )
 
     records = FactBilling.query.all()
@@ -255,14 +270,16 @@ def test_create_nightly_billing_for_day_letter(sample_service, sample_letter_tem
 
     mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
 
-    create_notification(
-        created_at=yesterday,
-        template=sample_letter_template,
-        status="delivered",
-        sent_by="dvla",
-        international=False,
-        rate_multiplier=2.0,
-        billable_units=2,
+    save_notification(
+        create_notification(
+            created_at=yesterday,
+            template=sample_letter_template,
+            status="delivered",
+            sent_by="dvla",
+            international=False,
+            rate_multiplier=2.0,
+            billable_units=2,
+        )
     )
 
     records = FactBilling.query.all()
@@ -285,14 +302,16 @@ def test_create_nightly_billing_for_day_null_sent_by_sms(sample_service, sample_
 
     mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
 
-    create_notification(
-        created_at=yesterday,
-        template=sample_template,
-        status="delivered",
-        sent_by=None,
-        international=False,
-        rate_multiplier=1.0,
-        billable_units=1,
+    save_notification(
+        create_notification(
+            created_at=yesterday,
+            template=sample_template,
+            status="delivered",
+            sent_by=None,
+            international=False,
+            rate_multiplier=1.0,
+            billable_units=1,
+        )
     )
 
     records = FactBilling.query.all()
@@ -343,29 +362,35 @@ def test_create_nightly_billing_for_day_use_BST(sample_service, sample_template,
     mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
 
     # too late
-    create_notification(
-        created_at=datetime(2018, 3, 25, 23, 1),
-        template=sample_template,
-        status="delivered",
-        rate_multiplier=1.0,
-        billable_units=1,
+    save_notification(
+        create_notification(
+            created_at=datetime(2018, 3, 25, 23, 1),
+            template=sample_template,
+            status="delivered",
+            rate_multiplier=1.0,
+            billable_units=1,
+        )
     )
 
-    create_notification(
-        created_at=datetime(2018, 3, 25, 22, 59),
-        template=sample_template,
-        status="delivered",
-        rate_multiplier=1.0,
-        billable_units=2,
+    save_notification(
+        create_notification(
+            created_at=datetime(2018, 3, 25, 22, 59),
+            template=sample_template,
+            status="delivered",
+            rate_multiplier=1.0,
+            billable_units=2,
+        )
     )
 
     # too early
-    create_notification(
-        created_at=datetime(2018, 3, 24, 23, 59),
-        template=sample_template,
-        status="delivered",
-        rate_multiplier=1.0,
-        billable_units=4,
+    save_notification(
+        create_notification(
+            created_at=datetime(2018, 3, 24, 23, 59),
+            template=sample_template,
+            status="delivered",
+            rate_multiplier=1.0,
+            billable_units=4,
+        )
     )
 
     assert Notification.query.count() == 3
@@ -385,14 +410,16 @@ def test_create_nightly_billing_for_day_update_when_record_exists(sample_service
 
     mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
 
-    create_notification(
-        created_at=datetime.now() - timedelta(days=1),
-        template=sample_template,
-        status="delivered",
-        sent_by=None,
-        international=False,
-        rate_multiplier=1.0,
-        billable_units=1,
+    save_notification(
+        create_notification(
+            created_at=datetime.now() - timedelta(days=1),
+            template=sample_template,
+            status="delivered",
+            sent_by=None,
+            international=False,
+            rate_multiplier=1.0,
+            billable_units=1,
+        )
     )
 
     records = FactBilling.query.all()
@@ -406,14 +433,16 @@ def test_create_nightly_billing_for_day_update_when_record_exists(sample_service
     assert records[0].billable_units == 1
     assert not records[0].updated_at
 
-    create_notification(
-        created_at=datetime.now() - timedelta(days=1),
-        template=sample_template,
-        status="delivered",
-        sent_by=None,
-        international=False,
-        rate_multiplier=1.0,
-        billable_units=1,
+    save_notification(
+        create_notification(
+            created_at=datetime.now() - timedelta(days=1),
+            template=sample_template,
+            status="delivered",
+            sent_by=None,
+            international=False,
+            rate_multiplier=1.0,
+            billable_units=1,
+        )
     )
 
     # run again, make sure create_nightly_billing() updates with no error
@@ -432,25 +461,31 @@ def test_create_nightly_notification_status_for_day(notify_db_session):
     third_service = create_service(service_name="third Service")
     third_template = create_template(service=third_service, template_type="letter")
 
-    create_notification(template=first_template, status="delivered")
-    create_notification(
-        template=first_template,
-        status="delivered",
-        created_at=datetime(2019, 1, 1, 12, 0),
+    save_notification(create_notification(template=first_template, status="delivered"))
+    save_notification(
+        create_notification(
+            template=first_template,
+            status="delivered",
+            created_at=datetime(2019, 1, 1, 12, 0),
+        )
     )
 
-    create_notification(template=second_template, status="temporary-failure")
-    create_notification(
-        template=second_template,
-        status="temporary-failure",
-        created_at=datetime(2019, 1, 1, 12, 0),
+    save_notification(create_notification(template=second_template, status="temporary-failure"))
+    save_notification(
+        create_notification(
+            template=second_template,
+            status="temporary-failure",
+            created_at=datetime(2019, 1, 1, 12, 0),
+        )
     )
 
-    create_notification(template=third_template, status="created")
-    create_notification(
-        template=third_template,
-        status="created",
-        created_at=datetime(2019, 1, 1, 12, 0),
+    save_notification(create_notification(template=third_template, status="created"))
+    save_notification(
+        create_notification(
+            template=third_template,
+            status="created",
+            created_at=datetime(2019, 1, 1, 12, 0),
+        )
     )
 
     assert len(FactNotificationStatus.query.all()) == 0
@@ -470,12 +505,14 @@ def test_create_nightly_notification_status_for_day(notify_db_session):
 def test_create_nightly_notification_status_for_day_respects_local_timezone(
     sample_template,
 ):
-    create_notification(sample_template, status="delivered", created_at=datetime(2019, 4, 2, 5, 0))  # too new
+    save_notification(create_notification(sample_template, status="delivered", created_at=datetime(2019, 4, 2, 5, 0)))  # too new
 
-    create_notification(sample_template, status="created", created_at=datetime(2019, 4, 2, 6, 59))
-    create_notification(sample_template, status="created", created_at=datetime(2019, 4, 1, 5, 59))
+    save_notification(create_notification(sample_template, status="created", created_at=datetime(2019, 4, 2, 6, 59)))
+    save_notification(create_notification(sample_template, status="created", created_at=datetime(2019, 4, 1, 5, 59)))
 
-    create_notification(sample_template, status="delivered", created_at=datetime(2019, 3, 30, 3, 59))  # too old
+    save_notification(
+        create_notification(sample_template, status="delivered", created_at=datetime(2019, 3, 30, 3, 59))
+    )  # too old
 
     create_nightly_notification_status_for_day("2019-04-01")
 

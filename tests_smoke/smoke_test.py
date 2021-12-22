@@ -1,8 +1,8 @@
-from smoke.common import Attachment_type, Config, Notification_type
-from smoke.test_admin_csv import test_admin_csv
-from smoke.test_admin_one_off import test_admin_one_off
-from smoke.test_api_bulk import test_api_bulk
-from smoke.test_api_one_off import test_api_one_off
+from smoke.common import Attachment_type, Config, Notification_type  # type: ignore
+from smoke.test_admin_csv import test_admin_csv  # type: ignore
+from smoke.test_admin_one_off import test_admin_one_off  # type: ignore
+from smoke.test_api_bulk import test_api_bulk  # type: ignore
+from smoke.test_api_one_off import test_api_one_off  # type: ignore
 
 if __name__ == "__main__":
     print("API Smoke test\n")

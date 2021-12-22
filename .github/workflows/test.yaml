@@ -1,15 +1,12 @@
 on:
   push:
-  schedule:
-    - cron: '2 0-12,20-23 * * 1-5'
-    - cron: '2 * * * 0,6'
-name: CI testing
+name: Python tests
 jobs:
   test:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:11.8
+        image: postgres:13.4
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres

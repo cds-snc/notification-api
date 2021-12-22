@@ -20,26 +20,34 @@ from app.notifications.notifications_ses_callback import (
     remove_emails_from_complaint,
 )
 from tests.app.conftest import sample_notification as create_sample_notification
-from tests.app.db import create_notification, create_service_callback_api
+from tests.app.db import (
+    create_notification,
+    create_service_callback_api,
+    save_notification,
+)
 
 
 def test_process_ses_results(sample_email_template):
-    create_notification(
-        sample_email_template,
-        reference="ref1",
-        sent_at=datetime.utcnow(),
-        status="sending",
+    save_notification(
+        create_notification(
+            sample_email_template,
+            reference="ref1",
+            sent_at=datetime.utcnow(),
+            status="sending",
+        )
     )
 
     assert process_ses_results(response=ses_notification_callback(reference="ref1"))
 
 
 def test_process_ses_results_retry_called(sample_email_template, notify_db, mocker):
-    create_notification(
-        sample_email_template,
-        reference="ref1",
-        sent_at=datetime.utcnow(),
-        status="sending",
+    save_notification(
+        create_notification(
+            sample_email_template,
+            reference="ref1",
+            sent_at=datetime.utcnow(),
+            status="sending",
+        )
     )
 
     mocker.patch(
@@ -52,7 +60,7 @@ def test_process_ses_results_retry_called(sample_email_template, notify_db, mock
 
 
 def test_process_ses_results_in_complaint(sample_email_template, mocker):
-    notification = create_notification(template=sample_email_template, reference="ref1")
+    notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
     mocked = mocker.patch("app.dao.notifications_dao.update_notification_status_by_reference")
     process_ses_results(response=ses_complaint_callback())
     assert mocked.call_count == 0
@@ -101,7 +109,7 @@ def test_ses_callback_should_update_notification_status(notify_db, notify_db_ses
 
 
 def test_ses_callback_should_update_notification_status_when_receiving_new_delivery_receipt(sample_email_template, mocker):
-    notification = create_notification(template=sample_email_template, reference="ref", status="delivered")
+    notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
 
     assert process_ses_results(ses_hard_bounce_callback(reference="ref"))
     assert get_notification_by_id(notification.id).status == "permanent-failure"
@@ -280,11 +288,13 @@ def test_ses_callback_should_send_on_complaint_to_user_callback_api(sample_email
         callback_type="complaint",
     )
 
-    notification = create_notification(
-        template=sample_email_template,
-        reference="ref1",
-        sent_at=datetime.utcnow(),
-        status="sending",
+    notification = save_notification(
+        create_notification(
+            template=sample_email_template,
+            reference="ref1",
+            sent_at=datetime.utcnow(),
+            status="sending",
+        )
     )
     response = ses_complaint_callback()
     assert process_ses_results(response)

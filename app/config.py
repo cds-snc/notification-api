@@ -143,6 +143,7 @@ class Config(object):
     PERFORMANCE_PLATFORM_URL = "https://www.performance.service.gov.uk/data/govuk-notify/"
 
     # Zendesk
+    ZENDESK_API_URL = os.getenv("ZENDESK_API_URL")
     ZENDESK_API_KEY = os.getenv("ZENDESK_API_KEY")
     ZENDESK_SELL_API_URL = os.getenv("ZENDESK_SELL_API_URL")
     ZENDESK_SELL_API_KEY = os.getenv("ZENDESK_SELL_API_KEY")
@@ -490,6 +491,9 @@ class Test(Development):
     API_HOST_NAME = "http://localhost:6011"
 
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
+
+    # FEATURE FLAGS
+    FF_BATCH_INSERTION = os.getenv("FF_BATCH_INSERTION", False)
 
 
 class Production(Config):

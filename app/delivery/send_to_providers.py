@@ -2,6 +2,8 @@ import os
 import re
 import urllib.request
 from datetime import datetime
+from typing import Dict
+from uuid import UUID
 
 from flask import current_app
 from notifications_utils.recipients import (
@@ -24,6 +26,7 @@ from app.dao.provider_details_dao import (
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import (
+    InvalidUrlException,
     MalwarePendingException,
     NotificationTechnicalFailureException,
 )
@@ -110,6 +113,18 @@ def is_service_allowed_html(service: Service) -> bool:
     return str(service.id) in current_app.config["ALLOW_HTML_SERVICE_IDS"]
 
 
+# Prevent URL patterns like file:// ftp:// that may lead to security local file read vulnerabilities
+def check_file_url(file_info: Dict[str, str], notification_id: UUID):
+    if file_info.get("sending_method") == "attach":
+        url_key = "direct_file_url"
+    else:
+        url_key = "url"
+
+    if not file_info[url_key].lower().startswith("http"):
+        current_app.logger.error(f"Notification {notification_id} contains an invalid {url_key} {file_info[url_key]}")
+        raise InvalidUrlException
+
+
 def send_email_to_provider(notification: Notification):
     service = notification.service
     if not service.active:
@@ -125,6 +140,7 @@ def send_email_to_provider(notification: Notification):
         personalisation_data = notification.personalisation.copy()
 
         for key in file_keys:
+            check_file_url(personalisation_data[key]["document"], notification.id)
             sending_method = personalisation_data[key]["document"].get("sending_method")
             # Check if a MLWR sid exists
             if (

@@ -59,6 +59,7 @@ from tests.app.db import (
     create_service_with_defined_sms_sender,
     create_template,
     create_user,
+    save_notification,
 )
 from tests.conftest import set_config_values
 
@@ -197,7 +198,7 @@ def test_should_not_process_sms_job_if_would_exceed_send_limits_inc_today(notify
     template = create_template(service=service)
     job = create_job(template=template)
 
-    create_notification(template=template, job=job)
+    save_notification(create_notification(template=template, job=job))
 
     mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
     mocker.patch("app.celery.tasks.process_row")
@@ -216,7 +217,7 @@ def test_should_not_process_email_job_if_would_exceed_send_limits_inc_today(noti
     template = create_template(service=service, template_type=template_type)
     job = create_job(template=template)
 
-    create_notification(template=template, job=job)
+    save_notification(create_notification(template=template, job=job))
 
     mocker.patch("app.celery.tasks.s3.get_job_from_s3")
     mocker.patch("app.celery.tasks.process_row")
@@ -1658,8 +1659,8 @@ def test_process_incomplete_job_sms(mocker, sample_template):
         job_status=JOB_STATUS_ERROR,
     )
 
-    create_notification(sample_template, job, 0)
-    create_notification(sample_template, job, 1)
+    save_notification(create_notification(sample_template, job, 0))
+    save_notification(create_notification(sample_template, job, 1))
 
     assert Notification.query.filter(Notification.job_id == job.id).count() == 2
 
@@ -1689,16 +1690,16 @@ def test_process_incomplete_job_with_notifications_all_sent(mocker, sample_templ
         job_status=JOB_STATUS_ERROR,
     )
 
-    create_notification(sample_template, job, 0)
-    create_notification(sample_template, job, 1)
-    create_notification(sample_template, job, 2)
-    create_notification(sample_template, job, 3)
-    create_notification(sample_template, job, 4)
-    create_notification(sample_template, job, 5)
-    create_notification(sample_template, job, 6)
-    create_notification(sample_template, job, 7)
-    create_notification(sample_template, job, 8)
-    create_notification(sample_template, job, 9)
+    save_notification(create_notification(sample_template, job, 0))
+    save_notification(create_notification(sample_template, job, 1))
+    save_notification(create_notification(sample_template, job, 2))
+    save_notification(create_notification(sample_template, job, 3))
+    save_notification(create_notification(sample_template, job, 4))
+    save_notification(create_notification(sample_template, job, 5))
+    save_notification(create_notification(sample_template, job, 6))
+    save_notification(create_notification(sample_template, job, 7))
+    save_notification(create_notification(sample_template, job, 8))
+    save_notification(create_notification(sample_template, job, 9))
 
     assert Notification.query.filter(Notification.job_id == job.id).count() == 10
 
@@ -1727,9 +1728,9 @@ def test_process_incomplete_jobs_sms(mocker, sample_template):
         processing_started=datetime.utcnow() - timedelta(minutes=31),
         job_status=JOB_STATUS_ERROR,
     )
-    create_notification(sample_template, job, 0)
-    create_notification(sample_template, job, 1)
-    create_notification(sample_template, job, 2)
+    save_notification(create_notification(sample_template, job, 0))
+    save_notification(create_notification(sample_template, job, 1))
+    save_notification(create_notification(sample_template, job, 2))
 
     assert Notification.query.filter(Notification.job_id == job.id).count() == 3
 
@@ -1742,11 +1743,11 @@ def test_process_incomplete_jobs_sms(mocker, sample_template):
         job_status=JOB_STATUS_ERROR,
     )
 
-    create_notification(sample_template, job2, 0)
-    create_notification(sample_template, job2, 1)
-    create_notification(sample_template, job2, 2)
-    create_notification(sample_template, job2, 3)
-    create_notification(sample_template, job2, 4)
+    save_notification(create_notification(sample_template, job2, 0))
+    save_notification(create_notification(sample_template, job2, 1))
+    save_notification(create_notification(sample_template, job2, 2))
+    save_notification(create_notification(sample_template, job2, 3))
+    save_notification(create_notification(sample_template, job2, 4))
 
     assert Notification.query.filter(Notification.job_id == job2.id).count() == 5
 
@@ -1835,8 +1836,8 @@ def test_process_incomplete_job_email(mocker, sample_email_template):
         job_status=JOB_STATUS_ERROR,
     )
 
-    create_notification(sample_email_template, job, 0)
-    create_notification(sample_email_template, job, 1)
+    save_notification(create_notification(sample_email_template, job, 0))
+    save_notification(create_notification(sample_email_template, job, 1))
 
     assert Notification.query.filter(Notification.job_id == job.id).count() == 2
 
@@ -1865,8 +1866,8 @@ def test_process_incomplete_job_letter(mocker, sample_letter_template):
         job_status=JOB_STATUS_ERROR,
     )
 
-    create_notification(sample_letter_template, job, 0)
-    create_notification(sample_letter_template, job, 1)
+    save_notification(create_notification(sample_letter_template, job, 0))
+    save_notification(create_notification(sample_letter_template, job, 1))
 
     assert Notification.query.filter(Notification.job_id == job.id).count() == 2
 
@@ -1905,8 +1906,8 @@ def test_process_incomplete_jobs_sets_status_to_in_progress_and_resets_processin
 
 
 def test_process_returned_letters_list(sample_letter_template):
-    create_notification(sample_letter_template, reference="ref1")
-    create_notification(sample_letter_template, reference="ref2")
+    save_notification(create_notification(sample_letter_template, reference="ref1"))
+    save_notification(create_notification(sample_letter_template, reference="ref2"))
 
     process_returned_letters_list(["ref1", "ref2", "unknown-ref"])
 
