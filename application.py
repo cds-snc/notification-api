@@ -42,4 +42,5 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
 
 def handler(event, context):
     newrelic.agent.initialize()  # noqa: E402
+    newrelic.agent.register_application(timeout=20.0)
     return awsgi.response(app, event, context)
