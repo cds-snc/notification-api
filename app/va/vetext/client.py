@@ -62,5 +62,5 @@ class VETextClient:
             raise VETextBadRequestException(message=message) from http_exception
         else:
             field = payload.get("idType")
-            message = payload .get("error")
+            message = payload.get("error")
             raise VETextBadRequestException(field=field, message=message) from http_exception
