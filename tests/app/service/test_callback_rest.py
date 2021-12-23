@@ -293,7 +293,7 @@ class TestCreateServiceCallback:
         )
 
         assert response.status_code == 403
-        error_message = response.json['message']['token'][0]
+        error_message = response.json['message']
         assert error_message == f"User does not have permissions to create callbacks of channel type queue"
 
     def test_platform_admin_can_create_queue_service_callback(

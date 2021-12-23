@@ -420,7 +420,7 @@ class TestRequiresUserInService:
 
         assert error.value.code == 403
 
-    def test_401_error_when_bearer_token_expired(self, client, db_session, mocker):
+    def test_propagates_error_when_bearer_token_expired(self, client, db_session, mocker):
 
         @requires_user_in_service_or_admin()
         def endpoint_that_requires_user_in_service():
@@ -435,10 +435,8 @@ class TestRequiresUserInService:
         request.view_args['service_id'] = service.id
         request.headers = {'Authorization': 'Bearer {}'.format(token)}
 
-        with pytest.raises(AuthError) as error:
+        with pytest.raises(ExpiredSignatureError):
             endpoint_that_requires_user_in_service()
-
-        assert error.value.code == 401
 
     @pytest.mark.parametrize('required_permission', PERMISSION_LIST)
     def test_accepts_jwt_with_permission_for_service(self, client, db_session, required_permission):

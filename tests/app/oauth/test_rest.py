@@ -5,7 +5,6 @@ from typing import Dict
 import pytest
 from authlib.integrations.base_client import OAuthError
 from flask_jwt_extended.exceptions import NoAuthorizationError
-from jwt import ExpiredSignatureError
 from requests import Response
 from requests.exceptions import HTTPError
 from sqlalchemy.orm.exc import NoResultFound
@@ -392,11 +391,10 @@ class TestRedeemToken:
 
         assert response.status_code == 501
 
-    @pytest.mark.parametrize('exception', [NoAuthorizationError, ExpiredSignatureError])
     def test_should_return_401_if_cookie_verification_fails(
-            self, client, mocker, exception
+            self, client, mocker
     ):
-        mocker.patch('app.oauth.rest.verify_jwt_in_request', side_effect=exception)
+        mocker.patch('app.oauth.rest.verify_jwt_in_request', side_effect=NoAuthorizationError())
         response = client.get('/auth/redeem-token')
 
         assert response.status_code == 401
