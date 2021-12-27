@@ -106,6 +106,7 @@ def create_validator_for_admin_auth_or_user_in_service(required_permission: str 
     return _validate_admin_auth_or_user_in_service
 
 
+# Only new - user scoped JWT tokens
 def requires_user_in_service_or_admin(required_permission: str = None):
     def decorator(function):
         @functools.wraps(function)
@@ -118,6 +119,7 @@ def requires_user_in_service_or_admin(required_permission: str = None):
     return decorator
 
 
+# Try new user scoped JWT token or fallback to old admin client credentials auth
 def requires_admin_auth_or_user_in_service(required_permission: str = None):
     def decorator(function):
         @functools.wraps(function)
@@ -130,6 +132,7 @@ def requires_admin_auth_or_user_in_service(required_permission: str = None):
     return decorator
 
 
+# Only old - just admin client credentials auth
 def requires_admin_auth():
     def decorator(function):
         @functools.wraps(function)
