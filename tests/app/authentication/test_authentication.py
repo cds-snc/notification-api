@@ -21,10 +21,6 @@ from app.models import ApiKey, KEY_TYPE_NORMAL, PERMISSION_LIST, Permission
 from app.authentication.auth import AuthError, validate_admin_auth, validate_service_api_key_auth, \
     requires_admin_auth_or_user_in_service, requires_user_in_service_or_admin
 
-from notifications_python_client.errors import (
-    TokenExpiredError,
-)
-
 from tests.conftest import set_config
 
 
