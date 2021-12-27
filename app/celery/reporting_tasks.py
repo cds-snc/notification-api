@@ -29,7 +29,7 @@ def create_nightly_billing(day_start=None):
     # day_start is a datetime.date() object. e.g.
     # up to 4 days of data counting back from day_start is consolidated
     if day_start is None:
-        day_start = convert_utc_to_local_timezone(datetime.utcnow()).date()
+        day_start = convert_utc_to_local_timezone(datetime.utcnow()).date() - timedelta(days=1)
     else:
         # When calling the task its a string in the format of "YYYY-MM-DD"
         day_start = datetime.strptime(day_start, "%Y-%m-%d").date()
