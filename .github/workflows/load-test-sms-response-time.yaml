@@ -1,4 +1,4 @@
-name: Load test
+name: Load test (SMS Response Time)
 
 on:
   workflow_dispatch:
