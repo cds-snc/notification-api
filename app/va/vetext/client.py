@@ -22,12 +22,18 @@ class VETextClient:
         self.logger = logger
         self.statsd = statsd
 
-    def send_push_notification(self, mobile_app: str, template_id: str, icn: str, personalisation: Dict = None) -> None:
+    def send_push_notification(self, mobile_app: str, template_id: str, icn: str, personalization: Dict = None) -> None:
+        formatted_personalization = None
+        if personalization:
+            formatted_personalization = {}
+            for key, value in personalization.items():
+                formatted_personalization[f'%{key.upper()}%'] = value
+
         payload = {
             "appSid": mobile_app,
             "icn": icn,
             "templateSid": template_id,
-            "personalization": personalisation
+            "personalization": formatted_personalization
         }
 
         try:

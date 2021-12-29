@@ -38,16 +38,23 @@ def test_send_push_notification_correct_request(rmock, test_vetext_client):
     mobile_app_id = "ABCD"
     template_id = str(uuid4())
     icn = sample_recipient_identifier(IdentifierType.ICN)
-    personalsation = {
-        "foo": "bar"
+    personalization = {
+        "foo_1": "bar",
+        "baz_two": "abc",
+        "tmp": "123"
+    }
+
+    formatted_personalization = {
+        "%FOO_1%": "bar",
+        "%BAZ_TWO%": "abc",
+        "%TMP%": "123"
     }
 
     test_vetext_client.send_push_notification(
         mobile_app_id,
         template_id,
         icn.id_value,
-        personalsation)
-
+        personalization)
     assert rmock.called
 
     expected_url = f"{MOCK_VETEXT_URL}/mobile/push/send"
@@ -57,7 +64,7 @@ def test_send_push_notification_correct_request(rmock, test_vetext_client):
         'appSid': mobile_app_id,
         'templateSid': template_id,
         'icn': icn.id_value,
-        'personalization': personalsation
+        'personalization': formatted_personalization
     }
     expected_auth = 'Basic ' + b64encode(bytes(f"{MOCK_USER}:{MOCK_PASSWORD}", 'utf-8')).decode("ascii")
     assert request.headers.get('Authorization') == expected_auth
