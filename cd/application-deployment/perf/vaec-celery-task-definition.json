@@ -26,7 +26,7 @@
         },
         {
           "name": "NIGHTLY_NOTIF_CSV_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "NOTIFY_ENVIRONMENT",

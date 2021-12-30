@@ -28,7 +28,7 @@
         },
         {
           "name": "NIGHTLY_NOTIF_CSV_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "NOTIFICATION_FAILURE_REASON_ENABLED",
