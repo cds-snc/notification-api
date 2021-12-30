@@ -75,6 +75,16 @@
         <% include stubs/mpi/stub429Pid_Retry.ejs %>,
         <% include stubs/mpi/stub500Pid_Retry.ejs %>
       ]
+    },
+    {
+      "port": 7008,
+      "protocol": "http",
+      "name": "VEText",
+      "stubs": [
+        <% include stubs/vetext/pushNote200.ejs %>,
+        <% include stubs/vetext/pushNoteInvalidId400.ejs %>
+        <% include stubs/vetext/pushNoteNoTempId400.ejs %>
+      ]
     }
   ]
 }

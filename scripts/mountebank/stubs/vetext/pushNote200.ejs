@@ -1,0 +1,24 @@
+{
+    "predicates": [
+      {
+        "equals": {
+          "path": "/api/vetext/pub/mobile/push/send",
+          "method": "POST"
+        }
+      }
+    ],
+    "responses": [
+      {
+        "is": {
+          "statusCode": 200,
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "success": true,
+            "statusCode": 200
+          }
+        }
+      }
+    ]
+  }
