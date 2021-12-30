@@ -89,7 +89,7 @@ jmespath==0.10.0
 kombu==5.1.0
 Mako==1.1.5
 MarkupSafe==2.0.1
-mistune==0.8.4
+mistune==2.0.1
 orderedset==2.0.3
 packaging==21.0
 phonenumbers==8.12.21
