@@ -136,6 +136,10 @@
           "value": "False"
         },
         {
+          "name": "EMAIL_ATTACHMENTS_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "UI_HOST_NAME",
           "value": "https://notifications.va.gov"
         },

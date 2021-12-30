@@ -126,7 +126,7 @@
         },
         {
           "name": "EMAIL_ATTACHMENTS_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "ATTACHMENTS_BUCKET",
