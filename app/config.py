@@ -423,6 +423,7 @@ class Config(object):
 
     # feature flag to toggle persistance of notification in celery instead of the API
     FF_NOTIFICATION_CELERY_PERSISTENCE = os.getenv("FF_NOTIFICATION_CELERY_PERSISTENCE", False)
+    FF_BATCH_INSERTION = os.getenv("FF_BATCH_INSERTION", False)
 
 
 ######################
@@ -491,9 +492,6 @@ class Test(Development):
     API_HOST_NAME = "http://localhost:6011"
 
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
-
-    # FEATURE FLAGS
-    FF_BATCH_INSERTION = os.getenv("FF_BATCH_INSERTION", False)
 
 
 class Production(Config):

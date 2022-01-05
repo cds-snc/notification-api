@@ -23,8 +23,10 @@ from app.celery.tasks import (
     process_row,
     s3,
     save_email,
+    save_emails,
     save_letter,
     save_sms,
+    save_smss,
     send_inbound_sms_to_service,
     send_notify_no_reply,
 )
@@ -87,6 +89,8 @@ def test_should_have_decorated_tasks_functions():
     assert save_sms.__wrapped__.__name__ == "save_sms"
     assert save_email.__wrapped__.__name__ == "save_email"
     assert save_letter.__wrapped__.__name__ == "save_letter"
+    assert save_smss.__wrapped__.__name__ == "save_smss"
+    assert save_emails.__wrapped__.__name__ == "save_emails"
 
 
 @pytest.fixture
@@ -310,6 +314,44 @@ def test_should_process_email_job(email_job_with_placeholders, mocker):
             "something_encrypted",
         ),
         {},
+        queue="database-tasks",
+    )
+    job = jobs_dao.dao_get_job_by_id(email_job_with_placeholders.id)
+    assert job.job_status == "finished"
+    assert job.processing_started is not None
+    assert job.created_at is not None
+    redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
+
+
+def test_should_process_emails_job(email_job_with_placeholders, mocker):
+    email_csv = """email_address,name
+    test@test.com,foo
+    YOLO@test2.com,foo2
+    yolo2@test2.com,foo3
+    yolo3@test3.com,foo4
+    """
+    mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=email_csv)
+    mocker.patch("app.celery.tasks.save_emails.apply_async")
+    mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
+    redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
+    mocker.patch("app.config.Config.FF_BATCH_INSERTION", return_value=True)
+
+    process_job(email_job_with_placeholders.id)
+
+    s3.get_job_from_s3.assert_called_once_with(str(email_job_with_placeholders.service.id), str(email_job_with_placeholders.id))
+
+    assert encryption.encrypt.call_args[0][0]["to"] == "yolo3@test3.com"
+    assert encryption.encrypt.call_args[0][0]["template"] == str(email_job_with_placeholders.template.id)
+    assert encryption.encrypt.call_args[0][0]["template_version"] == email_job_with_placeholders.template.version
+    assert encryption.encrypt.call_args[0][0]["personalisation"] == {
+        "emailaddress": "yolo3@test3.com",
+        "name": "foo4",
+    }
+    tasks.save_emails.apply_async.assert_called_once_with(
+        (
+            str(email_job_with_placeholders.service_id),
+            ["something_encrypted", "something_encrypted", "something_encrypted", "something_encrypted"],
+        ),
         queue="database-tasks",
     )
     job = jobs_dao.dao_get_job_by_id(email_job_with_placeholders.id)
