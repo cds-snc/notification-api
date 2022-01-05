@@ -275,6 +275,51 @@ def test_should_process_email_job_if_exactly_on_send_limits(notify_db_session, m
     )
 
 
+def test_should_process_smss_job(notify_db_session, mocker):
+    service = create_service(message_limit=20)
+    template = create_template(service=service)
+    job = create_job(template=template, notification_count=10, original_file_name="multiple_sms.csv")
+    mocker.patch(
+        "app.celery.tasks.s3.get_job_from_s3",
+        return_value=load_example_csv("multiple_sms"),
+    )
+    mocker.patch("app.celery.tasks.save_smss.apply_async")
+    mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
+    redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
+    mocker.patch("app.config.Config.FF_BATCH_INSERTION", return_value=True)
+
+    process_job(job.id)
+
+    s3.get_job_from_s3.assert_called_once_with(str(job.service.id), str(job.id))
+
+    assert encryption.encrypt.call_args[0][0]["to"] == "+441234123120"
+    assert encryption.encrypt.call_args[0][0]["template"] == str(template.id)
+    assert encryption.encrypt.call_args[0][0]["template_version"] == template.version
+    assert encryption.encrypt.call_args[0][0]["personalisation"] == {
+        "phonenumber": "+441234123120",
+    }
+    tasks.save_smss.apply_async.assert_called_once_with(
+        [
+            "something_encrypted",
+            "something_encrypted",
+            "something_encrypted",
+            "something_encrypted",
+            "something_encrypted",
+            "something_encrypted",
+            "something_encrypted",
+            "something_encrypted",
+            "something_encrypted",
+            "something_encrypted",
+        ],
+        queue="database-tasks",
+    )
+    job = jobs_dao.dao_get_job_by_id(job.id)
+    assert job.job_status == "finished"
+    assert job.processing_started is not None
+    assert job.created_at is not None
+    redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
+
+
 def test_should_not_create_save_task_for_empty_file(sample_job, mocker):
     mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("empty"))
     mocker.patch("app.celery.tasks.save_sms.apply_async")

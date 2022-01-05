@@ -194,8 +194,6 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
     encrypted_emails = []
     encrypted_letters = []
 
-    send_fns = {SMS_TYPE: save_smss, EMAIL_TYPE: save_emails, LETTER_TYPE: save_letters}
-
     for row in rows:
         if service_allowed_to_send_to(row.recipient, service, KEY_TYPE_NORMAL):
             encrypted_row = encryption.encrypt(
@@ -289,7 +287,10 @@ def save_smss(self, encrypted_notifications):
         if isinstance(service, tuple):
             service = service[0]
 
-        decrypted_notifications.append(encrypted_notification)
+        notification["reply_to_text"] = reply_to_text
+        notification["service"] = service
+
+        decrypted_notifications.append(notification)
 
     try:
         # this task is used by two main things... process_job and process_sms_or_email_notification
@@ -418,6 +419,9 @@ def save_emails(self, service_id, encrypted_notifications):
         # in the form of a dict
         if isinstance(service, tuple):
             service = service[0]
+
+        notification["reply_to_text"] = reply_to_text
+        notification["service"] = service
 
         decrypted_notifications.append(notification)
 
