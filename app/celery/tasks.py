@@ -1,7 +1,7 @@
 import json
 from collections import defaultdict, namedtuple
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from flask import current_app
 from more_itertools import chunked
@@ -190,9 +190,9 @@ def process_row(row: Row, template: Template, job: Job, service: Service):
 def process_rows(rows: List, template: Template, job: Job, service: Service):
     template_type = template.template_type
     sender_id = str(job.sender_id) if job.sender_id else None
-    encrypted_smss = []
-    encrypted_emails = []
-    encrypted_letters = []
+    encrypted_smss: List[Any] = []
+    encrypted_emails: List[Any] = []
+    encrypted_letters: List[Any] = []
 
     for row in rows:
         if service_allowed_to_send_to(row.recipient, service, KEY_TYPE_NORMAL):
@@ -294,7 +294,6 @@ def save_smss(self, service_id, encrypted_notifications):
         notification["template_id"] = template.id
         notification["template_version"] = template.version
         notification["recipient"] = notification.get("to")
-        notification["service"] = service
         notification["personalisation"] = notification.get("personalisation")
         notification["notification_type"] = SMS_TYPE
         notification["simulated"] = notification.get("simulated", None)
@@ -404,7 +403,8 @@ def save_emails(self, service_id, encrypted_notifications):
     them in the DB and then sends the notification to the queue.
 
     """
-    decrypted_notifications = []
+    decrypted_notifications: List[Any] = []
+    notification_id_queue: Dict = {}
     for encrypted_notification in encrypted_notifications:
         notification = encryption.decrypt(encrypted_notification)
         service = dao_fetch_service_by_id(service_id, use_cache=True)
@@ -412,7 +412,8 @@ def save_emails(self, service_id, encrypted_notifications):
             notification.get("template"), version=notification.get("template_version"), use_cache=True
         )
         sender_id = notification.get("sender_id")
-        notification["notification_id"] = create_uuid()
+        notification_id = create_uuid()
+        notification["notification_id"] = notification_id
 
         if sender_id:
             reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
@@ -435,30 +436,41 @@ def save_emails(self, service_id, encrypted_notifications):
 
         notification["reply_to_text"] = reply_to_text
         notification["service"] = service
-
+        notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
+        notification["template_id"] = template.id
+        notification["template_version"] = template.version
+        notification["recipient"] = notification.get("to")
+        notification["personalisation"] = notification.get("personalisation")
+        notification["notification_type"] = EMAIL_TYPE
+        notification["simulated"] = notification.get("simulated", None)
+        notification["api_key_id"] = notification.get("api_key", None)
+        notification["created_at"] = datetime.utcnow()
+        notification["job_id"] = notification.get("job", None)
+        notification["job_row_number"] = notification.get("row_number", None)
         decrypted_notifications.append(notification)
+        notification_id_queue[notification_id] = notification.get("queue")
 
     try:
         # this task is used by two main things... process_job and process_sms_or_email_notification
         # if the data is not present in the encrypted data then fallback on whats needed for process_job
         saved_notifications = persist_notifications(decrypted_notifications)
     except SQLAlchemyError as e:
-        handle_exception(self, decrypted_notifications, "", e)
+        handle_exception(self, decrypted_notifications, None, e)
 
     if saved_notifications:
         for notification in saved_notifications:
             check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
             send_notification_to_queue(
                 notification,
-                notification.service.research_mode,
-                queue=notification.get("queue") or template.queue_to_use(),
+                service.research_mode,
+                queue=notification_id_queue.get(notification.id) or template.queue_to_use(),
             )
 
             current_app.logger.debug(
                 "SMS {} created at {} for job {}".format(
                     notification.id,
                     notification.created_at,
-                    notification.get("job", None),
+                    notification.job,
                 )
             )
 

@@ -666,7 +666,7 @@ def test_should_send_template_to_correct_sms_task_and_persist(sample_template_wi
     mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
 
 
-def test_should_save_smss(sample_template_with_placeholders, mocker):
+def test_should_save_smss(notify_db_session, sample_template_with_placeholders, mocker):
     notification1 = _notification_json(
         sample_template_with_placeholders,
         to="+1 650 253 2221",
@@ -975,6 +975,34 @@ def test_should_put_save_email_task_in_research_mode_queue_if_research_mode_serv
     provider_tasks.deliver_email.apply_async.assert_called_once_with(
         [str(persisted_notification.id)], queue="research-mode-tasks"
     )
+
+
+def test_save_emails(notify_db_session, mocker):
+    service = create_service(research_mode=True)
+
+    template = create_template(service=service, template_type="email")
+
+    notification1 = _notification_json(template, to="test1@test.com")
+    notification2 = _notification_json(template, to="test2@test.com")
+    notification3 = _notification_json(template, to="test3@test.com")
+
+    mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+
+    save_emails(
+        str(template.service_id),
+        [encryption.encrypt(notification1), encryption.encrypt(notification2), encryption.encrypt(notification3)],
+    )
+
+    persisted_notification = Notification.query.all()
+    assert persisted_notification[0].to == "test1@test.com"
+    assert persisted_notification[1].to == "test2@test.com"
+    assert persisted_notification[2].to == "test3@test.com"
+    assert persisted_notification[0].template_id == template.id
+    assert persisted_notification[1].template_version == template.version
+    assert persisted_notification[0].status == "created"
+    assert persisted_notification[0].notification_type == "email"
 
 
 @pytest.mark.parametrize("process_type", ["priority", "bulk"])
