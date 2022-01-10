@@ -137,6 +137,10 @@
         {
           "name": "ATTACHMENTS_BUCKET",
           "value": "perf-notifications-va-gov-attachments"
+        },
+        {
+          "name": "PLATFORM_STATS_ENABLED",
+          "value": "False"
         }
       ],
       "secrets": [

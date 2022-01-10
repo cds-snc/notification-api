@@ -161,6 +161,10 @@
         {
           "name": "ATTACHMENTS_BUCKET",
           "value": "staging-notifications-va-gov-attachments"
+        },
+        {
+          "name": "PLATFORM_STATS_ENABLED",
+          "value": "False"
         }
       ],
       "secrets": [

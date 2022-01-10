@@ -165,6 +165,10 @@
         {
           "name": "VANOTIFY_SSL_KEY_PATH",
           "value": "/app/certs/vanotify_ssl_key.pem"
+        },
+        {
+          "name": "PLATFORM_STATS_ENABLED",
+          "value": "True"
         }
       ],
       "secrets": [

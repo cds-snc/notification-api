@@ -97,8 +97,7 @@
         {
           "name": "PROVIDER_STRATEGIES_ENABLED",
           "value": "True"
-        }
-        ,
+        },
         {
           "name": "NOTIFICATION_FAILURE_REASON_ENABLED",
           "value": "True"
@@ -146,6 +145,10 @@
         {
           "name": "ATTACHMENTS_BUCKET",
           "value": "prod-notifications-va-gov-attachments"
+        },
+        {
+          "name": "PLATFORM_STATS_ENABLED",
+          "value": "False"
         }
       ],
       "secrets": [
