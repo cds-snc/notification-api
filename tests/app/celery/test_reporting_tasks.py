@@ -516,5 +516,5 @@ def test_generate_daily_notification_status_csv_report(notify_api, mocker):
     mock_boto.client.return_value.put_object.assert_called_once()
     _, kwargs = mock_boto.client.return_value.put_object.call_args
     assert kwargs['Key'] == '2021-12-16.csv'
-    assert kwargs['Body'] == f'service id,service name,template id,template name,status,status reason,count\r\n' \
-                             f'{service_id},foo,{template_id},bar,delivered,,1\r\n'
+    assert kwargs['Body'] == f'date,service id,service name,template id,template name,status,status reason,count\r\n' \
+                             f'2021-12-16,{service_id},foo,{template_id},bar,delivered,,1\r\n'
