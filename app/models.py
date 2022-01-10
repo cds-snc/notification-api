@@ -2116,6 +2116,7 @@ class FactNotificationStatus(db.Model):
     notification_type = db.Column(db.Text, primary_key=True, nullable=False)
     key_type = db.Column(db.Text, primary_key=True, nullable=False)
     notification_status = db.Column(db.Text, primary_key=True, nullable=False)
+    status_reason = db.Column(db.Text, nullable=True)
     notification_count = db.Column(db.Integer(), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)

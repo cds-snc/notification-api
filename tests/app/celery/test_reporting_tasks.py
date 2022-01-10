@@ -506,7 +506,7 @@ def test_create_nightly_notification_status_for_day_respects_local_timezone(samp
 def test_generate_daily_notification_status_csv_report(notify_api, mocker):
     service_id = uuid.uuid4()
     template_id = uuid.uuid4()
-    mock_transit_data = [(service_id, 'foo', template_id, 'bar', 'delivered', 1)]
+    mock_transit_data = [(service_id, 'foo', template_id, 'bar', 'delivered', None, 1)]
     mocker.patch('app.celery.reporting_tasks.fetch_notification_statuses_per_service_and_template_for_date',
                  return_value=mock_transit_data)
 
@@ -516,5 +516,5 @@ def test_generate_daily_notification_status_csv_report(notify_api, mocker):
     mock_boto.client.return_value.put_object.assert_called_once()
     _, kwargs = mock_boto.client.return_value.put_object.call_args
     assert kwargs['Key'] == '2021-12-16.csv'
-    assert kwargs['Body'] == f'service id,service name,template id,template name,status,count\r\n' \
-                             f'{service_id},foo,{template_id},bar,delivered,1\r\n'
+    assert kwargs['Body'] == f'service id,service name,template id,template name,status,status reason,count\r\n' \
+                             f'{service_id},foo,{template_id},bar,delivered,,1\r\n'
