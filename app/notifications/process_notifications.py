@@ -144,7 +144,7 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         dao_delete_notifications_by_id(notification.id)
         raise
 
-    current_app.logger.debug(
+    current_app.logger.info(
         "{} {} sent to the {} queue for delivery".format(notification.notification_type, notification.id, queue)
     )
 
