@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify
 
 from app.dao import communication_item_dao
 from app.errors import register_errors
-from app.schemas.schemas import communication_item_schema
+from app.schemas import communication_item_schema
 
 communication_item_blueprint = Blueprint(
     'communication_item',

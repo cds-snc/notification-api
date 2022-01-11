@@ -11,7 +11,7 @@ from app.dao.service_email_reply_to_dao import (
     update_reply_to_email_address)
 from app.errors import InvalidRequest
 from app.exceptions import ArchiveValidationError
-from app.models.models import ServiceEmailReplyTo
+from app.models import ServiceEmailReplyTo
 from tests.app.db import create_reply_to_email, create_service
 
 

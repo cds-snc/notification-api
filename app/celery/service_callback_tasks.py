@@ -17,7 +17,7 @@ from app.dao.service_callback_api_dao import (
     get_service_inbound_sms_callback_api_for_service, get_service_callback
 )
 from app.dao.service_sms_sender_dao import dao_get_sms_sender_by_service_id_and_number
-from app.models.models import Complaint, Notification
+from app.models import Complaint, Notification
 
 
 @notify_celery.task(bind=True, name="send-delivery-status", max_retries=5, default_retry_delay=300)

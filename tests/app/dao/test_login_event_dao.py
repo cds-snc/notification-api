@@ -2,7 +2,7 @@ from app.dao.login_event_dao import (
     save_login_event,
     list_login_events
 )
-from app.models.models import LoginEvent
+from app.models import LoginEvent
 
 
 def test_save_login_event_should_create_new_login_event(sample_user):

@@ -1,7 +1,7 @@
 from app import db
 from app.dao.service_user_dao import dao_get_service_user
 from app.dao.template_folder_dao import dao_delete_template_folder, dao_update_template_folder
-from app.models.models import user_folder_permissions
+from app.models import user_folder_permissions
 from tests.app.db import create_template_folder
 
 

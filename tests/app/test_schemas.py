@@ -3,12 +3,12 @@ from marshmallow import ValidationError
 from sqlalchemy import desc
 
 from app.dao.provider_details_dao import dao_update_provider_details
-from app.models.models import ProviderDetailsHistory
+from app.models import ProviderDetailsHistory
 from tests.app.db import create_api_key
 
 
 def test_job_schema_doesnt_return_notifications(sample_notification_with_job):
-    from app.schemas.schemas import job_schema
+    from app.schemas import job_schema
 
     job = sample_notification_with_job.job
     assert job.notifications.count() == 1
@@ -20,14 +20,14 @@ def test_job_schema_doesnt_return_notifications(sample_notification_with_job):
 
 
 def test_notification_schema_ignores_absent_api_key(sample_notification_with_job):
-    from app.schemas.schemas import notification_with_template_schema
+    from app.schemas import notification_with_template_schema
 
     data = notification_with_template_schema.dump(sample_notification_with_job).data
     assert data['key_name'] is None
 
 
 def test_notification_schema_adds_api_key_name(sample_notification):
-    from app.schemas.schemas import notification_with_template_schema
+    from app.schemas import notification_with_template_schema
 
     api_key = create_api_key(sample_notification.service, key_name='Test key')
     sample_notification.api_key = api_key
@@ -60,7 +60,7 @@ def test_user_update_schema_accepts_valid_attribute_pairs(user_attribute, user_v
     update_dict = {
         user_attribute: user_value
     }
-    from app.schemas.schemas import user_update_schema_load_json
+    from app.schemas import user_update_schema_load_json
 
     data, errors = user_update_schema_load_json.load(update_dict)
     assert not errors
@@ -73,7 +73,7 @@ def test_user_update_schema_accepts_valid_attribute_pairs(user_attribute, user_v
     ('mobile_number', '+44077009')
 ])
 def test_user_update_schema_rejects_invalid_attribute_pairs(user_attribute, user_value):
-    from app.schemas.schemas import user_update_schema_load_json
+    from app.schemas import user_update_schema_load_json
     update_dict = {
         user_attribute: user_value
     }
@@ -91,7 +91,7 @@ def test_user_update_schema_rejects_disallowed_attribute_keys(user_attribute):
     update_dict = {
         user_attribute: 'not important'
     }
-    from app.schemas.schemas import user_update_schema_load_json
+    from app.schemas import user_update_schema_load_json
 
     with pytest.raises(ValidationError) as excinfo:
         data, errors = user_update_schema_load_json.load(update_dict)
@@ -104,7 +104,7 @@ def test_provider_details_schema_returns_user_details(
     sample_user,
     current_sms_provider
 ):
-    from app.schemas.schemas import provider_details_schema
+    from app.schemas import provider_details_schema
     mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user)
     current_sms_provider.created_by = sample_user
     data = provider_details_schema.dump(current_sms_provider).data
@@ -118,7 +118,7 @@ def test_provider_details_history_schema_returns_user_details(
     restore_provider_details,
     current_sms_provider
 ):
-    from app.schemas.schemas import provider_details_schema
+    from app.schemas import provider_details_schema
     mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user)
     current_sms_provider.created_by_id = sample_user.id
     data = provider_details_schema.dump(current_sms_provider).data
@@ -140,7 +140,7 @@ def test_services_schema_includes_providers(
     ses_provider,
     current_sms_provider
 ):
-    from app.schemas.schemas import service_schema
+    from app.schemas import service_schema
 
     sample_service.email_provider_id = ses_provider.id
     sample_service.sms_provider_id = current_sms_provider.id

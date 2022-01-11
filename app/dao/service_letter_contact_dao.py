@@ -2,7 +2,7 @@ from sqlalchemy import desc
 
 from app import db
 from app.dao.dao_utils import transactional
-from app.models.models import ServiceLetterContact, Template
+from app.models import ServiceLetterContact, Template
 
 
 def dao_get_letter_contacts_by_service_id(service_id):

@@ -9,7 +9,7 @@ from app.dao.letter_branding_dao import (
     dao_update_letter_branding,
     dao_get_letter_branding_by_id
 )
-from app.models.models import LetterBranding
+from app.models import LetterBranding
 from tests.app.db import create_letter_branding
 
 

@@ -6,7 +6,9 @@ Create Date: 2018-02-28 17:09:56.619803
 
 """
 from alembic import op
-from app.models.models import NORMAL
+from app.models import NORMAL
+import sqlalchemy as sa
+
 
 revision = '0172_deprioritise_examples'
 down_revision = '0171_add_org_invite_template'

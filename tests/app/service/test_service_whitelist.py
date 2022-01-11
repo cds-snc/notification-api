@@ -6,7 +6,7 @@ from flask_jwt_extended import create_access_token
 
 from tests.app.db import create_user
 from tests.app.factories.service_whitelist import a_service_whitelist, email_service_whitelist
-from app.models.models import (
+from app.models import (
     ServiceWhitelist, Permission, MANAGE_SETTINGS,
     MOBILE_TYPE, EMAIL_TYPE)
 from app.dao.services_dao import dao_add_user_to_service

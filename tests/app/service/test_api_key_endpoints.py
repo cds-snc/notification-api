@@ -2,7 +2,7 @@ import json
 
 from flask import url_for
 
-from app.models.models import ApiKey, KEY_TYPE_NORMAL
+from app.models import ApiKey, KEY_TYPE_NORMAL
 from app.dao.api_key_dao import expire_api_key
 from tests import create_authorization_header
 from tests.app.db import create_api_key, create_service, create_user

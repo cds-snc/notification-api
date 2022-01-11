@@ -5,7 +5,7 @@ from sqlalchemy import desc
 
 from app import db
 from app.dao.dao_utils import transactional
-from app.models.models import Complaint
+from app.models import Complaint
 from app.utils import get_local_timezone_midnight_in_utc
 
 

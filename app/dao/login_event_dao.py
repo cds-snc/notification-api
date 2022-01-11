@@ -1,5 +1,5 @@
 from app import db
-from app.models.models import LoginEvent
+from app.models import LoginEvent
 
 from app.dao.dao_utils import (
     transactional

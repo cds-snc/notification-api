@@ -13,7 +13,7 @@ from app.celery.service_callback_tasks import send_inbound_sms_to_service
 from app.config import QueueNames
 from app.dao.services_dao import dao_fetch_service_by_inbound_number
 from app.dao.inbound_sms_dao import dao_create_inbound_sms
-from app.models.models import InboundSms, INBOUND_SMS_TYPE, SMS_TYPE, Service
+from app.models import InboundSms, INBOUND_SMS_TYPE, SMS_TYPE, Service
 from app.errors import register_errors
 
 receive_notifications_blueprint = Blueprint('receive_notifications', __name__)

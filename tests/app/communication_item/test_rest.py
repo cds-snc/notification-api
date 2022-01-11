@@ -1,4 +1,4 @@
-from app.models.models import CommunicationItem
+from app.models import CommunicationItem
 
 
 class TestGetCommunicationItems:

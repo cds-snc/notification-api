@@ -7,7 +7,7 @@ from flask import (
 
 from app.dao.complaint_dao import save_complaint
 from app.dao.notifications_dao import dao_get_notification_history_by_reference
-from app.models.models import Complaint, Notification
+from app.models import Complaint, Notification
 
 
 def determine_notification_bounce_type(notification_type, ses_message):

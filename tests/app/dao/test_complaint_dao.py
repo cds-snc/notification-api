@@ -8,7 +8,7 @@ from app.dao.complaint_dao import (
     fetch_paginated_complaints,
     save_complaint, fetch_complaint_by_id,
 )
-from app.models.models import Complaint
+from app.models import Complaint
 from tests.app.db import create_service, create_template, create_notification, create_complaint
 
 

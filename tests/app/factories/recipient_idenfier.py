@@ -1,5 +1,5 @@
 from uuid import uuid4
-from app.models.models import RecipientIdentifier
+from app.models import RecipientIdentifier
 from app.va.identifier import IdentifierType
 import random
 import string

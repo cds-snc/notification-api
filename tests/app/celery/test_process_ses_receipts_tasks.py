@@ -12,7 +12,7 @@ from app.celery.research_mode_tasks import (
 )
 from app.celery.service_callback_tasks import create_delivery_status_callback_data
 from app.dao.notifications_dao import get_notification_by_id
-from app.models.models import Complaint, Notification, Service, Template, User
+from app.models import Complaint, Notification, Service, Template, User
 from app.notifications.notifications_ses_callback import remove_emails_from_complaint, remove_emails_from_bounce
 
 from tests.app.db import (

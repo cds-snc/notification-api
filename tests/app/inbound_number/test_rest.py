@@ -1,6 +1,6 @@
 import uuid
 
-from app.models.models import InboundNumber
+from app.models import InboundNumber
 
 
 class TestGetInboundNumbers:

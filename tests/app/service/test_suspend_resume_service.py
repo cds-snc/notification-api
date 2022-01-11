@@ -6,7 +6,7 @@ import uuid
 
 from freezegun import freeze_time
 
-from app.models.models import Service
+from app.models import Service
 from tests import create_authorization_header
 
 

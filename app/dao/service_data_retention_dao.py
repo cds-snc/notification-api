@@ -2,7 +2,7 @@ from datetime import datetime
 
 from app import db
 from app.dao.dao_utils import transactional
-from app.models.models import ServiceDataRetention
+from app.models import ServiceDataRetention
 
 
 def fetch_service_data_retention_by_id(service_id, data_retention_id):

@@ -17,7 +17,7 @@ from notifications_python_client.authentication import create_jwt_token
 
 from app import api_user
 from app.dao.api_key_dao import get_unsigned_secrets, save_model_api_key, get_unsigned_secret, expire_api_key
-from app.models.models import ApiKey, KEY_TYPE_NORMAL, PERMISSION_LIST, Permission
+from app.models import ApiKey, KEY_TYPE_NORMAL, PERMISSION_LIST, Permission
 from app.authentication.auth import AuthError, validate_admin_auth, validate_service_api_key_auth, \
     requires_admin_auth_or_user_in_service, requires_user_in_service_or_admin
 

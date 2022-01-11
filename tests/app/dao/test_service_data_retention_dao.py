@@ -11,7 +11,7 @@ from app.dao.service_data_retention_dao import (
     fetch_service_data_retention_by_id,
     fetch_service_data_retention_by_notification_type
 )
-from app.models.models import ServiceDataRetention
+from app.models import ServiceDataRetention
 from tests.app.db import create_service, create_service_data_retention
 
 

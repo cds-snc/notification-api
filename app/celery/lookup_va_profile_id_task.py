@@ -1,6 +1,6 @@
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
-from app.models.models import RecipientIdentifier, NOTIFICATION_TECHNICAL_FAILURE, \
+from app.models import RecipientIdentifier, NOTIFICATION_TECHNICAL_FAILURE, \
     NOTIFICATION_PERMANENT_FAILURE
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd

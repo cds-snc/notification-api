@@ -2,7 +2,7 @@ from sqlalchemy.sql.expression import func
 
 from app import db
 from app.dao.dao_utils import transactional, version_class
-from app.models.models import (
+from app.models import (
     Organisation,
     Domain,
     InvitedOrganisationUser,

@@ -40,7 +40,7 @@ from app.letters.utils import (
     get_file_names_from_error_bucket,
     get_page_count,
 )
-from app.models.models import (
+from app.models import (
     KEY_TYPE_TEST,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,

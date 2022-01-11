@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timedelta
 
 from app import db
-from app.models.models import ApiKey
+from app.models import ApiKey
 
 from app.dao.dao_utils import (
     transactional,

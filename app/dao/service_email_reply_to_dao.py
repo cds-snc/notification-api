@@ -4,7 +4,7 @@ from app import db
 from app.dao.dao_utils import transactional
 from app.errors import InvalidRequest
 from app.exceptions import ArchiveValidationError
-from app.models.models import ServiceEmailReplyTo
+from app.models import ServiceEmailReplyTo
 
 
 def dao_get_reply_to_by_service_id(service_id):

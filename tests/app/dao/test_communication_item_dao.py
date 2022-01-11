@@ -1,7 +1,7 @@
 import pytest
 
 from app.dao.communication_item_dao import get_communication_items
-from app.models.models import CommunicationItem
+from app.models import CommunicationItem
 
 
 @pytest.fixture

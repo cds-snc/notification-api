@@ -2,7 +2,7 @@ import uuid
 from typing import List
 
 from app import db
-from app.models.models import CommunicationItem
+from app.models import CommunicationItem
 
 
 def dao_create_communication_item(communication_item: CommunicationItem):

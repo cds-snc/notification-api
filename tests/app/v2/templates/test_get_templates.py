@@ -3,7 +3,7 @@ import pytest
 from flask import json
 from itertools import product
 
-from app.models.models import TEMPLATE_TYPES, EMAIL_TYPE
+from app.models import TEMPLATE_TYPES, EMAIL_TYPE
 from tests import create_authorization_header
 from tests.app.db import create_template
 

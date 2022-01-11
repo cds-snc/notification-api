@@ -3,7 +3,7 @@ from flask import json
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.dao.notifications_dao import get_notification_by_id
-from app.models.models import Complaint, UNKNOWN_COMPLAINT_TYPE
+from app.models import Complaint, UNKNOWN_COMPLAINT_TYPE
 from app.notifications.notifications_ses_callback import handle_ses_complaint, handle_smtp_complaint
 
 from tests.app.db import (

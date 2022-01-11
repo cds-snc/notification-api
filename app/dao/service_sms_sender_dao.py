@@ -5,7 +5,7 @@ from sqlalchemy import desc
 from app import db
 from app.dao.dao_utils import transactional
 from app.exceptions import ArchiveValidationError
-from app.models.models import ServiceSmsSender, InboundNumber
+from app.models import ServiceSmsSender, InboundNumber
 from app.service.exceptions import SmsSenderDefaultValidationException, SmsSenderInboundNumberIntegrityException, \
     SmsSenderRateLimitIntegrityException
 

@@ -16,7 +16,7 @@ from app.notifications.receive_notifications import (
     unescape_string, fetch_potential_service, NoSuitableServiceForInboundSms,
 )
 
-from app.models.models import InboundSms, EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE, Service, Permission
+from app.models import InboundSms, EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE, Service, Permission
 from tests.conftest import set_config, set_config_values
 from tests.app.db import create_inbound_number, create_service, create_service_with_inbound_number
 

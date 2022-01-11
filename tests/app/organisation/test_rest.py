@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from app.models.models import Organisation
+from app.models import Organisation
 from app.dao.organisation_dao import dao_add_service_to_organisation, dao_add_user_to_organisation
 from tests.app.db import (
     create_domain,

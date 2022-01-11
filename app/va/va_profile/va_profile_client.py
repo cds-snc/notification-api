@@ -77,7 +77,7 @@ class VAProfileClient:
     def get_is_communication_allowed(
             self, recipient_identifier, communication_item_id: str, notification_id: str, notification_type: str
     ) -> bool:
-        from app.models.models import VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES
+        from app.models import VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES
 
         self.logger.info(f'Called get_is_communication_allowed for notification {notification_id}')
         recipient_id = transform_to_fhir_format(recipient_identifier)

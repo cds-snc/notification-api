@@ -4,7 +4,7 @@ from datetime import datetime, date
 import pytest
 from freezegun import freeze_time
 
-from app.models.models import (
+from app.models import (
     EMAIL_TYPE,
     SMS_TYPE,
     LETTER_TYPE,

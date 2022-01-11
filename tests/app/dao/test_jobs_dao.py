@@ -17,7 +17,7 @@ from app.dao.jobs_dao import (
     dao_set_scheduled_jobs_to_pending,
     dao_update_job,
 )
-from app.models.models import (
+from app.models import (
     Job,
     EMAIL_TYPE, SMS_TYPE, LETTER_TYPE
 )

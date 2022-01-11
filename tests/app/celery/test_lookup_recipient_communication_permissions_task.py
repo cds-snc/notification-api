@@ -6,7 +6,7 @@ from app.celery.lookup_recipient_communication_permissions_task import (
     lookup_recipient_communication_permissions,
     recipient_has_given_permission
 )
-from app.models.models import NOTIFICATION_PREFERENCES_DECLINED, SMS_TYPE, RecipientIdentifier, Notification
+from app.models import NOTIFICATION_PREFERENCES_DECLINED, SMS_TYPE, RecipientIdentifier, Notification
 from app.va.va_profile.va_profile_client import VAProfileClient
 from app.va.identifier import IdentifierType
 

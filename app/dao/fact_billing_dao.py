@@ -11,7 +11,7 @@ from app.dao.date_util import (
     get_financial_year_for_datetime
 )
 
-from app.models.models import (
+from app.models import (
     FactBilling,
     Notification,
     Service,

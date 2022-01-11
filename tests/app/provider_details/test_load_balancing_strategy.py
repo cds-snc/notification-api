@@ -1,6 +1,6 @@
 import pytest
 
-from app.models.models import ProviderDetails, Notification
+from app.models import ProviderDetails, Notification
 from app.notifications.notification_type import NotificationType
 from app.provider_details.load_balancing_strategy import LoadBalancingStrategy
 

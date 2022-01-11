@@ -16,7 +16,7 @@ from app.errors import (
     InvalidRequest
 )
 
-from app.schemas.schemas import invited_user_schema
+from app.schemas import invited_user_schema
 
 
 accept_invite = Blueprint('accept_invite', __name__)

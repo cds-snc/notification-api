@@ -8,7 +8,7 @@ from tests.app.db import (
     create_notification,
     create_template
 )
-from app.models.models import (
+from app.models import (
     KEY_TYPE_NORMAL,
 )
 

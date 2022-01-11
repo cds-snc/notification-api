@@ -23,7 +23,7 @@ from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.dao.services_dao import dao_create_service, dao_add_user_to_service
 from app.dao.templates_dao import dao_create_template, dao_update_template
 from app.dao.users_dao import save_model_user
-from app.models.models import (
+from app.models import (
     ApiKey,
     DailySortedLetter,
     InboundSms,

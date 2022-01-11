@@ -17,7 +17,7 @@ from app.notifications.process_notifications import (
     persist_notification,
     send_notification_to_queue
 )
-from app.models.models import (
+from app.models import (
     KEY_TYPE_NORMAL,
     PRIORITY,
     SMS_TYPE,

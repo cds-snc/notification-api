@@ -2,9 +2,9 @@ from datetime import datetime
 
 from app import db, create_uuid
 from app.dao.dao_utils import transactional, version_class
-from app.models.models import ServiceCallback
+from app.models import ServiceCallback
 
-from app.models.models import DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE
+from app.models import DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE
 
 
 @transactional

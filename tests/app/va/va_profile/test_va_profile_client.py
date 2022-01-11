@@ -8,7 +8,7 @@ from app.va.va_profile import (
     VAProfileRetryableException,
     VAProfileNonRetryableException
 )
-from app.models.models import RecipientIdentifier, SMS_TYPE
+from app.models import RecipientIdentifier, SMS_TYPE
 from app.va.va_profile.va_profile_client import CommunicationItemNotFoundException
 
 MOCK_VA_PROFILE_URL = 'http://mock.vaprofile.va.gov/'

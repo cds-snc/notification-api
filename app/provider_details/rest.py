@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 
-from app.schemas.schemas import provider_details_schema, provider_details_history_schema
+from app.schemas import provider_details_schema, provider_details_history_schema
 from app.dao.provider_details_dao import (
     get_provider_details_by_id,
     dao_update_provider_details,

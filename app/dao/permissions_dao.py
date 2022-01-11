@@ -2,7 +2,7 @@ from typing import List
 
 from app import db
 from app.dao import DAOClass
-from app.models.models import (
+from app.models import (
     Permission,
     MANAGE_USERS,
     MANAGE_TEMPLATES,

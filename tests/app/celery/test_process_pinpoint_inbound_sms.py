@@ -9,7 +9,7 @@ from app.celery.process_pinpoint_inbound_sms import process_pinpoint_inbound_sms
 from app.notifications.receive_notifications import NoSuitableServiceForInboundSms
 from app.config import QueueNames
 from app.feature_flags import FeatureFlag
-from app.models.models import Service, InboundSms
+from app.models import Service, InboundSms
 
 
 @pytest.fixture

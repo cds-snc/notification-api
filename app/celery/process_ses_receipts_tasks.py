@@ -18,7 +18,7 @@ from app.celery.service_callback_tasks import publish_complaint
 from app.config import QueueNames
 from app.clients.email.aws_ses import get_aws_responses
 from app.dao import notifications_dao, services_dao, templates_dao
-from app.models.models import NOTIFICATION_SENDING, NOTIFICATION_PENDING, EMAIL_TYPE, KEY_TYPE_NORMAL
+from app.models import NOTIFICATION_SENDING, NOTIFICATION_PENDING, EMAIL_TYPE, KEY_TYPE_NORMAL
 from json import decoder
 from app.notifications import process_notifications
 from app.notifications.notifications_ses_callback import (

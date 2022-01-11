@@ -4,7 +4,7 @@ from app.dao.email_branding_dao import (
     dao_get_email_branding_by_name,
     dao_update_email_branding,
 )
-from app.models.models import EmailBranding
+from app.models import EmailBranding
 
 from tests.app.db import create_email_branding
 

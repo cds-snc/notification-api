@@ -18,7 +18,7 @@ from app.dao.organisation_dao import dao_get_organisation_by_email_address
 from app.dao.service_sms_sender_dao import insert_service_sms_sender
 from app.dao.service_user_dao import dao_get_service_user
 from app.dao.template_folder_dao import dao_get_valid_template_folders_by_id
-from app.models.models import (
+from app.models import (
     AnnualBilling,
     ApiKey,
     FactBilling,

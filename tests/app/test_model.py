@@ -4,7 +4,7 @@ from freezegun import freeze_time
 from sqlalchemy.exc import IntegrityError
 
 from app import encryption
-from app.models.models import (
+from app.models import (
     ServiceWhitelist,
     Notification,
     SMS_TYPE,

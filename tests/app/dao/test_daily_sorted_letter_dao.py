@@ -4,7 +4,7 @@ from app.dao.daily_sorted_letter_dao import (
     dao_create_or_update_daily_sorted_letter,
     dao_get_daily_sorted_letter_by_billing_day,
 )
-from app.models.models import DailySortedLetter
+from app.models import DailySortedLetter
 from tests.app.db import create_daily_sorted_letter
 
 

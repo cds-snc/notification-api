@@ -22,7 +22,7 @@ from app.config import QueueNames
 from app.dao.service_sms_sender_dao import dao_get_sms_sender_by_service_id_and_number
 from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
 
-from app.models.models import (
+from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
     SMS_TYPE,

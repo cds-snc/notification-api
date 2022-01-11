@@ -1,7 +1,7 @@
 import json
 import uuid
 
-from app.models.models import ServiceDataRetention
+from app.models import ServiceDataRetention
 from tests import create_authorization_header
 from tests.app.db import create_service_data_retention
 

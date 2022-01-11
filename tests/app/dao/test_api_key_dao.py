@@ -11,7 +11,7 @@ from app.dao.api_key_dao import (
     get_unsigned_secret,
     expire_api_key
 )
-from app.models.models import ApiKey, KEY_TYPE_NORMAL
+from app.models import ApiKey, KEY_TYPE_NORMAL
 
 
 def test_save_api_key_should_create_new_api_key_and_history(sample_service):
@@ -101,7 +101,7 @@ def test_save_api_key_can_create_key_with_same_name_if_other_is_expired(sample_s
 
 
 def test_save_api_key_should_not_create_new_service_history(sample_service):
-    from app.models.models import Service
+    from app.models import Service
 
     assert Service.query.count() == 1
     assert Service.get_history_model().query.count() == 1

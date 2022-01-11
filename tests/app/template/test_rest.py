@@ -17,7 +17,7 @@ from notifications_utils.template import HTMLEmailTemplate
 
 from app.dao.permissions_dao import permission_dao
 from app.feature_flags import FeatureFlag
-from app.models.models import (
+from app.models import (
     EMAIL_TYPE,
     LETTER_TYPE,
     SMS_TYPE,
@@ -85,7 +85,7 @@ def test_should_create_a_new_template_for_a_service(
         assert not json_resp['data']['postage']
 
     template = Template.query.get(json_resp['data']['id'])
-    from app.schemas.schemas import template_schema
+    from app.schemas import template_schema
     assert sorted(json_resp['data']) == sorted(template_schema.dump(template).data)
 
 
@@ -275,7 +275,7 @@ def test_should_create_template_without_created_by_using_current_user_id(
     assert json_resp['data']['created_by'] == str(user.id)
 
     template = Template.query.get(json_resp['data']['id'])
-    from app.schemas.schemas import template_schema
+    from app.schemas import template_schema
     assert sorted(json_resp['data']) == sorted(template_schema.dump(template).data)
 
 
@@ -950,7 +950,7 @@ def test_create_a_template_with_reply_to(admin_request, sample_user):
     assert json_resp['data']['reply_to_text'] == letter_contact.contact_block
 
     template = Template.query.get(json_resp['data']['id'])
-    from app.schemas.schemas import template_schema
+    from app.schemas import template_schema
     assert sorted(json_resp['data']) == sorted(template_schema.dump(template).data)
     th = TemplateHistory.query.filter_by(id=template.id, version=1).one()
     assert th.service_letter_contact_id == letter_contact.id

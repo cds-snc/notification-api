@@ -6,7 +6,7 @@ from flask import (
 
 from app.errors import register_errors
 
-from app.schemas.schemas import event_schema
+from app.schemas import event_schema
 from app.dao.events_dao import dao_create_event
 
 events = Blueprint('events', __name__, url_prefix='/events')

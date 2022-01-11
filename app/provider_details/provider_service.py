@@ -2,7 +2,7 @@ from typing import Type, Dict, Optional
 
 from app.dao.provider_details_dao import get_provider_details_by_id
 from app.exceptions import InvalidProviderException
-from app.models.models import Notification, ProviderDetails
+from app.models import Notification, ProviderDetails
 from app.notifications.notification_type import NotificationType
 from app.provider_details.provider_selection_strategy_interface import ProviderSelectionStrategyInterface, \
     STRATEGY_REGISTRY

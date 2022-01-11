@@ -29,7 +29,7 @@ from app.dao.fido2_key_dao import save_fido2_key
 from app.dao.login_event_dao import save_login_event
 from app.history_meta import create_history
 
-from app.models.models import (
+from app.models import (
     Service,
     Template,
     TemplateHistory,

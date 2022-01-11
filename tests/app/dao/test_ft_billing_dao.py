@@ -21,7 +21,7 @@ from app.dao.fact_billing_dao import (
     fetch_sms_billing_for_all_services,
     fetch_letter_costs_for_all_services, fetch_letter_line_items_for_all_services)
 from app.dao.organisation_dao import dao_add_service_to_organisation
-from app.models.models import (
+from app.models import (
     FactBilling,
     Notification,
     NOTIFICATION_STATUS_TYPES,

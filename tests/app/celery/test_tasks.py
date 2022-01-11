@@ -29,7 +29,7 @@ from app.celery.tasks import (
 from app.config import QueueNames
 from app.dao import jobs_dao, service_email_reply_to_dao, service_sms_sender_dao
 from app.feature_flags import FeatureFlag
-from app.models.models import (
+from app.models import (
     Job,
     Notification,
     NotificationHistory,

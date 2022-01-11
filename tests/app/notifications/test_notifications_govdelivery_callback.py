@@ -6,7 +6,7 @@ from dateutil import parser
 
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
-from app.models.models import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, Notification, Complaint
+from app.models import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, Notification, Complaint
 from app.clients.email.govdelivery_client import govdelivery_status_map
 from app.notifications.notifications_govdelivery_callback import create_complaint
 

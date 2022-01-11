@@ -72,7 +72,7 @@ from app.errors import (
     register_errors
 )
 from app.letters.utils import letter_print_day
-from app.models.models import (
+from app.models import (
     KEY_TYPE_NORMAL, LETTER_TYPE, NOTIFICATION_CANCELLED, Permission, Service,
     EmailBranding, LetterBranding
 )
@@ -89,7 +89,7 @@ from app.service.service_senders_schema import (
 )
 from app.service.sender import send_notification_to_service_users
 from app.service.send_notification import send_one_off_notification, send_pdf_letter_notification
-from app.schemas.schemas import (
+from app.schemas import (
     service_schema,
     api_key_schema,
     notification_with_template_schema,
@@ -346,8 +346,8 @@ def remove_user_from_service(service_id, user_id):
 @service_blueprint.route('/<uuid:service_id>/history', methods=['GET'])
 @requires_admin_auth()
 def get_service_history(service_id):
-    from app.models.models import (Service, ApiKey, TemplateHistory)
-    from app.schemas.schemas import (
+    from app.models import (Service, ApiKey, TemplateHistory)
+    from app.schemas import (
         service_history_schema,
         api_key_history_schema,
         template_history_schema

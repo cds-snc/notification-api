@@ -12,7 +12,7 @@ from app.provider_details.switch_providers import (
     provider_is_primary,
     switch_providers
 )
-from app.models.models import FactBilling, ProviderDetails, ProviderDetailsHistory, SMS_TYPE, User
+from app.models import FactBilling, ProviderDetails, ProviderDetailsHistory, SMS_TYPE, User
 from app import db
 
 

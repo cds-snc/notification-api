@@ -9,7 +9,7 @@ from requests.exceptions import RequestException, HTTPError
 
 from app import statsd_client
 from app.celery.exceptions import RetryableException, NonRetryableException
-from app.models.models import ServiceCallback
+from app.models import ServiceCallback
 
 
 class WebhookCallbackStrategy(ServiceCallbackStrategyInterface):

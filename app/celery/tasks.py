@@ -41,7 +41,7 @@ from app.dao.services_dao import dao_fetch_service_by_id, fetch_todays_total_mes
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import DVLAException, NotificationTechnicalFailureException
 from app.feature_flags import is_feature_enabled, FeatureFlag
-from app.models.models import (
+from app.models import (
     DVLA_RESPONSE_STATUS_SENT,
     EMAIL_TYPE,
     JOB_STATUS_CANCELLED,

@@ -15,7 +15,7 @@ from app.errors import (
     register_errors,
     InvalidRequest
 )
-from app.models.models import (
+from app.models import (
     EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, SMS_TYPE,
     KEY_TYPE_TEAM, PRIORITY,
     LETTER_TYPE)
@@ -30,7 +30,7 @@ from app.notifications.validators import (
     check_rate_limiting,
     service_has_permission
 )
-from app.schemas.schemas import (
+from app.schemas import (
     email_notification_schema,
     sms_template_notification_schema,
     notification_with_personalisation_schema,

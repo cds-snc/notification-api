@@ -25,7 +25,7 @@ from app.dao.provider_details_dao import (
     dao_update_provider_details,
     get_current_provider
 )
-from app.models.models import (
+from app.models import (
     JOB_STATUS_IN_PROGRESS,
     JOB_STATUS_ERROR,
     JOB_STATUS_FINISHED,

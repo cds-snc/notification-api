@@ -1,7 +1,7 @@
 from flask_jwt_extended import JWTManager
 
 from app.dao.users_dao import get_user_by_id
-from app.models.models import User
+from app.models import User
 
 jwt = JWTManager()
 

@@ -8,7 +8,7 @@ from app.dao.inbound_numbers_dao import (
     dao_create_inbound_number,
     dao_update_inbound_number
 )
-from app.models.models import InboundNumber
+from app.models import InboundNumber
 
 from tests.app.db import create_service, create_inbound_number
 from tests.app.factories.inbound_number import sample_inbound_number

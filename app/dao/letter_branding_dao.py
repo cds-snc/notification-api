@@ -1,6 +1,6 @@
 from app import db
 from app.dao.dao_utils import transactional
-from app.models.models import LetterBranding
+from app.models import LetterBranding
 
 
 def dao_get_letter_branding_by_id(letter_branding_id):

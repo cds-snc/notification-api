@@ -1,4 +1,4 @@
-from app.models.models import INVITED_USER_STATUS_TYPES, ORGANISATION_TYPES
+from app.models import INVITED_USER_STATUS_TYPES, ORGANISATION_TYPES
 from app.schema_validation.definitions import uuid
 
 post_create_organisation_schema = {

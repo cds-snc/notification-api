@@ -4,7 +4,7 @@ import pytest
 from datetime import datetime
 from freezegun import freeze_time
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
-from app.models.models import NOTIFICATION_FAILED, NOTIFICATION_SENT, Notification
+from app.models import NOTIFICATION_FAILED, NOTIFICATION_SENT, Notification
 from app.notifications.aws_sns_status_callback import SNS_STATUS_FAILURE, SNS_STATUS_SUCCESS, send_callback_metrics
 
 

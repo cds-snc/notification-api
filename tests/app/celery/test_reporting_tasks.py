@@ -12,7 +12,7 @@ from app.celery.reporting_tasks import (
 )
 from app.dao.fact_billing_dao import get_rate
 from app.feature_flags import FeatureFlag
-from app.models.models import (
+from app.models import (
     FactBilling,
     Notification,
     LETTER_TYPE,

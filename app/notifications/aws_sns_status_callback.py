@@ -5,7 +5,7 @@ from http import HTTPStatus
 from app import statsd_client
 from app.schema_validation import validate
 from app.schema_validation.definitions import uuid
-from app.models.models import NOTIFICATION_FAILED, NOTIFICATION_SENT
+from app.models import NOTIFICATION_FAILED, NOTIFICATION_SENT
 from app.dao.notifications_dao import dao_get_notification_by_reference, _update_notification_status
 from app.notifications.process_client_response import process_service_callback
 

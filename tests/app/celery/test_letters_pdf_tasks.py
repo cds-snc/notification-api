@@ -28,7 +28,7 @@ from app.celery.letters_pdf_tasks import (
     _sanitise_precompiled_pdf
 )
 from app.letters.utils import ScanErrorType
-from app.models.models import (
+from app.models import (
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEST,
     Notification,

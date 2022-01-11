@@ -13,7 +13,7 @@ from app.dao.invited_org_user_dao import (
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.errors import register_errors
-from app.models.models import EMAIL_TYPE, KEY_TYPE_NORMAL, InvitedOrganisationUser
+from app.models import EMAIL_TYPE, KEY_TYPE_NORMAL, InvitedOrganisationUser
 from app.notifications.process_notifications import persist_notification, send_notification_to_queue
 from app.schema_validation import validate
 from app.organisation.organisation_schema import (

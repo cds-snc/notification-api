@@ -11,7 +11,7 @@ from app.dao.inbound_numbers_dao import (
 from app.errors import register_errors
 from app.inbound_number.inbound_number_schema import post_create_inbound_number_schema, \
     post_update_inbound_number_schema
-from app.models.models import InboundNumber
+from app.models import InboundNumber
 from app.schema_validation import validate
 
 inbound_number_blueprint = Blueprint('inbound_number', __name__, url_prefix='/inbound-number')

@@ -15,7 +15,7 @@ from app.dao.dao_utils import transactional
 from app.dao.templates_dao import dao_get_template_by_id
 from app.utils import midnight_n_days_ago
 
-from app.models.models import (
+from app.models import (
     Job,
     JOB_STATUS_FINISHED,
     JOB_STATUS_PENDING,

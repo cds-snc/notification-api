@@ -13,7 +13,7 @@ from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.provider_tasks import deliver_email, deliver_sms
 from app.feature_flags import FeatureFlag
-from app.models.models import (
+from app.models import (
     Notification,
     NotificationHistory,
     ScheduledNotification,

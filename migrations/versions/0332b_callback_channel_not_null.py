@@ -7,7 +7,7 @@ Create Date: 2021-08-06
 """
 from alembic import op
 
-from app.models.models import WEBHOOK_CHANNEL_TYPE
+from app.models import WEBHOOK_CHANNEL_TYPE
 
 revision = '0332b_callback_channel_not_null'
 down_revision = '0332a_bearer_token_nullable'

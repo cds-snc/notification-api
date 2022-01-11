@@ -30,7 +30,7 @@ from app.dao.dao_utils import transactional
 from app.errors import InvalidRequest
 from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.letters.utils import LETTERS_PDF_FILE_LOCATION_STRUCTURE
-from app.models.models import (
+from app.models import (
     Notification,
     NotificationHistory,
     ScheduledNotification,
