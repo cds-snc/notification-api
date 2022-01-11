@@ -310,7 +310,7 @@ def save_smss(self, service_id, encrypted_notifications):
         saved_notifications = persist_notifications(decrypted_notifications)
 
     except SQLAlchemyError as e:
-        handle_exception(self, decrypted_notifications, None, e)
+        handle_list_of_exception(self, decrypted_notifications, e)
 
     for notification in saved_notifications:
         check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
@@ -455,7 +455,7 @@ def save_emails(self, service_id, encrypted_notifications):
         # if the data is not present in the encrypted data then fallback on whats needed for process_job
         saved_notifications = persist_notifications(decrypted_notifications)
     except SQLAlchemyError as e:
-        handle_exception(self, decrypted_notifications, None, e)
+        handle_list_of_exception(self, decrypted_notifications, e)
 
     if saved_notifications:
         for notification in saved_notifications:
@@ -645,6 +645,26 @@ def handle_exception(task, notification, notification_id, exc):
             task.retry(queue=QueueNames.RETRY, exc=exc)
         except task.MaxRetriesExceededError:
             current_app.logger.error("Max retry failed" + retry_msg)
+
+
+def handle_list_of_exception(task, list_notification, exc):
+    for notification in list_notification:
+        notification_id = notification.notification_id
+        if not get_notification_by_id(notification_id):
+            retry_msg = "{task} notification for job {job} row number {row} and notification id {noti}".format(
+                task=task.__name__,
+                job=notification.get("job", None),
+                row=notification.get("row_number", None),
+                noti=notification_id,
+            )
+            # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
+            # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
+            # send to the retry queue.
+            current_app.logger.exception("Retry" + retry_msg)
+            try:
+                task.retry(queue=QueueNames.RETRY, exc=exc)
+            except task.MaxRetriesExceededError:
+                current_app.logger.error("Max retry failed" + retry_msg)
 
 
 def get_template_class(template_type):
