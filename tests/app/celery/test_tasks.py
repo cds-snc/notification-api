@@ -30,7 +30,7 @@ from app.celery.tasks import (
     send_inbound_sms_to_service,
     send_notify_no_reply,
 )
-from app.config import QueueNames
+from app.config import Config, QueueNames
 from app.dao import jobs_dao, service_email_reply_to_dao, service_sms_sender_dao
 from app.models import (
     EMAIL_TYPE,
@@ -286,7 +286,7 @@ def test_should_process_smss_job(notify_db_session, mocker):
     mocker.patch("app.celery.tasks.save_smss.apply_async")
     mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
     redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
-    mocker.patch("app.config.Config.FF_BATCH_INSERTION", return_value=True)
+    mocker.patch.object(Config, "FF_BATCH_INSERTION", True)
 
     process_job(job.id)
 
@@ -382,7 +382,7 @@ def test_should_process_emails_job(email_job_with_placeholders, mocker):
     mocker.patch("app.celery.tasks.save_emails.apply_async")
     mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
     redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
-    mocker.patch("app.config.Config.FF_BATCH_INSERTION", return_value=True)
+    mocker.patch.object(Config, "FF_BATCH_INSERTION", True)
 
     process_job(email_job_with_placeholders.id)
 
