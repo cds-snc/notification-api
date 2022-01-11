@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from app import db
 
-from app.models import InvitedUser
+from app.models.models import InvitedUser
 
 
 def save_invited_user(invited_user):

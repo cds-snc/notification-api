@@ -1,4 +1,4 @@
-from app.models import MANAGE_SETTINGS, QUEUE_CHANNEL_TYPE
+from app.models.models import MANAGE_SETTINGS, QUEUE_CHANNEL_TYPE
 from app.authentication.auth import AuthError, create_validator_for_user_in_service_or_admin
 from flask import (
     Blueprint,
@@ -17,7 +17,7 @@ from app.errors import (
     register_errors
 )
 from app.schema_validation import validate
-from app.schemas import service_callback_api_schema
+from app.schemas.schemas import service_callback_api_schema
 from app.service.service_callback_api_schema import (
     update_service_callback_api_request_schema,
     create_service_callback_api_request_schema

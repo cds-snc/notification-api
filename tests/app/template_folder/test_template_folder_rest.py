@@ -3,7 +3,7 @@ import uuid
 import pytest
 
 from app.dao.service_user_dao import dao_get_service_user
-from app.models import TemplateFolder
+from app.models.models import TemplateFolder
 
 from tests.app.db import create_service, create_template_folder, create_template, create_user
 

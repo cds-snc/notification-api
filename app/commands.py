@@ -40,7 +40,7 @@ from app.dao.services_dao import (
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import delete_model_user, delete_user_verify_codes, get_user_by_email
-from app.models import (
+from app.models.models import (
     PROVIDERS, User, Notification, Organisation, Domain, Service, SMS_TYPE,
     NOTIFICATION_CREATED,
     KEY_TYPE_TEST,

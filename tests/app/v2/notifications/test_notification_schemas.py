@@ -5,7 +5,7 @@ from flask import json
 from freezegun import freeze_time
 from jsonschema import ValidationError
 
-from app.models import NOTIFICATION_CREATED, EMAIL_TYPE
+from app.models.models import NOTIFICATION_CREATED, EMAIL_TYPE
 from app.schema_validation import validate
 from app.v2.notifications.notification_schemas import (
     get_notifications_request,

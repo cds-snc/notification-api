@@ -1,7 +1,7 @@
 import json
 import uuid
 
-from app.models import LetterBranding
+from app.models.models import LetterBranding
 from tests import create_authorization_header
 from tests.app.db import create_letter_branding
 

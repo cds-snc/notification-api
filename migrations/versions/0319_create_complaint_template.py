@@ -10,7 +10,7 @@ from datetime import datetime
 from alembic import op
 from flask import current_app
 
-from app.models import EMAIL_TYPE, NORMAL
+from app.models.models import EMAIL_TYPE, NORMAL
 
 revision = '0319_create_complaint_template'
 down_revision = '0318_remove_custom_email_from'

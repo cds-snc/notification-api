@@ -18,7 +18,7 @@ from app.dao.organisation_dao import (
     dao_add_user_to_organisation
 )
 from app.dao.services_dao import (dao_create_service, dao_add_user_to_service)
-from app.models import Organisation, OrganisationTypes, Service
+from app.models.models import Organisation, OrganisationTypes, Service
 
 from tests.app.db import (
     create_domain,

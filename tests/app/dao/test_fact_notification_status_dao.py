@@ -22,7 +22,7 @@ from app.dao.fact_notification_status_dao import (
     get_api_key_ranked_by_notifications_created, fetch_template_usage_for_service_with_given_template,
     fetch_notification_statuses_per_service_and_template_for_date
 )
-from app.models import (
+from app.models.models import (
     FactNotificationStatus,
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEST,

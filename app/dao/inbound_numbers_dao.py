@@ -2,7 +2,7 @@ from typing import Optional, List
 
 from app import db
 from app.dao.dao_utils import transactional
-from app.models import InboundNumber
+from app.models.models import InboundNumber
 
 
 def dao_get_inbound_numbers():

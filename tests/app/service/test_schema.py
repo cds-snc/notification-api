@@ -4,7 +4,7 @@ import uuid
 import pytest
 from jsonschema import ValidationError
 
-from app.models import DELIVERY_STATUS_CALLBACK_TYPE, WEBHOOK_CHANNEL_TYPE
+from app.models.models import DELIVERY_STATUS_CALLBACK_TYPE, WEBHOOK_CHANNEL_TYPE
 from app.schema_validation import validate
 from app.service.service_callback_api_schema import (
     update_service_inbound_api_schema, update_service_callback_api_request_schema,

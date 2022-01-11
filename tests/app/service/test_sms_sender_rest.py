@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import current_app
 from sqlalchemy.orm.exc import NoResultFound
 
-from app.models import ServiceSmsSender, Service
+from app.models.models import ServiceSmsSender, Service
 from tests.app.db import create_service, create_service_sms_sender, create_inbound_number, \
     create_service_with_inbound_number
 

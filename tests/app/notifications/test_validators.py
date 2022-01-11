@@ -7,7 +7,7 @@ from notifications_utils import SMS_CHAR_COUNT_LIMIT
 
 import app
 from app.feature_flags import FeatureFlag
-from app.models import SMS_TYPE, EMAIL_TYPE, LETTER_TYPE
+from app.models.models import SMS_TYPE, EMAIL_TYPE, LETTER_TYPE
 from app.notifications.validators import (
     check_service_over_daily_message_limit,
     check_template_is_for_notification_type,

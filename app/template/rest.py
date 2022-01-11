@@ -40,11 +40,11 @@ from app.errors import (
 )
 from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.letters.utils import get_letter_pdf
-from app.models import SMS_TYPE, Template, SECOND_CLASS, LETTER_TYPE
+from app.models.models import SMS_TYPE, Template, SECOND_CLASS, LETTER_TYPE
 from app.notifications.validators import service_has_permission, check_reply_to, template_name_already_exists_on_service
 from app.provider_details import validate_providers
 from app.schema_validation import validate
-from app.schemas import (template_schema, template_history_schema)
+from app.schemas.schemas import (template_schema, template_history_schema)
 from app.template.template_schemas import post_create_template_schema, template_stats_request
 from app.utils import get_template_instance, get_public_notify_type_text
 

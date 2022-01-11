@@ -8,11 +8,9 @@ Create Date: 2021-07-15
 import json
 
 from alembic import op
-import sqlalchemy as sa
 from sqlalchemy import text
-from sqlalchemy.dialects.postgresql import JSONB
 
-from app.models import NOTIFICATION_STATUS_TYPES_COMPLETED
+from app.models.models import NOTIFICATION_STATUS_TYPES_COMPLETED
 
 revision = '0331b_status_and_callback_types'
 down_revision = '0331a_notification_statuses'

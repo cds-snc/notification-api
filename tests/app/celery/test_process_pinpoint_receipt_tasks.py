@@ -7,7 +7,7 @@ import pytest
 from app.celery import process_pinpoint_receipt_tasks
 from app.dao import notifications_dao
 from app.feature_flags import FeatureFlag
-from app.models import (
+from app.models.models import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_SENDING,
     NOTIFICATION_TECHNICAL_FAILURE,

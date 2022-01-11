@@ -11,7 +11,7 @@ from app.dao.notifications_dao import (
     delete_notifications_older_than_retention_by_type,
     insert_update_notification_history
 )
-from app.models import Notification, NotificationHistory, RecipientIdentifier, SMS_TYPE, EMAIL_TYPE
+from app.models.models import Notification, NotificationHistory, RecipientIdentifier, SMS_TYPE, EMAIL_TYPE
 from app.notifications.process_notifications import persist_notification
 from app.va.identifier import IdentifierType
 from tests.app.db import (

@@ -3,7 +3,7 @@ from app.dao.notifications_dao import dao_get_last_template_usage
 from app.dao.templates_dao import dao_get_template_by_id_and_service_id
 from app.dao.fact_notification_status_dao import fetch_notification_status_for_service_for_today_and_7_previous_days
 
-from app.schemas import notification_with_template_schema
+from app.schemas.schemas import notification_with_template_schema
 from app.errors import register_errors, InvalidRequest
 
 template_statistics = Blueprint('template_statistics',

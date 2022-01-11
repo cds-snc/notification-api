@@ -8,7 +8,7 @@ from freezegun import freeze_time
 from fido2 import cbor
 import base64
 
-from app.models import (
+from app.models.models import (
     User,
     Fido2Key,
     LoginEvent,

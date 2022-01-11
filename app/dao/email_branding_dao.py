@@ -1,6 +1,6 @@
 from app import db
 from app.dao.dao_utils import transactional
-from app.models import EmailBranding
+from app.models.models import EmailBranding
 
 
 def dao_get_email_branding_options():

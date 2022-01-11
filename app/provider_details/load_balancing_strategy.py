@@ -4,7 +4,7 @@ from typing import Optional
 from .provider_selection_strategy_interface import ProviderSelectionStrategyInterface
 from app.notifications.notification_type import NotificationType
 from app.dao.provider_details_dao import get_active_providers_with_weights_by_notification_type
-from app.models import Notification, ProviderDetails
+from app.models.models import Notification, ProviderDetails
 
 
 class LoadBalancingStrategy(ProviderSelectionStrategyInterface):

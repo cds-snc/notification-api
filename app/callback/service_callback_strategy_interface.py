@@ -1,4 +1,4 @@
-from app.models import ServiceCallback
+from app.models.models import ServiceCallback
 
 
 class ServiceCallbackStrategyInterface:

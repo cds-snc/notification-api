@@ -7,7 +7,7 @@ from freezegun import freeze_time
 from app.attachments.exceptions import UnsupportedMimeTypeException
 from app.attachments.store import AttachmentStoreError
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
-from app.models import (
+from app.models.models import (
     ScheduledNotification,
     EMAIL_TYPE,
     NOTIFICATION_CREATED,

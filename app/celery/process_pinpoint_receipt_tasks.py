@@ -12,7 +12,7 @@ from app import notify_celery, statsd_client
 from app.config import QueueNames
 from app.dao.notifications_dao import update_notification_status_by_id, dao_get_notification_by_reference
 from app.feature_flags import FeatureFlag, is_feature_enabled
-from app.models import (
+from app.models.models import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_SENDING,

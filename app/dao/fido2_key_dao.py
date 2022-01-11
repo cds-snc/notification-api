@@ -1,5 +1,5 @@
 from app import db
-from app.models import Fido2Key, Fido2Session
+from app.models.models import Fido2Key, Fido2Session
 from app.config import Config
 
 from app.dao.dao_utils import (

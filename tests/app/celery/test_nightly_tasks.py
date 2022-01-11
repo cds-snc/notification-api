@@ -29,7 +29,7 @@ from app.celery.service_callback_tasks import create_delivery_status_callback_da
 from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import (
+from app.models.models import (
     LETTER_TYPE,
     SMS_TYPE,
     EMAIL_TYPE, NOTIFICATION_STATUS_TYPES_FAILED

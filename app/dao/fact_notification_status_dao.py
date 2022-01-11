@@ -8,7 +8,7 @@ from sqlalchemy.sql.expression import literal, extract
 from sqlalchemy.types import DateTime, Integer
 
 from app import db
-from app.models import (
+from app.models.models import (
     ApiKey,
     EMAIL_TYPE,
     FactNotificationStatus,

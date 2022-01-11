@@ -6,7 +6,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
 
-from app.models import InvitedUser
+from app.models.models import InvitedUser
 
 from app.dao.invited_user_dao import (
     save_invited_user,

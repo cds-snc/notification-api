@@ -6,7 +6,7 @@ from freezegun import freeze_time
 from flask import current_app
 
 from app.exceptions import DVLAException, NotificationTechnicalFailureException
-from app.models import (
+from app.models.models import (
     NotificationHistory,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,

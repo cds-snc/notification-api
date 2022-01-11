@@ -3,7 +3,7 @@ import uuid
 import pytest
 
 from app.clients import ClientException
-from app.models import NOTIFICATION_STATUS_TYPES
+from app.models.models import NOTIFICATION_STATUS_TYPES
 from app.notifications.process_client_response import (
     validate_callback_data,
     process_sms_client_response

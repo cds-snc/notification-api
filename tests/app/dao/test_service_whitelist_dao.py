@@ -1,6 +1,6 @@
 import uuid
 
-from app.models import (
+from app.models.models import (
     ServiceWhitelist,
     EMAIL_TYPE,
 )

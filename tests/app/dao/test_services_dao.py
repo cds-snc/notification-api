@@ -32,7 +32,7 @@ from app.dao.services_dao import (
 )
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from app.dao.users_dao import save_model_user, create_user_code
-from app.models import (
+from app.models.models import (
     VerifyCode,
     ApiKey,
     Template,

@@ -3,7 +3,7 @@ from typing import Optional
 from app.dao.provider_details_dao import get_highest_priority_active_provider_by_notification_type
 from app.notifications.notification_type import NotificationType
 from .provider_selection_strategy_interface import ProviderSelectionStrategyInterface
-from app.models import Notification, ProviderDetails
+from app.models.models import Notification, ProviderDetails
 
 
 class HighestPriorityStrategy(ProviderSelectionStrategyInterface):

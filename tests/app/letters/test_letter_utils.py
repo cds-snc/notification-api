@@ -15,7 +15,7 @@ from app.letters.utils import (
     upload_letter_pdf,
     ScanErrorType, move_failed_pdf, get_folder_name
 )
-from app.models import KEY_TYPE_NORMAL, KEY_TYPE_TEST, PRECOMPILED_TEMPLATE_NAME, NOTIFICATION_VALIDATION_FAILED
+from app.models.models import KEY_TYPE_NORMAL, KEY_TYPE_TEST, PRECOMPILED_TEMPLATE_NAME, NOTIFICATION_VALIDATION_FAILED
 from tests.app.db import create_notification
 
 FROZEN_DATE_TIME = "2018-03-14 17:00:00"

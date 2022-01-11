@@ -5,7 +5,7 @@ import pytest
 from freezegun import freeze_time
 
 from app import db
-from app.models import Service
+from app.models.models import Service
 from app.dao.services_dao import dao_archive_service
 from app.dao.api_key_dao import expire_api_key
 from app.dao.templates_dao import dao_update_template

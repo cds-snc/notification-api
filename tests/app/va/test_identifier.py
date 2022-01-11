@@ -1,6 +1,6 @@
 import pytest
 
-from app.models import RecipientIdentifier
+from app.models.models import RecipientIdentifier
 from app.va.identifier import is_fhir_format, IdentifierType, transform_to_fhir_format, transform_from_fhir_format, \
     UnsupportedIdentifierException
 

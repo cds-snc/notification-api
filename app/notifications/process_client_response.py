@@ -18,7 +18,7 @@ from app.config import QueueNames
 from app.dao.notifications_dao import dao_update_notification
 from app.dao.service_callback_api_dao import get_service_delivery_status_callback_api_for_service
 from app.dao.templates_dao import dao_get_template_by_id
-from app.models import NOTIFICATION_PENDING
+from app.models.models import NOTIFICATION_PENDING
 
 sms_response_mapper = {
     'MMG': get_mmg_responses,

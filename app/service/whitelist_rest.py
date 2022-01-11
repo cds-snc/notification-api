@@ -8,8 +8,8 @@ from app.dao.service_whitelist_dao import (
     dao_remove_service_whitelist)
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.errors import InvalidRequest, register_errors, invalid_data_v2
-from app.models import (EMAIL_TYPE, MANAGE_SETTINGS, MOBILE_TYPE,
-                        ServiceWhitelist)
+from app.models.models import (EMAIL_TYPE, MANAGE_SETTINGS, MOBILE_TYPE,
+                               ServiceWhitelist)
 from app.schema_validation import validate
 
 from .service_whitelist_schema import update_service_whitelist_request

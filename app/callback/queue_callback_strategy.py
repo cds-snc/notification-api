@@ -6,7 +6,7 @@ from app.callback.service_callback_strategy_interface import ServiceCallbackStra
 from flask import current_app
 
 from app.celery.exceptions import NonRetryableException
-from app.models import ServiceCallback
+from app.models.models import ServiceCallback
 from app import statsd_client
 
 

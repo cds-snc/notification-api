@@ -10,14 +10,6 @@ Create Date: 2016-07-15 13:28:41.441009
 revision = '0044_jobs_to_notification_hist'
 down_revision = '0043_notification_indexes'
 
-from alembic import op
-
-from sqlalchemy.orm.session import Session
-
-import uuid
-import datetime
-from app.models import Job, Template, NotificationHistory
-
 
 def upgrade():
     #

@@ -10,7 +10,7 @@ from app.dao.letter_branding_dao import (
 )
 from app.errors import register_errors
 from app.letter_branding.letter_branding_schema import post_letter_branding_schema
-from app.models import LetterBranding
+from app.models.models import LetterBranding
 from app.schema_validation import validate
 
 letter_branding_blueprint = Blueprint('letter_branding', __name__, url_prefix='/letter-branding')

@@ -1,6 +1,6 @@
 import string
 from random import choice
-from app.models import ServiceWhitelist, EMAIL_TYPE, MOBILE_TYPE, WHITELIST_RECIPIENT_TYPE
+from app.models.models import ServiceWhitelist, EMAIL_TYPE, MOBILE_TYPE, WHITELIST_RECIPIENT_TYPE
 from tests.app.factories.inbound_number import _random_phone_number
 
 

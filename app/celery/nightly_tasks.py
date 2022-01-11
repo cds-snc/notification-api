@@ -27,7 +27,7 @@ from app.dao.notifications_dao import (
 )
 from app.dao.service_callback_api_dao import get_service_delivery_status_callback_api_for_service
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import (
+from app.models.models import (
     Notification,
     NOTIFICATION_SENDING,
     EMAIL_TYPE,

@@ -12,7 +12,7 @@ from freezegun import freeze_time
 from app.dao.login_event_dao import list_login_events
 from app.dao.users_dao import create_user_code
 from app.dao.services_dao import dao_update_service, dao_fetch_service_by_id
-from app.models import (
+from app.models.models import (
     Notification,
     User,
     VerifyCode,

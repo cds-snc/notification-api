@@ -9,7 +9,7 @@ from app.dao.service_letter_contact_dao import (
     dao_get_letter_contact_by_id,
     update_letter_contact
 )
-from app.models import ServiceLetterContact
+from app.models.models import ServiceLetterContact
 from tests.app.db import create_letter_contact, create_service, create_template
 
 

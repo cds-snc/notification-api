@@ -1,7 +1,7 @@
 import pytest
 
 from app.exceptions import InvalidProviderException
-from app.models import Notification, ProviderDetails, Template, Service
+from app.models.models import Notification, ProviderDetails, Template, Service
 from app.notifications.notification_type import NotificationType
 from app.provider_details.provider_selection_strategy_interface import ProviderSelectionStrategyInterface
 from app.provider_details.provider_service import ProviderService

@@ -14,7 +14,7 @@ from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.service_user_dao import dao_get_active_service_users
 from app.dao.service_user_dao import dao_get_service_user
 from app.errors import InvalidRequest, register_errors
-from app.models import TemplateFolder
+from app.models.models import TemplateFolder
 from app.template_folder.template_folder_schema import (
     post_create_template_folder_schema,
     post_update_template_folder_schema,

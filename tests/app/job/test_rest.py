@@ -8,7 +8,7 @@ import pytz
 
 import app.celery.tasks
 from app.dao.templates_dao import dao_update_template
-from app.models import JOB_STATUS_TYPES, JOB_STATUS_PENDING
+from app.models.models import JOB_STATUS_TYPES, JOB_STATUS_PENDING
 
 from tests import create_authorization_header
 from tests.conftest import set_config

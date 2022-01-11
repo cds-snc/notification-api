@@ -13,7 +13,7 @@ from app.celery.provider_tasks import deliver_sms, deliver_email, deliver_sms_wi
 from app.clients.email.aws_ses import AwsSesClientException, AwsSesClientThrottlingSendRateException
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException, InvalidProviderException
-from app.models import NOTIFICATION_PERMANENT_FAILURE
+from app.models.models import NOTIFICATION_PERMANENT_FAILURE
 from app.v2.errors import RateLimitError
 
 

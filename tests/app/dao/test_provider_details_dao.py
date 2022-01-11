@@ -19,7 +19,7 @@ from app.dao.provider_details_dao import (
     get_highest_priority_active_provider_by_notification_type,
     get_active_providers_with_weights_by_notification_type
 )
-from app.models import ProviderDetails, ProviderDetailsHistory, ProviderRates
+from app.models.models import ProviderDetails, ProviderDetailsHistory, ProviderRates
 from app.notifications.notification_type import NotificationType
 from tests.app.db import (
     create_ft_billing,

@@ -11,7 +11,7 @@ from notifications_utils.s3 import s3upload
 
 from app import notify_celery
 from app.aws.s3 import file_exists
-from app.models import SMS_TYPE
+from app.models.models import SMS_TYPE
 from app.config import QueueNames
 from app.celery import process_ses_receipts_tasks, process_pinpoint_receipt_tasks
 

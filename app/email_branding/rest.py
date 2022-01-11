@@ -7,7 +7,7 @@ from app.dao.email_branding_dao import (
     dao_update_email_branding
 )
 from app.errors import register_errors
-from app.models import EmailBranding
+from app.models.models import EmailBranding
 from app.email_branding.email_branding_schema import (
     post_create_email_branding_schema,
     post_update_email_branding_schema

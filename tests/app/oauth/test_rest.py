@@ -11,7 +11,7 @@ from requests.exceptions import HTTPError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.feature_flags import FeatureFlag
-from app.models import User
+from app.models.models import User
 from app.oauth.exceptions import OAuthException, IncorrectGithubIdException, InsufficientGithubScopesException
 from app.oauth.rest import make_github_get_request
 from tests.conftest import set_config_values

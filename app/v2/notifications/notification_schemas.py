@@ -1,4 +1,4 @@
-from app.models import (
+from app.models.models import (
     NOTIFICATION_STATUS_TYPES,
     NOTIFICATION_STATUS_LETTER_ACCEPTED,
     NOTIFICATION_STATUS_LETTER_RECEIVED,

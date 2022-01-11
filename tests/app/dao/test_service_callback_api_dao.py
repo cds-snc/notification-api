@@ -9,10 +9,10 @@ from app.dao.service_callback_api_dao import (
     reset_service_callback_api,
     get_service_callback,
     get_service_delivery_status_callback_api_for_service)
-from app.models import ServiceCallback, NOTIFICATION_FAILED, NOTIFICATION_TEMPORARY_FAILURE, \
+from app.models.models import ServiceCallback, NOTIFICATION_FAILED, NOTIFICATION_TEMPORARY_FAILURE, \
     NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_STATUS_TYPES_COMPLETED, NOTIFICATION_SENT, NOTIFICATION_DELIVERED, \
     WEBHOOK_CHANNEL_TYPE
-from app.schemas import service_callback_api_schema
+from app.schemas.schemas import service_callback_api_schema
 from tests.app.db import create_service_callback_api
 
 

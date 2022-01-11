@@ -4,7 +4,7 @@ import pytest
 from freezegun import freeze_time
 
 from app.errors import InvalidRequest
-from app.models import SMS_TYPE, EMAIL_TYPE
+from app.models.models import SMS_TYPE, EMAIL_TYPE
 from app.platform_stats.rest import validate_date_range_is_within_a_financial_year
 from tests.app.db import (
     create_service, create_template, create_ft_notification_status, create_notification,

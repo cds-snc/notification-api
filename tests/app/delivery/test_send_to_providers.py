@@ -19,7 +19,7 @@ from app.delivery.send_to_providers import load_provider
 from app.exceptions import NotificationTechnicalFailureException, InvalidProviderException
 from app.feature_flags import FeatureFlag
 
-from app.models import (
+from app.models.models import (
     Notification,
     EmailBranding,
     KEY_TYPE_NORMAL,

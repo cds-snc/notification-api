@@ -13,7 +13,7 @@ from app.schema_validation import validate
 from .govelivery_schema import govdelivery_webhook_schema
 from ..celery.service_callback_tasks import publish_complaint
 from ..dao.complaint_dao import save_complaint
-from ..models import Notification, Complaint
+from app.models.models import Notification, Complaint
 
 govdelivery_callback_blueprint = Blueprint("govdelivery_callback", __name__, url_prefix="/notifications/govdelivery")
 register_errors(govdelivery_callback_blueprint)

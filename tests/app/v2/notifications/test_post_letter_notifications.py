@@ -6,7 +6,7 @@ from flask import url_for
 import pytest
 
 from app.config import QueueNames
-from app.models import (
+from app.models.models import (
     Job,
     Notification,
     EMAIL_TYPE,

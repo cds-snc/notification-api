@@ -3,7 +3,7 @@ import uuid
 import pytest
 
 from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
-from app.models import Notification, NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
+from app.models.models import Notification, NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.va.identifier import IdentifierType, UnsupportedIdentifierException
 from app.va.mpi import (

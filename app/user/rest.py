@@ -51,12 +51,12 @@ from app.dao.service_user_dao import dao_get_service_user, dao_update_service_us
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
-from app.models import KEY_TYPE_NORMAL, Fido2Key, LoginEvent, Permission, Service, SMS_TYPE, EMAIL_TYPE
+from app.models.models import KEY_TYPE_NORMAL, Fido2Key, LoginEvent, Permission, Service, SMS_TYPE, EMAIL_TYPE
 from app.notifications.process_notifications import (
     persist_notification,
     send_notification_to_queue
 )
-from app.schemas import (
+from app.schemas.schemas import (
     email_data_request_schema,
     support_email_data_schema,
     branding_request_data_schema,

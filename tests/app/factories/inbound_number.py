@@ -1,7 +1,7 @@
 from random import choice
 import string
 
-from app.models import InboundNumber, Service
+from app.models.models import InboundNumber, Service
 
 
 def sample_inbound_number(service: Service = None, number: str = None) -> InboundNumber:

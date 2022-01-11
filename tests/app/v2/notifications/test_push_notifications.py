@@ -1,6 +1,6 @@
 import pytest
 from app.feature_flags import FeatureFlag
-from app.models import PUSH_TYPE
+from app.models.models import PUSH_TYPE
 from app.va.vetext import VETextClient, VETextBadRequestException, VETextNonRetryableException, VETextRetryableException
 from tests.app.factories.feature_flag import mock_feature_flag
 from tests.app.db import (

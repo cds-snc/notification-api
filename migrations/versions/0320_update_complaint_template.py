@@ -5,12 +5,9 @@ Revises: 0319_create_complaint_template
 Create Date: 2021-03-29 11:05:00
 
 """
-from datetime import datetime
 
 from alembic import op
 from flask import current_app
-
-from app.models import EMAIL_TYPE, NORMAL
 
 revision = '0320_update_complaint_template'
 down_revision = '0319_create_complaint_template'

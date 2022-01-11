@@ -6,7 +6,7 @@ from requests import RequestException
 
 from app.callback.webhook_callback_strategy import WebhookCallbackStrategy
 from app.celery.exceptions import RetryableException, NonRetryableException
-from app.models import ServiceCallback
+from app.models.models import ServiceCallback
 
 
 @pytest.fixture

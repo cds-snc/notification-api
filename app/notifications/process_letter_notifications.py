@@ -1,5 +1,5 @@
 from app import create_random_identifier
-from app.models import LETTER_TYPE
+from app.models.models import LETTER_TYPE
 from app.notifications.process_notifications import persist_notification
 
 

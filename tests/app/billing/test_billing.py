@@ -5,7 +5,7 @@ import json
 import pytest
 from freezegun import freeze_time
 
-from app.models import FactBilling
+from app.models.models import FactBilling
 from app.dao.date_util import get_current_financial_year_start_year, get_month_start_and_end_date_in_utc
 from app.dao.annual_billing_dao import dao_get_free_sms_fragment_limit_for_year
 from tests.app.db import (

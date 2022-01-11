@@ -6,7 +6,7 @@ from app.dao.fido2_key_dao import (
     create_fido2_session,
     get_fido2_session
 )
-from app.models import Fido2Key, Fido2Session
+from app.models.models import Fido2Key, Fido2Session
 
 
 def test_save_fido2_key_should_create_new_fido2_key(sample_user):

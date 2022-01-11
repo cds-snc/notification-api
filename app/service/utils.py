@@ -5,7 +5,7 @@ from flask import current_app
 
 from notifications_utils.recipients import allowed_to_send_to
 
-from app.models import (
+from app.models.models import (
     KEY_TYPE_TEST, KEY_TYPE_TEAM, KEY_TYPE_NORMAL, Service)
 
 

@@ -6,7 +6,7 @@ from flask_jwt_extended import create_access_token
 from app.celery.process_pinpoint_inbound_sms import CeleryEvent, process_pinpoint_inbound_sms
 from app.dao.permissions_dao import permission_dao
 from app.feature_flags import FeatureFlag
-from app.models import QUEUE_CHANNEL_TYPE, INBOUND_SMS_CALLBACK_TYPE, PLATFORM_ADMIN, Permission
+from app.models.models import QUEUE_CHANNEL_TYPE, INBOUND_SMS_CALLBACK_TYPE, PLATFORM_ADMIN, Permission
 from tests.app.factories.feature_flag import mock_feature_flag
 from botocore.stub import Stubber, ANY
 from app import sqs_client, notify_celery

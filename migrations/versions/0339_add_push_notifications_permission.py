@@ -6,7 +6,7 @@ Create Date: 2021-12-20 12:51:00.553275
 
 """
 from alembic import op
-from app.models import PUSH_TYPE
+from app.models.models import PUSH_TYPE
 
 
 revision = '0339_add_push_notif_permission'

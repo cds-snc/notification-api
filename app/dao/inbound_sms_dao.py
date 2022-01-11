@@ -5,7 +5,7 @@ from sqlalchemy.orm import aliased
 
 from app import db
 from app.dao.dao_utils import transactional
-from app.models import InboundSms, Service, ServiceDataRetention, SMS_TYPE
+from app.models.models import InboundSms, Service, ServiceDataRetention, SMS_TYPE
 from app.utils import midnight_n_days_ago
 
 

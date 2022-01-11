@@ -28,7 +28,7 @@ from app.feature_flags import (
     is_feature_enabled,
     FeatureFlag
 )
-from app.models import (
+from app.models.models import (
     SMS_TYPE,
     KEY_TYPE_TEST,
     BRANDING_BOTH,

@@ -1,4 +1,4 @@
-from app.models import (
+from app.models.models import (
     TEMPLATE_PROCESS_TYPE,
     TEMPLATE_TYPES,
 )

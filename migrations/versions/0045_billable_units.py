@@ -12,9 +12,7 @@ down_revision = '0044_jobs_to_notification_hist'
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.orm.session import Session
 
-from app.models import Service
 
 def upgrade():
     op.add_column('notifications', sa.Column('billable_units', sa.Integer()))

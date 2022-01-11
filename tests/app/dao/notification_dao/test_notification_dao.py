@@ -34,7 +34,7 @@ from app.dao.notifications_dao import (
     dao_get_notification_history_by_reference,
     notifications_not_yet_sent,
 )
-from app.models import (
+from app.models.models import (
     Job,
     Notification,
     NotificationHistory,

@@ -28,7 +28,7 @@ from app.dao.provider_details_dao import (
     dao_toggle_sms_provider
 )
 from app.dao.users_dao import delete_codes_older_created_more_than_a_day_ago
-from app.models import (
+from app.models.models import (
     Job,
     JOB_STATUS_IN_PROGRESS,
     JOB_STATUS_ERROR,

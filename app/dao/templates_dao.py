@@ -5,7 +5,7 @@ from flask import current_app
 from sqlalchemy import asc, desc
 
 from app import db
-from app.models import (
+from app.models.models import (
     LETTER_TYPE,
     SECOND_CLASS,
     Template,

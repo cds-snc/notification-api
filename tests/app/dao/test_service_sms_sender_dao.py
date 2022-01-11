@@ -14,7 +14,7 @@ from app.dao.service_sms_sender_dao import (
 from app.service.exceptions import SmsSenderDefaultValidationException, SmsSenderInboundNumberIntegrityException, \
     SmsSenderRateLimitIntegrityException
 from app.exceptions import ArchiveValidationError
-from app.models import ServiceSmsSender, InboundNumber
+from app.models.models import ServiceSmsSender, InboundNumber
 from tests.app.db import (
     create_inbound_number,
     create_service,

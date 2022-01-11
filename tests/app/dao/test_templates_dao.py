@@ -13,7 +13,7 @@ from app.dao.templates_dao import (
     dao_get_template_versions,
     dao_redact_template, dao_update_template_reply_to, dao_get_number_of_templates_by_service_id_and_name
 )
-from app.models import (
+from app.models.models import (
     Template,
     TemplateFolder,
     TemplateHistory,
@@ -488,7 +488,7 @@ def test_get_template_versions(sample_template):
     assert versions[0].updated_at is None
     assert versions[1].updated_at is not None
 
-    from app.schemas import template_history_schema
+    from app.schemas.schemas import template_history_schema
     v = template_history_schema.load(versions, many=True)
     assert len(v) == 2
 

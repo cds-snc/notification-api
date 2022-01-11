@@ -16,7 +16,7 @@ from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
 from app.letters.utils import upload_letter_pdf
-from app.models import (
+from app.models.models import (
     SMS_TYPE,
     EMAIL_TYPE,
     LETTER_TYPE,

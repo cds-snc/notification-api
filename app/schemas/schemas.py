@@ -26,7 +26,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from app import ma
 from app import models
 from app.dao.communication_item_dao import get_communication_item
-from app.models import ServicePermission, EMAIL_TYPE, SMS_TYPE, NOTIFICATION_STATUS_TYPES_COMPLETED, \
+from app.models.models import ServicePermission, EMAIL_TYPE, SMS_TYPE, NOTIFICATION_STATUS_TYPES_COMPLETED, \
     DELIVERY_STATUS_CALLBACK_TYPE, CALLBACK_CHANNEL_TYPES
 from app.dao.permissions_dao import permission_dao
 from app.provider_details import validate_providers

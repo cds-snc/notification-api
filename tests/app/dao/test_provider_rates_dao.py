@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from app.dao.provider_rates_dao import create_provider_rates
-from app.models import ProviderRates, ProviderDetails
+from app.models.models import ProviderRates, ProviderDetails
 
 
 def test_create_provider_rates(notify_db, notify_db_session, mmg_provider):

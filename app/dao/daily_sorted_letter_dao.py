@@ -4,7 +4,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app import db
 from app.dao.dao_utils import transactional
-from app.models import DailySortedLetter
+from app.models.models import DailySortedLetter
 
 
 def dao_get_daily_sorted_letter_by_billing_day(billing_day):
