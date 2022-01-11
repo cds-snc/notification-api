@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 
 from flask import request, g, jsonify, make_response
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy as _SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
 from time import monotonic
@@ -34,26 +33,13 @@ from app.va.mpi import MpiClient
 from app.va.vetext import VETextClient
 from app.encryption import Encryption
 from app.attachments.store import AttachmentStore
+from app.db import db
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 DATE_FORMAT = "%Y-%m-%d"
 
 load_dotenv()
 
-
-class SQLAlchemy(_SQLAlchemy):
-    """We need to subclass SQLAlchemy in order to override create_engine options"""
-
-    def apply_driver_hacks(self, app, info, options):
-        super().apply_driver_hacks(app, info, options)
-        if 'connect_args' not in options:
-            options['connect_args'] = {}
-        options['connect_args']["options"] = "-c statement_timeout={}".format(
-            int(app.config['SQLALCHEMY_STATEMENT_TIMEOUT']) * 1000
-        )
-
-
-db = SQLAlchemy()
 migrate = Migrate()
 ma = Marshmallow()
 notify_celery = NotifyCelery()

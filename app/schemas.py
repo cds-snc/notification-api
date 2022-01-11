@@ -784,15 +784,6 @@ class DaySchema(ma.Schema):
         _validate_not_in_future(value)
 
 
-class MobileAppSchema(BaseSchema):
-    class Meta:
-        model = models.MobileApp
-
-    app_name = fields.String(required=True)
-    app_sid = fields.String(required=True)
-
-
-
 class UnarchivedTemplateSchema(BaseSchema):
     archived = fields.Boolean(required=True)
 
