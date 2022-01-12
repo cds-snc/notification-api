@@ -749,7 +749,7 @@ def create_ft_notification_status(
     job=None,
     key_type='normal',
     notification_status='delivered',
-    status_reason=None,
+    status_reason='',
     count=1
 ):
     if job:

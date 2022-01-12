@@ -747,10 +747,10 @@ def test_fetch_notification_statuses_per_service_and_template_for_date(notify_db
 
     # "service id", "service name", "template id", "template name", "status", "reason", "count"
     notification_param_lists = [
-        [service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_DELIVERED, None, 2],
-        [service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_PERMANENT_FAILURE, None, 5],
-        [service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_DELIVERED, None, 3],
-        [service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_SENT, None, 7]
+        [service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_DELIVERED, '', 2],
+        [service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_PERMANENT_FAILURE, '', 5],
+        [service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_DELIVERED, '', 3],
+        [service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_SENT, '', 7]
     ]
 
     for param_list in notification_param_lists:
