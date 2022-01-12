@@ -251,14 +251,14 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
 
 @notify_celery.task(bind=True, name="save-smss", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_smss(self, service_id, encrypted_notifications):
+def save_smss(self, service_id: str, encrypted_notifications: List[Any]):
     """
     Function that is a job, that takes a list of encrypted notifications and stores
     them in the DB and then sends the notification to the queue.
 
     """
-    decrypted_notifications = []
-    notification_id_queue = {}
+    decrypted_notifications: List[Any] = []
+    notification_id_queue: Dict = {}
     for encrypted_notification in encrypted_notifications:
         notification = encryption.decrypt(encrypted_notification)
         service = dao_fetch_service_by_id(service_id, use_cache=True)
@@ -314,10 +314,12 @@ def save_smss(self, service_id, encrypted_notifications):
 
     for notification in saved_notifications:
         check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
+        research_mode = service.research_mode  # type: ignore
+        queue = notification_id_queue.get(notification.id) or template.queue_to_use()  # type: ignore
         send_notification_to_queue(
             notification,
-            service.research_mode,
-            queue=notification_id_queue.get(notification.id) or template.queue_to_use(),
+            research_mode,
+            queue=queue,
         )
 
         current_app.logger.debug(
@@ -397,7 +399,7 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_emails(self, service_id, encrypted_notifications):
+def save_emails(self, service_id: str, encrypted_notifications: List[Any]):
     """
     Function that is a job, that takes a list of encrypted notifications and stores
     them in the DB and then sends the notification to the queue.
@@ -460,10 +462,12 @@ def save_emails(self, service_id, encrypted_notifications):
     if saved_notifications:
         for notification in saved_notifications:
             check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
+            research_mode = service.research_mode  # type: ignore
+            queue = notification_id_queue.get(notification.id) or template.queue_to_use()  # type: ignore
             send_notification_to_queue(
                 notification,
-                service.research_mode,
-                queue=notification_id_queue.get(notification.id) or template.queue_to_use(),
+                research_mode,
+                queue,
             )
 
             current_app.logger.debug(
