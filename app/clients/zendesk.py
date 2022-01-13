@@ -1,4 +1,3 @@
-import json
 from typing import Dict, List, Union
 from urllib.parse import urljoin
 
@@ -8,11 +7,13 @@ from requests.auth import HTTPBasicAuth
 
 from app.user.contact_request import ContactRequest
 
-__all__ = ["Freshdesk"]
+__all__ = ["Zendesk"]
 
 
-class Freshdesk(object):
+class Zendesk(object):
     def __init__(self, contact: ContactRequest):
+        self.api_url = current_app.config["ZENDESK_API_URL"]
+        self.token = current_app.config["ZENDESK_API_KEY"]
         self.contact = contact
 
     def _generate_description(self):
@@ -51,39 +52,31 @@ class Freshdesk(object):
 
         return message
 
-    def _generate_ticket(self) -> Dict[str, Union[str, int, List[str]]]:
-        product_id = current_app.config["FRESH_DESK_PRODUCT_ID"]
-        if not product_id:
-            raise NotImplementedError
-
+    # Update for Zendesk API Ticket format
+    # read docs: https://developer.zendesk.com/rest_api/docs/core/tickets#create-ticket
+    def _generate_ticket(self) -> Dict[str, Dict[str, Union[str, int, List[str]]]]:
         return {
-            "product_id": int(product_id),
-            "subject": self.contact.friendly_support_type,
-            "description": self._generate_description(),
-            "email": self.contact.email_address,
-            "priority": 1,
-            "status": 2,
-            "tags": self.contact.tags,
+            "ticket": {
+                "subject": self.contact.friendly_support_type,
+                "description": self._generate_description(),
+                "email": self.contact.email_address,
+                "tags": self.contact.tags
+                + ["notification_api"],  # Custom tag used to auto-assign ticket to the notification support group
+            }
         }
 
-    def send_ticket(self) -> int:
-        try:
-            api_url = current_app.config["FRESH_DESK_API_URL"]
-            if not api_url:
-                raise NotImplementedError
+    def send_ticket(self):
+        if not self.api_url or not self.token:
+            raise NotImplementedError
 
-            # The API and field definitions are defined here:
-            # https://developer.zendesk.com/rest_api/docs/support/tickets
-            response = requests.post(
-                urljoin(api_url, "/api/v2/tickets"),
-                json=self._generate_ticket(),
-                auth=HTTPBasicAuth(current_app.config["FRESH_DESK_API_KEY"], "x"),
-                timeout=5,
-            )
-            response.raise_for_status()
+        # The API and field definitions are defined here:
+        # https://developer.zendesk.com/rest_api/docs/support/tickets
+        response = requests.post(
+            urljoin(self.api_url, "/api/v2/tickets"),
+            json=self._generate_ticket(),
+            auth=HTTPBasicAuth(f"{self.contact.email_address}/token", self.token),
+            timeout=5,
+        )
 
-            return response.status_code
-        except requests.RequestException as e:
-            content = json.loads(response.content)
-            current_app.logger.error(f"Failed to create Freshdesk ticket: {content['errors']}")
-            raise e
+        if response.status_code != 201:
+            raise requests.HTTPError(response.status_code, "Failed to create zendesk ticket")

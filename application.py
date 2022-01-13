@@ -4,6 +4,7 @@ from __future__ import print_function
 import os
 
 import awsgi
+import newrelic.agent  # See https://bit.ly/2xBVKBH
 import sentry_sdk
 from dotenv import load_dotenv
 from flask import Flask
@@ -40,4 +41,6 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
 
 
 def handler(event, context):
+    newrelic.agent.initialize()  # noqa: E402
+    newrelic.agent.register_application(timeout=20.0)
     return awsgi.response(app, event, context)
