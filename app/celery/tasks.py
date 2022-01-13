@@ -1,9 +1,10 @@
 import json
 from collections import defaultdict, namedtuple
 from datetime import datetime
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from flask import current_app
+from more_itertools import chunked
 from notifications_utils.columns import Row
 from notifications_utils.recipients import RecipientCSV
 from notifications_utils.statsd_decorators import statsd
@@ -27,7 +28,7 @@ from app.celery import (  # noqa: F401
     provider_tasks,
     research_mode_tasks,
 )
-from app.config import QueueNames
+from app.config import Config, QueueNames
 from app.dao.daily_sorted_letter_dao import dao_create_or_update_daily_sorted_letter
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
 from app.dao.jobs_dao import dao_get_job_by_id, dao_update_job
@@ -72,6 +73,7 @@ from app.models import (
 )
 from app.notifications.process_notifications import (
     persist_notification,
+    persist_notifications,
     send_notification_to_queue,
 )
 from app.notifications.validators import check_service_over_daily_message_limit
@@ -115,8 +117,14 @@ def process_job(job_id):
     current_app.logger.debug("Starting job {} processing {} notifications".format(job_id, job.notification_count))
 
     csv = get_recipient_csv(job, template)
-    for row in csv.get_rows():
-        process_row(row, template, job, service)
+
+    if Config.FF_BATCH_INSERTION:
+        rows = csv.get_rows()
+        for result in chunked(rows, 500):
+            process_rows(result, template, job, service)
+    else:
+        for row in csv.get_rows():
+            process_row(row, template, job, service)
 
     job_complete(job, start=start)
 
@@ -179,6 +187,54 @@ def process_row(row: Row, template: Template, job: Job, service: Service):
         current_app.logger.debug("SMS {} failed as restricted service".format(notification_id))
 
 
+def process_rows(rows: List, template: Template, job: Job, service: Service):
+    template_type = template.template_type
+    sender_id = str(job.sender_id) if job.sender_id else None
+    encrypted_smss: List[Any] = []
+    encrypted_emails: List[Any] = []
+    encrypted_letters: List[Any] = []
+
+    for row in rows:
+        if service_allowed_to_send_to(row.recipient, service, KEY_TYPE_NORMAL):
+            encrypted_row = encryption.encrypt(
+                {
+                    "api_key": job.api_key_id and str(job.api_key_id),
+                    "template": str(template.id),
+                    "template_version": job.template_version,
+                    "job": str(job.id),
+                    "to": row.recipient,
+                    "row_number": row.index,
+                    "personalisation": dict(row.personalisation),
+                    "queue": queue_to_use(job.notification_count),
+                    "sender_id": sender_id,
+                }
+            )
+            if template_type == SMS_TYPE:
+                encrypted_smss.append(encrypted_row)
+            if template_type == EMAIL_TYPE:
+                encrypted_emails.append(encrypted_row)
+            if template_type == LETTER_TYPE:
+                encrypted_letters.append(encrypted_letters)
+
+    # the same_sms and save_email task are going to be using template and service objects from cache
+    # these objects are transient and will not have relationships loaded
+    if encrypted_smss:
+        save_smss.apply_async(
+            (str(service.id), encrypted_smss),
+            queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
+        )
+    if encrypted_emails:
+        save_emails.apply_async(
+            (str(service.id), encrypted_emails),
+            queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
+        )
+    if encrypted_letters:
+        save_letters.apply_async(
+            (str(service.id), encrypted_letters),
+            queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
+        )
+
+
 def __sending_limits_for_job_exceeded(service, job: Job, job_id):
     total_sent = fetch_todays_total_message_count(service.id)
 
@@ -191,6 +247,88 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
         )
         return True
     return False
+
+
+@notify_celery.task(bind=True, name="save-smss", max_retries=5, default_retry_delay=300)
+@statsd(namespace="tasks")
+def save_smss(self, service_id: str, encrypted_notifications: List[Any]):
+    """
+    Function that is a job, that takes a list of encrypted notifications and stores
+    them in the DB and then sends the notification to the queue.
+
+    """
+    decrypted_notifications: List[Any] = []
+    notification_id_queue: Dict = {}
+    for encrypted_notification in encrypted_notifications:
+        notification = encryption.decrypt(encrypted_notification)
+        service = dao_fetch_service_by_id(service_id, use_cache=True)
+        template = dao_get_template_by_id(
+            notification.get("template"), version=notification.get("template_version"), use_cache=True
+        )
+        sender_id = notification.get("sender_id")
+        notification_id = create_uuid()
+        notification["notification_id"] = notification_id
+
+        if sender_id:
+            reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
+        if isinstance(template, tuple):
+            template = template[0]
+        # if the template is obtained from cache a tuple will be returned where
+        # the first element is the Template object and the second the template cache data
+        # in the form of a dict
+        elif isinstance(template, tuple):
+            reply_to_text = template[1].get("reply_to_text")
+            template = template[0]
+        else:
+            reply_to_text = template.get_reply_to_text()
+
+        # if the service is obtained from cache a tuple will be returned where
+        # the first element is the Service object and the second the service cache data
+        # in the form of a dict
+        if isinstance(service, tuple):
+            service = service[0]
+
+        notification["reply_to_text"] = reply_to_text
+        notification["service"] = service
+        notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
+        notification["template_id"] = template.id
+        notification["template_version"] = template.version
+        notification["recipient"] = notification.get("to")
+        notification["personalisation"] = notification.get("personalisation")
+        notification["notification_type"] = SMS_TYPE
+        notification["simulated"] = notification.get("simulated", None)
+        notification["api_key_id"] = notification.get("api_key", None)
+        notification["created_at"] = datetime.utcnow()
+        notification["job_id"] = notification.get("job", None)
+        notification["job_row_number"] = notification.get("row_number", None)
+        decrypted_notifications.append(notification)
+        notification_id_queue[notification_id] = notification.get("queue")
+
+    try:
+        # this task is used by two main things... process_job and process_sms_or_email_notification
+        # if the data is not present in the encrypted data then fallback on whats needed for process_job
+        saved_notifications = persist_notifications(decrypted_notifications)
+
+    except SQLAlchemyError as e:
+        handle_list_of_exception(self, decrypted_notifications, e)
+
+    for notification in saved_notifications:
+        check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
+        research_mode = service.research_mode  # type: ignore
+        queue = notification_id_queue.get(notification.id) or template.queue_to_use()  # type: ignore
+        send_notification_to_queue(
+            notification,
+            research_mode,
+            queue=queue,
+        )
+
+        current_app.logger.debug(
+            "SMS {} created at {} for job {}".format(
+                notification.id,
+                notification.created_at,
+                notification.job,
+            )
+        )
 
 
 @notify_celery.task(bind=True, name="save-sms", max_retries=5, default_retry_delay=300)
@@ -259,6 +397,88 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
         handle_exception(self, notification, notification_id, e)
 
 
+@notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
+@statsd(namespace="tasks")
+def save_emails(self, service_id: str, encrypted_notifications: List[Any]):
+    """
+    Function that is a job, that takes a list of encrypted notifications and stores
+    them in the DB and then sends the notification to the queue.
+
+    """
+    decrypted_notifications: List[Any] = []
+    notification_id_queue: Dict = {}
+    for encrypted_notification in encrypted_notifications:
+        notification = encryption.decrypt(encrypted_notification)
+        service = dao_fetch_service_by_id(service_id, use_cache=True)
+        template = dao_get_template_by_id(
+            notification.get("template"), version=notification.get("template_version"), use_cache=True
+        )
+        sender_id = notification.get("sender_id")
+        notification_id = create_uuid()
+        notification["notification_id"] = notification_id
+
+        if sender_id:
+            reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
+        if isinstance(template, tuple):
+            template = template[0]
+        # if the template is obtained from cache a tuple will be returned where
+        # the first element is the Template object and the second the template cache data
+        # in the form of a dict
+        elif isinstance(template, tuple):
+            reply_to_text = template[1].get("reply_to_text")
+            template = template[0]
+        else:
+            reply_to_text = template.get_reply_to_text()
+
+        # if the service is obtained from cache a tuple will be returned where
+        # the first element is the Service object and the second the service cache data
+        # in the form of a dict
+        if isinstance(service, tuple):
+            service = service[0]
+
+        notification["reply_to_text"] = reply_to_text
+        notification["service"] = service
+        notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
+        notification["template_id"] = template.id
+        notification["template_version"] = template.version
+        notification["recipient"] = notification.get("to")
+        notification["personalisation"] = notification.get("personalisation")
+        notification["notification_type"] = EMAIL_TYPE
+        notification["simulated"] = notification.get("simulated", None)
+        notification["api_key_id"] = notification.get("api_key", None)
+        notification["created_at"] = datetime.utcnow()
+        notification["job_id"] = notification.get("job", None)
+        notification["job_row_number"] = notification.get("row_number", None)
+        decrypted_notifications.append(notification)
+        notification_id_queue[notification_id] = notification.get("queue")
+
+    try:
+        # this task is used by two main things... process_job and process_sms_or_email_notification
+        # if the data is not present in the encrypted data then fallback on whats needed for process_job
+        saved_notifications = persist_notifications(decrypted_notifications)
+    except SQLAlchemyError as e:
+        handle_list_of_exception(self, decrypted_notifications, e)
+
+    if saved_notifications:
+        for notification in saved_notifications:
+            check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
+            research_mode = service.research_mode  # type: ignore
+            queue = notification_id_queue.get(notification.id) or template.queue_to_use()  # type: ignore
+            send_notification_to_queue(
+                notification,
+                research_mode,
+                queue,
+            )
+
+            current_app.logger.debug(
+                "SMS {} created at {} for job {}".format(
+                    notification.id,
+                    notification.created_at,
+                    notification.job,
+                )
+            )
+
+
 @notify_celery.task(bind=True, name="save-email", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def save_email(self, service_id, notification_id, encrypted_notification, sender_id=None):
@@ -316,6 +536,12 @@ def save_email(self, service_id, notification_id, encrypted_notification, sender
         current_app.logger.debug("Email {} created at {}".format(saved_notification.id, saved_notification.created_at))
     except SQLAlchemyError as e:
         handle_exception(self, notification, notification_id, e)
+
+
+@notify_celery.task(bind=True, name="save-letter", max_retries=5, default_retry_delay=300)
+@statsd(namespace="tasks")
+def save_letters(self, encrpyted_notifications):
+    pass
 
 
 @notify_celery.task(bind=True, name="save-letter", max_retries=5, default_retry_delay=300)
@@ -423,6 +649,26 @@ def handle_exception(task, notification, notification_id, exc):
             task.retry(queue=QueueNames.RETRY, exc=exc)
         except task.MaxRetriesExceededError:
             current_app.logger.error("Max retry failed" + retry_msg)
+
+
+def handle_list_of_exception(task, list_notification, exc):
+    for notification in list_notification:
+        notification_id = notification.notification_id
+        if not get_notification_by_id(notification_id):
+            retry_msg = "{task} notification for job {job} row number {row} and notification id {noti}".format(
+                task=task.__name__,
+                job=notification.get("job", None),
+                row=notification.get("row_number", None),
+                noti=notification_id,
+            )
+            # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
+            # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
+            # send to the retry queue.
+            current_app.logger.exception("Retry" + retry_msg)
+            try:
+                task.retry(queue=QueueNames.RETRY, exc=exc)
+            except task.MaxRetriesExceededError:
+                current_app.logger.error("Max retry failed" + retry_msg)
 
 
 def get_template_class(template_type):

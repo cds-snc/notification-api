@@ -23,12 +23,14 @@ from app.celery.tasks import (
     process_row,
     s3,
     save_email,
+    save_emails,
     save_letter,
     save_sms,
+    save_smss,
     send_inbound_sms_to_service,
     send_notify_no_reply,
 )
-from app.config import QueueNames
+from app.config import Config, QueueNames
 from app.dao import jobs_dao, service_email_reply_to_dao, service_sms_sender_dao
 from app.models import (
     EMAIL_TYPE,
@@ -87,6 +89,8 @@ def test_should_have_decorated_tasks_functions():
     assert save_sms.__wrapped__.__name__ == "save_sms"
     assert save_email.__wrapped__.__name__ == "save_email"
     assert save_letter.__wrapped__.__name__ == "save_letter"
+    assert save_smss.__wrapped__.__name__ == "save_smss"
+    assert save_emails.__wrapped__.__name__ == "save_emails"
 
 
 @pytest.fixture
@@ -271,6 +275,54 @@ def test_should_process_email_job_if_exactly_on_send_limits(notify_db_session, m
     )
 
 
+def test_should_process_smss_job(notify_db_session, mocker):
+    service = create_service(message_limit=20)
+    template = create_template(service=service)
+    job = create_job(template=template, notification_count=10, original_file_name="multiple_sms.csv")
+    mocker.patch(
+        "app.celery.tasks.s3.get_job_from_s3",
+        return_value=load_example_csv("multiple_sms"),
+    )
+    mocker.patch("app.celery.tasks.save_smss.apply_async")
+    mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
+    redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
+    mocker.patch.object(Config, "FF_BATCH_INSERTION", True)
+
+    process_job(job.id)
+
+    s3.get_job_from_s3.assert_called_once_with(str(job.service.id), str(job.id))
+
+    assert encryption.encrypt.call_args[0][0]["to"] == "+441234123120"
+    assert encryption.encrypt.call_args[0][0]["template"] == str(template.id)
+    assert encryption.encrypt.call_args[0][0]["template_version"] == template.version
+    assert encryption.encrypt.call_args[0][0]["personalisation"] == {
+        "phonenumber": "+441234123120",
+    }
+    tasks.save_smss.apply_async.assert_called_once_with(
+        (
+            str(job.service_id),
+            [
+                "something_encrypted",
+                "something_encrypted",
+                "something_encrypted",
+                "something_encrypted",
+                "something_encrypted",
+                "something_encrypted",
+                "something_encrypted",
+                "something_encrypted",
+                "something_encrypted",
+                "something_encrypted",
+            ],
+        ),
+        queue="database-tasks",
+    )
+    job = jobs_dao.dao_get_job_by_id(job.id)
+    assert job.job_status == "finished"
+    assert job.processing_started is not None
+    assert job.created_at is not None
+    redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
+
+
 def test_should_not_create_save_task_for_empty_file(sample_job, mocker):
     mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("empty"))
     mocker.patch("app.celery.tasks.save_sms.apply_async")
@@ -310,6 +362,44 @@ def test_should_process_email_job(email_job_with_placeholders, mocker):
             "something_encrypted",
         ),
         {},
+        queue="database-tasks",
+    )
+    job = jobs_dao.dao_get_job_by_id(email_job_with_placeholders.id)
+    assert job.job_status == "finished"
+    assert job.processing_started is not None
+    assert job.created_at is not None
+    redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
+
+
+def test_should_process_emails_job(email_job_with_placeholders, mocker):
+    email_csv = """email_address,name
+    test@test.com,foo
+    YOLO@test2.com,foo2
+    yolo2@test2.com,foo3
+    yolo3@test3.com,foo4
+    """
+    mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=email_csv)
+    mocker.patch("app.celery.tasks.save_emails.apply_async")
+    mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
+    redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
+    mocker.patch.object(Config, "FF_BATCH_INSERTION", True)
+
+    process_job(email_job_with_placeholders.id)
+
+    s3.get_job_from_s3.assert_called_once_with(str(email_job_with_placeholders.service.id), str(email_job_with_placeholders.id))
+
+    assert encryption.encrypt.call_args[0][0]["to"] == "yolo3@test3.com"
+    assert encryption.encrypt.call_args[0][0]["template"] == str(email_job_with_placeholders.template.id)
+    assert encryption.encrypt.call_args[0][0]["template_version"] == email_job_with_placeholders.template.version
+    assert encryption.encrypt.call_args[0][0]["personalisation"] == {
+        "emailaddress": "yolo3@test3.com",
+        "name": "foo4",
+    }
+    tasks.save_emails.apply_async.assert_called_once_with(
+        (
+            str(email_job_with_placeholders.service_id),
+            ["something_encrypted", "something_encrypted", "something_encrypted", "something_encrypted"],
+        ),
         queue="database-tasks",
     )
     job = jobs_dao.dao_get_job_by_id(email_job_with_placeholders.id)
@@ -574,6 +664,37 @@ def test_should_send_template_to_correct_sms_task_and_persist(sample_template_wi
     assert persisted_notification._personalisation == encryption.encrypt({"name": "Jo"})
     assert persisted_notification.notification_type == "sms"
     mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
+
+
+def test_should_save_smss(notify_db_session, sample_template_with_placeholders, mocker):
+    notification1 = _notification_json(
+        sample_template_with_placeholders,
+        to="+1 650 253 2221",
+        personalisation={"name": "Jo"},
+    )
+
+    notification2 = _notification_json(sample_template_with_placeholders, to="+1 650 253 2222", personalisation={"name": "Test2"})
+
+    notification3 = _notification_json(sample_template_with_placeholders, to="+1 650 253 2223", personalisation={"name": "Test3"})
+
+    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+    save_smss(
+        str(sample_template_with_placeholders.service.id),
+        [encryption.encrypt(notification1), encryption.encrypt(notification2), encryption.encrypt(notification3)],
+    )
+
+    persisted_notification = Notification.query.all()
+    assert persisted_notification[0].to == "+1 650 253 2221"
+    assert persisted_notification[1].to == "+1 650 253 2222"
+    assert persisted_notification[2].to == "+1 650 253 2223"
+    assert persisted_notification[0].template_id == sample_template_with_placeholders.id
+    assert persisted_notification[1].template_version == sample_template_with_placeholders.version
+    assert persisted_notification[0].status == "created"
+    assert persisted_notification[0].personalisation == {"name": "Jo"}
+    assert persisted_notification[0]._personalisation == encryption.encrypt({"name": "Jo"})
+    assert persisted_notification[0].notification_type == "sms"
 
 
 @pytest.mark.parametrize("sender_id", [None, "996958a8-0c06-43be-a40e-56e4a2d1655c"])
@@ -854,6 +975,34 @@ def test_should_put_save_email_task_in_research_mode_queue_if_research_mode_serv
     provider_tasks.deliver_email.apply_async.assert_called_once_with(
         [str(persisted_notification.id)], queue="research-mode-tasks"
     )
+
+
+def test_save_emails(notify_db_session, mocker):
+    service = create_service(research_mode=True)
+
+    template = create_template(service=service, template_type="email")
+
+    notification1 = _notification_json(template, to="test1@test.com")
+    notification2 = _notification_json(template, to="test2@test.com")
+    notification3 = _notification_json(template, to="test3@test.com")
+
+    mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+
+    save_emails(
+        str(template.service_id),
+        [encryption.encrypt(notification1), encryption.encrypt(notification2), encryption.encrypt(notification3)],
+    )
+
+    persisted_notification = Notification.query.all()
+    assert persisted_notification[0].to == "test1@test.com"
+    assert persisted_notification[1].to == "test2@test.com"
+    assert persisted_notification[2].to == "test3@test.com"
+    assert persisted_notification[0].template_id == template.id
+    assert persisted_notification[1].template_version == template.version
+    assert persisted_notification[0].status == "created"
+    assert persisted_notification[0].notification_type == "email"
 
 
 @pytest.mark.parametrize("process_type", ["priority", "bulk"])
