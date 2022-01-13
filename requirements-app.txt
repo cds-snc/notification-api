@@ -35,7 +35,7 @@ pwnedpasswords==2.0.0
 tldextract==3.1.0
 nanoid==2.0.0
 unidecode==1.2.0
-
+more-itertools==8.12.0
 
 # PaaS
 awscli-cwlogs>=1.4.6,<1.5
