@@ -16,6 +16,7 @@ from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
 from app.letters.utils import upload_letter_pdf
+from app.mobile_app import MobileAppRegistry, MobileAppType
 from app.models import (
     SMS_TYPE,
     EMAIL_TYPE,
@@ -74,9 +75,20 @@ def send_push_notification():
     check_service_has_permission(PUSH_TYPE, authenticated_service.permissions)
     req_json = validate(request.get_json(), push_notification_request)
 
+    req_json = validate(request.get_json(), push_notification_request)
+    registry = MobileAppRegistry()
+
+    if req_json['mobile_app']:
+        app_instance = registry.get_app(MobileAppType[req_json['mobile_app']])
+    else:
+        app_instance = registry.get_app(MobileAppType['VA_FLAGSHIP_APP'])
+
+    if not app_instance:
+        return jsonify(result='error', message='Mobile app is not initialized'), 503
+
     try:
         vetext_client.send_push_notification(
-            req_json['mobile_app'],
+            app_instance.sid,
             req_json['template_id'],
             req_json['recipient_identifier']['id_value'],
             req_json.get('personalisation')
