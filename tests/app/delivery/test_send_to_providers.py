@@ -160,7 +160,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     assert "&lt;em&gt;some HTML&lt;/em&gt;" in app.aws_ses_client.send_email.call_args[1]["html_body"]
 
     notification = Notification.query.filter_by(id=db_notification.id).one()
-    assert notification.status == "sending"
+    assert notification.status == "sent"
     assert notification.sent_at <= datetime.utcnow()
     assert notification.sent_by == "ses"
     assert notification.personalisation == {"name": "Jo"}
@@ -430,7 +430,7 @@ def test_send_email_to_provider_should_call_research_mode_task_response_task_if_
     persisted_notification = Notification.query.filter_by(id=notification.id).one()
     assert persisted_notification.to == "john@smith.com"
     assert persisted_notification.template_id == sample_email_template.id
-    assert persisted_notification.status == "sending"
+    assert persisted_notification.status == "sent"
     assert persisted_notification.sent_at <= datetime.utcnow()
     assert persisted_notification.created_at <= datetime.utcnow()
     assert persisted_notification.sent_by == "ses"
@@ -957,7 +957,7 @@ def test_notification_document_with_pdf_attachment(
         assert "http://foo.bar/url" in send_mock.call_args[1]["html_body"]
 
     notification = Notification.query.get(db_notification.id)
-    assert notification.status == "sending"
+    assert notification.status == "sent"
 
     if attachments:
         statsd_calls = statsd_mock.timing_with_dates.call_args_list
@@ -1045,7 +1045,7 @@ def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(sample_
 
     send_mock.assert_called()
 
-    assert Notification.query.get(db_notification.id).status == "sending"
+    assert Notification.query.get(db_notification.id).status == "sent"
 
 
 def test_notification_passes_if_message_contains_phone_number(sample_email_template_with_html, mocker):
@@ -1063,7 +1063,7 @@ def test_notification_passes_if_message_contains_phone_number(sample_email_templ
 
     send_mock.assert_called()
 
-    assert Notification.query.get(db_notification.id).status == "sending"
+    assert Notification.query.get(db_notification.id).status == "sent"
 
 
 def test_is_service_allowed_html(sample_service: Service, notify_api):
