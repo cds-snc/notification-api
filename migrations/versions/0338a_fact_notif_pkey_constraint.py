@@ -12,7 +12,7 @@ down_revision = '0338_update_fact_notif_status'
 def upgrade():
     op.drop_constraint('ft_notification_status_pkey', 'ft_notification_status', type_='primary')
     op.execute("UPDATE ft_notification_status SET status_reason = '' "
-               "WHERE ft_notification_status IS NULL")
+               "WHERE status_reason IS NULL")
     op.alter_column('ft_notification_status', 'status_reason', server_default='')
     op.create_primary_key(
         "ft_notification_status_pkey",
