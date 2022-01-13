@@ -116,7 +116,7 @@ def update_fact_notification_status(data, process_day):
             notification_type=row.notification_type,
             key_type=row.key_type,
             notification_status=row.status,
-            status_reason=row.status_reason,
+            status_reason=row.status_reason if row.status_reason else '',
             notification_count=row.notification_count,
         )
         db.session.connection().execute(stmt)

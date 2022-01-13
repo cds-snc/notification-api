@@ -307,7 +307,7 @@ fileignoreconfig:
       checksum: 4f3214bd5540d1a8a01284f6bb6c64329147b4b656490a61246d8c5cec140622
     - filename: scripts/trigger_task.py
       checksum: a3b9e5c3722572d9fe70b1686f43a876a90be26cac752f7b1497919071e55657
-    - filename: migrations/versions/0338a_fact_notif_pkey_constraint.py
-      checksum: dedc835b1e4f46405349e32969d63ebea210f1ce57a0e9e9db134c27af0a627e
     - filename: .env.example
       checksum: 826f0e7433b0de32373a270cee6199ca86b41509af721a6217f3d1254bb3ce8f
+    - filename: migrations/versions/0338a_fact_notif_pkey_constraint.py
+      checksum: 5a0675a18b210d187e2cf78de0dc51de04e9327215cdb9f742f3adbac52925c0
