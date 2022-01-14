@@ -145,6 +145,14 @@ def create_app(application):
         application.config['VANOTIFY_SSL_KEY_PATH'],
         statsd_client
     )
+    vetext_client.init_app(
+        application.config['VETEXT_URL'],
+        {
+            'username': application.config['VETEXT_USERNAME'],
+            'password': application.config['VETEXT_PASSWORD']
+        },
+        application.logger,
+        statsd_client)
 
     notify_celery.init_app(application)
     encryption.init_app(application)

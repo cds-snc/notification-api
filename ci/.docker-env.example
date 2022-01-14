@@ -19,6 +19,10 @@ GRANICUS_TOKEN=
 VA_PROFILE_URL=http://host.docker.internal:7005
 GRANICUS_URL=http://host.docker.internal:7006
 MPI_URL=http://host.docker.internal:7007
+VETEXT_URL=http://host.docker.internal:7008/api/vetext/pub
+
+VETEXT_SID=foo
+VA_FLAGSHIP_APP_SID=bar
 
 VANOTIFY_SSL_CERT="CERT-FILE"
 VANOTIFY_SSL_KEY="KEY-FILE"

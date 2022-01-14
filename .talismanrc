@@ -23,8 +23,6 @@ fileignoreconfig:
       checksum: 1f8f629c6457841ceeec6af0c1525a792cc2a2eee31528e403129312d17bf28a
     - filename: app/celery/research_mode_tasks.py
       checksum: 728b881021a8ddbc5e7fb690190f2da7b69b2f32ac751ba52b5714bd15ff4803
-    - filename: app/config.py
-      checksum: 57b04f1806590423bbf4b48c1cc80c900aa77a51bb53acc5d0efe889f0972600
     - filename: Brewfile.lock.json
       checksum: a7a52a240fe957c16eff861e45b975704f05c3eb4b1299d568615ba5bef95350
     - filename: .github/workflows/lambda-functions.yaml
@@ -35,8 +33,6 @@ fileignoreconfig:
       checksum: b275bb504d07e20888d222c31f12246b79aa554bea84c4d3028f110b0f9d473c
     - filename: ci/docker-compose-test.yml
       checksum: 2a18b2897becf05d4456b2c987f448eeb5a276741ec62cc4e554b439abe1e925
-    - filename: app/config.py
-      checksum: fc23095eea0a9f6c4c1c7069e956dac3ccd11b2e5c1f68fff3d851a0ff468962
     - filename: load_testing/.envrc.example
       checksum: bd6d379824dd3a828fa4689a1a8b7fa77d37abe880a4b16e1b68b4d93954ab3d
     - filename: tests/app/notifications/test_receive_notification.py
@@ -169,10 +165,6 @@ fileignoreconfig:
       checksum: a551c4a64267c9d006bfc879cd48fba92106a506bfff7e6b837f3f4055863262
     - filename: app/models.py
       checksum: 731e9053a5349098a848cd6495b7efe71df56fcd2cc63bab26347e4250ccb062
-    - filename: app/config.py
-      checksum: 1d180fb880fee2a0ed9c2f57eeeb50dde794527fcabce6e64e6c0fa663bc807e
-    - filename: app/config.py
-      checksum: 9c6c8ad62e3e224f945ec7692ff2f0f93b3a10010e4552e561c5d489f1871d7c
     - filename: README.md
       checksum: 723a622caee8477317b532d54e9352e483d53b53b5443ab2b53ec45934efa21a
     - filename: app/feature_flags.py
@@ -184,7 +176,7 @@ fileignoreconfig:
     - filename: tests/app/v2/notifications/test_post_notifications.py
       checksum: 2a7b2d6ab3c27a7c6b774b29373905000eec7d4c7b68cf53966597a1988557c9
     - filename: .env.example
-      checksum: 26bbba4cf20074086cbdabe0e99c5e4df4d420dcabc5f85709ba3767c86b7b20
+      checksum: c05c9f63fe983a48ab40c6cf659a6617ad2baf4e2cfed12011f759dfb96b6c2c
     - filename: cd/application-deployment/dev/vaec-celery-task-definition.json
       checksum: a326b179766468e8d86a19ce7a5fac45a552b04e2194d492145cb87cd2c1d3c6
     - filename: scripts/mountebank/stubs/vaprofile/communicationPrefStub_vaProfileId_no_permissions.ejs
@@ -282,7 +274,7 @@ fileignoreconfig:
     - filename: app/va/va_profile/va_profile_client.py
       checksum: 2942cb80f53433d4c129c2fbd43ba7b28f252d2daf30ad2c93bf8255d3d1e179
     - filename: ci/.docker-env.example
-      checksum: d55406c926ed456c542cd1b0bfba477e38e8af2bfe76b541b37fe504c84a4730
+      checksum: 2b8f6cfb903d0f7ec22cfa312e6854a61f2aab56c5fb796cfbb38bec21666ed9
     - filename: cd/application-deployment/prod/vaec-celery-beat-task-definition.json
       checksum: 3c249196ee8c2ba3b9b0ca7c736850cfb467c1b0c1993ac58a11653a4f80b436
     - filename: cd/application-deployment/prod/vaec-api-task-definition.json
@@ -305,3 +297,7 @@ fileignoreconfig:
       checksum: f02b02a1bc3ea472d752d2073a0332090308c15bb5eb87d70383a2421da6d886
     - filename: tests/app/va/vetext/test_client.py
       checksum: 23b37578febf39f9162f9d07a54a55cf67bce8d1fb31c4fd96db6e289805f20a
+    - filename: app/__init__.py
+      checksum: 6b99603dd19ba02921639b7da0b04d15908622de4238f443795e2982d311acaa
+    - filename: app/config.py
+      checksum: e4e35170dd17728f2fcdfa0d40177dcaeffe020293f5fe28f253a27688845476
