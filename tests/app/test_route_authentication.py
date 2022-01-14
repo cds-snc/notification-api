@@ -31,6 +31,7 @@ def test_all_routes_have_authentication(client, db_session):
         '/auth/logout',
         '/notifications/govdelivery',
         '/auth/redeem-token',
+        '/platform-stats/monthly',
     }
 
     for route in routes_without_authentication:

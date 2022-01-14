@@ -7,12 +7,15 @@ from app.dao.fact_billing_dao import (
     fetch_sms_billing_for_all_services, fetch_letter_costs_for_all_services,
     fetch_letter_line_items_for_all_services
 )
-from app.dao.fact_notification_status_dao import fetch_notification_status_totals_for_all_services
+from app.dao.fact_notification_status_dao import fetch_notification_status_totals_for_all_services, \
+    fetch_delivered_notification_stats_by_month
 from app.errors import register_errors, InvalidRequest
 from app.platform_stats.platform_stats_schema import platform_stats_request
 from app.service.statistics import format_admin_stats
 from app.schema_validation import validate
 from app.utils import get_local_timezone_midnight_in_utc
+from app.feature_flags import is_feature_enabled, FeatureFlag
+
 
 platform_stats_blueprint = Blueprint('platform_stats', __name__)
 
@@ -33,6 +36,13 @@ def get_platform_stats():
     stats = format_admin_stats(data)
 
     return jsonify(stats)
+
+
+@platform_stats_blueprint.route('/monthly', methods=['GET'])
+def get_monthly_platform_stats():
+    if not is_feature_enabled(FeatureFlag.PLATFORM_STATS_ENABLED):
+        raise NotImplementedError
+    return jsonify(data=fetch_delivered_notification_stats_by_month())
 
 
 def validate_date_range_is_within_a_financial_year(start_date, end_date):
