@@ -130,8 +130,7 @@ def test_internal_server_error_handler(app_for_test):
             response = client.get(url_for("v2_under_test.raising_exception"))
             assert response.status_code == 500
             error = response.json
-            assert error == {"status_code": 500,
-                             "errors": [{"error": "AssertionError", "message": "Internal server error"}]}
+            assert error == {'message': 'Internal server error', 'result': 'error'}
 
 
 def test_bad_method(app_for_test):

@@ -301,3 +301,11 @@ fileignoreconfig:
       checksum: 6b99603dd19ba02921639b7da0b04d15908622de4238f443795e2982d311acaa
     - filename: app/config.py
       checksum: e4e35170dd17728f2fcdfa0d40177dcaeffe020293f5fe28f253a27688845476
+    - filename: tests/app/celery/test_reporting_tasks.py
+      checksum: 4f3214bd5540d1a8a01284f6bb6c64329147b4b656490a61246d8c5cec140622
+    - filename: scripts/trigger_task.py
+      checksum: a3b9e5c3722572d9fe70b1686f43a876a90be26cac752f7b1497919071e55657
+    - filename: .env.example
+      checksum: 1a72cf7a682c72f261f795d7a23f1abca14b6285b685005d75bd95a9a411f839
+    - filename: migrations/versions/0338a_fact_notif_pkey_constraint.py
+      checksum: 5a0675a18b210d187e2cf78de0dc51de04e9327215cdb9f742f3adbac52925c0

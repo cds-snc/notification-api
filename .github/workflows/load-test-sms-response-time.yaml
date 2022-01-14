@@ -1,0 +1,48 @@
+name: Load test (SMS Response Time)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'The target environment (dev|staging|perf)'
+        required: true
+        default: 'perf'
+      commit_sha:
+        description: 'The commit SHA containing code you want to load test'
+        required: true
+      run_time:
+        description: 'Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.)'
+        required: true
+        default: '1m'
+      num_users:
+        description: 'Number of concurrent Locust users.'
+        required: true
+        default: '5'
+      spawn_rate:
+        description: 'The rate per second in which users are spawned.'
+        required: true
+        default: '1'
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Configure VAEC AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-gov-west-1
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-skip-session-tagging: true
+          role-duration-seconds: 900
+      - name: Invoke load test
+        uses: ./.github/actions/run-commands-on-ec2
+        with:
+          instance-id-ssm-parameter-path: /utility/locust/instance
+          commands: >-
+            "sudo su - locust -c \"cd notification-api && git checkout origin master && git pull --all && git checkout ${{ github.event.inputs.commit_sha }} &>/dev/null\"",
+            "sudo su - locust -c \"locust -f notification-api/load_testing/send_sms_load_test.py --headless -u ${{ github.event.inputs.num_users }} -r ${{ github.event.inputs.spawn_rate }} --host https://${{ github.event.inputs.environment }}.api.notifications.va.gov --run-time ${{ github.event.inputs.run_time }} --csv results 2>/dev/null\"",
+            "sudo su - locust -c \"cat results_stats.csv\""

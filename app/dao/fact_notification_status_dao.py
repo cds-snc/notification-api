@@ -81,6 +81,7 @@ def query_for_fact_status_data(table, start_date, end_date, notification_type, s
         table.notification_type,
         table.key_type,
         table.status,
+        table.status_reason,
         func.count().label('notification_count')
     ).filter(
         table.created_at >= start_date,
@@ -94,7 +95,8 @@ def query_for_fact_status_data(table, start_date, end_date, notification_type, s
         'job_id',
         table.notification_type,
         table.key_type,
-        table.status
+        table.status,
+        table.status_reason
     )
     return query.all()
 
@@ -114,6 +116,7 @@ def update_fact_notification_status(data, process_day):
             notification_type=row.notification_type,
             key_type=row.key_type,
             notification_status=row.status,
+            status_reason=row.status_reason if row.status_reason else '',
             notification_count=row.notification_count,
         )
         db.session.connection().execute(stmt)
@@ -136,6 +139,24 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
         func.date_trunc('month', FactNotificationStatus.bst_date).label('month'),
         FactNotificationStatus.notification_type,
         FactNotificationStatus.notification_status
+    ).all()
+
+
+def fetch_delivered_notification_stats_by_month():
+    return db.session.query(
+        func.date_trunc('month', FactNotificationStatus.bst_date).cast(db.Text).label('month'),
+        FactNotificationStatus.notification_type,
+        func.sum(FactNotificationStatus.notification_count).label('count')
+    ).filter(
+        FactNotificationStatus.key_type != KEY_TYPE_TEST,
+        FactNotificationStatus.notification_status.in_([NOTIFICATION_DELIVERED, NOTIFICATION_SENT]),
+        FactNotificationStatus.bst_date >= '2020-04-01',
+    ).group_by(
+        func.date_trunc('month', FactNotificationStatus.bst_date),
+        FactNotificationStatus.notification_type,
+    ).order_by(
+        func.date_trunc('month', FactNotificationStatus.bst_date).desc(),
+        FactNotificationStatus.notification_type,
     ).all()
 
 
@@ -551,6 +572,7 @@ def fetch_notification_statuses_per_service_and_template_for_date(date):
         FactNotificationStatus.template_id.label('template_id'),
         Template.name.label('template_name'),
         FactNotificationStatus.notification_status.label('status'),
+        FactNotificationStatus.status_reason.label('status_reason'),
         FactNotificationStatus.notification_count.label('count')
     ).join(
         Template, FactNotificationStatus.template_id == Template.id

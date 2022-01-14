@@ -888,7 +888,6 @@ paths:
                 name:
                   type: string
                 created_by:
-                  description: User id who creates this key
                   $ref: '#/components/schemas/Id'
                 key_type:
                   type: string
@@ -1808,6 +1807,10 @@ components:
         personalisation:
           type: object
           description: The personalisation values created in the template must be defined here.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - $ref: '#/components/schemas/Attachment'
           example:
             "full_name": "John Smith"
             "claim_id": "123456"
@@ -2011,7 +2014,7 @@ components:
     ServiceSmsSender:
       type: object
       properties:
-        archived: 
+        archived:
           type: boolean
         created_at:
           type: string
@@ -2028,12 +2031,20 @@ components:
           type: integer
         service_id:
           $ref: '#/components/schemas/Id'
-        sms_sender: 
+        sms_sender:
           type: string
           format: phonenumber
         updated_at:
           type: string
           format: date-time
+    Attachment:
+      type: object
+      properties:
+        file:
+          type: string
+          format: base64
+        filename:
+          type: string
   securitySchemes:
     adminAuth:
       description: "The admin user and secret are used to generate this authentication.  They are both defined as

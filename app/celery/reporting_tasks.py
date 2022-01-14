@@ -128,11 +128,14 @@ def generate_daily_notification_status_csv_report(process_day_string):
     buff = io.StringIO()
 
     writer = csv.writer(buff, dialect='excel', delimiter=',')
-    header = ["date", "service name", "service id", "template name", "template id", "status", "count"]
+    header = ["date", "service id", "service name", "template id", "template name", "status", "status reason", "count"]
     writer.writerow(header)
-    writer.writerows(transit_data)
+    writer.writerows((process_day,) + row for row in transit_data)
 
     csv_key = f'{process_day_string}.csv'
     client = boto3.client('s3', endpoint_url=current_app.config['AWS_S3_ENDPOINT_URL'])
     client.put_object(Body=buff.getvalue(), Bucket=current_app.config['DAILY_STATS_BUCKET_NAME'], Key=csv_key)
     buff.close()
+
+    current_app.logger.info(f"generate-daily-notification-status-csv-report complete: "
+                            f"{len(transit_data)} rows written for day: {process_day}")

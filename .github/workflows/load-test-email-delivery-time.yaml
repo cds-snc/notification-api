@@ -1,4 +1,4 @@
-name: Load test
+name: Load test (Email Delivery Time)
 
 on:
   workflow_dispatch:
@@ -10,16 +10,12 @@ on:
       commit_sha:
         description: 'The commit SHA containing code you want to load test'
         required: true
-      run_time:
-        description: 'Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.)'
+      email_limit:
+        description: 'Number of emails to send'
         required: true
-        default: '1m'
-      num_users:
-        description: 'Number of concurrent Locust users.'
-        required: true
-        default: '5'
-      spawn_rate:
-        description: 'The rate per second in which users are spawned.'
+        default: '10'
+      email_status_query_interval:
+        description: 'Number of seconds to wait between requests to query notification status'
         required: true
         default: '1'
 
@@ -44,5 +40,5 @@ jobs:
           instance-id-ssm-parameter-path: /utility/locust/instance
           commands: >-
             "sudo su - locust -c \"cd notification-api && git checkout origin master && git pull --all && git checkout ${{ github.event.inputs.commit_sha }} &>/dev/null\"",
-            "sudo su - locust -c \"locust -f notification-api/load_testing/send_sms_load_test.py --headless -u ${{ github.event.inputs.num_users }} -r ${{ github.event.inputs.spawn_rate }} --host https://${{ github.event.inputs.environment }}.api.notifications.va.gov --run-time ${{ github.event.inputs.run_time }} --csv results 2>/dev/null\"",
-            "sudo su - locust -c \"cat results_stats.csv\""
+            "sudo su - locust -c \"locust -f notification-api/load_testing/send_email_load_test.py --headless --host https://${{ github.event.inputs.environment }}.api.notifications.va.gov --email-limit ${{ github.event.inputs.email_limit }} --email-status-query-interval ${{ github.event.inputs.email_status_query_interval }} --csv results_email 2>/dev/null\"",
+            "sudo su - locust -c \"cat results_email_stats.csv\""

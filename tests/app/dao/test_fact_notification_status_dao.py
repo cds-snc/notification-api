@@ -20,7 +20,7 @@ from app.dao.fact_notification_status_dao import (
     get_total_notifications_sent_for_api_key,
     get_last_send_for_api_key,
     get_api_key_ranked_by_notifications_created, fetch_template_usage_for_service_with_given_template,
-    fetch_notification_statuses_per_service_and_template_for_date
+    fetch_notification_statuses_per_service_and_template_for_date, fetch_delivered_notification_stats_by_month
 )
 from app.models import (
     FactNotificationStatus,
@@ -597,6 +597,69 @@ def test_fetch_monthly_template_usage_for_service(sample_service):
     assert results[3].count == 6
 
 
+@freeze_time('2021-01-01 14:00')
+def test_fetch_delivered_notification_stats_by_month(sample_service):
+    sms_template = create_template(service=sample_service, template_type='sms', template_name='a')
+    email_template = create_template(service=sample_service, template_type='email', template_name='b')
+
+    # Not counted: before GC Notify started
+    create_ft_notification_status(
+        utc_date=date(2020, 10, 10),
+        service=sample_service,
+        template=email_template,
+        count=3
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2020, 12, 10),
+        service=sample_service,
+        template=email_template,
+        count=3
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2021, 12, 5),
+        service=sample_service,
+        template=sms_template,
+        notification_status=NOTIFICATION_DELIVERED,
+        count=6
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2021, 1, 1),
+        service=sample_service,
+        template=sms_template,
+        notification_status=NOTIFICATION_SENT,
+        count=4
+    )
+
+    # Not counted: failed notifications
+    create_ft_notification_status(
+        utc_date=date(2021, 1, 1),
+        service=sample_service,
+        template=sms_template,
+        notification_status=NOTIFICATION_FAILED,
+        count=10
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2021, 3, 1),
+        service=sample_service,
+        template=email_template,
+        count=5
+    )
+
+    results = fetch_delivered_notification_stats_by_month()
+
+    print("These are the results: ", results)
+
+    assert len(results) == 5
+
+
+def test_fetch_delivered_notification_stats_by_month_empty():
+    assert fetch_delivered_notification_stats_by_month() == []
+
+
 @freeze_time('2018-03-30 14:00')
 def test_fetch_monthly_template_usage_for_service_does_join_to_notifications_if_today_is_not_in_date_range(
         sample_service
@@ -745,12 +808,12 @@ def test_fetch_notification_statuses_per_service_and_template_for_date(notify_db
 
     assert len(results) == 4
 
-    # "service id", "service name", "template id", "template name", "status", "count"
+    # "service id", "service name", "template id", "template name", "status", "reason", "count"
     notification_param_lists = [
-        [service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_DELIVERED, 2],
-        [service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_PERMANENT_FAILURE, 5],
-        [service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_DELIVERED, 3],
-        [service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_SENT, 7]
+        [service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_DELIVERED, '', 2],
+        [service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_PERMANENT_FAILURE, '', 5],
+        [service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_DELIVERED, '', 3],
+        [service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_SENT, '', 7]
     ]
 
     for param_list in notification_param_lists:

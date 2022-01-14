@@ -30,7 +30,7 @@
         },
         {
           "name": "NIGHTLY_NOTIF_CSV_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED",
@@ -129,12 +129,20 @@
           "value": "False"
         },
         {
+          "name": "EMAIL_ATTACHMENTS_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "UI_HOST_NAME",
           "value": "https://notifications.va.gov"
         },
         {
           "name": "ATTACHMENTS_BUCKET",
           "value": "prod-notifications-va-gov-attachments"
+        },
+        {
+          "name": "PLATFORM_STATS_ENABLED",
+          "value": "False"
         }
       ],
       "secrets": [

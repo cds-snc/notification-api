@@ -15,7 +15,7 @@ RUN apk add --no-cache --virtual .build-deps \
     musl-dev \
     rust \
     cargo \
-  && python -m pip install --upgrade pip==21.0.1 \
+  && python -m pip install --upgrade pip==21.3.1 \
   && python -m pip install wheel \
   && pip install --no-cache-dir -r requirements.txt \
   && apk del --no-cache .build-deps

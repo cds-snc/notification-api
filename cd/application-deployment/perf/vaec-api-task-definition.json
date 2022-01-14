@@ -28,7 +28,7 @@
         },
         {
           "name": "NIGHTLY_NOTIF_CSV_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "NOTIFICATION_FAILURE_REASON_ENABLED",
@@ -132,11 +132,15 @@
         },
         {
           "name": "EMAIL_ATTACHMENTS_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "ATTACHMENTS_BUCKET",
           "value": "perf-notifications-va-gov-attachments"
+        },
+        {
+          "name": "PLATFORM_STATS_ENABLED",
+          "value": "False"
         }
       ],
       "secrets": [

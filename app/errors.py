@@ -1,6 +1,7 @@
 from flask import (
     jsonify,
     current_app,
+    request,
     json)
 from notifications_utils.recipients import InvalidEmailError
 from sqlalchemy.exc import DataError
@@ -56,6 +57,7 @@ def register_errors(blueprint):
 
     @blueprint.errorhandler(AuthError)
     def authentication_error(error):
+        current_app.logger.info('API AuthError, client: {} error: {}'.format(request.headers.get('User-Agent'), error))
         return jsonify(result='error', message=error.message), error.code
 
     @blueprint.errorhandler(ValidationError)
@@ -111,16 +113,6 @@ def register_errors(blueprint):
     def not_implemented(e):
         current_app.logger.warning(e)
         return jsonify(result='error', message="Not Implemented"), 501
-
-    # this must be defined after all other error handlers since it catches the generic Exception object
-    @blueprint.app_errorhandler(500)
-    @blueprint.errorhandler(Exception)
-    def internal_server_error(e):
-        # if e is a werkzeug InternalServerError then it may wrap the original exception. For more details see:
-        # https://flask.palletsprojects.com/en/1.1.x/errorhandling/?highlight=internalservererror#unhandled-exceptions
-        e = getattr(e, 'original_exception', e)
-        current_app.logger.exception(e)
-        return jsonify(result='error', message="Internal server error"), 500
 
 
 def invalid_data_v2(error):

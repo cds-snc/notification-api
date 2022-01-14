@@ -36,7 +36,7 @@
         },
         {
           "name": "NIGHTLY_NOTIF_CSV_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "FLASK_APP",
@@ -97,8 +97,7 @@
         {
           "name": "PROVIDER_STRATEGIES_ENABLED",
           "value": "True"
-        }
-        ,
+        },
         {
           "name": "NOTIFICATION_FAILURE_REASON_ENABLED",
           "value": "True"
@@ -136,12 +135,20 @@
           "value": "False"
         },
         {
+          "name": "EMAIL_ATTACHMENTS_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "UI_HOST_NAME",
           "value": "https://notifications.va.gov"
         },
         {
           "name": "ATTACHMENTS_BUCKET",
           "value": "prod-notifications-va-gov-attachments"
+        },
+        {
+          "name": "PLATFORM_STATS_ENABLED",
+          "value": "False"
         }
       ],
       "secrets": [

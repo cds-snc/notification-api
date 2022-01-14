@@ -231,6 +231,7 @@ def create_notification(
         job_row_number=None,
         to_field=None,
         status='created',
+        status_reason=None,
         reference=None,
         created_at=None,
         sent_at=None,
@@ -286,6 +287,7 @@ def create_notification(
         'template_id': template.id,
         'template_version': template.version,
         'status': status,
+        'status_reason': status_reason,
         'reference': reference,
         'created_at': created_at,
         'sent_at': sent_at,
@@ -747,6 +749,7 @@ def create_ft_notification_status(
     job=None,
     key_type='normal',
     notification_status='delivered',
+    status_reason='',
     count=1
 ):
     if job:
@@ -767,6 +770,7 @@ def create_ft_notification_status(
         notification_type=notification_type,
         key_type=key_type,
         notification_status=notification_status,
+        status_reason=status_reason,
         notification_count=count
     )
     db.session.add(data)

@@ -124,9 +124,3 @@ def register_errors(blueprint):
             status_code=413,
             errors=[{"error": "Request entity too large", "message": "Uploaded attachment exceeds file size limit"}]
         ), 413
-
-    @blueprint.errorhandler(Exception)
-    def internal_server_error(error):
-        current_app.logger.exception(error)
-        return jsonify(status_code=500,
-                       errors=[{"error": error.__class__.__name__, "message": 'Internal server error'}]), 500

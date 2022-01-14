@@ -30,7 +30,7 @@
         },
         {
           "name": "NIGHTLY_NOTIF_CSV_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "API_HOST_NAME",
@@ -155,6 +155,10 @@
         {
           "name": "ATTACHMENTS_BUCKET",
           "value": "staging-notifications-va-gov-attachments"
+        },
+        {
+          "name": "PLATFORM_STATS_ENABLED",
+          "value": "False"
         }
       ],
       "secrets": [

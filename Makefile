@@ -49,7 +49,7 @@ install-safety:
 	pip install safety
 
 check-dependencies: install-safety ## Scan dependencies for security vulnerabilities
-	safety check -r requirements.txt --full-report -i 40399 -i 40416 -i 42498 -i 42497
+	safety check -r requirements.txt --full-report -i 40399 -i 40416 -i 42498 -i 42497 -i 43738
 
 .PHONY:
 	help \
