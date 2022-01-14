@@ -519,4 +519,4 @@ def test_generate_daily_notification_status_csv_report(notify_api, mocker):
     assert kwargs['Key'] == '2021-12-16.csv'
     assert kwargs['Body'] == f'date,service id,service name,template id,template name,status,status reason,count\r\n' \
                              f'2021-12-16,{service_id},foo,{template_id},bar,delivered,,1\r\n' \
-                             f'2021-12-16,{service_id},foo,{template_id},bar,delivered,baz,1\r\n' \
+                             f'2021-12-16,{service_id},foo,{template_id},bar,delivered,baz,1\r\n'
