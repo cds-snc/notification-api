@@ -18,7 +18,7 @@ def service_with_push_permission(db_session):
 
 @pytest.fixture(autouse=True)
 def feature_toggle_enabled(mocker):
-    mock_feature_flag(mocker, feature_flag=FeatureFlag.PUSH_NOTIFICATIONS, enabled='True')
+    mock_feature_flag(mocker, feature_flag=FeatureFlag.PUSH_NOTIFICATIONS_ENABLED, enabled='True')
 
 
 push_request = {
@@ -34,7 +34,7 @@ def push_request_without(key: str) -> dict:
 
 
 def test_returns_not_implemented_if_feature_flag_disabled(client, mocker, service_with_push_permission):
-    mock_feature_flag(mocker, feature_flag=FeatureFlag.PUSH_NOTIFICATIONS, enabled='False')
+    mock_feature_flag(mocker, feature_flag=FeatureFlag.PUSH_NOTIFICATIONS_ENABLED, enabled='False')
 
     response = post_send_notification(client, service_with_push_permission, 'push', push_request)
 

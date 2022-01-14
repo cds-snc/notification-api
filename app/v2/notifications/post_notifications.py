@@ -69,7 +69,7 @@ from app.va.vetext import (VETextRetryableException, VETextNonRetryableException
 
 @v2_notification_blueprint.route('/push', methods=['POST'])
 def send_push_notification():
-    if not is_feature_enabled(FeatureFlag.PUSH_NOTIFICATIONS):
+    if not is_feature_enabled(FeatureFlag.PUSH_NOTIFICATIONS_ENABLED):
         raise NotImplementedError()
 
     check_service_has_permission(PUSH_TYPE, authenticated_service.permissions)
