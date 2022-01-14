@@ -81,9 +81,10 @@
       "protocol": "http",
       "name": "VEText",
       "stubs": [
-        <% include stubs/vetext/pushNote200.ejs %>,
-        <% include stubs/vetext/pushNoteInvalidId400.ejs %>
-        <% include stubs/vetext/pushNoteNoTempId400.ejs %>
+        <% include stubs/vetext/pushNote400_InvalidApp.ejs %>,
+        <% include stubs/vetext/pushNote400_InvalidTemplate.ejs %>,
+        <% include stubs/vetext/pushNote500 %>,
+        <% include stubs/vetext/pushNote200.ejs %>
       ]
     }
   ]

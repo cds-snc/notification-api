@@ -5,6 +5,12 @@
           "path": "/api/vetext/pub/mobile/push/send",
           "method": "POST"
         }
+      },
+      {
+        "equals": {
+          "body": "invalid_app" 
+        },
+        "jsonpath": { "selector": "$..templateSid" }
       }
     ],
     "responses": [
@@ -15,11 +21,11 @@
             "Content-Type": "application/json"
           },
           "body": {
-            "idType": "templateSid",
-            "id": "blah",
+            "idType": "appSid",
+            "id": "foo",
             "success": false,
             "statusCode": 400,
-            "error": "Invalid Template SID"
+            "error": "Invalid Application SID"
           }
         }
       }
