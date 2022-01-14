@@ -1,0 +1,29 @@
+{
+  "predicates": [
+    {
+      "equals": {
+        "path": "/api/vetext/pub/mobile/push/send",
+        "method": "POST"
+      }
+    },
+    {
+      "equals": {
+        "body": "internal_error"
+      },
+      "jsonpath": {
+        "selector": "$..templateSid"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "is": {
+        "statusCode": 500,
+        "headers": {
+          "Content-Type": "text/plain"
+        },
+        "body": "Internal Server Error"
+      }
+    }
+  ]
+}

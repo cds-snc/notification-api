@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 
 from flask import request, g, jsonify, make_response
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy as _SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
 from time import monotonic
@@ -31,28 +30,16 @@ from app.clients.performance_platform.performance_platform_client import Perform
 from app.oauth.registry import oauth_registry
 from app.va.va_profile import VAProfileClient
 from app.va.mpi import MpiClient
+from app.va.vetext import VETextClient
 from app.encryption import Encryption
 from app.attachments.store import AttachmentStore
+from app.db import db
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 DATE_FORMAT = "%Y-%m-%d"
 
 load_dotenv()
 
-
-class SQLAlchemy(_SQLAlchemy):
-    """We need to subclass SQLAlchemy in order to override create_engine options"""
-
-    def apply_driver_hacks(self, app, info, options):
-        super().apply_driver_hacks(app, info, options)
-        if 'connect_args' not in options:
-            options['connect_args'] = {}
-        options['connect_args']["options"] = "-c statement_timeout={}".format(
-            int(app.config['SQLALCHEMY_STATEMENT_TIMEOUT']) * 1000
-        )
-
-
-db = SQLAlchemy()
 migrate = Migrate()
 ma = Marshmallow()
 notify_celery = NotifyCelery()
@@ -78,6 +65,7 @@ redis_store = RedisClient()
 performance_platform_client = PerformancePlatformClient()
 va_profile_client = VAProfileClient()
 mpi_client = MpiClient()
+vetext_client = VETextClient()
 
 attachment_store = AttachmentStore()
 
@@ -157,6 +145,14 @@ def create_app(application):
         application.config['VANOTIFY_SSL_KEY_PATH'],
         statsd_client
     )
+    vetext_client.init_app(
+        application.config['VETEXT_URL'],
+        {
+            'username': application.config['VETEXT_USERNAME'],
+            'password': application.config['VETEXT_PASSWORD']
+        },
+        application.logger,
+        statsd_client)
 
     notify_celery.init_app(application)
     encryption.init_app(application)

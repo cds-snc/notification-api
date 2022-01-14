@@ -5,6 +5,7 @@ from app.models import (
     TEMPLATE_TYPES)
 from app.schema_validation.definitions import (uuid, personalisation, letter_personalisation)
 from app.va.identifier import IdentifierType
+from app.mobile_app import MobileAppType
 
 template = {
     "$schema": "http://json-schema.org/draft-04/schema#",
@@ -130,6 +131,16 @@ recipient_identifier = {"type": "object", "properties": {
     "id_type": {
         "type": "string",
         "enum": IdentifierType.values()
+    },
+    "id_value": {
+        "type": "string"
+    }
+}, "required": ["id_type", "id_value"]}
+
+ICN_recipient_identifier = {"type": "object", "properties": {
+    "id_type": {
+        "type": "string",
+        "enum": [IdentifierType.ICN.value]
     },
     "id_value": {
         "type": "string"
@@ -300,4 +311,22 @@ post_letter_response = {
         "scheduled_for": {"type": "null"}
     },
     "required": ["id", "content", "uri", "template"]
+}
+
+push_notification_request = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "Send a push notification to a mobile app",
+    "type": "object",
+    "title": "POST v2/notifications/push",
+    "properties": {
+        "mobile_app": {
+            "type": "string",
+            "enum": MobileAppType.values()
+        },
+        "template_id": {"type": "string"},
+        "recipient_identifier": ICN_recipient_identifier,
+        "personalisation": personalisation,
+    },
+    "required": ["template_id", "recipient_identifier"],
+    "additionalProperties": False
 }

@@ -1,0 +1,33 @@
+{
+    "predicates": [
+      {
+        "equals": {
+          "path": "/api/vetext/pub/mobile/push/send",
+          "method": "POST"
+        }
+      },
+      {
+        "equals": {
+          "body": "invalid_app" 
+        },
+        "jsonpath": { "selector": "$..templateSid" }
+      }
+    ],
+    "responses": [
+      {
+        "is": {
+          "statusCode": 400,
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "idType": "appSid",
+            "id": "foo",
+            "success": false,
+            "statusCode": 400,
+            "error": "Invalid Application SID"
+          }
+        }
+      }
+    ]
+  }

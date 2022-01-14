@@ -35,17 +35,17 @@ from app.encryption import (
     check_hash
 )
 from app import (
-    db,
     encryption,
     DATETIME_FORMAT
 )
-
+from app.db import db
 from app.history_meta import Versioned
 from app.va.identifier import IdentifierType
 
 SMS_TYPE = 'sms'
 EMAIL_TYPE = 'email'
 LETTER_TYPE = 'letter'
+PUSH_TYPE = 'push'
 
 VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES = {
     EMAIL_TYPE: 'Email',
@@ -343,6 +343,7 @@ SERVICE_PERMISSION_TYPES = [
     EMAIL_TYPE,
     SMS_TYPE,
     LETTER_TYPE,
+    PUSH_TYPE,
     INTERNATIONAL_SMS_TYPE,
     INBOUND_SMS_TYPE,
     SCHEDULE_NOTIFICATIONS,
