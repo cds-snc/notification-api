@@ -16,7 +16,7 @@ from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
 from app.letters.utils import upload_letter_pdf
-from app.mobile_app import MobileAppRegistry, MobileAppType
+from app.mobile_app import MobileAppRegistry, MobileAppType, DEAFULT_MOBILE_APP_TYPE
 from app.models import (
     SMS_TYPE,
     EMAIL_TYPE,
@@ -78,10 +78,10 @@ def send_push_notification():
     req_json = validate(request.get_json(), push_notification_request)
     registry = MobileAppRegistry()
 
-    if req_json['mobile_app']:
+    if req_json.get('mobile_app'):
         app_instance = registry.get_app(MobileAppType[req_json['mobile_app']])
     else:
-        app_instance = registry.get_app(MobileAppType['VA_FLAGSHIP_APP'])
+        app_instance = registry.get_app(DEAFULT_MOBILE_APP_TYPE)
 
     if not app_instance:
         return jsonify(result='error', message='Mobile app is not initialized'), 503

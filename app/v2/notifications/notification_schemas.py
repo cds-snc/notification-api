@@ -5,6 +5,7 @@ from app.models import (
     TEMPLATE_TYPES)
 from app.schema_validation.definitions import (uuid, personalisation, letter_personalisation)
 from app.va.identifier import IdentifierType
+from app.mobile_app import MobileAppType
 
 template = {
     "$schema": "http://json-schema.org/draft-04/schema#",
@@ -318,11 +319,14 @@ push_notification_request = {
     "type": "object",
     "title": "POST v2/notifications/push",
     "properties": {
-        "mobile_app": {"type": "string"},
+        "mobile_app": {
+            "type": "string",
+            "enum": MobileAppType.values()
+        },
         "template_id": {"type": "string"},
         "recipient_identifier": ICN_recipient_identifier,
         "personalisation": personalisation,
 
     },
-    "required": ["template_id", "recipient_identifier", "mobile_app"]
+    "required": ["template_id", "recipient_identifier"]
 }

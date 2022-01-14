@@ -1,6 +1,8 @@
 import pytest
+import os
 from app.feature_flags import FeatureFlag
 from app.models import PUSH_TYPE
+from app.mobile_app import MobileAppType, DEAFULT_MOBILE_APP_TYPE
 from app.va.vetext import VETextClient, VETextBadRequestException, VETextNonRetryableException, VETextRetryableException
 from tests.app.factories.feature_flag import mock_feature_flag
 from tests.app.db import (
@@ -20,7 +22,6 @@ def feature_toggle_enabled(mocker):
 
 
 push_request = {
-    "mobile_app": "some-mobile-app",
     "template_id": "some-template-id",
     "recipient_identifier": {"id_type": "ICN", "id_value": "some-icn"}
 }
@@ -53,7 +54,6 @@ class TestValidations:
 
     @pytest.mark.parametrize("payload, error_msg", [
         (push_request_without('template_id'), "template_id is a required property"),
-        (push_request_without('mobile_app'), "mobile_app is a required property"),
         (push_request_without('recipient_identifier'), "recipient_identifier is a required property"),
     ])
     def test_required_fields(self, client, service_with_push_permission, payload, error_msg):
@@ -85,8 +85,26 @@ class TestValidations:
             'message': error_msg
         } in resp_json['errors']
 
+    def test_accepts_only_mobile_app_enum(self, client, service_with_push_permission):
+        payload = {**push_request}
+        payload["mobile_app"] = "some_mobile_app"
+
+        response = post_send_notification(client, service_with_push_permission, 'push', payload)
+
+        assert response.status_code == 400
+        assert response.headers['Content-type'] == 'application/json'
+        resp_json = response.get_json()
+        assert "mobile_app some_mobile_app is not one of [VA_FLAGSHIP_APP, VETEXT]" in resp_json["errors"][0]["message"]
+
 
 class TestPushSending:
+    @pytest.fixture(autouse=True)
+    def mobile_app_sids(self, mocker, request):
+        if 'disable_autouse' in request.keywords:
+            yield
+        else:
+            for app in MobileAppType.values():
+                mocker.patch.dict(os.environ, {f'{app}_SID': f'some_sid_for_{app}'})
 
     @pytest.fixture()
     def vetext_client(self, mocker):
@@ -99,16 +117,18 @@ class TestPushSending:
 
         assert response.status_code == 201
 
-    @pytest.mark.parametrize('payload, personalisation', [
-        (push_request, None),
-        ({**push_request, 'personalisation': {'foo': 'bar'}}, {'foo': 'bar'})
+    @pytest.mark.parametrize('payload, personalisation, app', [
+        (push_request, None, DEAFULT_MOBILE_APP_TYPE.value),
+        ({**push_request, 'personalisation': {'foo': 'bar'},
+            'mobile_app': MobileAppType.VETEXT.value}, {'foo': 'bar'},
+            MobileAppType.VETEXT.value)
     ])
     def test_makes_call_to_vetext_client(self, client, service_with_push_permission, vetext_client,
-                                         payload, personalisation):
+                                         payload, personalisation, app):
         post_send_notification(client, service_with_push_permission, 'push', payload)
 
         vetext_client.send_push_notification.assert_called_once_with(
-            payload['mobile_app'],
+            f'some_sid_for_{app}',
             payload['template_id'],
             payload['recipient_identifier']['id_value'],
             personalisation
@@ -143,3 +163,14 @@ class TestPushSending:
             'error': 'BadRequestError',
             'message': exception.message
         } in resp_json['errors']
+
+    @pytest.mark.disable_autouse
+    def test_returns_503_if_mobile_app_not_initiliazed(self, client, service_with_push_permission):
+        response = post_send_notification(client, service_with_push_permission, 'push', push_request)
+
+        assert response.status_code == 503
+        resp_json = response.get_json()
+        assert resp_json == {
+            'result': 'error',
+            'message': 'Mobile app is not initialized'
+        }

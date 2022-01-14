@@ -9,3 +9,6 @@ class MobileAppType(Enum):
     @staticmethod
     def values() -> List['MobileAppType']:
         return list(x.value for x in MobileAppType)
+
+
+DEAFULT_MOBILE_APP_TYPE = MobileAppType.VA_FLAGSHIP_APP
