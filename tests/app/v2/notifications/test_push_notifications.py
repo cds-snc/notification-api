@@ -96,6 +96,17 @@ class TestValidations:
         resp_json = response.get_json()
         assert "mobile_app some_mobile_app is not one of [VA_FLAGSHIP_APP, VETEXT]" in resp_json["errors"][0]["message"]
 
+    def test_does_not_accept_extra_fields(self, client, service_with_push_permission):
+        payload = {**push_request}
+        payload["foo"] = "bar"
+
+        response = post_send_notification(client, service_with_push_permission, 'push', payload)
+
+        assert response.status_code == 400
+        assert response.headers['Content-type'] == 'application/json'
+        resp_json = response.get_json()
+        assert "Additional properties are not allowed (foo was unexpected)" in resp_json["errors"][0]["message"]
+
 
 class TestPushSending:
     @pytest.fixture(autouse=True)

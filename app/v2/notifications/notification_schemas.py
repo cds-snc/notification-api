@@ -326,7 +326,7 @@ push_notification_request = {
         "template_id": {"type": "string"},
         "recipient_identifier": ICN_recipient_identifier,
         "personalisation": personalisation,
-
     },
-    "required": ["template_id", "recipient_identifier"]
+    "required": ["template_id", "recipient_identifier"],
+    "additionalProperties": False
 }
