@@ -268,7 +268,7 @@ def save_smss(self, service_id: str, encrypted_notifications: List[Any]):
         sender_id = notification.get("sender_id")
         notification_id = create_uuid()
         notification["notification_id"] = notification_id
-        reply_to_text = ""
+        reply_to_text = ""  # type: ignore
         if sender_id:
             reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
         if isinstance(template, tuple):
@@ -277,10 +277,10 @@ def save_smss(self, service_id: str, encrypted_notifications: List[Any]):
         # the first element is the Template object and the second the template cache data
         # in the form of a dict
         elif isinstance(template, tuple):
-            reply_to_text = template[1].get("reply_to_text")
+            reply_to_text = template[1].get("reply_to_text")  # type: ignore
             template = template[0]
         else:
-            reply_to_text = template.get_reply_to_text()
+            reply_to_text = template.get_reply_to_text()  # type: ignore
 
         # if the service is obtained from cache a tuple will be returned where
         # the first element is the Service object and the second the service cache data
@@ -416,7 +416,7 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any]):
         sender_id = notification.get("sender_id")
         notification_id = create_uuid()
         notification["notification_id"] = notification_id
-        reply_to_text = ""
+        reply_to_text = ""  # type: ignore
         if sender_id:
             reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
         if isinstance(template, tuple):
@@ -425,10 +425,10 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any]):
         # the first element is the Template object and the second the template cache data
         # in the form of a dict
         elif isinstance(template, tuple):
-            reply_to_text = template[1].get("reply_to_text")
+            reply_to_text = template[1].get("reply_to_text")  # type: ignore
             template = template[0]
         else:
-            reply_to_text = template.get_reply_to_text()
+            reply_to_text = template.get_reply_to_text()  # type: ignore
 
         # if the service is obtained from cache a tuple will be returned where
         # the first element is the Service object and the second the service cache data
