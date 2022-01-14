@@ -2,9 +2,9 @@ from enum import Enum
 from typing import List
 
 
-class MobileAppType(Enum):
-    VA_FLAGSHIP_APP = 'VA_FLAGSHIP_APP'
-    VETEXT = 'VETEXT'
+class MobileAppType(str, Enum):
+    VA_FLAGSHIP_APP: str = 'VA_FLAGSHIP_APP'
+    VETEXT: str = 'VETEXT'
 
     @staticmethod
     def values() -> List['MobileAppType']:
