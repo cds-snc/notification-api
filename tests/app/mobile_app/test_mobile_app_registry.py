@@ -44,6 +44,8 @@ def test_registry_initilizes_only_apps_with_sids_in_env(mocker, env, registered_
     assert registry.get_registered_apps() == expected_list
 
 
-def test_should_log_error_for_uninitilized_apps(mock_logger):
+def test_should_log_error_for_uninitilized_apps(mock_logger, mocker):
+    for app in MobileAppType.values():
+        mocker.patch.dict(os.environ, {f'{app}_SID': f''})
     MobileAppRegistry()
     assert mock_logger.warning.call_count == len(MobileAppType.values())

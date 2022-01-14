@@ -112,10 +112,13 @@ class TestPushSending:
     @pytest.fixture(autouse=True)
     def mobile_app_sids(self, mocker, request):
         if 'disable_autouse' in request.keywords:
+            for app in MobileAppType.values():
+                mocker.patch.dict(os.environ, {f'{app}_SID': f''})
             yield
         else:
             for app in MobileAppType.values():
                 mocker.patch.dict(os.environ, {f'{app}_SID': f'some_sid_for_{app}'})
+            yield
 
     @pytest.fixture()
     def vetext_client(self, mocker):
