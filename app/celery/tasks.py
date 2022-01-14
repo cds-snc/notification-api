@@ -268,7 +268,7 @@ def save_smss(self, service_id: str, encrypted_notifications: List[Any]):
         sender_id = notification.get("sender_id")
         notification_id = create_uuid()
         notification["notification_id"] = notification_id
-
+        reply_to_text = ""
         if sender_id:
             reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
         if isinstance(template, tuple):
@@ -416,7 +416,7 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any]):
         sender_id = notification.get("sender_id")
         notification_id = create_uuid()
         notification["notification_id"] = notification_id
-
+        reply_to_text = ""
         if sender_id:
             reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
         if isinstance(template, tuple):
