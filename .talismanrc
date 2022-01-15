@@ -178,7 +178,7 @@ fileignoreconfig:
     - filename: .env.example
       checksum: c05c9f63fe983a48ab40c6cf659a6617ad2baf4e2cfed12011f759dfb96b6c2c
     - filename: cd/application-deployment/dev/vaec-celery-task-definition.json
-      checksum: a326b179766468e8d86a19ce7a5fac45a552b04e2194d492145cb87cd2c1d3c6
+      checksum: 8815a78a76e5f12f6792d956ea5c7cb8b64fdf8675d58f7628f5579e23f5d963
     - filename: scripts/mountebank/stubs/vaprofile/communicationPrefStub_vaProfileId_no_permissions.ejs
       checksum: 98dd89a9d7cbd00e3b061d6fa15d34813a149129cf2eaa1e8d42f75d2b53c18b
     - filename: cd/application-deployment/dev/vaec-celery-beat-task-definition.json
@@ -202,11 +202,9 @@ fileignoreconfig:
     - filename: app/feature_flags.py
       checksum: d5296065383eb4c46bfbb3430abc9d76a2b898377f7864b26a72132b9c7f3d23
     - filename: cd/application-deployment/dev/vaec-api-task-definition.json
-      checksum: a8931eed8641aec73b5aea245ef11e1c85e58b3ba249f9fdfda3590994e925eb
+      checksum: 7f55ecd6cb02c1bbdb14d036c1dac19079992f49a42ff2e3be92cfde4736f6be
     - filename: cd/application-deployment/dev/vaec-celery-beat-task-definition.json
       checksum: 928236a9de166b99893cc8401ec095bc80cbb0980e894b950bd8f233b8ac324a
-    - filename: cd/application-deployment/dev/vaec-celery-task-definition.json
-      checksum: 1c619cbcb11b1eb69ea782b1f499164a664a1ef781b5682c66b6a96d38df20a6
     - filename: cd/application-deployment/perf/vaec-api-task-definition.json
       checksum: ad2cfbfa22e6c95bfaeca2eef0f9d2c45e59fcb4f5389beb7d92740fb56f561b
     - filename: cd/application-deployment/perf/vaec-celery-beat-task-definition.json
