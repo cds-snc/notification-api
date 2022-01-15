@@ -4,6 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 COPY ./certs/VA-Internal-S2-RCA1-v1.crt /usr/local/share/ca-certificates/VA-Internal-S2-RCA1-v1.crt
+COPY ./certs/VA-Internal-S2-ICA4.crt /usr/local/share/ca-certificates/VA-Internal-S2-ICA4.crt
 
 RUN apk add --no-cache ca-certificates \
   && update-ca-certificates \
