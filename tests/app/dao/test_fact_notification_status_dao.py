@@ -795,6 +795,9 @@ def test_fetch_notification_statuses_per_service_and_template_for_date(notify_db
                                   template=template_one, notification_status=NOTIFICATION_DELIVERED,
                                   count=2)
     create_ft_notification_status(date(2019, 4, 30), notification_type='sms', service=service_one,
+                                  template=template_one, notification_status=NOTIFICATION_DELIVERED,
+                                  status_reason="foo", count=2)
+    create_ft_notification_status(date(2019, 4, 30), notification_type='sms', service=service_one,
                                   template=template_one, notification_status=NOTIFICATION_PERMANENT_FAILURE,
                                   count=5)
     create_ft_notification_status(date(2019, 4, 30), notification_type='sms', service=service_two,
@@ -806,11 +809,12 @@ def test_fetch_notification_statuses_per_service_and_template_for_date(notify_db
 
     results = fetch_notification_statuses_per_service_and_template_for_date(date(2019, 4, 30))
 
-    assert len(results) == 4
+    assert len(results) == 5
 
     # "service id", "service name", "template id", "template name", "status", "reason", "count"
     notification_param_lists = [
         [service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_DELIVERED, '', 2],
+        [service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_DELIVERED, 'foo', 2],
         [service_one.id, 'service one', template_one.id, 'template one', NOTIFICATION_PERMANENT_FAILURE, '', 5],
         [service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_DELIVERED, '', 3],
         [service_two.id, 'service two', template_two.id, 'template two', NOTIFICATION_SENT, '', 7]
