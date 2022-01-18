@@ -120,7 +120,7 @@ def process_job(job_id):
 
     if Config.FF_BATCH_INSERTION:
         rows = csv.get_rows()
-        for result in chunked(rows, 500):
+        for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
             process_rows(result, template, job, service)
     else:
         for row in csv.get_rows():
