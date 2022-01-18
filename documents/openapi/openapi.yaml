@@ -1086,6 +1086,45 @@ paths:
           $ref: '#/components/responses/RateLimitError'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /v2/notifications/push:
+    post:
+      summary: Send push notification to mobile app
+      security:
+        - serviceAuth: [ ]
+      tags:
+        - notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushNotificationRequest'
+      responses:
+        '201':
+          description: CREATED
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: "success"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ServiceAuthError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+
+
   /v2/notifications/{notification_id}:
     get:
       summary: Get notification status and details
@@ -1224,6 +1263,25 @@ components:
           example:
             result: 'error'
             message: 'Internal server error'
+    BadGateway:
+      description: Bad gateway
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorMessage'
+          example:
+            result: 'error'
+            message: 'Mobile app is not initialized'
+    ServiceUnavailable:
+      description: Service Unavailable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorMessage'
+          example:
+            result: 'error'
+            message: 'Invalid response from downstream service'
+
     NotImplemented:
       description: The use of recipient identifiers is not implemented (feature toggle off)
       content:
@@ -1857,6 +1915,44 @@ components:
                 recipient_identifier:
                   $ref: '#/components/schemas/RecipientIdentifier'
               required: [recipient_identifier]
+    PushNotificationRequest:
+      type: object
+      properties:
+        mobile_app:
+          type: string
+          nullable: true
+          enum:
+            - VA_FLAGSHIP_APP
+            - VETEXT
+          description: >-
+            Optional mobile application identifier. By default VA Flagship mobile app will be used
+        template_id:
+          type: string
+        personalisation:
+          type: object
+          description: >-
+            The personalisation values created in the template must be defined here.
+          example:
+            full_name: John Smith
+            claim_id: '123456'
+        recipient_identifier:
+          type: object
+          properties:
+            id_type:
+              type: string
+              enum:
+                - ICN
+            id_value:
+              type: string
+          required:
+            - id_type
+            - id_value
+          example:
+            id_type: ICN
+            id_value: 1008788712V759106
+      required:
+        - recipient_identifier
+        - template_id
     Notification:
       type: object
       properties:
