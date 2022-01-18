@@ -309,3 +309,5 @@ fileignoreconfig:
       checksum: 1a72cf7a682c72f261f795d7a23f1abca14b6285b685005d75bd95a9a411f839
     - filename: migrations/versions/0338a_fact_notif_pkey_constraint.py
       checksum: 5a0675a18b210d187e2cf78de0dc51de04e9327215cdb9f742f3adbac52925c0
+    - filename: tests/lambda_functions/nightly_stats_bigquery_upload/test_nightly_stats_bigquery_upload.py
+      checksum: a1925dd119c7a146994d6fff10336263d0d6a5890c8efa8ef60675b7c86c6f4f
