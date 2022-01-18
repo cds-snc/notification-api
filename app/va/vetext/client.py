@@ -2,6 +2,7 @@ import requests
 from logging import Logger
 from typing import Dict
 from typing_extensions import TypedDict
+from time import monotonic
 from requests.auth import HTTPBasicAuth
 from notifications_utils.clients.statsd.statsd_client import StatsdClient
 from . import VETextRetryableException, VETextNonRetryableException, VETextBadRequestException
@@ -14,7 +15,7 @@ class Credentials(TypedDict):
 
 class VETextClient:
     STATSD_KEY = "clients.vetext"
-    TIMEOUT = 1.5
+    TIMEOUT = 2.5
 
     def init_app(self, url: str, credentials: Credentials, logger: Logger, statsd: StatsdClient):
         self.base_url = url
@@ -37,6 +38,7 @@ class VETextClient:
         }
 
         try:
+            start_time = monotonic()
             response = requests.post(
                 f"{self.base_url}/mobile/push/send",
                 auth=self.auth,
@@ -59,6 +61,11 @@ class VETextClient:
             self.statsd.incr(f"{self.STATSD_KEY}.error.request_exception")
             raise VETextRetryableException from e
             # TODO: add retries?
+        else:
+            self.statsd.incr(f"{self.STATSD_KEY}.success")
+        finally:
+            elapsed_time = monotonic() - start_time
+            self.statsd.timing(f"{self.STATSD_KEY}.request_time", elapsed_time)
 
     def _decode_bad_request_response(self, http_exception):
         try:

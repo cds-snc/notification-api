@@ -2,11 +2,13 @@ import pytest
 import requests
 from base64 import b64encode
 from requests_mock import ANY
+from unittest import mock
 from uuid import uuid4
 from app.va.identifier import IdentifierType
 from app.va.vetext import VETextClient, VETextRetryableException, VETextBadRequestException
 from app.va.vetext.exceptions import VETextException
 from tests.app.factories.recipient_idenfier import sample_recipient_identifier
+from tests.app.factories.mobile_app import sample_mobile_app_type
 
 
 MOCK_VETEXT_URL = 'http://mock.vetext.va.gov'
@@ -35,7 +37,7 @@ def test_send_push_notification_correct_request(rmock, test_vetext_client):
     }
     rmock.post(ANY, json=response, status_code=200)
 
-    mobile_app_id = "ABCD"
+    mobile_app_id = sample_mobile_app_type()
     template_id = str(uuid4())
     icn = sample_recipient_identifier(IdentifierType.ICN)
     personalization = {
@@ -71,6 +73,26 @@ def test_send_push_notification_correct_request(rmock, test_vetext_client):
     assert request.timeout == test_vetext_client.TIMEOUT
 
 
+def test_send_push_captures_statsd_metrics_on_success(rmock, test_vetext_client):
+    response = {
+        "success": True,
+        "statusCode": 200
+    }
+    rmock.post(ANY, json=response, status_code=200)
+
+    mobile_app_id = sample_mobile_app_type()
+    template_id = str(uuid4())
+    icn = sample_recipient_identifier(IdentifierType.ICN)
+
+    test_vetext_client.send_push_notification(
+        mobile_app_id,
+        template_id,
+        icn.id_value)
+
+    test_vetext_client.statsd.incr.assert_called_with(f"clients.vetext.success")
+    test_vetext_client.statsd.timing.assert_called_with("clients.vetext.request_time", mock.ANY)
+
+
 class TestRequestExceptions:
     def test_raises_retryable_error_on_request_exception(self, rmock, test_vetext_client):
         rmock.post(url=f"{MOCK_VETEXT_URL}/mobile/push/send", exc=requests.exceptions.ConnectTimeout)
@@ -93,7 +115,7 @@ class TestRequestExceptions:
             )
         assert test_vetext_client.logger.exception.called
 
-    def test_increments_statsd_on_request_exception(self, rmock, test_vetext_client):
+    def test_increments_statsd_and_timing_on_request_exception(self, rmock, test_vetext_client):
         rmock.post(url=f"{MOCK_VETEXT_URL}/mobile/push/send", exc=requests.exceptions.ConnectTimeout)
 
         with pytest.raises(VETextRetryableException):
@@ -103,6 +125,7 @@ class TestRequestExceptions:
                 "icn",
             )
         test_vetext_client.statsd.incr.assert_called_with("clients.vetext.error.request_exception")
+        test_vetext_client.statsd.timing.assert_called_with("clients.vetext.request_time", mock.ANY)
 
 
 class TestHTTPExceptions:
@@ -130,7 +153,7 @@ class TestHTTPExceptions:
         assert test_vetext_client.logger.exception.called
 
     @pytest.mark.parametrize("http_status_code", [401, 404, 429, 500, 502, 503, 504])
-    def test_increments_statsd_on_http_exception(self, rmock, test_vetext_client, http_status_code):
+    def test_increments_statsd_and_timing_on_http_exception(self, rmock, test_vetext_client, http_status_code):
         rmock.post(url=f"{MOCK_VETEXT_URL}/mobile/push/send", status_code=http_status_code)
 
         with pytest.raises(VETextException):
@@ -140,6 +163,7 @@ class TestHTTPExceptions:
                 "icn",
             )
         test_vetext_client.statsd.incr.assert_called_with(f"clients.vetext.error.{http_status_code}")
+        test_vetext_client.statsd.timing.assert_called_with("clients.vetext.request_time", mock.ANY)
 
     @pytest.mark.parametrize("response", [
         {
