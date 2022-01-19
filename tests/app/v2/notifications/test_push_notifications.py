@@ -132,8 +132,8 @@ class TestPushSending:
         assert response.status_code == 201
 
     @pytest.mark.parametrize('payload, personalisation, app', [
-        (push_request, None, DEAFULT_MOBILE_APP_TYPE.value),
-        ({**push_request, 'personalisation': {'foo': 'bar'},
+`        (push_request, None, DEAFULT_MOBILE_APP_TYPE.value),
+`        ({**push_request, 'personalisation': {'foo': 'bar'},
             'mobile_app': MobileAppType.VETEXT.value}, {'foo': 'bar'},
             MobileAppType.VETEXT.value)
     ])

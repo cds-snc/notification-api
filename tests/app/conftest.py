@@ -28,6 +28,7 @@ from app.dao.users_dao import create_secret_code, create_user_code
 from app.dao.fido2_key_dao import save_fido2_key
 from app.dao.login_event_dao import save_login_event
 from app.history_meta import create_history
+from app import notify_celery
 
 from app.models import (
     Service,
@@ -55,7 +56,7 @@ from app.models import (
     LETTER_TYPE,
     NOTIFICATION_STATUS_TYPES_COMPLETED,
     SERVICE_PERMISSION_TYPES,
-    ServiceEmailReplyTo, User, CommunicationItem
+    ServiceEmailReplyTo, User, CommunicationItem, PUSH_TYPE
 )
 from tests import create_authorization_header
 from tests.app.db import (
@@ -72,6 +73,7 @@ from tests.app.db import (
 from tests.app.factories import (
     service_whitelist
 )
+from tests.conftest import set_config_values
 
 
 @pytest.yield_fixture
@@ -365,6 +367,15 @@ def sample_service(
     if permissions and INBOUND_SMS_TYPE in permissions:
         create_inbound_number('12345', service_id=service.id)
 
+    return service
+
+@pytest.fixture(scope='function', name='sample_service_push_permissions')
+def _sample_service_push_permissions(notify_db_session):
+    service = create_service(
+        service_name="sample service full permissions",
+        service_permissions=PUSH_TYPE,
+        check_if_service_exists=True
+    )
     return service
 
 
@@ -880,6 +891,29 @@ def sample_notification_history(
     notify_db.session.commit()
 
     return notification_history
+
+@pytest.fixture()
+def integration_celery_config(notify_api):
+    with set_config_values(notify_api, {
+
+        'CELERY_SETTINGS': {
+            'broker_url': 'sqs://',
+            'task_always_eager': True,
+            'imports': (
+                'app.celery.tasks',
+                'app.celery.scheduled_tasks',
+                'app.celery.reporting_tasks',
+                'app.celery.nightly_tasks',
+                'app.celery.process_pinpoint_receipt_tasks',
+                'app.celery.process_pinpoint_inbound_sms'
+                'app.celery.service_callback_tasks'
+            )
+        }
+    }):
+        notify_celery.init_app(notify_api)
+    yield
+    notify_celery.init_app(notify_api)
+
 
 
 @pytest.fixture(scope='function')
