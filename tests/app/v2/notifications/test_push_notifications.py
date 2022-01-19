@@ -123,7 +123,7 @@ class TestPushSending:
     @pytest.fixture()
     def vetext_client(self, mocker):
         client = mocker.Mock(spec=VETextClient)
-        mocker.patch('app.v2.notifications.post_notifications.vetext_client', client)
+        mocker.patch('app.v2.notifications.rest_push.vetext_client', client)
         return client
 
     def test_returns_201(self, client, service_with_push_permission, vetext_client):
