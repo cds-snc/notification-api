@@ -19,11 +19,13 @@ from app.models import (
 )
 from app.notifications.process_notifications import (
     create_content_for_notification,
+    db_save_notification,
     persist_notification,
     persist_notifications,
     persist_scheduled_notification,
     send_notification_to_queue,
     simulated_recipient,
+    transform_notification,
 )
 from app.v2.errors import BadRequestError
 from tests.app.conftest import sample_api_key as create_api_key
@@ -267,6 +269,58 @@ def test_persist_notification_increments_cache_if_key_exists(sample_template, sa
     mock_incr.assert_called_once_with(
         str(sample_template.service_id) + "-2016-01-01-count",
     )
+
+
+def test_transform_notification_creates_notification():
+    pass
+
+
+def test_transform_notification_with_optionals():
+    pass
+
+
+def test_db_save_notification_saves_to_db():
+    pass
+
+
+def test_db_save_notification_throws_exception_when_missing_template(sample_api_key):
+    assert Notification.query.count() == 0
+    assert NotificationHistory.query.count() == 0
+
+    notification = Notification(
+        id=uuid.uuid4(),
+        template_id=None,
+        template_version=None,
+        to="+16502532222",
+        service=sample_api_key.service,
+        personalisation=None,
+        notification_type="sms",
+        api_key_id=sample_api_key.id,
+        key_type=sample_api_key.key_type,
+        created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+    )
+
+    with pytest.raises(SQLAlchemyError):
+        db_save_notification(notification)
+
+    assert Notification.query.count() == 0
+    assert NotificationHistory.query.count() == 0
+
+
+def test_cache_is_not_incremented_on_failure_to_db_save_notification():
+    pass
+
+
+def test_db_save_notification_does_not_increment_cache_if_test_key():
+    pass
+
+
+def test_db_save_notification_doesnt_touch_cache_for_old_keys_that_dont_exist():
+    pass
+
+
+def test_db_save_notification_increments_cache_if_key_exists():
+    pass
 
 
 @pytest.mark.parametrize(

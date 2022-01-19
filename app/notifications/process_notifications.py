@@ -141,7 +141,7 @@ def transform_notification(
     billable_units=None,
     postage=None,
     template_postage=None,
-):
+) -> Notification:
     notification_created_at = created_at or datetime.utcnow()
     if not notification_id:
         notification_id = uuid.uuid4()
@@ -181,7 +181,7 @@ def transform_notification(
     return notification
 
 
-def db_save_notification(notification):
+def db_save_notification(notification: Notification):
     dao_create_notification(notification)
     if notification.key_type != KEY_TYPE_TEST:
         if redis_store.get(redis.daily_limit_cache_key(notification.service_id)):
