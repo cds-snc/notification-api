@@ -120,7 +120,7 @@ def process_job(job_id):
 
     if Config.FF_BATCH_INSERTION:
         rows = csv.get_rows()
-        for result in chunked(rows, 500):
+        for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
             process_rows(result, template, job, service)
     else:
         for row in csv.get_rows():
@@ -312,9 +312,10 @@ def save_smss(self, service_id: str, encrypted_notifications: List[Any]):
     except SQLAlchemyError as e:
         handle_list_of_exception(self, decrypted_notifications, e)
 
+    check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
+    research_mode = service.research_mode  # type: ignore
+
     for notification in saved_notifications:
-        check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
-        research_mode = service.research_mode  # type: ignore
         queue = notification_id_queue.get(notification.id) or template.queue_to_use()  # type: ignore
         send_notification_to_queue(
             notification,
@@ -460,9 +461,9 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any]):
         handle_list_of_exception(self, decrypted_notifications, e)
 
     if saved_notifications:
+        check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
+        research_mode = service.research_mode  # type: ignore
         for notification in saved_notifications:
-            check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
-            research_mode = service.research_mode  # type: ignore
             queue = notification_id_queue.get(notification.id) or template.queue_to_use()  # type: ignore
             send_notification_to_queue(
                 notification,
