@@ -7,8 +7,6 @@ from app.dao.fact_billing_dao import (
     fetch_sms_billing_for_all_services, fetch_letter_costs_for_all_services,
     fetch_letter_line_items_for_all_services
 )
-from collections import defaultdict
-from app.platform_stats.strftime_codes import no_pad_month
 from app.dao.fact_notification_status_dao import fetch_notification_status_totals_for_all_services, \
     fetch_delivered_notification_stats_by_month
 from app.errors import register_errors, InvalidRequest
@@ -44,35 +42,7 @@ def get_platform_stats():
 def get_monthly_platform_stats():
     if not is_feature_enabled(FeatureFlag.PLATFORM_STATS_ENABLED):
         raise NotImplementedError
-
-    get_monthly_stats = jsonify(data=fetch_delivered_notification_stats_by_month())
-    results = get_monthly_stats["data"]
-
-    monthly_stats = {}
-    emails_total = 0
-    sms_total = 0
-    for line in results:
-        date, notification_type, count = line
-        year = date[:4]
-        year_month = date[:7]
-        month = f"{__get_month_name(date)} {year}"
-        if month not in monthly_stats:
-            monthly_stats[month] = defaultdict(int)
-        monthly_stats[month][notification_type] = count
-        monthly_stats[month]["total"] += count
-        monthly_stats[month]["year_month"] = year_month
-
-        if notification_type == "sms":
-            sms_total += count
-        elif notification_type == "email":
-            emails_total += count
-
-    return {
-        "monthly_stats": monthly_stats,
-        "emails_total": emails_total,
-        "sms_total": sms_total,
-        "notifications_total": sms_total + emails_total,
-    }
+    return jsonify(data=fetch_delivered_notification_stats_by_month())
 
 
 def validate_date_range_is_within_a_financial_year(start_date, end_date):
@@ -148,24 +118,3 @@ def get_usage_for_all_services():
         x['organisation_name'],
         x['service_name']
     )))
-
-
-def __get_month_name(date_string):
-    month = date_string[5:7].strftime(no_pad_month())
-
-    translated_month = {
-        1: "January",
-        2: "February",
-        3: "March",
-        4: "April",
-        5: "May",
-        6: "June",
-        7: "July",
-        8: "August",
-        9: "September",
-        10: "October",
-        11: "November",
-        12: "December",
-    }
-
-    return translated_month.get(month, "Invalid month")
