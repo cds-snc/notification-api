@@ -271,11 +271,32 @@ def test_persist_notification_increments_cache_if_key_exists(sample_template, sa
     )
 
 
-def test_transform_notification_creates_notification():
+def test_transform_notification_with_optionals():
     pass
 
 
-def test_transform_notification_with_optionals():
+@pytest.mark.parametrize(
+    "recipient, expected_international, expected_prefix, expected_units",
+    [
+        ("6502532222", False, "1", 1),  # NA
+        ("+16502532222", False, "1", 1),  # NA
+        ("+79587714230", True, "7", 1),  # Russia
+        ("+360623400400", True, "36", 3),
+    ],  # Hungary
+)
+def test_transform_notification_with_international_info_stores_correct_info():
+    pass
+
+
+def test_transform_notification_with_international_info_does_not_store_for_email(sample_job, sample_api_key, mocker):
+    pass
+
+
+def test_transform_sms_notification_stores_normalised_number():
+    pass
+
+
+def test_persist_email_notification_stores_normalised_email():
     pass
 
 
