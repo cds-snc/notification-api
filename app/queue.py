@@ -60,7 +60,7 @@ class NotifyProvider(BaseProvider):
             "international": False,
             "phone_prefix": None,
             "normalised_to": email,
-            "reply_to_text": self.email(),
+            "reply_to_text": fake.email(),
             "created_by_id": None,
             "postage": None,
         }
@@ -86,7 +86,7 @@ class NotifyProvider(BaseProvider):
 fake.add_provider(NotifyProvider)
 
 
-def generate_notification(self):
+def generate_notification():
     while True:
         yield fake.notification()
 
