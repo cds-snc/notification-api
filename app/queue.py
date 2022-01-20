@@ -1,12 +1,15 @@
+from multiprocessing import connection
 import random
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Dict
 from uuid import uuid4
+from flask import current_app
 
 from faker import Faker
 from faker.providers import BaseProvider
 
 from app import models
+from notifications_utils.clients.redis.redis_client import RedisClient
 
 # TODO: Move data generation into another module, similar to app.aws.mocks?
 fake = Faker()
@@ -121,16 +124,29 @@ class Queue(ABC):
         """
         pass
 
+    @abstractmethod
+    def publish(self, notification: Dict) -> None:
+        pass
+
+    subscribe = poll
+
 
 # TODO: Check if we want to move the queue API and implementations into the utils project.
 class RedisQueue(Queue):
     """Implementation of a queue using Redis."""
 
+    def __init__(self, connection = RedisClient()) -> None:
+        self.connection = connection
+        self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
+
     def poll(self, count=10) -> list[Any]:
-        pass
+        connection.lrange("notifs_buffer_queue_cache_list", 0, self.limit)
 
     def acknowledge(self, message_ids: list[int]):
         pass
+
+    def publish(self, notification: Dict) -> None:
+        connection.lpush("notifs_buffer_queue_cache_list", notification)
 
 
 class MockQueue(Queue):
@@ -143,3 +159,30 @@ class MockQueue(Queue):
 
     def acknowledge(self, message_ids: list[int]):
         pass
+
+    def publish(self, notification: Dict) -> None:
+        pass
+
+class NotificationBufferPublisher:
+    """Implementation of a notification buffer.
+    It requires an medium its uses to send/publish/cache/buffer/queue.
+    """
+
+    def __init__(self, notification, queue = RedisQueue()) -> None:
+        self.queue = queue
+        self.notification = notification
+
+    def __call__(self) -> None:
+        queue.publish(self.notification)
+
+class NotificationBufferConsumer:
+    """Implementation of a notification buffer.
+    It requires an medium its uses to send/publish/cache/buffer/queue.
+    """
+
+    def __init__(self, notification, queue = RedisQueue()) -> None:
+        self.queue = queue
+        self.notification = notification
+
+    def __call__(self) -> None:
+        queue.publish(self.notification)
