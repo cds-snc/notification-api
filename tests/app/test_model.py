@@ -371,3 +371,10 @@ def test_login_event_serialization(sample_login_event):
     json = sample_login_event.serialize()
     assert json["data"] == sample_login_event.data
     assert json["created_at"]
+
+
+class TestNotificationModel:
+    def test_queue_name_in_notifications(self, sample_service):
+        template = create_template(sample_service, template_type="email")
+        notification = save_notification(create_notification(template, to_field="test@example.com", queue_name="tester"))
+        assert notification.queue_name == "tester"

@@ -538,6 +538,7 @@ def sample_notification(
     scheduled_for=None,
     normalised_to=None,
     postage=None,
+    queue_name=None,
 ):
     if created_at is None:
         created_at = datetime.utcnow()
@@ -585,6 +586,7 @@ def sample_notification(
         "rate_multiplier": rate_multiplier,
         "normalised_to": normalised_to,
         "postage": postage,
+        "queue_name": queue_name,
     }
     if job_row_number is not None:
         data["job_row_number"] = job_row_number
