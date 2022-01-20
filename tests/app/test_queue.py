@@ -2,6 +2,7 @@ from pytest_mock_resources import create_redis_fixture
 
 redis = create_redis_fixture()
 
+
 def test_pytest_mock_redis(redis):
     colorSet = "Colors"
     redis.sadd(colorSet, "Red")

@@ -11,14 +11,15 @@ from uuid import uuid4
 # TODO: Move data generation into another module, similar to app.aws.mocks?
 fake = Faker()
 
+
 class NotifyProvider(BaseProvider):
     """Faker provider for the Notify namespace."""
-    
+
     NOTIFICATION_STATUS = [
         models.NOTIFICATION_CREATED,
         models.NOTIFICATION_SENDING,
         models.NOTIFICATION_SENT,
-        models.NOTIFICATION_DELIVERED
+        models.NOTIFICATION_DELIVERED,
     ]
 
     SERVICES = [
@@ -26,7 +27,7 @@ class NotifyProvider(BaseProvider):
         "Desk department",
         "Pencil department (deprecated)",
         "Gather.town virtual folks",
-        "Snowstorm alerting service"
+        "Snowstorm alerting service",
     ]
 
     def notification(self) -> models.Notification:
@@ -81,10 +82,12 @@ class NotifyProvider(BaseProvider):
         """Gets a random notification status."""
         return random.choice(self.NOTIFICATION_STATUS)
 
+
 fake.add_provider(NotifyProvider)
 
+
 def generate_notification(self):
-    while(True):
+    while True:
         yield fake.notification()
 
 
@@ -96,7 +99,7 @@ class Queue(ABC):
     """
 
     @abstractmethod
-    def poll(self, count=10)  -> list[Any]:
+    def poll(self, count=10) -> list[Any]:
         """Gets messages out of the queue.
 
         Args:
@@ -115,7 +118,7 @@ class Queue(ABC):
 
         Args:
             message_ids (list[int]): [description]
-        """        
+        """
         pass
 
 
@@ -128,6 +131,7 @@ class RedisQueue(Queue):
 
     def acknowledge(self, message_ids: list[int]):
         pass
+
 
 class MockQueue(Queue):
     """Implementation of a queue that spits out randomly generated notifications.
