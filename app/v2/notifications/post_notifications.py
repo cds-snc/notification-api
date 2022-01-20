@@ -48,10 +48,11 @@ from app.models import (
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
-    persist_notification,
+    db_save_notification,
     persist_scheduled_notification,
     send_notification_to_queue,
     simulated_recipient,
+    transform_notification,
 )
 from app.notifications.validators import (
     check_rate_limiting,
@@ -275,7 +276,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
 
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:
-        notification = persist_notification(
+        notification = transform_notification(
             template_id=template.id,
             template_version=template.version,
             recipient=form_send_to,
@@ -285,9 +286,9 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             api_key_id=api_key.id,
             key_type=api_key.key_type,
             client_reference=form.get("reference", None),
-            simulated=simulated,
             reply_to_text=reply_to_text,
         )
+        db_save_notification(notification)
         persist_scheduled_notification(notification.id, form["scheduled_for"])
 
     elif current_app.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] and not simulated:
@@ -305,7 +306,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             )
 
     else:
-        notification = persist_notification(
+        notification = transform_notification(
             template_id=template.id,
             template_version=template.version,
             recipient=form_send_to,
@@ -315,10 +316,10 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             api_key_id=api_key.id,
             key_type=api_key.key_type,
             client_reference=form.get("reference", None),
-            simulated=simulated,
             reply_to_text=reply_to_text,
         )
         if not simulated:
+            db_save_notification(notification)
             send_notification_to_queue(
                 notification=notification,
                 research_mode=service.research_mode,

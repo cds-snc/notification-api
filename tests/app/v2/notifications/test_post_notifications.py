@@ -575,7 +575,7 @@ def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
 ):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     sample = create_template(service=sample_service, template_type=notification_type)
-    persist_mock = mocker.patch("app.v2.notifications.post_notifications.persist_notification")
+    persist_mock = mocker.patch("app.notifications.process_notifications.persist_notification")
     deliver_mock = mocker.patch("app.v2.notifications.post_notifications.send_notification_to_queue")
     mocker.patch(
         "app.v2.notifications.post_notifications.check_rate_limiting",

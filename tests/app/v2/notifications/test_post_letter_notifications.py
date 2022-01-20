@@ -278,7 +278,7 @@ def test_notification_returns_400_if_address_doesnt_have_underscores(client, sam
 
 
 def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(client, sample_letter_template, mocker):
-    persist_mock = mocker.patch("app.v2.notifications.post_notifications.persist_notification")
+    persist_mock = mocker.patch("app.notifications.process_notifications.persist_notification")
     mocker.patch(
         "app.v2.notifications.post_notifications.check_rate_limiting",
         side_effect=RateLimitError("LIMIT", "INTERVAL", "TYPE"),

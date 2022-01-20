@@ -119,6 +119,79 @@ def persist_notification(
     return notification
 
 
+def transform_notification(
+    *,
+    template_id,
+    template_version,
+    recipient,
+    service,
+    personalisation,
+    notification_type,
+    api_key_id,
+    key_type,
+    created_at=None,
+    job_id=None,
+    job_row_number=None,
+    reference=None,
+    client_reference=None,
+    notification_id=None,
+    created_by_id=None,
+    status=NOTIFICATION_CREATED,
+    reply_to_text=None,
+    billable_units=None,
+    postage=None,
+    template_postage=None,
+) -> Notification:
+    notification_created_at = created_at or datetime.utcnow()
+    if not notification_id:
+        notification_id = uuid.uuid4()
+    notification = Notification(
+        id=notification_id,
+        template_id=template_id,
+        template_version=template_version,
+        to=recipient,
+        service_id=service.id,
+        personalisation=personalisation,
+        notification_type=notification_type,
+        api_key_id=api_key_id,
+        key_type=key_type,
+        created_at=notification_created_at,
+        job_id=job_id,
+        job_row_number=job_row_number,
+        client_reference=client_reference,
+        reference=reference,
+        created_by_id=created_by_id,
+        status=status,
+        reply_to_text=reply_to_text,
+        billable_units=billable_units,
+    )
+
+    if notification_type == SMS_TYPE:
+        formatted_recipient = validate_and_format_phone_number(recipient, international=True)
+        recipient_info = get_international_phone_info(formatted_recipient)
+        notification.normalised_to = formatted_recipient
+        notification.international = recipient_info.international
+        notification.phone_prefix = recipient_info.country_prefix
+        notification.rate_multiplier = recipient_info.billable_units
+    elif notification_type == EMAIL_TYPE:
+        notification.normalised_to = format_email_address(notification.to)
+        notification.international = False
+    elif notification_type == LETTER_TYPE:
+        notification.postage = postage or template_postage
+
+    return notification
+
+
+def db_save_notification(notification: Notification):
+    dao_create_notification(notification)
+    if notification.key_type != KEY_TYPE_TEST:
+        if redis_store.get(redis.daily_limit_cache_key(notification.service_id)):
+            redis_store.incr(redis.daily_limit_cache_key(notification.service_id))
+    current_app.logger.info(
+        "{} {} created at {}".format(notification.notification_type, notification.id, notification.created_at)
+    )
+
+
 def send_notification_to_queue(notification, research_mode, queue=None):
     if research_mode or notification.key_type == KEY_TYPE_TEST:
         queue = QueueNames.RESEARCH_MODE
