@@ -23,4 +23,4 @@ def upgrade():
 
 def downgrade():
     op.drop_column("notifications", "queue_name")
-    op.drop_column("notification_history", sa.Column("queue_name", sa.Text(), nullable=True))
+    op.drop_column("notification_history", "queue_name")
