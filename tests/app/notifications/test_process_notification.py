@@ -962,6 +962,7 @@ class TestDBSaveAndSendNotification:
             reply_to_text=sample_template.service.get_default_sms_sender(),
             to="+16502532222",
             created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+            queue_name="send-sms-tasks",
         )
 
         with pytest.raises(Boto3Error):
