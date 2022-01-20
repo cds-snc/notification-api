@@ -1,4 +1,5 @@
 import datetime
+import queue
 import uuid
 
 import pytest
@@ -18,6 +19,7 @@ from app.models import (
     Template,
 )
 from app.notifications.process_notifications import (
+    choose_queue,
     create_content_for_notification,
     db_save_and_send_notification,
     persist_notification,
@@ -845,6 +847,129 @@ class TestDBSaveAndSendNotification:
         assert notification_from_db.reply_to_text == sample_template.service.get_default_sms_sender()
 
         mocked_redis.assert_called_once_with(str(sample_template.service_id) + "-2016-01-01-count")
+
+    @pytest.mark.parametrize(
+        ("notification_type, key_type, reply_to_text, expected_queue, expected_task"),
+        [
+            ("sms", "normal", None, "research-mode-tasks", "deliver_sms"),
+            ("email", "normal", None, "research-mode-tasks", "deliver_email"),
+            ("email", "team", None, "research-mode-tasks", "deliver_email"),
+            (
+                "sms",
+                "normal",
+                "+14383898585",
+                "send-throttled-sms-tasks",
+                "deliver_throttled_sms",
+            ),
+            ("sms", "normal", None, "send-sms-tasks", "deliver_sms"),
+            ("email", "normal", None, "send-email-tasks", "deliver_email"),
+            ("sms", "team", None, "send-sms-tasks", "deliver_sms"),
+            ("sms", "test", None, "research-mode-tasks", "deliver_sms"),
+            (
+                "sms",
+                "normal",
+                "+14383898585",
+                "send-throttled-sms-tasks",
+                "deliver_throttled_sms",
+            ),
+            (
+                "email",
+                "normal",
+                None,
+                "research-mode-tasks",
+                "deliver_email",
+            ),
+            (
+                "sms",
+                "normal",
+                None,
+                "notify-internal-tasks",
+                "deliver_sms",
+            ),
+            (
+                "email",
+                "normal",
+                None,
+                "notify-internal-tasks",
+                "deliver_email",
+            ),
+            (
+                "sms",
+                "test",
+                None,
+                "research-mode-tasks",
+                "deliver_sms",
+            ),
+            (
+                "sms",
+                "normal",
+                "+14383898585",
+                "send-throttled-sms-tasks",
+                "deliver_throttled_sms",
+            ),
+        ],
+    )
+    def test_db_save_and_send_notification_sends_to_queue(
+        self,
+        sample_template,
+        notify_db,
+        notify_db_session,
+        notification_type,
+        key_type,
+        reply_to_text,
+        expected_queue,
+        expected_task,
+        mocker,
+    ):
+        if "." not in expected_task:
+            expected_task = f"provider_tasks.{expected_task}"
+        mocked = mocker.patch(f"app.celery.{expected_task}.apply_async")
+        notification = Notification(
+            id=uuid.uuid4(),
+            to="joe@blow.com",
+            template_id=sample_template.id,
+            template_version=sample_template.version,
+            key_type=key_type,
+            notification_type=notification_type,
+            created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+            reply_to_text=reply_to_text,
+            queue_name=expected_queue,
+        )
+
+        db_save_and_send_notification(notification=notification)
+
+        mocked.assert_called_once_with([str(notification.id)], queue=expected_queue)
+
+    def test_db_save_and_send_notification_throws_exception_deletes_notification(
+        self, sample_template, sample_api_key, sample_job, mocker
+    ):
+        mocked = mocker.patch(
+            "app.celery.provider_tasks.deliver_sms.apply_async",
+            side_effect=Boto3Error("EXPECTED"),
+        )
+        notification = Notification(
+            id=uuid.uuid4(),
+            template_id=sample_template.id,
+            template_version=sample_template.version,
+            service=sample_template.service,
+            personalisation={},
+            notification_type="sms",
+            api_key_id=sample_api_key.id,
+            key_type=sample_api_key.key_type,
+            job_id=sample_job.id,
+            job_row_number=100,
+            reference="ref",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+            to="+16502532222",
+            created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+        )
+
+        with pytest.raises(Boto3Error):
+            db_save_and_send_notification(notification)
+        mocked.assert_called_once_with([(str(notification.id))], queue="send-sms-tasks")
+
+        assert Notification.query.count() == 0
+        assert NotificationHistory.query.count() == 0
 
     def test_db_save_and_send_notification_throws_exception_when_missing_template(self, sample_api_key, mocker):
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
