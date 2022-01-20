@@ -311,3 +311,5 @@ fileignoreconfig:
       checksum: 5a0675a18b210d187e2cf78de0dc51de04e9327215cdb9f742f3adbac52925c0
     - filename: tests/lambda_functions/nightly_stats_bigquery_upload/test_nightly_stats_bigquery_upload.py
       checksum: a1925dd119c7a146994d6fff10336263d0d6a5890c8efa8ef60675b7c86c6f4f
+    - filename: tests/app/dao/test_fact_notification_status_dao.py
+      checksum: 7f8063a812688f3540ca5eec0d638599e97d881d839c8f1f5c90133657aed977
