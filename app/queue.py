@@ -3,6 +3,7 @@ import random
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 from uuid import uuid4
+from enum import Enum
 from flask import current_app
 
 from faker import Faker
@@ -99,6 +100,9 @@ def generate_notifications(count=10):
     notifications = generate_notification()
     return [next(notifications) for i in range(0, count)]
 
+class Buffer(Enum):
+    INBOX = "INBOX"
+    IN_FLIGHT = "IN-FLIGHT"
 
 class Queue(ABC):
     """Queue interface for custom buffer.
@@ -144,15 +148,15 @@ class RedisQueue(Queue):
         # self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
 
     def poll(self, count=10) -> list[Any]:
-        # connection.lrange("notifs_buffer_queue_cache_list", 0, self.limit)
-        pass
+        connection.lmove(Buffer.INBOX, Buffer.IN_FLIGHT)
 
     def acknowledge(self, message_ids: list[int]):
-        pass
+        messages = connection.lrange(Buffer.IN_FLIGHT, 0, self.limit)
+        for message_id in message_ids:
+            connection.lrem(Buffer.IN_FLIGHT, messages[message_id], index)
 
     def publish(self, notification: Dict) -> None:
-        # connection.lpush("notifs_buffer_queue_cache_list", notification)
-        pass
+        connection.rpush(Buffer.INBOX, notification)
 
 
 class MockQueue(Queue):
