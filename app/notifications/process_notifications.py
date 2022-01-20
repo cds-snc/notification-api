@@ -1,3 +1,4 @@
+from typing import Callable
 import uuid
 from datetime import datetime
 
@@ -182,14 +183,54 @@ def transform_notification(
     return notification
 
 
-def db_save_notification(notification: Notification):
+def db_save_and_send_notification(notification: Notification):
     dao_create_notification(notification)
     if notification.key_type != KEY_TYPE_TEST:
         if redis_store.get(redis.daily_limit_cache_key(notification.service_id)):
             redis_store.incr(redis.daily_limit_cache_key(notification.service_id))
+    current_app.logger.info(f"{notification.notification_type} {notification.id} created at {notification.created_at}")
+
+    deliver_task = choose_deliver_task(notification)
+    try:
+        deliver_task.apply_async([str(notification.id)], queue=notification.queue_name)
+    except Exception:
+        dao_delete_notifications_by_id(notification.id)
+        raise
     current_app.logger.info(
-        "{} {} created at {}".format(notification.notification_type, notification.id, notification.created_at)
+        f"{notification.notification_type} {notification.id} sent to the {notification.queue_name} queue for delivery"
     )
+
+
+def choose_queue(notification, research_mode, queue=None) -> QueueNames:
+    if research_mode or notification.key_type == KEY_TYPE_TEST:
+        queue = QueueNames.RESEARCH_MODE
+
+    if notification.notification_type == SMS_TYPE:
+        if notification.sends_with_custom_number():
+            queue = QueueNames.SEND_THROTTLED_SMS
+        if not queue:
+            queue = QueueNames.SEND_SMS
+    if notification.notification_type == EMAIL_TYPE:
+        if not queue:
+            queue = QueueNames.SEND_EMAIL
+    if notification.notification_type == LETTER_TYPE:
+        if not queue:
+            queue = QueueNames.CREATE_LETTERS_PDF
+
+    return queue
+
+
+def choose_deliver_task(notification):
+    if notification.notification_type == SMS_TYPE:
+        deliver_task = provider_tasks.deliver_sms
+        if notification.sends_with_custom_number():
+            deliver_task = provider_tasks.deliver_throttled_sms
+    if notification.notification_type == EMAIL_TYPE:
+        deliver_task = provider_tasks.deliver_email
+    if notification.notification_type == LETTER_TYPE:
+        deliver_task = create_letters_pdf
+
+    return deliver_task
 
 
 def send_notification_to_queue(notification, research_mode, queue=None):

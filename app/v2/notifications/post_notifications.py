@@ -48,7 +48,9 @@ from app.models import (
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
-    db_save_notification,
+    choose_queue,
+    db_save_and_send_notification,
+    persist_notification,
     persist_scheduled_notification,
     send_notification_to_queue,
     simulated_recipient,
@@ -276,7 +278,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
 
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:
-        notification = transform_notification(
+        notification = persist_notification(  # keep scheduled notifications using the old code path for now
             template_id=template.id,
             template_version=template.version,
             recipient=form_send_to,
@@ -288,7 +290,6 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             client_reference=form.get("reference", None),
             reply_to_text=reply_to_text,
         )
-        db_save_notification(notification)
         persist_scheduled_notification(notification.id, form["scheduled_for"])
 
     elif current_app.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] and not simulated:
@@ -319,12 +320,13 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             reply_to_text=reply_to_text,
         )
         if not simulated:
-            db_save_notification(notification)
-            send_notification_to_queue(
+            notification.queue_name = choose_queue(
                 notification=notification,
                 research_mode=service.research_mode,
                 queue=template.queue_to_use(),
             )
+            db_save_and_send_notification(notification)
+
         else:
             current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
 

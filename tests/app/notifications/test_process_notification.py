@@ -19,7 +19,7 @@ from app.models import (
 )
 from app.notifications.process_notifications import (
     create_content_for_notification,
-    db_save_notification,
+    db_save_and_send_notification,
     persist_notification,
     persist_notifications,
     persist_scheduled_notification,
@@ -798,9 +798,9 @@ class TestTransformNotification:
         assert persisted_notification.normalised_to == expected_recipient_normalised
 
 
-class TestDBSaveNotification:
+class TestDBSaveAndSendNotification:
     @freeze_time("2016-01-01 11:09:00.061258")
-    def test_db_save_notification_saves_to_db(self, sample_template, sample_api_key, sample_job, mocker):
+    def test_db_save_and_send_notification_saves_to_db(self, sample_template, sample_api_key, sample_job, mocker):
         mocked_redis = mocker.patch("app.notifications.process_notifications.redis_store.get")
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
@@ -821,7 +821,7 @@ class TestDBSaveNotification:
             to="+16502532222",
             created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
         )
-        db_save_notification(notification)
+        db_save_and_send_notification(notification)
         assert Notification.query.get(notification.id) is not None
 
         notification_from_db = Notification.query.one()
@@ -845,7 +845,7 @@ class TestDBSaveNotification:
 
         mocked_redis.assert_called_once_with(str(sample_template.service_id) + "-2016-01-01-count")
 
-    def test_db_save_notification_throws_exception_when_missing_template(self, sample_api_key):
+    def test_db_save_and_send_notification_throws_exception_when_missing_template(self, sample_api_key):
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
 
@@ -863,12 +863,12 @@ class TestDBSaveNotification:
         )
 
         with pytest.raises(SQLAlchemyError):
-            db_save_notification(notification)
+            db_save_and_send_notification(notification)
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
 
-    def test_db_save_notification_does_not_increment_cache_if_test_key(
+    def test_db_save_and_send_notification_does_not_increment_cache_if_test_key(
         self, notify_db, notify_db_session, sample_template, sample_job, mocker
     ):
         api_key = create_api_key(
@@ -907,7 +907,9 @@ class TestDBSaveNotification:
         assert not template_usage_cache.called
 
     @freeze_time("2016-01-01 11:09:00.061258")
-    def test_db_save_notification_doesnt_touch_cache_for_old_keys_that_dont_exist(self, sample_template, sample_api_key, mocker):
+    def test_db_save_and_send_notification_doesnt_touch_cache_for_old_keys_that_dont_exist(
+        self, sample_template, sample_api_key, mocker
+    ):
         mock_incr = mocker.patch("app.notifications.process_notifications.redis_store.incr")
         mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=None)
         mocker.patch(
@@ -929,7 +931,7 @@ class TestDBSaveNotification:
         mock_incr.assert_not_called()
 
     @freeze_time("2016-01-01 11:09:00.061258")
-    def test_db_save_notification_increments_cache_if_key_exists(self, sample_template, sample_api_key, mocker):
+    def test_db_save_and_send_notification_increments_cache_if_key_exists(self, sample_template, sample_api_key, mocker):
         mock_incr = mocker.patch("app.notifications.process_notifications.redis_store.incr")
         mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=1)
         mocker.patch(
