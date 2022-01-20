@@ -271,307 +271,6 @@ def test_persist_notification_increments_cache_if_key_exists(sample_template, sa
     )
 
 
-def test_transform_notification_with_optionals(sample_job, sample_api_key):
-    assert Notification.query.count() == 0
-    assert NotificationHistory.query.count() == 0
-
-    n_id = uuid.uuid4()
-    created_at = datetime.datetime(2016, 11, 11, 16, 8, 18)
-    notification = transform_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
-        recipient="+16502532222",
-        service=sample_job.service,
-        personalisation=None,
-        notification_type="sms",
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        created_at=created_at,
-        job_id=sample_job.id,
-        job_row_number=10,
-        client_reference="ref from client",
-        notification_id=n_id,
-        created_by_id=sample_job.created_by_id,
-    )
-    assert notification.id == n_id
-    assert notification.job_id == sample_job.id
-    assert notification.job_row_number == 10
-    assert notification.created_at == created_at
-    assert notification.client_reference == "ref from client"
-    assert notification.reference is None
-    assert notification.international is False
-    assert notification.phone_prefix == "1"
-    assert notification.rate_multiplier == 1
-    assert notification.created_by_id == sample_job.created_by_id
-    assert not notification.reply_to_text
-
-
-@pytest.mark.parametrize(
-    "recipient, expected_international, expected_prefix, expected_units",
-    [
-        ("6502532222", False, "1", 1),  # NA
-        ("+16502532222", False, "1", 1),  # NA
-        ("+79587714230", True, "7", 1),  # Russia
-        ("+360623400400", True, "36", 3),
-    ],  # Hungary
-)
-def test_transform_notification_with_international_info_stores_correct_info(
-    sample_job,
-    sample_api_key,
-    mocker,
-    recipient,
-    expected_international,
-    expected_prefix,
-    expected_units,
-):
-    notification = transform_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
-        recipient=recipient,
-        service=sample_job.service,
-        personalisation=None,
-        notification_type="sms",
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
-        job_row_number=10,
-        client_reference="ref from client",
-    )
-
-    assert notification.international is expected_international
-    assert notification.phone_prefix == expected_prefix
-    assert notification.rate_multiplier == expected_units
-
-
-def test_transform_notification_with_international_info_does_not_store_for_email(sample_job, sample_api_key, mocker):
-    notification = transform_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
-        recipient="foo@bar.com",
-        service=sample_job.service,
-        personalisation=None,
-        notification_type="email",
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
-        job_row_number=10,
-        client_reference="ref from client",
-    )
-    assert notification.international is False
-    assert notification.phone_prefix is None
-    assert notification.rate_multiplier is None
-
-
-@pytest.mark.parametrize(
-    "recipient, expected_recipient_normalised",
-    [
-        ("6502532222", "+16502532222"),
-        ("  6502532223", "+16502532223"),
-        ("6502532223", "+16502532223"),
-    ],
-)
-def test_transform_sms_notification_stores_normalised_number(
-    sample_job, sample_api_key, mocker, recipient, expected_recipient_normalised
-):
-    notification = transform_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
-        recipient=recipient,
-        service=sample_job.service,
-        personalisation=None,
-        notification_type="sms",
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
-    )
-
-    assert notification.to == recipient
-    assert notification.normalised_to == expected_recipient_normalised
-
-
-@pytest.mark.parametrize(
-    "recipient, expected_recipient_normalised",
-    [("FOO@bar.com", "foo@bar.com"), ("BAR@foo.com", "bar@foo.com")],
-)
-def test_transform_email_notification_stores_normalised_email(
-    sample_job, sample_api_key, mocker, recipient, expected_recipient_normalised
-):
-    persist_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
-        recipient=recipient,
-        service=sample_job.service,
-        personalisation=None,
-        notification_type="email",
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
-    )
-    persisted_notification = Notification.query.all()[0]
-
-    assert persisted_notification.to == recipient
-    assert persisted_notification.normalised_to == expected_recipient_normalised
-
-
-@freeze_time("2016-01-01 11:09:00.061258")
-def test_db_save_notification_saves_to_db(sample_template, sample_api_key, sample_job, mocker):
-    mocked_redis = mocker.patch("app.notifications.process_notifications.redis_store.get")
-    assert Notification.query.count() == 0
-    assert NotificationHistory.query.count() == 0
-
-    notification = Notification(
-        id=uuid.uuid4(),
-        template_id=sample_template.id,
-        template_version=sample_template.version,
-        service=sample_template.service,
-        personalisation={},
-        notification_type="sms",
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
-        job_row_number=100,
-        reference="ref",
-        reply_to_text=sample_template.service.get_default_sms_sender(),
-        to="+16502532222",
-        created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
-    )
-    db_save_notification(notification)
-    assert Notification.query.get(notification.id) is not None
-
-    notification_from_db = Notification.query.one()
-
-    assert notification_from_db.id == notification.id
-    assert notification_from_db.template_id == notification.template_id
-    assert notification_from_db.template_version == notification.template_version
-    assert notification_from_db.api_key_id == notification.api_key_id
-    assert notification_from_db.key_type == notification.key_type
-    assert notification_from_db.key_type == notification.key_type
-    assert notification_from_db.billable_units == notification.billable_units
-    assert notification_from_db.notification_type == notification.notification_type
-    assert notification_from_db.created_at == notification.created_at
-    assert not notification_from_db.sent_at
-    assert notification_from_db.updated_at == notification.updated_at
-    assert notification_from_db.status == notification.status
-    assert notification_from_db.reference == notification.reference
-    assert notification_from_db.client_reference == notification.client_reference
-    assert notification_from_db.created_by_id == notification.created_by_id
-    assert notification_from_db.reply_to_text == sample_template.service.get_default_sms_sender()
-
-    mocked_redis.assert_called_once_with(str(sample_template.service_id) + "-2016-01-01-count")
-
-
-def test_db_save_notification_throws_exception_when_missing_template(sample_api_key):
-    assert Notification.query.count() == 0
-    assert NotificationHistory.query.count() == 0
-
-    notification = Notification(
-        id=uuid.uuid4(),
-        template_id=None,
-        template_version=None,
-        to="+16502532222",
-        service=sample_api_key.service,
-        personalisation=None,
-        notification_type="sms",
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
-    )
-
-    with pytest.raises(SQLAlchemyError):
-        db_save_notification(notification)
-
-    assert Notification.query.count() == 0
-    assert NotificationHistory.query.count() == 0
-
-
-def test_db_save_notification_does_not_increment_cache_if_test_key(
-    notify_db, notify_db_session, sample_template, sample_job, mocker
-):
-    api_key = create_api_key(
-        notify_db=notify_db,
-        notify_db_session=notify_db_session,
-        service=sample_template.service,
-        key_type="test",
-    )
-    mocker.patch("app.notifications.process_notifications.redis_store.get", return_value="cache")
-    mocker.patch(
-        "app.notifications.process_notifications.redis_store.get_all_from_hash",
-        return_value="cache",
-    )
-    daily_limit_cache = mocker.patch("app.notifications.process_notifications.redis_store.incr")
-    template_usage_cache = mocker.patch("app.notifications.process_notifications.redis_store.increment_hash_value")
-
-    assert Notification.query.count() == 0
-    assert NotificationHistory.query.count() == 0
-    persist_notification(
-        template_id=sample_template.id,
-        template_version=sample_template.version,
-        recipient="+16502532222",
-        service=sample_template.service,
-        personalisation={},
-        notification_type="sms",
-        api_key_id=api_key.id,
-        key_type=api_key.key_type,
-        job_id=sample_job.id,
-        job_row_number=100,
-        reference="ref",
-    )
-
-    assert Notification.query.count() == 1
-
-    assert not daily_limit_cache.called
-    assert not template_usage_cache.called
-
-
-@freeze_time("2016-01-01 11:09:00.061258")
-def test_db_save_notification_doesnt_touch_cache_for_old_keys_that_dont_exist(sample_template, sample_api_key, mocker):
-    mock_incr = mocker.patch("app.notifications.process_notifications.redis_store.incr")
-    mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=None)
-    mocker.patch(
-        "app.notifications.process_notifications.redis_store.get_all_from_hash",
-        return_value=None,
-    )
-
-    persist_notification(
-        template_id=sample_template.id,
-        template_version=sample_template.version,
-        recipient="+16502532222",
-        service=sample_template.service,
-        personalisation={},
-        notification_type="sms",
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        reference="ref",
-    )
-    mock_incr.assert_not_called()
-
-
-@freeze_time("2016-01-01 11:09:00.061258")
-def test_db_save_notification_increments_cache_if_key_exists(sample_template, sample_api_key, mocker):
-    mock_incr = mocker.patch("app.notifications.process_notifications.redis_store.incr")
-    mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=1)
-    mocker.patch(
-        "app.notifications.process_notifications.redis_store.get_all_from_hash",
-        return_value={sample_template.id, 1},
-    )
-
-    persist_notification(
-        template_id=sample_template.id,
-        template_version=sample_template.version,
-        recipient="+16502532222",
-        service=sample_template.service,
-        personalisation={},
-        notification_type="sms",
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        reference="ref2",
-    )
-
-    mock_incr.assert_called_once_with(
-        str(sample_template.service_id) + "-2016-01-01-count",
-    )
-
-
 @pytest.mark.parametrize(
     ("research_mode, requested_queue, notification_type, key_type, reply_to_text, expected_queue, expected_task"),
     [
@@ -957,3 +656,299 @@ class TestPersistNotifications:
         assert persisted_notification[0].to == "foo@bar.com"
         assert persisted_notification[1].to == "foo2@bar.com"
         assert persisted_notification[0].service == sample_job.service
+
+
+class TestTransformNotification:
+    def test_transform_notification_with_optionals(self, sample_job, sample_api_key, notify_db_session):
+        assert Notification.query.count() == 0
+        assert NotificationHistory.query.count() == 0
+
+        n_id = uuid.uuid4()
+        created_at = datetime.datetime(2016, 11, 11, 16, 8, 18)
+        notification = transform_notification(
+            template_id=sample_job.template.id,
+            template_version=sample_job.template.version,
+            recipient="+16502532222",
+            service=sample_job.service,
+            personalisation=None,
+            notification_type="sms",
+            api_key_id=sample_api_key.id,
+            key_type=sample_api_key.key_type,
+            created_at=created_at,
+            job_id=sample_job.id,
+            job_row_number=10,
+            client_reference="ref from client",
+            notification_id=n_id,
+            created_by_id=sample_job.created_by_id,
+        )
+        assert notification.id == n_id
+        assert notification.job_id == sample_job.id
+        assert notification.job_row_number == 10
+        assert notification.created_at == created_at
+        assert notification.client_reference == "ref from client"
+        assert notification.reference is None
+        assert notification.international is False
+        assert notification.phone_prefix == "1"
+        assert notification.rate_multiplier == 1
+        assert notification.created_by_id == sample_job.created_by_id
+        assert not notification.reply_to_text
+
+    @pytest.mark.parametrize(
+        "recipient, expected_international, expected_prefix, expected_units",
+        [
+            ("6502532222", False, "1", 1),  # NA
+            ("+16502532222", False, "1", 1),  # NA
+            ("+79587714230", True, "7", 1),  # Russia
+            ("+360623400400", True, "36", 3),
+        ],  # Hungary
+    )
+    def test_transform_notification_with_international_info_stores_correct_info(
+        self,
+        sample_job,
+        sample_api_key,
+        mocker,
+        recipient,
+        expected_international,
+        expected_prefix,
+        expected_units,
+    ):
+        notification = transform_notification(
+            template_id=sample_job.template.id,
+            template_version=sample_job.template.version,
+            recipient=recipient,
+            service=sample_job.service,
+            personalisation=None,
+            notification_type="sms",
+            api_key_id=sample_api_key.id,
+            key_type=sample_api_key.key_type,
+            job_id=sample_job.id,
+            job_row_number=10,
+            client_reference="ref from client",
+        )
+
+        assert notification.international is expected_international
+        assert notification.phone_prefix == expected_prefix
+        assert notification.rate_multiplier == expected_units
+
+    def test_transform_notification_with_international_info_does_not_store_for_email(self, sample_job, sample_api_key, mocker):
+        notification = transform_notification(
+            template_id=sample_job.template.id,
+            template_version=sample_job.template.version,
+            recipient="foo@bar.com",
+            service=sample_job.service,
+            personalisation=None,
+            notification_type="email",
+            api_key_id=sample_api_key.id,
+            key_type=sample_api_key.key_type,
+            job_id=sample_job.id,
+            job_row_number=10,
+            client_reference="ref from client",
+        )
+        assert notification.international is False
+        assert notification.phone_prefix is None
+        assert notification.rate_multiplier is None
+
+    @pytest.mark.parametrize(
+        "recipient, expected_recipient_normalised",
+        [
+            ("6502532222", "+16502532222"),
+            ("  6502532223", "+16502532223"),
+            ("6502532223", "+16502532223"),
+        ],
+    )
+    def test_transform_sms_notification_stores_normalised_number(
+        self, sample_job, sample_api_key, mocker, recipient, expected_recipient_normalised
+    ):
+        notification = transform_notification(
+            template_id=sample_job.template.id,
+            template_version=sample_job.template.version,
+            recipient=recipient,
+            service=sample_job.service,
+            personalisation=None,
+            notification_type="sms",
+            api_key_id=sample_api_key.id,
+            key_type=sample_api_key.key_type,
+            job_id=sample_job.id,
+        )
+
+        assert notification.to == recipient
+        assert notification.normalised_to == expected_recipient_normalised
+
+    @pytest.mark.parametrize(
+        "recipient, expected_recipient_normalised",
+        [("FOO@bar.com", "foo@bar.com"), ("BAR@foo.com", "bar@foo.com")],
+    )
+    def test_transform_email_notification_stores_normalised_email(
+        self, sample_job, sample_api_key, mocker, recipient, expected_recipient_normalised
+    ):
+        persist_notification(
+            template_id=sample_job.template.id,
+            template_version=sample_job.template.version,
+            recipient=recipient,
+            service=sample_job.service,
+            personalisation=None,
+            notification_type="email",
+            api_key_id=sample_api_key.id,
+            key_type=sample_api_key.key_type,
+            job_id=sample_job.id,
+        )
+        persisted_notification = Notification.query.all()[0]
+
+        assert persisted_notification.to == recipient
+        assert persisted_notification.normalised_to == expected_recipient_normalised
+
+
+class TestDBSaveNotification:
+    @freeze_time("2016-01-01 11:09:00.061258")
+    def test_db_save_notification_saves_to_db(self, sample_template, sample_api_key, sample_job, mocker):
+        mocked_redis = mocker.patch("app.notifications.process_notifications.redis_store.get")
+        assert Notification.query.count() == 0
+        assert NotificationHistory.query.count() == 0
+
+        notification = Notification(
+            id=uuid.uuid4(),
+            template_id=sample_template.id,
+            template_version=sample_template.version,
+            service=sample_template.service,
+            personalisation={},
+            notification_type="sms",
+            api_key_id=sample_api_key.id,
+            key_type=sample_api_key.key_type,
+            job_id=sample_job.id,
+            job_row_number=100,
+            reference="ref",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+            to="+16502532222",
+            created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+        )
+        db_save_notification(notification)
+        assert Notification.query.get(notification.id) is not None
+
+        notification_from_db = Notification.query.one()
+
+        assert notification_from_db.id == notification.id
+        assert notification_from_db.template_id == notification.template_id
+        assert notification_from_db.template_version == notification.template_version
+        assert notification_from_db.api_key_id == notification.api_key_id
+        assert notification_from_db.key_type == notification.key_type
+        assert notification_from_db.key_type == notification.key_type
+        assert notification_from_db.billable_units == notification.billable_units
+        assert notification_from_db.notification_type == notification.notification_type
+        assert notification_from_db.created_at == notification.created_at
+        assert not notification_from_db.sent_at
+        assert notification_from_db.updated_at == notification.updated_at
+        assert notification_from_db.status == notification.status
+        assert notification_from_db.reference == notification.reference
+        assert notification_from_db.client_reference == notification.client_reference
+        assert notification_from_db.created_by_id == notification.created_by_id
+        assert notification_from_db.reply_to_text == sample_template.service.get_default_sms_sender()
+
+        mocked_redis.assert_called_once_with(str(sample_template.service_id) + "-2016-01-01-count")
+
+    def test_db_save_notification_throws_exception_when_missing_template(self, sample_api_key):
+        assert Notification.query.count() == 0
+        assert NotificationHistory.query.count() == 0
+
+        notification = Notification(
+            id=uuid.uuid4(),
+            template_id=None,
+            template_version=None,
+            to="+16502532222",
+            service=sample_api_key.service,
+            personalisation=None,
+            notification_type="sms",
+            api_key_id=sample_api_key.id,
+            key_type=sample_api_key.key_type,
+            created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+        )
+
+        with pytest.raises(SQLAlchemyError):
+            db_save_notification(notification)
+
+        assert Notification.query.count() == 0
+        assert NotificationHistory.query.count() == 0
+
+    def test_db_save_notification_does_not_increment_cache_if_test_key(
+        self, notify_db, notify_db_session, sample_template, sample_job, mocker
+    ):
+        api_key = create_api_key(
+            notify_db=notify_db,
+            notify_db_session=notify_db_session,
+            service=sample_template.service,
+            key_type="test",
+        )
+        mocker.patch("app.notifications.process_notifications.redis_store.get", return_value="cache")
+        mocker.patch(
+            "app.notifications.process_notifications.redis_store.get_all_from_hash",
+            return_value="cache",
+        )
+        daily_limit_cache = mocker.patch("app.notifications.process_notifications.redis_store.incr")
+        template_usage_cache = mocker.patch("app.notifications.process_notifications.redis_store.increment_hash_value")
+
+        assert Notification.query.count() == 0
+        assert NotificationHistory.query.count() == 0
+        persist_notification(
+            template_id=sample_template.id,
+            template_version=sample_template.version,
+            recipient="+16502532222",
+            service=sample_template.service,
+            personalisation={},
+            notification_type="sms",
+            api_key_id=api_key.id,
+            key_type=api_key.key_type,
+            job_id=sample_job.id,
+            job_row_number=100,
+            reference="ref",
+        )
+
+        assert Notification.query.count() == 1
+
+        assert not daily_limit_cache.called
+        assert not template_usage_cache.called
+
+    @freeze_time("2016-01-01 11:09:00.061258")
+    def test_db_save_notification_doesnt_touch_cache_for_old_keys_that_dont_exist(self, sample_template, sample_api_key, mocker):
+        mock_incr = mocker.patch("app.notifications.process_notifications.redis_store.incr")
+        mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=None)
+        mocker.patch(
+            "app.notifications.process_notifications.redis_store.get_all_from_hash",
+            return_value=None,
+        )
+
+        persist_notification(
+            template_id=sample_template.id,
+            template_version=sample_template.version,
+            recipient="+16502532222",
+            service=sample_template.service,
+            personalisation={},
+            notification_type="sms",
+            api_key_id=sample_api_key.id,
+            key_type=sample_api_key.key_type,
+            reference="ref",
+        )
+        mock_incr.assert_not_called()
+
+    @freeze_time("2016-01-01 11:09:00.061258")
+    def test_db_save_notification_increments_cache_if_key_exists(self, sample_template, sample_api_key, mocker):
+        mock_incr = mocker.patch("app.notifications.process_notifications.redis_store.incr")
+        mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=1)
+        mocker.patch(
+            "app.notifications.process_notifications.redis_store.get_all_from_hash",
+            return_value={sample_template.id, 1},
+        )
+
+        persist_notification(
+            template_id=sample_template.id,
+            template_version=sample_template.version,
+            recipient="+16502532222",
+            service=sample_template.service,
+            personalisation={},
+            notification_type="sms",
+            api_key_id=sample_api_key.id,
+            key_type=sample_api_key.key_type,
+            reference="ref2",
+        )
+
+        mock_incr.assert_called_once_with(
+            str(sample_template.service_id) + "-2016-01-01-count",
+        )
