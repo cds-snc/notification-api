@@ -18,7 +18,9 @@ timeout = 1200  # in seconds, i.e. 20 minutes
 
 def upgrade():
     op.add_column("notifications", sa.Column("queue_name", sa.Text(), nullable=True))
+    op.add_column("notification_history", sa.Column("queue_name", sa.Text(), nullable=True))
 
 
 def downgrade():
     op.drop_column("notifications", "queue_name")
+    op.drop_column("notification_history", sa.Column("queue_name", sa.Text(), nullable=True))

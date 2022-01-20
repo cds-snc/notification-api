@@ -1594,6 +1594,7 @@ class Notification(BaseModel):
 
     postage = db.Column(db.String, nullable=True)
     provider_response = db.Column(db.Text, nullable=True)
+    queue_name = db.Column(db.Text, nullable=True)
 
     CheckConstraint(
         """
@@ -1882,6 +1883,8 @@ class NotificationHistory(BaseModel, HistoryModel):
     created_by_id = db.Column(UUID(as_uuid=True), nullable=True)
 
     postage = db.Column(db.String, nullable=True)
+    queue_name = db.Column(db.Text, nullable=True)
+
     CheckConstraint(
         """
         CASE WHEN notification_type = 'letter' THEN
