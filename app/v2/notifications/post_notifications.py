@@ -52,7 +52,6 @@ from app.notifications.process_notifications import (
     db_save_and_send_notification,
     persist_notification,
     persist_scheduled_notification,
-    send_notification_to_queue,
     simulated_recipient,
     transform_notification,
 )

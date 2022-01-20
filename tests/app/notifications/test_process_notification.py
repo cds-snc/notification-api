@@ -802,6 +802,7 @@ class TestDBSaveAndSendNotification:
     @freeze_time("2016-01-01 11:09:00.061258")
     def test_db_save_and_send_notification_saves_to_db(self, sample_template, sample_api_key, sample_job, mocker):
         mocked_redis = mocker.patch("app.notifications.process_notifications.redis_store.get")
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
 
@@ -845,7 +846,8 @@ class TestDBSaveAndSendNotification:
 
         mocked_redis.assert_called_once_with(str(sample_template.service_id) + "-2016-01-01-count")
 
-    def test_db_save_and_send_notification_throws_exception_when_missing_template(self, sample_api_key):
+    def test_db_save_and_send_notification_throws_exception_when_missing_template(self, sample_api_key, mocker):
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
 
@@ -882,15 +884,17 @@ class TestDBSaveAndSendNotification:
             "app.notifications.process_notifications.redis_store.get_all_from_hash",
             return_value="cache",
         )
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         daily_limit_cache = mocker.patch("app.notifications.process_notifications.redis_store.incr")
         template_usage_cache = mocker.patch("app.notifications.process_notifications.redis_store.increment_hash_value")
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
-        persist_notification(
+
+        notification = Notification(
+            id=uuid.uuid4(),
             template_id=sample_template.id,
             template_version=sample_template.version,
-            recipient="+16502532222",
             service=sample_template.service,
             personalisation={},
             notification_type="sms",
@@ -899,7 +903,11 @@ class TestDBSaveAndSendNotification:
             job_id=sample_job.id,
             job_row_number=100,
             reference="ref",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+            to="+16502532222",
+            created_at=datetime.datetime.utcnow(),
         )
+        db_save_and_send_notification(notification)
 
         assert Notification.query.count() == 1
 
@@ -916,18 +924,21 @@ class TestDBSaveAndSendNotification:
             "app.notifications.process_notifications.redis_store.get_all_from_hash",
             return_value=None,
         )
-
-        persist_notification(
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+        notification = Notification(
+            id=uuid.uuid4(),
             template_id=sample_template.id,
             template_version=sample_template.version,
-            recipient="+16502532222",
             service=sample_template.service,
             personalisation={},
             notification_type="sms",
             api_key_id=sample_api_key.id,
             key_type=sample_api_key.key_type,
             reference="ref",
+            to="+16502532222",
+            created_at=datetime.datetime.utcnow(),
         )
+        db_save_and_send_notification(notification)
         mock_incr.assert_not_called()
 
     @freeze_time("2016-01-01 11:09:00.061258")
@@ -938,18 +949,22 @@ class TestDBSaveAndSendNotification:
             "app.notifications.process_notifications.redis_store.get_all_from_hash",
             return_value={sample_template.id, 1},
         )
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
-        persist_notification(
+        notification = Notification(
+            id=uuid.uuid4(),
             template_id=sample_template.id,
             template_version=sample_template.version,
-            recipient="+16502532222",
             service=sample_template.service,
             personalisation={},
             notification_type="sms",
             api_key_id=sample_api_key.id,
             key_type=sample_api_key.key_type,
             reference="ref2",
+            to="+16502532222",
+            created_at=datetime.datetime.utcnow(),
         )
+        db_save_and_send_notification(notification)
 
         mock_incr.assert_called_once_with(
             str(sample_template.service_id) + "-2016-01-01-count",

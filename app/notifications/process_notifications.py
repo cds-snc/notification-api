@@ -1,4 +1,3 @@
-from typing import Callable
 import uuid
 from datetime import datetime
 
