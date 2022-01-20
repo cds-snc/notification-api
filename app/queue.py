@@ -1,12 +1,12 @@
 import random
-
 from abc import ABC, abstractmethod
-from app import models
-from faker import Faker
-from faker.providers import BaseProvider
 from typing import Any
 from uuid import uuid4
 
+from faker import Faker
+from faker.providers import BaseProvider
+
+from app import models
 
 # TODO: Move data generation into another module, similar to app.aws.mocks?
 fake = Faker()
