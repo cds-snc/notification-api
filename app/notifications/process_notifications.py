@@ -175,6 +175,7 @@ def transform_notification(
         notification.rate_multiplier = recipient_info.billable_units
     elif notification_type == EMAIL_TYPE:
         notification.normalised_to = format_email_address(notification.to)
+        notification.international = False
     elif notification_type == LETTER_TYPE:
         notification.postage = postage or template_postage
 

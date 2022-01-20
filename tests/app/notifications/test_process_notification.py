@@ -413,6 +413,7 @@ def test_transform_email_notification_stores_normalised_email(
     assert persisted_notification.normalised_to == expected_recipient_normalised
 
 
+@freeze_time("2016-01-01 11:09:00.061258")
 def test_db_save_notification_saves_to_db(sample_template, sample_api_key, sample_job, mocker):
     mocked_redis = mocker.patch("app.notifications.process_notifications.redis_store.get")
     assert Notification.query.count() == 0
@@ -434,6 +435,7 @@ def test_db_save_notification_saves_to_db(sample_template, sample_api_key, sampl
         to="+16502532222",
         created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
     )
+    db_save_notification(notification)
     assert Notification.query.get(notification.id) is not None
 
     notification_from_db = Notification.query.one()
