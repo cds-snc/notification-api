@@ -38,7 +38,7 @@ class TestMockQueue:
     @pytest.fixture
     def mock_queue(self):
         return MockQueue()
-    
+
     def test_polling_messages_from_queue(self, mock_queue):
         notifications: list = mock_queue.poll(10)
         assert notifications is not None

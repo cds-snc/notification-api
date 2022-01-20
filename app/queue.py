@@ -94,9 +94,11 @@ def generate_notification():
     while True:
         yield fake.notification()
 
+
 def generate_notifications(count=10):
     notifications = generate_notification()
     return [next(notifications) for i in range(0, count)]
+
 
 class Queue(ABC):
     """Queue interface for custom buffer.
