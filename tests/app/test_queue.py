@@ -18,14 +18,11 @@ def test_pytest_mock_redis(redis):
     print("Contents of the Redis set:")
     print(redis.smembers(colorSet))
 
-def test_publishing_of_notifications_to_a_cache_buffer_temporary_store_queue(redis):
+def test_polling_messages_from_queue(redis):
     pass
 
-def test_acknowledgement_pulse_or_retrieval_of_cached_buffered_notifications(redis):
+def test_put_mesages_on_queue(redis):
     pass
 
-def test_polling_or_retrieval_of_cached_buffered_notifications_in_a_batch_list(redis):
-    pass
-
-def test_bulk_save_of_cached_buffered_notifications_in_a_batch_list(redis):
+def test_acknowledged_messages(redis):
     pass
