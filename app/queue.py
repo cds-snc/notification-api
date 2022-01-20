@@ -8,6 +8,7 @@ from flask import current_app
 from faker import Faker
 from faker.providers import BaseProvider
 
+from app import encryption
 from app import models
 from notifications_utils.clients.redis.redis_client import RedisClient
 
@@ -50,7 +51,7 @@ class NotifyProvider(BaseProvider):
             "created_at": created_at,
             "sent_at": None,
             "billable_units": None,
-            "personalisation": {},
+            "personalisation": None,
             "notification_type": self.notification_type(),
             "api_key": None,
             "api_key_id": None,
@@ -93,6 +94,9 @@ def generate_notification():
     while True:
         yield fake.notification()
 
+def generate_notifications(count=10):
+    notifications = generate_notification()
+    return [next(notifications) for i in range(0, count)]
 
 class Queue(ABC):
     """Queue interface for custom buffer.
@@ -128,25 +132,25 @@ class Queue(ABC):
     def publish(self, notification: Dict) -> None:
         pass
 
-    subscribe = poll
-
 
 # TODO: Check if we want to move the queue API and implementations into the utils project.
 class RedisQueue(Queue):
     """Implementation of a queue using Redis."""
 
-    def __init__(self, connection = RedisClient()) -> None:
+    def __init__(self, connection=RedisClient()) -> None:
         self.connection = connection
-        self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
+        # self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
 
     def poll(self, count=10) -> list[Any]:
-        connection.lrange("notifs_buffer_queue_cache_list", 0, self.limit)
+        # connection.lrange("notifs_buffer_queue_cache_list", 0, self.limit)
+        pass
 
     def acknowledge(self, message_ids: list[int]):
         pass
 
     def publish(self, notification: Dict) -> None:
-        connection.lpush("notifs_buffer_queue_cache_list", notification)
+        # connection.lpush("notifs_buffer_queue_cache_list", notification)
+        pass
 
 
 class MockQueue(Queue):
@@ -155,7 +159,7 @@ class MockQueue(Queue):
     Do not use in production!"""
 
     def poll(self, count=10) -> list[Any]:
-        return [generate_notification() for i in range(0, count)]
+        return generate_notifications(count)
 
     def acknowledge(self, message_ids: list[int]):
         pass
@@ -163,26 +167,28 @@ class MockQueue(Queue):
     def publish(self, notification: Dict) -> None:
         pass
 
+
 class NotificationBufferPublisher:
     """Implementation of a notification buffer.
     It requires an medium its uses to send/publish/cache/buffer/queue.
     """
 
-    def __init__(self, notification, queue = RedisQueue()) -> None:
+    def __init__(self, notification, queue=RedisQueue()) -> None:
         self.queue = queue
         self.notification = notification
 
     def __call__(self) -> None:
-        queue.publish(self.notification)
+        self.queue.publish(self.notification)
+
 
 class NotificationBufferConsumer:
     """Implementation of a notification buffer.
     It requires an medium its uses to send/publish/cache/buffer/queue.
     """
 
-    def __init__(self, notification, queue = RedisQueue()) -> None:
+    def __init__(self, notification, queue=RedisQueue()) -> None:
         self.queue = queue
         self.notification = notification
 
     def __call__(self) -> None:
-        queue.publish(self.notification)
+        self.queue.publish(self.notification)
