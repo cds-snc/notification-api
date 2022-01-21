@@ -1,17 +1,15 @@
 import random
 from abc import ABC, abstractmethod
 from enum import Enum
-from multiprocessing import connection
 from typing import Any, Dict
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-import pip
 from faker import Faker
 from faker.providers import BaseProvider
 from flask import current_app
 from notifications_utils.clients.redis.redis_client import RedisClient
 
-from app import encryption, models
+from app import models
 
 # TODO: Move data generation into another module, similar to app.aws.mocks?
 fake = Faker()
@@ -125,7 +123,7 @@ class Queue(ABC):
         pass
 
     @abstractmethod
-    def acknowledge(self, message_ids: list[int]):
+    def acknowledge(self, receipt: UUID):
         """Acknowledges reception and processing of provided messages IDs.
 
         Once the acknowledgement is done, the messages will get their in-flight
@@ -145,12 +143,12 @@ class Queue(ABC):
 class RedisQueue(Queue):
     """Implementation of a queue using Redis."""
 
-    def __init__(self, connection=RedisClient()) -> None:
+    def __init__(self, connection: RedisClient) -> None:
         self.connection = connection
         self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
 
     def poll(self, count=10) -> list[Any]:
-        in_flight_key = f"{Buffer.IN_FLIGHT}:{uuid4()}-receipt"
+        in_flight_key = f"{Buffer.IN_FLIGHT}:{uuid4()}"
         notifications = None
 
         pipeline = self.connection.pipeline()
@@ -161,20 +159,18 @@ class RedisQueue(Queue):
 
         return notifications
 
-    def acknowledge(self, in_flight_keys: list[str]) -> list[Any]:
-        pipeline = self.connection.pipeline()
-        for in_flight_key in in_flight_keys:
-            pipeline.delete(in_flight_key)
-
-        pipeline.execute()
-
-        return in_flight_keys
+    def acknowledge(self, receipt: UUID):
+        inflight_name = self.__get_inflight_name(receipt)
+        self.connection.delete(inflight_name)
 
     def publish(self, notification: Dict) -> None:
         self.connection.rpush(Buffer.INBOX, notification)
 
     def __in_flight(self) -> list[Any]:
         return self.connection.lrange(Buffer.INBOX, 0, self.limit)
+
+    def __get_inflight_name(self, receipt: UUID = uuid4()) -> str:
+        return f"{Buffer.IN_FLIGHT}:{receipt}"
 
 
 class MockQueue(Queue):
@@ -185,7 +181,7 @@ class MockQueue(Queue):
     def poll(self, count=10) -> list[Any]:
         return generate_notifications(count)
 
-    def acknowledge(self, message_ids: list[int]):
+    def acknowledge(self, receipt: UUID):
         pass
 
     def publish(self, notification: Dict) -> None:
