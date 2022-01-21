@@ -1,7 +1,10 @@
 import pytest
 from pytest_mock_resources import RedisConfig, create_redis_fixture
 
-from app.queue import MockQueue, generate_notification
+from app import create_app, redis_store
+from app.queue import Buffer, MockQueue, RedisQueue, generate_notification
+from flask import Flask
+from notifications_utils.clients.redis.redis_client import RedisClient
 
 
 @pytest.fixture(scope="session")
@@ -13,10 +16,32 @@ redis = create_redis_fixture()
 
 
 class TestRedisQueue:
-    def test_polling_messages_from_queue(self, redis):
-        pass
+    @pytest.fixture(autouse=True)
+    def app(self):
+        app = Flask("test")
+        # app.config["REDIS_URL"] = "redis://host.docker.internal:6380"
+        create_app(app)
+        ctx = app.app_context()
+        ctx.push()
+        yield app
+        ctx.pop()
+        return app
 
-    def test_put_mesages_on_queue(self, redis):
+    @pytest.fixture()
+    def redis_client(self):
+        return redis_store
+
+    @pytest.fixture()
+    def redis_queue(self, redis_client):
+        return RedisQueue(redis_client)
+
+    def test_put_mesages_on_queue(self, redis, redis_queue):
+        notification = next(generate_notification())
+        redis_queue.publish(notification)
+
+        redis.llen(Buffer.INBOX) == 1
+
+    def test_polling_messages_from_queue(self, redis):
         pass
 
     def test_acknowledged_messages(self, redis):

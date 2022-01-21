@@ -5,6 +5,7 @@ import string
 import uuid
 from time import monotonic
 
+from typing import Optional
 from dotenv import load_dotenv
 from flask import _request_ctx_stack, g, jsonify, make_response, request  # type: ignore
 from flask_marshmallow import Marshmallow
@@ -16,6 +17,7 @@ from notifications_utils.clients.zendesk.zendesk_client import ZendeskClient
 from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
 from werkzeug.local import LocalProxy
 
+from app.config import Config
 from app.celery.celery import NotifyCelery
 from app.clients import Clients
 from app.clients.document_download import DocumentDownloadClient
@@ -51,11 +53,11 @@ api_user = LocalProxy(lambda: _request_ctx_stack.top.api_user)
 authenticated_service = LocalProxy(lambda: _request_ctx_stack.top.authenticated_service)
 
 
-def create_app(application):
+def create_app(application, config=None):
     from app.config import configs
-
     notify_environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
-
+    if config is None:
+        config = configs[notify_environment]
     application.config.from_object(configs[notify_environment])
 
     application.config["NOTIFY_APP_NAME"] = application.name

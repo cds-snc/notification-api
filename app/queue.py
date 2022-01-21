@@ -143,15 +143,15 @@ class Queue(ABC):
 class RedisQueue(Queue):
     """Implementation of a queue using Redis."""
 
-    def __init__(self, connection: RedisClient) -> None:
-        self.connection = connection
+    def __init__(self, redis_client: RedisClient) -> None:
+        self.redis_client = redis_client
         self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
 
     def poll(self, count=10) -> list[Dict]:
         in_flight_key = self.__get_inflight_name()
         notifications = None
 
-        pipeline = self.connection.pipeline()
+        pipeline = self.redis_client.pipeline()
         notifications = pipeline.lrange(Buffer.INBOX, 0, self.limit)
         pipeline.rpush(in_flight_key, notifications)
         pipeline.ltrim(Buffer.INBOX, self.limit, -1)
@@ -161,13 +161,13 @@ class RedisQueue(Queue):
 
     def acknowledge(self, receipt: UUID):
         inflight_name = self.__get_inflight_name(receipt)
-        self.connection.delete(inflight_name)
+        self.redis_client.delete(inflight_name)
 
     def publish(self, dict: Dict) -> None:
-        self.connection.rpush(Buffer.INBOX, dict)
+        self.redis_client.rpush(Buffer.INBOX, dict)
 
     def __in_flight(self) -> list[Any]:
-        return self.connection.lrange(Buffer.INBOX, 0, self.limit)
+        return self.redis_client.lrange(Buffer.INBOX, 0, self.limit)
 
     def __get_inflight_name(self, receipt: UUID = uuid4()) -> str:
         return f"{Buffer.IN_FLIGHT}:{receipt}"
