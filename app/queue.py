@@ -100,9 +100,11 @@ def generate_notifications(count=10):
     notifications = generate_notification()
     return [next(notifications) for i in range(0, count)]
 
+
 class Buffer(Enum):
     INBOX = "INBOX"
     IN_FLIGHT = "IN-FLIGHT"
+
 
 class Queue(ABC):
     """Queue interface for custom buffer.
