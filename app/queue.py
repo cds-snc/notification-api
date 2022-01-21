@@ -112,7 +112,7 @@ class Queue(ABC):
     """
 
     @abstractmethod
-    def poll(self, count=10) -> list[Any]:
+    def poll(self, count=10) -> list[Dict]:
         """Gets messages out of the queue.
 
         Args:
@@ -135,7 +135,7 @@ class Queue(ABC):
         pass
 
     @abstractmethod
-    def publish(self, notification: Dict) -> None:
+    def publish(self, dict: Dict) -> None:
         pass
 
 
@@ -147,7 +147,7 @@ class RedisQueue(Queue):
         self.connection = connection
         self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
 
-    def poll(self, count=10) -> list[Any]:
+    def poll(self, count=10) -> list[Dict]:
         in_flight_key = self.__get_inflight_name()
         notifications = None
 
@@ -163,8 +163,8 @@ class RedisQueue(Queue):
         inflight_name = self.__get_inflight_name(receipt)
         self.connection.delete(inflight_name)
 
-    def publish(self, notification: Dict) -> None:
-        self.connection.rpush(Buffer.INBOX, notification)
+    def publish(self, dict: Dict) -> None:
+        self.connection.rpush(Buffer.INBOX, dict)
 
     def __in_flight(self) -> list[Any]:
         return self.connection.lrange(Buffer.INBOX, 0, self.limit)
@@ -178,11 +178,11 @@ class MockQueue(Queue):
 
     Do not use in production!"""
 
-    def poll(self, count=10) -> list[Any]:
+    def poll(self, count=10) -> list[Dict]:
         return generate_notifications(count)
 
     def acknowledge(self, receipt: UUID):
         pass
 
-    def publish(self, notification: Dict) -> None:
+    def publish(self, dict: Dict) -> None:
         pass
