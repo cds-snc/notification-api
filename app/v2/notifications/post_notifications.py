@@ -48,10 +48,12 @@ from app.models import (
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
+    choose_queue,
+    db_save_and_send_notification,
     persist_notification,
     persist_scheduled_notification,
-    send_notification_to_queue,
     simulated_recipient,
+    transform_notification,
 )
 from app.notifications.validators import (
     check_rate_limiting,
@@ -275,7 +277,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
 
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:
-        notification = persist_notification(
+        notification = persist_notification(  # keep scheduled notifications using the old code path for now
             template_id=template.id,
             template_version=template.version,
             recipient=form_send_to,
@@ -285,7 +287,6 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             api_key_id=api_key.id,
             key_type=api_key.key_type,
             client_reference=form.get("reference", None),
-            simulated=simulated,
             reply_to_text=reply_to_text,
         )
         persist_scheduled_notification(notification.id, form["scheduled_for"])
@@ -305,7 +306,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             )
 
     else:
-        notification = persist_notification(
+        notification = transform_notification(
             template_id=template.id,
             template_version=template.version,
             recipient=form_send_to,
@@ -315,15 +316,16 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             api_key_id=api_key.id,
             key_type=api_key.key_type,
             client_reference=form.get("reference", None),
-            simulated=simulated,
             reply_to_text=reply_to_text,
         )
         if not simulated:
-            send_notification_to_queue(
+            notification.queue_name = choose_queue(
                 notification=notification,
                 research_mode=service.research_mode,
                 queue=template.queue_to_use(),
             )
+            db_save_and_send_notification(notification)
+
         else:
             current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
 
