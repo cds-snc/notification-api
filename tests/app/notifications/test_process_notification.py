@@ -1,5 +1,4 @@
 import datetime
-import queue
 import uuid
 
 import pytest
@@ -658,6 +657,121 @@ class TestPersistNotifications:
         assert persisted_notification[0].to == "foo@bar.com"
         assert persisted_notification[1].to == "foo2@bar.com"
         assert persisted_notification[0].service == sample_job.service
+
+
+@pytest.mark.parametrize(
+    ("research_mode, requested_queue, notification_type, key_type, reply_to_text, expected_queue"),
+    [
+        (True, None, "sms", "normal", None, "research-mode-tasks"),
+        (True, None, "email", "normal", None, "research-mode-tasks"),
+        (True, None, "email", "team", None, "research-mode-tasks"),
+        (
+            True,
+            None,
+            "letter",
+            "normal",
+            None,
+            "research-mode-tasks",
+        ),
+        (
+            True,
+            None,
+            "sms",
+            "normal",
+            "+14383898585",
+            "send-throttled-sms-tasks",
+        ),
+        (False, None, "sms", "normal", None, "send-sms-tasks"),
+        (False, None, "email", "normal", None, "send-email-tasks"),
+        (False, None, "sms", "team", None, "send-sms-tasks"),
+        (
+            False,
+            None,
+            "letter",
+            "normal",
+            None,
+            "create-letters-pdf-tasks",
+        ),
+        (False, None, "sms", "test", None, "research-mode-tasks"),
+        (
+            False,
+            None,
+            "sms",
+            "normal",
+            "+14383898585",
+            "send-throttled-sms-tasks",
+        ),
+        (
+            True,
+            "notify-internal-tasks",
+            "email",
+            "normal",
+            None,
+            "research-mode-tasks",
+        ),
+        (
+            False,
+            "notify-internal-tasks",
+            "sms",
+            "normal",
+            None,
+            "notify-internal-tasks",
+        ),
+        (
+            False,
+            "notify-internal-tasks",
+            "email",
+            "normal",
+            None,
+            "notify-internal-tasks",
+        ),
+        (
+            False,
+            "notify-internal-tasks",
+            "sms",
+            "test",
+            None,
+            "research-mode-tasks",
+        ),
+        (
+            False,
+            "notify-internal-tasks",
+            "sms",
+            "normal",
+            "+14383898585",
+            "send-throttled-sms-tasks",
+        ),
+    ],
+)
+def test_choose_queue(
+    sample_template,
+    sample_api_key,
+    sample_job,
+    research_mode,
+    requested_queue,
+    notification_type,
+    key_type,
+    reply_to_text,
+    expected_queue,
+):
+    notification = Notification(
+        id=uuid.uuid4(),
+        template_id=sample_template.id,
+        template_version=sample_template.version,
+        service=sample_template.service,
+        personalisation={},
+        notification_type=notification_type,
+        api_key_id=sample_api_key.id,
+        key_type=key_type,
+        job_id=sample_job.id,
+        job_row_number=100,
+        reference="ref",
+        reply_to_text=reply_to_text,
+        to="+16502532222",
+        created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+    )
+
+    assert choose_queue(notification, research_mode, requested_queue) == expected_queue
 
 
 class TestTransformNotification:
