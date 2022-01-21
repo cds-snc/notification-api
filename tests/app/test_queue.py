@@ -1,7 +1,7 @@
 import pytest
+from pytest_mock_resources import RedisConfig, create_redis_fixture
 
 from app.queue import MockQueue, generate_notification, generate_notifications
-from pytest_mock_resources import RedisConfig, create_redis_fixture
 
 
 @pytest.fixture(scope="session")

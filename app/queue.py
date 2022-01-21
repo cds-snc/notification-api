@@ -1,19 +1,17 @@
-from multiprocessing import connection
 import random
 from abc import ABC, abstractmethod
+from enum import Enum
+from multiprocessing import connection
 from typing import Any, Dict
 from uuid import uuid4
-from enum import Enum
 
 import pip
-from flask import current_app
-
 from faker import Faker
 from faker.providers import BaseProvider
-
-from app import encryption
-from app import models
+from flask import current_app
 from notifications_utils.clients.redis.redis_client import RedisClient
+
+from app import encryption, models
 
 # TODO: Move data generation into another module, similar to app.aws.mocks?
 fake = Faker()
@@ -167,6 +165,7 @@ class RedisQueue(Queue):
         pipeline = self.connection.pipeline()
         for in_flight_key in in_flight_keys:
             pipeline.delete(in_flight_key)
+
         pipeline.execute()
 
         return in_flight_keys
