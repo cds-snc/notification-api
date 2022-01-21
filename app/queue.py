@@ -148,7 +148,7 @@ class RedisQueue(Queue):
         self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
 
     def poll(self, count=10) -> list[Any]:
-        in_flight_key = f"{Buffer.IN_FLIGHT}:{uuid4()}"
+        in_flight_key = self.__get_inflight_name()
         notifications = None
 
         pipeline = self.connection.pipeline()
