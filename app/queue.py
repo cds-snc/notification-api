@@ -150,16 +150,19 @@ class RedisQueue(Queue):
         self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
 
     def poll(self, count=10) -> list[Any]:
-        return self.connection.lmove(Buffer.INBOX, f"{Buffer.IN_FLIGHT}:{uuid4()}")
+        return self.__in_flight()
 
     def acknowledge(self, message_ids: list[int]) -> list[Any]:
-        messages = self.connection.lrange(Buffer.IN_FLIGHT, 0, self.limit)
+        messages = self.__in_flight()
         # for message_id in message_ids:
         #     self.connection.lrem(Buffer.IN_FLIGHT, messages[message_id], index)
         return []
 
     def publish(self, notification: Dict) -> None:
         self.connection.rpush(Buffer.INBOX, notification)
+
+    def __in_flight(self) -> list[Any]:
+        return self.connection.lrange(Buffer.INBOX, 0, self.limit)
 
 
 class MockQueue(Queue):
