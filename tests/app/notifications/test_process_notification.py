@@ -18,8 +18,9 @@ from app.models import (
     Template,
 )
 from app.notifications.process_notifications import (
+    choose_queue,
     create_content_for_notification,
-    db_save_notification,
+    db_save_and_send_notification,
     persist_notification,
     persist_notifications,
     persist_scheduled_notification,
@@ -658,6 +659,121 @@ class TestPersistNotifications:
         assert persisted_notification[0].service == sample_job.service
 
 
+@pytest.mark.parametrize(
+    ("research_mode, requested_queue, notification_type, key_type, reply_to_text, expected_queue"),
+    [
+        (True, None, "sms", "normal", None, "research-mode-tasks"),
+        (True, None, "email", "normal", None, "research-mode-tasks"),
+        (True, None, "email", "team", None, "research-mode-tasks"),
+        (
+            True,
+            None,
+            "letter",
+            "normal",
+            None,
+            "research-mode-tasks",
+        ),
+        (
+            True,
+            None,
+            "sms",
+            "normal",
+            "+14383898585",
+            "send-throttled-sms-tasks",
+        ),
+        (False, None, "sms", "normal", None, "send-sms-tasks"),
+        (False, None, "email", "normal", None, "send-email-tasks"),
+        (False, None, "sms", "team", None, "send-sms-tasks"),
+        (
+            False,
+            None,
+            "letter",
+            "normal",
+            None,
+            "create-letters-pdf-tasks",
+        ),
+        (False, None, "sms", "test", None, "research-mode-tasks"),
+        (
+            False,
+            None,
+            "sms",
+            "normal",
+            "+14383898585",
+            "send-throttled-sms-tasks",
+        ),
+        (
+            True,
+            "notify-internal-tasks",
+            "email",
+            "normal",
+            None,
+            "research-mode-tasks",
+        ),
+        (
+            False,
+            "notify-internal-tasks",
+            "sms",
+            "normal",
+            None,
+            "notify-internal-tasks",
+        ),
+        (
+            False,
+            "notify-internal-tasks",
+            "email",
+            "normal",
+            None,
+            "notify-internal-tasks",
+        ),
+        (
+            False,
+            "notify-internal-tasks",
+            "sms",
+            "test",
+            None,
+            "research-mode-tasks",
+        ),
+        (
+            False,
+            "notify-internal-tasks",
+            "sms",
+            "normal",
+            "+14383898585",
+            "send-throttled-sms-tasks",
+        ),
+    ],
+)
+def test_choose_queue(
+    sample_template,
+    sample_api_key,
+    sample_job,
+    research_mode,
+    requested_queue,
+    notification_type,
+    key_type,
+    reply_to_text,
+    expected_queue,
+):
+    notification = Notification(
+        id=uuid.uuid4(),
+        template_id=sample_template.id,
+        template_version=sample_template.version,
+        service=sample_template.service,
+        personalisation={},
+        notification_type=notification_type,
+        api_key_id=sample_api_key.id,
+        key_type=key_type,
+        job_id=sample_job.id,
+        job_row_number=100,
+        reference="ref",
+        reply_to_text=reply_to_text,
+        to="+16502532222",
+        created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+    )
+
+    assert choose_queue(notification, research_mode, requested_queue) == expected_queue
+
+
 class TestTransformNotification:
     def test_transform_notification_with_optionals(self, sample_job, sample_api_key, notify_db_session):
         assert Notification.query.count() == 0
@@ -798,10 +914,11 @@ class TestTransformNotification:
         assert persisted_notification.normalised_to == expected_recipient_normalised
 
 
-class TestDBSaveNotification:
+class TestDBSaveAndSendNotification:
     @freeze_time("2016-01-01 11:09:00.061258")
-    def test_db_save_notification_saves_to_db(self, sample_template, sample_api_key, sample_job, mocker):
+    def test_db_save_and_send_notification_saves_to_db(self, sample_template, sample_api_key, sample_job, mocker):
         mocked_redis = mocker.patch("app.notifications.process_notifications.redis_store.get")
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
 
@@ -821,7 +938,7 @@ class TestDBSaveNotification:
             to="+16502532222",
             created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
         )
-        db_save_notification(notification)
+        db_save_and_send_notification(notification)
         assert Notification.query.get(notification.id) is not None
 
         notification_from_db = Notification.query.one()
@@ -845,7 +962,132 @@ class TestDBSaveNotification:
 
         mocked_redis.assert_called_once_with(str(sample_template.service_id) + "-2016-01-01-count")
 
-    def test_db_save_notification_throws_exception_when_missing_template(self, sample_api_key):
+    @pytest.mark.parametrize(
+        ("notification_type, key_type, reply_to_text, expected_queue, expected_task"),
+        [
+            ("sms", "normal", None, "research-mode-tasks", "deliver_sms"),
+            ("email", "normal", None, "research-mode-tasks", "deliver_email"),
+            ("email", "team", None, "research-mode-tasks", "deliver_email"),
+            (
+                "sms",
+                "normal",
+                "+14383898585",
+                "send-throttled-sms-tasks",
+                "deliver_throttled_sms",
+            ),
+            ("sms", "normal", None, "send-sms-tasks", "deliver_sms"),
+            ("email", "normal", None, "send-email-tasks", "deliver_email"),
+            ("sms", "team", None, "send-sms-tasks", "deliver_sms"),
+            ("sms", "test", None, "research-mode-tasks", "deliver_sms"),
+            (
+                "sms",
+                "normal",
+                "+14383898585",
+                "send-throttled-sms-tasks",
+                "deliver_throttled_sms",
+            ),
+            (
+                "email",
+                "normal",
+                None,
+                "research-mode-tasks",
+                "deliver_email",
+            ),
+            (
+                "sms",
+                "normal",
+                None,
+                "notify-internal-tasks",
+                "deliver_sms",
+            ),
+            (
+                "email",
+                "normal",
+                None,
+                "notify-internal-tasks",
+                "deliver_email",
+            ),
+            (
+                "sms",
+                "test",
+                None,
+                "research-mode-tasks",
+                "deliver_sms",
+            ),
+            (
+                "sms",
+                "normal",
+                "+14383898585",
+                "send-throttled-sms-tasks",
+                "deliver_throttled_sms",
+            ),
+        ],
+    )
+    def test_db_save_and_send_notification_sends_to_queue(
+        self,
+        sample_template,
+        notify_db,
+        notify_db_session,
+        notification_type,
+        key_type,
+        reply_to_text,
+        expected_queue,
+        expected_task,
+        mocker,
+    ):
+        if "." not in expected_task:
+            expected_task = f"provider_tasks.{expected_task}"
+        mocked = mocker.patch(f"app.celery.{expected_task}.apply_async")
+        notification = Notification(
+            id=uuid.uuid4(),
+            to="joe@blow.com",
+            template_id=sample_template.id,
+            template_version=sample_template.version,
+            key_type=key_type,
+            notification_type=notification_type,
+            created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+            reply_to_text=reply_to_text,
+            queue_name=expected_queue,
+        )
+
+        db_save_and_send_notification(notification=notification)
+
+        mocked.assert_called_once_with([str(notification.id)], queue=expected_queue)
+
+    def test_db_save_and_send_notification_throws_exception_deletes_notification(
+        self, sample_template, sample_api_key, sample_job, mocker
+    ):
+        mocked = mocker.patch(
+            "app.celery.provider_tasks.deliver_sms.apply_async",
+            side_effect=Boto3Error("EXPECTED"),
+        )
+        notification = Notification(
+            id=uuid.uuid4(),
+            template_id=sample_template.id,
+            template_version=sample_template.version,
+            service=sample_template.service,
+            personalisation={},
+            notification_type="sms",
+            api_key_id=sample_api_key.id,
+            key_type=sample_api_key.key_type,
+            job_id=sample_job.id,
+            job_row_number=100,
+            reference="ref",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+            to="+16502532222",
+            created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+            queue_name="send-sms-tasks",
+        )
+
+        with pytest.raises(Boto3Error):
+            db_save_and_send_notification(notification)
+        mocked.assert_called_once_with([(str(notification.id))], queue="send-sms-tasks")
+
+        assert Notification.query.count() == 0
+        assert NotificationHistory.query.count() == 0
+
+    def test_db_save_and_send_notification_throws_exception_when_missing_template(self, sample_api_key, mocker):
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
 
@@ -863,12 +1105,12 @@ class TestDBSaveNotification:
         )
 
         with pytest.raises(SQLAlchemyError):
-            db_save_notification(notification)
+            db_save_and_send_notification(notification)
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
 
-    def test_db_save_notification_does_not_increment_cache_if_test_key(
+    def test_db_save_and_send_notification_does_not_increment_cache_if_test_key(
         self, notify_db, notify_db_session, sample_template, sample_job, mocker
     ):
         api_key = create_api_key(
@@ -882,15 +1124,17 @@ class TestDBSaveNotification:
             "app.notifications.process_notifications.redis_store.get_all_from_hash",
             return_value="cache",
         )
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         daily_limit_cache = mocker.patch("app.notifications.process_notifications.redis_store.incr")
         template_usage_cache = mocker.patch("app.notifications.process_notifications.redis_store.increment_hash_value")
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
-        persist_notification(
+
+        notification = Notification(
+            id=uuid.uuid4(),
             template_id=sample_template.id,
             template_version=sample_template.version,
-            recipient="+16502532222",
             service=sample_template.service,
             personalisation={},
             notification_type="sms",
@@ -899,7 +1143,11 @@ class TestDBSaveNotification:
             job_id=sample_job.id,
             job_row_number=100,
             reference="ref",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+            to="+16502532222",
+            created_at=datetime.datetime.utcnow(),
         )
+        db_save_and_send_notification(notification)
 
         assert Notification.query.count() == 1
 
@@ -907,47 +1155,56 @@ class TestDBSaveNotification:
         assert not template_usage_cache.called
 
     @freeze_time("2016-01-01 11:09:00.061258")
-    def test_db_save_notification_doesnt_touch_cache_for_old_keys_that_dont_exist(self, sample_template, sample_api_key, mocker):
+    def test_db_save_and_send_notification_doesnt_touch_cache_for_old_keys_that_dont_exist(
+        self, sample_template, sample_api_key, mocker
+    ):
         mock_incr = mocker.patch("app.notifications.process_notifications.redis_store.incr")
         mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=None)
         mocker.patch(
             "app.notifications.process_notifications.redis_store.get_all_from_hash",
             return_value=None,
         )
-
-        persist_notification(
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+        notification = Notification(
+            id=uuid.uuid4(),
             template_id=sample_template.id,
             template_version=sample_template.version,
-            recipient="+16502532222",
             service=sample_template.service,
             personalisation={},
             notification_type="sms",
             api_key_id=sample_api_key.id,
             key_type=sample_api_key.key_type,
             reference="ref",
+            to="+16502532222",
+            created_at=datetime.datetime.utcnow(),
         )
+        db_save_and_send_notification(notification)
         mock_incr.assert_not_called()
 
     @freeze_time("2016-01-01 11:09:00.061258")
-    def test_db_save_notification_increments_cache_if_key_exists(self, sample_template, sample_api_key, mocker):
+    def test_db_save_and_send_notification_increments_cache_if_key_exists(self, sample_template, sample_api_key, mocker):
         mock_incr = mocker.patch("app.notifications.process_notifications.redis_store.incr")
         mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=1)
         mocker.patch(
             "app.notifications.process_notifications.redis_store.get_all_from_hash",
             return_value={sample_template.id, 1},
         )
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
-        persist_notification(
+        notification = Notification(
+            id=uuid.uuid4(),
             template_id=sample_template.id,
             template_version=sample_template.version,
-            recipient="+16502532222",
             service=sample_template.service,
             personalisation={},
             notification_type="sms",
             api_key_id=sample_api_key.id,
             key_type=sample_api_key.key_type,
             reference="ref2",
+            to="+16502532222",
+            created_at=datetime.datetime.utcnow(),
         )
+        db_save_and_send_notification(notification)
 
         mock_incr.assert_called_once_with(
             str(sample_template.service_id) + "-2016-01-01-count",
