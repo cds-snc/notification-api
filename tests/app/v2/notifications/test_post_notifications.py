@@ -575,8 +575,7 @@ def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
 ):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     sample = create_template(service=sample_service, template_type=notification_type)
-    persist_mock = mocker.patch("app.notifications.process_notifications.persist_notification")
-    deliver_mock = mocker.patch("app.notifications.process_notifications.send_notification_to_queue")
+    save_mock = mocker.patch("app.v2.notifications.post_notifications.db_save_and_send_notification")
     mocker.patch(
         "app.v2.notifications.post_notifications.check_rate_limiting",
         side_effect=RateLimitError("LIMIT", "INTERVAL", "TYPE"),
@@ -600,8 +599,7 @@ def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
     assert message == "Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds"
     assert status_code == 429
 
-    assert not persist_mock.called
-    assert not deliver_mock.called
+    assert not save_mock.called
 
 
 def test_post_sms_notification_returns_400_if_not_allowed_to_send_int_sms(
