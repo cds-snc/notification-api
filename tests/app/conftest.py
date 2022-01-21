@@ -369,14 +369,8 @@ def sample_service(
 
     return service
 
-@pytest.fixture(scope='function', name='sample_service_push_permissions')
-def _sample_service_push_permissions(notify_db_session):
-    service = create_service(
-        service_name="sample service full permissions",
-        service_permissions=PUSH_TYPE,
-        check_if_service_exists=True
-    )
-    return service
+
+
 
 
 @pytest.fixture(scope='function', name='sample_service_full_permissions')
