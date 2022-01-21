@@ -1,6 +1,7 @@
 import json
+import os
+
 import pytest
-import requests_mock
 from flask import url_for
 from app.feature_flags import FeatureFlag
 from app.models import PUSH_TYPE
@@ -14,29 +15,20 @@ def push_notification_toggle_enabled(mocker):
     mock_feature_flag(mocker, FeatureFlag.PUSH_NOTIFICATIONS_ENABLED, 'True')
 
 
-@pytest.yield_fixture
-def rmock():
-    with requests_mock.mock(real_http=True) as rmock:
-        yield rmock
-
-push_request_body = {'template_id': 'some-template-id',
-                     'recipient_identifier': {"id_type": "ICN", "id_value": "some-icn"},
-                     'personalisation': {"%FOO%": "bar"}}
-
-
-def test_mobile_app_push_notification_delivered(client, db_session, vetext_client,
-                                                push_notification_toggle_enabled, rmock):
+def test_mobile_app_push_notification_delivered(client, db_session,
+                                                push_notification_toggle_enabled, rmock, mocker):
     sample_service = create_service(service_permissions=[PUSH_TYPE])
     rmock.register_uri(
         'POST',
         f"{client.application.config['VETEXT_URL']}/mobile/push/send",
         json={'result': 'success'}
     )
-    # rmock.request(
-    #     "POST",
-    #     f"{client.application.config['VETEXT_URL']}/mobile/push/send",
-    #     json={'result': 'success'}
-    # )
+
+    push_request_body = {'mobile_app': 'VETEXT', 'template_id': 'some-template-id',
+                         'recipient_identifier': {"id_type": "ICN", "id_value": "some-icn"},
+                         'personalisation': {"%FOO%": "bar"}}
+
+    mocker.patch.dict(os.environ, {"VETEXT_SID": "1234", "VA_FLAGSHIP_APP_SID": "1234"})
 
     response = client.post(
         url_for('v2_notifications.send_push_notification', service_id=sample_service.id),
@@ -45,7 +37,6 @@ def test_mobile_app_push_notification_delivered(client, db_session, vetext_clien
                  create_authorization_header(service_id=sample_service.id)],
     )
 
-    print("response", response)
-
-    assert response.result == 'success'
+    assert rmock.called
+    assert response.json.get('result') == 'success'
     assert response.status_code == 201

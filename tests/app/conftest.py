@@ -28,7 +28,7 @@ from app.dao.users_dao import create_secret_code, create_user_code
 from app.dao.fido2_key_dao import save_fido2_key
 from app.dao.login_event_dao import save_login_event
 from app.history_meta import create_history
-from app import notify_celery
+
 
 from app.models import (
     Service,
@@ -73,7 +73,6 @@ from tests.app.db import (
 from tests.app.factories import (
     service_whitelist
 )
-from tests.conftest import set_config_values
 
 
 @pytest.yield_fixture
@@ -882,29 +881,6 @@ def sample_notification_history(
     notify_db.session.commit()
 
     return notification_history
-
-
-@pytest.fixture()
-def integration_celery_config(notify_api):
-    with set_config_values(notify_api, {
-
-        'CELERY_SETTINGS': {
-            'broker_url': 'sqs://',
-            'task_always_eager': True,
-            'imports': (
-                'app.celery.tasks',
-                'app.celery.scheduled_tasks',
-                'app.celery.reporting_tasks',
-                'app.celery.nightly_tasks',
-                'app.celery.process_pinpoint_receipt_tasks',
-                'app.celery.process_pinpoint_inbound_sms'
-                'app.celery.service_callback_tasks'
-            )
-        }
-    }):
-        notify_celery.init_app(notify_api)
-    yield
-    notify_celery.init_app(notify_api)
 
 
 @pytest.fixture(scope='function')

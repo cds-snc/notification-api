@@ -10,7 +10,6 @@ from app.models import QUEUE_CHANNEL_TYPE, INBOUND_SMS_CALLBACK_TYPE, PLATFORM_A
 from tests.app.factories.feature_flag import mock_feature_flag
 from botocore.stub import Stubber, ANY
 from app import sqs_client, notify_celery
-from tests.app.conftest import integration_celery_config  # noqa
 from tests.conftest import set_config_values
 
 
@@ -19,6 +18,28 @@ def sqs_stub():
     with Stubber(sqs_client._client) as stubber:
         yield stubber
         stubber.assert_no_pending_responses()
+
+
+@pytest.fixture()
+def integration_celery_config(notify_api):
+    with set_config_values(notify_api, {
+        'CELERY_SETTINGS': {
+            'broker_url': 'sqs://',
+            'task_always_eager': True,
+            'imports': (
+                'app.celery.tasks',
+                'app.celery.scheduled_tasks',
+                'app.celery.reporting_tasks',
+                'app.celery.nightly_tasks',
+                'app.celery.process_pinpoint_receipt_tasks',
+                'app.celery.process_pinpoint_inbound_sms'
+                'app.celery.service_callback_tasks'
+            )
+        }
+    }):
+        notify_celery.init_app(notify_api)
+    yield
+    notify_celery.init_app(notify_api)
 
 
 @pytest.fixture
@@ -46,6 +67,7 @@ class AnySms(object):
             and other_dict["message"] == self.message
             and other_dict["sms_sender_id"] == self.sms_sender_id
         )
+
 
 @pytest.mark.skip(reason="Integration test fails when run in suite, passes when run alone")
 def test_sqs_callback(
