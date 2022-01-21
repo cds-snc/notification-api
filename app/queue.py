@@ -166,7 +166,7 @@ class RedisQueue(Queue):
     def acknowledge(self, in_flight_keys: list[str]) -> list[Any]:
         pipeline = self.connection.pipeline()
         for in_flight_key in in_flight_keys:
-            pipeline.del(in_flight_key)
+            pipeline.delete(in_flight_key)
         pipeline.execute()
 
         return in_flight_keys
@@ -191,29 +191,3 @@ class MockQueue(Queue):
 
     def publish(self, notification: Dict) -> None:
         pass
-
-
-class NotificationBufferPublisher:
-    """Implementation of a notification buffer.
-    It requires an medium its uses to send/publish/cache/buffer/queue.
-    """
-
-    def __init__(self, notification, queue: Queue) -> None:
-        self.queue = queue
-        self.notification = notification
-
-    def __call__(self) -> None:
-        self.queue.publish(self.notification)
-
-
-class NotificationBufferConsumer:
-    """Implementation of a notification buffer.
-    It requires an medium its uses to send/publish/cache/buffer/queue.
-    """
-
-    def __init__(self, notification, queue: Queue) -> None:
-        self.queue = queue
-        self.notification = notification
-
-    def __call__(self) -> None:
-        self.queue.publish(self.notification)
