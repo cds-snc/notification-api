@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict
 from uuid import uuid4
 from enum import Enum
+
+import pip
 from flask import current_app
 
 from faker import Faker
@@ -150,13 +152,24 @@ class RedisQueue(Queue):
         self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
 
     def poll(self, count=10) -> list[Any]:
-        return self.__in_flight()
+        in_flight_key = f"{Buffer.IN_FLIGHT}:{uuid4()}-receipt"
+        notifications = None
 
-    def acknowledge(self, message_ids: list[int]) -> list[Any]:
-        messages = self.__in_flight()
-        # for message_id in message_ids:
-        #     self.connection.lrem(Buffer.IN_FLIGHT, messages[message_id], index)
-        return []
+        pipeline = self.connection.pipeline()
+        notifications = pipeline.lrange(Buffer.INBOX, 0, self.limit)
+        pipeline.rpush(in_flight_key, notifications)
+        pipeline.ltrim(Buffer.INBOX, self.limit, -1)
+        pipeline.execute()
+
+        return notifications
+
+    def acknowledge(self, in_flight_keys: list[str]) -> list[Any]:
+        pipeline = self.connection.pipeline()
+        for in_flight_key in in_flight_keys:
+            pipeline.del(in_flight_key)
+        pipeline.execute()
+
+        return in_flight_keys
 
     def publish(self, notification: Dict) -> None:
         self.connection.rpush(Buffer.INBOX, notification)
