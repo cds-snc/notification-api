@@ -1,13 +1,18 @@
 import pytest
 
 from app.queue import MockQueue, generate_notification, generate_notifications
-from pytest_mock_resources import create_redis_fixture
+from pytest_mock_resources import RedisConfig, create_redis_fixture
+
+
+@pytest.fixture(scope="session")
+def pmr_redis_config():
+    return RedisConfig(image="redis:6.2")
+
+
+redis = create_redis_fixture()
 
 
 class TestRedisQueue:
-
-    redis = create_redis_fixture()
-
     def test_pytest_mock_redis(self, redis):
         colorSet = "Colors"
         redis.sadd(colorSet, "Red")

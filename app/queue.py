@@ -147,18 +147,19 @@ class RedisQueue(Queue):
 
     def __init__(self, connection=RedisClient()) -> None:
         self.connection = connection
-        # self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
+        self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
 
     def poll(self, count=10) -> list[Any]:
-        connection.lmove(Buffer.INBOX, Buffer.IN_FLIGHT)
+        return self.connection.lmove(Buffer.INBOX, Buffer.IN_FLIGHT)
 
     def acknowledge(self, message_ids: list[int]):
-        messages = connection.lrange(Buffer.IN_FLIGHT, 0, self.limit)
-        for message_id in message_ids:
-            connection.lrem(Buffer.IN_FLIGHT, messages[message_id], index)
+        messages = self.connection.lrange(Buffer.IN_FLIGHT, 0, self.limit)
+        # for message_id in message_ids:
+        #     self.connection.lrem(Buffer.IN_FLIGHT, messages[message_id], index)
+        return []
 
     def publish(self, notification: Dict) -> None:
-        connection.rpush(Buffer.INBOX, notification)
+        self.connection.rpush(Buffer.INBOX, notification)
 
 
 class MockQueue(Queue):
@@ -181,7 +182,7 @@ class NotificationBufferPublisher:
     It requires an medium its uses to send/publish/cache/buffer/queue.
     """
 
-    def __init__(self, notification, queue=RedisQueue()) -> None:
+    def __init__(self, notification, queue: Queue) -> None:
         self.queue = queue
         self.notification = notification
 
@@ -194,7 +195,7 @@ class NotificationBufferConsumer:
     It requires an medium its uses to send/publish/cache/buffer/queue.
     """
 
-    def __init__(self, notification, queue=RedisQueue()) -> None:
+    def __init__(self, notification, queue: Queue) -> None:
         self.queue = queue
         self.notification = notification
 
