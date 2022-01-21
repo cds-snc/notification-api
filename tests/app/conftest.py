@@ -56,7 +56,7 @@ from app.models import (
     LETTER_TYPE,
     NOTIFICATION_STATUS_TYPES_COMPLETED,
     SERVICE_PERMISSION_TYPES,
-    ServiceEmailReplyTo, User, CommunicationItem, PUSH_TYPE
+    ServiceEmailReplyTo, User, CommunicationItem
 )
 from tests import create_authorization_header
 from tests.app.db import (
@@ -368,9 +368,6 @@ def sample_service(
         create_inbound_number('12345', service_id=service.id)
 
     return service
-
-
-
 
 
 @pytest.fixture(scope='function', name='sample_service_full_permissions')
@@ -886,6 +883,7 @@ def sample_notification_history(
 
     return notification_history
 
+
 @pytest.fixture()
 def integration_celery_config(notify_api):
     with set_config_values(notify_api, {
@@ -907,7 +905,6 @@ def integration_celery_config(notify_api):
         notify_celery.init_app(notify_api)
     yield
     notify_celery.init_app(notify_api)
-
 
 
 @pytest.fixture(scope='function')
