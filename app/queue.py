@@ -150,9 +150,9 @@ class RedisQueue(Queue):
         self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
 
     def poll(self, count=10) -> list[Any]:
-        return self.connection.lmove(Buffer.INBOX, Buffer.IN_FLIGHT)
+        return self.connection.lmove(Buffer.INBOX, f"{Buffer.IN_FLIGHT}:{uuid4()}")
 
-    def acknowledge(self, message_ids: list[int]):
+    def acknowledge(self, message_ids: list[int]) -> list[Any]:
         messages = self.connection.lrange(Buffer.IN_FLIGHT, 0, self.limit)
         # for message_id in message_ids:
         #     self.connection.lrem(Buffer.IN_FLIGHT, messages[message_id], index)
