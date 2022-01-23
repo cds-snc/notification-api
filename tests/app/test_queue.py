@@ -23,13 +23,14 @@ class TestRedisQueue:
         create_app(app)
         ctx = app.app_context()
         ctx.push()
-        yield app
+        with app.test_request_context():
+            yield app
         ctx.pop()
         return app
 
     @pytest.fixture()
     def redis_client(self):
-        return redis_store
+        return redis_store.redis_store
 
     @pytest.fixture()
     def redis_queue(self, redis_client):
@@ -38,8 +39,7 @@ class TestRedisQueue:
     def test_put_mesages_on_queue(self, redis, redis_queue):
         notification = next(generate_notification())
         redis_queue.publish(notification)
-
-        redis.llen(Buffer.INBOX) == 1
+        assert redis.llen(Buffer.INBOX.value) == 1
 
     def test_polling_messages_from_queue(self, redis):
         pass
