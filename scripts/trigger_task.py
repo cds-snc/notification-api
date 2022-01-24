@@ -56,7 +56,12 @@ def send_task(task_name, queue_prefix, routing_key, task_args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--task-name', dest='task_name', type=str, default="create-nightly-notification-status")
+    parser.add_argument(
+        '--task-name',
+        dest='task_name',
+        type=str,
+        default="create-nightly-notification-status"
+    )
     parser.add_argument('--queue-prefix', dest='queue_prefix', type=str, default="dev-notification-")
     parser.add_argument('--routing-key', dest='routing_key', type=str, default="delivery-receipts")
     parser.add_argument('--task-args', dest='task_args', nargs="+", default=[])
