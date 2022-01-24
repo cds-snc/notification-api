@@ -36,13 +36,24 @@ class TestRedisQueue:
     def redis_queue(self, redis_client):
         return RedisQueue(redis_client)
 
+    @pytest.fixture()
+    def given_filled_inbox(self, redis, redis_queue):
+        notification = next(generate_notification())
+        redis_queue.publish(notification)
+        yield
+        redis.delete(Buffer.INBOX.value)
+
     def test_put_mesages_on_queue(self, redis, redis_queue):
         notification = next(generate_notification())
         redis_queue.publish(notification)
         assert redis.llen(Buffer.INBOX.value) == 1
+        redis.delete(Buffer.INBOX.value)
 
-    def test_polling_messages_from_queue(self, redis):
-        pass
+    def test_polling_messages_from_queue(self, redis, redis_queue, given_filled_inbox):
+        notifications = redis_queue.poll(10)
+        assert len(notifications == 1)
+        assert redis.llen(Buffer.INBOX.value) == 0
+        assert redis.llen(Buffer.IN_FLIGHT.value) == 1
 
     def test_acknowledged_messages(self, redis):
         pass

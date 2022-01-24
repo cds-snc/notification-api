@@ -158,7 +158,7 @@ def generate_notification():
         yield fake.notification()
 
 
-def generate_notifications(count=10):
+def generate_notifications(count=10) -> list[Dict]:
     notifications = generate_notification()
     return [next(notifications) for i in range(0, count)]
 
@@ -181,13 +181,22 @@ class Queue(ABC):
     """
 
     @abstractmethod
-    def poll(self, count=10) -> list[Dict]:
+    def poll(self, count=10) -> tuple[UUID, list[Dict]]:
         """Gets messages out of the queue.
+
+        Each polling is associated with a UUID acting as a receipt. This
+        can later be used in conjunction with the `acknowledge` function
+        to confirm that the polled messages were properly processed.
+        This will delete the in-flight messages and these will not get
+        back into the main inbox. Failure to achknowledge the polled
+        messages will get these back into the inbox after a preconfigured
+        timeout has passed, ready to be retried.
 
         Args:
             count (int, optional): Number of messages to get out of the queue. Defaults to 10.
+
         Returns:
-            list[Any]: List of messages in the queue, from 1 up to {count} number.
+            tuple[UUID, list[Dict]]: Gets polling receipt and list of polled notifications.
         """
         pass
 
@@ -216,15 +225,24 @@ class RedisQueue(Queue):
         self.redis_client = redis_client
         self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
 
-    def poll(self, count=10) -> list[Dict]:
-        in_flight_key = self.__get_inflight_name()
+    def poll(self, count=10) -> tuple[UUID, list[Dict]]:
+        receipt = uuid4()
+        in_flight_key = self.__get_inflight_name(receipt)
         pipeline = self.redis_client.pipeline()
+        # This does not work here: the returned object is a pipeline.
+        # I don't think we can interact with the output directly within
+        # the pipeline, we might not have a choice but to write a server
+        # side script. That might provide better performance anyway.
+        # A good example of how to interact with the pipeline:
+        # https://dev.to/ahf90/atomically-popping-multiple-items-from-a-redis-list-in-python-2afa
+        # But that does not do what we want to have in there, but provide
+        # an idea of what we're doing wrong in this code.
         serialized = pipeline.lrange(Buffer.INBOX.value, 0, self.limit)
         pipeline.rpush(in_flight_key, serialized)
         pipeline.ltrim(Buffer.INBOX.value, self.limit, -1)
         pipeline.execute()
-        messages = list(map(json.loads, serialized))
-        return messages
+        results = list(map(json.loads, serialized))
+        return (receipt, results[0])
 
     def acknowledge(self, receipt: UUID):
         inflight_name = self.__get_inflight_name(receipt)
@@ -246,8 +264,10 @@ class MockQueue(Queue):
 
     Do not use in production!"""
 
-    def poll(self, count=10) -> list[Dict]:
-        return generate_notifications(count)
+    def poll(self, count=10) -> tuple[UUID, list[Dict]]:
+        receipt = str(uuid4())
+        notifications = generate_notifications(count)
+        return (receipt, notifications)
 
     def acknowledge(self, receipt: UUID):
         pass
