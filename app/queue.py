@@ -237,6 +237,9 @@ class RedisQueue(Queue):
         # https://dev.to/ahf90/atomically-popping-multiple-items-from-a-redis-list-in-python-2afa
         # But that does not do what we want to have in there, but provide
         # an idea of what we're doing wrong in this code.
+        # A few scripts that might help us:
+        # https://gist.github.com/gigq/7239615
+        # https://gist.github.com/itamarhaber/d30b3c40a72a07f23c70
         serialized = pipeline.lrange(Buffer.INBOX.value, 0, self.limit)
         pipeline.rpush(in_flight_key, serialized)
         pipeline.ltrim(Buffer.INBOX.value, self.limit, -1)
