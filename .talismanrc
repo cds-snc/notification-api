@@ -313,3 +313,7 @@ fileignoreconfig:
       checksum: a1925dd119c7a146994d6fff10336263d0d6a5890c8efa8ef60675b7c86c6f4f
     - filename: tests/app/dao/test_fact_notification_status_dao.py
       checksum: 7f8063a812688f3540ca5eec0d638599e97d881d839c8f1f5c90133657aed977
+    - filename: cd/application-deployment/staging/vaec-api-task-definition.json
+      checksum: 4f15c8592124e5c6e50c50ce0c872443a3767b601d20cd56d028026a691c0943
+    - filename: cd/application-deployment/staging/vaec-celery-task-definition.json
+      checksum: 849b91f46c7d4bba2def5bb2c6fad2fdb7e85d9c97d5c554cb9c0c451cab27eb
