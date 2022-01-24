@@ -41,6 +41,7 @@ from app import (
 from app.db import db
 from app.history_meta import Versioned
 from app.va.identifier import IdentifierType
+from app.model import User, EMAIL_AUTH_TYPE
 
 SMS_TYPE = 'sms'
 EMAIL_TYPE = 'email'
@@ -59,10 +60,6 @@ template_types = db.Enum(*TEMPLATE_TYPES, name='template_type')
 NORMAL = 'normal'
 PRIORITY = 'priority'
 TEMPLATE_PROCESS_TYPE = [NORMAL, PRIORITY]
-
-SMS_AUTH_TYPE = 'sms_auth'
-EMAIL_AUTH_TYPE = 'email_auth'
-USER_AUTH_TYPE = [SMS_AUTH_TYPE, EMAIL_AUTH_TYPE]
 
 DELIVERY_STATUS_CALLBACK_TYPE = 'delivery_status'
 COMPLAINT_CALLBACK_TYPE = 'complaint'
@@ -97,134 +94,6 @@ class HistoryModel:
                 setattr(self, c.name, getattr(original, c.name))
             else:
                 current_app.logger.debug('{} has no column {} to copy from'.format(original, c.name))
-
-
-class User(db.Model):
-    __tablename__ = 'users'
-
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = db.Column(db.String, nullable=False, index=True, unique=False)
-    email_address = db.Column(db.String(255), nullable=False, index=True, unique=True)
-    created_at = db.Column(
-        db.DateTime,
-        index=False,
-        unique=False,
-        nullable=False,
-        default=datetime.datetime.utcnow)
-    updated_at = db.Column(
-        db.DateTime,
-        index=False,
-        unique=False,
-        nullable=True,
-        onupdate=datetime.datetime.utcnow)
-    _password = db.Column(db.String, index=False, unique=False, nullable=True)
-    mobile_number = db.Column(db.String, index=False, unique=False, nullable=True)
-    password_changed_at = db.Column(db.DateTime, index=False, unique=False, nullable=True,
-                                    default=datetime.datetime.utcnow)
-    logged_in_at = db.Column(db.DateTime, nullable=True)
-    failed_login_count = db.Column(db.Integer, nullable=False, default=0)
-    state = db.Column(db.String, nullable=False, default='pending')
-    platform_admin = db.Column(db.Boolean, nullable=False, default=False)
-    current_session_id = db.Column(UUID(as_uuid=True), nullable=True)
-    auth_type = db.Column(
-        db.String, db.ForeignKey('auth_type.name'), index=True, nullable=True, default=EMAIL_AUTH_TYPE)
-    blocked = db.Column(db.Boolean, nullable=False, default=False)
-    additional_information = db.Column(JSONB(none_as_null=True), nullable=True, default={})
-    identity_provider_user_id = db.Column(db.String, index=True, unique=True, nullable=True)
-
-    # a mobile number must be provided if using sms auth
-    CheckConstraint(
-        sqltext="auth_type != 'sms_auth' or mobile_number is not null",
-        name='ck_users_mobile_number_if_sms_auth'
-    )
-
-    # either a password or an identity_provider must exist
-    CheckConstraint(
-        sqltext="_password is not null or identity_provider_user_id is not null",
-        name='ck_users_password_or_identity_provider_user_id'
-    )
-
-    services = db.relationship(
-        'Service',
-        secondary='user_to_service',
-        backref='users')
-    organisations = db.relationship(
-        'Organisation',
-        secondary='user_to_organisation',
-        backref='users')
-
-    @property
-    def password(self):
-        raise AttributeError("Password not readable")
-
-    @password.setter
-    def password(self, password):
-        self._password = hashpw(password)
-
-    def check_password(self, password):
-        if self.blocked:
-            return False
-
-        return check_hash(password, self._password)
-
-    def get_permissions(self, service_id=None):
-        from app.dao.permissions_dao import permission_dao
-
-        if service_id:
-            return [
-                x.permission for x in permission_dao.get_permissions_by_user_id_and_service_id(self.id, service_id)
-            ]
-
-        retval = {}
-        for x in permission_dao.get_permissions_by_user_id(self.id):
-            service_id = str(x.service_id)
-            if service_id not in retval:
-                retval[service_id] = []
-            retval[service_id].append(x.permission)
-        return retval
-
-    def serialize(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'email_address': self.email_address,
-            'auth_type': self.auth_type,
-            'current_session_id': self.current_session_id,
-            'failed_login_count': self.failed_login_count,
-            'logged_in_at': self.logged_in_at.strftime(DATETIME_FORMAT) if self.logged_in_at else None,
-            'mobile_number': self.mobile_number,
-            'organisations': [x.id for x in self.organisations if x.active],
-            'password_changed_at': (
-                self.password_changed_at.strftime('%Y-%m-%d %H:%M:%S.%f')
-                if self.password_changed_at
-                else None
-            ),
-            'permissions': self.get_permissions(),
-            'platform_admin': self.platform_admin,
-            'services': [x.id for x in self.services if x.active],
-            'state': self.state,
-            'blocked': self.blocked,
-            'additional_information': self.additional_information,
-            'identity_provider_user_id': self.identity_provider_user_id
-        }
-
-    def serialize_for_users_list(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'email_address': self.email_address,
-            'mobile_number': self.mobile_number,
-        }
-
-    def serialize_for_user_services(self):
-        services = [service.serialize_for_user() for service in self.services if service.active]
-
-        return {
-            'id': str(self.id),
-            'name': self.name,
-            'email_address': self.email_address,
-            'services': services
-        }
 
 
 class ServiceUser(db.Model):

@@ -317,3 +317,5 @@ fileignoreconfig:
       checksum: 4f15c8592124e5c6e50c50ce0c872443a3767b601d20cd56d028026a691c0943
     - filename: cd/application-deployment/staging/vaec-celery-task-definition.json
       checksum: 849b91f46c7d4bba2def5bb2c6fad2fdb7e85d9c97d5c554cb9c0c451cab27eb
+    - filename: app/model/user.py
+      checksum: fc35ebbc81d323d615005cdb21fcc5b7b4904a196e00e69a04f4c32e55923321

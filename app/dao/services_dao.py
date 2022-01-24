@@ -35,13 +35,13 @@ from app.models import (
     Template,
     TemplateHistory,
     TemplateRedacted,
-    User,
     VerifyCode,
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
     KEY_TYPE_TEST,
     SMS_TYPE,
 )
+from app.model import User
 from app.utils import (
     escape_special_characters,
     get_local_timezone_midnight_in_utc,

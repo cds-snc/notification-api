@@ -1,7 +1,8 @@
 
 from app import db
 from app.dao.dao_utils import transactional
-from app.models import ServiceUser, User
+from app.models import ServiceUser
+from app.model import User
 
 
 def dao_get_service_user(user_id, service_id):

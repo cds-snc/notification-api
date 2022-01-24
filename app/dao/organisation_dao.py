@@ -6,9 +6,9 @@ from app.models import (
     Organisation,
     Domain,
     InvitedOrganisationUser,
-    Service,
-    User
+    Service
 )
+from app.model import User
 
 
 def dao_get_organisations():
@@ -42,8 +42,7 @@ def dao_get_organisation_by_email_address(email_address):
     for domain in Domain.query.order_by(func.char_length(Domain.domain).desc()).all():
 
         if (
-            email_address.endswith("@{}".format(domain.domain)) or
-            email_address.endswith(".{}".format(domain.domain))
+            email_address.endswith("@{}".format(domain.domain)) or email_address.endswith(".{}".format(domain.domain))
         ):
             return Organisation.query.filter_by(id=domain.organisation_id).one()
 

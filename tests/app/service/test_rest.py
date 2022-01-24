@@ -21,11 +21,11 @@ from app.models import (
     ServiceLetterContact,
     ServicePermission,
     ServiceSmsSender,
-    User,
     KEY_TYPE_NORMAL, KEY_TYPE_TEAM, KEY_TYPE_TEST,
     EMAIL_TYPE, SMS_TYPE, LETTER_TYPE,
     INTERNATIONAL_SMS_TYPE, INBOUND_SMS_TYPE, ProviderDetails,
 )
+from app.model import User
 from tests import create_authorization_header
 from tests.app.db import (
     create_ft_billing,

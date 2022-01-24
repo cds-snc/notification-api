@@ -20,7 +20,8 @@ from app.celery.service_callback_tasks import (
 
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import Notification, ServiceCallback, Complaint, Service, Template, User, INBOUND_SMS_CALLBACK_TYPE
+from app.models import Notification, ServiceCallback, Complaint, Service, Template, INBOUND_SMS_CALLBACK_TYPE
+from app.model import User
 from tests.app.db import (
     create_complaint,
     create_notification,

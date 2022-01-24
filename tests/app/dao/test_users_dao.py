@@ -26,7 +26,8 @@ from app.dao.users_dao import (
     create_or_retrieve_user
 )
 from app.errors import InvalidRequest
-from app.models import EMAIL_AUTH_TYPE, User, VerifyCode
+from app.models import VerifyCode
+from app.model import User, EMAIL_AUTH_TYPE
 from app.oauth.exceptions import IncorrectGithubIdException
 
 from tests.app.db import create_permissions, create_service, create_template_folder, create_user

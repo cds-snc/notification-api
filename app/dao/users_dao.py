@@ -12,7 +12,8 @@ from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_users_by_user_id
 from app.dao.dao_utils import transactional
 from app.errors import InvalidRequest
-from app.models import (EMAIL_AUTH_TYPE, User, VerifyCode)
+from app.models import (VerifyCode)
+from app.model import User, EMAIL_AUTH_TYPE
 from app.oauth.exceptions import IncorrectGithubIdException
 from app.utils import escape_special_characters
 

@@ -41,7 +41,6 @@ from app.models import (
     Notification,
     NotificationHistory,
     Permission,
-    User,
     InvitedUser,
     Service,
     ServicePermission,
@@ -56,6 +55,7 @@ from app.models import (
     user_folder_permissions,
     Organisation
 )
+from app.model import User
 from tests.app.db import (
     create_ft_billing,
     create_inbound_number,
