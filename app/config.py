@@ -427,6 +427,8 @@ class Config(object):
     FF_NOTIFICATION_CELERY_PERSISTENCE = os.getenv("FF_NOTIFICATION_CELERY_PERSISTENCE", False)
     FF_BATCH_INSERTION = os.getenv("FF_BATCH_INSERTION", False)
 
+    FF_POST_NOTIFICATION_TO_REDIS = os.getenv("FF_POST_NOTIFICATION_TO_REDIS", False)
+
 
 ######################
 # Config overrides ###

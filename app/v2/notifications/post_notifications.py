@@ -49,12 +49,9 @@ from app.models import (
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
     choose_queue,
-    db_save_and_send_notification,
     persist_notification,
     persist_scheduled_notification,
-    send_notification_to_redis,
     simulated_recipient,
-    transform_notification,
 )
 from app.notifications.validators import (
     check_rate_limiting,
@@ -267,6 +264,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         "template": str(template.id),
         "template_version": str(template.version),
         "to": form_send_to,
+        "service_id": str(authenticated_service.id),
         "personalisation": personalisation,
         "simulated": simulated,
         "api_key": str(api_key.id),
@@ -279,7 +277,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
     scheduled_for = form.get("scheduled_for", None)
 
     if simulated:
-        current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
+        current_app.logger.debug("POST simulated notification for id: {}".format(notification["id"]))
 
     elif scheduled_for:
         notification = persist_notification(  # keep scheduled notifications using the old code path for now
@@ -297,24 +295,14 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         persist_scheduled_notification(notification.id, form["scheduled_for"])
 
     elif current_app.config["FF_POST_NOTIFICATION_TO_REDIS"]:
-        # notification = transform_notification(
-        #     template_id=template.id,
-        #     template_version=template.version,
-        #     recipient=form_send_to,
-        #     service=service,
-        #     personalisation=personalisation,
-        #     notification_type=notification_type,
-        #     api_key_id=api_key.id,
-        #     key_type=api_key.key_type,
-        #     client_reference=form.get("reference", None),
-        #     reply_to_text=reply_to_text,
-        # )
-        # notification.queue_name = choose_queue(
-        #     notification=notification,
-        #     research_mode=service.research_mode,
-        #     queue=template.queue_to_use(),
-        # )
-        redisQueue.publish(encrypted_notification_data)
+        notification["queue_name"] = choose_queue(  # can probably move up into initial definition of notification
+            notification_type=notification_type,
+            reply_to_text=reply_to_text,
+            key_type=str(api_key.key_type),
+            research_mode=service.research_mode,
+            queue=template.queue_to_use(),
+        )
+        # need this redisQueue.publish(notification)
         current_app.logger.info(f"{notification_type} {notification.id} sent to redisQueue")
 
     else:
