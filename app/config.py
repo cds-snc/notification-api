@@ -444,8 +444,14 @@ class Config(object):
         RelyingParty(os.getenv('FIDO2_DOMAIN', 'localhost'), 'Notification'),
         verify_origin=lambda x: True)
 
+    # OAuth
     GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', '')
     GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '')
+
+    VASSO_CLIENT_ID = os.getenv('VASSO_CLIENT_ID', '')
+    VASSO_CLIENT_SECRET = os.getenv('VASSO_CLIENT_SECRET', '')
+    VASSO_API_BASE_URL = os.getenv('VASSO_API_BASE_URL', '')
+    VASSO_SERVER_METADATA_URL = os.getenv('VASSO_SERVER_METADATA_URL', '')
 
     JWT_ACCESS_COOKIE_NAME = 'vanotify_api_access_token'
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
