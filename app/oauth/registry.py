@@ -16,6 +16,6 @@ oauth_registry.register(  # nosec
 )
 
 oauth_registry.register(
-    name='vasso',
+    name='va_sso',
     client_kwargs={'scope': 'openid profile email'}
 )

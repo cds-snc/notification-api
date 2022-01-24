@@ -34,7 +34,7 @@ def login():
     idp = request.args.get('idp')
     if (idp == 'va'):
         redirect_uri = url_for('oauth.callback', _external=True)
-        return oauth_registry.vasso.authorize_redirect(redirect_uri)
+        return oauth_registry.va_sso.authorize_redirect(redirect_uri)
     else:
         _assert_github_login_toggle_enabled()
         redirect_uri = url_for('oauth.authorize', _external=True)
@@ -114,14 +114,15 @@ def authorize():
 @oauth_blueprint.route('/callback')
 def callback():
     try:
-        tokens = oauth_registry.vasso.authorize_access_token()
-        user_info = oauth_registry.vasso.parse_id_token(tokens)
+        tokens = oauth_registry.va_sso.authorize_access_token()
+        user_info = oauth_registry.va_sso.parse_id_token(tokens)
         user = create_or_retrieve_user(
             email_address=user_info['email'],
             identity_provider_user_id=user_info['sub'],
             name=user_info['name'])
-    except Exception as e:
-        response = make_response('', 401)
+    except OAuthError as e:
+        current_app.logger.exception(e)
+        response = make_response({'error': e.error, 'description': e.description}, 401)
         return response
     else:
         response = make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/success"))
