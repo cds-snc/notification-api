@@ -46,7 +46,6 @@ def rows_to_csv(rows):
 def test_post_sms_notification_with_persistance_in_celery_returns_201(
     notify_api, client, sample_template_with_placeholders, mocker, reference
 ):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
     mocked = mocker.patch("app.celery.tasks.save_sms.apply_async")
     data = {
         "phone_number": "+16502532222",
@@ -85,7 +84,6 @@ def test_post_sms_notification_with_persistance_in_celery_returns_201(
 def test_post_sms_notification_with_celery_persistence_returns_201_with_sms_sender_id(
     notify_api, client, sample_template_with_placeholders, mocker
 ):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="123456")
     mocked = mocker.patch("app.celery.tasks.save_sms.apply_async")
     data = {
@@ -204,7 +202,6 @@ def test_notification_returns_400_and_for_schema_problems(client, sample_templat
 def test_post_email_notification_returns_201_with_celery_persistence(
     notify_api, client, sample_email_template_with_placeholders, mocker, reference
 ):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
     mocked = mocker.patch("app.celery.tasks.save_email.apply_async")
     data = {
         "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
@@ -407,7 +404,6 @@ def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms_with_celer
     client,
     mocker,
 ):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
     mocker.patch("app.celery.tasks.save_sms.apply_async")
 
     data = {"phone_number": "+20-12-1234-1234", "template_id": sample_template.id}
