@@ -42,7 +42,18 @@ def get_platform_stats():
 def get_monthly_platform_stats():
     if not is_feature_enabled(FeatureFlag.PLATFORM_STATS_ENABLED):
         raise NotImplementedError
-    return jsonify(data=fetch_delivered_notification_stats_by_month())
+
+    results = jsonify(data=fetch_delivered_notification_stats_by_month())
+
+    platform_stats_keys = ["date", "notification_type", "count"]
+    notify_monthly_stats = {"data": []}
+
+    for stats_list in (results["data"]):
+        for item in range(len(stats_list)):
+            formatted_dict = dict(zip(platform_stats_keys, stats_list))
+        notify_monthly_stats["data"].append(formatted_dict)
+
+    return jsonify(notify_monthly_stats)
 
 
 def validate_date_range_is_within_a_financial_year(start_date, end_date):
