@@ -154,7 +154,7 @@ def set_config(app, name, value):
     try:
         yield
     finally:
-        app.integration_celeryconfig[name] = old_val
+        app.config[name] = old_val
 
 
 @contextmanager
