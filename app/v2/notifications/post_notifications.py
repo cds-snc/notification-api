@@ -277,7 +277,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
     scheduled_for = form.get("scheduled_for", None)
 
     if simulated:
-        current_app.logger.debug("POST simulated notification for id: {}".format(notification["id"]))
+        current_app.logger.debug(f"POST simulated notification for id: {notification['id']}")
 
     elif scheduled_for:
         notification = persist_notification(  # keep scheduled notifications using the old code path for now
@@ -303,7 +303,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             queue=template.queue_to_use(),
         )
         # need this redisQueue.publish(notification)
-        current_app.logger.info(f"{notification_type} {notification.id} sent to redisQueue")
+        current_app.logger.info(f"{notification_type} {notification['id']} sent to redisQueue")
 
     else:
         # depending on the type route to the appropriate save task
