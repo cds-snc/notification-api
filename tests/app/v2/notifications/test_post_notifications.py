@@ -132,45 +132,46 @@ def test_post_sms_notification_with_persistance_in_celery_returns_201(
     assert mocked.called
 
 
-@pytest.mark.parametrize("reference", [None, "reference_from_client"])
-def test_post_notification_with_redis_batch_saving_returns_201(
-    notify_api, client, sample_template_with_placeholders, mocker, reference
-):
-    notify_api.config["FF_REDIS_BATCH_SAVING"] = True
-    mocked_redis_publish = mocker.patch("app.v2.notifications.post_notifications.redisQueue.publish")
+class TestRedisBatchSaving:
+    @pytest.mark.parametrize("reference", [None, "reference_from_client"])
+    def test_post_notification_with_redis_batch_saving_returns_201(
+        self, notify_api, client, sample_template_with_placeholders, mocker, reference
+    ):
+        notify_api.config["FF_REDIS_BATCH_SAVING"] = True
+        mocked_redis_publish = mocker.patch("app.v2.notifications.post_notifications.redisQueue.publish")
 
-    data = {
-        "phone_number": "+16502532222",
-        "template_id": str(sample_template_with_placeholders.id),
-        "personalisation": {" Name": "Jo"},
-    }
-    if reference:
-        data.update({"reference": reference})
-    auth_header = create_authorization_header(service_id=sample_template_with_placeholders.service_id)
+        data = {
+            "phone_number": "+16502532222",
+            "template_id": str(sample_template_with_placeholders.id),
+            "personalisation": {" Name": "Jo"},
+        }
+        if reference:
+            data.update({"reference": reference})
+        auth_header = create_authorization_header(service_id=sample_template_with_placeholders.service_id)
 
-    response = client.post(
-        path="/v2/notifications/sms",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert validate(resp_json, post_sms_response) == resp_json
-    assert resp_json["reference"] == reference
-    assert resp_json["content"]["body"] == sample_template_with_placeholders.content.replace("(( Name))", "Jo")
-    assert resp_json["content"]["from_number"] == current_app.config["FROM_NUMBER"]
-    assert "v2/notifications/{}".format(resp_json["id"]) in resp_json["uri"]
-    assert resp_json["template"]["id"] == str(sample_template_with_placeholders.id)
-    assert resp_json["template"]["version"] == sample_template_with_placeholders.version
-    assert (
-        "services/{}/templates/{}".format(
-            sample_template_with_placeholders.service_id,
-            sample_template_with_placeholders.id,
+        response = client.post(
+            path="/v2/notifications/sms",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
         )
-        in resp_json["template"]["uri"]
-    )
-    assert not resp_json["scheduled_for"]
-    assert mocked_redis_publish.called
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert validate(resp_json, post_sms_response) == resp_json
+        assert resp_json["reference"] == reference
+        assert resp_json["content"]["body"] == sample_template_with_placeholders.content.replace("(( Name))", "Jo")
+        assert resp_json["content"]["from_number"] == current_app.config["FROM_NUMBER"]
+        assert "v2/notifications/{}".format(resp_json["id"]) in resp_json["uri"]
+        assert resp_json["template"]["id"] == str(sample_template_with_placeholders.id)
+        assert resp_json["template"]["version"] == sample_template_with_placeholders.version
+        assert (
+            "services/{}/templates/{}".format(
+                sample_template_with_placeholders.service_id,
+                sample_template_with_placeholders.id,
+            )
+            in resp_json["template"]["uri"]
+        )
+        assert not resp_json["scheduled_for"]
+        assert mocked_redis_publish.called
 
 
 def test_post_sms_notification_uses_inbound_number_as_sender(notify_api, client, notify_db_session, mocker):
