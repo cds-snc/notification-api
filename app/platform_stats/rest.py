@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, json
 
 from app.dao.date_util import get_financial_year_for_datetime
 from app.dao.fact_billing_dao import (
@@ -53,7 +53,7 @@ def get_monthly_platform_stats():
             formatted_dict = dict(zip(platform_stats_keys, stats_list))
         notify_monthly_stats["data"].append(formatted_dict)
 
-    return jsonify(notify_monthly_stats)
+    return json.dumps(notify_monthly_stats)
 
 
 def validate_date_range_is_within_a_financial_year(start_date, end_date):
