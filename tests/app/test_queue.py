@@ -50,10 +50,14 @@ class TestRedisQueue:
         redis.delete(Buffer.INBOX.value)
 
     def test_polling_messages_from_queue(self, redis, redis_queue, given_filled_inbox):
-        notifications = redis_queue.poll(10)
-        assert len(notifications == 1)
+        (receipt, notifications) = redis_queue.poll(10)
+        assert len(notifications) == 1
+        assert isinstance(notifications[0], dict)
         assert redis.llen(Buffer.INBOX.value) == 0
-        assert redis.llen(Buffer.IN_FLIGHT.value) == 1
+        assert redis.llen(redis_queue.get_inflight_name(receipt)) == 1
+
+    def test_notification_serialization_after_poll(self, redis, redis_queue, given_filled_inbox):
+        pass
 
     def test_acknowledged_messages(self, redis):
         pass

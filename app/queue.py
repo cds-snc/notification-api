@@ -47,7 +47,7 @@ class NotifyProvider(BaseProvider):
         "COVID-19 guidelines",
     ]
 
-    TEMPLATE_TYPES = [models.EMAIL_TYPE, models.SMS_TYPE]
+    NOTIFICATION_TYPE = [models.EMAIL_TYPE, models.SMS_TYPE]
 
     def notification(self) -> models.Notification:
         template = self.template()
@@ -70,7 +70,7 @@ class NotifyProvider(BaseProvider):
             "sent_at": None,
             "billable_units": None,
             "personalisation": None,
-            "notification_type": self.notification_type(),
+            "notification_type": template.template_type,
             "api_key": None,
             "api_key_id": None,
             "key_type": None,
@@ -90,7 +90,7 @@ class NotifyProvider(BaseProvider):
 
     def notification_type(self) -> str:
         """Gets a random notification type."""
-        return random.choice(models.NOTIFICATION_TYPE)
+        return random.choice(self.NOTIFICATION_TYPE)
 
     def process_type(self) -> str:
         """Gets a random process type."""
@@ -122,12 +122,12 @@ class NotifyProvider(BaseProvider):
 
     def template(self) -> models.Template:
         """Gets a random template."""
-        template_type = self.template_type()
+        notification_type = self.notification_type()
         service = self.service()
         data = {
             "id": str(uuid4()),
             "name": self.template_name(),
-            "template_type": template_type,
+            "template_type": notification_type,
             "content": fake.paragraph(5),
             "service_id": service.id,
             "service": service,
@@ -144,10 +144,6 @@ class NotifyProvider(BaseProvider):
     def template_name(self) -> str:
         """Gets a random template name."""
         return random.choice(self.TEMPLATES)
-
-    def template_type(self) -> str:
-        """Gets a random template type."""
-        return random.choice(self.TEMPLATE_TYPES)
 
 
 fake.add_provider(NotifyProvider)
@@ -221,45 +217,57 @@ class Queue(ABC):
 class RedisQueue(Queue):
     """Implementation of a queue using Redis."""
 
+    LUA_MOVE_TO_INFLIGHT = "move-in-inflight"
+
+    scripts: Dict[str, Any] = {}
+
     def __init__(self, redis_client: FlaskRedis) -> None:
         self.redis_client = redis_client
         self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
+        self.__register_scripts()
 
     def poll(self, count=10) -> tuple[UUID, list[Dict]]:
         receipt = uuid4()
-        in_flight_key = self.__get_inflight_name(receipt)
-        pipeline = self.redis_client.pipeline()
-        # This does not work here: the returned object is a pipeline.
-        # I don't think we can interact with the output directly within
-        # the pipeline, we might not have a choice but to write a server
-        # side script. That might provide better performance anyway.
-        # A good example of how to interact with the pipeline:
-        # https://dev.to/ahf90/atomically-popping-multiple-items-from-a-redis-list-in-python-2afa
-        # But that does not do what we want to have in there, but provide
-        # an idea of what we're doing wrong in this code.
-        # A few scripts that might help us:
-        # https://gist.github.com/gigq/7239615
-        # https://gist.github.com/itamarhaber/d30b3c40a72a07f23c70
-        serialized = pipeline.lrange(Buffer.INBOX.value, 0, self.limit)
-        pipeline.rpush(in_flight_key, serialized)
-        pipeline.ltrim(Buffer.INBOX.value, self.limit, -1)
-        pipeline.execute()
-        results = list(map(json.loads, serialized))
-        return (receipt, results[0])
+        in_flight_key = self.get_inflight_name(receipt)
+        results = self.__move_to_inflight(in_flight_key, count)
+        return (receipt, results)
 
     def acknowledge(self, receipt: UUID):
-        inflight_name = self.__get_inflight_name(receipt)
+        inflight_name = self.get_inflight_name(receipt)
         self.redis_client.delete(inflight_name)
+
+    def get_inflight_name(self, receipt: UUID = uuid4()) -> str:
+        return f"{Buffer.IN_FLIGHT.value}:{str(receipt)}"
 
     def publish(self, serializable: Serializable):
         serialized: str = json.dumps(serializable.serialize())
         self.redis_client.rpush(Buffer.INBOX.value, serialized)
 
-    def __in_flight(self) -> list[Any]:
-        return self.redis_client.lrange(Buffer.INBOX.value, 0, self.limit)
+    def __move_to_inflight(self, in_flight_key: str, count: int) -> list[dict]:
+        results = self.scripts[self.LUA_MOVE_TO_INFLIGHT](args=[Buffer.INBOX.value, in_flight_key, count])
+        as_dicts = [json.loads(n.decode("utf-8")) for n in results]
+        return as_dicts
 
-    def __get_inflight_name(self, receipt: UUID = uuid4()) -> str:
-        return f"{Buffer.IN_FLIGHT.value}:{str(receipt)}"
+    def __register_scripts(self):
+        self.scripts[self.LUA_MOVE_TO_INFLIGHT] = self.redis_client.register_script(
+            """
+            local s = ARGV[1]
+            local d = ARGV[2]
+            local i = math.min(tonumber(redis.call("LLEN", s)), tonumber(ARGV[3]))
+            local j = 0
+            local elems = {}
+
+            while j < i do
+                local l = redis.call("LRANGE", s, 0, 99)
+                redis.call("LPUSH", d, unpack(l))
+                redis.call("LTRIM", s, 100, -1)
+                j = j + 100
+                for i=1,#l do elems[#elems+1] = l[i] end
+            end
+
+            return elems
+            """
+        )
 
 
 class MockQueue(Queue):
