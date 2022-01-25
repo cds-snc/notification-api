@@ -84,6 +84,12 @@ from app.v2.notifications.notification_schemas import (
 )
 
 
+# TODO: replace with the real thing
+class redisQueue:
+    def publish(self, notification: Notification):
+        pass
+
+
 @v2_notification_blueprint.route("/{}".format(LETTER_TYPE), methods=["POST"])
 def post_precompiled_letter_notification():
     if "content" not in (request.get_json() or {}):
@@ -290,6 +296,10 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             reply_to_text=reply_to_text,
         )
         persist_scheduled_notification(notification.id, form["scheduled_for"])
+
+    elif current_app.config["FF_REDIS_BATCH_SAVING"] and not simulated:
+        redisQueue.publish(notification)
+        current_app.logger.info(f"{notification_type} {notification['id']} sent to redisQueue")
 
     elif current_app.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] and not simulated:
         # depending on the type route to the appropriate save task
