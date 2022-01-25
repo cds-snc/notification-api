@@ -176,6 +176,7 @@ class TestRedisBatchSaving:
 
 def test_post_sms_notification_uses_inbound_number_as_sender(notify_api, client, notify_db_session, mocker):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     service = create_service_with_inbound_number(inbound_number="1")
     template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
@@ -205,6 +206,7 @@ def test_post_sms_notification_uses_inbound_number_as_sender(notify_api, client,
 
 def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(notify_api, client, notify_db_session, mocker):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     service = create_service_with_inbound_number(inbound_number="6502532222")
     template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
@@ -234,6 +236,7 @@ def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(notify_api
 
 def test_post_sms_notification_returns_201_with_sms_sender_id(notify_api, client, sample_template_with_placeholders, mocker):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="123456")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     data = {
@@ -263,6 +266,7 @@ def test_post_sms_notification_with_celery_persistence_returns_201_with_sms_send
     notify_api, client, sample_template_with_placeholders, mocker
 ):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="123456")
     mocked = mocker.patch("app.celery.tasks.save_sms.apply_async")
     data = {
@@ -287,6 +291,7 @@ def test_post_sms_notification_with_celery_persistence_returns_201_with_sms_send
 
 def test_post_sms_notification_uses_sms_sender_id_reply_to(notify_api, client, sample_template_with_placeholders, mocker):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="6502532222")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
     data = {
@@ -316,6 +321,7 @@ def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after
     notify_api, client, sample_template, mocker
 ):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     sms_sender = create_service_sms_sender(service=sample_template.service, sms_sender="123456", is_default=False)
     mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     data = {

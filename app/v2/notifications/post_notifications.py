@@ -87,7 +87,7 @@ from app.v2.notifications.notification_schemas import (
 # TODO: replace with the real thing
 class RedisQueue:
     @staticmethod
-    def publish(notification: Notification):
+    def publish(notification):
         pass
 
 
@@ -300,7 +300,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
 
     elif current_app.config["FF_REDIS_BATCH_SAVING"] and not simulated:
         RedisQueue.publish(notification)
-        current_app.logger.info(f"{notification_type} {notification['id']} sent to redisQueue")
+        current_app.logger.info(f"{notification_type} {notification['id']} sent to RedisQueue")
 
     elif current_app.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] and not simulated:
         # depending on the type route to the appropriate save task
