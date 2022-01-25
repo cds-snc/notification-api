@@ -59,7 +59,10 @@ class TestRedisQueue:
         pass
 
     def test_polling_zero_message(self, redis, redis_queue):
-        pass
+        (receipt, notifications) = redis_queue.poll(10)
+        assert len(notifications) == 0
+        assert redis.llen(Buffer.INBOX.value) == 0
+        assert redis.llen(redis_queue.get_inflight_name(receipt)) == 0
 
     def test_messages_serialization_after_poll(self, redis, redis_queue, given_filled_inbox):
         pass
