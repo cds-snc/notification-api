@@ -276,7 +276,7 @@ class MockQueue(Queue):
     Do not use in production!"""
 
     def poll(self, count=10) -> tuple[UUID, list[Dict]]:
-        receipt = str(uuid4())
+        receipt = uuid4()
         notifications = generate_notifications(count)
         return (receipt, notifications)
 
