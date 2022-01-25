@@ -221,7 +221,7 @@ class RedisQueue(Queue):
 
     scripts: Dict[str, Any] = {}
 
-    def __init__(self, redis_client: FlaskRedis) -> None:
+    def __init__(self, redis_client: FlaskRedis()) -> None:
         self.redis_client = redis_client
         self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
         self.__register_scripts()

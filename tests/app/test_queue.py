@@ -3,7 +3,7 @@ from flask import Flask
 from pytest_mock_resources import RedisConfig, create_redis_fixture
 
 from app import create_app, redis_store
-from app.queue import Buffer, MockQueue, RedisQueue, generate_notification
+from app.queue import Buffer, MockQueue, RedisQueue, generate_notification, generate_notifications
 
 
 @pytest.fixture(scope="session")
@@ -42,11 +42,18 @@ class TestRedisQueue:
         yield
         redis.delete(Buffer.INBOX.value)
 
+    @pytest.fixture()
+    def given_filled_inbox(self, redis, redis_queue):
+        notification = next(generate_notification())
+        redis_queue.publish(notification)
+        yield
+        redis.delete(Buffer.INBOX.value)
+
     def test_put_mesages(self, redis, redis_queue):
         notification = next(generate_notification())
         redis_queue.publish(notification)
         assert redis.llen(Buffer.INBOX.value) == 1
-        redis.delete(Buffer.INBOX.value)
+        redis.delete(Buffer.INBOX.value )
 
     def test_polling_message(self, redis, redis_queue, given_filled_inbox):
         (receipt, notifications) = redis_queue.poll(10)
@@ -56,7 +63,19 @@ class TestRedisQueue:
         assert redis.llen(redis_queue.get_inflight_name(receipt)) == 1
 
     def test_polling_many_messages(self, redis, redis_queue, given_filled_inbox):
-        pass
+        number_of_notifications = 5
+        notifications = generate_notifications(number_of_notifications)
+        [redis_queue.publish(notification) for notification in notifications]
+
+        assert redis.llen(Buffer.INBOX.value) == number_of_notifications
+
+        (receipt, notifications) = redis_queue.poll(10)
+        assert len(notifications) == 1
+        assert isinstance(notifications[0], dict)
+        assert redis.llen(Buffer.INBOX.value) == 0        
+        assert redis.llen(redis_queue.get_inflight_name(receipt)) == number_of_notifications
+
+        redis.delete(Buffer.INBOX.value)
 
     def test_polling_zero_message(self, redis, redis_queue):
         (receipt, notifications) = redis_queue.poll(10)
