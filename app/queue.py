@@ -1,16 +1,16 @@
 import json
 import random
-
 from abc import ABC, abstractmethod
-from app import models
 from enum import Enum
+from typing import Any, Dict, Protocol
+from uuid import UUID, uuid4
+
 from faker import Faker
 from faker.providers import BaseProvider
 from flask import current_app
 from flask_redis.client import FlaskRedis
-from typing import Any, Dict, Protocol
-from uuid import UUID, uuid4
 
+from app import models
 
 # TODO: Move data generation into another module, similar to app.aws.mocks?
 fake = Faker()
