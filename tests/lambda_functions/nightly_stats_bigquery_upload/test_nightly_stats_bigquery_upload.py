@@ -4,6 +4,7 @@ import pytest
 import json
 from io import StringIO
 
+from botocore.response import StreamingBody
 from google.auth.credentials import Credentials
 from google.cloud.bigquery import Client
 
@@ -78,7 +79,14 @@ def example_nightly_stats_bytes() -> bytes:
 @pytest.fixture
 def mock_s3_client(mocker, example_nightly_stats_bytes):
     mock_client = mocker.Mock()
-    mock_client.get_object.return_value = example_nightly_stats_bytes
+
+    mock_object_body = mocker.Mock(StreamingBody, read=mocker.Mock(return_value=example_nightly_stats_bytes))
+    mock_client.get_object.return_value = {
+        'Body': mock_object_body,
+        'ContentType': 'text/csv',
+        'ContentLength': 100
+    }
+
     return mock_client
 
 

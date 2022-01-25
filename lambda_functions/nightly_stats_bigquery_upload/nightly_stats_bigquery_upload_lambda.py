@@ -36,10 +36,7 @@ def get_bucket_name(event) -> str:
 def read_nightly_stats_from_s3(bucket_name: str, object_key: str) -> bytes:
     s3_client = boto3.client('s3')
 
-    return s3_client.get_object(
-        Bucket=bucket_name,
-        Key=object_key,
-    )
+    return s3_client.get_object(Bucket=bucket_name, Key=object_key)['Body'].read()
 
 
 def lambda_handler(event, _context):
