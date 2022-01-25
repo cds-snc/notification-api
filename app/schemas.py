@@ -93,7 +93,7 @@ class UserSchema(BaseSchema):
     password_changed_at = field_for(User, 'password_changed_at', format=DATE_FORMAT)
     created_at = field_for(User, 'created_at', format=DATE_FORMAT)
     auth_type = field_for(User, 'auth_type')
-    identity_provider_user_id = field_for(User, 'identity_provider_user_id', required=False)
+    identity_provider_user_id = fields.String(required=False)
 
     def user_permissions(self, usr):
         retval = {}
@@ -113,6 +113,7 @@ class UserSchema(BaseSchema):
             "user_to_organisation",
             "_password",
             "verify_codes"
+            "_identity_provider_user_id"
         )
         strict = True
 
@@ -139,14 +140,14 @@ class UserSchema(BaseSchema):
 
 class UserUpdateAttributeSchema(BaseSchema):
     auth_type = field_for(User, 'auth_type')
-    identity_provider_user_id = field_for(User, 'identity_provider_user_id', required=False)
+    identity_provider_user_id = fields.String(required=False, allow_none=True)
 
     class Meta:
         model = User
         exclude = (
             'id', 'updated_at', 'created_at', 'user_to_service',
             '_password', 'verify_codes', 'logged_in_at', 'password_changed_at',
-            'failed_login_count', 'state', 'platform_admin')
+            'failed_login_count', 'state', 'platform_admin', '_identity_provider_user_id')
         strict = True
 
     @validates('name')

@@ -3,12 +3,14 @@ import uuid
 
 from sqlalchemy import CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.ext.hybrid import hybrid_property
 from app import DATETIME_FORMAT
 from app.db import db
 from app.encryption import (
     hashpw,
     check_hash
 )
+from .identity_provider_identifier import IdentityProviderIdentifier
 
 
 SMS_AUTH_TYPE = 'sms_auth'
@@ -47,7 +49,9 @@ class User(db.Model):
         db.String, db.ForeignKey('auth_type.name'), index=True, nullable=True, default=EMAIL_AUTH_TYPE)
     blocked = db.Column(db.Boolean, nullable=False, default=False)
     additional_information = db.Column(JSONB(none_as_null=True), nullable=True, default={})
-    identity_provider_user_id = db.Column(db.String, index=True, unique=True, nullable=True)
+    _identity_provider_user_id = db.Column("identity_provider_user_id", db.String,
+                                           index=True, unique=True, nullable=True)
+    idp_ids = db.relationship('IdentityProviderIdentifier', cascade='all, delete-orphan')
 
     # a mobile number must be provided if using sms auth
     CheckConstraint(
@@ -77,6 +81,16 @@ class User(db.Model):
     @password.setter
     def password(self, password):
         self._password = hashpw(password)
+
+    @hybrid_property
+    def identity_provider_user_id(self):
+        return self._identity_provider_user_id
+
+    @identity_provider_user_id.setter
+    def identity_provider_user_id(self, id):
+        self._identity_provider_user_id = id
+        if id:
+            self.idp_ids.append(IdentityProviderIdentifier(self.id, 'github', id))
 
     def check_password(self, password):
         if self.blocked:
