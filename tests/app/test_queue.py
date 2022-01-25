@@ -4,7 +4,6 @@ from pytest_mock_resources import RedisConfig, create_redis_fixture
 from app import create_app, redis_store
 from app.queue import Buffer, MockQueue, RedisQueue, generate_notification
 from flask import Flask
-from notifications_utils.clients.redis.redis_client import RedisClient
 
 
 @pytest.fixture(scope="session")
