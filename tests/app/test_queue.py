@@ -83,7 +83,7 @@ class TestMockQueue:
         return MockQueue()
 
     def test_polling_messages_from_queue(self, mock_queue):
-        notifications: list = mock_queue.poll(10)
+        (receipt, notifications) = mock_queue.poll(10)
         assert notifications is not None
         assert len(notifications) == 10
 
@@ -94,7 +94,7 @@ class TestMockQueue:
         # This should not add change internal data structure
         # or differ from a random output generation due to the
         # nature of MockQueue.
-        notifications = mock_queue.poll(1)
+        (receipt, notifications) = mock_queue.poll(1)
         assert notifications is not None
         assert len(notifications) == 1
         assert notification.service_id != notifications[0].service_id
