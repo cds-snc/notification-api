@@ -93,17 +93,10 @@ class VAProfileClient:
             f'{notification_id}: {url}'
         )
         response = self._make_request(url, recipient_id)
-        self.logger.info('Made request to communication-permissions VAProfile endpoint for '
+        self.logger.info('Made request to communication-permissions VAProfile endpoint for'
                          f'recipient {recipient_identifier} for notification {notification_id}')
 
-        if response.get('messages', None):
-            self.logger.info(f'Recipient {recipient_id} has no permissions for notification {notification_id}')
-            # TODO: use default communication item settings when that has been implemented
-            self.statsd_client.incr("clients.va-profile.get-communication-item-permission.no-permissions")
-            raise CommunicationItemNotFoundException
-
-        all_bios = response['bios']
-
+        all_bios = response.get('bios', [])
         for bio in all_bios:
             self.logger.info(f'Found communication item id {communication_item_id} on recipient {recipient_id} for '
                              f'notification {notification_id}')
@@ -112,8 +105,10 @@ class VAProfileClient:
                 self.statsd_client.incr("clients.va-profile.get-communication-item-permission.success")
                 return bio['allowed'] is True
 
-        self.logger.info(f'Recipient {recipient_id} did not have communication item {communication_item_id} for '
-                         f'notification {notification_id}')
+        self.logger.info(f'Recipient {recipient_id} did not have permission for communication item '
+                         f'{communication_item_id} and channel {notification_type} for notification {notification_id}')
+        # TODO: use default communication item settings when that has been implemented
+        self.statsd_client.incr("clients.va-profile.get-communication-item-permission.no-permissions")
         raise CommunicationItemNotFoundException
 
     def _make_request(self, url: str, va_profile_id: str, bio_type: str = None):

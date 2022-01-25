@@ -672,10 +672,9 @@ class TestCommunicationPermissions:
                 recipient_identifier, 'some-valid-id', 'some-notification-id', SMS_TYPE
             )
 
-    def test_get_is_communication_allowed_should_raise_exception_if_recipient_has_no_permissions(
+    def test_should_raise_exception_if_recipient_has_no_permissions_old_va_profile_response(
             self, test_va_profile_client, rmock
     ):
-        # TODO: Note that this behavior will change once we starting using default communication item permissions
         response = {
             "messages": [
                 {
@@ -685,6 +684,23 @@ class TestCommunicationPermissions:
                     "severity": "ERROR"
                 }
             ],
+            "txAuditId": "37df9590-e791-4392-ae77-eaffc782276c",
+            "status": "COMPLETED_SUCCESS"
+        }
+        rmock.get(ANY, json=response, status_code=200)
+
+        recipient_identifier = RecipientIdentifier(id_type='VAPROFILEID', id_value='1')
+
+        with pytest.raises(CommunicationItemNotFoundException):
+            test_va_profile_client.get_is_communication_allowed(
+                recipient_identifier, 'some-random-id', 'some-notification-id', SMS_TYPE
+            )
+
+    def test_should_raise_exception_if_recipient_has_no_permissions(
+            self, test_va_profile_client, rmock
+    ):
+        # TODO: Note that this behavior will change once we starting using default communication item permissions
+        response = {
             "txAuditId": "37df9590-e791-4392-ae77-eaffc782276c",
             "status": "COMPLETED_SUCCESS"
         }
