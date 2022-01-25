@@ -274,7 +274,7 @@ fileignoreconfig:
     - filename: app/va/va_profile/va_profile_client.py
       checksum: 2942cb80f53433d4c129c2fbd43ba7b28f252d2daf30ad2c93bf8255d3d1e179
     - filename: ci/.docker-env.example
-      checksum: 2b8f6cfb903d0f7ec22cfa312e6854a61f2aab56c5fb796cfbb38bec21666ed9
+      checksum: 7bc7fefe2e93aab23fae65dc41683255bdabd0a07af9e0154c046592567d914c
     - filename: cd/application-deployment/prod/vaec-celery-beat-task-definition.json
       checksum: 3c249196ee8c2ba3b9b0ca7c736850cfb467c1b0c1993ac58a11653a4f80b436
     - filename: cd/application-deployment/prod/vaec-api-task-definition.json
@@ -306,7 +306,7 @@ fileignoreconfig:
     - filename: scripts/trigger_task.py
       checksum: a3b9e5c3722572d9fe70b1686f43a876a90be26cac752f7b1497919071e55657
     - filename: .env.example
-      checksum: 1a72cf7a682c72f261f795d7a23f1abca14b6285b685005d75bd95a9a411f839
+      checksum: 67c7ff2a5bd876af435d63f06063842a64013dd6c76605e6b1a292aa325363c9
     - filename: migrations/versions/0338a_fact_notif_pkey_constraint.py
       checksum: 5a0675a18b210d187e2cf78de0dc51de04e9327215cdb9f742f3adbac52925c0
     - filename: tests/lambda_functions/nightly_stats_bigquery_upload/test_nightly_stats_bigquery_upload.py
