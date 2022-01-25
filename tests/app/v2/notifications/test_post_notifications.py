@@ -138,7 +138,7 @@ class TestRedisBatchSaving:
         self, notify_api, client, sample_template_with_placeholders, mocker, reference
     ):
         notify_api.config["FF_REDIS_BATCH_SAVING"] = True
-        mocked_redis_publish = mocker.patch("app.v2.notifications.post_notifications.RedisQueue.publish")
+        mocked_redis_publish = mocker.patch("app.queue.MockQueue.publish")
 
         data = {
             "phone_number": "+16502532222",
