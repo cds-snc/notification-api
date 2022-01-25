@@ -53,7 +53,7 @@ def get_monthly_platform_stats():
             formatted_dict = dict(zip(platform_stats_keys, stats_list))
         notify_monthly_stats["data"].append(formatted_dict)
 
-    return jsonify(data=notify_monthly_stats)
+    return jsonify(notify_monthly_stats)
 
 
 def validate_date_range_is_within_a_financial_year(start_date, end_date):
