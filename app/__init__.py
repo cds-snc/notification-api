@@ -5,7 +5,6 @@ import string
 import uuid
 from time import monotonic
 
-from typing import Optional
 from dotenv import load_dotenv
 from flask import _request_ctx_stack, g, jsonify, make_response, request  # type: ignore
 from flask_marshmallow import Marshmallow
@@ -17,7 +16,6 @@ from notifications_utils.clients.zendesk.zendesk_client import ZendeskClient
 from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
 from werkzeug.local import LocalProxy
 
-from app.config import Config
 from app.celery.celery import NotifyCelery
 from app.clients import Clients
 from app.clients.document_download import DocumentDownloadClient
