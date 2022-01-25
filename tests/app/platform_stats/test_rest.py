@@ -4,8 +4,10 @@ import pytest
 from freezegun import freeze_time
 
 from app.errors import InvalidRequest
-from app.models import SMS_TYPE, EMAIL_TYPE
-from app.platform_stats.rest import validate_date_range_is_within_a_financial_year
+from app.models import SMS_TYPE, EMAIL_TYPE, NOTIFICATION_DELIVERED
+from tests.app.oauth.test_rest import mock_toggle
+from app.feature_flags import FeatureFlag
+from app.platform_stats.rest import get_monthly_platform_stats, validate_date_range_is_within_a_financial_year
 from tests.app.db import (
     create_service, create_template, create_ft_notification_status, create_notification,
     set_up_usage_data
@@ -78,6 +80,43 @@ def test_get_platform_stats_with_real_query(admin_request, notify_db_session):
             'total': 11, 'test-key': 1
         }
     }
+
+
+@freeze_time('2020-01-25 00:00')
+def test_get_platform_stats_response_when_toggle_is_on(notify_db_session, mocker):
+    mock_toggle(mocker, FeatureFlag.PLATFORM_STATS_ENABLED, 'True')
+
+    sample_service = create_service(service_name='service_1')
+    sms_template = create_template(service=sample_service, template_type='sms', template_name='a')
+    email_template = create_template(service=sample_service, template_type='email', template_name='b')
+
+    create_ft_notification_status(
+        utc_date=date(2022, 1, 1),
+        service=sample_service,
+        template=email_template,
+        notification_status=NOTIFICATION_DELIVERED,
+        count=1
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2021, 12, 1),
+        service=sample_service,
+        template=email_template,
+        notification_status=NOTIFICATION_DELIVERED,
+        count=29
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2022, 1, 1),
+        service=sample_service,
+        template=sms_template,
+        notification_status=NOTIFICATION_DELIVERED,
+        count=14
+    )
+
+    response = get_monthly_platform_stats()
+
+    assert response.status_code == 200
 
 
 @pytest.mark.parametrize('start_date, end_date',
