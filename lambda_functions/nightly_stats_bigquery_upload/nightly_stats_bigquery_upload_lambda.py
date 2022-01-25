@@ -51,12 +51,12 @@ def lambda_handler(event, _context):
     job_config = bigquery.LoadJobConfig(
         schema=[
             bigquery.SchemaField("date", "DATE"),
-            bigquery.SchemaField("service id", "STRING") ,
-            bigquery.SchemaField("service name", "STRING"),
-            bigquery.SchemaField("template id", "STRING"),
-            bigquery.SchemaField("template name", "STRING"),
+            bigquery.SchemaField("service_id", "STRING") ,
+            bigquery.SchemaField("service_name", "STRING"),
+            bigquery.SchemaField("template_id", "STRING"),
+            bigquery.SchemaField("template_name", "STRING"),
             bigquery.SchemaField("status", "STRING"),
-            bigquery.SchemaField("status reason", "STRING"),
+            bigquery.SchemaField("status_reason", "STRING"),
             bigquery.SchemaField("count", "INTEGER")
         ],
         skip_leading_rows=1
