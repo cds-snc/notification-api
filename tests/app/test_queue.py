@@ -64,10 +64,15 @@ class TestRedisQueue:
         assert redis.llen(Buffer.INBOX.value) == 0
         assert redis.llen(redis_queue.get_inflight_name(receipt)) == 0
 
-    def test_messages_serialization_after_poll(self, redis, redis_queue, given_filled_inbox):
-        pass
+    def test_acknowledged_messages(self, redis, redis_queue, given_filled_inbox):
+        (receipt, notifications) = redis_queue.poll(10)
+        redis_queue.acknowledge(receipt)
+        assert len(notifications) > 0
+        assert redis.llen(Buffer.INBOX.value) == 0
+        assert redis.llen(redis_queue.get_inflight_name(receipt)) == 0
+        assert len(redis.keys("*")) == 0
 
-    def test_acknowledged_messages(self, redis):
+    def test_messages_serialization_after_poll(self, redis, redis_queue, given_filled_inbox):
         pass
 
 
