@@ -42,20 +42,26 @@ class TestRedisQueue:
         yield
         redis.delete(Buffer.INBOX.value)
 
-    def test_put_mesages_on_queue(self, redis, redis_queue):
+    def test_put_mesages(self, redis, redis_queue):
         notification = next(generate_notification())
         redis_queue.publish(notification)
         assert redis.llen(Buffer.INBOX.value) == 1
         redis.delete(Buffer.INBOX.value)
 
-    def test_polling_messages_from_queue(self, redis, redis_queue, given_filled_inbox):
+    def test_polling_message(self, redis, redis_queue, given_filled_inbox):
         (receipt, notifications) = redis_queue.poll(10)
         assert len(notifications) == 1
         assert isinstance(notifications[0], dict)
         assert redis.llen(Buffer.INBOX.value) == 0
         assert redis.llen(redis_queue.get_inflight_name(receipt)) == 1
 
-    def test_notification_serialization_after_poll(self, redis, redis_queue, given_filled_inbox):
+    def test_polling_many_messages(self, redis, redis_queue, given_filled_inbox):
+        pass
+
+    def test_polling_zero_message(self, redis, redis_queue):
+        pass
+
+    def test_messages_serialization_after_poll(self, redis, redis_queue, given_filled_inbox):
         pass
 
     def test_acknowledged_messages(self, redis):
