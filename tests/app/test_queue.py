@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 
+
 import pytest
 from flask import Flask
 from pytest_mock_resources import RedisConfig, create_redis_fixture
@@ -134,7 +135,11 @@ class TestRedisQueue:
         assert len(redis.keys("*")) == 0
 
     def test_messages_serialization_after_poll(self, redis, redis_queue, given_inbox_with_one_element):
-        pass
+        (receipt, elements) = redis_queue.poll(1)
+
+        assert len(elements) > 0
+        assert type(elements) is list
+        assert type(elements[0]) is dict
 
 
 @pytest.mark.usefixtures("notify_api")
