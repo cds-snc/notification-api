@@ -10,7 +10,7 @@ from app.queue import Buffer, MockQueue, RedisQueue, generate_notification
 
 @pytest.fixture(scope="session")
 def pmr_redis_config():
-    return RedisConfig(image="redis:6.2")
+    return RedisConfig(image="redis:6.2", host="localhost", port="6380")
 
 
 redis = create_redis_fixture(scope="function")
@@ -27,7 +27,6 @@ class TestRedisQueue:
     @pytest.fixture(autouse=True)
     def app(self):
         app = Flask("test")
-        # app.config["REDIS_URL"] = "redis://host.docker.internal:6380"
         create_app(app)
         ctx = app.app_context()
         ctx.push()
@@ -42,8 +41,7 @@ class TestRedisQueue:
 
     @pytest.fixture()
     def redis_queue(self, redis, redis_client):
-        print(get_redis_connection(redis))
-        assert "please print that connection on github workflow" == get_redis_connection(redis)
+        # assert "redis conn" == get_redis_connection(redis)
         return RedisQueue(redis_client)
 
     @pytest.fixture()
