@@ -81,6 +81,47 @@ from app.service.utils import service_allowed_to_send_to
 from app.utils import get_csv_max_rows
 
 
+@notify_celery.task(name="process-inflight")
+@statsd(namespace="tasks")
+def process_inflight(inflight_name):
+
+    # TODO: get inflight notifications from redis somehow
+    notifications = []
+
+    encrypted_smss: List[Any] = []
+    encrypted_emails: List[Any] = []
+    for notification in notifications:
+        service = dao_fetch_service_by_id(notification["service_id"])
+        template = dao_get_template_by_id(notification["template_id"])
+
+        if service_allowed_to_send_to(notification.recipient, service, KEY_TYPE_NORMAL):
+            encrypted_notification = encryption.encrypt(
+                {
+                    "api_key": notification["api_key_id"],
+                    "template": notification["template_id"],
+                    "to": notification["recipient"],
+                    "personalisation": dict(notification["personalisation"]),
+                }
+            )
+            if template.template_type == SMS_TYPE:
+                encrypted_smss.append(encrypted_notification)
+            else:
+                encrypted_emails.append(encrypted_notification)
+
+    if encrypted_smss:
+        save_smss.apply_async(
+            (str(notification.service_id), encrypted_smss),
+            queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
+        )
+    if encrypted_emails:
+        save_emails.apply_async(
+            (str(service.id), encrypted_emails),
+            queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
+        )
+
+    # TODO: delete inflight somehow
+
+
 @notify_celery.task(name="process-job")
 @statsd(namespace="tasks")
 def process_job(job_id):
