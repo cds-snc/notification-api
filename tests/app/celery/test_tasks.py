@@ -2,6 +2,7 @@ import json
 import uuid
 from datetime import datetime, timedelta
 from unittest.mock import Mock, call
+from platformdirs import api
 
 import pytest
 import requests_mock
@@ -51,6 +52,7 @@ from app.schemas import service_schema, template_schema
 from celery.exceptions import Retry
 from tests.app import load_example_csv
 from tests.app.db import (
+    create_api_key,
     create_inbound_sms,
     create_job,
     create_letter_contact,
@@ -92,6 +94,7 @@ def test_should_have_decorated_tasks_functions():
     assert save_letter.__wrapped__.__name__ == "save_letter"
     assert save_smss.__wrapped__.__name__ == "save_smss"
     assert save_emails.__wrapped__.__name__ == "save_emails"
+    assert process_inflight.__wrapped__.__name__ == "process_inflight"
 
 
 @pytest.fixture
@@ -100,38 +103,52 @@ def email_job_with_placeholders(notify_db, notify_db_session, sample_email_templ
 
 
 class BatchSaving:
-    def test_process_inflight_saves_sms_and_emails(self, notify_db_session, mocker):
+    def test_process_inflight_saves_smss(self, notify_db_session, mocker):
         service1 = create_service(message_limit=20)
         service2 = create_service(message_limit=20)
-        template1 = create_template(service=service1)
-        template2 = create_template(service=service2)
+        template1 = create_template(service=service1, template_type=SMS_TYPE)
+        template2 = create_template(service=service2, template_type=SMS_TYPE)
+        api_key1 = create_api_key(service1)
+        api_key2 = create_api_key(service2)
 
-        inflight_id = uuid.uuid4()
-
-        # TODO: mock the get inflight notifications:
-        #       [service1 sms, service2 email, service2 sms, service2 email, service1 email]
+        receipt = uuid.uuid4()
+        results = [
+            {
+                "service_id": service1.id,
+                "api_key": api_key1.id,
+                "to": "+441234111111",
+                "template": template1.id,
+                "personalisation": {"var1": "v1"},
+            },
+            {
+                "service_id": service2.id,
+                "api_key": api_key2.id,
+                "to": "+441234222222",
+                "template": template2.id,
+                "personalisation": {"var2": "v2"},
+            },
+        ]
 
         mocker.patch("app.celery.tasks.save_smss.apply_async")
-        mocker.patch("app.celery.tasks.save_emails.apply_async")
         mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")  # what's this for?
 
-        process_inflight(inflight_id)
+        process_inflight(receipt, results)
         assert encryption.encrypt.call_args[0][0]["service_id"] == service1.id
-        assert encryption.encrypt.call_args[0][0]["api_key"] == "api key?"
-        assert encryption.encrypt.call_args[0][0]["to"] == "+441234123120"
+        assert encryption.encrypt.call_args[0][0]["api_key"] == api_key1.id
+        assert encryption.encrypt.call_args[0][0]["to"] == "+441234111111"
         assert encryption.encrypt.call_args[0][0]["template"] == str(template1.id)
 
         assert encryption.encrypt.call_args[0][0]["personalisation"] == {
-            "phonenumber": "+441234123120",
+            "var1": "v1",
         }
         assert encryption.encrypt.call_args[0][1]["service_id"] == service2.id
-        assert encryption.encrypt.call_args[0][1]["api_key"] == "api key?"
-        assert encryption.encrypt.call_args[0][1]["to"] == "test@gmail.com"
+        assert encryption.encrypt.call_args[0][1]["api_key"] == api_key2.id
+        assert encryption.encrypt.call_args[0][1]["to"] == "+441234222222"
         assert encryption.encrypt.call_args[0][1]["template"] == str(template2.id)
 
         assert encryption.encrypt.call_args[0][0]["personalisation"] == {
-            "phonenumber": "+441234123120",
+            "var2": "v2",
         }
 
         tasks.save_smss.apply_async.assert_called_once_with(
@@ -141,17 +158,67 @@ class BatchSaving:
                     "something_encrypted",
                     "something_encrypted",
                 ],
+                receipt,
             ),
             queue="database-tasks",
         )
+
+    def test_process_inflight_saves_emails(self, notify_db_session, mocker):
+        service1 = create_service()
+        service2 = create_service()
+        template1 = create_template(service=service1, template_type=EMAIL_TYPE)
+        template2 = create_template(service=service2, template_type=EMAIL_TYPE)
+        api_key1 = create_api_key(service1)
+        api_key2 = create_api_key(service2)
+
+        receipt = uuid.uuid4()
+        results = [
+            {
+                "service_id": service1.id,
+                "api_key": api_key1.id,
+                "to": "test1@gmail.com",
+                "template": template1.id,
+                "personalisation": {"var1": "v1"},
+            },
+            {
+                "service_id": service2.id,
+                "api_key": api_key2.id,
+                "to": "test2@gmail.com",
+                "template": template2.id,
+                "personalisation": {"var2": "v2"},
+            },
+        ]
+
+        mocker.patch("app.celery.tasks.save_emails.apply_async")
+        mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
+        redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")  # what's this for?
+
+        process_inflight(receipt, results)
+        assert encryption.encrypt.call_args[0][0]["service_id"] == service1.id
+        assert encryption.encrypt.call_args[0][0]["api_key"] == api_key1.id
+        assert encryption.encrypt.call_args[0][0]["to"] == "test1@gmail.com"
+        assert encryption.encrypt.call_args[0][0]["template"] == str(template1.id)
+
+        assert encryption.encrypt.call_args[0][0]["personalisation"] == {
+            "var1": "v1",
+        }
+        assert encryption.encrypt.call_args[0][1]["service_id"] == service2.id
+        assert encryption.encrypt.call_args[0][1]["api_key"] == api_key2.id
+        assert encryption.encrypt.call_args[0][1]["to"] == "test2@gmail.com"
+        assert encryption.encrypt.call_args[0][1]["template"] == str(template2.id)
+
+        assert encryption.encrypt.call_args[0][0]["personalisation"] == {
+            "var2": "v2",
+        }
+
         tasks.save_emails.apply_async.assert_called_once_with(
             (
                 None,
                 [
                     "something_encrypted",
                     "something_encrypted",
-                    "something_encrypted",
                 ],
+                receipt,
             ),
             queue="database-tasks",
         )
