@@ -2,7 +2,6 @@ import json
 import uuid
 from datetime import datetime, timedelta
 from unittest.mock import Mock, call
-from platformdirs import api
 
 import pytest
 import requests_mock
