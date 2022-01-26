@@ -41,7 +41,7 @@ class TestRedisQueue:
 
     @pytest.fixture()
     def redis_queue(self, redis, redis_client):
-        # assert "redis conn" == get_redis_connection(redis)
+        assert "redis conn" == get_redis_connection(redis)
         return RedisQueue(redis_client)
 
     @pytest.fixture()
