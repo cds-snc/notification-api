@@ -24,27 +24,27 @@ oauth_blueprint = Blueprint('oauth', __name__, url_prefix='/auth')
 register_errors(oauth_blueprint)
 
 
-def _assert_github_login_toggle_enabled():
-    if not is_feature_enabled(FeatureFlag.GITHUB_LOGIN_ENABLED):
-        raise LoginWithPasswordException(message='Not Implemented', status_code=501)
+def _assert_toggle_enabled(feature: FeatureFlag):
+    if not is_feature_enabled(feature):
+        raise NotImplementedError
 
 
 @oauth_blueprint.route('/login', methods=['GET'])
 def login():
     idp = request.args.get('idp')
     if (idp == 'va'):
+        _assert_toggle_enabled(FeatureFlag.VA_SSO_ENABLED)
         redirect_uri = url_for('oauth.callback', _external=True)
         return oauth_registry.va_sso.authorize_redirect(redirect_uri)
     else:
-        _assert_github_login_toggle_enabled()
+        _assert_toggle_enabled(FeatureFlag.GITHUB_LOGIN_ENABLED)
         redirect_uri = url_for('oauth.authorize', _external=True)
         return oauth_registry.github.authorize_redirect(redirect_uri)
 
 
 @oauth_blueprint.route('/login', methods=['POST'])
 def login_with_password():
-    if not is_feature_enabled(FeatureFlag.EMAIL_PASSWORD_LOGIN_ENABLED):
-        return jsonify(result='error', message="Not Implemented"), 501
+    _assert_toggle_enabled(FeatureFlag.EMAIL_PASSWORD_LOGIN_ENABLED)
 
     request_json = request.get_json()
     validate(request_json, password_login_request)
@@ -67,7 +67,7 @@ def login_with_password():
 
 @oauth_blueprint.route('/authorize')
 def authorize():
-    _assert_github_login_toggle_enabled()
+    _assert_toggle_enabled(FeatureFlag.GITHUB_LOGIN_ENABLED)
     try:
         github_token = oauth_registry.github.authorize_access_token()
         make_github_get_request('/user/memberships/orgs/department-of-veterans-affairs', github_token)
@@ -184,9 +184,7 @@ def _extract_github_user_info(email_resp: json, user_resp: json) -> Tuple[str, s
 
 @oauth_blueprint.route('/redeem-token', methods=['GET'])
 @oauth_blueprint.route('/token', methods=['GET'])
-def redeem_token():
-    _assert_github_login_toggle_enabled()
-
+def token():
     verify_jwt_in_request(locations='cookies')
 
     cookie = request.cookies.get(current_app.config['JWT_ACCESS_COOKIE_NAME'])
@@ -200,8 +198,6 @@ def redeem_token():
 
 @oauth_blueprint.route('/logout', methods=['GET'])
 def logout():
-    _assert_github_login_toggle_enabled()
-
     response = make_response(redirect(f"{current_app.config['UI_HOST_NAME']}"))
     response.delete_cookie(current_app.config['JWT_ACCESS_COOKIE_NAME'])
     statsd_client.incr('oauth.logout.success')

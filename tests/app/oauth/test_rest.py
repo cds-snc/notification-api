@@ -384,13 +384,6 @@ class TestAuthorize:
 
 class TestRedeemToken:
 
-    def test_should_return_501_if_toggle_is_disabled(self, client, mocker):
-        mock_toggle(mocker, FeatureFlag.GITHUB_LOGIN_ENABLED, 'False')
-
-        response = client.get('/auth/redeem-token')
-
-        assert response.status_code == 501
-
     def test_should_return_401_if_cookie_verification_fails(
             self, client, mocker
     ):
@@ -514,13 +507,6 @@ class TestLoginWithPassword:
 
 
 class TestLogout:
-
-    def test_should_return_501_if_toggle_is_disabled(self, client, mocker):
-        mock_toggle(mocker, FeatureFlag.GITHUB_LOGIN_ENABLED, 'False')
-
-        response = client.get('/auth/logout')
-
-        assert response.status_code == 501
 
     def test_should_redirect_to_ui_and_clear_cookies(
             self, client, notify_api, db_session
