@@ -64,12 +64,6 @@ class User(db.Model):
         name='ck_users_mobile_number_if_sms_auth'
     )
 
-    # either a password or an identity_provider must exist
-    CheckConstraint(
-        sqltext="_password is not null or identity_provider_user_id is not null",
-        name='ck_users_password_or_identity_provider_user_id'
-    )
-
     services = db.relationship(
         'Service',
         secondary='user_to_service',

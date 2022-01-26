@@ -91,15 +91,16 @@ def test_create_user_with_identity_provider_stores_github_idp_id(db_session, tes
     assert idp_id.idp_id == identity_provider_user_id
 
 
-def test_create_user_fails_when_violates_password_or_identity_provider_constraint(
+def test_create_user_no_longer_fails_when_password_is_empty(
         db_session, test_email, test_name):
     data = {
         'name': test_name,
         'email_address': test_email
     }
-    with pytest.raises(IntegrityError):
-        user = User(**data)
-        save_model_user(user)
+    user = User(**data)
+    user.save_to_db()
+    loaded_user = User.query.get(user.id)
+    assert loaded_user
 
 
 def test_create_user_fails_when_violates_sms_auth_requires_mobile_number_constraint(
