@@ -131,7 +131,7 @@ class TestRedisQueue:
         assert redis.llen(redis_queue.get_inflight_name(receipt)) == 0
         assert len(redis.keys("*")) == 0
 
-    def test_messages_serialization_after_poll(self, redis, redis_queue, given_inbox_with_one_element):
+    def test_messages_serialization_after_poll(self, redis, redis_queue):
         notification = next(generate_notification())
         redis_queue.publish(notification)
         (_, elements) = redis_queue.poll(1)
