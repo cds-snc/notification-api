@@ -221,7 +221,7 @@ class RedisQueue(Queue):
 
     scripts: Dict[str, Any] = {}
 
-    def __init__(self, redis_client: FlaskRedis()) -> None:
+    def __init__(self, redis_client: FlaskRedis) -> None:
         self.redis_client = redis_client
         self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
         self.__register_scripts()
@@ -251,21 +251,28 @@ class RedisQueue(Queue):
     def __register_scripts(self):
         self.scripts[self.LUA_MOVE_TO_INFLIGHT] = self.redis_client.register_script(
             """
-            local s = ARGV[1]
-            local d = ARGV[2]
-            local i = math.min(tonumber(redis.call("LLEN", s)), tonumber(ARGV[3]))
-            local j = 0
-            local elems = {}
+            local DEFAULT_CHUNK = 99
 
-            while j < i do
-                local l = redis.call("LRANGE", s, 0, 99)
-                redis.call("LPUSH", d, unpack(l))
-                redis.call("LTRIM", s, 100, -1)
-                j = j + 100
-                for i=1,#l do elems[#elems+1] = l[i] end
+            local source        = ARGV[1]
+            local destination   = ARGV[2]
+            local source_size   = tonumber(redis.call("LLEN", source))
+            local count         = math.min(source_size, tonumber(ARGV[3]))
+
+            local chunk_size    = math.min(math.max(0, count-1), DEFAULT_CHUNK)
+            local current       = 0
+            local all           = {}
+
+            while current < count do
+                local elements = redis.call("LRANGE", source, 0, chunk_size)
+                redis.call("LPUSH", destination, unpack(elements))
+                redis.call("LTRIM", source, chunk_size+1, -1)
+                for i=1,#elements do all[#all+1] = elements[i] end
+
+                current    = current + chunk_size+1
+                chunk_size = math.min((count-1) - current, DEFAULT_CHUNK)
             end
 
-            return elems
+            return all
             """
         )
 
