@@ -1,17 +1,19 @@
 import json
 import os
-from typing import Dict
-
 import pytest
+from datetime import datetime, timedelta
+from typing import Dict
 from authlib.integrations.base_client import OAuthError
 from flask_jwt_extended.exceptions import NoAuthorizationError
+from flask_jwt_extended import decode_token
 from requests import Response
 from requests.exceptions import HTTPError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.feature_flags import FeatureFlag
 from app.model import User
-from app.oauth.exceptions import OAuthException, IncorrectGithubIdException, InsufficientGithubScopesException
+from app.oauth.exceptions import (IdpAssignmentException, OAuthException,
+                                  IncorrectGithubIdException, InsufficientGithubScopesException)
 from app.oauth.rest import make_github_get_request
 from tests.conftest import set_config_values
 
@@ -22,7 +24,8 @@ def mock_toggle(mocker, feature_flag: FeatureFlag, enabled: str) -> None:
 
 cookie_config = {
     'UI_HOST_NAME': 'https://some-ui-host-name.com',
-    'JWT_ACCESS_COOKIE_NAME': 'cookie-name'
+    'JWT_ACCESS_COOKIE_NAME': 'cookie-name',
+    'SESSION_COOKIE_SECURE': True
 }
 
 
@@ -529,3 +532,91 @@ class TestLogout:
             cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME']
             for cookie in client.cookie_jar
         )
+
+
+class TestCallback:
+    expiry_date = (datetime.now() + timedelta(hours=1)).timestamp()
+    id_token = "id_token"
+    tokens = {'token_type': 'Bearer', 'expires_in': 3600, 'scope': 'openid profile email',
+              'id_token': id_token, 'expires_at': expiry_date}
+    user_info = {
+        "fediamMVIICN": "1010031911V591044",
+        "nonce": "123",
+        "email": "FIRST.LASTNAME@VA.GOV",
+        "iat": 1568040790,
+        "iss": "https://sqa.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/metadata/ISAMOP",
+        "at_hash": "bFo9KMdkW5ov7eBAWjfHhg",
+        "sub": "1010031911",
+        "fediamVAUID": "22128",
+        "family_name": "LASTNAME",
+        "fediamadSamAccountName": "VHAISWSMITRE",
+        "given_name": "FIRST",
+        "fediamsecid": "1010031911",
+        "exp": 1568044390,
+        "aud": "ampl_gui"
+    }
+
+    @pytest.fixture(autouse=True)
+    def mock_va_sso_authorize_access_token(self, mocker):
+        return mocker.patch('app.oauth.rest.oauth_registry.va_sso.authorize_access_token', return_value=self.tokens)
+
+    @pytest.fixture(autouse=True)
+    def mock_va_sso_parse_id_token(self, mocker):
+        return mocker.patch('app.oauth.rest.oauth_registry.va_sso.parse_id_token', return_value=self.user_info)
+
+    @pytest.fixture(autouse=True)
+    def mock_statsd(self, mocker):
+        return mocker.patch('app.oauth.rest.statsd_client')
+
+    @pytest.fixture(autouse=True)
+    def configure_cookie(self, notify_api):
+        with set_config_values(notify_api, cookie_config):
+            yield
+
+    def test_extracts_user_info_and_calls_dao_method(self, client, sample_user, mocker):
+        mocked_dao = mocker.patch('app.oauth.rest.retrieve_match_or_create_user', return_value=sample_user)
+        client.get('/auth/callback')
+
+        mocked_dao.assert_called_with(
+            email_address=self.user_info['email'],
+            name=f"{self.user_info['given_name']} {self.user_info['family_name']}",
+            identity_provider='va_sso',
+            identity_provider_user_id=self.user_info['sub'])
+
+    def test_redirects_to_ui_and_sets_token_in_cookie(self, client, sample_user, mock_statsd, mocker):
+        mocker.patch('app.oauth.rest.retrieve_match_or_create_user', return_value=sample_user)
+        response = client.get('/auth/callback')
+
+        assert response.status_code == 302
+        assert response.location == f"{cookie_config['UI_HOST_NAME']}/login/success"
+
+        cookie = list(client.cookie_jar)[0]
+        assert cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME']
+        assert cookie.secure is True
+        user = decode_token(cookie.value)
+        assert user['sub']['id'] == str(sample_user.id)
+        assert mock_statsd.incr.called_with('oauth.authorization.success')
+
+    def test_returns_401_on_oauth_error(self, client, mock_va_sso_authorize_access_token, mock_statsd):
+        mock_va_sso_authorize_access_token.side_effect = OAuthError(error="some error", description="some description")
+        response = client.get('/auth/callback')
+
+        assert response.status_code == 401
+        assert response.json == {"error": "some error", "description": "some description"}
+        assert mock_statsd.incr.called_with('oauth.authorization.denied')
+
+    def test_returns_401_on_idp_assignment_exception(self, client, mocker, mock_statsd):
+        mocker.patch('app.oauth.rest.retrieve_match_or_create_user').side_effect = IdpAssignmentException()
+        response = client.get('/auth/callback')
+
+        assert response.status_code == 401
+        assert response.json == {"error": "Unauthorized", "description": "IDP authentication failure"}
+        assert mock_statsd.incr.called_with('oauth.authorization.idpassignmentexception')
+
+    def test_returns_401_on_any_exception(self, client, mocker, mock_statsd):
+        mocker.patch('app.oauth.rest.retrieve_match_or_create_user').side_effect = Exception()
+        response = client.get('/auth/callback')
+
+        assert response.status_code == 401
+        assert response.json == {"error": "Unauthorized", "description": "Authentication failure"}
+        assert mock_statsd.incr.called_with('oauth.authorization.failure')

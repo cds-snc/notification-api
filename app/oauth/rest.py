@@ -118,8 +118,8 @@ def callback():
         user_info = oauth_registry.va_sso.parse_id_token(tokens)
         user = retrieve_match_or_create_user(
             email_address=user_info['email'],
-            name=user_info['name'],
-            identity_provier='va_sso',
+            name=f"{user_info['given_name']} {user_info['family_name']}",
+            identity_provider='va_sso',
             identity_provider_user_id=user_info['sub']
         )
     except OAuthError as e:
@@ -149,6 +149,7 @@ def callback():
             samesite=current_app.config['SESSION_COOKIE_SAMESITE']
         )
         statsd_client.incr('oauth.authorization.success')
+        current_app.logger.info(f"Successful SSO authorization for {user.id}")
         return response
 
 

@@ -1,6 +1,5 @@
 from authlib.integrations.flask_client import OAuth
 
-
 # .register() will automatically read GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET from app configuration
 # as described here: https://docs.authlib.org/en/latest/client/flask.html#configuration
 
@@ -15,6 +14,7 @@ oauth_registry.register(  # nosec
     client_kwargs={'scope': 'read:user, user:email, read:org'}
 )
 
+# Reads all configuration from .well-known endpointed defined in VA_SSO_SERVER_METADATA_URL config
 oauth_registry.register(
     name='va_sso',
     client_kwargs={'scope': 'openid profile email'}

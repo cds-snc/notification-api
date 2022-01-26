@@ -6,7 +6,7 @@ from flask import current_app
 import sqlalchemy
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm.exc import FlushError, NoResultFound
 from sqlalchemy.exc import IntegrityError
 
 from app import db
@@ -180,7 +180,7 @@ def retrieve_match_or_create_user(email_address: str,
                                   identity_provider: str,
                                   identity_provider_user_id: str) -> User:
     try:
-        user = User.find_by_idp_id(identity_provider, identity_provider_user_id)
+        user = User.find_by_idp(identity_provider, identity_provider_user_id)
         return user
     except NoResultFound:
         try:
@@ -188,7 +188,7 @@ def retrieve_match_or_create_user(email_address: str,
             user.add_idp(idp_name=identity_provider, idp_id=identity_provider_user_id)
             user.save_to_db()
             return user
-        except IntegrityError as e:
+        except (IntegrityError, FlushError) as e:
             raise IdpAssignmentException from e
         except NoResultFound:
             user = User(

@@ -23,12 +23,13 @@ from app.dao.users_dao import (
     user_can_be_archived,
     dao_archive_user,
     verify_within_time, get_user_by_identity_provider_user_id, update_user_identity_provider_user_id,
-    create_or_retrieve_user
+    create_or_retrieve_user,
+    retrieve_match_or_create_user
 )
 from app.errors import InvalidRequest
 from app.models import VerifyCode
 from app.model import User, EMAIL_AUTH_TYPE
-from app.oauth.exceptions import IncorrectGithubIdException
+from app.oauth.exceptions import IdpAssignmentException, IncorrectGithubIdException
 
 from tests.app.db import create_permissions, create_service, create_template_folder, create_user
 
@@ -435,3 +436,64 @@ def test_create_or_update_user_by_identity_provider_user_id_for_existing_user(sa
     assert sample_user.idp_ids[0].idp_name == "github"
     assert sample_user.idp_ids[0].idp_id == "new-test-id"
     assert User.query.count() == number_of_users_stays_at_one
+
+
+class TestRetrieveMatchCreateUsedForSSO:
+
+    def test_should_return_user_if_matches_idp(self, db_session, sample_user):
+        sample_user.add_idp(idp_name='va_sso', idp_id='some-id')
+        sample_user.save_to_db()
+
+        user = retrieve_match_or_create_user(email_address="does_not_matter",
+                                             name="does not matter",
+                                             identity_provider='va_sso',
+                                             identity_provider_user_id='some-id')
+
+        assert user.id == sample_user.id
+
+    def test_should_match_by_email_and_assign_idp(self, db_session, sample_user):
+        assert len(sample_user.idp_ids) == 0
+        user = retrieve_match_or_create_user(email_address=sample_user.email_address,
+                                             name="does not matter",
+                                             identity_provider='va_sso',
+                                             identity_provider_user_id='some-id')
+
+        assert user.id == sample_user.id
+        assert user.idp_ids[0].idp_name == 'va_sso'
+        assert user.idp_ids[0].idp_id == 'some-id'
+
+    def test_should_match_by_email_and_assign_other_idp(self, db_session, sample_user):
+        sample_user.add_idp(idp_name='github', idp_id='some-id')
+        sample_user.save_to_db()
+        user = retrieve_match_or_create_user(email_address=sample_user.email_address,
+                                             name="does not matter",
+                                             identity_provider='va_sso',
+                                             identity_provider_user_id='other-id')
+
+        assert user.id == sample_user.id
+        assert len(user.idp_ids) == 2
+
+    def test_raises_exception_when_user_has_conflicting_idp_id(self, db_session, sample_user):
+        sample_user.add_idp(idp_name='va_sso', idp_id='some-id')
+        sample_user.save_to_db()
+
+        with pytest.raises(IdpAssignmentException):
+            retrieve_match_or_create_user(email_address=sample_user.email_address,
+                                          name="does not matter",
+                                          identity_provider='va_sso',
+                                          identity_provider_user_id='other-id')
+
+        user = User.query.get(sample_user.id)
+        assert user.idp_ids[0].idp_id == 'some-id'
+
+    def test_creates_new_user_if_no_match_by_idp_or_email(self, db_session, sample_user):
+        user = retrieve_match_or_create_user(email_address='test@email.com',
+                                             name="Winnie the Pooh",
+                                             identity_provider='va_sso',
+                                             identity_provider_user_id='some-id')
+        assert len(User.query.all()) == 2
+        assert user.id != sample_user.id
+        assert user.name == 'Winnie the Pooh'
+        assert user.email_address == 'test@email.com'
+        assert user.idp_ids[0].idp_name == 'va_sso'
+        assert user.idp_ids[0].idp_id == 'some-id'
