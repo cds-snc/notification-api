@@ -1,10 +1,17 @@
+from contextlib import contextmanager
+
 import pytest
 from flask import Flask
 from pytest_mock_resources import RedisConfig, create_redis_fixture
 
 from app import create_app, redis_store
-from app.queue import Buffer, MockQueue, RedisQueue, generate_notification, generate_notifications
-from contextlib import contextmanager
+from app.queue import (
+    Buffer,
+    MockQueue,
+    RedisQueue,
+    generate_notification,
+    generate_notifications,
+)
 
 
 @pytest.fixture(scope="session")
