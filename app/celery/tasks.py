@@ -83,14 +83,10 @@ from app.utils import get_csv_max_rows
 
 @notify_celery.task(name="process-inflight")
 @statsd(namespace="tasks")
-def process_inflight(inflight_name):
-
-    # TODO: get inflight notifications from redis somehow
-    notifications = []
-
+def process_inflight(receipt, results):
     encrypted_smss: List[Any] = []
     encrypted_emails: List[Any] = []
-    for notification in notifications:
+    for notification in results:
         service = dao_fetch_service_by_id(notification["service_id"])
         template = dao_get_template_by_id(notification["template_id"])
 
@@ -111,16 +107,14 @@ def process_inflight(inflight_name):
 
     if encrypted_smss:
         save_smss.apply_async(
-            (None, encrypted_smss),
+            (None, encrypted_smss, receipt),
             queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
         )
     if encrypted_emails:
         save_emails.apply_async(
-            (None, encrypted_emails),
+            (None, encrypted_emails, receipt),
             queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
         )
-
-    # TODO: delete inflight somehow
 
 
 @notify_celery.task(name="process-job")
@@ -262,12 +256,12 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
     # these objects are transient and will not have relationships loaded
     if encrypted_smss:
         save_smss.apply_async(
-            (str(service.id), encrypted_smss),
+            (str(service.id), encrypted_smss, None),
             queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
         )
     if encrypted_emails:
         save_emails.apply_async(
-            (str(service.id), encrypted_emails),
+            (str(service.id), encrypted_emails, None),
             queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
         )
     if encrypted_letters:
@@ -293,7 +287,7 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
 
 @notify_celery.task(bind=True, name="save-smss", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_smss(self, service_id: str, encrypted_notifications: List[Any]):
+def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt: str):
     """
     Function that is a job, that takes a list of encrypted notifications and stores
     them in the DB and then sends the notification to the queue.
@@ -374,6 +368,9 @@ def save_smss(self, service_id: str, encrypted_notifications: List[Any]):
             )
         )
 
+    if receipt:
+        redisQueue.acknowledge(receipt)
+
 
 @notify_celery.task(bind=True, name="save-sms", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
@@ -443,7 +440,7 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_emails(self, service_id: str, encrypted_notifications: List[Any]):
+def save_emails(self, service_id: str, encrypted_notifications: List[Any], receipt: str):
     """
     Function that is a job, that takes a list of encrypted notifications and stores
     them in the DB and then sends the notification to the queue.
@@ -453,6 +450,7 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any]):
     notification_id_queue: Dict = {}
     for encrypted_notification in encrypted_notifications:
         notification = encryption.decrypt(encrypted_notification)
+        service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
         template = dao_get_template_by_id(
             notification.get("template"), version=notification.get("template_version"), use_cache=True
@@ -521,6 +519,9 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any]):
                     notification.job,
                 )
             )
+
+    if receipt:
+        redisQueue.acknowledge(receipt)
 
 
 @notify_celery.task(bind=True, name="save-email", max_retries=5, default_retry_delay=300)
