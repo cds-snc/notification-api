@@ -135,7 +135,7 @@ class TestRedisQueue:
         assert len(redis.keys("*")) == 0
 
     def test_messages_serialization_after_poll(self, redis, redis_queue, given_inbox_with_one_element):
-        (receipt, elements) = redis_queue.poll(1)
+        (_, elements) = redis_queue.poll(1)
 
         assert len(elements) > 0
         assert type(elements) is list
