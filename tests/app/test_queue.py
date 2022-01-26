@@ -5,29 +5,26 @@ from flask import Flask
 from pytest_mock_resources import RedisConfig, create_redis_fixture
 
 from app import create_app, redis_store
+from app.config import Config, Development
 from app.queue import Buffer, MockQueue, RedisQueue, generate_notification
 
 
 @pytest.fixture(scope="session")
 def pmr_redis_config():
-    return RedisConfig(image="redis:6.2", host="localhost", port="6379", ci_port="6379")
+    return RedisConfig(image="redis:6.2", host="localhost", port="6380", ci_port="6380")
 
 
 redis = create_redis_fixture(scope="function")
 REDIS_ELEMENTS_COUNT = 123
 
 
-def get_redis_connection(redis) -> str:
-    redis_host = redis.connection_pool.connection_kwargs["host"]
-    redis_port = redis.connection_pool.connection_kwargs["port"]
-    return f"Mock redis connection is {redis_host}:{redis_port}"
-
-
 class TestRedisQueue:
     @pytest.fixture(autouse=True)
     def app(self):
+        config: Config = Development()
+        config.REDIS_ENABLED = True
         app = Flask("test")
-        create_app(app)
+        create_app(app, config)
         ctx = app.app_context()
         ctx.push()
         with app.test_request_context():
@@ -40,8 +37,7 @@ class TestRedisQueue:
         return redis_store.redis_store
 
     @pytest.fixture()
-    def redis_queue(self, redis, redis_client):
-        # assert "redis conn" == get_redis_connection(redis)
+    def redis_queue(self, redis_client):
         return RedisQueue(redis_client)
 
     @pytest.fixture()
