@@ -806,9 +806,12 @@ def test_should_save_smss(notify_db_session, sample_template_with_placeholders, 
     mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+    acknowldege_mock = mocker.patch("redisQueue.acknowledge")
+
     save_smss(
         str(sample_template_with_placeholders.service.id),
         [encryption.encrypt(notification1), encryption.encrypt(notification2), encryption.encrypt(notification3)],
+        "receipt",
     )
 
     persisted_notification = Notification.query.all()
@@ -821,6 +824,8 @@ def test_should_save_smss(notify_db_session, sample_template_with_placeholders, 
     assert persisted_notification[0].personalisation == {"name": "Jo"}
     assert persisted_notification[0]._personalisation == encryption.encrypt({"name": "Jo"})
     assert persisted_notification[0].notification_type == "sms"
+
+    acknowldege_mock.assert_called_once_with("receipt")
 
 
 @pytest.mark.parametrize("sender_id", [None, "996958a8-0c06-43be-a40e-56e4a2d1655c"])
