@@ -41,7 +41,7 @@ def read_nightly_stats_from_s3(bucket_name: str, object_key: str) -> bytes:
 
 def delete_existing_rows_for_date(bigquery_client: bigquery.Client, table_id: str, object_key: str) -> None:
     date, _extension = object_key.split('.')
-    dml_statement = f"DELETE FROM {table_id} WHERE date = '{date}'"
+    dml_statement = f"DELETE FROM `{table_id}` WHERE date = '{date}'"
     bigquery_client.query(dml_statement).result()
 
 

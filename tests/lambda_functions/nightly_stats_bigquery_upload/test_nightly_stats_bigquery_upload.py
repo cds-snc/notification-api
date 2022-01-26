@@ -167,7 +167,7 @@ class TestLambdaHandler:
         lambda_handler(EXAMPLE_S3_EVENT, 'some context')
 
         assert mock_bigquery_client.query.called_with(
-            f"DELETE FROM {self.expected_table_id} WHERE date = '2021-06-28'"
+            f"DELETE FROM `{self.expected_table_id}` WHERE date = '2021-06-28'"
         )
 
     def test_should_load_stats_into_bigquery_table(
