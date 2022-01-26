@@ -160,8 +160,11 @@ def generate_notifications(count=10) -> list[Dict]:
 
 
 class Buffer(Enum):
-    INBOX = "INBOX"
-    IN_FLIGHT = "IN-FLIGHT"
+    INBOX = "inbox"
+    IN_FLIGHT = "in-flight"
+
+    def name(self, suffix=None):
+        return f"{self.value}:{suffix}" if suffix else self.value
 
 
 class Serializable(Protocol):
@@ -221,9 +224,10 @@ class RedisQueue(Queue):
 
     scripts: Dict[str, Any] = {}
 
-    def __init__(self, redis_client: FlaskRedis) -> None:
-        self.redis_client = redis_client
-        self.limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
+    def __init__(self, redis_client: FlaskRedis, inbox_suffix=None) -> None:
+        self._inbox = Buffer.INBOX.name(inbox_suffix)
+        self._redis_client = redis_client
+        self._limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
         self.__register_scripts()
 
     def poll(self, count=10) -> tuple[UUID, list[Dict]]:
@@ -234,22 +238,22 @@ class RedisQueue(Queue):
 
     def acknowledge(self, receipt: UUID):
         inflight_name = self.get_inflight_name(receipt)
-        self.redis_client.delete(inflight_name)
+        self._redis_client.delete(inflight_name)
 
     def get_inflight_name(self, receipt: UUID = uuid4()) -> str:
         return f"{Buffer.IN_FLIGHT.value}:{str(receipt)}"
 
     def publish(self, serializable: Serializable):
         serialized: str = json.dumps(serializable.serialize())
-        self.redis_client.rpush(Buffer.INBOX.value, serialized)
+        self._redis_client.rpush(self._inbox, serialized)
 
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[dict]:
-        results = self.scripts[self.LUA_MOVE_TO_INFLIGHT](args=[Buffer.INBOX.value, in_flight_key, count])
+        results = self.scripts[self.LUA_MOVE_TO_INFLIGHT](args=[self._inbox, in_flight_key, count])
         as_dicts = [json.loads(n.decode("utf-8")) for n in results]
         return as_dicts
 
     def __register_scripts(self):
-        self.scripts[self.LUA_MOVE_TO_INFLIGHT] = self.redis_client.register_script(
+        self.scripts[self.LUA_MOVE_TO_INFLIGHT] = self._redis_client.register_script(
             """
             local DEFAULT_CHUNK = 99
 
