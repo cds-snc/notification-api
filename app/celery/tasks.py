@@ -97,6 +97,7 @@ def process_inflight(inflight_name):
         if service_allowed_to_send_to(notification.recipient, service, KEY_TYPE_NORMAL):
             encrypted_notification = encryption.encrypt(
                 {
+                    "service_id": notification["service_id"],
                     "api_key": notification["api_key_id"],
                     "template": notification["template_id"],
                     "to": notification["recipient"],
@@ -110,12 +111,12 @@ def process_inflight(inflight_name):
 
     if encrypted_smss:
         save_smss.apply_async(
-            (str(notification.service_id), encrypted_smss),
+            (None, encrypted_smss),
             queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
         )
     if encrypted_emails:
         save_emails.apply_async(
-            (str(service.id), encrypted_emails),
+            (None, encrypted_emails),
             queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
         )
 
@@ -302,6 +303,7 @@ def save_smss(self, service_id: str, encrypted_notifications: List[Any]):
     notification_id_queue: Dict = {}
     for encrypted_notification in encrypted_notifications:
         notification = encryption.decrypt(encrypted_notification)
+        service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
         template = dao_get_template_by_id(
             notification.get("template"), version=notification.get("template_version"), use_cache=True

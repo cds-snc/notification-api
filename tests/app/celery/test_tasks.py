@@ -24,6 +24,7 @@ from app.celery.tasks import (
     s3,
     save_email,
     save_emails,
+    process_inflight,
     save_letter,
     save_sms,
     save_smss,
@@ -96,6 +97,64 @@ def test_should_have_decorated_tasks_functions():
 @pytest.fixture
 def email_job_with_placeholders(notify_db, notify_db_session, sample_email_template_with_placeholders):
     return create_job(template=sample_email_template_with_placeholders)
+
+
+class BatchSaving:
+    def test_process_inflight_saves_sms_and_emails(self, notify_db_session, mocker):
+        service1 = create_service(message_limit=20)
+        service2 = create_service(message_limit=20)
+        template1 = create_template(service=service1)
+        template2 = create_template(service=service2)
+
+        inflight_id = uuid.uuid4()
+
+        # TODO: mock the get inflight notifications:
+        #       [service1 sms, service2 email, service2 sms, service2 email, service1 email]
+
+        mocker.patch("app.celery.tasks.save_smss.apply_async")
+        mocker.patch("app.celery.tasks.save_emails.apply_async")
+        mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
+        redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")  # what's this for?
+
+        process_inflight(inflight_id)
+        assert encryption.encrypt.call_args[0][0]["service_id"] == service1.id
+        assert encryption.encrypt.call_args[0][0]["api_key"] == "api key?"
+        assert encryption.encrypt.call_args[0][0]["to"] == "+441234123120"
+        assert encryption.encrypt.call_args[0][0]["template"] == str(template1.id)
+
+        assert encryption.encrypt.call_args[0][0]["personalisation"] == {
+            "phonenumber": "+441234123120",
+        }
+        assert encryption.encrypt.call_args[0][1]["service_id"] == service2.id
+        assert encryption.encrypt.call_args[0][1]["api_key"] == "api key?"
+        assert encryption.encrypt.call_args[0][1]["to"] == "test@gmail.com"
+        assert encryption.encrypt.call_args[0][1]["template"] == str(template2.id)
+
+        assert encryption.encrypt.call_args[0][0]["personalisation"] == {
+            "phonenumber": "+441234123120",
+        }
+
+        tasks.save_smss.apply_async.assert_called_once_with(
+            (
+                None,
+                [
+                    "something_encrypted",
+                    "something_encrypted",
+                ],
+            ),
+            queue="database-tasks",
+        )
+        tasks.save_emails.apply_async.assert_called_once_with(
+            (
+                None,
+                [
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                ],
+            ),
+            queue="database-tasks",
+        )
 
 
 # -------------- process_job tests -------------- #
