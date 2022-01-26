@@ -6,7 +6,7 @@ from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import notify_celery, zendesk_client
-from app.celery.tasks import process_job
+from app.celery.tasks import process_inflight, process_job
 from app.config import QueueNames, TaskNames
 from app.dao.invited_org_user_dao import (
     delete_org_invitations_created_more_than_two_days_ago,
@@ -31,6 +31,7 @@ from app.models import (
     Job,
 )
 from app.notifications.process_notifications import send_notification_to_queue
+from app.queue import MockQueue
 from app.v2.errors import JobIncompleteError
 
 
@@ -220,3 +221,46 @@ def check_templated_letter_state():
                 message=msg,
                 ticket_type=zendesk_client.TYPE_INCIDENT,
             )
+
+
+@notify_celery.task(name="heartbeart-inbox-sms")
+@statsd(namespace="tasks")
+def heartbeat_inbox_sms():
+    """
+    The function acts as a heartbeat to a list of notifications in the queue.
+    The post_api will push all the notifications into the above list.
+    The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
+    to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
+    and actually sends the sms for each notification saved.
+    """
+    # TODO: This will be instantiated from the app init.
+    sms_queue = MockQueue()
+
+    receipt_id_sms, list_of_sms_notifications = sms_queue.poll()
+
+    while list_of_sms_notifications:
+        process_inflight.apply_async((receipt_id_sms, list_of_sms_notifications, SMS_TYPE))
+        current_app.logger.info(f"SMS UUID: {receipt_id_sms} sent to Inflight List")
+        receipt_id_sms, list_of_sms_notifications = sms_queue.poll()
+
+
+@notify_celery.task(name="heartbeart-inbox-email")
+@statsd(namespace="tasks")
+def heartbeat_inbox_email():
+    """
+    The function acts as a heartbeat to a list of notifications in the queue.
+    The post_api will push all the notifications into the above list.
+    The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
+    to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
+    and actually sends the email for each notification saved.
+    """
+
+    # TODO: This will be instantiated from the app init.
+    email_queue = MockQueue()
+
+    receipt_id_email, list_of_email_notifications = email_queue.poll()
+
+    while list_of_email_notifications:
+        process_inflight.apply_async((receipt_id_email, list_of_email_notifications, EMAIL_TYPE))
+        current_app.logger.info(f"Email UUID: {receipt_id_email} sent to Inflight List")
+        receipt_id_email, list_of_email_notifications = email_queue.poll()

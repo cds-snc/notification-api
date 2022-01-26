@@ -970,3 +970,9 @@ def get_recipient_csv(job: Job, template: Template) -> RecipientCSV:
         placeholders=template.placeholders,
         max_rows=get_csv_max_rows(job.service_id),
     )
+
+
+@notify_celery.task(bind=True, name="process-inflight", max_retries=5)
+@statsd(namespace="tasks")
+def process_inflight(receipt_id_sms, list_of_sms_notifications, type):
+    pass

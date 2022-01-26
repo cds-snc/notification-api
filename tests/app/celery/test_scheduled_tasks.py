@@ -12,11 +12,14 @@ from app.celery.scheduled_tasks import (
     check_templated_letter_state,
     delete_invitations,
     delete_verify_codes,
+    heartbeat_inbox_email,
+    heartbeat_inbox_sms,
     replay_created_notifications,
     run_scheduled_jobs,
     send_scheduled_notifications,
     switch_current_sms_provider_on_slow_delivery,
 )
+from app.celery.tasks import process_inflight
 from app.config import QueueNames, TaskNames
 from app.dao.jobs_dao import dao_get_job_by_id
 from app.dao.notifications_dao import dao_get_scheduled_notifications
@@ -25,11 +28,13 @@ from app.dao.provider_details_dao import (
     get_current_provider,
 )
 from app.models import (
+    EMAIL_TYPE,
     JOB_STATUS_ERROR,
     JOB_STATUS_FINISHED,
     JOB_STATUS_IN_PROGRESS,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PENDING_VIRUS_CHECK,
+    SMS_TYPE,
 )
 from app.v2.errors import JobIncompleteError
 from tests.app.conftest import sample_job as create_sample_job
@@ -494,3 +499,27 @@ def test_check_templated_letter_state_during_utc(mocker, sample_letter_template)
         subject="[test] Letters still in 'created' status",
         ticket_type="incident",
     )
+
+
+class TestHeartbeatQueues:
+    def test_heartbeat_inbox_sms(self, mocker):
+        mocker.patch("app.celery.tasks.current_app.logger.info")
+        mocker.patch("app.queue.MockQueue.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
+
+        mocker.patch("app.celery.tasks.process_inflight.apply_async")
+        heartbeat_inbox_sms()
+
+        process_inflight.apply_async.assert_called_once_with(
+            ("rec123", ["1", "2", "3", "4"], SMS_TYPE),
+        )
+
+    def test_heartbeat_inbox_email(self, mocker):
+        mocker.patch("app.celery.tasks.current_app.logger.info")
+        mocker.patch("app.queue.MockQueue.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
+        mocker.patch("app.celery.tasks.process_inflight.apply_async")
+
+        heartbeat_inbox_email()
+
+        process_inflight.apply_async.assert_called_once_with(
+            ("rec123", ["1", "2", "3", "4"], EMAIL_TYPE),
+        )
