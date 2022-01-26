@@ -144,6 +144,12 @@ class TestEventParsing:
 
 class TestLambdaHandler:
 
+    @pytest.fixture(autouse=True)
+    def some_env(self, monkeypatch):
+        monkeypatch.setenv('ENVIRONMENT', 'some-env')
+
+    expected_table_id = 'vsp-analytics-and-insights.platform_vanotify.some-env-statistics'
+
     def test_should_read_service_account_info_from_ssm(self, monkeypatch, mock_ssm_client):
         lambda_handler(EXAMPLE_S3_EVENT, 'some context')
         mock_ssm_client.get_parameter.assert_called_with(
@@ -155,15 +161,21 @@ class TestLambdaHandler:
         lambda_handler(EXAMPLE_S3_EVENT, 'some context')
         mock_s3_client.get_object.assert_called_with(Bucket='my_stats_bucket', Key='2021-06-28.csv')
 
+    def test_should_delete_existing_stats_from_bigquery_table(
+            self, monkeypatch, mock_bigquery_client, example_nightly_stats_bytes
+    ):
+        lambda_handler(EXAMPLE_S3_EVENT, 'some context')
+
+        assert mock_bigquery_client.query.called_with(
+            f"DELETE FROM {self.expected_table_id} WHERE date = '2021-06-28'"
+        )
+
     def test_should_load_stats_into_bigquery_table(
             self, monkeypatch, mock_bigquery_client, example_nightly_stats_bytes
     ):
-        monkeypatch.setenv('ENVIRONMENT', 'some-env')
         lambda_handler(EXAMPLE_S3_EVENT, 'some context')
-
-        expected_table_id = 'vsp-analytics-and-insights.platform_vanotify.some-env-statistics'
 
         _, kwargs = mock_bigquery_client.load_table_from_file.call_args
 
-        assert kwargs['destination'] == expected_table_id
+        assert kwargs['destination'] == self.expected_table_id
         assert kwargs['file_obj'].getvalue() == example_nightly_stats_bytes
