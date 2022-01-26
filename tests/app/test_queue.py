@@ -148,12 +148,20 @@ class TestRedisQueue:
         assert redis.llen(redis_queue.get_inflight_name(receipt)) == 0
         assert len(redis.keys("*")) == 0
 
-    def test_messages_serialization_after_poll(self, redis, redis_queue, given_inbox_with_one_element):
+    def test_messages_serialization_after_poll(self, redis, redis_queue):
+        notification = next(generate_notification())
+        redis_queue.publish(notification)
         (_, elements) = redis_queue.poll(1)
 
         assert len(elements) > 0
         assert type(elements) is list
         assert type(elements[0]) is dict
+        assert elements[0]["id"] == notification.id
+        assert elements[0]["email_address"] == notification.to
+        assert elements[0]["type"] == notification.notification_type
+        assert elements[0]["template"]["id"] == notification.template_id
+        assert elements[0]["template"]["version"] == notification.template_version
+        assert elements[0]["completed_at"] == notification.created_at
 
 
 @pytest.mark.usefixtures("notify_api")
