@@ -4,6 +4,7 @@ from pytest_mock_resources import RedisConfig, create_redis_fixture
 
 from app import create_app, redis_store
 from app.queue import Buffer, MockQueue, RedisQueue, generate_notification, generate_notifications
+from contextlib import contextmanager
 
 
 @pytest.fixture(scope="session")
@@ -11,7 +12,7 @@ def pmr_redis_config():
     return RedisConfig(image="redis:6.2")
 
 
-redis = create_redis_fixture()
+redis = create_redis_fixture(scope="function")
 REDIS_ELEMENTS_COUNT = 123
 
 
@@ -50,7 +51,7 @@ class TestRedisQueue:
         yield
         redis.delete(Buffer.INBOX.value)
 
-    @pytest.fixture()
+    @contextmanager
     def given_inbox_with_many_indexes(self, redis, redis_queue):
         class TestSerializable:
             def __init__(self, i: int):
@@ -59,10 +60,12 @@ class TestRedisQueue:
             def serialize(self) -> dict:
                 return {"i": self.__i}
 
-        indexes = [TestSerializable(i) for i in range(0, REDIS_ELEMENTS_COUNT)]
-        [redis_queue.publish(index) for index in indexes]
-        yield
-        redis.delete(Buffer.INBOX.value)
+        try:
+            indexes = [TestSerializable(i) for i in range(0, REDIS_ELEMENTS_COUNT)]
+            [redis_queue.publish(index) for index in indexes]
+            yield
+        finally:
+            redis.delete(Buffer.INBOX.value)
 
     def test_put_mesages(self, redis, redis_queue):
         element = next(generate_notification())
@@ -78,15 +81,16 @@ class TestRedisQueue:
         assert redis.llen(redis_queue.get_inflight_name(receipt)) == 1
 
     @pytest.mark.parametrize("count", [0, 1, 98, 99, 100, 101, REDIS_ELEMENTS_COUNT, REDIS_ELEMENTS_COUNT + 1, 500])
-    def test_polling_many_messages(self, redis, redis_queue, given_inbox_with_many_indexes, count):
-        real_count = count if count < REDIS_ELEMENTS_COUNT else REDIS_ELEMENTS_COUNT
-        (receipt, elements) = redis_queue.poll(count)
-        assert len(elements) == real_count
-        if count < REDIS_ELEMENTS_COUNT:
-            assert redis.llen(Buffer.INBOX.value) > 0
-        else:
-            assert redis.llen(Buffer.INBOX.value) == 0
-        assert redis.llen(redis_queue.get_inflight_name(receipt)) == real_count
+    def test_polling_many_messages(self, redis, redis_queue, count):
+        with self.given_inbox_with_many_indexes(redis, redis_queue):
+            real_count = count if count < REDIS_ELEMENTS_COUNT else REDIS_ELEMENTS_COUNT
+            (receipt, elements) = redis_queue.poll(count)
+            assert len(elements) == real_count
+            if count < REDIS_ELEMENTS_COUNT:
+                assert redis.llen(Buffer.INBOX.value) > 0
+            else:
+                assert redis.llen(Buffer.INBOX.value) == 0
+            assert redis.llen(redis_queue.get_inflight_name(receipt)) == real_count
 
     def test_polling_with_empty_inbox(self, redis, redis_queue):
         (receipt, elements) = redis_queue.poll(10)
@@ -97,7 +101,13 @@ class TestRedisQueue:
     def test_polling_with_zero_count(self, redis, redis_queue, given_inbox_with_one_element):
         (receipt, elements) = redis_queue.poll(0)
         assert len(elements) == 0
-        assert redis.llen(Buffer.INBOX.value) == 0
+        assert redis.llen(Buffer.INBOX.value) == 1
+        assert redis.llen(redis_queue.get_inflight_name(receipt)) == 0
+
+    def test_polling_with_negative_count(self, redis, redis_queue, given_inbox_with_one_element):
+        (receipt, elements) = redis_queue.poll(-1)
+        assert len(elements) == 0
+        assert redis.llen(Buffer.INBOX.value) == 1
         assert redis.llen(redis_queue.get_inflight_name(receipt)) == 0
 
     def test_acknowledged_messages(self, redis, redis_queue, given_inbox_with_one_element):
