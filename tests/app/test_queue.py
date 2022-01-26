@@ -10,7 +10,7 @@ from app.queue import Buffer, MockQueue, RedisQueue, generate_notification
 
 @pytest.fixture(scope="session")
 def pmr_redis_config():
-    return RedisConfig(image="redis:6.2", host="localhost", port="6380", ci_port="6380")
+    return RedisConfig(image="redis:6.2", host="localhost", port="6379", ci_port="6379")
 
 
 redis = create_redis_fixture(scope="function")
