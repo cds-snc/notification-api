@@ -41,7 +41,9 @@ class TestRedisQueue:
         return redis_store.redis_store
 
     @pytest.fixture()
-    def redis_queue(self, redis_client):
+    def redis_queue(self, redis, redis_client):
+        print(get_redis_connection(redis))
+        assert "please print that connection on github workflow" == get_redis_connection(redis)
         return RedisQueue(redis_client)
 
     @pytest.fixture()
@@ -68,7 +70,6 @@ class TestRedisQueue:
             redis.delete(Buffer.INBOX.name())
 
     def test_put_mesages(self, redis, redis_queue):
-        assert "please print that connection on github workflow" == get_redis_connection(redis)
         element = next(generate_notification())
         redis_queue.publish(element)
         assert redis.llen(Buffer.INBOX.name()) == 1
