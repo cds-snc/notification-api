@@ -17,6 +17,12 @@ redis = create_redis_fixture(scope="function")
 REDIS_ELEMENTS_COUNT = 123
 
 
+def get_redis_connection(redis) -> str:
+    redis_host = redis.connection_pool.connection_kwargs["host"]
+    redis_port = redis.connection_pool.connection_kwargs["port"]
+    return f"Mock redis connection is {redis_host}:{redis_port}"
+
+
 class TestRedisQueue:
     @pytest.fixture(autouse=True)
     def app(self):
@@ -62,6 +68,7 @@ class TestRedisQueue:
             redis.delete(Buffer.INBOX.name())
 
     def test_put_mesages(self, redis, redis_queue):
+        assert "please print that connection on github workflow" == get_redis_connection(redis)
         element = next(generate_notification())
         redis_queue.publish(element)
         assert redis.llen(Buffer.INBOX.name()) == 1
