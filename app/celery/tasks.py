@@ -369,7 +369,8 @@ def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt
         )
 
     if receipt:
-        redisQueue.acknowledge(receipt)
+        redis_queue = RedisQueue(redis_client, "sms")
+        redis_queue.acknowledge(receipt)
 
 
 @notify_celery.task(bind=True, name="save-sms", max_retries=5, default_retry_delay=300)
@@ -521,7 +522,8 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any], recei
             )
 
     if receipt:
-        redisQueue.acknowledge(receipt)
+        redis_queue = RedisQueue(redis_client, "email")
+        redis_queue.acknowledge(receipt)
 
 
 @notify_celery.task(bind=True, name="save-email", max_retries=5, default_retry_delay=300)
