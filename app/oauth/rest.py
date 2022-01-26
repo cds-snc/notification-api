@@ -11,10 +11,10 @@ from requests.exceptions import HTTPError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import statsd_client
-from app.dao.users_dao import create_or_retrieve_user, get_user_by_email
+from app.dao.users_dao import create_or_retrieve_user, get_user_by_email, retrieve_match_or_create_user
 from app.errors import register_errors
 from app.feature_flags import is_feature_enabled, FeatureFlag
-from .exceptions import OAuthException, IncorrectGithubIdException, LoginWithPasswordException, \
+from .exceptions import IdpAssignmentException, OAuthException, IncorrectGithubIdException, \
     InsufficientGithubScopesException
 from app.oauth.registry import oauth_registry
 from app.schema_validation import validate
@@ -116,13 +116,26 @@ def callback():
     try:
         tokens = oauth_registry.va_sso.authorize_access_token()
         user_info = oauth_registry.va_sso.parse_id_token(tokens)
-        user = create_or_retrieve_user(
+        user = retrieve_match_or_create_user(
             email_address=user_info['email'],
-            identity_provider_user_id=user_info['sub'],
-            name=user_info['name'])
+            name=user_info['name'],
+            identity_provier='va_sso',
+            identity_provider_user_id=user_info['sub']
+        )
     except OAuthError as e:
         current_app.logger.exception(e)
+        statsd_client.incr('oauth.authorization.denied')
         response = make_response({'error': e.error, 'description': e.description}, 401)
+        return response
+    except IdpAssignmentException as e:
+        current_app.logger.exception(e)
+        statsd_client.incr('oauth.authorization.idpassignmentexception')
+        response = make_response({'error': 'Unauthorized', 'description': 'IDP authentication failure'}, 401)
+        return response
+    except Exception as e:
+        current_app.logger.exception(e)
+        statsd_client.incr('oauth.authorization.failure')
+        response = make_response({'error': 'Unauthorized', 'description': 'Authentication failure'}, 401)
         return response
     else:
         response = make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/success"))

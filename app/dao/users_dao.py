@@ -6,6 +6,8 @@ from flask import current_app
 import sqlalchemy
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.dao.permissions_dao import permission_dao
@@ -14,7 +16,7 @@ from app.dao.dao_utils import transactional
 from app.errors import InvalidRequest
 from app.models import (VerifyCode)
 from app.model import User, EMAIL_AUTH_TYPE
-from app.oauth.exceptions import IncorrectGithubIdException
+from app.oauth.exceptions import IdpAssignmentException, IncorrectGithubIdException
 from app.utils import escape_special_characters
 
 
@@ -170,6 +172,33 @@ def create_or_retrieve_user(email_address, identity_provider_user_id, name):
         save_model_user(user)
 
         return user
+
+
+@transactional
+def retrieve_match_or_create_user(email_address: str,
+                                  name: str,
+                                  identity_provider: str,
+                                  identity_provider_user_id: str) -> User:
+    try:
+        user = User.find_by_idp_id(identity_provider, identity_provider_user_id)
+        return user
+    except NoResultFound:
+        try:
+            user = get_user_by_email(email_address)
+            user.add_idp(idp_name=identity_provider, idp_id=identity_provider_user_id)
+            user.save_to_db()
+            return user
+        except IntegrityError as e:
+            raise IdpAssignmentException from e
+        except NoResultFound:
+            user = User(
+                idp_name=identity_provider,
+                idp_id=identity_provider_user_id,
+                name=name,
+                email_address=email_address
+            )
+            user.save_to_db()
+            return user
 
 
 def increment_failed_login_count(user):
