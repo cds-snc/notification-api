@@ -6,7 +6,7 @@ from pytest_mock_resources import RedisConfig, create_redis_fixture
 
 from app import create_app, redis_store
 from app.config import Config, Development
-from app.queue import Buffer, MockQueue, RedisQueue, generate_notification
+from app.queue import Buffer, MockQueue, RedisQueue, generate_notifications
 
 
 @pytest.fixture(scope="session")
@@ -43,7 +43,7 @@ class TestRedisQueue:
     @contextmanager
     def given_inbox_with_one_element(self, redis, redis_queue):
         self.delete_all_list(redis)
-        notification = next(generate_notification())
+        notification = generate_notifications(1)[0]
         try:
             redis_queue.publish(notification)
             yield
@@ -52,16 +52,9 @@ class TestRedisQueue:
 
     @contextmanager
     def given_inbox_with_many_indexes(self, redis, redis_queue):
-        class TestSerializable:
-            def __init__(self, i: int):
-                self.__i = i
-
-            def serialize(self) -> dict:
-                return {"i": self.__i}
-
         self.delete_all_list(redis)
         try:
-            indexes = [TestSerializable(i) for i in range(0, REDIS_ELEMENTS_COUNT)]
+            indexes = [str(i) for i in range(0, REDIS_ELEMENTS_COUNT)]
             [redis_queue.publish(index) for index in indexes]
             yield
         finally:
@@ -84,7 +77,7 @@ class TestRedisQueue:
 
     @pytest.mark.serial
     def test_put_mesages(self, redis, redis_queue):
-        element = next(generate_notification())
+        element = generate_notifications(1)[0]
         redis_queue.publish(element)
         assert redis.llen(Buffer.INBOX.name()) == 1
         self.delete_all_list(redis)
@@ -94,7 +87,7 @@ class TestRedisQueue:
         with self.given_inbox_with_one_element(redis, redis_queue):
             (receipt, elements) = redis_queue.poll(10)
             assert len(elements) == 1
-            assert isinstance(elements[0], dict)
+            assert isinstance(elements[0], str)
             assert redis.llen(Buffer.INBOX.name()) == 0
             assert redis.llen(redis_queue.get_inflight_name(receipt)) == 1
 
@@ -117,7 +110,7 @@ class TestRedisQueue:
         self.delete_all_list(redis)
         try:
             redis_queue = RedisQueue(redis_client, suffix)
-            notification = next(generate_notification())
+            notification = generate_notifications(1)[0]
             redis_queue.publish(notification)
             assert redis.llen(Buffer.INBOX.name(suffix)) == 1
 
@@ -195,7 +188,7 @@ class TestMockQueue:
         assert len(notifications) == 10
 
     def test_publish_mesages_on_queue(self, mock_queue):
-        notification = next(generate_notification())
+        notification = generate_notifications(1)[0]
         mock_queue.publish(notification)
 
         # This should not add change internal data structure

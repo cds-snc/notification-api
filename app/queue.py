@@ -243,7 +243,8 @@ class RedisQueue(Queue):
 
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
         results = self.scripts[self.LUA_MOVE_TO_INFLIGHT](args=[self._inbox, in_flight_key, count])
-        return results
+        decoded = [result.decode("utf-8") for result in results]
+        return decoded
 
     def __register_scripts(self):
         self.scripts[self.LUA_MOVE_TO_INFLIGHT] = self._redis_client.register_script(
