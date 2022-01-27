@@ -18,13 +18,13 @@ from app.celery.tasks import (
     get_template_class,
     process_incomplete_job,
     process_incomplete_jobs,
+    process_inflight,
     process_job,
     process_returned_letters_list,
     process_row,
     s3,
     save_email,
     save_emails,
-    process_inflight,
     save_letter,
     save_sms,
     save_smss,
@@ -133,7 +133,6 @@ class TestBatchSaving:
 
         mocker.patch("app.celery.tasks.save_smss.apply_async")
         mock_encrypt = mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
-        redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")  # what's this for?
 
         process_inflight(receipt, results)
         print(encryption.encrypt.call_args)
@@ -204,7 +203,6 @@ class TestBatchSaving:
 
         mocker.patch("app.celery.tasks.save_emails.apply_async")
         mock_encrypt = mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
-        redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")  # what's this for?
 
         process_inflight(receipt, results)
         print(encryption.encrypt.call_args)
