@@ -2,7 +2,7 @@ import json
 import random
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, Protocol
+from typing import Any, Dict
 from uuid import UUID, uuid4
 
 from faker import Faker
