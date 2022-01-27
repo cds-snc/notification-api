@@ -181,6 +181,14 @@
         {
           "name": "PLATFORM_STATS_ENABLED",
           "value": "True"
+        },
+        {
+          "name": "VA_SSO_ENABLED",
+          "value": "True"
+        },
+        {
+          "name": "VA_SSO_SERVER_METADATA_URL",
+          "value": "https://int.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/metadata/ISAMOP/.well-known/oauth-authorization-server"
         }
       ],
       "secrets": [
@@ -243,6 +251,14 @@
         {
           "name": "VETEXT_PASSWORD",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/vetext/password"
+        },
+        {
+          "name": "VA_SSO_CLIENT_ID",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/iam-sso-client-id"
+        },
+        {
+          "name": "VA_SSO_CLIENT_SECRET",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/iam-sso-client-secret"
         }
       ]
     },
