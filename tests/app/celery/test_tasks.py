@@ -174,8 +174,11 @@ class TestBatchSaving:
         )
 
     def test_process_inflight_saves_emails(self, notify_db_session, mocker):
-        service1 = create_service()
-        service2 = create_service()
+        service1 = create_service(service_name="service 1")
+        service2 = create_service(service_name="service 2")
+
+        print(f"1: {service1.id}")
+        print(f"2: {service2.id}")
         template1 = create_template(service=service1, template_type=EMAIL_TYPE)
         template2 = create_template(service=service2, template_type=EMAIL_TYPE)
         api_key1 = create_api_key(service1)
@@ -186,40 +189,48 @@ class TestBatchSaving:
             {
                 "service_id": service1.id,
                 "api_key": api_key1.id,
-                "to": "test1@gmail.com",
+                "recipient": "test1@gmail.com",
                 "template": template1.id,
                 "personalisation": {"var1": "v1"},
             },
             {
                 "service_id": service2.id,
                 "api_key": api_key2.id,
-                "to": "test2@gmail.com",
+                "recipient": "test2@gmail.com",
                 "template": template2.id,
                 "personalisation": {"var2": "v2"},
             },
         ]
 
         mocker.patch("app.celery.tasks.save_emails.apply_async")
-        mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
+        mock_encrypt = mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")  # what's this for?
 
         process_inflight(receipt, results)
-        assert encryption.encrypt.call_args[0][0]["service_id"] == service1.id
-        assert encryption.encrypt.call_args[0][0]["api_key"] == api_key1.id
-        assert encryption.encrypt.call_args[0][0]["to"] == "test1@gmail.com"
-        assert encryption.encrypt.call_args[0][0]["template"] == str(template1.id)
+        print(encryption.encrypt.call_args)
+        assert encryption.encrypt
 
-        assert encryption.encrypt.call_args[0][0]["personalisation"] == {
-            "var1": "v1",
-        }
-        assert encryption.encrypt.call_args[0][1]["service_id"] == service2.id
-        assert encryption.encrypt.call_args[0][1]["api_key"] == api_key2.id
-        assert encryption.encrypt.call_args[0][1]["to"] == "test2@gmail.com"
-        assert encryption.encrypt.call_args[0][1]["template"] == str(template2.id)
-
-        assert encryption.encrypt.call_args[0][0]["personalisation"] == {
-            "var2": "v2",
-        }
+        assert mock_encrypt.mock_calls == [
+            call(
+                {
+                    "service_id": service1.id,
+                    "api_key": api_key1.id,
+                    "template": template1.id,
+                    "to": "test1@gmail.com",
+                    "personalisation": {"var1": "v1"},
+                }
+            ),
+            call(
+                {
+                    "service_id": service2.id,
+                    "api_key": api_key2.id,
+                    "template": template2.id,
+                    "to": "test2@gmail.com",
+                    "personalisation": {"var2": "v2"},
+                }
+            ),
+            call.__bool__(),
+        ]
 
         tasks.save_emails.apply_async.assert_called_once_with(
             (
@@ -249,8 +260,6 @@ class TestBatchSaving:
         )
 
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         acknowldege_mock = mocker.patch("app.celery.tasks.RedisQueue.acknowledge")
 
         save_smss(
@@ -268,7 +277,44 @@ class TestBatchSaving:
         assert persisted_notification[0].status == "created"
         assert persisted_notification[0].personalisation == {"name": "Jo"}
         assert persisted_notification[0]._personalisation == encryption.encrypt({"name": "Jo"})
-        assert persisted_notification[0].notification_type == "sms"
+        assert persisted_notification[0].notification_type == SMS_TYPE
+
+        acknowldege_mock.assert_called_once_with("receipt")
+
+    def test_should_save_emails(self, notify_db_session, sample_email_template_with_placeholders, mocker):
+        notification1 = _notification_json(
+            sample_email_template_with_placeholders,
+            to="test1@gmail.com",
+            personalisation={"name": "Jo"},
+        )
+
+        notification2 = _notification_json(
+            sample_email_template_with_placeholders, to="test2@gmail.com", personalisation={"name": "Test2"}
+        )
+
+        notification3 = _notification_json(
+            sample_email_template_with_placeholders, to="test3@gmail.com", personalisation={"name": "Test3"}
+        )
+
+        mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+        acknowldege_mock = mocker.patch("app.celery.tasks.RedisQueue.acknowledge")
+
+        save_emails(
+            str(sample_email_template_with_placeholders.service.id),
+            [encryption.encrypt(notification1), encryption.encrypt(notification2), encryption.encrypt(notification3)],
+            "receipt",
+        )
+
+        persisted_notification = Notification.query.all()
+        assert persisted_notification[0].to == "test1@gmail.com"
+        assert persisted_notification[1].to == "test2@gmail.com"
+        assert persisted_notification[2].to == "test3@gmail.com"
+        assert persisted_notification[0].template_id == sample_email_template_with_placeholders.id
+        assert persisted_notification[1].template_version == sample_email_template_with_placeholders.version
+        assert persisted_notification[0].status == "created"
+        assert persisted_notification[0].personalisation == {"name": "Jo"}
+        assert persisted_notification[0]._personalisation == encryption.encrypt({"name": "Jo"})
+        assert persisted_notification[0].notification_type == EMAIL_TYPE
 
         acknowldege_mock.assert_called_once_with("receipt")
 
