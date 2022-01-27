@@ -32,6 +32,7 @@ def configure_cookie(notify_api):
 @pytest.fixture(autouse=True)
 def github_login_toggle_enabled(mocker):
     mock_feature_flag(mocker, FeatureFlag.GITHUB_LOGIN_ENABLED, 'True')
+    mock_feature_flag(mocker, FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED, 'True')
 
 
 @pytest.fixture()
@@ -174,6 +175,42 @@ def mock_github_authorize_access_token(mocker):
     return mocker.patch('app.oauth.rest.oauth_registry.github.authorize_access_token')
 
 
+@pytest.fixture(autouse=True)
+def mock_statsd(mocker):
+    return mocker.patch('app.oauth.rest.statsd_client')
+
+
+id_token = "id_token"
+tokens = {'token_type': 'Bearer', 'expires_in': 3600, 'scope': 'openid profile email',
+          'id_token': id_token, 'expires_at': 1568044390}
+va_sso_user_info = {
+    "fediamMVIICN": "1010031911V591044",
+    "nonce": "123",
+    "email": "FIRST.LASTNAME@VA.GOV",
+    "iat": 1568040790,
+    "iss": "https://sqa.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/metadata/ISAMOP",
+    "at_hash": "bFo9KMdkW5ov7eBAWjfHhg",
+    "sub": "1010031911",
+    "fediamVAUID": "22128",
+    "family_name": "LASTNAME",
+    "fediamadSamAccountName": "VHAISWSMITRE",
+    "given_name": "FIRST",
+    "fediamsecid": "1010031911",
+    "exp": 1568044390,
+    "aud": "ampl_gui"
+}
+
+
+@pytest.fixture(autouse=True)
+def mock_va_sso_authorize_access_token(mocker):
+    return mocker.patch('app.oauth.rest.oauth_registry.va_sso.authorize_access_token', return_value=tokens)
+
+
+@pytest.fixture(autouse=True)
+def mock_va_sso_parse_id_token(mocker):
+    return mocker.patch('app.oauth.rest.oauth_registry.va_sso.parse_id_token', return_value=va_sso_user_info)
+
+
 class TestLogin:
 
     def test_should_return_501_if_toggle_is_disabled(self, client, mocker):
@@ -211,16 +248,120 @@ class TestLogin:
         assert url in response.location
 
 
-class TestAuthorizeWhenVaSsoToggleIsOff:
-    @pytest.fixture(autouse=True)
-    def va_sso_toggle_enabled(self, mocker):
-        mock_feature_flag(mocker, FeatureFlag.VA_SSO_ENABLED, 'False')
+class TestMakeGithubGetRequest:
+    def test_should_raise_exception_if_304_from_github_get(
+            self, client, notify_api, mocker
+    ):
+        github_get_user_resp = mocker.Mock(
+            Response, status_code=304, headers={'X-OAuth-Scopes': 'read:user, user:email, read:org'}
+        )
 
+        mocker.patch(
+            'app.oauth.rest.oauth_registry.github.get',
+            return_value=github_get_user_resp,
+        )
+
+        with pytest.raises(OAuthException):
+            make_github_get_request('/user', 'fake-token')
+
+    @pytest.mark.parametrize('status_code', [403, 404])
+    def test_should_raise_http_error_if_error_from_github_get(
+            self, client, notify_api, mocker, status_code
+    ):
+        github_get_user_resp = mocker.Mock(
+            Response, status_code=status_code, headers={'X-OAuth-Scopes': 'read:user, user:email, read:org'}
+        )
+
+        mocker.patch(
+            'app.oauth.rest.oauth_registry.github.get',
+            return_value=github_get_user_resp,
+        )
+
+        with pytest.raises(OAuthException) as e:
+            make_github_get_request('/user', 'fake-token')
+
+        assert e.value.status_code == 401
+        assert e.value.message == 'User Account not found.'
+
+    def test_should_raise_insufficient_github_scopes_exception_if_missing_scopes(
+            self, client, notify_api, mocker
+    ):
+        github_get_user_resp = mocker.Mock(
+            Response, status_code=200, headers={'X-OAuth-Scopes': 'read:org'}
+        )
+
+        mocker.patch(
+            'app.oauth.rest.oauth_registry.github.get',
+            return_value=github_get_user_resp,
+        )
+
+        with pytest.raises(InsufficientGithubScopesException):
+            make_github_get_request('/user', 'fake-token')
+
+    def test_should_not_raise_insufficient_github_scopes_exception_if_not_missing_scopes(
+            self, client, notify_api, mocker
+    ):
+        github_get_user_resp = mocker.Mock(
+            Response, status_code=200, headers={'X-OAuth-Scopes': 'read:user, user:email, read:org'}
+        )
+
+        mocker.patch(
+            'app.oauth.rest.oauth_registry.github.get',
+            return_value=github_get_user_resp,
+        )
+
+        resp = make_github_get_request('/user', 'fake-token')
+        assert resp.status_code == 200
+
+
+class TestSsoCommon:
+    @pytest.mark.parametrize('path', [
+        'authorize',
+        'callback'
+    ])
+    def test_returns_401_on_idp_assignment_exception(self, client, mocker, mock_statsd, path):
+        mocker.patch('app.oauth.rest.retrieve_match_or_create_user').side_effect = IdpAssignmentException()
+        response = client.get(f'/auth/{path}')
+
+        assert response.status_code == 401
+        assert response.json == {"error": "Unauthorized", "description": "IDP authentication failure"}
+        assert mock_statsd.incr.called_with('oauth.authorization.idpassignmentexception')
+
+    @pytest.mark.parametrize('path', [
+        'authorize',
+        'callback'
+    ])
+    def test_returns_401_on_any_exception(self, client, mocker, mock_statsd, path):
+        mocker.patch('app.oauth.rest.retrieve_match_or_create_user').side_effect = Exception()
+        response = client.get(f'/auth/{path}')
+
+        assert response.status_code == 401
+        assert response.json == {"error": "Unauthorized", "description": "Authentication failure"}
+        assert mock_statsd.incr.called_with('oauth.authorization.failure')
+
+    @pytest.mark.parametrize('path', [
+        'authorize',
+        'callback'
+    ])
+    def test_redirects_to_ui_and_sets_token_in_cookie(self, client, sample_user, mock_statsd, mocker, path):
+        mocker.patch('app.oauth.rest.retrieve_match_or_create_user', return_value=sample_user)
+        response = client.get(f'/auth/{path}')
+
+        assert response.status_code == 302
+        assert response.location == f"{cookie_config['UI_HOST_NAME']}/login/success"
+
+        cookie = list(client.cookie_jar)[0]
+        assert cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME']
+        assert cookie.secure is True
+        user = decode_token(cookie.value)
+        assert user['sub']['id'] == str(sample_user.id)
+        assert mock_statsd.incr.called_with('oauth.authorization.success')
+
+
+class TestAuthorize:
     def test_should_return_501_if_toggle_is_disabled(self, client, mocker):
         mock_feature_flag(mocker, FeatureFlag.GITHUB_LOGIN_ENABLED, 'False')
-
         response = client.get('/auth/authorize')
-
         assert response.status_code == 501
 
     @pytest.mark.parametrize('exception', [OAuthException, HTTPError])
@@ -232,22 +373,6 @@ class TestAuthorizeWhenVaSsoToggleIsOff:
             'app.oauth.rest.make_github_get_request',
             side_effect=exception
         )
-        response = client.get('/auth/authorize')
-
-        assert response.status_code == 302
-        assert f"{cookie_config['UI_HOST_NAME']}/login/failure" in response.location
-        assert not any(
-            cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar
-        )
-        mock_logger.assert_called_once()
-
-    def test_should_redirect_to_login_failure_if_incorrect_github_id(
-            self, client, notify_api, mocker
-    ):
-        mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
-        mocker.patch('app.oauth.rest.create_or_retrieve_user', side_effect=IncorrectGithubIdException)
-        mock_logger = mocker.patch('app.oauth.rest.current_app.logger.error')
-
         response = client.get('/auth/authorize')
 
         assert response.status_code == 302
@@ -272,76 +397,44 @@ class TestAuthorizeWhenVaSsoToggleIsOff:
         )
         mock_logger.assert_called_once()
 
-    def test_should_raise_exception_if_304_from_github_get(
-            self, client, notify_api, mocker
+    def test_extracts_user_info_and_calls_dao_method(self, client, sample_user, mocker):
+        mocked_dao = mocker.patch('app.oauth.rest.retrieve_match_or_create_user', return_value=sample_user)
+        client.get('/auth/authorize')
+
+        expected_email = github_user_emails[0]['email']
+        expected_user_id = github_org_membership['user']['id']
+        expected_name = github_user['name']
+
+        mocked_dao.assert_called_with(
+            email_address=expected_email,
+            name=expected_name,
+            identity_provider='github',
+            identity_provider_user_id=expected_user_id)
+
+
+class TestAuthorizeWhenVaSsoToggleIsOff:
+    @pytest.fixture(autouse=True)
+    def va_sso_toggle_enabled(self, mocker):
+        mock_feature_flag(mocker, FeatureFlag.VA_SSO_ENABLED, 'False')
+
+    def test_should_redirect_to_login_failure_if_incorrect_github_id(
+            self, client, mocker
     ):
-        mock_feature_flag(mocker, FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED, 'True')
-        github_get_user_resp = mocker.Mock(
-            Response, status_code=304, headers={'X-OAuth-Scopes': 'read:user, user:email, read:org'}
+        mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
+        mocker.patch('app.oauth.rest.create_or_retrieve_user', side_effect=IncorrectGithubIdException)
+        mock_logger = mocker.patch('app.oauth.rest.current_app.logger.error')
+
+        response = client.get('/auth/authorize')
+
+        assert response.status_code == 302
+        assert f"{cookie_config['UI_HOST_NAME']}/login/failure" in response.location
+        assert not any(
+            cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar
         )
-
-        mocker.patch(
-            'app.oauth.rest.oauth_registry.github.get',
-            return_value=github_get_user_resp,
-        )
-
-        with pytest.raises(OAuthException):
-            make_github_get_request('/user', 'fake-token')
-
-    @pytest.mark.parametrize('status_code', [403, 404])
-    def test_should_raise_http_error_if_error_from_github_get(
-            self, client, notify_api, mocker, status_code
-    ):
-        mock_feature_flag(mocker, FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED, 'True')
-        github_get_user_resp = mocker.Mock(
-            Response, status_code=status_code, headers={'X-OAuth-Scopes': 'read:user, user:email, read:org'}
-        )
-
-        mocker.patch(
-            'app.oauth.rest.oauth_registry.github.get',
-            return_value=github_get_user_resp,
-        )
-
-        with pytest.raises(OAuthException) as e:
-            make_github_get_request('/user', 'fake-token')
-
-        assert e.value.status_code == 401
-        assert e.value.message == 'User Account not found.'
-
-    def test_should_raise_insufficient_github_scopes_exception_if_missing_scopes(
-            self, client, notify_api, mocker
-    ):
-        mock_feature_flag(mocker, FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED, 'True')
-        github_get_user_resp = mocker.Mock(
-            Response, status_code=200, headers={'X-OAuth-Scopes': 'read:org'}
-        )
-
-        mocker.patch(
-            'app.oauth.rest.oauth_registry.github.get',
-            return_value=github_get_user_resp,
-        )
-
-        with pytest.raises(InsufficientGithubScopesException):
-            make_github_get_request('/user', 'fake-token')
-
-    def test_should_not_raise_insufficient_github_scopes_exception_if_not_missing_scopes(
-            self, client, notify_api, mocker
-    ):
-        mock_feature_flag(mocker, FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED, 'True')
-        github_get_user_resp = mocker.Mock(
-            Response, status_code=200, headers={'X-OAuth-Scopes': 'read:user, user:email, read:org'}
-        )
-
-        mocker.patch(
-            'app.oauth.rest.oauth_registry.github.get',
-            return_value=github_get_user_resp,
-        )
-
-        resp = make_github_get_request('/user', 'fake-token')
-        assert resp.status_code == 200
+        mock_logger.assert_called_once()
 
     def test_should_redirect_to_ui_if_user_is_member_of_va_organization(
-            self, client, notify_api, mocker
+            self, client, mocker
     ):
         found_user = User()
         mocker.patch('app.oauth.rest.create_or_retrieve_user', return_value=found_user)
@@ -362,7 +455,7 @@ class TestAuthorizeWhenVaSsoToggleIsOff:
 
     @pytest.mark.parametrize('identity_provider_user_id', [None, '1'])
     def test_should_create_or_update_existing_user_with_identity_provider_user_id_when_successfully_verified(
-            self, client, notify_api, mocker, identity_provider_user_id
+            self, client, mocker, identity_provider_user_id
     ):
         expected_email = github_user_emails[0]['email']
         expected_user_id = github_org_membership['user']['id']
@@ -387,7 +480,7 @@ class TestAuthorizeWhenVaSsoToggleIsOff:
             name=expected_name)
 
     def test_should_create_user_with_login_name_if_no_name_in_response(
-            self, client, notify_api, mocker
+            self, client, mocker
     ):
         github_user_with_no_name = github_user.copy()
         github_user_with_no_name['name'] = None
@@ -546,61 +639,15 @@ class TestLogout:
 
 
 class TestCallback:
-    id_token = "id_token"
-    tokens = {'token_type': 'Bearer', 'expires_in': 3600, 'scope': 'openid profile email',
-              'id_token': id_token, 'expires_at': 1568044390}
-    va_sso_user_info = {
-        "fediamMVIICN": "1010031911V591044",
-        "nonce": "123",
-        "email": "FIRST.LASTNAME@VA.GOV",
-        "iat": 1568040790,
-        "iss": "https://sqa.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/metadata/ISAMOP",
-        "at_hash": "bFo9KMdkW5ov7eBAWjfHhg",
-        "sub": "1010031911",
-        "fediamVAUID": "22128",
-        "family_name": "LASTNAME",
-        "fediamadSamAccountName": "VHAISWSMITRE",
-        "given_name": "FIRST",
-        "fediamsecid": "1010031911",
-        "exp": 1568044390,
-        "aud": "ampl_gui"
-    }
-
-    @pytest.fixture(autouse=True)
-    def mock_va_sso_authorize_access_token(self, mocker):
-        return mocker.patch('app.oauth.rest.oauth_registry.va_sso.authorize_access_token', return_value=self.tokens)
-
-    @pytest.fixture(autouse=True)
-    def mock_va_sso_parse_id_token(self, mocker):
-        return mocker.patch('app.oauth.rest.oauth_registry.va_sso.parse_id_token', return_value=self.va_sso_user_info)
-
-    @pytest.fixture(autouse=True)
-    def mock_statsd(self, mocker):
-        return mocker.patch('app.oauth.rest.statsd_client')
-
     def test_extracts_user_info_and_calls_dao_method(self, client, sample_user, mocker):
         mocked_dao = mocker.patch('app.oauth.rest.retrieve_match_or_create_user', return_value=sample_user)
         client.get('/auth/callback')
 
         mocked_dao.assert_called_with(
-            email_address=self.va_sso_user_info['email'],
-            name=f"{self.va_sso_user_info['given_name']} {self.va_sso_user_info['family_name']}",
+            email_address=va_sso_user_info['email'],
+            name=f"{va_sso_user_info['given_name']} {va_sso_user_info['family_name']}",
             identity_provider='va_sso',
-            identity_provider_user_id=self.va_sso_user_info['sub'])
-
-    def test_redirects_to_ui_and_sets_token_in_cookie(self, client, sample_user, mock_statsd, mocker):
-        mocker.patch('app.oauth.rest.retrieve_match_or_create_user', return_value=sample_user)
-        response = client.get('/auth/callback')
-
-        assert response.status_code == 302
-        assert response.location == f"{cookie_config['UI_HOST_NAME']}/login/success"
-
-        cookie = list(client.cookie_jar)[0]
-        assert cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME']
-        assert cookie.secure is True
-        user = decode_token(cookie.value)
-        assert user['sub']['id'] == str(sample_user.id)
-        assert mock_statsd.incr.called_with('oauth.authorization.success')
+            identity_provider_user_id=va_sso_user_info['sub'])
 
     def test_returns_401_on_oauth_error(self, client, mock_va_sso_authorize_access_token, mock_statsd):
         mock_va_sso_authorize_access_token.side_effect = OAuthError(error="some error", description="some description")
@@ -610,16 +657,8 @@ class TestCallback:
         assert response.json == {"error": "some error", "description": "some description"}
         assert mock_statsd.incr.called_with('oauth.authorization.denied')
 
-    def test_returns_401_on_idp_assignment_exception(self, client, mocker, mock_statsd):
-        mocker.patch('app.oauth.rest.retrieve_match_or_create_user').side_effect = IdpAssignmentException()
-        response = client.get('/auth/callback')
-
-        assert response.status_code == 401
-        assert response.json == {"error": "Unauthorized", "description": "IDP authentication failure"}
-        assert mock_statsd.incr.called_with('oauth.authorization.idpassignmentexception')
-
-    def test_returns_401_on_any_exception(self, client, mocker, mock_statsd):
-        mocker.patch('app.oauth.rest.retrieve_match_or_create_user').side_effect = Exception()
+    def test_returns_401_on_any_exception(self, client, mock_va_sso_authorize_access_token, mock_statsd):
+        mock_va_sso_authorize_access_token.side_effect = Exception()
         response = client.get('/auth/callback')
 
         assert response.status_code == 401
