@@ -55,7 +55,7 @@ from tests.app.db import (
     create_service_with_defined_sms_sender,
     create_notification_history
 )
-from tests.app.oauth.test_rest import mock_toggle
+from tests.app.factories.feature_flag import mock_feature_flag
 from tests.conftest import set_config_values
 
 
@@ -540,7 +540,7 @@ def test_should_save_sms_if_restricted_service_and_valid_number(notify_db_sessio
 
 
 def test_save_sms_should_call_deliver_sms_with_rate_limiting_if_sender_id_provided(notify_db_session, mocker):
-    mock_toggle(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
+    mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     sms_sender = mocker.Mock()
     sms_sender.rate_limit = 1
     sms_sender.sms_sender = '+11111111111'
@@ -1149,7 +1149,7 @@ def test_save_sms_uses_sms_sender_reply_to_text(mocker, notify_db_session):
 
 
 def test_save_sms_uses_non_default_sms_sender_reply_to_text_if_provided(mocker, notify_db_session):
-    mock_toggle(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
+    mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     service = create_service_with_defined_sms_sender(sms_sender_value='07123123123')
     template = create_template(service=service)
     new_sender = service_sms_sender_dao.dao_add_sms_sender_for_service(service.id, 'new-sender', False)

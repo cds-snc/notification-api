@@ -37,7 +37,6 @@ from tests.app.db import (
     create_api_key
 )
 from tests.app.factories.feature_flag import mock_feature_flag
-from tests.app.oauth.test_rest import mock_toggle
 from . import post_send_notification
 
 
@@ -69,7 +68,7 @@ def mock_api_key(mocker):
 
 @pytest.fixture
 def check_recipient_communication_permissions_enabled(mocker):
-    mock_toggle(mocker, FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED, 'True')
+    mock_feature_flag(mocker, FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED, 'True')
 
 
 @pytest.fixture(autouse=True)

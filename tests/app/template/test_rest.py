@@ -32,7 +32,7 @@ from tests.app.db import (
     create_service, create_letter_contact, create_template, create_notification,
     create_template_folder, create_user, create_ft_notification_status,
 )
-from tests.app.oauth.test_rest import mock_toggle
+from tests.app.factories.feature_flag import mock_feature_flag
 from tests.conftest import set_config_values
 
 
@@ -1722,7 +1722,7 @@ class TestTemplateNameAlreadyExists:
     def test_create_template_should_return_400_if_template_name_already_exists_on_service(
             self, mocker, client, sample_service, sample_user
     ):
-        mock_toggle(mocker, FeatureFlag.CHECK_TEMPLATE_NAME_EXISTS_ENABLED, 'True')
+        mock_feature_flag(mocker, FeatureFlag.CHECK_TEMPLATE_NAME_EXISTS_ENABLED, 'True')
         mocker.patch('app.template.rest.template_name_already_exists_on_service', return_value=True)
 
         data = {
@@ -1750,7 +1750,7 @@ class TestTemplateNameAlreadyExists:
         )
 
     def test_update_should_not_update_a_template_if_name_already_exists(self, mocker, client, sample_user):
-        mock_toggle(mocker, FeatureFlag.CHECK_TEMPLATE_NAME_EXISTS_ENABLED, 'True')
+        mock_feature_flag(mocker, FeatureFlag.CHECK_TEMPLATE_NAME_EXISTS_ENABLED, 'True')
         mocker.patch('app.template.rest.template_name_already_exists_on_service', return_value=True)
 
         service = create_service(service_permissions=[EMAIL_TYPE])

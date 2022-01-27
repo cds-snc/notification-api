@@ -26,7 +26,7 @@ from app.v2.errors import (
     BadRequestError,
     TooManyRequestsError,
     RateLimitError)
-from tests.app.oauth.test_rest import mock_toggle
+from tests.app.factories.feature_flag import mock_feature_flag
 
 from tests.conftest import set_config
 from tests.app.db import (
@@ -511,7 +511,7 @@ class TestSmsSenderRateLimit:
     ):
         from app.notifications.validators import check_sms_sender_over_rate_limit
         with freeze_time('2016-01-01 12:00:00.000000'):
-            mock_toggle(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
+            mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
 
             MockServiceSmsSender = namedtuple('ServiceSmsSender',
                                               ['id', 'rate_limit', 'rate_limit_interval', 'sms_sender'])
@@ -543,7 +543,7 @@ class TestSmsSenderRateLimit:
         from app.notifications.validators import check_sms_sender_over_rate_limit
 
         with freeze_time('2016-01-01 12:00:00.000000'):
-            mock_toggle(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
+            mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
             MockServiceSmsSender = namedtuple('ServiceSmsSender', ['id', 'sms_sender',
                                                                    'rate_limit', 'rate_limit_interval'])
             sms_sender = MockServiceSmsSender(id='some-id', sms_sender='+11111111111',

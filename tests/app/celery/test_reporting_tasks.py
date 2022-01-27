@@ -22,7 +22,7 @@ from app.models import (
     SMS_TYPE, FactNotificationStatus
 )
 from tests.app.db import create_service, create_template, create_notification, create_rate, create_letter_rate
-from tests.app.oauth.test_rest import mock_toggle
+from tests.app.factories.feature_flag import mock_feature_flag
 
 
 def mocker_get_rate(
@@ -71,7 +71,7 @@ def test_create_nightly_notification_status_triggers_tasks_for_days(notify_api, 
 ])
 def test_create_nightly_notification_status_triggers_tasks_for_days_including_csv_generation_when_feature_flag_on(
         notify_api, mocker, day_start, expected_kwargs):
-    mock_toggle(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
+    mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     mock_celery = mocker.patch('app.celery.reporting_tasks.create_nightly_notification_status_for_day')
     create_nightly_notification_status(day_start)
 
