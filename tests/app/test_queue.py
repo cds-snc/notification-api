@@ -176,7 +176,7 @@ class TestRedisQueue:
         # assert elements[0]["email_address"] == notification.email_address
         # assert elements[0]["template"]["id"] == notification.template_id
         # assert elements[0]["template"]["version"] == notification.template_version
-        
+
         self.delete_all_list(redis)
 
 
