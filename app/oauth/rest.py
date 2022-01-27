@@ -74,9 +74,7 @@ def authorize():
         make_github_get_request('/user/memberships/orgs/department-of-veterans-affairs', github_token)
         email_resp = make_github_get_request('/user/emails', github_token)
         user_resp = make_github_get_request('/user', github_token)
-
         verified_email, verified_user_id, verified_name = _extract_github_user_info(email_resp, user_resp)
-
     except OAuthError as e:
         current_app.logger.error(f'User denied authorization: {e}')
         statsd_client.incr('oauth.authorization.denied')
@@ -90,16 +88,25 @@ def authorize():
         statsd_client.incr('oauth.authorization.github_incorrect_scopes')
         return make_response(redirect(f'{current_app.config["UI_HOST_NAME"]}/login/failure?incorrect_scopes'))
     else:
-        try:
-            user = create_or_retrieve_user(
-                email_address=verified_email,
-                identity_provider_user_id=verified_user_id,
-                name=verified_name)
-            return _successful_sso_login_response(user)
-        except IncorrectGithubIdException as e:
-            current_app.logger.error(e)
-            statsd_client.incr('oauth.authorization.github_id_mismatch')
-            return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
+        if is_feature_enabled(FeatureFlag.VA_SSO_ENABLED):
+            return _process_sso_user(
+                email=verified_email,
+                name=verified_name,
+                identity_provider='github',
+                identity_provider_user_id=verified_user_id
+            )
+        else:
+            # TODO: Remove below code once VA_SSO_ENABLED toggles is removed
+            try:
+                user = create_or_retrieve_user(
+                    email_address=verified_email,
+                    identity_provider_user_id=verified_user_id,
+                    name=verified_name)
+                return _successful_sso_login_response(user)
+            except IncorrectGithubIdException as e:
+                current_app.logger.error(e)
+                statsd_client.incr('oauth.authorization.github_id_mismatch')
+                return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
 
 
 @oauth_blueprint.route('/callback')
