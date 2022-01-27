@@ -570,6 +570,8 @@ class Test(Development):
     AWS_SES_CONFIGURATION_SET = 'test-configuration-set'
     AWS_SES_ENDPOINT_URL = "https://test.ses.endpoint"
 
+    VA_SSO_AUTHORIZE_URL = "https://int.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/authorize"
+
 
 class Staging(Config):
     # When a service is created, this gets saved as default sms_sender

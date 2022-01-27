@@ -34,6 +34,11 @@ def github_login_toggle_enabled(mocker):
     mock_toggle(mocker, FeatureFlag.GITHUB_LOGIN_ENABLED, 'True')
 
 
+@pytest.fixture()
+def va_sso_toggle_enabled(mocker):
+    mock_toggle(mocker, FeatureFlag.VA_SSO_ENABLED, 'True')
+
+
 github_org_membership = {
     "url": "https://api.github.com/orgs/department-of-veterans-affairs/memberships/some-user",
     "state": "pending",
@@ -185,6 +190,25 @@ class TestLogin:
 
         assert response.status_code == 302
         assert 'https://github.com/login/oauth/authorize' in response.location
+
+    @pytest.mark.parametrize('feature, idp', [
+        (FeatureFlag.GITHUB_LOGIN_ENABLED, 'github'),
+        (FeatureFlag.VA_SSO_ENABLED, 'va')
+    ])
+    def test_should_return_501_for_given_idp(self, client, mocker, feature, idp):
+        mock_toggle(mocker, feature, 'False')
+        response = client.get(f'/auth/login?idp={idp}')
+        assert response.status_code == 501
+
+    @pytest.mark.parametrize('idp, url', [
+        ('github', 'https://github.com/login/oauth/authorize'),
+        ('va', 'https://int.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/authorize')
+    ])
+    def test_should_redirect_to_idp_if_toggle_is_enabled(self, client, va_sso_toggle_enabled, idp, url):
+        response = client.get(f'/auth/login?idp={idp}')
+
+        assert response.status_code == 302
+        assert url in response.location
 
 
 class TestAuthorize:
