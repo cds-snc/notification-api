@@ -169,7 +169,9 @@ class TestRedisQueue:
     @pytest.mark.serial
     def test_messages_serialization_after_poll(self, redis, redis_queue):
         self.delete_all_list(redis)
-        notification = "{'id': '0ba0ff51-ec82-4835-b828-a24fec6124ab', 'type': 'email', 'email_address': 'success@simulator.amazonses.com'}"
+        notification = (
+            "{'id': '0ba0ff51-ec82-4835-b828-a24fec6124ab', 'type': 'email', 'email_address': 'success@simulator.amazonses.com'}"
+        )
         redis_queue.publish(notification)
         (_, elements) = redis_queue.poll(1)
 
