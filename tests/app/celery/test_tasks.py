@@ -51,7 +51,6 @@ from app.schemas import service_schema, template_schema
 from celery.exceptions import Retry
 from tests.app import load_example_csv
 from tests.app.db import (
-    create_api_key,
     create_inbound_sms,
     create_job,
     create_letter_contact,
@@ -103,130 +102,26 @@ def email_job_with_placeholders(notify_db, notify_db_session, sample_email_templ
 
 class TestBatchSaving:
     def test_process_inflight_saves_smss(self, notify_db_session, mocker):
-        service1 = create_service(service_name="service 1")
-        service2 = create_service(service_name="service 2")
-        template1 = create_template(service=service1, template_type=SMS_TYPE)
-        template2 = create_template(service=service2, template_type=SMS_TYPE)
-        api_key1 = create_api_key(service1)
-        api_key2 = create_api_key(service2)
-
         receipt = uuid.uuid4()
-        results = [
-            {
-                "service_id": service1.id,
-                "api_key": api_key1.id,
-                "recipient": "+441234111111",
-                "template": template1.id,
-                "personalisation": {"var1": "v1"},
-            },
-            {
-                "service_id": service2.id,
-                "api_key": api_key2.id,
-                "recipient": "+441234222222",
-                "template": template2.id,
-                "personalisation": {"var2": "v2"},
-            },
-        ]
-
+        results = ["encrypted 1", "encrypted 2"]
         mocker.patch("app.celery.tasks.save_smss.apply_async")
-        mock_encrypt = mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
 
-        process_inflight(receipt, results)
-
-        assert mock_encrypt.mock_calls == [
-            call(
-                {
-                    "service_id": service1.id,
-                    "api_key": api_key1.id,
-                    "template": template1.id,
-                    "to": "+441234111111",
-                    "personalisation": {"var1": "v1"},
-                }
-            ),
-            call(
-                {
-                    "service_id": service2.id,
-                    "api_key": api_key2.id,
-                    "template": template2.id,
-                    "to": "+441234222222",
-                    "personalisation": {"var2": "v2"},
-                }
-            ),
-        ]
+        process_inflight(receipt, results, SMS_TYPE)
 
         tasks.save_smss.apply_async.assert_called_once_with(
-            (
-                None,
-                [
-                    "something_encrypted",
-                    "something_encrypted",
-                ],
-                receipt,
-            ),
+            (None, ["encrypted 1", "encrypted 2"], receipt),
             queue="database-tasks",
         )
 
     def test_process_inflight_saves_emails(self, notify_db_session, mocker):
-        service1 = create_service(service_name="service 1")
-        service2 = create_service(service_name="service 2")
-        template1 = create_template(service=service1, template_type=EMAIL_TYPE)
-        template2 = create_template(service=service2, template_type=EMAIL_TYPE)
-        api_key1 = create_api_key(service1)
-        api_key2 = create_api_key(service2)
-
         receipt = uuid.uuid4()
-        results = [
-            {
-                "service_id": service1.id,
-                "api_key": api_key1.id,
-                "recipient": "test1@gmail.com",
-                "template": template1.id,
-                "personalisation": {"var1": "v1"},
-            },
-            {
-                "service_id": service2.id,
-                "api_key": api_key2.id,
-                "recipient": "test2@gmail.com",
-                "template": template2.id,
-                "personalisation": {"var2": "v2"},
-            },
-        ]
-
+        results = ["encrypted 1", "encrypted 2"]
         mocker.patch("app.celery.tasks.save_emails.apply_async")
-        mock_encrypt = mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
 
-        process_inflight(receipt, results)
-
-        assert mock_encrypt.mock_calls == [
-            call(
-                {
-                    "service_id": service1.id,
-                    "api_key": api_key1.id,
-                    "template": template1.id,
-                    "to": "test1@gmail.com",
-                    "personalisation": {"var1": "v1"},
-                }
-            ),
-            call(
-                {
-                    "service_id": service2.id,
-                    "api_key": api_key2.id,
-                    "template": template2.id,
-                    "to": "test2@gmail.com",
-                    "personalisation": {"var2": "v2"},
-                }
-            ),
-        ]
+        process_inflight(receipt, results, EMAIL_TYPE)
 
         tasks.save_emails.apply_async.assert_called_once_with(
-            (
-                None,
-                [
-                    "something_encrypted",
-                    "something_encrypted",
-                ],
-                receipt,
-            ),
+            (None, ["encrypted 1", "encrypted 2"], receipt),
             queue="database-tasks",
         )
 

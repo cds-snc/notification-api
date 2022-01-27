@@ -83,38 +83,11 @@ from app.utils import get_csv_max_rows
 
 @notify_celery.task(name="process-inflight")
 @statsd(namespace="tasks")
-def process_inflight(receipt, results):
-    encrypted_smss: List[Any] = []
-    encrypted_emails: List[Any] = []
-    for notification in results:
-        service = dao_fetch_service_by_id(notification["service_id"])
-        template = dao_get_template_by_id(notification["template"])
-
-        if service_allowed_to_send_to(notification["recipient"], service, KEY_TYPE_NORMAL):
-            encrypted_notification = encryption.encrypt(
-                {
-                    "service_id": notification["service_id"],
-                    "api_key": notification["api_key"],
-                    "template": notification["template"],
-                    "to": notification["recipient"],
-                    "personalisation": dict(notification["personalisation"]),
-                }
-            )
-            if template.template_type == SMS_TYPE:
-                encrypted_smss.append(encrypted_notification)
-            else:
-                encrypted_emails.append(encrypted_notification)
-
-    if encrypted_smss:
-        save_smss.apply_async(
-            (None, encrypted_smss, receipt),
-            queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
-        )
-    if encrypted_emails:
-        save_emails.apply_async(
-            (None, encrypted_emails, receipt),
-            queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
-        )
+def process_inflight(receipt, results, type):
+    if type == SMS_TYPE:
+        save_smss.apply_async((None, results, receipt), queue=QueueNames.DATABASE)
+    else:
+        save_emails.apply_async((None, results, receipt), queue=QueueNames.DATABASE)
 
 
 @notify_celery.task(name="process-job")
@@ -287,7 +260,7 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
 
 # TODO: replace with real thing
 class RedisQueue:
-    def __init__(self, receipt):
+    def __init__(self, type):
         pass
 
     def acknowledge(self, receipt):
@@ -308,47 +281,48 @@ def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt
         notification = encryption.decrypt(encrypted_notification)
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
-        template = dao_get_template_by_id(
-            notification.get("template"), version=notification.get("template_version"), use_cache=True
-        )
-        sender_id = notification.get("sender_id")
-        notification_id = create_uuid()
-        notification["notification_id"] = notification_id
-        reply_to_text = ""  # type: ignore
-        if sender_id:
-            reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
-        if isinstance(template, tuple):
-            template = template[0]
-        # if the template is obtained from cache a tuple will be returned where
-        # the first element is the Template object and the second the template cache data
-        # in the form of a dict
-        elif isinstance(template, tuple):
-            reply_to_text = template[1].get("reply_to_text")  # type: ignore
-            template = template[0]
-        else:
-            reply_to_text = template.get_reply_to_text()  # type: ignore
+        if service_allowed_to_send_to(notification["to"], service, KEY_TYPE_NORMAL):
+            template = dao_get_template_by_id(
+                notification.get("template"), version=notification.get("template_version"), use_cache=True
+            )
+            sender_id = notification.get("sender_id")
+            notification_id = create_uuid()
+            notification["notification_id"] = notification_id
+            reply_to_text = ""  # type: ignore
+            if sender_id:
+                reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
+            if isinstance(template, tuple):
+                template = template[0]
+            # if the template is obtained from cache a tuple will be returned where
+            # the first element is the Template object and the second the template cache data
+            # in the form of a dict
+            elif isinstance(template, tuple):
+                reply_to_text = template[1].get("reply_to_text")  # type: ignore
+                template = template[0]
+            else:
+                reply_to_text = template.get_reply_to_text()  # type: ignore
 
-        # if the service is obtained from cache a tuple will be returned where
-        # the first element is the Service object and the second the service cache data
-        # in the form of a dict
-        if isinstance(service, tuple):
-            service = service[0]
+            # if the service is obtained from cache a tuple will be returned where
+            # the first element is the Service object and the second the service cache data
+            # in the form of a dict
+            if isinstance(service, tuple):
+                service = service[0]
 
-        notification["reply_to_text"] = reply_to_text
-        notification["service"] = service
-        notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
-        notification["template_id"] = template.id
-        notification["template_version"] = template.version
-        notification["recipient"] = notification.get("to")
-        notification["personalisation"] = notification.get("personalisation")
-        notification["notification_type"] = SMS_TYPE
-        notification["simulated"] = notification.get("simulated", None)
-        notification["api_key_id"] = notification.get("api_key", None)
-        notification["created_at"] = datetime.utcnow()
-        notification["job_id"] = notification.get("job", None)
-        notification["job_row_number"] = notification.get("row_number", None)
-        decrypted_notifications.append(notification)
-        notification_id_queue[notification_id] = notification.get("queue")
+            notification["reply_to_text"] = reply_to_text
+            notification["service"] = service
+            notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
+            notification["template_id"] = template.id
+            notification["template_version"] = template.version
+            notification["recipient"] = notification.get("to")
+            notification["personalisation"] = notification.get("personalisation")
+            notification["notification_type"] = SMS_TYPE
+            notification["simulated"] = notification.get("simulated", None)
+            notification["api_key_id"] = notification.get("api_key", None)
+            notification["created_at"] = datetime.utcnow()
+            notification["job_id"] = notification.get("job", None)
+            notification["job_row_number"] = notification.get("row_number", None)
+            decrypted_notifications.append(notification)
+            notification_id_queue[notification_id] = notification.get("queue")
 
     try:
         # this task is used by two main things... process_job and process_sms_or_email_notification
@@ -462,47 +436,48 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any], recei
         notification = encryption.decrypt(encrypted_notification)
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
-        template = dao_get_template_by_id(
-            notification.get("template"), version=notification.get("template_version"), use_cache=True
-        )
-        sender_id = notification.get("sender_id")
-        notification_id = create_uuid()
-        notification["notification_id"] = notification_id
-        reply_to_text = ""  # type: ignore
-        if sender_id:
-            reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
-        if isinstance(template, tuple):
-            template = template[0]
-        # if the template is obtained from cache a tuple will be returned where
-        # the first element is the Template object and the second the template cache data
-        # in the form of a dict
-        elif isinstance(template, tuple):
-            reply_to_text = template[1].get("reply_to_text")  # type: ignore
-            template = template[0]
-        else:
-            reply_to_text = template.get_reply_to_text()  # type: ignore
+        if service_allowed_to_send_to(notification["to"], service, KEY_TYPE_NORMAL):
+            template = dao_get_template_by_id(
+                notification.get("template"), version=notification.get("template_version"), use_cache=True
+            )
+            sender_id = notification.get("sender_id")
+            notification_id = create_uuid()
+            notification["notification_id"] = notification_id
+            reply_to_text = ""  # type: ignore
+            if sender_id:
+                reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
+            if isinstance(template, tuple):
+                template = template[0]
+            # if the template is obtained from cache a tuple will be returned where
+            # the first element is the Template object and the second the template cache data
+            # in the form of a dict
+            elif isinstance(template, tuple):
+                reply_to_text = template[1].get("reply_to_text")  # type: ignore
+                template = template[0]
+            else:
+                reply_to_text = template.get_reply_to_text()  # type: ignore
 
-        # if the service is obtained from cache a tuple will be returned where
-        # the first element is the Service object and the second the service cache data
-        # in the form of a dict
-        if isinstance(service, tuple):
-            service = service[0]
+            # if the service is obtained from cache a tuple will be returned where
+            # the first element is the Service object and the second the service cache data
+            # in the form of a dict
+            if isinstance(service, tuple):
+                service = service[0]
 
-        notification["reply_to_text"] = reply_to_text
-        notification["service"] = service
-        notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
-        notification["template_id"] = template.id
-        notification["template_version"] = template.version
-        notification["recipient"] = notification.get("to")
-        notification["personalisation"] = notification.get("personalisation")
-        notification["notification_type"] = EMAIL_TYPE
-        notification["simulated"] = notification.get("simulated", None)
-        notification["api_key_id"] = notification.get("api_key", None)
-        notification["created_at"] = datetime.utcnow()
-        notification["job_id"] = notification.get("job", None)
-        notification["job_row_number"] = notification.get("row_number", None)
-        decrypted_notifications.append(notification)
-        notification_id_queue[notification_id] = notification.get("queue")
+            notification["reply_to_text"] = reply_to_text
+            notification["service"] = service
+            notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
+            notification["template_id"] = template.id
+            notification["template_version"] = template.version
+            notification["recipient"] = notification.get("to")
+            notification["personalisation"] = notification.get("personalisation")
+            notification["notification_type"] = EMAIL_TYPE
+            notification["simulated"] = notification.get("simulated", None)
+            notification["api_key_id"] = notification.get("api_key", None)
+            notification["created_at"] = datetime.utcnow()
+            notification["job_id"] = notification.get("job", None)
+            notification["job_row_number"] = notification.get("row_number", None)
+            decrypted_notifications.append(notification)
+            notification_id_queue[notification_id] = notification.get("queue")
 
     try:
         # this task is used by two main things... process_job and process_sms_or_email_notification
