@@ -169,24 +169,14 @@ class TestRedisQueue:
     @pytest.mark.serial
     def test_messages_serialization_after_poll(self, redis, redis_queue):
         self.delete_all_list(redis)
-        notification = next(generate_notification())
+        notification = "{'id': '0ba0ff51-ec82-4835-b828-a24fec6124ab', 'type': 'email', 'email_address': 'success@simulator.amazonses.com'}"
         redis_queue.publish(notification)
         (_, elements) = redis_queue.poll(1)
 
         assert len(elements) > 0
         assert type(elements) is list
         assert type(elements[0]) is str
-        assert elements[0]["id"] == notification.id
-        assert elements[0]["type"] == notification.notification_type
-
-        # TODO: This needs to compare correct data type, possible converting.
-        # assert elements[0]["completed_at"] == notification.created_at
-
-        # TODO: Review serialization/deserialization within the models module for notification
-        #       and check how it's used throughout the application.
-        # assert elements[0]["email_address"] == notification.email_address
-        # assert elements[0]["template"]["id"] == notification.template_id
-        # assert elements[0]["template"]["version"] == notification.template_version
+        assert elements[0] == notification
 
         self.delete_all_list(redis)
 
