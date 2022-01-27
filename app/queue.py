@@ -243,9 +243,11 @@ class RedisQueue(Queue):
     def get_inflight_name(self, receipt: UUID = uuid4()) -> str:
         return f"{Buffer.IN_FLIGHT.value}:{str(receipt)}"
 
-    def publish(self, serializable: Serializable):
-        serialized: str = json.dumps(serializable.serialize())
-        self._redis_client.rpush(self._inbox, serialized)
+    def publish(self, payload: Any):
+        if type(payload) is models.Notification:
+            return self._redis_client.rpush(self._inbox, json.dumps(payload.serialize()))
+        else:
+            return self._redis_client.rpush(self._inbox, payload)
 
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[dict]:
         results = self.scripts[self.LUA_MOVE_TO_INFLIGHT](args=[self._inbox, in_flight_key, count])
