@@ -3,14 +3,15 @@ import json
 from typing import Tuple
 
 from authlib.integrations.base_client import OAuthError
-from flask import Blueprint, url_for, make_response, redirect, jsonify, current_app, request
+from flask import Blueprint, url_for, make_response, redirect, jsonify, current_app, request, Response
 from flask_cors.core import get_cors_options, set_cors_headers
 from flask_jwt_extended import create_access_token, verify_jwt_in_request
-from requests import Response
+from requests import Response as RequestsResponse
 from requests.exceptions import HTTPError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import statsd_client
+from app.model import User
 from app.dao.users_dao import create_or_retrieve_user, get_user_by_email, retrieve_match_or_create_user
 from app.errors import register_errors
 from app.feature_flags import is_feature_enabled, FeatureFlag
@@ -76,10 +77,6 @@ def authorize():
 
         verified_email, verified_user_id, verified_name = _extract_github_user_info(email_resp, user_resp)
 
-        user = create_or_retrieve_user(
-            email_address=verified_email,
-            identity_provider_user_id=verified_user_id,
-            name=verified_name)
     except OAuthError as e:
         current_app.logger.error(f'User denied authorization: {e}')
         statsd_client.incr('oauth.authorization.denied')
@@ -88,27 +85,21 @@ def authorize():
         current_app.logger.error(f"Authorization exception raised:\n{e}\n")
         statsd_client.incr('oauth.authorization.failure')
         return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
-    except IncorrectGithubIdException as e:
-        current_app.logger.error(e)
-        statsd_client.incr('oauth.authorization.github_id_mismatch')
-        return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
     except InsufficientGithubScopesException as e:
         current_app.logger.error(e)
         statsd_client.incr('oauth.authorization.github_incorrect_scopes')
         return make_response(redirect(f'{current_app.config["UI_HOST_NAME"]}/login/failure?incorrect_scopes'))
     else:
-        response = make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/success"))
-        response.set_cookie(
-            current_app.config['JWT_ACCESS_COOKIE_NAME'],
-            create_access_token(
-                identity=user
-            ),
-            httponly=True,
-            secure=current_app.config['SESSION_COOKIE_SECURE'],
-            samesite=current_app.config['SESSION_COOKIE_SAMESITE']
-        )
-        statsd_client.incr('oauth.authorization.success')
-        return response
+        try:
+            user = create_or_retrieve_user(
+                email_address=verified_email,
+                identity_provider_user_id=verified_user_id,
+                name=verified_name)
+            return _successful_sso_login_response(user)
+        except IncorrectGithubIdException as e:
+            current_app.logger.error(e)
+            statsd_client.incr('oauth.authorization.github_id_mismatch')
+            return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
 
 
 @oauth_blueprint.route('/callback')
@@ -116,8 +107,8 @@ def callback():
     try:
         tokens = oauth_registry.va_sso.authorize_access_token()
         user_info = oauth_registry.va_sso.parse_id_token(tokens)
-        user = retrieve_match_or_create_user(
-            email_address=user_info['email'],
+        return _process_sso_user(
+            email=user_info['email'],
             name=f"{user_info['given_name']} {user_info['family_name']}",
             identity_provider='va_sso',
             identity_provider_user_id=user_info['sub']
@@ -127,6 +118,21 @@ def callback():
         statsd_client.incr('oauth.authorization.denied')
         response = make_response({'error': e.error, 'description': e.description}, 401)
         return response
+    except Exception as e:
+        current_app.logger.exception(e)
+        statsd_client.incr('oauth.authorization.failure')
+        response = make_response({'error': 'Unauthorized', 'description': 'Authentication failure'}, 401)
+        return response
+
+
+def _process_sso_user(email: str, name: str, identity_provider: str, identity_provider_user_id: str) -> Response:
+    try:
+        user = retrieve_match_or_create_user(
+            email_address=email,
+            name=name,
+            identity_provider=identity_provider,
+            identity_provider_user_id=identity_provider_user_id
+        )
     except IdpAssignmentException as e:
         current_app.logger.exception(e)
         statsd_client.incr('oauth.authorization.idpassignmentexception')
@@ -138,19 +144,23 @@ def callback():
         response = make_response({'error': 'Unauthorized', 'description': 'Authentication failure'}, 401)
         return response
     else:
-        response = make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/success"))
-        response.set_cookie(
-            current_app.config['JWT_ACCESS_COOKIE_NAME'],
-            create_access_token(
-                identity=user
-            ),
-            httponly=True,
-            secure=current_app.config['SESSION_COOKIE_SECURE'],
-            samesite=current_app.config['SESSION_COOKIE_SAMESITE']
-        )
-        statsd_client.incr('oauth.authorization.success')
-        current_app.logger.info(f"Successful SSO authorization for {user.id}")
-        return response
+        return _successful_sso_login_response(user)
+
+
+def _successful_sso_login_response(user: User) -> Response:
+    response = make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/success"))
+    response.set_cookie(
+        current_app.config['JWT_ACCESS_COOKIE_NAME'],
+        create_access_token(
+            identity=user
+        ),
+        httponly=True,
+        secure=current_app.config['SESSION_COOKIE_SECURE'],
+        samesite=current_app.config['SESSION_COOKIE_SAMESITE']
+    )
+    statsd_client.incr('oauth.authorization.success')
+    current_app.logger.info(f"Successful SSO authorization for {user.id}")
+    return response
 
 
 def make_github_get_request(endpoint: str, github_token) -> json:
@@ -176,7 +186,7 @@ def make_github_get_request(endpoint: str, github_token) -> json:
     return resp
 
 
-def does_user_have_sufficient_scope(response: Response) -> bool:
+def does_user_have_sufficient_scope(response: RequestsResponse) -> bool:
     if is_feature_enabled(FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED):
         oauth_scopes_from_token = response.headers['X-OAuth-Scopes'].split(', ')
         required_scopes = {'read:user', 'user:email', 'read:org'}
