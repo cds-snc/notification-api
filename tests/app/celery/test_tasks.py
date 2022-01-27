@@ -222,6 +222,45 @@ class BatchSaving:
             queue="database-tasks",
         )
 
+    def test_should_save_smss(self, notify_db_session, sample_template_with_placeholders, mocker):
+        notification1 = _notification_json(
+            sample_template_with_placeholders,
+            to="+1 650 253 2221",
+            personalisation={"name": "Jo"},
+        )
+
+        notification2 = _notification_json(
+            sample_template_with_placeholders, to="+1 650 253 2222", personalisation={"name": "Test2"}
+        )
+
+        notification3 = _notification_json(
+            sample_template_with_placeholders, to="+1 650 253 2223", personalisation={"name": "Test3"}
+        )
+
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+        acknowldege_mock = mocker.patch("app.celery.tasks.RedisQueue.acknowledge")
+
+        save_smss(
+            str(sample_template_with_placeholders.service.id),
+            [encryption.encrypt(notification1), encryption.encrypt(notification2), encryption.encrypt(notification3)],
+            "receipt",
+        )
+
+        persisted_notification = Notification.query.all()
+        assert persisted_notification[0].to == "+1 650 253 2221"
+        assert persisted_notification[1].to == "+1 650 253 2222"
+        assert persisted_notification[2].to == "+1 650 253 2223"
+        assert persisted_notification[0].template_id == sample_template_with_placeholders.id
+        assert persisted_notification[1].template_version == sample_template_with_placeholders.version
+        assert persisted_notification[0].status == "created"
+        assert persisted_notification[0].personalisation == {"name": "Jo"}
+        assert persisted_notification[0]._personalisation == encryption.encrypt({"name": "Jo"})
+        assert persisted_notification[0].notification_type == "sms"
+
+        acknowldege_mock.assert_called_once_with("receipt")
+
 
 # -------------- process_job tests -------------- #
 
@@ -789,42 +828,6 @@ def test_should_send_template_to_correct_sms_task_and_persist(sample_template_wi
     assert persisted_notification._personalisation == encryption.encrypt({"name": "Jo"})
     assert persisted_notification.notification_type == "sms"
     mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
-
-
-def test_should_save_smss(notify_db_session, sample_template_with_placeholders, mocker):
-    notification1 = _notification_json(
-        sample_template_with_placeholders,
-        to="+1 650 253 2221",
-        personalisation={"name": "Jo"},
-    )
-
-    notification2 = _notification_json(sample_template_with_placeholders, to="+1 650 253 2222", personalisation={"name": "Test2"})
-
-    notification3 = _notification_json(sample_template_with_placeholders, to="+1 650 253 2223", personalisation={"name": "Test3"})
-
-    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-    acknowldege_mock = mocker.patch("redisQueue.acknowledge")
-
-    save_smss(
-        str(sample_template_with_placeholders.service.id),
-        [encryption.encrypt(notification1), encryption.encrypt(notification2), encryption.encrypt(notification3)],
-        "receipt",
-    )
-
-    persisted_notification = Notification.query.all()
-    assert persisted_notification[0].to == "+1 650 253 2221"
-    assert persisted_notification[1].to == "+1 650 253 2222"
-    assert persisted_notification[2].to == "+1 650 253 2223"
-    assert persisted_notification[0].template_id == sample_template_with_placeholders.id
-    assert persisted_notification[1].template_version == sample_template_with_placeholders.version
-    assert persisted_notification[0].status == "created"
-    assert persisted_notification[0].personalisation == {"name": "Jo"}
-    assert persisted_notification[0]._personalisation == encryption.encrypt({"name": "Jo"})
-    assert persisted_notification[0].notification_type == "sms"
-
-    acknowldege_mock.assert_called_once_with("receipt")
 
 
 @pytest.mark.parametrize("sender_id", [None, "996958a8-0c06-43be-a40e-56e4a2d1655c"])

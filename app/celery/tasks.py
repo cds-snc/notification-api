@@ -285,6 +285,15 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
     return False
 
 
+# TODO: replace with real thing
+class RedisQueue:
+    def __init__(self, receipt):
+        pass
+
+    def acknowledge(self, receipt):
+        pass
+
+
 @notify_celery.task(bind=True, name="save-smss", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt: str):
@@ -369,7 +378,7 @@ def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt
         )
 
     if receipt:
-        redis_queue = RedisQueue(redis_client, "sms")
+        redis_queue = RedisQueue("sms")
         redis_queue.acknowledge(receipt)
 
 
@@ -522,7 +531,7 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any], recei
             )
 
     if receipt:
-        redis_queue = RedisQueue(redis_client, "email")
+        redis_queue = RedisQueue("email")
         redis_queue.acknowledge(receipt)
 
 
