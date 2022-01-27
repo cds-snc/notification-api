@@ -149,14 +149,22 @@ class NotifyProvider(BaseProvider):
 fake.add_provider(NotifyProvider)
 
 
+def generate_element() -> str:
+    return fake.sentence(6)
+
+
+def generate_elements(count=10) -> list[str]:
+    return [fake.sentence(6) for s in range(0, count)]
+
+
 def generate_notification():
     while True:
-        yield fake.notification()
+        yield json.dumps(fake.notification().serialize())
 
 
 def generate_notifications(count=10) -> list[str]:
     notifications = generate_notification()
-    return [json.dumps(next(notifications).serialize()) for i in range(0, count)]
+    return [next(notifications) for i in range(0, count)]
 
 
 class Buffer(Enum):
@@ -276,14 +284,13 @@ class RedisQueue(Queue):
 
 
 class MockQueue(Queue):
-    """Implementation of a queue that spits out randomly generated notifications.
+    """Implementation of a queue that spits out randomly generated elements.
 
     Do not use in production!"""
 
     def poll(self, count=10) -> tuple[UUID, list[str]]:
         receipt = uuid4()
-        notifications = generate_notifications(count)
-        return (receipt, notifications)
+        return (receipt, generate_elements(count))
 
     def acknowledge(self, receipt: UUID):
         pass
