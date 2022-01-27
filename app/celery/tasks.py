@@ -88,14 +88,14 @@ def process_inflight(receipt, results):
     encrypted_emails: List[Any] = []
     for notification in results:
         service = dao_fetch_service_by_id(notification["service_id"])
-        template = dao_get_template_by_id(notification["template_id"])
+        template = dao_get_template_by_id(notification["template"])
 
-        if service_allowed_to_send_to(notification.recipient, service, KEY_TYPE_NORMAL):
+        if service_allowed_to_send_to(notification["recipient"], service, KEY_TYPE_NORMAL):
             encrypted_notification = encryption.encrypt(
                 {
                     "service_id": notification["service_id"],
-                    "api_key": notification["api_key_id"],
-                    "template": notification["template_id"],
+                    "api_key": notification["api_key"],
+                    "template": notification["template"],
                     "to": notification["recipient"],
                     "personalisation": dict(notification["personalisation"]),
                 }

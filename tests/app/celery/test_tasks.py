@@ -101,10 +101,13 @@ def email_job_with_placeholders(notify_db, notify_db_session, sample_email_templ
     return create_job(template=sample_email_template_with_placeholders)
 
 
-class BatchSaving:
+class TestBatchSaving:
     def test_process_inflight_saves_smss(self, notify_db_session, mocker):
-        service1 = create_service(message_limit=20)
-        service2 = create_service(message_limit=20)
+        service1 = create_service(service_name="service 1")
+        service2 = create_service(service_name="service 2")
+
+        print(f"1: {service1.id}")
+        print(f"2: {service2.id}")
         template1 = create_template(service=service1, template_type=SMS_TYPE)
         template2 = create_template(service=service2, template_type=SMS_TYPE)
         api_key1 = create_api_key(service1)
@@ -115,40 +118,48 @@ class BatchSaving:
             {
                 "service_id": service1.id,
                 "api_key": api_key1.id,
-                "to": "+441234111111",
+                "recipient": "+441234111111",
                 "template": template1.id,
                 "personalisation": {"var1": "v1"},
             },
             {
                 "service_id": service2.id,
                 "api_key": api_key2.id,
-                "to": "+441234222222",
+                "recipient": "+441234222222",
                 "template": template2.id,
                 "personalisation": {"var2": "v2"},
             },
         ]
 
         mocker.patch("app.celery.tasks.save_smss.apply_async")
-        mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
+        mock_encrypt = mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")  # what's this for?
 
         process_inflight(receipt, results)
-        assert encryption.encrypt.call_args[0][0]["service_id"] == service1.id
-        assert encryption.encrypt.call_args[0][0]["api_key"] == api_key1.id
-        assert encryption.encrypt.call_args[0][0]["to"] == "+441234111111"
-        assert encryption.encrypt.call_args[0][0]["template"] == str(template1.id)
+        print(encryption.encrypt.call_args)
+        assert encryption.encrypt
 
-        assert encryption.encrypt.call_args[0][0]["personalisation"] == {
-            "var1": "v1",
-        }
-        assert encryption.encrypt.call_args[0][1]["service_id"] == service2.id
-        assert encryption.encrypt.call_args[0][1]["api_key"] == api_key2.id
-        assert encryption.encrypt.call_args[0][1]["to"] == "+441234222222"
-        assert encryption.encrypt.call_args[0][1]["template"] == str(template2.id)
-
-        assert encryption.encrypt.call_args[0][0]["personalisation"] == {
-            "var2": "v2",
-        }
+        assert mock_encrypt.mock_calls == [
+            call(
+                {
+                    "service_id": service1.id,
+                    "api_key": api_key1.id,
+                    "template": template1.id,
+                    "to": "+441234111111",
+                    "personalisation": {"var1": "v1"},
+                }
+            ),
+            call(
+                {
+                    "service_id": service2.id,
+                    "api_key": api_key2.id,
+                    "template": template2.id,
+                    "to": "+441234222222",
+                    "personalisation": {"var2": "v2"},
+                }
+            ),
+            call.__bool__(),
+        ]
 
         tasks.save_smss.apply_async.assert_called_once_with(
             (
@@ -477,6 +488,7 @@ def test_should_process_smss_job(notify_db_session, mocker):
                 "something_encrypted",
                 "something_encrypted",
             ],
+            None,
         ),
         queue="database-tasks",
     )
@@ -563,6 +575,7 @@ def test_should_process_emails_job(email_job_with_placeholders, mocker):
         (
             str(email_job_with_placeholders.service_id),
             ["something_encrypted", "something_encrypted", "something_encrypted", "something_encrypted"],
+            None,
         ),
         queue="database-tasks",
     )
@@ -1126,6 +1139,7 @@ def test_save_emails(notify_db_session, mocker):
     save_emails(
         str(template.service_id),
         [encryption.encrypt(notification1), encryption.encrypt(notification2), encryption.encrypt(notification3)],
+        None,
     )
 
     persisted_notification = Notification.query.all()
