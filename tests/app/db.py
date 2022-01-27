@@ -44,7 +44,6 @@ from app.models import (
     ServiceSmsSender,
     ServiceWhitelist,
     Template,
-    User,
     EMAIL_TYPE,
     MOBILE_TYPE,
     SMS_TYPE,
@@ -63,6 +62,7 @@ from app.models import (
     RecipientIdentifier, NOTIFICATION_STATUS_TYPES_COMPLETED,
     DELIVERY_STATUS_CALLBACK_TYPE, WEBHOOK_CHANNEL_TYPE, CommunicationItem
 )
+from app.model import User
 
 
 def create_user(

@@ -56,8 +56,9 @@ from app.models import (
     LETTER_TYPE,
     NOTIFICATION_STATUS_TYPES_COMPLETED,
     SERVICE_PERMISSION_TYPES,
-    ServiceEmailReplyTo, User, CommunicationItem
+    ServiceEmailReplyTo, CommunicationItem
 )
+from app.model import User
 from tests import create_authorization_header
 from tests.app.db import (
     create_user,

@@ -10,6 +10,10 @@ class IncorrectGithubIdException(Exception):
     pass
 
 
+class IdpAssignmentException(Exception):
+    pass
+
+
 class InsufficientGithubScopesException(Exception):
     pass
 

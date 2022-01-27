@@ -25,6 +25,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import ma
 from app import models
+from app.model import User
 from app.dao.communication_item_dao import get_communication_item
 from app.models import ServicePermission, EMAIL_TYPE, SMS_TYPE, NOTIFICATION_STATUS_TYPES_COMPLETED, \
     DELIVERY_STATUS_CALLBACK_TYPE, CALLBACK_CHANNEL_TYPES
@@ -89,10 +90,10 @@ class BaseSchema(ma.ModelSchema):
 
 class UserSchema(BaseSchema):
     permissions = fields.Method("user_permissions", dump_only=True)
-    password_changed_at = field_for(models.User, 'password_changed_at', format=DATE_FORMAT)
-    created_at = field_for(models.User, 'created_at', format=DATE_FORMAT)
-    auth_type = field_for(models.User, 'auth_type')
-    identity_provider_user_id = field_for(models.User, 'identity_provider_user_id', required=False)
+    password_changed_at = field_for(User, 'password_changed_at', format=DATE_FORMAT)
+    created_at = field_for(User, 'created_at', format=DATE_FORMAT)
+    auth_type = field_for(User, 'auth_type')
+    identity_provider_user_id = fields.String(required=False)
 
     def user_permissions(self, usr):
         retval = {}
@@ -104,7 +105,7 @@ class UserSchema(BaseSchema):
         return retval
 
     class Meta:
-        model = models.User
+        model = User
         exclude = (
             "updated_at",
             "created_at",
@@ -112,6 +113,7 @@ class UserSchema(BaseSchema):
             "user_to_organisation",
             "_password",
             "verify_codes"
+            "_identity_provider_user_id"
         )
         strict = True
 
@@ -137,15 +139,15 @@ class UserSchema(BaseSchema):
 
 
 class UserUpdateAttributeSchema(BaseSchema):
-    auth_type = field_for(models.User, 'auth_type')
-    identity_provider_user_id = field_for(models.User, 'identity_provider_user_id', required=False)
+    auth_type = field_for(User, 'auth_type')
+    identity_provider_user_id = fields.String(required=False, allow_none=True)
 
     class Meta:
-        model = models.User
+        model = User
         exclude = (
             'id', 'updated_at', 'created_at', 'user_to_service',
             '_password', 'verify_codes', 'logged_in_at', 'password_changed_at',
-            'failed_login_count', 'state', 'platform_admin')
+            'failed_login_count', 'state', 'platform_admin', '_identity_provider_user_id')
         strict = True
 
     @validates('name')
@@ -177,7 +179,7 @@ class UserUpdateAttributeSchema(BaseSchema):
 
 class UserUpdatePasswordSchema(BaseSchema):
     class Meta:
-        model = models.User
+        model = User
         only = ('password')
         strict = True
 

@@ -9,16 +9,14 @@ from fido2 import cbor
 import base64
 
 from app.models import (
-    User,
     Fido2Key,
     LoginEvent,
     Permission,
     MANAGE_SETTINGS,
     MANAGE_TEMPLATES,
-    Notification,
-    SMS_AUTH_TYPE,
-    EMAIL_AUTH_TYPE
+    Notification
 )
+from app.model import User, SMS_AUTH_TYPE, EMAIL_AUTH_TYPE
 from app.dao.fido2_key_dao import save_fido2_key, create_fido2_session
 from app.dao.login_event_dao import save_login_event
 from app.dao.permissions_dao import default_service_permissions

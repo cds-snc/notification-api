@@ -1,7 +1,7 @@
 from flask_jwt_extended import create_access_token, decode_token
 from datetime import datetime, timedelta
 
-from app.models import User
+from app.model import User
 
 
 def test_access_token_expires_in_one_hour(notify_api, db_session):

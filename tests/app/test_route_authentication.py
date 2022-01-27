@@ -27,10 +27,12 @@ def test_all_routes_have_authentication(client, db_session):
         '/_status',
         '/_status/live-service-and-organisation-counts',
         '/auth/authorize',
+        '/auth/callback',
         '/auth/login',
         '/auth/logout',
         '/notifications/govdelivery',
         '/auth/redeem-token',
+        '/auth/token',
         '/platform-stats/monthly',
     }
 

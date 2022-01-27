@@ -444,8 +444,13 @@ class Config(object):
         RelyingParty(os.getenv('FIDO2_DOMAIN', 'localhost'), 'Notification'),
         verify_origin=lambda x: True)
 
+    # OAuth
     GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', '')
     GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '')
+
+    VA_SSO_CLIENT_ID = os.getenv('VA_SSO_CLIENT_ID', '')
+    VA_SSO_CLIENT_SECRET = os.getenv('VA_SSO_CLIENT_SECRET', '')
+    VA_SSO_SERVER_METADATA_URL = os.getenv('VA_SSO_SERVER_METADATA_URL', '')
 
     JWT_ACCESS_COOKIE_NAME = 'vanotify_api_access_token'
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
@@ -563,6 +568,8 @@ class Test(Development):
     AWS_SES_DEFAULT_REPLY_TO = 'default-ses@reply.to'
     AWS_SES_CONFIGURATION_SET = 'test-configuration-set'
     AWS_SES_ENDPOINT_URL = "https://test.ses.endpoint"
+
+    VA_SSO_AUTHORIZE_URL = "https://int.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/authorize"
 
 
 class Staging(Config):

@@ -35,7 +35,7 @@ from app.va.identifier import IdentifierType
 
 
 from tests.app.db import create_service, create_template
-from tests.app.oauth.test_rest import mock_toggle
+from tests.app.factories.feature_flag import mock_feature_flag
 
 
 def test_create_content_for_notification_passes(sample_email_template):
@@ -890,7 +890,7 @@ def test_send_notification_with_sms_sender_rate_limit_uses_rate_limit_delivery_t
         client,
         mocker
 ):
-    mock_toggle(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
+    mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
 
     MockService = namedtuple('Service', ['id'])
