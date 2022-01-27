@@ -175,7 +175,7 @@ class TestRedisQueue:
 
         assert len(elements) > 0
         assert type(elements) is list
-        assert type(elements[0]) is dict
+        assert type(elements[0]) is str
         assert elements[0]["id"] == notification.id
         assert elements[0]["type"] == notification.notification_type
 
