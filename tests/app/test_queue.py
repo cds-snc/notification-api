@@ -67,24 +67,29 @@ class TestRedisQueue:
         finally:
             self.delete_all_list(redis)
 
+    @pytest.mark.serial
     def delete_all_list(self, redis):
         self.delete_all_inbox(redis)
         self.delete_all_inflight(redis)
 
+    @pytest.mark.serial
     def delete_all_inbox(self, redis):
         for key in redis.scan_iter(f"{Buffer.INBOX.value}*"):
             redis.delete(key)
 
+    @pytest.mark.serial
     def delete_all_inflight(self, redis):
         for key in redis.scan_iter(f"{Buffer.IN_FLIGHT.value}*"):
             redis.delete(key)
 
+    @pytest.mark.serial
     def test_put_mesages(self, redis, redis_queue):
         element = next(generate_notification())
         redis_queue.publish(element)
         assert redis.llen(Buffer.INBOX.name()) == 1
         self.delete_all_list(redis)
 
+    @pytest.mark.serial
     def test_polling_message(self, redis, redis_queue):
         with self.given_inbox_with_one_element(redis, redis_queue):
             (receipt, elements) = redis_queue.poll(10)
@@ -93,8 +98,8 @@ class TestRedisQueue:
             assert redis.llen(Buffer.INBOX.name()) == 0
             assert redis.llen(redis_queue.get_inflight_name(receipt)) == 1
 
-    # @pytest.mark.parametrize("count", [0, 1, 98, 99, 100, 101, REDIS_ELEMENTS_COUNT, REDIS_ELEMENTS_COUNT + 1, 500])
-    @pytest.mark.parametrize("count", [98, 99, 100, REDIS_ELEMENTS_COUNT])
+    @pytest.mark.serial
+    @pytest.mark.parametrize("count", [0, 1, 98, 99, 100, 101, REDIS_ELEMENTS_COUNT, REDIS_ELEMENTS_COUNT + 1, 500])
     def test_polling_many_messages(self, redis, redis_queue, count):
         with self.given_inbox_with_many_indexes(redis, redis_queue):
             real_count = count if count < REDIS_ELEMENTS_COUNT else REDIS_ELEMENTS_COUNT
@@ -106,6 +111,7 @@ class TestRedisQueue:
                 assert redis.llen(Buffer.INBOX.name()) == 0
             assert redis.llen(redis_queue.get_inflight_name(receipt)) == real_count
 
+    @pytest.mark.serial
     @pytest.mark.parametrize("suffix", ["sms", "email", "🎅", "", None])
     def test_polling_message_with_custom_inbox_name(self, redis, redis_client, suffix):
         self.delete_all_list(redis)
@@ -126,6 +132,7 @@ class TestRedisQueue:
         finally:
             self.delete_all_list(redis)
 
+    @pytest.mark.serial
     def test_polling_with_empty_inbox(self, redis, redis_queue):
         self.delete_all_list(redis)
         (receipt, elements) = redis_queue.poll(10)
@@ -133,6 +140,7 @@ class TestRedisQueue:
         assert redis.llen(Buffer.INBOX.name()) == 0
         assert redis.llen(redis_queue.get_inflight_name(receipt)) == 0
 
+    @pytest.mark.serial
     def test_polling_with_zero_count(self, redis, redis_queue):
         with self.given_inbox_with_one_element(redis, redis_queue):
             (receipt, elements) = redis_queue.poll(0)
@@ -140,6 +148,7 @@ class TestRedisQueue:
             assert redis.llen(Buffer.INBOX.name()) == 1
             assert redis.llen(redis_queue.get_inflight_name(receipt)) == 0
 
+    @pytest.mark.serial
     def test_polling_with_negative_count(self, redis, redis_queue):
         with self.given_inbox_with_one_element(redis, redis_queue):
             (receipt, elements) = redis_queue.poll(-1)
@@ -147,6 +156,7 @@ class TestRedisQueue:
             assert redis.llen(Buffer.INBOX.name()) == 1
             assert redis.llen(redis_queue.get_inflight_name(receipt)) == 0
 
+    @pytest.mark.serial
     def test_acknowledged_messages(self, redis, redis_queue):
         with self.given_inbox_with_one_element(redis, redis_queue):
             (receipt, elements) = redis_queue.poll(10)
@@ -156,6 +166,7 @@ class TestRedisQueue:
             assert redis.llen(redis_queue.get_inflight_name(receipt)) == 0
             assert len(redis.keys("*")) == 0
 
+    @pytest.mark.serial
     def test_messages_serialization_after_poll(self, redis, redis_queue):
         self.delete_all_list(redis)
         notification = next(generate_notification())
