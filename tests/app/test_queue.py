@@ -42,6 +42,7 @@ class TestRedisQueue:
 
     @contextmanager
     def given_inbox_with_one_element(self, redis, redis_queue):
+        self.delete_all_list(redis)
         notification = next(generate_notification())
         try:
             redis_queue.publish(notification)
@@ -58,6 +59,7 @@ class TestRedisQueue:
             def serialize(self) -> dict:
                 return {"i": self.__i}
 
+        self.delete_all_list(redis)
         try:
             indexes = [TestSerializable(i) for i in range(0, REDIS_ELEMENTS_COUNT)]
             [redis_queue.publish(index) for index in indexes]
@@ -106,6 +108,7 @@ class TestRedisQueue:
 
     @pytest.mark.parametrize("suffix", ["sms", "email", "🎅", "", None])
     def test_polling_message_with_custom_inbox_name(self, redis, redis_client, suffix):
+        self.delete_all_list(redis)
         try:
             redis_queue = RedisQueue(redis_client, suffix)
             notification = next(generate_notification())
@@ -124,6 +127,7 @@ class TestRedisQueue:
             self.delete_all_list(redis)
 
     def test_polling_with_empty_inbox(self, redis, redis_queue):
+        self.delete_all_list(redis)
         (receipt, elements) = redis_queue.poll(10)
         assert len(elements) == 0
         assert redis.llen(Buffer.INBOX.name()) == 0
@@ -153,6 +157,7 @@ class TestRedisQueue:
             assert len(redis.keys("*")) == 0
 
     def test_messages_serialization_after_poll(self, redis, redis_queue):
+        self.delete_all_list(redis)
         notification = next(generate_notification())
         redis_queue.publish(notification)
         (_, elements) = redis_queue.poll(1)
@@ -171,6 +176,8 @@ class TestRedisQueue:
         # assert elements[0]["email_address"] == notification.email_address
         # assert elements[0]["template"]["id"] == notification.template_id
         # assert elements[0]["template"]["version"] == notification.template_version
+        
+        self.delete_all_list(redis)
 
 
 @pytest.mark.usefixtures("notify_api")
