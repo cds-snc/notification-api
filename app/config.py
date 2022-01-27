@@ -451,6 +451,8 @@ class Config(object):
     VA_SSO_CLIENT_ID = os.getenv('VA_SSO_CLIENT_ID', '')
     VA_SSO_CLIENT_SECRET = os.getenv('VA_SSO_CLIENT_SECRET', '')
     VA_SSO_SERVER_METADATA_URL = os.getenv('VA_SSO_SERVER_METADATA_URL', '')
+    VA_SSO_AUTHORIZE_URL = os.getenv('VA_SSO_AUTHORIZE_URL', '')
+    VA_SSO_ACCESS_TOKEN_URL = os.getenv('VA_SSO_ACCESS_TOKEN_URL', '')
 
     JWT_ACCESS_COOKIE_NAME = 'vanotify_api_access_token'
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
