@@ -105,9 +105,6 @@ class TestBatchSaving:
     def test_process_inflight_saves_smss(self, notify_db_session, mocker):
         service1 = create_service(service_name="service 1")
         service2 = create_service(service_name="service 2")
-
-        print(f"1: {service1.id}")
-        print(f"2: {service2.id}")
         template1 = create_template(service=service1, template_type=SMS_TYPE)
         template2 = create_template(service=service2, template_type=SMS_TYPE)
         api_key1 = create_api_key(service1)
@@ -135,8 +132,6 @@ class TestBatchSaving:
         mock_encrypt = mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
 
         process_inflight(receipt, results)
-        print(encryption.encrypt.call_args)
-        assert encryption.encrypt
 
         assert mock_encrypt.mock_calls == [
             call(
@@ -157,7 +152,6 @@ class TestBatchSaving:
                     "personalisation": {"var2": "v2"},
                 }
             ),
-            call.__bool__(),
         ]
 
         tasks.save_smss.apply_async.assert_called_once_with(
@@ -175,9 +169,6 @@ class TestBatchSaving:
     def test_process_inflight_saves_emails(self, notify_db_session, mocker):
         service1 = create_service(service_name="service 1")
         service2 = create_service(service_name="service 2")
-
-        print(f"1: {service1.id}")
-        print(f"2: {service2.id}")
         template1 = create_template(service=service1, template_type=EMAIL_TYPE)
         template2 = create_template(service=service2, template_type=EMAIL_TYPE)
         api_key1 = create_api_key(service1)
@@ -205,8 +196,6 @@ class TestBatchSaving:
         mock_encrypt = mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
 
         process_inflight(receipt, results)
-        print(encryption.encrypt.call_args)
-        assert encryption.encrypt
 
         assert mock_encrypt.mock_calls == [
             call(
@@ -227,7 +216,6 @@ class TestBatchSaving:
                     "personalisation": {"var2": "v2"},
                 }
             ),
-            call.__bool__(),
         ]
 
         tasks.save_emails.apply_async.assert_called_once_with(
