@@ -35,7 +35,7 @@ def github_login_toggle_enabled(mocker):
     mock_feature_flag(mocker, FeatureFlag.CHECK_GITHUB_SCOPE_ENABLED, 'True')
 
 
-@pytest.fixture()
+@pytest.fixture(autouse=True)
 def va_sso_toggle_enabled(mocker):
     mock_feature_flag(mocker, FeatureFlag.VA_SSO_ENABLED, 'True')
 
