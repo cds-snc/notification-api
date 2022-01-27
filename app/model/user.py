@@ -24,7 +24,7 @@ class User(db.Model):
     def __init__(self, idp_name: str = None, idp_id: str = None, **kwargs):
         super().__init__(**kwargs)
         if idp_name and idp_id:
-            self.idp_ids.append(IdentityProviderIdentifier(self.id, idp_name, idp_id))
+            self.idp_ids.append(IdentityProviderIdentifier(self.id, idp_name, str(idp_id)))
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = db.Column(db.String, nullable=False, index=True, unique=False)
@@ -93,7 +93,7 @@ class User(db.Model):
 
     @classmethod
     def find_by_idp(cls, idp_name: str, idp_id: str) -> 'User':
-        return cls.query.join(User.idp_ids).filter_by(idp_name=idp_name, idp_id=idp_id).one()
+        return cls.query.join(User.idp_ids).filter_by(idp_name=idp_name, idp_id=str(idp_id)).one()
 
     def save_to_db(self) -> None:
         db.session.add(self)
@@ -102,7 +102,7 @@ class User(db.Model):
     def add_idp(self, idp_name: str, idp_id: str) -> None:
         if not idp_name or not idp_id:
             raise ValueError("Must provide IDP name and id")
-        self.idp_ids.append(IdentityProviderIdentifier(self.id, idp_name, idp_id))
+        self.idp_ids.append(IdentityProviderIdentifier(self.id, idp_name, str(idp_id)))
 
     def check_password(self, password):
         if self.blocked:

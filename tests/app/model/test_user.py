@@ -21,6 +21,22 @@ def test_can_create_user_with_idp_id():
     assert user.idp_ids[0].idp_id == 'some_id'
 
 
+def test_create_user_casts_idp_id_to_str():
+    data = {
+        'name': 'Foo Bar',
+        'email_address': 'email@test.com',
+        'password': 'password',
+        'idp_name': 'va_sso',
+        'idp_id': 1234
+    }
+    user = User(**data)
+
+    assert user.name == 'Foo Bar'
+    assert user.email_address == 'email@test.com'
+    assert user.idp_ids[0].idp_name == 'va_sso'
+    assert user.idp_ids[0].idp_id == '1234'
+
+
 def test_can_save_to_db(db_session):
     data = {
         'name': 'Foo Bar',
@@ -51,6 +67,21 @@ def test_can_find_by_idp_id(db_session):
     db_session.add(test_user)
 
     user = User.find_by_idp(idp_name='va_sso', idp_id='some_id')
+    assert user.name == 'Foo Bar'
+
+
+def test_find_by_idp_id_casts_to_str(db_session):
+    data = {
+        'name': 'Foo Bar',
+        'email_address': 'email@test.com',
+        'password': 'password',
+        'idp_name': 'va_sso',
+        'idp_id': '1234'
+    }
+    test_user = User(**data)
+    db_session.add(test_user)
+
+    user = User.find_by_idp(idp_name='va_sso', idp_id=1234)
     assert user.name == 'Foo Bar'
 
 
@@ -99,6 +130,15 @@ class TestIdentityProviders:
         user.save_to_db()
         assert user.idp_ids[0].idp_name == 'va_sso'
         assert user.idp_ids[0].idp_id == 'some-id'
+
+    def test_add_idp_casts_to_str(self, db_session):
+        user = create_user()
+        assert len(user.idp_ids) == 0
+
+        user.add_idp(idp_name='va_sso', idp_id=1234)
+        user.save_to_db()
+        assert user.idp_ids[0].idp_name == 'va_sso'
+        assert user.idp_ids[0].idp_id == '1234'
 
     def test_can_add_multiple_idps(self, db_session):
         user = create_user()

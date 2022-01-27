@@ -439,15 +439,18 @@ def test_create_or_update_user_by_identity_provider_user_id_for_existing_user(sa
 
 
 class TestRetrieveMatchCreateUsedForSSO:
-
-    def test_should_return_user_if_matches_idp(self, db_session, sample_user):
-        sample_user.add_idp(idp_name='va_sso', idp_id='some-id')
+    @pytest.mark.parametrize('idp_id, idp_id_str', [
+        ('some-id', 'some-id'),
+        (1234, '1234')
+    ])
+    def test_should_return_user_if_matches_idp(self, db_session, sample_user, idp_id, idp_id_str):
+        sample_user.add_idp(idp_name='va_sso', idp_id=idp_id_str)
         sample_user.save_to_db()
 
         user = retrieve_match_or_create_user(email_address="does_not_matter",
                                              name="does not matter",
                                              identity_provider='va_sso',
-                                             identity_provider_user_id='some-id')
+                                             identity_provider_user_id=idp_id)
 
         assert user.id == sample_user.id
 
