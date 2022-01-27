@@ -5,7 +5,7 @@ from freezegun import freeze_time
 
 from app.errors import InvalidRequest
 from app.models import SMS_TYPE, EMAIL_TYPE, NOTIFICATION_DELIVERED
-from tests.app.oauth.test_rest import mock_toggle
+from tests.app.factories.feature_flag import mock_feature_flag
 from app.feature_flags import FeatureFlag
 from app.platform_stats.rest import get_monthly_platform_stats, validate_date_range_is_within_a_financial_year
 from tests.app.db import (
@@ -84,7 +84,7 @@ def test_get_platform_stats_with_real_query(admin_request, notify_db_session):
 
 @freeze_time('2020-01-25 00:00')
 def test_get_platform_stats_response_when_toggle_is_on(notify_db_session, mocker):
-    mock_toggle(mocker, FeatureFlag.PLATFORM_STATS_ENABLED, 'True')
+    mock_feature_flag(mocker, FeatureFlag.PLATFORM_STATS_ENABLED, 'True')
 
     sample_service = create_service(service_name='service_1')
     sms_template = create_template(service=sample_service, template_type='sms', template_name='a')
