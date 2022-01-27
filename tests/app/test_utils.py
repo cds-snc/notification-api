@@ -20,6 +20,7 @@ from app.utils import (
 # We can see this when applying timezones "US/Eastern" of naive times to a datetime on the different platforms
 # they will result in different values. Within this test we normalize the naive datetime to UTC to properly
 # pass the test on both Mac and *nix
+@pytest.mark.serial
 @pytest.mark.parametrize(
     "date_val, expected_date",
     [
