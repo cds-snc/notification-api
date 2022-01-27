@@ -154,9 +154,9 @@ def generate_notification():
         yield fake.notification()
 
 
-def generate_notifications(count=10) -> list[Dict]:
+def generate_notifications(count=10) -> list[str]:
     notifications = generate_notification()
-    return [next(notifications) for i in range(0, count)]
+    return [json.dumps(next(notifications).serialize()) for i in range(0, count)]
 
 
 class Buffer(Enum):
@@ -167,11 +167,6 @@ class Buffer(Enum):
         return f"{self.value}:{suffix}" if suffix else self.value
 
 
-class Serializable(Protocol):
-    def serialize(self) -> dict:
-        """Serialize current object into a dictionary"""
-
-
 class Queue(ABC):
     """Queue interface for custom buffer.
 
@@ -180,7 +175,7 @@ class Queue(ABC):
     """
 
     @abstractmethod
-    def poll(self, count=10) -> tuple[UUID, list[Dict]]:
+    def poll(self, count=10) -> tuple[UUID, list[str]]:
         """Gets messages out of the queue.
 
         Each polling is associated with a UUID acting as a receipt. This
@@ -195,7 +190,7 @@ class Queue(ABC):
             count (int, optional): Number of messages to get out of the queue. Defaults to 10.
 
         Returns:
-            tuple[UUID, list[Dict]]: Gets polling receipt and list of polled notifications.
+            tuple[UUID, list[str]]: Gets polling receipt and list of polled notifications.
         """
         pass
 
@@ -212,7 +207,7 @@ class Queue(ABC):
         pass
 
     @abstractmethod
-    def publish(self, serializable: Serializable):
+    def publish(self, message: str):
         pass
 
 
@@ -230,7 +225,7 @@ class RedisQueue(Queue):
         self._limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
         self.__register_scripts()
 
-    def poll(self, count=10) -> tuple[UUID, list[Dict]]:
+    def poll(self, count=10) -> tuple[UUID, list[str]]:
         receipt = uuid4()
         in_flight_key = self.get_inflight_name(receipt)
         results = self.__move_to_inflight(in_flight_key, count)
@@ -243,16 +238,12 @@ class RedisQueue(Queue):
     def get_inflight_name(self, receipt: UUID = uuid4()) -> str:
         return f"{Buffer.IN_FLIGHT.value}:{str(receipt)}"
 
-    def publish(self, payload: Any):
-        if type(payload) is models.Notification:
-            return self._redis_client.rpush(self._inbox, json.dumps(payload.serialize()))
-        else:
-            return self._redis_client.rpush(self._inbox, payload)
+    def publish(self, message: str):
+        self._redis_client.rpush(self._inbox, message)
 
-    def __move_to_inflight(self, in_flight_key: str, count: int) -> list[dict]:
+    def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
         results = self.scripts[self.LUA_MOVE_TO_INFLIGHT](args=[self._inbox, in_flight_key, count])
-        outcome = [result.decode("utf-8") for result in results]
-        return outcome
+        return results
 
     def __register_scripts(self):
         self.scripts[self.LUA_MOVE_TO_INFLIGHT] = self._redis_client.register_script(
@@ -288,7 +279,7 @@ class MockQueue(Queue):
 
     Do not use in production!"""
 
-    def poll(self, count=10) -> tuple[UUID, list[Dict]]:
+    def poll(self, count=10) -> tuple[UUID, list[str]]:
         receipt = uuid4()
         notifications = generate_notifications(count)
         return (receipt, notifications)
@@ -296,5 +287,5 @@ class MockQueue(Queue):
     def acknowledge(self, receipt: UUID):
         pass
 
-    def publish(self, serializable: Serializable):
+    def publish(self, message: str):
         pass
