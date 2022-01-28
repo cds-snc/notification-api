@@ -54,12 +54,15 @@ api_user = LocalProxy(lambda: _request_ctx_stack.top.api_user)
 authenticated_service = LocalProxy(lambda: _request_ctx_stack.top.authenticated_service)
 
 
-def create_app(application):
+def create_app(application, config=None):
     from app.config import configs
 
-    notify_environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
-
-    application.config.from_object(configs[notify_environment])
+    if config is None:
+        notify_environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
+        config = configs[notify_environment]
+        application.config.from_object(configs[notify_environment])
+    else:
+        application.config.from_object(config)
 
     application.config["NOTIFY_APP_NAME"] = application.name
     init_app(application)
