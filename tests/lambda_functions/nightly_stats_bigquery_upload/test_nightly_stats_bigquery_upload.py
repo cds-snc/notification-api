@@ -7,6 +7,7 @@ from io import StringIO
 from botocore.response import StreamingBody
 from google.auth.credentials import Credentials
 from google.cloud.bigquery import Client
+from google.cloud.exceptions import NotFound
 
 from lambda_functions.nightly_stats_bigquery_upload.nightly_stats_bigquery_upload_lambda import \
     get_object_key, get_bucket_name, lambda_handler
@@ -161,14 +162,22 @@ class TestLambdaHandler:
         lambda_handler(EXAMPLE_S3_EVENT, 'some context')
         mock_s3_client.get_object.assert_called_with(Bucket='my_stats_bucket', Key='2021-06-28.csv')
 
-    def test_should_delete_existing_stats_from_bigquery_table(
+    def test_should_delete_existing_stats_from_bigquery_table_if_table_exists(
             self, monkeypatch, mock_bigquery_client, example_nightly_stats_bytes
     ):
+        mock_bigquery_client.get_table.side_effect = None
         lambda_handler(EXAMPLE_S3_EVENT, 'some context')
 
         assert mock_bigquery_client.query.called_with(
             f"DELETE FROM `{self.expected_table_id}` WHERE date = '2021-06-28'"
         )
+
+    def test_should_not_delete_existing_stats_from_bigquery_table_if_table_does_not_exist(
+            self, monkeypatch, mock_bigquery_client, example_nightly_stats_bytes
+    ):
+        mock_bigquery_client.get_table.side_effect = NotFound('foo')
+        lambda_handler(EXAMPLE_S3_EVENT, 'some context')
+        mock_bigquery_client.query.assert_not_called()
 
     def test_should_load_stats_into_bigquery_table(
             self, monkeypatch, mock_bigquery_client, example_nightly_stats_bytes

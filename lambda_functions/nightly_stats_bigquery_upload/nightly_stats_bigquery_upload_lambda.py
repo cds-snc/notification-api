@@ -11,6 +11,7 @@ import boto3
 
 from google.cloud import bigquery
 from google.oauth2 import service_account
+from google.cloud.exceptions import NotFound
 
 
 def read_service_account_info_from_ssm() -> Dict:
@@ -79,7 +80,12 @@ def lambda_handler(event, _context):
     bucket_name = get_bucket_name(event)
     object_key = get_object_key(event)
 
-    delete_existing_rows_for_date(bigquery_client, table_id, object_key)
+    try:
+        bigquery_client.get_table(table_id)
+    except NotFound:
+        pass
+    else:
+        delete_existing_rows_for_date(bigquery_client, table_id, object_key)
 
     nightly_stats = read_nightly_stats_from_s3(bucket_name, object_key)
 
