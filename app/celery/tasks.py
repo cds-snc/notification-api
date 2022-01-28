@@ -12,7 +12,6 @@ from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from requests import HTTPError, RequestException, request
 from sqlalchemy.exc import SQLAlchemyError
-from typing import Optional
 
 from app import (
     DATETIME_FORMAT,
