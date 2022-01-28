@@ -271,8 +271,9 @@ class RedisQueue:
 @statsd(namespace="tasks")
 def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt: str):
     """
-    Function that is a job, that takes a list of encrypted notifications and stores
+    Function that takes a list of encrypted notifications and stores
     them in the DB and then sends the notification to the queue.
+    If the recept is not None then it is passed to the RedisQueue to let it know it can delete the inflight notifications.
 
     """
     decrypted_notifications: List[Any] = []
@@ -426,9 +427,9 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
 @statsd(namespace="tasks")
 def save_emails(self, service_id: str, encrypted_notifications: List[Any], receipt: str):
     """
-    Function that is a job, that takes a list of encrypted notifications and stores
+    Function that takes a list of encrypted notifications and stores
     them in the DB and then sends the notification to the queue.
-
+    If the recept is not None then it is passed to the RedisQueue to let it know it can delete the inflight notifications.
     """
     decrypted_notifications: List[Any] = []
     notification_id_queue: Dict = {}
