@@ -86,8 +86,7 @@ from app.v2.notifications.notification_schemas import (
 
 # TODO: replace with the real thing
 class RedisQueue:
-    @staticmethod
-    def publish(notification):
+    def publish(self, data):
         pass
 
 
@@ -299,7 +298,11 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         persist_scheduled_notification(notification.id, form["scheduled_for"])
 
     elif current_app.config["FF_REDIS_BATCH_SAVING"] and not simulated:
-        RedisQueue.publish(notification)
+        redis_queue = RedisQueue()
+        if notification_type == SMS_TYPE:
+            redis_queue.publish(encrypted_notification_data)
+        else:
+            redis_queue.publish(encrypted_notification_data)
         current_app.logger.info(f"{notification_type} {notification['id']} sent to RedisQueue")
 
     elif current_app.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] and not simulated:
