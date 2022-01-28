@@ -43,8 +43,9 @@ encryption = Encryption()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
 redis_store = RedisClient()
-queue_sms = None
-queue_email = None
+# TODO: Rework instantiation to decouple redis_store.redis_store and pass it in.
+sms_queue = None  # type: ignore
+email_queue = None  # type: ignore
 performance_platform_client = PerformancePlatformClient()
 document_download_client = DocumentDownloadClient()
 
