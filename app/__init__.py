@@ -26,6 +26,7 @@ from app.clients.performance_platform.performance_platform_client import (
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy
 from app.encryption import Encryption
+from app.queue import RedisQueue
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 DATE_FORMAT = "%Y-%m-%d"
@@ -42,6 +43,8 @@ encryption = Encryption()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
 redis_store = RedisClient()
+queue_sms = None
+queue_email = None
 performance_platform_client = PerformancePlatformClient()
 document_download_client = DocumentDownloadClient()
 
@@ -75,6 +78,9 @@ def create_app(application):
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
     clients.init_app(sms_clients=[aws_sns_client], email_clients=[aws_ses_client])
+
+    sms_queue = RedisQueue(redis_store.redis_store)
+    email_queue = RedisQueue(redis_store.redis_store)
 
     register_blueprint(application)
     register_v2_blueprints(application)
