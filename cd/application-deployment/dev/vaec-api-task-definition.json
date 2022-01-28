@@ -187,6 +187,10 @@
           "value": "True"
         },
         {
+          "name": "VA_SSO_SERVER_METADATA_URL",
+          "value": "https://int.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/metadata/ISAMOP/.well-known/oauth-authorization-server"
+        },
+        {
           "name": "VA_SSO_AUTHORIZE_URL",
           "value": "https://int.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/authorize"
         },

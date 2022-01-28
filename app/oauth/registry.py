@@ -17,7 +17,8 @@ oauth_registry.register(  # nosec
 # Reads all configuration from .well-known endpointed defined in VA_SSO_SERVER_METADATA_URL config
 oauth_registry.register(
     name='va_sso',
-    access_token_params=None,
-    authorize_params=None,
-    client_kwargs={'scope': 'openid'}
+    client_kwargs={
+        'scope': 'openid',
+        'token_endpoint_auth_method': 'client_secret_post'
+    }
 )
