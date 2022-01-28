@@ -12,6 +12,7 @@ from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from requests import HTTPError, RequestException, request
 from sqlalchemy.exc import SQLAlchemyError
+from typing import Optional
 
 from app import (
     DATETIME_FORMAT,
@@ -85,9 +86,9 @@ from app.utils import get_csv_max_rows
 @statsd(namespace="tasks")
 def process_inflight(receipt, results, type):
     if type == SMS_TYPE:
-        save_smss.apply_async((None, results, receipt), queue=QueueNames.DATABASE)
+        save_smss.apply_async((None, results, receipt), queue=QueueNames.NOTIFY_CACHE)
     else:
-        save_emails.apply_async((None, results, receipt), queue=QueueNames.DATABASE)
+        save_emails.apply_async((None, results, receipt), queue=QueueNames.NOTIFY_CACHE)
 
 
 @notify_celery.task(name="process-job")
@@ -269,7 +270,7 @@ class RedisQueue:
 
 @notify_celery.task(bind=True, name="save-smss", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt: str):
+def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt: Optional[str]):
     """
     Function that takes a list of encrypted notifications and stores
     them in the DB and then sends the notification to the queue.
@@ -425,7 +426,7 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_emails(self, service_id: str, encrypted_notifications: List[Any], receipt: str):
+def save_emails(self, service_id: str, encrypted_notifications: List[Any], receipt: Optional[str]):
     """
     Function that takes a list of encrypted notifications and stores
     them in the DB and then sends the notification to the queue.
