@@ -214,11 +214,11 @@ fileignoreconfig:
     - filename: cd/application-deployment/perf/vaec-celery-task-definition.json
       checksum: 57809f9928480117942412bc2f3ba8d425c79cbff68c8e210b25a0068669db9e
     - filename: cd/application-deployment/prod/vaec-api-task-definition.json
-      checksum: 063d581715292db4c0c649032da9e025121a064d58211bf8165196ee6ecd3e58
+      checksum: e32361c1e082e35243df08878e7ef9f34cad255f4434bf16296bc80defaf7f16
     - filename: cd/application-deployment/prod/vaec-celery-beat-task-definition.json
       checksum: 4fd0dd1e677fff066d2b8b8fcb4eb7fc7c9bce4031b7e4aa6cfd632107d7cf73
     - filename: cd/application-deployment/prod/vaec-celery-task-definition.json
-      checksum: fb6b5c3fbbf1b3e8bbaab1e79d54b6696546a1a8f5e1bbb7640c9998913c8042
+      checksum: 80c1819c301429e7d8576d754543f4f0050d8db3377d23e7a2aeb704e29c25ae
     - filename: cd/application-deployment/staging/vaec-api-task-definition.json
       checksum: 7918a0da10d323b8706daf7c21feadc8ffb9f227f57ba0180577a05418b1d864
     - filename: cd/application-deployment/staging/vaec-celery-beat-task-definition.json
@@ -278,11 +278,11 @@ fileignoreconfig:
     - filename: cd/application-deployment/prod/vaec-celery-beat-task-definition.json
       checksum: 3c249196ee8c2ba3b9b0ca7c736850cfb467c1b0c1993ac58a11653a4f80b436
     - filename: cd/application-deployment/prod/vaec-api-task-definition.json
-      checksum: 6dac2b99e9116e50cb26e666f4e8885768e77844ddab91799d82c35ac4b764ba
+      checksum: e32361c1e082e35243df08878e7ef9f34cad255f4434bf16296bc80defaf7f16
     - filename: cd/application-deployment/perf/vaec-celery-task-definition.json
       checksum: 5cbc97c8e64d0326838f40db429545b2f098892ab78007f8356b159fbc9702e4
     - filename: cd/application-deployment/prod/vaec-celery-task-definition.json
-      checksum: 1d531b15c4081b0b35193c28c38e4a0914817c6ddec971b3b577af124018a76b
+      checksum: 80c1819c301429e7d8576d754543f4f0050d8db3377d23e7a2aeb704e29c25ae
     - filename: cd/application-deployment/perf/vaec-api-task-definition.json
       checksum: ba9bf74bba597cb0af72032e2d2e0f377753aa281644729db7bd09e4feb4e0f1
     - filename: cd/application-deployment/perf/vaec-celery-beat-task-definition.json
