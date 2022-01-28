@@ -201,5 +201,3 @@ class TestMockQueue:
 
     def test_acknowledged_messages(self, mock_queue):
         mock_queue.acknowledge([1, 2, 3])
-
-
