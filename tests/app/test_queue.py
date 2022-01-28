@@ -6,7 +6,7 @@ from pytest_mock_resources import RedisConfig, create_redis_fixture
 
 from app import create_app, redis_store
 from app.config import Config, Development
-from app.queue import Buffer, MockQueue, RedisQueue, generate_element
+from app.queue import Buffer, RedisQueue, MockQueue, generate_element
 
 
 @pytest.fixture(scope="session")
@@ -201,3 +201,5 @@ class TestMockQueue:
 
     def test_acknowledged_messages(self, mock_queue):
         mock_queue.acknowledge([1, 2, 3])
+
+

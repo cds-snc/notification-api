@@ -133,3 +133,19 @@ class RedisQueue(Queue):
             return all
             """
         )
+
+
+class MockQueue(Queue):
+    """Implementation of a queue that spits out randomly generated elements.
+
+    Do not use in production!"""
+
+    def poll(self, count=10) -> tuple[UUID, list[str]]:
+        receipt = uuid4()
+        return (receipt, generate_elements(count))
+
+    def acknowledge(self, receipt: UUID):
+        pass
+
+    def publish(self, message: str):
+        pass
