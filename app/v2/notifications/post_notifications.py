@@ -65,7 +65,6 @@ from app.notifications.validators import (
     validate_template,
     validate_template_exists,
 )
-from app.queue import MockQueue
 from app.schema_validation import validate
 from app.schemas import job_schema
 from app.service.utils import safelisted_members
@@ -83,6 +82,13 @@ from app.v2.notifications.notification_schemas import (
     post_precompiled_letter_request,
     post_sms_request,
 )
+
+
+# TODO: replace with the real thing
+class RedisQueue:
+    @staticmethod
+    def publish(notification):
+        pass
 
 
 @v2_notification_blueprint.route("/{}".format(LETTER_TYPE), methods=["POST"])
@@ -293,7 +299,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         persist_scheduled_notification(notification.id, form["scheduled_for"])
 
     elif current_app.config["FF_REDIS_BATCH_SAVING"] and not simulated:
-        MockQueue().publish(notification)
+        RedisQueue.publish(notification)
         current_app.logger.info(f"{notification_type} {notification['id']} sent to RedisQueue")
 
     elif current_app.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] and not simulated:
