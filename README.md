@@ -511,6 +511,20 @@ The ID value in the stub url is the number after `v1/` (e.g., `2003` for `/cuf/c
 For the VA Profile communication item endpoint, you will need to remove the port (`:443`) from the URL before you
 make the request while running locally.
 
+## Triggering Tasks
+
+We have provided a script for executing a celery task located at `scripts/trigger_task.py`. In order to execute these,
+you will first need to log into AWS using the CLI, and ensure that you have the developer role. You can then execute
+the script for the command line given that you provide the task name, prefix and routing key for the queue, and any
+required arguments to the task. For example, running the command
+
+```
+python scripts/trigger_task.py --task-name generate-daily-notification-status-report --queue-prefix dev-notification- --routing-key delivery-receipts --task-args 2022-01-28
+```
+
+Will run the `generate-daily-notification-status-report` task in the queue `dev-notification-delivery-receipts` with
+a date string of `2022-01-28` passed to the task.
+
 ## Adding Environment Variables to Task Definition files
 When adding environment variables to any `<filename>-task-definition.json` file, make sure you add them to the corresponding
 `celery`and `celery-beat` files as well. We want to try and keep these consistent with each other.
