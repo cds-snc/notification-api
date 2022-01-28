@@ -85,9 +85,11 @@ class RedisQueue(Queue):
 
     scripts: Dict[str, Any] = {}
 
-    def __init__(self, redis_client: FlaskRedis, inbox_suffix=None) -> None:
+    def __init__(self, inbox_suffix=None) -> None:
         self._inbox = Buffer.INBOX.name(inbox_suffix)
-        self._redis_client = redis_client
+
+    def init_app(self, redis):
+        self._redis_client = redis
         self.__register_scripts()
 
     def poll(self, count=10) -> tuple[UUID, list[str]]:
