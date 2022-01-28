@@ -67,6 +67,14 @@ class Queue(ABC):
 
     @abstractmethod
     def publish(self, message: str):
+        """Publishes the message into the buffer queue.
+
+        The message is put onto the back of the queue to be later processed
+        in a FIFO order.
+
+        Args:
+            message (str): Message to store into the queue.
+        """
         pass
 
 
