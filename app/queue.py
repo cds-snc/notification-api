@@ -89,7 +89,6 @@ class RedisQueue(Queue):
     def __init__(self, redis_client: FlaskRedis, inbox_suffix=None) -> None:
         self._inbox = Buffer.INBOX.name(inbox_suffix)
         self._redis_client = redis_client
-        self._limit = current_app.config["BATCH_INSERTION_CHUNK_SIZE"]
         self.__register_scripts()
 
     def poll(self, count=10) -> tuple[UUID, list[str]]:

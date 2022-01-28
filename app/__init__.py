@@ -83,8 +83,8 @@ def create_app(application, config=None):
     document_download_client.init_app(application)
     clients.init_app(sms_clients=[aws_sns_client], email_clients=[aws_ses_client])
 
-    sms_queue = RedisQueue(redis_store.redis_store)  # noqa: F841
-    email_queue = RedisQueue(redis_store.redis_store)  # noqa: F841
+    sms_queue = RedisQueue(redis_store.redis_store, "sms")  # noqa: F841
+    email_queue = RedisQueue(redis_store.redis_store, "email")  # noqa: F841
 
     register_blueprint(application)
     register_v2_blueprints(application)
