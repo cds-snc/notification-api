@@ -6,7 +6,7 @@ from pytest_mock_resources import RedisConfig, create_redis_fixture
 
 from app import create_app, redis_store
 from app.config import Config, Development
-from app.queue import Buffer, MockQueue, RedisQueue, generate_notification
+from app.queue import Buffer, MockQueue, RedisQueue, generate_element
 
 
 @pytest.fixture(scope="session")
@@ -43,7 +43,7 @@ class TestRedisQueue:
     @contextmanager
     def given_inbox_with_one_element(self, redis, redis_queue):
         self.delete_all_list(redis)
-        notification = next(generate_notification())
+        notification = generate_element()
         try:
             redis_queue.publish(notification)
             yield
@@ -52,16 +52,9 @@ class TestRedisQueue:
 
     @contextmanager
     def given_inbox_with_many_indexes(self, redis, redis_queue):
-        class TestSerializable:
-            def __init__(self, i: int):
-                self.__i = i
-
-            def serialize(self) -> dict:
-                return {"i": self.__i}
-
         self.delete_all_list(redis)
         try:
-            indexes = [TestSerializable(i) for i in range(0, REDIS_ELEMENTS_COUNT)]
+            indexes = [str(i) for i in range(0, REDIS_ELEMENTS_COUNT)]
             [redis_queue.publish(index) for index in indexes]
             yield
         finally:
@@ -84,7 +77,7 @@ class TestRedisQueue:
 
     @pytest.mark.serial
     def test_put_mesages(self, redis, redis_queue):
-        element = next(generate_notification())
+        element = generate_element()
         redis_queue.publish(element)
         assert redis.llen(Buffer.INBOX.name()) == 1
         self.delete_all_list(redis)
@@ -94,7 +87,7 @@ class TestRedisQueue:
         with self.given_inbox_with_one_element(redis, redis_queue):
             (receipt, elements) = redis_queue.poll(10)
             assert len(elements) == 1
-            assert isinstance(elements[0], dict)
+            assert isinstance(elements[0], str)
             assert redis.llen(Buffer.INBOX.name()) == 0
             assert redis.llen(redis_queue.get_inflight_name(receipt)) == 1
 
@@ -117,8 +110,8 @@ class TestRedisQueue:
         self.delete_all_list(redis)
         try:
             redis_queue = RedisQueue(redis_client, suffix)
-            notification = next(generate_notification())
-            redis_queue.publish(notification)
+            element = generate_element()
+            redis_queue.publish(element)
             assert redis.llen(Buffer.INBOX.name(suffix)) == 1
 
             (receipt, elements) = redis_queue.poll(10)
@@ -169,24 +162,16 @@ class TestRedisQueue:
     @pytest.mark.serial
     def test_messages_serialization_after_poll(self, redis, redis_queue):
         self.delete_all_list(redis)
-        notification = next(generate_notification())
+        notification = (
+            "{'id': '0ba0ff51-ec82-4835-b828-a24fec6124ab', 'type': 'email', 'email_address': 'success@simulator.amazonses.com'}"
+        )
         redis_queue.publish(notification)
         (_, elements) = redis_queue.poll(1)
 
         assert len(elements) > 0
         assert type(elements) is list
-        assert type(elements[0]) is dict
-        assert elements[0]["id"] == notification.id
-        assert elements[0]["type"] == notification.notification_type
-
-        # TODO: This needs to compare correct data type, possible converting.
-        # assert elements[0]["completed_at"] == notification.created_at
-
-        # TODO: Review serialization/deserialization within the models module for notification
-        #       and check how it's used throughout the application.
-        # assert elements[0]["email_address"] == notification.email_address
-        # assert elements[0]["template"]["id"] == notification.template_id
-        # assert elements[0]["template"]["version"] == notification.template_version
+        assert type(elements[0]) is str
+        assert elements[0] == notification
 
         self.delete_all_list(redis)
 
@@ -198,21 +183,21 @@ class TestMockQueue:
         return MockQueue()
 
     def test_polling_messages_from_queue(self, mock_queue):
-        (receipt, notifications) = mock_queue.poll(10)
-        assert notifications is not None
-        assert len(notifications) == 10
+        (receipt, elements) = mock_queue.poll(10)
+        assert elements is not None
+        assert len(elements) == 10
 
     def test_publish_mesages_on_queue(self, mock_queue):
-        notification = next(generate_notification())
-        mock_queue.publish(notification)
+        element = generate_element()
+        mock_queue.publish(element)
 
         # This should not add change internal data structure
         # or differ from a random output generation due to the
         # nature of MockQueue.
-        (receipt, notifications) = mock_queue.poll(1)
-        assert notifications is not None
-        assert len(notifications) == 1
-        assert notification.service_id != notifications[0].service_id
+        (_, elements) = mock_queue.poll(1)
+        assert elements is not None
+        assert len(elements) == 1
+        assert element != elements[0]
 
     def test_acknowledged_messages(self, mock_queue):
         mock_queue.acknowledge([1, 2, 3])
