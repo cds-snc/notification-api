@@ -5,7 +5,6 @@ from enum import Enum
 from typing import Any, Dict
 from uuid import UUID, uuid4
 
-from flask import current_app
 from flask_redis.client import FlaskRedis
 
 
