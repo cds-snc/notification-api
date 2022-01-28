@@ -1,170 +1,22 @@
-import json
+import string
 import random
+
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Dict
 from uuid import UUID, uuid4
 
-from faker import Faker
-from faker.providers import BaseProvider
 from flask import current_app
 from flask_redis.client import FlaskRedis
 
-from app import models
 
-# TODO: Move data generation into another module, similar to app.aws.mocks?
-fake = Faker()
-
-
-class NotifyProvider(BaseProvider):
-    """Faker provider for the Notify namespace."""
-
-    NOTIFICATION_STATUS = [
-        models.NOTIFICATION_CREATED,
-        models.NOTIFICATION_SENDING,
-        models.NOTIFICATION_SENT,
-        models.NOTIFICATION_DELIVERED,
-    ]
-
-    SERVICES = [
-        "Chair department",
-        "Desk department",
-        "Pencil department (deprecated)",
-        "Gather.town virtual folks",
-        "Snowstorm alerting service",
-    ]
-
-    PROCESS_TYPES = [
-        "normal",
-        "priority",
-    ]
-
-    TEMPLATES = [
-        "Order a chair",
-        "Order a pen",
-        "How to dress a cat",
-        "How to dress your husband",
-        "COVID-19 guidelines",
-    ]
-
-    NOTIFICATION_TYPE = [models.EMAIL_TYPE, models.SMS_TYPE]
-
-    def notification(self) -> models.Notification:
-        template = self.template()
-        service = template.service
-        created_at = fake.date_time_this_month()
-        email = "success@simulator.amazonses.com"
-        data = {
-            "id": str(uuid4()),
-            "to": "success@simulator.amazonses.com",
-            "job_id": None,
-            "job": None,
-            "service_id": service.id,
-            "service": service,
-            "template_id": template.id,
-            "template_version": 1,
-            "template": template,
-            "status": self.status(),
-            "reference": str(uuid4()),
-            "created_at": created_at,
-            "sent_at": None,
-            "billable_units": None,
-            "personalisation": None,
-            "notification_type": template.template_type,
-            "api_key": None,
-            "api_key_id": None,
-            "key_type": None,
-            "sent_by": self.provider(),
-            "updated_at": created_at,
-            "client_reference": None,
-            "job_row_number": None,
-            "rate_multiplier": None,
-            "international": False,
-            "phone_prefix": None,
-            "normalised_to": email,
-            "reply_to_text": fake.email(),
-            "created_by_id": None,
-            "postage": None,
-        }
-        return models.Notification(**data)
-
-    def notification_type(self) -> str:
-        """Gets a random notification type."""
-        return random.choice(self.NOTIFICATION_TYPE)
-
-    def process_type(self) -> str:
-        """Gets a random process type."""
-        return random.choice(self.PROCESS_TYPES)
-
-    def provider(self) -> str:
-        """Gets a random provider."""
-        return random.choice(models.PROVIDERS)
-
-    def service(self) -> models.Service:
-        data = {
-            "id": str(uuid4()),
-            "name": self.service_name(),
-            "message_limit": 1000,
-            "restricted": False,
-            "email_from": fake.pybool(),
-            "created_by": str(uuid4()),
-            "crown": False,
-        }
-        return models.Service(**data)
-
-    def service_name(self) -> str:
-        """Gets a random service name"""
-        return random.choice(self.SERVICES)
-
-    def status(self) -> str:
-        """Gets a random notification status."""
-        return random.choice(self.NOTIFICATION_STATUS)
-
-    def template(self) -> models.Template:
-        """Gets a random template."""
-        notification_type = self.notification_type()
-        service = self.service()
-        data = {
-            "id": str(uuid4()),
-            "name": self.template_name(),
-            "template_type": notification_type,
-            "content": fake.paragraph(5),
-            "service_id": service.id,
-            "service": service,
-            "created_by": service.created_by,
-            "reply_to": None,
-            "hidden": False,
-            "folder": None,
-            "process_type": self.process_type(),
-        }
-        data["subject"] = fake.sentence(6)
-        template = models.Template(**data)
-        return template
-
-    def template_name(self) -> str:
-        """Gets a random template name."""
-        return random.choice(self.TEMPLATES)
-
-
-fake.add_provider(NotifyProvider)
-
-
-def generate_element() -> str:
-    return fake.sentence(6)
+def generate_element(length=10) -> str:
+    elem = "".join(random.choice(string.ascii_lowercase) for i in range(length))
+    return elem
 
 
 def generate_elements(count=10) -> list[str]:
-    return [fake.sentence(6) for s in range(0, count)]
-
-
-def generate_notification():
-    while True:
-        yield json.dumps(fake.notification().serialize())
-
-
-def generate_notifications(count=10) -> list[str]:
-    notifications = generate_notification()
-    return [next(notifications) for i in range(0, count)]
+    return [generate_element(count) for s in range(count)]
 
 
 class Buffer(Enum):
@@ -281,19 +133,3 @@ class RedisQueue(Queue):
             return all
             """
         )
-
-
-class MockQueue(Queue):
-    """Implementation of a queue that spits out randomly generated elements.
-
-    Do not use in production!"""
-
-    def poll(self, count=10) -> tuple[UUID, list[str]]:
-        receipt = uuid4()
-        return (receipt, generate_elements(count))
-
-    def acknowledge(self, receipt: UUID):
-        pass
-
-    def publish(self, message: str):
-        pass
