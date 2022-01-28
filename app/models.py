@@ -159,7 +159,7 @@ class User(BaseModel):
             retval[service_id].append(x.permission)
         return retval
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return {
             "id": self.id,
             "name": self.name,
@@ -181,7 +181,7 @@ class User(BaseModel):
             "additional_information": self.additional_information,
         }
 
-    def serialize_for_users_list(self):
+    def serialize_for_users_list(self) -> dict:
         return {
             "id": self.id,
             "name": self.name,
@@ -268,7 +268,7 @@ class EmailBranding(BaseModel):
         default=BRANDING_ORG_NEW,
     )
 
-    def serialize(self):
+    def serialize(self) -> dict:
         serialized = {
             "id": str(self.id),
             "colour": self.colour,
@@ -307,7 +307,7 @@ class LetterBranding(BaseModel):
     name = db.Column(db.String(255), unique=True, nullable=False)
     filename = db.Column(db.String(255), unique=True, nullable=False)
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return {
             "id": str(self.id),
             "name": self.name,
@@ -461,7 +461,7 @@ class Organisation(BaseModel):
     def domain_list(self):
         return [domain.domain for domain in self.domains]
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return {
             "id": str(self.id),
             "name": self.name,
@@ -482,7 +482,7 @@ class Organisation(BaseModel):
             "count_of_live_services": len(self.live_services),
         }
 
-    def serialize_for_list(self):
+    def serialize_for_list(self) -> dict:
         return {
             "name": self.name,
             "id": str(self.id),
@@ -606,7 +606,7 @@ class Service(BaseModel, Versioned):
     def has_permission(self, permission):
         return permission in [p.permission for p in self.permissions]
 
-    def serialize_for_org_dashboard(self):
+    def serialize_for_org_dashboard(self) -> dict:
         return {
             "id": str(self.id),
             "name": self.name,
@@ -633,14 +633,14 @@ class AnnualBilling(BaseModel):
     UniqueConstraint("financial_year_start", "service_id", name="ix_annual_billing_service_id")
     service = db.relationship(Service, backref=db.backref("annual_billing", uselist=True))
 
-    def serialize_free_sms_items(self):
+    def serialize_free_sms_items(self) -> dict:
         return {
             "free_sms_fragment_limit": self.free_sms_fragment_limit,
             "financial_year_start": self.financial_year_start,
         }
 
-    def serialize(self):
-        def serialize_service():
+    def serialize(self) -> dict:
+        def serialize_service() -> dict:
             return {"id": str(self.service_id), "name": self.service.name}
 
         return {
@@ -672,8 +672,8 @@ class InboundNumber(BaseModel):
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
-    def serialize(self):
-        def serialize_service():
+    def serialize(self) -> dict:
+        def serialize_service() -> dict:
             return {"id": str(self.service_id), "name": self.service.name}
 
         return {
@@ -716,7 +716,7 @@ class ServiceSmsSender(BaseModel):
     def get_reply_to_text(self):
         return try_validate_and_format_phone_number(self.sms_sender)
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return {
             "id": str(self.id),
             "sms_sender": self.sms_sender,
@@ -825,7 +825,7 @@ class ServiceInboundApi(BaseModel, Versioned):
         if bearer_token:
             self._bearer_token = encryption.encrypt(str(bearer_token))
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return {
             "id": str(self.id),
             "service_id": str(self.service_id),
@@ -862,7 +862,7 @@ class ServiceCallbackApi(BaseModel, Versioned):
         if bearer_token:
             self._bearer_token = encryption.encrypt(str(bearer_token))
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return {
             "id": str(self.id),
             "service_id": str(self.service_id),
@@ -964,7 +964,7 @@ class TemplateFolder(BaseModel):
 
     __table_args__: Iterable[Any] = (UniqueConstraint("id", "service_id", name="ix_id_service_id"), {})
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return {
             "id": self.id,
             "name": self.name,
@@ -1135,7 +1135,7 @@ class TemplateBase(BaseModel):
                 contact_block=self.service.get_default_letter_contact(),
             )
 
-    def serialize(self):
+    def serialize(self) -> dict:
         serialized = {
             "id": str(self.id),
             "type": self.template_type,
@@ -1763,7 +1763,7 @@ class Notification(BaseModel):
         else:
             return None
 
-    def serialize_for_csv(self):
+    def serialize_for_csv(self) -> dict:
         created_at_in_bst = convert_utc_to_local_timezone(self.created_at)
         serialized = {
             "row_number": "" if self.job_row_number is None else self.job_row_number + 1,
@@ -1779,7 +1779,7 @@ class Notification(BaseModel):
 
         return serialized
 
-    def serialize(self):
+    def serialize(self) -> dict:
         template_dict = {
             "version": self.template.version,
             "id": self.template.id,
@@ -1996,7 +1996,7 @@ class InvitedOrganisationUser(BaseModel):
         default=INVITE_PENDING,
     )
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return {
             "id": str(self.id),
             "email_address": self.email_address,
@@ -2117,7 +2117,7 @@ class InboundSms(BaseModel):
     def content(self, content):
         self._content = encryption.encrypt(content)
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return {
             "id": str(self.id),
             "created_at": self.created_at.strftime(DATETIME_FORMAT),
@@ -2160,7 +2160,7 @@ class ServiceEmailReplyTo(BaseModel):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return {
             "id": str(self.id),
             "service_id": str(self.service_id),
@@ -2192,7 +2192,7 @@ class ServiceLetterContact(BaseModel):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return {
             "id": str(self.id),
             "service_id": str(self.service_id),
@@ -2307,7 +2307,7 @@ class Complaint(BaseModel):
     complaint_date = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return {
             "id": str(self.id),
             "notification_id": str(self.notification_id),
@@ -2339,7 +2339,7 @@ class ServiceDataRetention(BaseModel):
 
     __table_args__ = (UniqueConstraint("service_id", "notification_type", name="uix_service_data_retention"),)
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return {
             "id": str(self.id),
             "service_id": str(self.service_id),
@@ -2369,7 +2369,7 @@ class Fido2Key(BaseModel):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return {
             "id": str(self.id),
             "user_id": str(self.user_id),
@@ -2411,7 +2411,7 @@ class LoginEvent(BaseModel):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
-    def serialize(self):
+    def serialize(self) -> dict:
         return {
             "id": str(self.id),
             "user_id": str(self.user_id),
