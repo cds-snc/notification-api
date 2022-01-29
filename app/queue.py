@@ -5,8 +5,6 @@ from enum import Enum
 from typing import Any, Dict
 from uuid import UUID, uuid4
 
-from flask_redis.client import FlaskRedis
-
 
 def generate_element(length=10) -> str:
     elem = "".join(random.choice(string.ascii_lowercase) for i in range(length))
