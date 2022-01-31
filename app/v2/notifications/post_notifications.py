@@ -17,7 +17,7 @@ from app import (
     create_uuid,
     document_download_client,
     email_queue,
-    encryption,
+    signer,
     notify_celery,
     sms_queue,
     statsd_client,
@@ -276,7 +276,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         "client_reference": form.get("reference", None),
     }
 
-    encrypted_notification_data = encryption.encrypt(notification)
+    signed_notification_data = signer.sign(notification)
 
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:
@@ -296,9 +296,9 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
 
     elif current_app.config["FF_REDIS_BATCH_SAVING"] and not simulated:
         if notification_type == SMS_TYPE:
-            sms_queue.publish(encrypted_notification_data)
+            sms_queue.publish(signed_notification_data)
         else:
-            email_queue.publish(encrypted_notification_data)
+            email_queue.publish(signed_notification_data)
         current_app.logger.info(f"{notification_type} {notification['id']} sent to RedisQueue")
 
     elif current_app.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] and not simulated:
@@ -306,12 +306,12 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         if notification_type == EMAIL_TYPE:
             current_app.logger.info("calling save email task")
             save_email.apply_async(
-                (authenticated_service.id, create_uuid(), encrypted_notification_data, None),
+                (authenticated_service.id, create_uuid(), signed_notification_data, None),
                 queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
             )
         elif notification_type == SMS_TYPE:
             save_sms.apply_async(
-                (authenticated_service.id, create_uuid(), encrypted_notification_data, None),
+                (authenticated_service.id, create_uuid(), signed_notification_data, None),
                 queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
             )
 
