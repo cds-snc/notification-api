@@ -267,6 +267,12 @@ def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: O
         notification = signer.verify(signed_notification)
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
+
+        # if the service is obtained from cache a tuple will be returned where
+        # the first element is the Service object and the second the service cache data
+        # in the form of a dict
+        if isinstance(service, tuple):
+            service = service[0]
         if service_allowed_to_send_to(notification["to"], service, KEY_TYPE_NORMAL):
             template = dao_get_template_by_id(
                 notification.get("template"), version=notification.get("template_version"), use_cache=True
@@ -287,12 +293,6 @@ def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: O
                 template = template[0]
             else:
                 reply_to_text = template.get_reply_to_text()  # type: ignore
-
-            # if the service is obtained from cache a tuple will be returned where
-            # the first element is the Service object and the second the service cache data
-            # in the form of a dict
-            if isinstance(service, tuple):
-                service = service[0]
 
             notification["reply_to_text"] = reply_to_text
             notification["service"] = service
@@ -422,6 +422,12 @@ def save_emails(self, service_id: str, signed_notification: List[Any], receipt: 
         notification = signer.verify(signed_notification)
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
+
+        # if the service is obtained from cache a tuple will be returned where
+        # the first element is the Service object and the second the service cache data
+        # in the form of a dict
+        if isinstance(service, tuple):
+            service = service[0]
         if service_allowed_to_send_to(notification["to"], service, KEY_TYPE_NORMAL):
             template = dao_get_template_by_id(
                 notification.get("template"), version=notification.get("template_version"), use_cache=True
@@ -442,12 +448,6 @@ def save_emails(self, service_id: str, signed_notification: List[Any], receipt: 
                 template = template[0]
             else:
                 reply_to_text = template.get_reply_to_text()  # type: ignore
-
-            # if the service is obtained from cache a tuple will be returned where
-            # the first element is the Service object and the second the service cache data
-            # in the form of a dict
-            if isinstance(service, tuple):
-                service = service[0]
 
             notification["reply_to_text"] = reply_to_text
             notification["service"] = service
