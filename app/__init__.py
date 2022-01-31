@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from flask import _request_ctx_stack, g, jsonify, make_response, request  # type: ignore
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
+from flask_redis import FlaskRedis
 from notifications_utils import logging, request_helper
 from notifications_utils.clients.redis.redis_client import RedisClient
 from notifications_utils.clients.statsd.statsd_client import StatsdClient
@@ -26,6 +27,7 @@ from app.clients.performance_platform.performance_platform_client import (
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy
 from app.encryption import Encryption
+from app.queue import RedisQueue
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 DATE_FORMAT = "%Y-%m-%d"
@@ -41,7 +43,11 @@ aws_sns_client = AwsSnsClient()
 encryption = Encryption()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
+flask_redis = FlaskRedis()
 redis_store = RedisClient()
+# TODO: Rework instantiation to decouple redis_store.redis_store and pass it in.
+email_queue = RedisQueue("email")
+sms_queue = RedisQueue("sms")
 performance_platform_client = PerformancePlatformClient()
 document_download_client = DocumentDownloadClient()
 
@@ -74,10 +80,14 @@ def create_app(application, config=None):
     aws_ses_client.init_app(application.config["AWS_REGION"], statsd_client=statsd_client)
     notify_celery.init_app(application)
     encryption.init_app(application)
-    redis_store.init_app(application)
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
     clients.init_app(sms_clients=[aws_sns_client], email_clients=[aws_ses_client])
+
+    flask_redis.init_app(application)
+    sms_queue.init_app(flask_redis)
+    email_queue.init_app(flask_redis)
+    redis_store.init_app(application)
 
     register_blueprint(application)
     register_v2_blueprints(application)
