@@ -1,7 +1,6 @@
 import json
 import uuid
 from datetime import date, datetime, timedelta
-from typing import Tuple, Union
 
 from flask import current_app
 from notifications_utils.clients.redis import service_cache_key
