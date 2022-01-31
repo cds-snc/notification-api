@@ -504,7 +504,7 @@ def test_check_templated_letter_state_during_utc(mocker, sample_letter_template)
 class TestHeartbeatQueues:
     def test_heartbeat_inbox_sms(self, mocker):
         mocker.patch("app.celery.tasks.current_app.logger.info")
-        mocker.patch("app.queue.MockQueue.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
+        mocker.patch("app.sms_queue.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
 
         mocker.patch("app.celery.tasks.process_inflight.apply_async")
         heartbeat_inbox_sms()
@@ -515,7 +515,7 @@ class TestHeartbeatQueues:
 
     def test_heartbeat_inbox_email(self, mocker):
         mocker.patch("app.celery.tasks.current_app.logger.info")
-        mocker.patch("app.queue.MockQueue.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
+        mocker.patch("app.email_queue.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
         mocker.patch("app.celery.tasks.process_inflight.apply_async")
 
         heartbeat_inbox_email()

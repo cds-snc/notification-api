@@ -5,7 +5,7 @@ from notifications_utils.statsd_decorators import statsd
 from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import notify_celery, zendesk_client
+from app import email_queue, notify_celery, sms_queue, zendesk_client
 from app.celery.tasks import process_inflight, process_job
 from app.config import QueueNames, TaskNames
 from app.dao.invited_org_user_dao import (
@@ -233,9 +233,6 @@ def heartbeat_inbox_sms():
     to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
     and actually sends the sms for each notification saved.
     """
-    # TODO: This will be instantiated from the app init.
-    sms_queue = MockQueue()
-
     receipt_id_sms, list_of_sms_notifications = sms_queue.poll()
 
     while list_of_sms_notifications:
@@ -254,10 +251,6 @@ def heartbeat_inbox_email():
     to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
     and actually sends the email for each notification saved.
     """
-
-    # TODO: This will be instantiated from the app init.
-    email_queue = MockQueue()
-
     receipt_id_email, list_of_email_notifications = email_queue.poll()
 
     while list_of_email_notifications:
