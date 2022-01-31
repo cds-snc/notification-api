@@ -110,7 +110,7 @@ class TestBatchSaving:
 
         tasks.save_smss.apply_async.assert_called_once_with(
             (None, ["encrypted 1", "encrypted 2"], receipt),
-            queue="database-tasks",
+            queue="notifiy-cache-tasks",
         )
 
     def test_process_inflight_saves_emails(self, notify_db_session, mocker):
@@ -122,7 +122,7 @@ class TestBatchSaving:
 
         tasks.save_emails.apply_async.assert_called_once_with(
             (None, ["encrypted 1", "encrypted 2"], receipt),
-            queue="database-tasks",
+            queue="notifiy-cache-tasks",
         )
 
     def test_should_save_smss(self, notify_db_session, sample_template_with_placeholders, mocker):
