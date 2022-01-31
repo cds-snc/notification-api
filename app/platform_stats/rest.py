@@ -2,6 +2,7 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
+from app.authentication.auth import requires_admin_auth
 from app.dao.date_util import get_financial_year_for_datetime
 from app.dao.fact_billing_dao import (
     fetch_sms_billing_for_all_services, fetch_letter_costs_for_all_services,
@@ -23,6 +24,7 @@ register_errors(platform_stats_blueprint)
 
 
 @platform_stats_blueprint.route('')
+@requires_admin_auth()
 def get_platform_stats():
     if request.args:
         validate(request.args, platform_stats_request)
@@ -75,6 +77,7 @@ def validate_date_range_is_within_a_financial_year(start_date, end_date):
 
 
 @platform_stats_blueprint.route('usage-for-all-services')
+@requires_admin_auth()
 def get_usage_for_all_services():
     # TODO: Add defeaults or request validation
     start_date = request.args.get('start_date')

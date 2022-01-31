@@ -301,7 +301,6 @@ def register_blueprint(application):
     complaint_blueprint.before_request(validate_admin_auth)
     application.register_blueprint(complaint_blueprint)
 
-    platform_stats_blueprint.before_request(validate_admin_auth)
     application.register_blueprint(platform_stats_blueprint, url_prefix='/platform-stats')
 
     template_folder_blueprint.before_request(validate_admin_auth)
