@@ -5,7 +5,7 @@ import pytest
 from freezegun import freeze_time
 
 from app import db
-from app.celery import scheduled_tasks
+from app.celery import scheduled_tasks, tasks
 from app.celery.scheduled_tasks import (
     check_job_status,
     check_precompiled_letter_state,
@@ -19,7 +19,6 @@ from app.celery.scheduled_tasks import (
     send_scheduled_notifications,
     switch_current_sms_provider_on_slow_delivery,
 )
-from app.celery.tasks import process_inflight
 from app.config import QueueNames, TaskNames
 from app.dao.jobs_dao import dao_get_job_by_id
 from app.dao.notifications_dao import dao_get_scheduled_notifications
@@ -505,21 +504,23 @@ class TestHeartbeatQueues:
     def test_heartbeat_inbox_sms(self, mocker):
         mocker.patch("app.celery.tasks.current_app.logger.info")
         mocker.patch("app.sms_queue.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
+        mocker.patch("app.celery.tasks.save_smss.apply_async")
 
-        mocker.patch("app.celery.tasks.process_inflight.apply_async")
         heartbeat_inbox_sms()
 
-        process_inflight.apply_async.assert_called_once_with(
-            ("rec123", ["1", "2", "3", "4"], SMS_TYPE),
+        tasks.save_smss.apply_async.assert_called_once_with(
+            (None, ["1", "2", "3", "4"], "rec123"),
+            queue="notifiy-database-tasks",
         )
 
     def test_heartbeat_inbox_email(self, mocker):
         mocker.patch("app.celery.tasks.current_app.logger.info")
         mocker.patch("app.email_queue.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
-        mocker.patch("app.celery.tasks.process_inflight.apply_async")
+        mocker.patch("app.celery.tasks.save_emails.apply_async")
 
         heartbeat_inbox_email()
 
-        process_inflight.apply_async.assert_called_once_with(
-            ("rec123", ["1", "2", "3", "4"], EMAIL_TYPE),
+        tasks.save_emails.apply_async.assert_called_once_with(
+            (None, ["1", "2", "3", "4"], "rec123"),
+            queue="notifiy-database-tasks",
         )

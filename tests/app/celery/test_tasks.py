@@ -18,7 +18,6 @@ from app.celery.tasks import (
     get_template_class,
     process_incomplete_job,
     process_incomplete_jobs,
-    process_inflight,
     process_job,
     process_returned_letters_list,
     process_row,
@@ -92,7 +91,6 @@ def test_should_have_decorated_tasks_functions():
     assert save_letter.__wrapped__.__name__ == "save_letter"
     assert save_smss.__wrapped__.__name__ == "save_smss"
     assert save_emails.__wrapped__.__name__ == "save_emails"
-    assert process_inflight.__wrapped__.__name__ == "process_inflight"
 
 
 @pytest.fixture

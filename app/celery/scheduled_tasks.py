@@ -6,7 +6,7 @@ from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import email_queue, notify_celery, sms_queue, zendesk_client
-from app.celery.tasks import process_inflight, process_job
+from app.celery.tasks import process_job
 from app.config import QueueNames, TaskNames
 from app.dao.invited_org_user_dao import (
     delete_org_invitations_created_more_than_two_days_ago,
@@ -32,6 +32,8 @@ from app.models import (
 )
 from app.notifications.process_notifications import send_notification_to_queue
 from app.v2.errors import JobIncompleteError
+
+from app.celery.tasks import save_emails, save_smss
 
 
 @notify_celery.task(name="run-scheduled-jobs")
@@ -235,7 +237,7 @@ def heartbeat_inbox_sms():
     receipt_id_sms, list_of_sms_notifications = sms_queue.poll()
 
     while list_of_sms_notifications:
-        process_inflight.apply_async((receipt_id_sms, list_of_sms_notifications, SMS_TYPE))
+        save_smss.apply_async((None, list_of_sms_notifications, receipt_id_sms), queue=QueueNames.DATABASE)
         current_app.logger.info(f"SMS UUID: {receipt_id_sms} sent to Inflight List")
         receipt_id_sms, list_of_sms_notifications = sms_queue.poll()
 
@@ -253,6 +255,6 @@ def heartbeat_inbox_email():
     receipt_id_email, list_of_email_notifications = email_queue.poll()
 
     while list_of_email_notifications:
-        process_inflight.apply_async((receipt_id_email, list_of_email_notifications, EMAIL_TYPE))
+        save_emails.apply_async((None, list_of_email_notifications, receipt_id_email), queue=QueueNames.DATABASE)
         current_app.logger.info(f"Email UUID: {receipt_id_email} sent to Inflight List")
         receipt_id_email, list_of_email_notifications = email_queue.poll()

@@ -84,15 +84,6 @@ from app.service.utils import service_allowed_to_send_to
 from app.utils import get_csv_max_rows
 
 
-@notify_celery.task(name="process-inflight")
-@statsd(namespace="tasks")
-def process_inflight(receipt, results, type):
-    if type == SMS_TYPE:
-        save_smss.apply_async((None, results, receipt), queue=QueueNames.NOTIFY_CACHE)
-    else:
-        save_emails.apply_async((None, results, receipt), queue=QueueNames.NOTIFY_CACHE)
-
-
 @notify_celery.task(name="process-job")
 @statsd(namespace="tasks")
 def process_job(job_id):
@@ -424,6 +415,8 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any], recei
     them in the DB and then sends the notification to the queue.
     If the recept is not None then it is passed to the RedisQueue to let it know it can delete the inflight notifications.
     """
+
+    current_app.logger.warning(f"(inflight) save emails receipt {receipt}")
     decrypted_notifications: List[Any] = []
     notification_id_queue: Dict = {}
     for encrypted_notification in encrypted_notifications:
