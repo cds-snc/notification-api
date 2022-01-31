@@ -16,8 +16,10 @@ from app import (
     authenticated_service,
     create_uuid,
     document_download_client,
+    email_queue,
     encryption,
     notify_celery,
+    sms_queue,
     statsd_client,
 )
 from app.aws.s3 import upload_job_to_s3
@@ -264,6 +266,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
     notification = {
         "id": create_uuid(),
         "template": str(template.id),
+        "service_id": str(service.id),
         "template_version": str(template.version),
         "to": form_send_to,
         "personalisation": personalisation,
@@ -290,6 +293,13 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             reply_to_text=reply_to_text,
         )
         persist_scheduled_notification(notification.id, form["scheduled_for"])
+
+    elif current_app.config["FF_REDIS_BATCH_SAVING"] and not simulated:
+        if notification_type == SMS_TYPE:
+            sms_queue.publish(encrypted_notification_data)
+        else:
+            email_queue.publish(encrypted_notification_data)
+        current_app.logger.info(f"{notification_type} {notification['id']} sent to RedisQueue")
 
     elif current_app.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] and not simulated:
         # depending on the type route to the appropriate save task

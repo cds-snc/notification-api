@@ -4,7 +4,7 @@ import pytest
 from flask import Flask
 from pytest_mock_resources import RedisConfig, create_redis_fixture
 
-from app import create_app, redis_store
+from app import create_app, flask_redis
 from app.config import Config, Development
 from app.queue import Buffer, MockQueue, RedisQueue, generate_element
 
@@ -16,6 +16,7 @@ def pmr_redis_config():
 
 redis = create_redis_fixture(scope="function")
 REDIS_ELEMENTS_COUNT = 123
+QNAME_SUFFIX = "test"
 
 
 class TestRedisQueue:
@@ -33,12 +34,10 @@ class TestRedisQueue:
         return app
 
     @pytest.fixture()
-    def redis_client(self):
-        return redis_store.redis_store
-
-    @pytest.fixture()
-    def redis_queue(self, redis_client):
-        return RedisQueue(redis_client)
+    def redis_queue(self):
+        q = RedisQueue(QNAME_SUFFIX)
+        q.init_app(flask_redis)
+        return q
 
     @contextmanager
     def given_inbox_with_one_element(self, redis, redis_queue):
@@ -79,7 +78,7 @@ class TestRedisQueue:
     def test_put_mesages(self, redis, redis_queue):
         element = generate_element()
         redis_queue.publish(element)
-        assert redis.llen(Buffer.INBOX.name()) == 1
+        assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 1
         self.delete_all_list(redis)
 
     @pytest.mark.serial
@@ -88,7 +87,7 @@ class TestRedisQueue:
             (receipt, elements) = redis_queue.poll(10)
             assert len(elements) == 1
             assert isinstance(elements[0], str)
-            assert redis.llen(Buffer.INBOX.name()) == 0
+            assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 0
             assert redis.llen(redis_queue.get_inflight_name(receipt)) == 1
 
     @pytest.mark.serial
@@ -99,17 +98,18 @@ class TestRedisQueue:
             (receipt, elements) = redis_queue.poll(count)
             assert len(elements) == real_count
             if count < REDIS_ELEMENTS_COUNT:
-                assert redis.llen(Buffer.INBOX.name()) > 0
+                assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) > 0
             else:
-                assert redis.llen(Buffer.INBOX.name()) == 0
+                assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 0
             assert redis.llen(redis_queue.get_inflight_name(receipt)) == real_count
 
     @pytest.mark.serial
-    @pytest.mark.parametrize("suffix", ["sms", "email", "🎅", "", None])
-    def test_polling_message_with_custom_inbox_name(self, redis, redis_client, suffix):
+    @pytest.mark.parametrize("suffix", ["smss", "emails", "🎅", "", None])
+    def test_polling_message_with_custom_inbox_name(self, redis, suffix):
         self.delete_all_list(redis)
         try:
-            redis_queue = RedisQueue(redis_client, suffix)
+            redis_queue = RedisQueue(suffix)
+            redis_queue.init_app(flask_redis)
             element = generate_element()
             redis_queue.publish(element)
             assert redis.llen(Buffer.INBOX.name(suffix)) == 1
@@ -130,7 +130,7 @@ class TestRedisQueue:
         self.delete_all_list(redis)
         (receipt, elements) = redis_queue.poll(10)
         assert len(elements) == 0
-        assert redis.llen(Buffer.INBOX.name()) == 0
+        assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 0
         assert redis.llen(redis_queue.get_inflight_name(receipt)) == 0
 
     @pytest.mark.serial
@@ -138,7 +138,7 @@ class TestRedisQueue:
         with self.given_inbox_with_one_element(redis, redis_queue):
             (receipt, elements) = redis_queue.poll(0)
             assert len(elements) == 0
-            assert redis.llen(Buffer.INBOX.name()) == 1
+            assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 1
             assert redis.llen(redis_queue.get_inflight_name(receipt)) == 0
 
     @pytest.mark.serial
@@ -146,7 +146,7 @@ class TestRedisQueue:
         with self.given_inbox_with_one_element(redis, redis_queue):
             (receipt, elements) = redis_queue.poll(-1)
             assert len(elements) == 0
-            assert redis.llen(Buffer.INBOX.name()) == 1
+            assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 1
             assert redis.llen(redis_queue.get_inflight_name(receipt)) == 0
 
     @pytest.mark.serial
@@ -155,7 +155,7 @@ class TestRedisQueue:
             (receipt, elements) = redis_queue.poll(10)
             redis_queue.acknowledge(receipt)
             assert len(elements) > 0
-            assert redis.llen(Buffer.INBOX.name()) == 0
+            assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 0
             assert redis.llen(redis_queue.get_inflight_name(receipt)) == 0
             assert len(redis.keys("*")) == 0
 

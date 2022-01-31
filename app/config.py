@@ -429,6 +429,7 @@ class Config(object):
     # feature flag to toggle persistance of notification in celery instead of the API
     FF_NOTIFICATION_CELERY_PERSISTENCE = os.getenv("FF_NOTIFICATION_CELERY_PERSISTENCE", False)
     FF_BATCH_INSERTION = os.getenv("FF_BATCH_INSERTION", False)
+    FF_REDIS_BATCH_SAVING = os.getenv("FF_REDIS_BATCH_SAVING", False)
 
 
 ######################
