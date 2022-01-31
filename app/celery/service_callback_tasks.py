@@ -4,7 +4,7 @@ from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from requests import HTTPError, RequestException, request
 
-from app import signer, notify_celery
+from app import notify_celery, signer
 from app.config import QueueNames
 
 
