@@ -557,9 +557,7 @@ def test_should_process_all_sms_job(sample_job_with_placeholdered_template, mock
     )
     assert signer.sign.call_args[0][0]["to"] == "+441234123120"
     assert signer.sign.call_args[0][0]["template"] == str(sample_job_with_placeholdered_template.template.id)
-    assert (
-        signer.sign.call_args[0][0]["template_version"] == sample_job_with_placeholdered_template.template.version
-    )  # noqa
+    assert signer.sign.call_args[0][0]["template_version"] == sample_job_with_placeholdered_template.template.version  # noqa
     assert signer.sign.call_args[0][0]["personalisation"] == {
         "phonenumber": "+441234123120",
         "name": "chris",
