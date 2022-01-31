@@ -143,10 +143,11 @@ class TestBatchSaving:
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         acknowldege_mock = mocker.patch("app.celery.tasks.RedisQueue.acknowledge")
 
+        receipt = uuid.uuid4()
         save_smss(
             str(sample_template_with_placeholders.service.id),
             [encryption.encrypt(notification1), encryption.encrypt(notification2), encryption.encrypt(notification3)],
-            "receipt",
+            receipt,
         )
 
         persisted_notification = Notification.query.all()
@@ -160,7 +161,7 @@ class TestBatchSaving:
         assert persisted_notification[0]._personalisation == encryption.encrypt({"name": "Jo"})
         assert persisted_notification[0].notification_type == SMS_TYPE
 
-        acknowldege_mock.assert_called_once_with("receipt")
+        acknowldege_mock.assert_called_once_with(receipt)
 
     def test_should_save_emails(self, notify_db_session, sample_email_template_with_placeholders, mocker):
         notification1 = _notification_json(
@@ -179,11 +180,12 @@ class TestBatchSaving:
 
         mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
         acknowldege_mock = mocker.patch("app.celery.tasks.RedisQueue.acknowledge")
+        receipt = uuid.uuid4()
 
         save_emails(
             str(sample_email_template_with_placeholders.service.id),
             [encryption.encrypt(notification1), encryption.encrypt(notification2), encryption.encrypt(notification3)],
-            "receipt",
+            receipt,
         )
 
         persisted_notification = Notification.query.all()
@@ -197,7 +199,7 @@ class TestBatchSaving:
         assert persisted_notification[0]._personalisation == encryption.encrypt({"name": "Jo"})
         assert persisted_notification[0].notification_type == EMAIL_TYPE
 
-        acknowldege_mock.assert_called_once_with("receipt")
+        acknowldege_mock.assert_called_once_with(receipt)
 
 
 # -------------- process_job tests -------------- #

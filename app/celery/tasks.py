@@ -2,6 +2,7 @@ import json
 from collections import defaultdict, namedtuple
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from uuid import UUID
 
 from flask import current_app
 from more_itertools import chunked
@@ -271,7 +272,7 @@ class RedisQueue:
 
 @notify_celery.task(bind=True, name="save-smss", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt: Optional[str]):
+def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt: Optional[UUID]):
     """
     Function that takes a list of encrypted notifications and stores
     them in the DB and then sends the notification to the queue.
@@ -426,7 +427,7 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_emails(self, service_id: str, encrypted_notifications: List[Any], receipt: Optional[str]):
+def save_emails(self, service_id: str, encrypted_notifications: List[Any], receipt: Optional[UUID]):
     """
     Function that takes a list of encrypted notifications and stores
     them in the DB and then sends the notification to the queue.
