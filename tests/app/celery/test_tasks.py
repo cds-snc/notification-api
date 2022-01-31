@@ -12,7 +12,7 @@ from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate
 from requests import RequestException
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import DATETIME_FORMAT, signer, redis_store
+from app import DATETIME_FORMAT, redis_store, signer
 from app.celery import provider_tasks, tasks
 from app.celery.tasks import (
     get_template_class,

@@ -17,8 +17,8 @@ from app import (
     create_uuid,
     document_download_client,
     email_queue,
-    signer,
     notify_celery,
+    signer,
     sms_queue,
     statsd_client,
 )

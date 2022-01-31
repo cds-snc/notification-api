@@ -19,8 +19,8 @@ from app import (
     create_random_identifier,
     create_uuid,
     email_queue,
-    signer,
     notify_celery,
+    signer,
     sms_queue,
     statsd_client,
 )
