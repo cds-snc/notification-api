@@ -278,7 +278,7 @@ def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt
                 notification.get("template"), version=notification.get("template_version"), use_cache=True
             )
             sender_id = notification.get("sender_id")
-            notification_id = create_uuid()
+            notification_id = notification.get("id", create_uuid())
             notification["notification_id"] = notification_id
             reply_to_text = ""  # type: ignore
             if sender_id:
@@ -432,7 +432,7 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any], recei
                 notification.get("template"), version=notification.get("template_version"), use_cache=True
             )
             sender_id = notification.get("sender_id")
-            notification_id = create_uuid()
+            notification_id = notification.get("id", create_uuid())
             notification["notification_id"] = notification_id
             reply_to_text = ""  # type: ignore
             if sender_id:
