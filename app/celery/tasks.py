@@ -84,15 +84,6 @@ from app.service.utils import service_allowed_to_send_to
 from app.utils import get_csv_max_rows
 
 
-@notify_celery.task(name="process-inflight")
-@statsd(namespace="tasks")
-def process_inflight(receipt, results, type):
-    if type == SMS_TYPE:
-        save_smss.apply_async((None, results, receipt), queue=QueueNames.NOTIFY_CACHE)
-    else:
-        save_emails.apply_async((None, results, receipt), queue=QueueNames.NOTIFY_CACHE)
-
-
 @notify_celery.task(name="process-job")
 @statsd(namespace="tasks")
 def process_job(job_id):
