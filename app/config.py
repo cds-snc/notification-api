@@ -288,6 +288,17 @@ class Config(object):
             "schedule": crontab(minute="0, 15, 30, 45"),
             "options": {"queue": QueueNames.PERIODIC},
         },
+        "heartbeart-inbox-sms": {
+            "task": "heartbeart-inbox-sms",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "heartbeart-inbox-email": {
+            "task": "heartbeart-inbox-email",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        ""
         # app/celery/nightly_tasks.py
         "timeout-sending-notifications": {
             "task": "timeout-sending-notifications",
