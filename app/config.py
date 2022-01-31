@@ -38,6 +38,9 @@ class QueueNames(object):
     # further.
     DATABASE = "database-tasks"
 
+    # A queue for the tasks associated with the batch saving
+    NOTIFY_CACHE = "notifiy-cache-tasks"
+
     # Queue for sending all SMS, except long dedicated numbers.
     SEND_SMS = "send-sms-tasks"
 

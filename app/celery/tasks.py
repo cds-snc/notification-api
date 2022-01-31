@@ -2,6 +2,7 @@ import json
 from collections import defaultdict, namedtuple
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from uuid import UUID
 
 from flask import current_app
 from more_itertools import chunked
@@ -17,8 +18,10 @@ from app import (
     DATETIME_FORMAT,
     create_random_identifier,
     create_uuid,
+    email_queue,
     encryption,
     notify_celery,
+    sms_queue,
     statsd_client,
 )
 from app.aws import s3
@@ -79,6 +82,15 @@ from app.notifications.process_notifications import (
 from app.notifications.validators import check_service_over_daily_message_limit
 from app.service.utils import service_allowed_to_send_to
 from app.utils import get_csv_max_rows
+
+
+@notify_celery.task(name="process-inflight")
+@statsd(namespace="tasks")
+def process_inflight(receipt, results, type):
+    if type == SMS_TYPE:
+        save_smss.apply_async((None, results, receipt), queue=QueueNames.NOTIFY_CACHE)
+    else:
+        save_emails.apply_async((None, results, receipt), queue=QueueNames.NOTIFY_CACHE)
 
 
 @notify_celery.task(name="process-job")
@@ -220,12 +232,12 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
     # these objects are transient and will not have relationships loaded
     if encrypted_smss:
         save_smss.apply_async(
-            (str(service.id), encrypted_smss),
+            (str(service.id), encrypted_smss, None),
             queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
         )
     if encrypted_emails:
         save_emails.apply_async(
-            (str(service.id), encrypted_emails),
+            (str(service.id), encrypted_emails, None),
             queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
         )
     if encrypted_letters:
@@ -251,58 +263,61 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
 
 @notify_celery.task(bind=True, name="save-smss", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_smss(self, service_id: str, encrypted_notifications: List[Any]):
+def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt: Optional[UUID]):
     """
-    Function that is a job, that takes a list of encrypted notifications and stores
+    Function that takes a list of encrypted notifications and stores
     them in the DB and then sends the notification to the queue.
+    If the recept is not None then it is passed to the RedisQueue to let it know it can delete the inflight notifications.
 
     """
     decrypted_notifications: List[Any] = []
     notification_id_queue: Dict = {}
     for encrypted_notification in encrypted_notifications:
         notification = encryption.decrypt(encrypted_notification)
+        service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
-        template = dao_get_template_by_id(
-            notification.get("template"), version=notification.get("template_version"), use_cache=True
-        )
-        sender_id = notification.get("sender_id")
-        notification_id = create_uuid()
-        notification["notification_id"] = notification_id
-        reply_to_text = ""  # type: ignore
-        if sender_id:
-            reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
-        if isinstance(template, tuple):
-            template = template[0]
-        # if the template is obtained from cache a tuple will be returned where
-        # the first element is the Template object and the second the template cache data
-        # in the form of a dict
-        elif isinstance(template, tuple):
-            reply_to_text = template[1].get("reply_to_text")  # type: ignore
-            template = template[0]
-        else:
-            reply_to_text = template.get_reply_to_text()  # type: ignore
+        if service_allowed_to_send_to(notification["to"], service, KEY_TYPE_NORMAL):
+            template = dao_get_template_by_id(
+                notification.get("template"), version=notification.get("template_version"), use_cache=True
+            )
+            sender_id = notification.get("sender_id")
+            notification_id = create_uuid()
+            notification["notification_id"] = notification_id
+            reply_to_text = ""  # type: ignore
+            if sender_id:
+                reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
+            if isinstance(template, tuple):
+                template = template[0]
+            # if the template is obtained from cache a tuple will be returned where
+            # the first element is the Template object and the second the template cache data
+            # in the form of a dict
+            elif isinstance(template, tuple):
+                reply_to_text = template[1].get("reply_to_text")  # type: ignore
+                template = template[0]
+            else:
+                reply_to_text = template.get_reply_to_text()  # type: ignore
 
-        # if the service is obtained from cache a tuple will be returned where
-        # the first element is the Service object and the second the service cache data
-        # in the form of a dict
-        if isinstance(service, tuple):
-            service = service[0]
+            # if the service is obtained from cache a tuple will be returned where
+            # the first element is the Service object and the second the service cache data
+            # in the form of a dict
+            if isinstance(service, tuple):
+                service = service[0]
 
-        notification["reply_to_text"] = reply_to_text
-        notification["service"] = service
-        notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
-        notification["template_id"] = template.id
-        notification["template_version"] = template.version
-        notification["recipient"] = notification.get("to")
-        notification["personalisation"] = notification.get("personalisation")
-        notification["notification_type"] = SMS_TYPE
-        notification["simulated"] = notification.get("simulated", None)
-        notification["api_key_id"] = notification.get("api_key", None)
-        notification["created_at"] = datetime.utcnow()
-        notification["job_id"] = notification.get("job", None)
-        notification["job_row_number"] = notification.get("row_number", None)
-        decrypted_notifications.append(notification)
-        notification_id_queue[notification_id] = notification.get("queue")
+            notification["reply_to_text"] = reply_to_text
+            notification["service"] = service
+            notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
+            notification["template_id"] = template.id
+            notification["template_version"] = template.version
+            notification["recipient"] = notification.get("to")
+            notification["personalisation"] = notification.get("personalisation")
+            notification["notification_type"] = SMS_TYPE
+            notification["simulated"] = notification.get("simulated", None)
+            notification["api_key_id"] = notification.get("api_key", None)
+            notification["created_at"] = datetime.utcnow()
+            notification["job_id"] = notification.get("job", None)
+            notification["job_row_number"] = notification.get("row_number", None)
+            decrypted_notifications.append(notification)
+            notification_id_queue[notification_id] = notification.get("queue")
 
     try:
         # this task is used by two main things... process_job and process_sms_or_email_notification
@@ -330,6 +345,9 @@ def save_smss(self, service_id: str, encrypted_notifications: List[Any]):
                 notification.job,
             )
         )
+
+    if receipt:
+        sms_queue.acknowledge(receipt)
 
 
 @notify_celery.task(bind=True, name="save-sms", max_retries=5, default_retry_delay=300)
@@ -400,58 +418,60 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_emails(self, service_id: str, encrypted_notifications: List[Any]):
+def save_emails(self, service_id: str, encrypted_notifications: List[Any], receipt: Optional[UUID]):
     """
-    Function that is a job, that takes a list of encrypted notifications and stores
+    Function that takes a list of encrypted notifications and stores
     them in the DB and then sends the notification to the queue.
-
+    If the recept is not None then it is passed to the RedisQueue to let it know it can delete the inflight notifications.
     """
     decrypted_notifications: List[Any] = []
     notification_id_queue: Dict = {}
     for encrypted_notification in encrypted_notifications:
         notification = encryption.decrypt(encrypted_notification)
+        service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
-        template = dao_get_template_by_id(
-            notification.get("template"), version=notification.get("template_version"), use_cache=True
-        )
-        sender_id = notification.get("sender_id")
-        notification_id = create_uuid()
-        notification["notification_id"] = notification_id
-        reply_to_text = ""  # type: ignore
-        if sender_id:
-            reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
-        if isinstance(template, tuple):
-            template = template[0]
-        # if the template is obtained from cache a tuple will be returned where
-        # the first element is the Template object and the second the template cache data
-        # in the form of a dict
-        elif isinstance(template, tuple):
-            reply_to_text = template[1].get("reply_to_text")  # type: ignore
-            template = template[0]
-        else:
-            reply_to_text = template.get_reply_to_text()  # type: ignore
+        if service_allowed_to_send_to(notification["to"], service, KEY_TYPE_NORMAL):
+            template = dao_get_template_by_id(
+                notification.get("template"), version=notification.get("template_version"), use_cache=True
+            )
+            sender_id = notification.get("sender_id")
+            notification_id = create_uuid()
+            notification["notification_id"] = notification_id
+            reply_to_text = ""  # type: ignore
+            if sender_id:
+                reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
+            if isinstance(template, tuple):
+                template = template[0]
+            # if the template is obtained from cache a tuple will be returned where
+            # the first element is the Template object and the second the template cache data
+            # in the form of a dict
+            elif isinstance(template, tuple):
+                reply_to_text = template[1].get("reply_to_text")  # type: ignore
+                template = template[0]
+            else:
+                reply_to_text = template.get_reply_to_text()  # type: ignore
 
-        # if the service is obtained from cache a tuple will be returned where
-        # the first element is the Service object and the second the service cache data
-        # in the form of a dict
-        if isinstance(service, tuple):
-            service = service[0]
+            # if the service is obtained from cache a tuple will be returned where
+            # the first element is the Service object and the second the service cache data
+            # in the form of a dict
+            if isinstance(service, tuple):
+                service = service[0]
 
-        notification["reply_to_text"] = reply_to_text
-        notification["service"] = service
-        notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
-        notification["template_id"] = template.id
-        notification["template_version"] = template.version
-        notification["recipient"] = notification.get("to")
-        notification["personalisation"] = notification.get("personalisation")
-        notification["notification_type"] = EMAIL_TYPE
-        notification["simulated"] = notification.get("simulated", None)
-        notification["api_key_id"] = notification.get("api_key", None)
-        notification["created_at"] = datetime.utcnow()
-        notification["job_id"] = notification.get("job", None)
-        notification["job_row_number"] = notification.get("row_number", None)
-        decrypted_notifications.append(notification)
-        notification_id_queue[notification_id] = notification.get("queue")
+            notification["reply_to_text"] = reply_to_text
+            notification["service"] = service
+            notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
+            notification["template_id"] = template.id
+            notification["template_version"] = template.version
+            notification["recipient"] = notification.get("to")
+            notification["personalisation"] = notification.get("personalisation")
+            notification["notification_type"] = EMAIL_TYPE
+            notification["simulated"] = notification.get("simulated", None)
+            notification["api_key_id"] = notification.get("api_key", None)
+            notification["created_at"] = datetime.utcnow()
+            notification["job_id"] = notification.get("job", None)
+            notification["job_row_number"] = notification.get("row_number", None)
+            decrypted_notifications.append(notification)
+            notification_id_queue[notification_id] = notification.get("queue")
 
     try:
         # this task is used by two main things... process_job and process_sms_or_email_notification
@@ -478,6 +498,9 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any]):
                     notification.job,
                 )
             )
+
+    if receipt:
+        email_queue.acknowledge(receipt)
 
 
 @notify_celery.task(bind=True, name="save-email", max_retries=5, default_retry_delay=300)

@@ -18,6 +18,7 @@ from app.celery.tasks import (
     get_template_class,
     process_incomplete_job,
     process_incomplete_jobs,
+    process_inflight,
     process_job,
     process_returned_letters_list,
     process_row,
@@ -91,11 +92,115 @@ def test_should_have_decorated_tasks_functions():
     assert save_letter.__wrapped__.__name__ == "save_letter"
     assert save_smss.__wrapped__.__name__ == "save_smss"
     assert save_emails.__wrapped__.__name__ == "save_emails"
+    assert process_inflight.__wrapped__.__name__ == "process_inflight"
 
 
 @pytest.fixture
 def email_job_with_placeholders(notify_db, notify_db_session, sample_email_template_with_placeholders):
     return create_job(template=sample_email_template_with_placeholders)
+
+
+class TestBatchSaving:
+    def test_process_inflight_saves_smss(self, notify_db_session, mocker):
+        receipt = uuid.uuid4()
+        results = ["encrypted 1", "encrypted 2"]
+        mocker.patch("app.celery.tasks.save_smss.apply_async")
+
+        process_inflight(receipt, results, SMS_TYPE)
+
+        tasks.save_smss.apply_async.assert_called_once_with(
+            (None, ["encrypted 1", "encrypted 2"], receipt),
+            queue="notifiy-cache-tasks",
+        )
+
+    def test_process_inflight_saves_emails(self, notify_db_session, mocker):
+        receipt = uuid.uuid4()
+        results = ["encrypted 1", "encrypted 2"]
+        mocker.patch("app.celery.tasks.save_emails.apply_async")
+
+        process_inflight(receipt, results, EMAIL_TYPE)
+
+        tasks.save_emails.apply_async.assert_called_once_with(
+            (None, ["encrypted 1", "encrypted 2"], receipt),
+            queue="notifiy-cache-tasks",
+        )
+
+    def test_should_save_smss(self, notify_db_session, sample_template_with_placeholders, mocker):
+        notification1 = _notification_json(
+            sample_template_with_placeholders,
+            to="+1 650 253 2221",
+            personalisation={"name": "Jo"},
+        )
+
+        notification2 = _notification_json(
+            sample_template_with_placeholders, to="+1 650 253 2222", personalisation={"name": "Test2"}
+        )
+
+        notification3 = _notification_json(
+            sample_template_with_placeholders, to="+1 650 253 2223", personalisation={"name": "Test3"}
+        )
+
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+        acknowldege_mock = mocker.patch("app.sms_queue.acknowledge")
+
+        receipt = uuid.uuid4()
+        save_smss(
+            str(sample_template_with_placeholders.service.id),
+            [encryption.encrypt(notification1), encryption.encrypt(notification2), encryption.encrypt(notification3)],
+            receipt,
+        )
+
+        persisted_notification = Notification.query.all()
+        assert persisted_notification[0].to == "+1 650 253 2221"
+        assert persisted_notification[1].to == "+1 650 253 2222"
+        assert persisted_notification[2].to == "+1 650 253 2223"
+        assert persisted_notification[0].template_id == sample_template_with_placeholders.id
+        assert persisted_notification[1].template_version == sample_template_with_placeholders.version
+        assert persisted_notification[0].status == "created"
+        assert persisted_notification[0].personalisation == {"name": "Jo"}
+        assert persisted_notification[0]._personalisation == encryption.encrypt({"name": "Jo"})
+        assert persisted_notification[0].notification_type == SMS_TYPE
+
+        acknowldege_mock.assert_called_once_with(receipt)
+
+    def test_should_save_emails(self, notify_db_session, sample_email_template_with_placeholders, mocker):
+        notification1 = _notification_json(
+            sample_email_template_with_placeholders,
+            to="test1@gmail.com",
+            personalisation={"name": "Jo"},
+        )
+
+        notification2 = _notification_json(
+            sample_email_template_with_placeholders, to="test2@gmail.com", personalisation={"name": "Test2"}
+        )
+
+        notification3 = _notification_json(
+            sample_email_template_with_placeholders, to="test3@gmail.com", personalisation={"name": "Test3"}
+        )
+
+        mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+        acknowldege_mock = mocker.patch("app.email_queue.acknowledge")
+
+        receipt = uuid.uuid4()
+
+        save_emails(
+            str(sample_email_template_with_placeholders.service.id),
+            [encryption.encrypt(notification1), encryption.encrypt(notification2), encryption.encrypt(notification3)],
+            receipt,
+        )
+
+        persisted_notification = Notification.query.all()
+        assert persisted_notification[0].to == "test1@gmail.com"
+        assert persisted_notification[1].to == "test2@gmail.com"
+        assert persisted_notification[2].to == "test3@gmail.com"
+        assert persisted_notification[0].template_id == sample_email_template_with_placeholders.id
+        assert persisted_notification[1].template_version == sample_email_template_with_placeholders.version
+        assert persisted_notification[0].status == "created"
+        assert persisted_notification[0].personalisation == {"name": "Jo"}
+        assert persisted_notification[0]._personalisation == encryption.encrypt({"name": "Jo"})
+        assert persisted_notification[0].notification_type == EMAIL_TYPE
+
+        acknowldege_mock.assert_called_once_with(receipt)
 
 
 # -------------- process_job tests -------------- #
@@ -313,6 +418,7 @@ def test_should_process_smss_job(notify_db_session, mocker):
                 "something_encrypted",
                 "something_encrypted",
             ],
+            None,
         ),
         queue="database-tasks",
     )
@@ -399,6 +505,7 @@ def test_should_process_emails_job(email_job_with_placeholders, mocker):
         (
             str(email_job_with_placeholders.service_id),
             ["something_encrypted", "something_encrypted", "something_encrypted", "something_encrypted"],
+            None,
         ),
         queue="database-tasks",
     )
@@ -664,37 +771,6 @@ def test_should_send_template_to_correct_sms_task_and_persist(sample_template_wi
     assert persisted_notification._personalisation == encryption.encrypt({"name": "Jo"})
     assert persisted_notification.notification_type == "sms"
     mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
-
-
-def test_should_save_smss(notify_db_session, sample_template_with_placeholders, mocker):
-    notification1 = _notification_json(
-        sample_template_with_placeholders,
-        to="+1 650 253 2221",
-        personalisation={"name": "Jo"},
-    )
-
-    notification2 = _notification_json(sample_template_with_placeholders, to="+1 650 253 2222", personalisation={"name": "Test2"})
-
-    notification3 = _notification_json(sample_template_with_placeholders, to="+1 650 253 2223", personalisation={"name": "Test3"})
-
-    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-    save_smss(
-        str(sample_template_with_placeholders.service.id),
-        [encryption.encrypt(notification1), encryption.encrypt(notification2), encryption.encrypt(notification3)],
-    )
-
-    persisted_notification = Notification.query.all()
-    assert persisted_notification[0].to == "+1 650 253 2221"
-    assert persisted_notification[1].to == "+1 650 253 2222"
-    assert persisted_notification[2].to == "+1 650 253 2223"
-    assert persisted_notification[0].template_id == sample_template_with_placeholders.id
-    assert persisted_notification[1].template_version == sample_template_with_placeholders.version
-    assert persisted_notification[0].status == "created"
-    assert persisted_notification[0].personalisation == {"name": "Jo"}
-    assert persisted_notification[0]._personalisation == encryption.encrypt({"name": "Jo"})
-    assert persisted_notification[0].notification_type == "sms"
 
 
 @pytest.mark.parametrize("sender_id", [None, "996958a8-0c06-43be-a40e-56e4a2d1655c"])
@@ -993,6 +1069,7 @@ def test_save_emails(notify_db_session, mocker):
     save_emails(
         str(template.service_id),
         [encryption.encrypt(notification1), encryption.encrypt(notification2), encryption.encrypt(notification3)],
+        None,
     )
 
     persisted_notification = Notification.query.all()
