@@ -99,30 +99,6 @@ def email_job_with_placeholders(notify_db, notify_db_session, sample_email_templ
 
 
 class TestBatchSaving:
-    def test_process_inflight_saves_smss(self, notify_db_session, mocker):
-        receipt = uuid.uuid4()
-        results = ["encrypted 1", "encrypted 2"]
-        mocker.patch("app.celery.tasks.save_smss.apply_async")
-
-        process_inflight(receipt, results, SMS_TYPE)
-
-        tasks.save_smss.apply_async.assert_called_once_with(
-            (None, ["encrypted 1", "encrypted 2"], receipt),
-            queue="notifiy-cache-tasks",
-        )
-
-    def test_process_inflight_saves_emails(self, notify_db_session, mocker):
-        receipt = uuid.uuid4()
-        results = ["encrypted 1", "encrypted 2"]
-        mocker.patch("app.celery.tasks.save_emails.apply_async")
-
-        process_inflight(receipt, results, EMAIL_TYPE)
-
-        tasks.save_emails.apply_async.assert_called_once_with(
-            (None, ["encrypted 1", "encrypted 2"], receipt),
-            queue="notifiy-cache-tasks",
-        )
-
     def test_should_save_smss(self, notify_db_session, sample_template_with_placeholders, mocker):
         notification1 = _notification_json(
             sample_template_with_placeholders,

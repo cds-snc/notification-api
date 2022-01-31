@@ -27,13 +27,11 @@ from app.dao.provider_details_dao import (
     get_current_provider,
 )
 from app.models import (
-    EMAIL_TYPE,
     JOB_STATUS_ERROR,
     JOB_STATUS_FINISHED,
     JOB_STATUS_IN_PROGRESS,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PENDING_VIRUS_CHECK,
-    SMS_TYPE,
 )
 from app.v2.errors import JobIncompleteError
 from tests.app.conftest import sample_job as create_sample_job
