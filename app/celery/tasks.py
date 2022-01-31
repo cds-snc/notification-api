@@ -415,8 +415,6 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any], recei
     them in the DB and then sends the notification to the queue.
     If the recept is not None then it is passed to the RedisQueue to let it know it can delete the inflight notifications.
     """
-
-    current_app.logger.warning(f"(inflight) save emails receipt {receipt}")
     decrypted_notifications: List[Any] = []
     notification_id_queue: Dict = {}
     for encrypted_notification in encrypted_notifications:
