@@ -39,7 +39,7 @@ from tests.app.db import (
     create_job,
     create_notification,
     create_template,
-    save_notification,
+    save_ycation,
     save_scheduled_notification,
 )
 
@@ -508,7 +508,7 @@ class TestHeartbeatQueues:
 
         tasks.save_smss.apply_async.assert_called_once_with(
             (None, ["1", "2", "3", "4"], "rec123"),
-            queue="notifiy-database-tasks",
+            queue="database-tasks",
         )
 
     def test_heartbeat_inbox_email(self, mocker):
@@ -520,5 +520,5 @@ class TestHeartbeatQueues:
 
         tasks.save_emails.apply_async.assert_called_once_with(
             (None, ["1", "2", "3", "4"], "rec123"),
-            queue="notifiy-database-tasks",
+            queue="database-tasks",
         )
