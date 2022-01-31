@@ -6,7 +6,7 @@ from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import email_queue, notify_celery, sms_queue, zendesk_client
-from app.celery.tasks import process_job
+from app.celery.tasks import process_job, save_emails, save_smss
 from app.config import QueueNames, TaskNames
 from app.dao.invited_org_user_dao import (
     delete_org_invitations_created_more_than_two_days_ago,
@@ -32,8 +32,6 @@ from app.models import (
 )
 from app.notifications.process_notifications import send_notification_to_queue
 from app.v2.errors import JobIncompleteError
-
-from app.celery.tasks import save_emails, save_smss
 
 
 @notify_celery.task(name="run-scheduled-jobs")
