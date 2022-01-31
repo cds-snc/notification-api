@@ -189,12 +189,12 @@ def dao_fetch_live_services_data():
     return results
 
 
-def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Union[Service, Tuple[Service, dict]]:
+def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Service:
     if use_cache:
         service_cache = redis_store.get(service_cache_key(service_id))
         if service_cache:
             service_cache_decoded = json.loads(service_cache.decode("utf-8"))["data"]
-            return Service.from_json(service_cache_decoded), service_cache_decoded
+            return Service.from_json(service_cache_decoded)
 
     query = Service.query.filter_by(id=service_id).options(joinedload("users"))
     if only_active:

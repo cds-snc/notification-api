@@ -610,7 +610,7 @@ def test_get_service_by_id_uses_redis_cache_when_use_cache_specified(notify_db_s
     service = dao_fetch_service_by_id(sample_service.id, use_cache=True)
 
     assert mocked_redis_get.called
-    assert str(sample_service.id) == service[0].id
+    assert str(sample_service.id) == service.id
 
 
 def test_create_service_returns_service_with_default_permissions(notify_db_session):

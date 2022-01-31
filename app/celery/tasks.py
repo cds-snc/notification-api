@@ -288,12 +288,6 @@ def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt
             else:
                 reply_to_text = template.get_reply_to_text()  # type: ignore
 
-            # if the service is obtained from cache a tuple will be returned where
-            # the first element is the Service object and the second the service cache data
-            # in the form of a dict
-            if isinstance(service, tuple):
-                service = service[0]
-
             notification["reply_to_text"] = reply_to_text
             notification["service"] = service
             notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
@@ -360,12 +354,6 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
         template = template[0]
     else:
         reply_to_text = template.get_reply_to_text()
-
-    # if the service is obtained from cache a tuple will be returned where
-    # the first element is the Service object and the second the service cache data
-    # in the form of a dict
-    if isinstance(service, tuple):
-        service = service[0]
 
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
 
@@ -442,12 +430,6 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any], recei
             else:
                 reply_to_text = template.get_reply_to_text()  # type: ignore
 
-            # if the service is obtained from cache a tuple will be returned where
-            # the first element is the Service object and the second the service cache data
-            # in the form of a dict
-            if isinstance(service, tuple):
-                service = service[0]
-
             notification["reply_to_text"] = reply_to_text
             notification["service"] = service
             notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
@@ -513,12 +495,6 @@ def save_email(self, service_id, notification_id, encrypted_notification, sender
         template = template[0]
     else:
         reply_to_text = template.get_reply_to_text()
-
-    # if the service is obtained from cache a tuple will be returned where
-    # the first element is the Service object and the second the service cache data
-    # in the form of a dict
-    if isinstance(service, tuple):
-        service = service[0]
 
     check_service_over_daily_message_limit(notification.get("key_type", KEY_TYPE_NORMAL), service)
 
