@@ -105,6 +105,8 @@ class TestBatchSaving:
             to="+1 650 253 2221",
             personalisation={"name": "Jo"},
         )
+        notification1_id = uuid.uuid4()
+        notification1["id"] = str(notification1_id)
 
         notification2 = _notification_json(
             sample_template_with_placeholders, to="+1 650 253 2222", personalisation={"name": "Test2"}
@@ -125,6 +127,7 @@ class TestBatchSaving:
         )
 
         persisted_notification = Notification.query.all()
+        assert persisted_notification[0].id == notification1_id
         assert persisted_notification[0].to == "+1 650 253 2221"
         assert persisted_notification[1].to == "+1 650 253 2222"
         assert persisted_notification[2].to == "+1 650 253 2223"
@@ -143,6 +146,8 @@ class TestBatchSaving:
             to="test1@gmail.com",
             personalisation={"name": "Jo"},
         )
+        notification1_id = uuid.uuid4()
+        notification1["id"] = str(notification1_id)
 
         notification2 = _notification_json(
             sample_email_template_with_placeholders, to="test2@gmail.com", personalisation={"name": "Test2"}
@@ -164,6 +169,7 @@ class TestBatchSaving:
         )
 
         persisted_notification = Notification.query.all()
+        assert persisted_notification[0].id == notification1_id
         assert persisted_notification[0].to == "test1@gmail.com"
         assert persisted_notification[1].to == "test2@gmail.com"
         assert persisted_notification[2].to == "test3@gmail.com"
