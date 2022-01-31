@@ -31,7 +31,6 @@ from app.models import (
     Job,
 )
 from app.notifications.process_notifications import send_notification_to_queue
-from app.queue import MockQueue
 from app.v2.errors import JobIncompleteError
 
 
