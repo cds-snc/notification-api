@@ -141,7 +141,7 @@ class TestBatchSaving:
         )
 
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-        acknowldege_mock = mocker.patch("app.celery.tasks.RedisQueue.acknowledge")
+        acknowldege_mock = mocker.patch("app.sms_queue.acknowledge")
 
         receipt = uuid.uuid4()
         save_smss(
@@ -179,7 +179,8 @@ class TestBatchSaving:
         )
 
         mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
-        acknowldege_mock = mocker.patch("app.celery.tasks.RedisQueue.acknowledge")
+        acknowldege_mock = mocker.patch("app.email_queue.acknowledge")
+
         receipt = uuid.uuid4()
 
         save_emails(
