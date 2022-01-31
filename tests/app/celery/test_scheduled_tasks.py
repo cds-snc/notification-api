@@ -39,7 +39,7 @@ from tests.app.db import (
     create_job,
     create_notification,
     create_template,
-    save_ycation,
+    save_notification,
     save_scheduled_notification,
 )
 
