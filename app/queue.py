@@ -23,7 +23,7 @@ class Buffer(Enum):
         return f"{self.value}:{suffix}" if suffix else self.value
 
     def get_inflight_name(self, receipt: UUID = uuid4(), suffix: str = "") -> str:
-        return f"{Buffer.IN_FLIGHT.value}:{str(suffix)}{str(receipt)}"
+        return f"{Buffer.IN_FLIGHT.value}:{str(suffix)}:{str(receipt)}"
 
 
 class Queue(ABC):
