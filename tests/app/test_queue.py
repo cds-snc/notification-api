@@ -18,6 +18,8 @@ def pmr_redis_config():
 redis = create_redis_fixture(scope="function")
 REDIS_ELEMENTS_COUNT = 123
 
+QNAME_SUFFIX = "qsuffix"
+
 
 class TestBuffer:
     def test_when_name_suffix_is_not_supplied(self):
@@ -55,7 +57,7 @@ class TestRedisQueue:
 
     @pytest.fixture()
     def redis_queue(self, app):
-        q = RedisQueue(app.config["NOTIFY_ENVIRONMENT"])
+        q = RedisQueue(QNAME_SUFFIX)
         q.init_app(flask_redis)
         return q
 
@@ -95,33 +97,33 @@ class TestRedisQueue:
             redis.delete(key)
 
     @pytest.mark.serial
-    def test_put_mesages(self, app, redis, redis_queue):
+    def test_put_mesages(self, redis, redis_queue):
         element = generate_element()
         redis_queue.publish(element)
-        assert redis.llen(Buffer.INBOX.name(app.config["NOTIFY_ENVIRONMENT"])) == 1
+        assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 1
         self.delete_all_list(redis)
 
     @pytest.mark.serial
-    def test_polling_message(self, app, redis, redis_queue):
+    def test_polling_message(self, redis, redis_queue):
         with self.given_inbox_with_one_element(redis, redis_queue):
             (receipt, elements) = redis_queue.poll(10)
             assert len(elements) == 1
             assert isinstance(elements[0], str)
-            assert redis.llen(Buffer.INBOX.name(app.config["NOTIFY_ENVIRONMENT"])) == 0
-            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, app.config["NOTIFY_ENVIRONMENT"])) == 1
+            assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, QNAME_SUFFIX)) == 1
 
     @pytest.mark.serial
     @pytest.mark.parametrize("count", [0, 1, 98, 99, 100, 101, REDIS_ELEMENTS_COUNT, REDIS_ELEMENTS_COUNT + 1, 500])
-    def test_polling_many_messages(self, app, redis, redis_queue, count):
+    def test_polling_many_messages(self, redis, redis_queue, count):
         with self.given_inbox_with_many_indexes(redis, redis_queue):
             real_count = count if count < REDIS_ELEMENTS_COUNT else REDIS_ELEMENTS_COUNT
             (receipt, elements) = redis_queue.poll(count)
             assert len(elements) == real_count
             if count < REDIS_ELEMENTS_COUNT:
-                assert redis.llen(Buffer.INBOX.name(app.config["NOTIFY_ENVIRONMENT"])) > 0
+                assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) > 0
             else:
-                assert redis.llen(Buffer.INBOX.name(app.config["NOTIFY_ENVIRONMENT"])) == 0
-            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, app.config["NOTIFY_ENVIRONMENT"])) == real_count
+                assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, QNAME_SUFFIX)) == real_count
 
     @pytest.mark.serial
     @pytest.mark.parametrize("suffix", ["smss", "emails", "🎅", "", None])
@@ -146,37 +148,37 @@ class TestRedisQueue:
             self.delete_all_list(redis)
 
     @pytest.mark.serial
-    def test_polling_with_empty_inbox(self, app, redis, redis_queue):
+    def test_polling_with_empty_inbox(self, redis, redis_queue):
         self.delete_all_list(redis)
         (receipt, elements) = redis_queue.poll(10)
         assert len(elements) == 0
-        assert redis.llen(Buffer.INBOX.name(app.config["NOTIFY_ENVIRONMENT"])) == 0
-        assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, app.config["NOTIFY_ENVIRONMENT"])) == 0
+        assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 0
+        assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, QNAME_SUFFIX)) == 0
 
     @pytest.mark.serial
-    def test_polling_with_zero_count(self, app, redis, redis_queue):
+    def test_polling_with_zero_count(self, redis, redis_queue):
         with self.given_inbox_with_one_element(redis, redis_queue):
             (receipt, elements) = redis_queue.poll(0)
             assert len(elements) == 0
-            assert redis.llen(Buffer.INBOX.name(app.config["NOTIFY_ENVIRONMENT"])) == 1
-            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, app.config["NOTIFY_ENVIRONMENT"])) == 0
+            assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 1
+            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, QNAME_SUFFIX)) == 0
 
     @pytest.mark.serial
-    def test_polling_with_negative_count(self, app, redis, redis_queue):
+    def test_polling_with_negative_count(self, redis, redis_queue):
         with self.given_inbox_with_one_element(redis, redis_queue):
             (receipt, elements) = redis_queue.poll(-1)
             assert len(elements) == 0
-            assert redis.llen(Buffer.INBOX.name(app.config["NOTIFY_ENVIRONMENT"])) == 1
-            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, app.config["NOTIFY_ENVIRONMENT"])) == 0
+            assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 1
+            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, QNAME_SUFFIX)) == 0
 
     @pytest.mark.serial
-    def test_acknowledged_messages(self, app, redis, redis_queue):
+    def test_acknowledged_messages(self, redis, redis_queue):
         with self.given_inbox_with_one_element(redis, redis_queue):
             (receipt, elements) = redis_queue.poll(10)
             redis_queue.acknowledge(receipt)
             assert len(elements) > 0
-            assert redis.llen(Buffer.INBOX.name(app.config["NOTIFY_ENVIRONMENT"])) == 0
-            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, app.config["NOTIFY_ENVIRONMENT"])) == 0
+            assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, QNAME_SUFFIX)) == 0
             assert len(redis.keys("*")) == 0
 
     @pytest.mark.serial
