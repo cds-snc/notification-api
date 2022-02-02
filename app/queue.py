@@ -19,10 +19,10 @@ class Buffer(Enum):
     INBOX = "inbox"
     IN_FLIGHT = "in-flight"
 
-    def name(self, suffix=None):
+    def inbox_name(self, suffix=None):
         return f"{self.value}:{suffix}" if suffix else self.value
 
-    def get_inflight_name(self, receipt: UUID = uuid4(), suffix: str = None) -> str:
+    def inflight_name(self, receipt: UUID = uuid4(), suffix: str = None) -> str:
         return f"{Buffer.IN_FLIGHT.value}:{str(suffix)}:{str(receipt)}" if suffix else f"{Buffer.IN_FLIGHT.value}:{str(receipt)}"
 
 
@@ -87,7 +87,7 @@ class RedisQueue(Queue):
     scripts: Dict[str, Any] = {}
 
     def __init__(self, suffix=None) -> None:
-        self._inbox = Buffer.INBOX.name(suffix)
+        self._inbox = Buffer.INBOX.inbox_name(suffix)
         self._suffix = suffix
 
     def init_app(self, redis):
@@ -96,12 +96,12 @@ class RedisQueue(Queue):
 
     def poll(self, count=10) -> tuple[UUID, list[str]]:
         receipt = uuid4()
-        in_flight_key = Buffer.IN_FLIGHT.get_inflight_name(receipt, self._suffix)
+        in_flight_key = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
         results = self.__move_to_inflight(in_flight_key, count)
         return (receipt, results)
 
     def acknowledge(self, receipt: UUID):
-        inflight_name = Buffer.IN_FLIGHT.get_inflight_name(receipt, self._suffix)
+        inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
         self._redis_client.delete(inflight_name)
 
     def publish(self, message: str):

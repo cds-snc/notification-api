@@ -23,22 +23,22 @@ QNAME_SUFFIX = "qsuffix"
 
 class TestBuffer:
     def test_when_name_suffix_is_not_supplied(self):
-        assert Buffer.INBOX.name() == "inbox"
-        assert Buffer.IN_FLIGHT.name() == "in-flight"
+        assert Buffer.INBOX.inbox_name() == "inbox"
+        assert Buffer.IN_FLIGHT.inbox_name() == "in-flight"
 
     def test_when_name_suffix_is_supplied(self):
-        assert Buffer.INBOX.name("test") == "inbox:test"
-        assert Buffer.IN_FLIGHT.name("test") == "in-flight:test"
+        assert Buffer.INBOX.inbox_name("test") == "inbox:test"
+        assert Buffer.IN_FLIGHT.inbox_name("test") == "in-flight:test"
 
     def test_when_get_inflight_name_suffix_is_not_supplied(self):
         receipt = uuid4()
-        assert Buffer.INBOX.get_inflight_name(receipt=receipt) == f"in-flight:{receipt}"
-        assert Buffer.IN_FLIGHT.get_inflight_name(receipt=receipt) == f"in-flight:{receipt}"
+        assert Buffer.INBOX.inflight_name(receipt=receipt) == f"in-flight:{receipt}"
+        assert Buffer.IN_FLIGHT.inflight_name(receipt=receipt) == f"in-flight:{receipt}"
 
     def test_when_get_inflight_name_suffix_is_supplied(self):
         receipt = uuid4()
-        assert Buffer.INBOX.get_inflight_name(receipt=receipt, suffix="test") == f"in-flight:test:{receipt}"
-        assert Buffer.IN_FLIGHT.get_inflight_name(receipt=receipt, suffix="test") == f"in-flight:test:{receipt}"
+        assert Buffer.INBOX.inflight_name(receipt=receipt, suffix="test") == f"in-flight:test:{receipt}"
+        assert Buffer.IN_FLIGHT.inflight_name(receipt=receipt, suffix="test") == f"in-flight:test:{receipt}"
 
 
 class TestRedisQueue:
@@ -100,7 +100,7 @@ class TestRedisQueue:
     def test_put_mesages(self, redis, redis_queue):
         element = generate_element()
         redis_queue.publish(element)
-        assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 1
+        assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 1
         self.delete_all_list(redis)
 
     @pytest.mark.serial
@@ -109,8 +109,8 @@ class TestRedisQueue:
             (receipt, elements) = redis_queue.poll(10)
             assert len(elements) == 1
             assert isinstance(elements[0], str)
-            assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 0
-            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, QNAME_SUFFIX)) == 1
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 1
 
     @pytest.mark.serial
     @pytest.mark.parametrize("count", [0, 1, 98, 99, 100, 101, REDIS_ELEMENTS_COUNT, REDIS_ELEMENTS_COUNT + 1, 500])
@@ -120,10 +120,10 @@ class TestRedisQueue:
             (receipt, elements) = redis_queue.poll(count)
             assert len(elements) == real_count
             if count < REDIS_ELEMENTS_COUNT:
-                assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) > 0
+                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) > 0
             else:
-                assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 0
-            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, QNAME_SUFFIX)) == real_count
+                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == real_count
 
     @pytest.mark.serial
     @pytest.mark.parametrize("suffix", ["smss", "emails", "🎅", "", None])
@@ -134,16 +134,16 @@ class TestRedisQueue:
             redis_queue.init_app(flask_redis)
             element = generate_element()
             redis_queue.publish(element)
-            assert redis.llen(Buffer.INBOX.name(suffix)) == 1
+            assert redis.llen(Buffer.INBOX.inbox_name(suffix)) == 1
 
             (receipt, elements) = redis_queue.poll(10)
             assert len(elements) == 1
-            assert redis.llen(Buffer.INBOX.name(suffix)) == 0
-            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, suffix)) == 1
+            assert redis.llen(Buffer.INBOX.inbox_name(suffix)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, suffix)) == 1
 
             redis_queue.acknowledge(receipt)
-            assert redis.llen(Buffer.INBOX.name(suffix)) == 0
-            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, suffix)) == 0
+            assert redis.llen(Buffer.INBOX.inbox_name(suffix)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, suffix)) == 0
         finally:
             self.delete_all_list(redis)
 
@@ -152,24 +152,24 @@ class TestRedisQueue:
         self.delete_all_list(redis)
         (receipt, elements) = redis_queue.poll(10)
         assert len(elements) == 0
-        assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 0
-        assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, QNAME_SUFFIX)) == 0
+        assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
+        assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 0
 
     @pytest.mark.serial
     def test_polling_with_zero_count(self, redis, redis_queue):
         with self.given_inbox_with_one_element(redis, redis_queue):
             (receipt, elements) = redis_queue.poll(0)
             assert len(elements) == 0
-            assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 1
-            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 1
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 0
 
     @pytest.mark.serial
     def test_polling_with_negative_count(self, redis, redis_queue):
         with self.given_inbox_with_one_element(redis, redis_queue):
             (receipt, elements) = redis_queue.poll(-1)
             assert len(elements) == 0
-            assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 1
-            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 1
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 0
 
     @pytest.mark.serial
     def test_acknowledged_messages(self, redis, redis_queue):
@@ -177,8 +177,8 @@ class TestRedisQueue:
             (receipt, elements) = redis_queue.poll(10)
             redis_queue.acknowledge(receipt)
             assert len(elements) > 0
-            assert redis.llen(Buffer.INBOX.name(QNAME_SUFFIX)) == 0
-            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 0
             assert len(redis.keys("*")) == 0
 
     @pytest.mark.serial
