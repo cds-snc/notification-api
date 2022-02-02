@@ -1,4 +1,7 @@
+import uuid
 from contextlib import contextmanager
+from os import supports_effective_ids
+from uuid import uuid4
 
 import pytest
 from flask import Flask
@@ -16,6 +19,26 @@ def pmr_redis_config():
 
 redis = create_redis_fixture(scope="function")
 REDIS_ELEMENTS_COUNT = 123
+
+
+class TestBuffer:
+    def test_when_name_suffix_is_not_supplied(self):
+        assert Buffer.INBOX.name() == "inbox"
+        assert Buffer.IN_FLIGHT.name() == "in-flight"
+
+    def test_when_name_suffix_is_supplied(self):
+        assert Buffer.INBOX.name("test") == "inbox:test"
+        assert Buffer.IN_FLIGHT.name("test") == "in-flight:test"
+
+    def test_when_get_inflight_name_suffix_is_not_supplied(self):
+        receipt = uuid4()
+        assert Buffer.INBOX.get_inflight_name(receipt=receipt) == f"in-flight:{receipt}"
+        assert Buffer.IN_FLIGHT.get_inflight_name(receipt=receipt) == f"in-flight:{receipt}"
+
+    def test_when_get_inflight_name_suffix_is_supplied(self):
+        receipt = uuid4()
+        assert Buffer.INBOX.get_inflight_name(receipt=receipt, suffix="test") == f"in-flight:test:{receipt}"
+        assert Buffer.IN_FLIGHT.get_inflight_name(receipt=receipt, suffix="test") == f"in-flight:test:{receipt}"
 
 
 class TestRedisQueue:
