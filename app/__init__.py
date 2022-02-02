@@ -26,7 +26,7 @@ from app.clients.performance_platform.performance_platform_client import (
 )
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy
-from app.encryption import Encryption
+from app.encryption import CryptoSigner
 from app.queue import RedisQueue
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -40,7 +40,7 @@ ma = Marshmallow()
 notify_celery = NotifyCelery()
 aws_ses_client = AwsSesClient()
 aws_sns_client = AwsSnsClient()
-encryption = Encryption()
+signer = CryptoSigner()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
 flask_redis = FlaskRedis()
@@ -79,7 +79,7 @@ def create_app(application, config=None):
     aws_sns_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config["AWS_REGION"], statsd_client=statsd_client)
     notify_celery.init_app(application)
-    encryption.init_app(application)
+    signer.init_app(application)
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
     clients.init_app(sms_clients=[aws_sns_client], email_clients=[aws_ses_client])

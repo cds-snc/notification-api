@@ -1,20 +1,20 @@
-from app.encryption import Encryption
+from app.encryption import CryptoSigner
 
-encryption = Encryption()
-
-
-def test_should_encrypt_content(notify_api):
-    encryption.init_app(notify_api)
-    assert encryption.encrypt("this") != "this"
+signer = CryptoSigner()
 
 
-def test_should_decrypt_content(notify_api):
-    encryption.init_app(notify_api)
-    encrypted = encryption.encrypt("this")
-    assert encryption.decrypt(encrypted) == "this"
+def test_should_sign_content(notify_api):
+    signer.init_app(notify_api)
+    assert signer.sign("this") != "this"
 
 
-def test_should_encrypt_json(notify_api):
-    encryption.init_app(notify_api)
-    encrypted = encryption.encrypt({"this": "that"})
-    assert encryption.decrypt(encrypted) == {"this": "that"}
+def test_should_verify_content(notify_api):
+    signer.init_app(notify_api)
+    signed = signer.sign("this")
+    assert signer.verify(signed) == "this"
+
+
+def test_should_sign_json(notify_api):
+    signer.init_app(notify_api)
+    signed = signer.sign({"this": "that"})
+    assert signer.verify(signed) == {"this": "that"}

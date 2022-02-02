@@ -119,9 +119,9 @@ def timeout_notifications():
         # queue callback task only if the service_callback_api exists
         service_callback_api = get_service_delivery_status_callback_api_for_service(service_id=notification.service_id)
         if service_callback_api:
-            encrypted_notification = create_delivery_status_callback_data(notification, service_callback_api)
+            signed_notification = create_delivery_status_callback_data(notification, service_callback_api)
             send_delivery_status_to_service.apply_async(
-                [str(notification.id), encrypted_notification],
+                [str(notification.id), signed_notification],
                 queue=QueueNames.CALLBACKS,
             )
 

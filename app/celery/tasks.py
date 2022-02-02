@@ -19,8 +19,8 @@ from app import (
     create_random_identifier,
     create_uuid,
     email_queue,
-    encryption,
     notify_celery,
+    signer,
     sms_queue,
     statsd_client,
 )
@@ -149,7 +149,7 @@ def job_complete(job: Job, resumed=False, start=None):
 
 def process_row(row: Row, template: Template, job: Job, service: Service):
     template_type = template.template_type
-    encrypted = encryption.encrypt(
+    signed = signer.sign(
         {
             "api_key": job.api_key_id and str(job.api_key_id),
             "template": str(template.id),
@@ -181,7 +181,7 @@ def process_row(row: Row, template: Template, job: Job, service: Service):
             (
                 str(service.id),
                 notification_id,
-                encrypted,
+                signed,
             ),
             task_kwargs,
             queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
@@ -199,7 +199,7 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
 
     for row in rows:
         if service_allowed_to_send_to(row.recipient, service, KEY_TYPE_NORMAL):
-            encrypted_row = encryption.encrypt(
+            signed_row = signer.sign(
                 {
                     "api_key": job.api_key_id and str(job.api_key_id),
                     "template": str(template.id),
@@ -213,9 +213,9 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
                 }
             )
             if template_type == SMS_TYPE:
-                encrypted_smss.append(encrypted_row)
+                encrypted_smss.append(signed_row)
             if template_type == EMAIL_TYPE:
-                encrypted_emails.append(encrypted_row)
+                encrypted_emails.append(signed_row)
             if template_type == LETTER_TYPE:
                 encrypted_letters.append(encrypted_letters)
 
@@ -254,17 +254,17 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
 
 @notify_celery.task(bind=True, name="save-smss", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt: Optional[UUID]):
+def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: Optional[UUID]):
     """
-    Function that takes a list of encrypted notifications and stores
-    them in the DB and then sends the notification to the queue.
-    If the recept is not None then it is passed to the RedisQueue to let it know it can delete the inflight notifications.
-
+    Function that takes a list of signed notifications, stores
+    them in the DB and then sends these to the queue. If the receipt
+    is not None then it is passed to the RedisQueue to let it know it
+    can delete the inflight notifications.
     """
     decrypted_notifications: List[Any] = []
     notification_id_queue: Dict = {}
-    for encrypted_notification in encrypted_notifications:
-        notification = encryption.decrypt(encrypted_notification)
+    for signed_notification in signed_notifications:
+        notification = signer.verify(signed_notification)
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
 
@@ -278,7 +278,7 @@ def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt
                 notification.get("template"), version=notification.get("template_version"), use_cache=True
             )
             sender_id = notification.get("sender_id")
-            notification_id = create_uuid()
+            notification_id = notification.get("id", create_uuid())
             notification["notification_id"] = notification_id
             reply_to_text = ""  # type: ignore
             if sender_id:
@@ -343,8 +343,8 @@ def save_smss(self, service_id: str, encrypted_notifications: List[Any], receipt
 
 @notify_celery.task(bind=True, name="save-sms", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_sms(self, service_id, notification_id, encrypted_notification, sender_id=None):
-    notification = encryption.decrypt(encrypted_notification)
+def save_sms(self, service_id, notification_id, signed_notification, sender_id=None):
+    notification = signer.verify(signed_notification)
     service = dao_fetch_service_by_id(service_id, use_cache=True)
     template = dao_get_template_by_id(notification["template"], version=notification["template_version"], use_cache=True)
 
@@ -364,8 +364,8 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
 
     try:
-        # this task is used by two main things... process_job and process_sms_or_email_notification
-        # if the data is not present in the encrypted data then fallback on whats needed for process_job
+        # This task is used by two functions: process_job and process_sms_or_email_notification
+        # if the data is not present in the signed data then fallback on whats needed for process_job
         saved_notification = persist_notification(
             notification_id=notification.get("id", notification_id),
             template_id=notification["template"],
@@ -403,16 +403,17 @@ def save_sms(self, service_id, notification_id, encrypted_notification, sender_i
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_emails(self, service_id: str, encrypted_notifications: List[Any], receipt: Optional[UUID]):
+def save_emails(self, service_id: str, signed_notification: List[Any], receipt: Optional[UUID]):
     """
-    Function that takes a list of encrypted notifications and stores
-    them in the DB and then sends the notification to the queue.
-    If the recept is not None then it is passed to the RedisQueue to let it know it can delete the inflight notifications.
+    Function that takes a list of signed notifications, stores
+    them in the DB and then sends these to the queue. If the receipt
+    is not None then it is passed to the RedisQueue to let it know it
+    can delete the inflight notifications.
     """
     decrypted_notifications: List[Any] = []
     notification_id_queue: Dict = {}
-    for encrypted_notification in encrypted_notifications:
-        notification = encryption.decrypt(encrypted_notification)
+    for signed_notification in signed_notification:
+        notification = signer.verify(signed_notification)
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
 
@@ -426,7 +427,7 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any], recei
                 notification.get("template"), version=notification.get("template_version"), use_cache=True
             )
             sender_id = notification.get("sender_id")
-            notification_id = create_uuid()
+            notification_id = notification.get("id", create_uuid())
             notification["notification_id"] = notification_id
             reply_to_text = ""  # type: ignore
             if sender_id:
@@ -490,8 +491,8 @@ def save_emails(self, service_id: str, encrypted_notifications: List[Any], recei
 
 @notify_celery.task(bind=True, name="save-email", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_email(self, service_id, notification_id, encrypted_notification, sender_id=None):
-    notification = encryption.decrypt(encrypted_notification)
+def save_email(self, service_id, notification_id, signed_notification, sender_id=None):
+    notification = signer.verify(signed_notification)
     service = dao_fetch_service_by_id(service_id, use_cache=True)
     template = dao_get_template_by_id(notification["template"], version=notification["template_version"], use_cache=True)
 
@@ -511,8 +512,8 @@ def save_email(self, service_id, notification_id, encrypted_notification, sender
     check_service_over_daily_message_limit(notification.get("key_type", KEY_TYPE_NORMAL), service)
 
     try:
-        # this task is used by two main things... process_job and process_sms_or_email_notification
-        # if the data is not present in the encrypted data then fallback on whats needed for process_job
+        # this task is used by two functions: process_job and process_sms_or_email_notification
+        # if the data is not present in the signed data then fallback on whats needed for process_job
         saved_notification = persist_notification(
             notification_id=notification.get("id", notification_id),
             template_id=notification["template"],
@@ -543,7 +544,7 @@ def save_email(self, service_id, notification_id, encrypted_notification, sender
 
 @notify_celery.task(bind=True, name="save-letter", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_letters(self, encrpyted_notifications):
+def save_letters(self, signed_notifications):
     pass
 
 
@@ -553,9 +554,9 @@ def save_letter(
     self,
     service_id,
     notification_id,
-    encrypted_notification,
+    signed_notification,
 ):
-    notification = encryption.decrypt(encrypted_notification)
+    notification = signer.verify(signed_notification)
 
     # we store the recipient as just the first item of the person's address
     recipient = notification["personalisation"]["addressline1"]
