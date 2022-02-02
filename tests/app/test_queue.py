@@ -5,7 +5,7 @@ from flask import Flask
 from pytest_mock_resources import RedisConfig, create_redis_fixture
 
 from app import create_app, flask_redis
-from app.config import Config, Development
+from app.config import Config, Test
 from app.queue import Buffer, MockQueue, RedisQueue, generate_element
 
 
@@ -20,7 +20,7 @@ REDIS_ELEMENTS_COUNT = 123
 class TestRedisQueue:
     @pytest.fixture(autouse=True)
     def app(self):
-        config: Config = Development()
+        config: Config = Test()
         config.REDIS_ENABLED = True
         app = Flask(config.NOTIFY_ENVIRONMENT)
         create_app(app, config)
