@@ -268,11 +268,6 @@ def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: O
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
 
-        # if the service is obtained from cache a tuple will be returned where
-        # the first element is the Service object and the second the service cache data
-        # in the form of a dict
-        if isinstance(service, tuple):
-            service = service[0]
         if service_allowed_to_send_to(notification["to"], service, KEY_TYPE_NORMAL):
             template = dao_get_template_by_id(
                 notification.get("template"), version=notification.get("template_version"), use_cache=True
@@ -417,11 +412,6 @@ def save_emails(self, service_id: str, signed_notification: List[Any], receipt: 
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
 
-        # if the service is obtained from cache a tuple will be returned where
-        # the first element is the Service object and the second the service cache data
-        # in the form of a dict
-        if isinstance(service, tuple):
-            service = service[0]
         if service_allowed_to_send_to(notification["to"], service, KEY_TYPE_NORMAL):
             template = dao_get_template_by_id(
                 notification.get("template"), version=notification.get("template_version"), use_cache=True
