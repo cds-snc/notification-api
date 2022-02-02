@@ -17,6 +17,7 @@ def pmr_redis_config():
 redis = create_redis_fixture(scope="function")
 REDIS_ELEMENTS_COUNT = 123
 
+
 class TestRedisQueue:
     @pytest.fixture(autouse=True)
     def app(self):
@@ -137,15 +138,15 @@ class TestRedisQueue:
             (receipt, elements) = redis_queue.poll(0)
             assert len(elements) == 0
             assert redis.llen(Buffer.INBOX.name(app.config["NOTIFY_ENVIRONMENT"])) == 1
-            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt,  app.config["NOTIFY_ENVIRONMENT"])) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, app.config["NOTIFY_ENVIRONMENT"])) == 0
 
     @pytest.mark.serial
     def test_polling_with_negative_count(self, app, redis, redis_queue):
         with self.given_inbox_with_one_element(redis, redis_queue):
             (receipt, elements) = redis_queue.poll(-1)
             assert len(elements) == 0
-            assert redis.llen(Buffer.INBOX.name( app.config["NOTIFY_ENVIRONMENT"])) == 1
-            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt,  app.config["NOTIFY_ENVIRONMENT"])) == 0
+            assert redis.llen(Buffer.INBOX.name(app.config["NOTIFY_ENVIRONMENT"])) == 1
+            assert redis.llen(Buffer.IN_FLIGHT.get_inflight_name(receipt, app.config["NOTIFY_ENVIRONMENT"])) == 0
 
     @pytest.mark.serial
     def test_acknowledged_messages(self, app, redis, redis_queue):
