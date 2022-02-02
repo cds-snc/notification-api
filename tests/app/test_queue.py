@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-from os import supports_effective_ids
 from uuid import uuid4
 
 import pytest
