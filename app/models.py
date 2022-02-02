@@ -29,7 +29,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
 
-from app import DATETIME_FORMAT, db, encryption
+from app import DATETIME_FORMAT, db, signer
 from app.config import QueueNames
 from app.encryption import check_hash, hashpw
 from app.history_meta import Versioned
@@ -817,13 +817,13 @@ class ServiceInboundApi(BaseModel, Versioned):
     @property
     def bearer_token(self):
         if self._bearer_token:
-            return encryption.decrypt(self._bearer_token)
+            return signer.verify(self._bearer_token)
         return None
 
     @bearer_token.setter
     def bearer_token(self, bearer_token):
         if bearer_token:
-            self._bearer_token = encryption.encrypt(str(bearer_token))
+            self._bearer_token = signer.sign(str(bearer_token))
 
     def serialize(self) -> dict:
         return {
@@ -854,13 +854,13 @@ class ServiceCallbackApi(BaseModel, Versioned):
     @property
     def bearer_token(self):
         if self._bearer_token:
-            return encryption.decrypt(self._bearer_token)
+            return signer.verify(self._bearer_token)
         return None
 
     @bearer_token.setter
     def bearer_token(self, bearer_token):
         if bearer_token:
-            self._bearer_token = encryption.encrypt(str(bearer_token))
+            self._bearer_token = signer.sign(str(bearer_token))
 
     def serialize(self) -> dict:
         return {
@@ -919,13 +919,13 @@ class ApiKey(BaseModel, Versioned):
     @property
     def secret(self):
         if self._secret:
-            return encryption.decrypt(self._secret)
+            return signer.verify(self._secret)
         return None
 
     @secret.setter
     def secret(self, secret):
         if secret:
-            self._secret = encryption.encrypt(str(secret))
+            self._secret = signer.sign(str(secret))
 
 
 KEY_TYPE_NORMAL = "normal"
@@ -1617,12 +1617,12 @@ class Notification(BaseModel):
     @property
     def personalisation(self):
         if self._personalisation:
-            return encryption.decrypt(self._personalisation)
+            return signer.verify(self._personalisation)
         return {}
 
     @personalisation.setter
     def personalisation(self, personalisation):
-        self._personalisation = encryption.encrypt(personalisation or {})
+        self._personalisation = signer.sign(personalisation or {})
 
     def completed_at(self):
         if self.status in NOTIFICATION_STATUS_TYPES_COMPLETED:
@@ -2111,11 +2111,11 @@ class InboundSms(BaseModel):
 
     @property
     def content(self):
-        return encryption.decrypt(self._content)
+        return signer.verify(self._content)
 
     @content.setter
     def content(self, content):
-        self._content = encryption.encrypt(content)
+        self._content = signer.sign(content)
 
     def serialize(self) -> dict:
         return {
