@@ -716,7 +716,7 @@ def mock_celery_send_email(mocker):
 
 @pytest.fixture(scope="function")
 def mock_encryption(mocker):
-    return mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
+    return mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
 
 
 @pytest.fixture(scope="function")
