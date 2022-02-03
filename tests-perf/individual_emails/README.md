@@ -6,14 +6,15 @@ The goal of this code is to load test the api with individual emails.
 
 ## How to configure
 
-Requires environment variables:
+Some test configuration is in the `locust.conf` file.
+
+The python file `individual-emails.py` requires these environment variables:
 ```
-PERF_TEST_DOMAIN=https://...
 PERF_TEST_AUTH_HEADER="apikey-v1 xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 PERF_TEST_EMAIL_TEMPLATE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
-Note that the code (`individual-emails.py`) is configured to have each user send approximately 200 emails per minute.
+Note that `individual-emails.py` is configured to have each user send approximately 200 emails per minute.
 
 ## How to run
 
