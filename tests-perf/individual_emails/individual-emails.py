@@ -1,12 +1,4 @@
-""" locust-notifications.py
-    isort:skip_file
-"""
-# flake8: noqa
-
 import os
-import sys
-
-sys.path.append(os.path.abspath(os.path.join("..", "tests_smoke")))
 
 from dotenv import load_dotenv
 from locust import HttpUser, constant_pacing, task
