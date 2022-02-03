@@ -13,7 +13,7 @@ PERF_TEST_AUTH_HEADER="apikey-v1 xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 PERF_TEST_EMAIL_TEMPLATE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
-Note that the code (`individual-emails.py`) is configured to have the users send emails every 30 seconds.
+Note that the code (`individual-emails.py`) is configured to have each user send approximately 200 emails per minute.
 
 ## How to run
 
@@ -34,7 +34,7 @@ Follow the localhost address that the console will display to get to the UI. It 
 You can pass the necessary parameters to the command line to run in the headless mode. For example:
 
 ```shell
-locust -f ./individual-emails.py --headless --users=1000 --spawn-rate=100 --run-time=10m --html=k8s_2000.html
+locust -f ./individual-emails.py --headless --users=5 --html=k8s_1000.html
 ```
 
 You can also modify the *locust.config* file to enable the headless mode and define the necessary users, spawn rate and run time.
