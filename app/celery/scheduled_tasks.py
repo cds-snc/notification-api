@@ -5,8 +5,8 @@ from notifications_utils.statsd_decorators import statsd
 from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import notify_celery, zendesk_client
-from app.celery.tasks import process_job
+from app import email_queue, notify_celery, sms_queue, zendesk_client
+from app.celery.tasks import process_job, save_emails, save_smss
 from app.config import QueueNames, TaskNames
 from app.dao.invited_org_user_dao import (
     delete_org_invitations_created_more_than_two_days_ago,
@@ -122,20 +122,20 @@ def check_job_status():
     from jobs
     where job_status == 'in progress'
     and template_type in ('sms', 'email')
-    and scheduled_at or created_at is older that 60 minutes.
+    and scheduled_at or created_at is older that 120 minutes.
     if any results then
         raise error
         process the rows in the csv that are missing (in another task) just do the check here.
     """
-    sixty_minutes_ago = datetime.utcnow() - timedelta(minutes=60)
-    sixty_five_minutes_ago = datetime.utcnow() - timedelta(minutes=65)
+    minutes_ago_120 = datetime.utcnow() - timedelta(minutes=120)
+    minutes_ago_125 = datetime.utcnow() - timedelta(minutes=125)
 
-    jobs_not_complete_after_60_minutes = (
+    jobs_not_complete_after_120_minutes = (
         Job.query.filter(
             Job.job_status == JOB_STATUS_IN_PROGRESS,
             and_(
-                sixty_five_minutes_ago < Job.processing_started,
-                Job.processing_started < sixty_minutes_ago,
+                minutes_ago_125 < Job.processing_started,
+                Job.processing_started < minutes_ago_120,
             ),
         )
         .order_by(Job.processing_started)
@@ -145,7 +145,7 @@ def check_job_status():
     # temporarily mark them as ERROR so that they don't get picked up by future check_job_status tasks
     # if they haven't been re-processed in time.
     job_ids = []
-    for job in jobs_not_complete_after_60_minutes:
+    for job in jobs_not_complete_after_120_minutes:
         job.job_status = JOB_STATUS_ERROR
         dao_update_job(job)
         job_ids.append(str(job.id))
@@ -220,3 +220,39 @@ def check_templated_letter_state():
                 message=msg,
                 ticket_type=zendesk_client.TYPE_INCIDENT,
             )
+
+
+@notify_celery.task(name="heartbeart-inbox-sms")
+@statsd(namespace="tasks")
+def heartbeat_inbox_sms():
+    """
+    The function acts as a heartbeat to a list of notifications in the queue.
+    The post_api will push all the notifications into the above list.
+    The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
+    to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
+    and actually sends the sms for each notification saved.
+    """
+    receipt_id_sms, list_of_sms_notifications = sms_queue.poll()
+
+    while list_of_sms_notifications:
+        save_smss.apply_async((None, list_of_sms_notifications, receipt_id_sms), queue=QueueNames.DATABASE)
+        current_app.logger.info(f"SMS UUID: {receipt_id_sms} sent to Inflight List")
+        receipt_id_sms, list_of_sms_notifications = sms_queue.poll()
+
+
+@notify_celery.task(name="heartbeart-inbox-email")
+@statsd(namespace="tasks")
+def heartbeat_inbox_email():
+    """
+    The function acts as a heartbeat to a list of notifications in the queue.
+    The post_api will push all the notifications into the above list.
+    The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
+    to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
+    and actually sends the email for each notification saved.
+    """
+    receipt_id_email, list_of_email_notifications = email_queue.poll()
+
+    while list_of_email_notifications:
+        save_emails.apply_async((None, list_of_email_notifications, receipt_id_email), queue=QueueNames.DATABASE)
+        current_app.logger.info(f"Email UUID: {receipt_id_email} sent to Inflight List")
+        receipt_id_email, list_of_email_notifications = email_queue.poll()

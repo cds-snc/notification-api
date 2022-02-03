@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.dao.notifications_dao import (
+    bulk_insert_notifications,
     dao_create_notification,
     dao_created_scheduled_notification,
     dao_delete_notifications_by_id,
@@ -59,6 +60,8 @@ from tests.app.db import (
     create_notification_history,
     create_service,
     create_template,
+    save_notification,
+    save_scheduled_notification,
 )
 
 
@@ -117,7 +120,7 @@ def test_should_by_able_to_update_status_by_id(sample_template, sample_job):
 def test_should_not_update_status_by_id_if_not_sending_and_does_not_update_job(
     sample_job,
 ):
-    notification = create_notification(template=sample_job.template, status="delivered", job=sample_job)
+    notification = save_notification(create_notification(template=sample_job.template, status="delivered", job=sample_job))
     assert Notification.query.get(notification.id).status == "delivered"
     assert not update_notification_status_by_id(notification.id, "failed")
     assert Notification.query.get(notification.id).status == "delivered"
@@ -127,11 +130,13 @@ def test_should_not_update_status_by_id_if_not_sending_and_does_not_update_job(
 def test_should_not_update_status_by_reference_if_not_sending_and_does_not_update_job(
     sample_job,
 ):
-    notification = create_notification(
-        template=sample_job.template,
-        status="delivered",
-        reference="reference",
-        job=sample_job,
+    notification = save_notification(
+        create_notification(
+            template=sample_job.template,
+            status="delivered",
+            reference="reference",
+            job=sample_job,
+        )
     )
     assert Notification.query.get(notification.id).status == "delivered"
     assert not update_notification_status_by_reference("reference", "failed")
@@ -147,7 +152,7 @@ def test_should_update_status_by_id_if_created(sample_template, sample_notificat
 
 
 def test_should_update_status_by_id_if_pending_virus_check(sample_letter_template):
-    notification = create_notification(template=sample_letter_template, status="pending-virus-check")
+    notification = save_notification(create_notification(template=sample_letter_template, status="pending-virus-check"))
     assert Notification.query.get(notification.id).status == "pending-virus-check"
     updated = update_notification_status_by_id(notification.id, "cancelled")
     assert Notification.query.get(notification.id).status == "cancelled"
@@ -155,7 +160,7 @@ def test_should_update_status_by_id_if_pending_virus_check(sample_letter_templat
 
 
 def test_should_update_status_by_id_and_set_sent_by(sample_template):
-    notification = create_notification(template=sample_template, status="sending")
+    notification = save_notification(create_notification(template=sample_template, status="sending"))
 
     updated = update_notification_status_by_id(notification.id, "delivered", sent_by="mmg")
     assert updated.status == "delivered"
@@ -165,7 +170,7 @@ def test_should_update_status_by_id_and_set_sent_by(sample_template):
 def test_should_not_update_status_by_reference_if_from_country_with_no_delivery_receipts(
     sample_template,
 ):
-    notification = create_notification(sample_template, status=NOTIFICATION_SENT, reference="foo")
+    notification = save_notification(create_notification(sample_template, status=NOTIFICATION_SENT, reference="foo"))
 
     res = update_notification_status_by_reference("foo", "failed")
 
@@ -176,11 +181,13 @@ def test_should_not_update_status_by_reference_if_from_country_with_no_delivery_
 def test_should_not_update_status_by_id_if_sent_to_country_with_unknown_delivery_receipts(
     sample_template,
 ):
-    notification = create_notification(
-        sample_template,
-        status=NOTIFICATION_SENT,
-        international=True,
-        phone_prefix="249",  # sudan has no delivery receipts (or at least, that we know about)
+    notification = save_notification(
+        create_notification(
+            sample_template,
+            status=NOTIFICATION_SENT,
+            international=True,
+            phone_prefix="249",  # sudan has no delivery receipts (or at least, that we know about)
+        )
     )
 
     res = update_notification_status_by_id(notification.id, "delivered")
@@ -192,11 +199,13 @@ def test_should_not_update_status_by_id_if_sent_to_country_with_unknown_delivery
 def test_should_not_update_status_by_id_if_sent_to_country_with_carrier_delivery_receipts(
     sample_template,
 ):
-    notification = create_notification(
-        sample_template,
-        status=NOTIFICATION_SENT,
-        international=True,
-        phone_prefix="1",  # americans only have carrier delivery receipts
+    notification = save_notification(
+        create_notification(
+            sample_template,
+            status=NOTIFICATION_SENT,
+            international=True,
+            phone_prefix="1",  # americans only have carrier delivery receipts
+        )
     )
 
     res = update_notification_status_by_id(notification.id, "delivered")
@@ -208,11 +217,13 @@ def test_should_not_update_status_by_id_if_sent_to_country_with_carrier_delivery
 def test_should_not_update_status_by_id_if_sent_to_country_with_delivery_receipts(
     sample_template,
 ):
-    notification = create_notification(
-        sample_template,
-        status=NOTIFICATION_SENT,
-        international=True,
-        phone_prefix="7",  # russians have full delivery receipts
+    notification = save_notification(
+        create_notification(
+            sample_template,
+            status=NOTIFICATION_SENT,
+            international=True,
+            phone_prefix="7",  # russians have full delivery receipts
+        )
     )
 
     res = update_notification_status_by_id(notification.id, "delivered")
@@ -222,7 +233,7 @@ def test_should_not_update_status_by_id_if_sent_to_country_with_delivery_receipt
 
 
 def test_should_not_update_status_by_reference_if_not_sending(sample_template):
-    notification = create_notification(template=sample_template, status="created", reference="reference")
+    notification = save_notification(create_notification(template=sample_template, status="created", reference="reference"))
     assert Notification.query.get(notification.id).status == "created"
     updated = update_notification_status_by_reference("reference", "failed")
     assert Notification.query.get(notification.id).status == "created"
@@ -230,7 +241,7 @@ def test_should_not_update_status_by_reference_if_not_sending(sample_template):
 
 
 def test_should_by_able_to_update_status_by_id_from_pending_to_delivered(sample_template, sample_job):
-    notification = create_notification(template=sample_template, job=sample_job, status="sending")
+    notification = save_notification(create_notification(template=sample_template, job=sample_job, status="sending"))
 
     assert update_notification_status_by_id(notification_id=notification.id, status="pending")
     assert Notification.query.get(notification.id).status == "pending"
@@ -240,7 +251,7 @@ def test_should_by_able_to_update_status_by_id_from_pending_to_delivered(sample_
 
 
 def test_should_by_able_to_update_status_by_id_from_pending_to_temporary_failure(sample_template, sample_job):
-    notification = create_notification(template=sample_template, job=sample_job, status="sending")
+    notification = save_notification(create_notification(template=sample_template, job=sample_job, status="sending"))
 
     assert update_notification_status_by_id(notification_id=notification.id, status="pending")
     assert Notification.query.get(notification.id).status == "pending"
@@ -263,7 +274,7 @@ def test_should_by_able_to_update_status_by_id_from_sending_to_permanent_failure
 def test_should_not_update_status_once_notification_status_is_delivered(
     sample_email_template,
 ):
-    notification = create_notification(template=sample_email_template, status="sending")
+    notification = save_notification(create_notification(template=sample_email_template, status="sending"))
     assert Notification.query.get(notification.id).status == "sending"
 
     notification.reference = "reference"
@@ -286,11 +297,13 @@ def test_should_return_zero_count_if_no_notification_with_reference():
 def test_create_notification_creates_notification_with_personalisation(sample_template_with_placeholders, sample_job):
     assert Notification.query.count() == 0
 
-    data = create_notification(
-        template=sample_template_with_placeholders,
-        job=sample_job,
-        personalisation={"name": "Jo"},
-        status="created",
+    data = save_notification(
+        create_notification(
+            template=sample_template_with_placeholders,
+            job=sample_job,
+            personalisation={"name": "Jo"},
+            status="created",
+        )
     )
 
     assert Notification.query.count() == 1
@@ -376,7 +389,7 @@ def test_update_notification_with_research_mode_service_does_not_create_or_updat
     sample_template,
 ):
     sample_template.service.research_mode = True
-    notification = create_notification(template=sample_template)
+    notification = save_notification(create_notification(template=sample_template))
 
     assert Notification.query.count() == 1
     assert NotificationHistory.query.count() == 0
@@ -469,7 +482,9 @@ def test_save_notification_with_no_job(sample_template):
 
 
 def test_get_notification_with_personalisation_by_id(sample_template):
-    notification = create_notification(template=sample_template, scheduled_for="2017-05-05 14:15", status="created")
+    notification = save_scheduled_notification(
+        create_notification(template=sample_template, status="created"), scheduled_for="2017-05-05 14:15"
+    )
     notification_from_db = get_notification_with_personalisation(sample_template.service.id, notification.id, key_type=None)
     assert notification == notification_from_db
     assert notification_from_db.scheduled_notification.scheduled_for == datetime(2017, 5, 5, 14, 15)
@@ -499,9 +514,9 @@ def test_get_notification_by_id_when_notification_exists_for_different_service(
 def test_get_notifications_by_reference(sample_template):
     client_reference = "some-client-ref"
     assert len(Notification.query.all()) == 0
-    create_notification(sample_template, client_reference=client_reference)
-    create_notification(sample_template, client_reference=client_reference)
-    create_notification(sample_template, client_reference="other-ref")
+    save_notification(create_notification(sample_template, client_reference=client_reference))
+    save_notification(create_notification(sample_template, client_reference=client_reference))
+    save_notification(create_notification(sample_template, client_reference="other-ref"))
     all_notifications = get_notifications_for_service(sample_template.service_id, client_reference=client_reference).items
     assert len(all_notifications) == 2
 
@@ -536,7 +551,7 @@ def test_get_notification_for_job(sample_notification):
 def test_get_all_notifications_for_job(sample_job):
     for i in range(0, 5):
         try:
-            create_notification(template=sample_job.template, job=sample_job)
+            save_notification(create_notification(template=sample_job.template, job=sample_job))
         except IntegrityError:
             pass
 
@@ -548,7 +563,7 @@ def test_get_all_notifications_for_job_by_status(sample_job):
     notifications = partial(get_notifications_for_job, sample_job.service.id, sample_job.id)
 
     for status in NOTIFICATION_STATUS_TYPES:
-        create_notification(template=sample_job.template, job=sample_job, status=status)
+        save_notification(create_notification(template=sample_job.template, job=sample_job, status=status))
 
     assert len(notifications().items) == len(NOTIFICATION_STATUS_TYPES)
 
@@ -578,7 +593,7 @@ def test_should_limit_notifications_return_by_day_limit_plus_one(sample_template
     for i in range(1, 11):
         past_date = "2016-01-{0:02d} 12:00:00".format(i)
         with freeze_time(past_date):
-            create_notification(sample_template, created_at=datetime.utcnow(), status="failed")
+            save_notification(create_notification(sample_template, created_at=datetime.utcnow(), status="failed"))
 
     all_notifications = Notification.query.all()
     assert len(all_notifications) == 10
@@ -591,13 +606,13 @@ def test_should_limit_notifications_return_by_day_limit_plus_one(sample_template
 
 
 def test_creating_notification_does_not_add_notification_history(sample_template):
-    create_notification(template=sample_template)
+    save_notification(create_notification(template=sample_template))
     assert Notification.query.count() == 1
     assert NotificationHistory.query.count() == 0
 
 
 def test_should_delete_notification_for_id(sample_template):
-    notification = create_notification(template=sample_template)
+    notification = save_notification(create_notification(template=sample_template))
 
     assert Notification.query.count() == 1
     assert NotificationHistory.query.count() == 0
@@ -612,7 +627,7 @@ def test_should_delete_notification_and_ignore_history_for_research_mode(
 ):
     sample_template.service.research_mode = True
 
-    notification = create_notification(template=sample_template)
+    notification = save_notification(create_notification(template=sample_template))
 
     assert Notification.query.count() == 1
 
@@ -622,8 +637,8 @@ def test_should_delete_notification_and_ignore_history_for_research_mode(
 
 
 def test_should_delete_only_notification_with_id(sample_template):
-    notification_1 = create_notification(template=sample_template)
-    notification_2 = create_notification(template=sample_template)
+    notification_1 = save_notification(create_notification(template=sample_template))
+    notification_2 = save_notification(create_notification(template=sample_template))
     assert Notification.query.count() == 2
 
     dao_delete_notifications_by_id(notification_1.id)
@@ -633,7 +648,7 @@ def test_should_delete_only_notification_with_id(sample_template):
 
 
 def test_should_delete_no_notifications_if_no_matching_ids(sample_template):
-    create_notification(template=sample_template)
+    save_notification(create_notification(template=sample_template))
     assert Notification.query.count() == 1
 
     dao_delete_notifications_by_id(uuid.uuid4())
@@ -664,10 +679,10 @@ def _notification_json(sample_template, job_id=None, id=None, status=None):
 
 def test_dao_timeout_notifications(sample_template):
     with freeze_time(datetime.utcnow() - timedelta(minutes=2)):
-        created = create_notification(sample_template, status="created")
-        sending = create_notification(sample_template, status="sending")
-        pending = create_notification(sample_template, status="pending")
-        delivered = create_notification(sample_template, status="delivered")
+        created = save_notification(create_notification(sample_template, status="created"))
+        sending = save_notification(create_notification(sample_template, status="sending"))
+        pending = save_notification(create_notification(sample_template, status="pending"))
+        delivered = save_notification(create_notification(sample_template, status="delivered"))
 
     assert Notification.query.get(created.id).status == "created"
     assert Notification.query.get(sending.id).status == "sending"
@@ -688,10 +703,10 @@ def test_dao_timeout_notifications_only_updates_for_older_notifications(
     sample_template,
 ):
     with freeze_time(datetime.utcnow() + timedelta(minutes=10)):
-        created = create_notification(sample_template, status="created")
-        sending = create_notification(sample_template, status="sending")
-        pending = create_notification(sample_template, status="pending")
-        delivered = create_notification(sample_template, status="delivered")
+        created = save_notification(create_notification(sample_template, status="created"))
+        sending = save_notification(create_notification(sample_template, status="sending"))
+        pending = save_notification(create_notification(sample_template, status="pending"))
+        delivered = save_notification(create_notification(sample_template, status="delivered"))
 
     assert Notification.query.get(created.id).status == "created"
     assert Notification.query.get(sending.id).status == "sending"
@@ -706,10 +721,10 @@ def test_dao_timeout_notifications_only_updates_for_older_notifications(
 
 def test_dao_timeout_notifications_doesnt_affect_letters(sample_letter_template):
     with freeze_time(datetime.utcnow() - timedelta(minutes=2)):
-        created = create_notification(sample_letter_template, status="created")
-        sending = create_notification(sample_letter_template, status="sending")
-        pending = create_notification(sample_letter_template, status="pending")
-        delivered = create_notification(sample_letter_template, status="delivered")
+        created = save_notification(create_notification(sample_letter_template, status="created"))
+        sending = save_notification(create_notification(sample_letter_template, status="sending"))
+        pending = save_notification(create_notification(sample_letter_template, status="pending"))
+        delivered = save_notification(create_notification(sample_letter_template, status="delivered"))
 
     assert Notification.query.get(created.id).status == "created"
     assert Notification.query.get(sending.id).status == "sending"
@@ -723,8 +738,8 @@ def test_dao_timeout_notifications_doesnt_affect_letters(sample_letter_template)
 
 
 def test_should_return_notifications_excluding_jobs_by_default(sample_template, sample_job, sample_api_key):
-    create_notification(sample_template, job=sample_job)
-    without_job = create_notification(sample_template, api_key=sample_api_key)
+    save_notification(create_notification(sample_template, job=sample_job))
+    without_job = save_notification(create_notification(sample_template, api_key=sample_api_key))
 
     include_jobs = get_notifications_for_service(sample_template.service_id, include_jobs=True).items
     assert len(include_jobs) == 2
@@ -739,8 +754,8 @@ def test_should_return_notifications_excluding_jobs_by_default(sample_template, 
 
 
 def test_should_return_notifications_including_one_offs_by_default(sample_user, sample_template):
-    create_notification(sample_template, one_off=True, created_by_id=sample_user.id)
-    not_one_off = create_notification(sample_template)
+    save_notification(create_notification(sample_template, one_off=True, created_by_id=sample_user.id))
+    not_one_off = save_notification(create_notification(sample_template))
 
     exclude_one_offs = get_notifications_for_service(sample_template.service_id, include_one_off=False).items
     assert len(exclude_one_offs) == 1
@@ -754,8 +769,8 @@ def test_should_return_notifications_including_one_offs_by_default(sample_user, 
 
 
 def test_should_not_count_pages_when_given_a_flag(sample_user, sample_template):
-    create_notification(sample_template)
-    notification = create_notification(sample_template)
+    save_notification(create_notification(sample_template))
+    notification = save_notification(create_notification(sample_template))
 
     pagination = get_notifications_for_service(sample_template.service_id, count_pages=False, page_size=1)
     assert len(pagination.items) == 1
@@ -772,24 +787,30 @@ def test_get_notifications_created_by_api_or_csv_are_returned_correctly_excludin
     sample_team_api_key,
     sample_test_api_key,
 ):
-    create_notification(template=sample_job.template, created_at=datetime.utcnow(), job=sample_job)
-    create_notification(
-        template=sample_job.template,
-        created_at=datetime.utcnow(),
-        api_key=sample_api_key,
-        key_type=sample_api_key.key_type,
+    save_notification(create_notification(template=sample_job.template, created_at=datetime.utcnow(), job=sample_job))
+    save_notification(
+        create_notification(
+            template=sample_job.template,
+            created_at=datetime.utcnow(),
+            api_key=sample_api_key,
+            key_type=sample_api_key.key_type,
+        )
     )
-    create_notification(
-        template=sample_job.template,
-        created_at=datetime.utcnow(),
-        api_key=sample_team_api_key,
-        key_type=sample_team_api_key.key_type,
+    save_notification(
+        create_notification(
+            template=sample_job.template,
+            created_at=datetime.utcnow(),
+            api_key=sample_team_api_key,
+            key_type=sample_team_api_key.key_type,
+        )
     )
-    create_notification(
-        template=sample_job.template,
-        created_at=datetime.utcnow(),
-        api_key=sample_test_api_key,
-        key_type=sample_test_api_key.key_type,
+    save_notification(
+        create_notification(
+            template=sample_job.template,
+            created_at=datetime.utcnow(),
+            api_key=sample_test_api_key,
+            key_type=sample_test_api_key.key_type,
+        )
     )
 
     all_notifications = Notification.query.all()
@@ -809,24 +830,30 @@ def test_get_notifications_created_by_api_or_csv_are_returned_correctly_excludin
 
 
 def test_get_notifications_with_a_live_api_key_type(sample_job, sample_api_key, sample_team_api_key, sample_test_api_key):
-    create_notification(template=sample_job.template, created_at=datetime.utcnow(), job=sample_job)
-    create_notification(
-        template=sample_job.template,
-        created_at=datetime.utcnow(),
-        api_key=sample_api_key,
-        key_type=sample_api_key.key_type,
+    save_notification(create_notification(template=sample_job.template, created_at=datetime.utcnow(), job=sample_job))
+    save_notification(
+        create_notification(
+            template=sample_job.template,
+            created_at=datetime.utcnow(),
+            api_key=sample_api_key,
+            key_type=sample_api_key.key_type,
+        )
     )
-    create_notification(
-        template=sample_job.template,
-        created_at=datetime.utcnow(),
-        api_key=sample_team_api_key,
-        key_type=sample_team_api_key.key_type,
+    save_notification(
+        create_notification(
+            template=sample_job.template,
+            created_at=datetime.utcnow(),
+            api_key=sample_team_api_key,
+            key_type=sample_team_api_key.key_type,
+        )
     )
-    create_notification(
-        template=sample_job.template,
-        created_at=datetime.utcnow(),
-        api_key=sample_test_api_key,
-        key_type=sample_test_api_key.key_type,
+    save_notification(
+        create_notification(
+            template=sample_job.template,
+            created_at=datetime.utcnow(),
+            api_key=sample_test_api_key,
+            key_type=sample_test_api_key.key_type,
+        )
     )
 
     all_notifications = Notification.query.all()
@@ -844,24 +871,30 @@ def test_get_notifications_with_a_live_api_key_type(sample_job, sample_api_key, 
 
 
 def test_get_notifications_with_a_test_api_key_type(sample_job, sample_api_key, sample_team_api_key, sample_test_api_key):
-    create_notification(template=sample_job.template, created_at=datetime.utcnow(), job=sample_job)
-    create_notification(
-        template=sample_job.template,
-        created_at=datetime.utcnow(),
-        api_key=sample_api_key,
-        key_type=sample_api_key.key_type,
+    save_notification(create_notification(template=sample_job.template, created_at=datetime.utcnow(), job=sample_job))
+    save_notification(
+        create_notification(
+            template=sample_job.template,
+            created_at=datetime.utcnow(),
+            api_key=sample_api_key,
+            key_type=sample_api_key.key_type,
+        )
     )
-    create_notification(
-        template=sample_job.template,
-        created_at=datetime.utcnow(),
-        api_key=sample_team_api_key,
-        key_type=sample_team_api_key.key_type,
+    save_notification(
+        create_notification(
+            template=sample_job.template,
+            created_at=datetime.utcnow(),
+            api_key=sample_team_api_key,
+            key_type=sample_team_api_key.key_type,
+        )
     )
-    create_notification(
-        template=sample_job.template,
-        created_at=datetime.utcnow(),
-        api_key=sample_test_api_key,
-        key_type=sample_test_api_key.key_type,
+    save_notification(
+        create_notification(
+            template=sample_job.template,
+            created_at=datetime.utcnow(),
+            api_key=sample_test_api_key,
+            key_type=sample_test_api_key.key_type,
+        )
     )
 
     # only those created with test API key, no jobs
@@ -876,24 +909,30 @@ def test_get_notifications_with_a_test_api_key_type(sample_job, sample_api_key, 
 
 
 def test_get_notifications_with_a_team_api_key_type(sample_job, sample_api_key, sample_team_api_key, sample_test_api_key):
-    create_notification(template=sample_job.template, created_at=datetime.utcnow(), job=sample_job)
-    create_notification(
-        template=sample_job.template,
-        created_at=datetime.utcnow(),
-        api_key=sample_api_key,
-        key_type=sample_api_key.key_type,
+    save_notification(create_notification(template=sample_job.template, created_at=datetime.utcnow(), job=sample_job))
+    save_notification(
+        create_notification(
+            template=sample_job.template,
+            created_at=datetime.utcnow(),
+            api_key=sample_api_key,
+            key_type=sample_api_key.key_type,
+        )
     )
-    create_notification(
-        template=sample_job.template,
-        created_at=datetime.utcnow(),
-        api_key=sample_team_api_key,
-        key_type=sample_team_api_key.key_type,
+    save_notification(
+        create_notification(
+            template=sample_job.template,
+            created_at=datetime.utcnow(),
+            api_key=sample_team_api_key,
+            key_type=sample_team_api_key.key_type,
+        )
     )
-    create_notification(
-        sample_job.template,
-        created_at=datetime.utcnow(),
-        api_key=sample_test_api_key,
-        key_type=sample_test_api_key.key_type,
+    save_notification(
+        create_notification(
+            sample_job.template,
+            created_at=datetime.utcnow(),
+            api_key=sample_test_api_key,
+            key_type=sample_test_api_key.key_type,
+        )
     )
 
     # only those created with team API key, no jobs
@@ -908,25 +947,31 @@ def test_get_notifications_with_a_team_api_key_type(sample_job, sample_api_key, 
 
 
 def test_should_exclude_test_key_notifications_by_default(sample_job, sample_api_key, sample_team_api_key, sample_test_api_key):
-    create_notification(template=sample_job.template, created_at=datetime.utcnow(), job=sample_job)
+    save_notification(create_notification(template=sample_job.template, created_at=datetime.utcnow(), job=sample_job))
 
-    create_notification(
-        template=sample_job.template,
-        created_at=datetime.utcnow(),
-        api_key=sample_api_key,
-        key_type=sample_api_key.key_type,
+    save_notification(
+        create_notification(
+            template=sample_job.template,
+            created_at=datetime.utcnow(),
+            api_key=sample_api_key,
+            key_type=sample_api_key.key_type,
+        )
     )
-    create_notification(
-        template=sample_job.template,
-        created_at=datetime.utcnow(),
-        api_key=sample_team_api_key,
-        key_type=sample_team_api_key.key_type,
+    save_notification(
+        create_notification(
+            template=sample_job.template,
+            created_at=datetime.utcnow(),
+            api_key=sample_team_api_key,
+            key_type=sample_team_api_key.key_type,
+        )
     )
-    create_notification(
-        template=sample_job.template,
-        created_at=datetime.utcnow(),
-        api_key=sample_test_api_key,
-        key_type=sample_test_api_key.key_type,
+    save_notification(
+        create_notification(
+            template=sample_job.template,
+            created_at=datetime.utcnow(),
+            api_key=sample_test_api_key,
+            key_type=sample_test_api_key.key_type,
+        )
     )
 
     all_notifications = Notification.query.all()
@@ -982,13 +1027,13 @@ def test_is_delivery_slow_for_provider(
     )
 
     for _ in range(normal_sending):
-        normal_notification(status="sending")
+        save_notification(normal_notification(status="sending"))
     for _ in range(slow_sending):
-        slow_notification(status="sending")
+        save_notification(slow_notification(status="sending"))
     for _ in range(normal_delivered):
-        normal_notification(status="delivered")
+        save_notification(normal_notification(status="delivered"))
     for _ in range(slow_delivered):
-        slow_notification(status="delivered")
+        save_notification(slow_notification(status="delivered"))
 
     assert is_delivery_slow_for_provider(datetime.utcnow(), "mmg", threshold, timedelta(minutes=4)) is expected_result
 
@@ -1023,7 +1068,7 @@ def test_delivery_is_delivery_slow_for_provider_filters_out_notifications_it_sho
         "updated_at": datetime.now(),
     }
     create_notification_with.update(options)
-    create_notification(**create_notification_with)
+    save_notification(create_notification(**create_notification_with))
     assert is_delivery_slow_for_provider(datetime.utcnow(), "mmg", 0.1, timedelta(minutes=4)) is expected_result
 
 
@@ -1034,17 +1079,21 @@ def test_dao_get_notifications_by_to_field(sample_template):
         "normalised_to": "+16502532222",
     }
 
-    notification1 = create_notification(template=sample_template, **recipient_to_search_for)
-    create_notification(template=sample_template, key_type=KEY_TYPE_TEST, **recipient_to_search_for)
-    create_notification(
-        template=sample_template,
-        to_field="jack@gmail.com",
-        normalised_to="jack@gmail.com",
+    notification1 = save_notification(create_notification(template=sample_template, **recipient_to_search_for))
+    save_notification(create_notification(template=sample_template, key_type=KEY_TYPE_TEST, **recipient_to_search_for))
+    save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="jack@gmail.com",
+            normalised_to="jack@gmail.com",
+        )
     )
-    create_notification(
-        template=sample_template,
-        to_field="jane@gmail.com",
-        normalised_to="jane@gmail.com",
+    save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="jane@gmail.com",
+            normalised_to="jane@gmail.com",
+        )
     )
 
     results = dao_get_notifications_by_to_field(
@@ -1059,10 +1108,12 @@ def test_dao_get_notifications_by_to_field(sample_template):
 
 @pytest.mark.parametrize("search_term", ["JACK", "JACK@gmail.com", "jack@gmail.com"])
 def test_dao_get_notifications_by_to_field_search_is_not_case_sensitive(sample_email_template, search_term):
-    notification = create_notification(
-        template=sample_email_template,
-        to_field="jack@gmail.com",
-        normalised_to="jack@gmail.com",
+    notification = save_notification(
+        create_notification(
+            template=sample_email_template,
+            to_field="jack@gmail.com",
+            normalised_to="jack@gmail.com",
+        )
     )
     results = dao_get_notifications_by_to_field(notification.service_id, search_term, notification_type="email")
     notification_ids = [notification.id for notification in results]
@@ -1074,15 +1125,19 @@ def test_dao_get_notifications_by_to_field_search_is_not_case_sensitive(sample_e
 def test_dao_get_notifications_by_to_field_matches_partial_emails(
     sample_email_template,
 ):
-    notification_1 = create_notification(
-        template=sample_email_template,
-        to_field="jack@gmail.com",
-        normalised_to="jack@gmail.com",
+    notification_1 = save_notification(
+        create_notification(
+            template=sample_email_template,
+            to_field="jack@gmail.com",
+            normalised_to="jack@gmail.com",
+        )
     )
-    notification_2 = create_notification(
-        template=sample_email_template,
-        to_field="jacque@gmail.com",
-        normalised_to="jacque@gmail.com",
+    notification_2 = save_notification(
+        create_notification(
+            template=sample_email_template,
+            to_field="jacque@gmail.com",
+            normalised_to="jacque@gmail.com",
+        )
     )
     results = dao_get_notifications_by_to_field(notification_1.service_id, "ack", notification_type="email")
     notification_ids = [notification.id for notification in results]
@@ -1124,10 +1179,12 @@ def test_dao_get_notifications_by_to_field_escapes(
         "/@example.com",
         "baz\\baz@example.com",
     }:
-        create_notification(
-            template=sample_email_template,
-            to_field=email_address,
-            normalised_to=email_address,
+        save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field=email_address,
+                normalised_to=email_address,
+            )
         )
 
     assert (
@@ -1169,15 +1226,19 @@ def test_dao_get_notifications_by_to_field_matches_partial_phone_numbers(
     search_term,
 ):
 
-    notification_1 = create_notification(
-        template=sample_template,
-        to_field="+447700900100",
-        normalised_to="447700900100",
+    notification_1 = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+447700900100",
+            normalised_to="447700900100",
+        )
     )
-    notification_2 = create_notification(
-        template=sample_template,
-        to_field="+447700900200",
-        normalised_to="447700900200",
+    notification_2 = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+447700900200",
+            normalised_to="447700900200",
+        )
     )
     results = dao_get_notifications_by_to_field(notification_1.service_id, search_term, notification_type="sms")
     notification_ids = [notification.id for notification in results]
@@ -1202,21 +1263,29 @@ def test_dao_get_notifications_by_to_field_accepts_invalid_phone_numbers_and_ema
 
 
 def test_dao_get_notifications_by_to_field_search_ignores_spaces(sample_template):
-    notification1 = create_notification(template=sample_template, to_field="+16502532222", normalised_to="+16502532222")
-    notification2 = create_notification(
-        template=sample_template,
-        to_field="+1 650 253 2222",
-        normalised_to="+16502532222",
+    notification1 = save_notification(
+        create_notification(template=sample_template, to_field="+16502532222", normalised_to="+16502532222")
     )
-    notification3 = create_notification(
-        template=sample_template,
-        to_field=" +1650253 2 222",
-        normalised_to="+16502532222",
+    notification2 = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+1 650 253 2222",
+            normalised_to="+16502532222",
+        )
     )
-    create_notification(
-        template=sample_template,
-        to_field="jaCK@gmail.com",
-        normalised_to="jack@gmail.com",
+    notification3 = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field=" +1650253 2 222",
+            normalised_to="+16502532222",
+        )
+    )
+    save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="jaCK@gmail.com",
+            normalised_to="jack@gmail.com",
+        )
     )
 
     results = dao_get_notifications_by_to_field(notification1.service_id, "+16502532222", notification_type="sms")
@@ -1244,11 +1313,13 @@ def test_dao_get_notifications_by_to_field_only_searches_one_notification_type(
     service = create_service()
     sms_template = create_template(service=service)
     email_template = create_template(service=service, template_type="email")
-    sms = create_notification(template=sms_template, to_field="6502532222", normalised_to="+16502532222")
-    email = create_notification(
-        template=email_template,
-        to_field="165@example.com",
-        normalised_to="165@example.com",
+    sms = save_notification(create_notification(template=sms_template, to_field="6502532222", normalised_to="+16502532222"))
+    email = save_notification(
+        create_notification(
+            template=email_template,
+            to_field="165@example.com",
+            normalised_to="165@example.com",
+        )
     )
     results = dao_get_notifications_by_to_field(service.id, phone_search, notification_type="sms")
     assert len(results) == 1
@@ -1278,9 +1349,15 @@ def test_dao_created_scheduled_notification(sample_notification):
 
 
 def test_dao_get_scheduled_notifications(sample_template):
-    notification_1 = create_notification(template=sample_template, scheduled_for="2017-05-05 14:15", status="created")
-    create_notification(template=sample_template, scheduled_for="2017-05-04 14:15", status="delivered")
-    create_notification(template=sample_template, status="created")
+    notification_1 = save_scheduled_notification(
+        create_notification(template=sample_template, status="created"),
+        scheduled_for="2017-05-05 14:15",
+    )
+    save_scheduled_notification(
+        create_notification(template=sample_template, status="delivered"),
+        scheduled_for="2017-05-04 14:15",
+    )
+    save_notification(create_notification(template=sample_template, status="created"))
     scheduled_notifications = dao_get_scheduled_notifications()
     assert len(scheduled_notifications) == 1
     assert scheduled_notifications[0].id == notification_1.id
@@ -1288,7 +1365,10 @@ def test_dao_get_scheduled_notifications(sample_template):
 
 
 def test_set_scheduled_notification_to_processed(sample_template):
-    notification_1 = create_notification(template=sample_template, scheduled_for="2017-05-05 14:15", status="created")
+    notification_1 = save_scheduled_notification(
+        create_notification(template=sample_template, status="created"),
+        scheduled_for="2017-05-05 14:15",
+    )
     scheduled_notifications = dao_get_scheduled_notifications()
     assert len(scheduled_notifications) == 1
     assert scheduled_notifications[0].id == notification_1.id
@@ -1300,17 +1380,21 @@ def test_set_scheduled_notification_to_processed(sample_template):
 
 
 def test_dao_get_notifications_by_to_field_filters_status(sample_template):
-    notification = create_notification(
-        template=sample_template,
-        to_field="+16502532222",
-        normalised_to="+16502532222",
-        status="delivered",
+    notification = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+16502532222",
+            normalised_to="+16502532222",
+            status="delivered",
+        )
     )
-    create_notification(
-        template=sample_template,
-        to_field="+16502532222",
-        normalised_to="+16502532222",
-        status="temporary-failure",
+    save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+16502532222",
+            normalised_to="+16502532222",
+            status="temporary-failure",
+        )
     )
 
     notifications = dao_get_notifications_by_to_field(
@@ -1325,17 +1409,21 @@ def test_dao_get_notifications_by_to_field_filters_status(sample_template):
 
 
 def test_dao_get_notifications_by_to_field_filters_multiple_statuses(sample_template):
-    notification1 = create_notification(
-        template=sample_template,
-        to_field="+16502532222",
-        normalised_to="+16502532222",
-        status="delivered",
+    notification1 = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+16502532222",
+            normalised_to="+16502532222",
+            status="delivered",
+        )
     )
-    notification2 = create_notification(
-        template=sample_template,
-        to_field="+16502532222",
-        normalised_to="+16502532222",
-        status="sending",
+    notification2 = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+16502532222",
+            normalised_to="+16502532222",
+            status="sending",
+        )
     )
 
     notifications = dao_get_notifications_by_to_field(
@@ -1354,17 +1442,21 @@ def test_dao_get_notifications_by_to_field_filters_multiple_statuses(sample_temp
 def test_dao_get_notifications_by_to_field_returns_all_if_no_status_filter(
     sample_template,
 ):
-    notification1 = create_notification(
-        template=sample_template,
-        to_field="+16502532222",
-        normalised_to="+16502532222",
-        status="delivered",
+    notification1 = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+16502532222",
+            normalised_to="+16502532222",
+            status="delivered",
+        )
     )
-    notification2 = create_notification(
-        template=sample_template,
-        to_field="+16502532222",
-        normalised_to="+16502532222",
-        status="temporary-failure",
+    notification2 = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+16502532222",
+            normalised_to="+16502532222",
+            status="temporary-failure",
+        )
     )
 
     notifications = dao_get_notifications_by_to_field(notification1.service_id, "+16502532222", notification_type="sms")
@@ -1377,15 +1469,16 @@ def test_dao_get_notifications_by_to_field_returns_all_if_no_status_filter(
 
 @freeze_time("2016-01-01 11:10:00")
 def test_dao_get_notifications_by_to_field_orders_by_created_at_desc(sample_template):
-    notification = partial(
-        create_notification,
-        template=sample_template,
-        to_field="+16502532222",
-        normalised_to="+16502532222",
-    )
+    data = {
+        "template": sample_template,
+        "to_field": "+16502532222",
+        "normalised_to": "+16502532222",
+    }
 
-    notification_a_minute_ago = notification(created_at=datetime.utcnow() - timedelta(minutes=1))
-    notification = notification(created_at=datetime.utcnow())
+    notification_a_minute_ago = save_notification(
+        create_notification(created_at=datetime.utcnow() - timedelta(minutes=1), **data)
+    )
+    notification = save_notification(create_notification(created_at=datetime.utcnow(), **data))
 
     notifications = dao_get_notifications_by_to_field(sample_template.service_id, "+16502532222", notification_type="sms")
 
@@ -1429,8 +1522,8 @@ def test_dao_get_last_notification_added_for_job_id_no_job(sample_template, fake
 
 
 def test_dao_update_notifications_by_reference_updated_notifications(sample_template):
-    notification_1 = create_notification(template=sample_template, reference="ref1")
-    notification_2 = create_notification(template=sample_template, reference="ref2")
+    notification_1 = save_notification(create_notification(template=sample_template, reference="ref1"))
+    notification_2 = save_notification(create_notification(template=sample_template, reference="ref2"))
 
     updated_count, updated_history_count = dao_update_notifications_by_reference(
         references=["ref1", "ref2"],
@@ -1450,7 +1543,7 @@ def test_dao_update_notifications_by_reference_updated_notifications(sample_temp
 def test_dao_update_notifications_by_reference_updates_history_some_notifications_exist(
     sample_template,
 ):
-    create_notification(template=sample_template, reference="ref1")
+    save_notification(create_notification(template=sample_template, reference="ref1"))
     create_notification_history(template=sample_template, reference="ref2")
 
     updated_count, updated_history_count = dao_update_notifications_by_reference(
@@ -1489,7 +1582,7 @@ def test_dao_update_notifications_by_reference_returns_zero_when_no_notification
 def test_dao_update_notifications_by_reference_set_returned_letter_status(
     sample_letter_template,
 ):
-    notification = create_notification(template=sample_letter_template, reference="ref")
+    notification = save_notification(create_notification(template=sample_letter_template, reference="ref"))
 
     updated_count, updated_history_count = dao_update_notifications_by_reference(
         references=["ref"], update_dict={"status": "returned-letter"}
@@ -1504,7 +1597,7 @@ def test_dao_update_notifications_by_reference_updates_history_when_one_of_two_n
     sample_letter_template,
 ):
     notification1 = create_notification_history(template=sample_letter_template, reference="ref1")
-    notification2 = create_notification(template=sample_letter_template, reference="ref2")
+    notification2 = save_notification(create_notification(template=sample_letter_template, reference="ref2"))
 
     updated_count, updated_history_count = dao_update_notifications_by_reference(
         references=["ref1", "ref2"], update_dict={"status": "returned-letter"}
@@ -1517,15 +1610,15 @@ def test_dao_update_notifications_by_reference_updates_history_when_one_of_two_n
 
 
 def test_dao_get_notification_by_reference_with_one_match_returns_notification(sample_letter_template, notify_db):
-    create_notification(template=sample_letter_template, reference="REF1")
+    save_notification(create_notification(template=sample_letter_template, reference="REF1"))
     notification = dao_get_notification_by_reference("REF1")
 
     assert notification.reference == "REF1"
 
 
 def test_dao_get_notification_by_reference_with_multiple_matches_raises_error(sample_letter_template, notify_db):
-    create_notification(template=sample_letter_template, reference="REF1")
-    create_notification(template=sample_letter_template, reference="REF1")
+    save_notification(create_notification(template=sample_letter_template, reference="REF1"))
+    save_notification(create_notification(template=sample_letter_template, reference="REF1"))
 
     with pytest.raises(SQLAlchemyError):
         dao_get_notification_by_reference("REF1")
@@ -1537,9 +1630,9 @@ def test_dao_get_notification_by_reference_with_no_matches_raises_error(notify_d
 
 
 def test_dao_get_notifications_by_reference(sample_template):
-    create_notification(template=sample_template, reference="noref")
-    notification_1 = create_notification(template=sample_template, reference="ref")
-    notification_2 = create_notification(template=sample_template, reference="ref")
+    save_notification(create_notification(template=sample_template, reference="noref"))
+    notification_1 = save_notification(create_notification(template=sample_template, reference="ref"))
+    notification_2 = save_notification(create_notification(template=sample_template, reference="ref"))
 
     notifications = dao_get_notifications_by_references(["ref"])
     assert len(notifications) == 2
@@ -1550,7 +1643,7 @@ def test_dao_get_notifications_by_reference(sample_template):
 def test_dao_get_notification_history_by_reference_with_one_match_returns_notification(
     sample_letter_template,
 ):
-    create_notification(template=sample_letter_template, reference="REF1")
+    save_notification(create_notification(template=sample_letter_template, reference="REF1"))
     notification = dao_get_notification_history_by_reference("REF1")
 
     assert notification.reference == "REF1"
@@ -1559,8 +1652,8 @@ def test_dao_get_notification_history_by_reference_with_one_match_returns_notifi
 def test_dao_get_notification_history_by_reference_with_multiple_matches_raises_error(
     sample_letter_template,
 ):
-    create_notification(template=sample_letter_template, reference="REF1")
-    create_notification(template=sample_letter_template, reference="REF1")
+    save_notification(create_notification(template=sample_letter_template, reference="REF1"))
+    save_notification(create_notification(template=sample_letter_template, reference="REF1"))
 
     with pytest.raises(SQLAlchemyError):
         dao_get_notification_history_by_reference("REF1")
@@ -1577,17 +1670,21 @@ def test_dao_get_notification_history_by_reference_with_no_matches_raises_error(
 def test_notifications_not_yet_sent(sample_service, notification_type):
     older_than = 4  # number of seconds the notification can not be older than
     template = create_template(service=sample_service, template_type=notification_type)
-    old_notification = create_notification(
-        template=template,
-        created_at=datetime.utcnow() - timedelta(seconds=older_than),
-        status="created",
+    old_notification = save_notification(
+        create_notification(
+            template=template,
+            created_at=datetime.utcnow() - timedelta(seconds=older_than),
+            status="created",
+        )
     )
-    create_notification(
-        template=template,
-        created_at=datetime.utcnow() - timedelta(seconds=older_than),
-        status="sending",
+    save_notification(
+        create_notification(
+            template=template,
+            created_at=datetime.utcnow() - timedelta(seconds=older_than),
+            status="sending",
+        )
     )
-    create_notification(template=template, created_at=datetime.utcnow(), status="created")
+    save_notification(create_notification(template=template, created_at=datetime.utcnow(), status="created"))
 
     results = notifications_not_yet_sent(older_than, notification_type)
     assert len(results) == 1
@@ -1598,9 +1695,9 @@ def test_notifications_not_yet_sent(sample_service, notification_type):
 def test_notifications_not_yet_sent_return_no_rows(sample_service, notification_type):
     older_than = 5  # number of seconds the notification can not be older than
     template = create_template(service=sample_service, template_type=notification_type)
-    create_notification(template=template, created_at=datetime.utcnow(), status="created")
-    create_notification(template=template, created_at=datetime.utcnow(), status="sending")
-    create_notification(template=template, created_at=datetime.utcnow(), status="delivered")
+    save_notification(create_notification(template=template, created_at=datetime.utcnow(), status="created"))
+    save_notification(create_notification(template=template, created_at=datetime.utcnow(), status="sending"))
+    save_notification(create_notification(template=template, created_at=datetime.utcnow(), status="delivered"))
 
     results = notifications_not_yet_sent(older_than, notification_type)
     assert len(results) == 0
@@ -1670,3 +1767,15 @@ def test_send_method_stats_by_service(sample_service, sample_organisation):
         )
         == []
     )
+
+
+def test_bulk_insert_notification(sample_template):
+    assert len(Notification.query.all()) == 0
+    n1 = create_notification(sample_template, client_reference="happy")
+    n1.id = None
+    n1.status = None
+    n2 = create_notification(sample_template, client_reference="sad")
+    n3 = create_notification(sample_template, client_reference="loud")
+    bulk_insert_notifications([n1, n2, n3])
+    all_notifications = get_notifications_for_service(sample_template.service_id).items
+    assert len(all_notifications) == 3

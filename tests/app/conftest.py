@@ -63,6 +63,7 @@ from tests.app.db import (
     create_service,
     create_template,
     create_user,
+    save_notification,
 )
 
 
@@ -494,19 +495,21 @@ def sample_notification_with_job(
         template = create_template(service=service)
     if job is None:
         job = create_job(template=template)
-    return create_notification(
-        template=template,
-        job=job,
-        job_row_number=job_row_number if job_row_number is not None else None,
-        to_field=to_field,
-        status=status,
-        reference=reference,
-        created_at=created_at,
-        sent_at=sent_at,
-        billable_units=billable_units,
-        personalisation=personalisation,
-        api_key=api_key,
-        key_type=key_type,
+    return save_notification(
+        create_notification(
+            template=template,
+            job=job,
+            job_row_number=job_row_number if job_row_number is not None else None,
+            to_field=to_field,
+            status=status,
+            reference=reference,
+            created_at=created_at,
+            sent_at=sent_at,
+            billable_units=billable_units,
+            personalisation=personalisation,
+            api_key=api_key,
+            key_type=key_type,
+        )
     )
 
 
@@ -535,6 +538,7 @@ def sample_notification(
     scheduled_for=None,
     normalised_to=None,
     postage=None,
+    queue_name=None,
 ):
     if created_at is None:
         created_at = datetime.utcnow()
@@ -582,6 +586,7 @@ def sample_notification(
         "rate_multiplier": rate_multiplier,
         "normalised_to": normalised_to,
         "postage": postage,
+        "queue_name": queue_name,
     }
     if job_row_number is not None:
         data["job_row_number"] = job_row_number
@@ -612,7 +617,7 @@ def sample_letter_notification(sample_letter_template):
         "address_line_6": "A6",
         "postcode": "A_POST",
     }
-    return create_notification(sample_letter_template, reference="foo", personalisation=address)
+    return save_notification(create_notification(sample_letter_template, reference="foo", personalisation=address))
 
 
 @pytest.fixture(scope="function")
@@ -711,7 +716,7 @@ def mock_celery_send_email(mocker):
 
 @pytest.fixture(scope="function")
 def mock_encryption(mocker):
-    return mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
+    return mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
 
 
 @pytest.fixture(scope="function")

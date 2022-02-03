@@ -5,24 +5,29 @@ from flask import json, url_for
 
 from app import DATETIME_FORMAT
 from tests import create_authorization_header
-from tests.app.db import create_notification, create_template
+from tests.app.db import (
+    create_notification,
+    create_template,
+    save_notification,
+    save_scheduled_notification,
+)
 
 
 @pytest.mark.parametrize("billable_units, provider", [(1, "mmg"), (0, "mmg"), (1, None)])
 # This test assumes the local timezone is EST
 def test_get_notification_by_id_returns_200(client, billable_units, provider, sample_template):
-    sample_notification = create_notification(
-        template=sample_template,
-        billable_units=billable_units,
-        sent_by=provider,
+    sample_notification = save_scheduled_notification(
+        create_notification(template=sample_template, billable_units=billable_units, sent_by=provider),
         scheduled_for="2017-05-12 15:15",
     )
 
     # another
-    create_notification(
-        template=sample_template,
-        billable_units=billable_units,
-        sent_by=provider,
+    save_scheduled_notification(
+        create_notification(
+            template=sample_template,
+            billable_units=billable_units,
+            sent_by=provider,
+        ),
         scheduled_for="2017-06-12 15:15",
     )
 
@@ -73,9 +78,11 @@ def test_get_notification_by_id_returns_200(client, billable_units, provider, sa
 
 
 def test_get_notification_by_id_with_placeholders_returns_200(client, sample_email_template_with_placeholders):
-    sample_notification = create_notification(
-        template=sample_email_template_with_placeholders,
-        personalisation={"name": "Bob"},
+    sample_notification = save_notification(
+        create_notification(
+            template=sample_email_template_with_placeholders,
+            personalisation={"name": "Bob"},
+        )
     )
 
     auth_header = create_authorization_header(service_id=sample_notification.service_id)
@@ -125,7 +132,9 @@ def test_get_notification_by_id_with_placeholders_returns_200(client, sample_ema
 
 
 def test_get_notification_by_reference_returns_200(client, sample_template):
-    sample_notification_with_reference = create_notification(template=sample_template, client_reference="some-client-reference")
+    sample_notification_with_reference = save_notification(
+        create_notification(template=sample_template, client_reference="some-client-reference")
+    )
 
     auth_header = create_authorization_header(service_id=sample_notification_with_reference.service_id)
     response = client.get(
@@ -148,7 +157,7 @@ def test_get_notification_by_id_returns_created_by_name_if_notification_created_
     sample_user,
     sample_template,
 ):
-    sms_notification = create_notification(template=sample_template)
+    sms_notification = save_notification(create_notification(template=sample_template))
     sms_notification.created_by_id = sample_user.id
 
     auth_header = create_authorization_header(service_id=sms_notification.service_id)
@@ -166,9 +175,8 @@ def test_get_notification_by_id_returns_created_by_name_if_notification_created_
 
 # This test assumes the local timezone is EST
 def test_get_notifications_returns_scheduled_for(client, sample_template):
-    sample_notification_with_reference = create_notification(
-        template=sample_template,
-        client_reference="some-client-reference",
+    sample_notification_with_reference = save_scheduled_notification(
+        create_notification(template=sample_template, client_reference="some-client-reference"),
         scheduled_for="2017-05-23 17:15",
     )
 
@@ -281,7 +289,7 @@ def test_get_notification_adds_delivery_estimate_for_letters(
 @pytest.mark.parametrize("template_type", ["sms", "email"])
 def test_get_notification_doesnt_have_delivery_estimate_for_non_letters(client, sample_service, template_type):
     template = create_template(service=sample_service, template_type=template_type)
-    mocked_notification = create_notification(template=template)
+    mocked_notification = save_notification(create_notification(template=template))
 
     auth_header = create_authorization_header(service_id=mocked_notification.service_id)
     response = client.get(
@@ -293,8 +301,8 @@ def test_get_notification_doesnt_have_delivery_estimate_for_non_letters(client, 
 
 
 def test_get_all_notifications_except_job_notifications_returns_200(client, sample_template, sample_job):
-    create_notification(template=sample_template, job=sample_job)  # should not return this job notification
-    notifications = [create_notification(template=sample_template) for _ in range(2)]
+    save_notification(create_notification(template=sample_template, job=sample_job))  # should not return this job notification
+    notifications = [save_notification(create_notification(template=sample_template)) for _ in range(2)]
     notification = notifications[-1]
 
     auth_header = create_authorization_header(service_id=notification.service_id)
@@ -325,8 +333,8 @@ def test_get_all_notifications_except_job_notifications_returns_200(client, samp
 
 def test_get_all_notifications_with_include_jobs_arg_returns_200(client, sample_template, sample_job):
     notifications = [
-        create_notification(template=sample_template, job=sample_job),
-        create_notification(template=sample_template),
+        save_notification(create_notification(template=sample_template, job=sample_job)),
+        save_notification(create_notification(template=sample_template)),
     ]
     notification = notifications[-1]
 
@@ -370,8 +378,8 @@ def test_get_all_notifications_filter_by_template_type(client, sample_service):
     email_template = create_template(service=sample_service, template_type="email")
     sms_template = create_template(service=sample_service, template_type="sms")
 
-    notification = create_notification(template=email_template, to_field="don.draper@scdp.biz")
-    create_notification(template=sms_template)
+    notification = save_notification(create_notification(template=email_template, to_field="don.draper@scdp.biz"))
+    save_notification(create_notification(template=sms_template))
 
     auth_header = create_authorization_header(service_id=notification.service_id)
     response = client.get(
@@ -416,8 +424,8 @@ def test_get_all_notifications_filter_by_template_type_invalid_template_type(cli
 
 
 def test_get_all_notifications_filter_by_single_status(client, sample_template):
-    notification = create_notification(template=sample_template, status="pending")
-    create_notification(template=sample_template)
+    notification = save_notification(create_notification(template=sample_template, status="pending"))
+    save_notification(create_notification(template=sample_template))
 
     auth_header = create_authorization_header(service_id=notification.service_id)
     response = client.get(
@@ -461,9 +469,10 @@ def test_get_all_notifications_filter_by_status_invalid_status(client, sample_no
 
 def test_get_all_notifications_filter_by_multiple_statuses(client, sample_template):
     notifications = [
-        create_notification(template=sample_template, status=_status) for _status in ["created", "pending", "sending"]
+        save_notification(create_notification(template=sample_template, status=_status))
+        for _status in ["created", "pending", "sending"]
     ]
-    failed_notification = create_notification(template=sample_template, status="permanent-failure")
+    failed_notification = save_notification(create_notification(template=sample_template, status="permanent-failure"))
 
     auth_header = create_authorization_header(service_id=notifications[0].service_id)
     response = client.get(
@@ -487,9 +496,9 @@ def test_get_all_notifications_filter_by_multiple_statuses(client, sample_templa
 
 
 def test_get_all_notifications_filter_by_failed_status(client, sample_template):
-    created_notification = create_notification(template=sample_template, status="created")
+    created_notification = save_notification(create_notification(template=sample_template, status="created"))
     failed_notifications = [
-        create_notification(template=sample_template, status=_status)
+        save_notification(create_notification(template=sample_template, status=_status))
         for _status in ["technical-failure", "temporary-failure", "permanent-failure"]
     ]
 
@@ -515,8 +524,8 @@ def test_get_all_notifications_filter_by_failed_status(client, sample_template):
 
 
 def test_get_all_notifications_filter_by_id(client, sample_template):
-    older_notification = create_notification(template=sample_template)
-    newer_notification = create_notification(template=sample_template)
+    older_notification = save_notification(create_notification(template=sample_template))
+    newer_notification = save_notification(create_notification(template=sample_template))
 
     auth_header = create_authorization_header(service_id=newer_notification.service_id)
     response = client.get(
@@ -550,7 +559,7 @@ def test_get_all_notifications_filter_by_id_invalid_id(client, sample_notificati
 
 
 def test_get_all_notifications_filter_by_id_no_notifications_if_nonexistent_id(client, sample_template):
-    notification = create_notification(template=sample_template)
+    notification = save_notification(create_notification(template=sample_template))
 
     auth_header = create_authorization_header(service_id=notification.service_id)
     response = client.get(
@@ -568,7 +577,7 @@ def test_get_all_notifications_filter_by_id_no_notifications_if_nonexistent_id(c
 
 
 def test_get_all_notifications_filter_by_id_no_notifications_if_last_notification(client, sample_template):
-    notification = create_notification(template=sample_template)
+    notification = save_notification(create_notification(template=sample_template))
 
     auth_header = create_authorization_header(service_id=notification.service_id)
     response = client.get(
@@ -587,19 +596,19 @@ def test_get_all_notifications_filter_by_id_no_notifications_if_last_notificatio
 
 def test_get_all_notifications_filter_multiple_query_parameters(client, sample_email_template):
     # this is the notification we are looking for
-    older_notification = create_notification(template=sample_email_template, status="pending")
+    older_notification = save_notification(create_notification(template=sample_email_template, status="pending"))
 
     # wrong status
-    create_notification(template=sample_email_template)
+    save_notification(create_notification(template=sample_email_template))
     wrong_template = create_template(sample_email_template.service, template_type="sms")
     # wrong template
-    create_notification(template=wrong_template, status="pending")
+    save_notification(create_notification(template=wrong_template, status="pending"))
 
     # we only want notifications created before this one
-    newer_notification = create_notification(template=sample_email_template)
+    newer_notification = save_notification(create_notification(template=sample_email_template))
 
     # this notification was created too recently
-    create_notification(template=sample_email_template, status="pending")
+    save_notification(create_notification(template=sample_email_template, status="pending"))
 
     auth_header = create_authorization_header(service_id=newer_notification.service_id)
     response = client.get(
@@ -661,14 +670,16 @@ def test_get_all_notifications_renames_letter_statuses(
     ],
 )
 def test_get_notifications_renames_letter_statuses(client, sample_letter_template, db_status, expected_status):
-    letter_noti = create_notification(
-        sample_letter_template,
-        status=db_status,
-        personalisation={
-            "address_line_1": "Mr Foo",
-            "address_line_2": "1 Bar Street",
-            "postcode": "N1",
-        },
+    letter_noti = save_notification(
+        create_notification(
+            sample_letter_template,
+            status=db_status,
+            personalisation={
+                "address_line_1": "Mr Foo",
+                "address_line_2": "1 Bar Street",
+                "postcode": "N1",
+            },
+        )
     )
     auth_header = create_authorization_header(service_id=letter_noti.service_id)
     response = client.get(

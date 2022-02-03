@@ -16,7 +16,11 @@ from app.notifications.notifications_ses_callback import (
     handle_complaint,
 )
 from tests.app.conftest import sample_notification as create_sample_notification
-from tests.app.db import create_notification, create_notification_history
+from tests.app.db import (
+    create_notification,
+    create_notification_history,
+    save_notification,
+)
 
 
 @pytest.mark.parametrize(
@@ -131,7 +135,7 @@ def test_ses_callback_should_not_set_status_once_status_is_delivered(
 
 
 def test_process_ses_results_in_complaint(sample_email_template):
-    notification = create_notification(template=sample_email_template, reference="ref1")
+    notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
     handle_complaint(json.loads(ses_complaint_callback()["Message"]))
     complaints = Complaint.query.all()
     assert len(complaints) == 1
@@ -153,7 +157,7 @@ def test_handle_complaint_does_raise_exception_if_notification_not_found(notify_
 def test_process_ses_results_in_complaint_if_notification_history_does_not_exist(
     sample_email_template,
 ):
-    notification = create_notification(template=sample_email_template, reference="ref1")
+    notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
     handle_complaint(json.loads(ses_complaint_callback()["Message"]))
     complaints = Complaint.query.all()
     assert len(complaints) == 1
@@ -171,7 +175,7 @@ def test_process_ses_results_in_complaint_if_notification_does_not_exist(
 
 
 def test_process_ses_results_in_complaint_save_complaint_with_null_complaint_type(notify_api, sample_email_template):
-    notification = create_notification(template=sample_email_template, reference="ref1")
+    notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
     msg = json.loads(ses_complaint_callback_with_missing_complaint_type()["Message"])
     handle_complaint(msg)
     complaints = Complaint.query.all()

@@ -10,7 +10,12 @@ import app.celery.tasks
 from app.dao.templates_dao import dao_update_template
 from app.models import JOB_STATUS_PENDING, JOB_STATUS_TYPES
 from tests import create_authorization_header
-from tests.app.db import create_ft_notification_status, create_job, create_notification
+from tests.app.db import (
+    create_ft_notification_status,
+    create_job,
+    create_notification,
+    save_notification,
+)
 from tests.conftest import set_config
 
 
@@ -70,7 +75,7 @@ def test_cant_cancel_normal_job(client, sample_job, mocker):
 @freeze_time("2019-06-13 13:00")
 def test_cancel_letter_job_updates_notifications_and_job_to_cancelled(sample_letter_template, admin_request, mocker):
     job = create_job(template=sample_letter_template, notification_count=1, job_status="finished")
-    create_notification(template=job.template, job=job, status="created")
+    save_notification(create_notification(template=job.template, job=job, status="created"))
 
     mock_get_job = mocker.patch("app.job.rest.dao_get_job_by_service_id_and_job_id", return_value=job)
     mock_can_letter_job_be_cancelled = mocker.patch("app.job.rest.can_letter_job_be_cancelled", return_value=(True, None))
@@ -94,8 +99,8 @@ def test_cancel_letter_job_does_not_call_cancel_if_can_letter_job_be_cancelled_r
     sample_letter_template, admin_request, mocker
 ):
     job = create_job(template=sample_letter_template, notification_count=2, job_status="finished")
-    create_notification(template=job.template, job=job, status="sending")
-    create_notification(template=job.template, job=job, status="created")
+    save_notification(create_notification(template=job.template, job=job, status="sending"))
+    save_notification(create_notification(template=job.template, job=job, status="created"))
 
     mock_get_job = mocker.patch("app.job.rest.dao_get_job_by_service_id_and_job_id", return_value=job)
     error_message = "Sorry, it's too late, letters have already been sent."
@@ -498,10 +503,10 @@ def test_get_all_notifications_for_job_in_order_of_job_number(admin_request, sam
     main_job = create_job(sample_template)
     another_job = create_job(sample_template)
 
-    notification_1 = create_notification(job=main_job, to_field="1", job_row_number=1)
-    notification_2 = create_notification(job=main_job, to_field="2", job_row_number=2)
-    notification_3 = create_notification(job=main_job, to_field="3", job_row_number=3)
-    create_notification(job=another_job)
+    notification_1 = save_notification(create_notification(job=main_job, to_field="1", job_row_number=1))
+    notification_2 = save_notification(create_notification(job=main_job, to_field="2", job_row_number=2))
+    notification_3 = save_notification(create_notification(job=main_job, to_field="3", job_row_number=3))
+    save_notification(create_notification(job=another_job))
 
     resp = admin_request.get(
         "job.get_all_notifications_for_service_job",
@@ -528,7 +533,7 @@ def test_get_all_notifications_for_job_in_order_of_job_number(admin_request, sam
     ],
 )
 def test_get_all_notifications_for_job_filtered_by_status(admin_request, sample_job, expected_notification_count, status_args):
-    create_notification(job=sample_job, to_field="1", status="created")
+    save_notification(create_notification(job=sample_job, to_field="1", status="created"))
 
     resp = admin_request.get(
         "job.get_all_notifications_for_service_job",
@@ -569,16 +574,16 @@ def test_get_job_by_id_should_return_summed_statistics(admin_request, sample_job
     job_id = str(sample_job.id)
     service_id = sample_job.service.id
 
-    create_notification(job=sample_job, status="created")
-    create_notification(job=sample_job, status="created")
-    create_notification(job=sample_job, status="created")
-    create_notification(job=sample_job, status="sending")
-    create_notification(job=sample_job, status="failed")
-    create_notification(job=sample_job, status="failed")
-    create_notification(job=sample_job, status="failed")
-    create_notification(job=sample_job, status="technical-failure")
-    create_notification(job=sample_job, status="temporary-failure")
-    create_notification(job=sample_job, status="temporary-failure")
+    save_notification(create_notification(job=sample_job, status="created"))
+    save_notification(create_notification(job=sample_job, status="created"))
+    save_notification(create_notification(job=sample_job, status="created"))
+    save_notification(create_notification(job=sample_job, status="sending"))
+    save_notification(create_notification(job=sample_job, status="failed"))
+    save_notification(create_notification(job=sample_job, status="failed"))
+    save_notification(create_notification(job=sample_job, status="failed"))
+    save_notification(create_notification(job=sample_job, status="technical-failure"))
+    save_notification(create_notification(job=sample_job, status="temporary-failure"))
+    save_notification(create_notification(job=sample_job, status="temporary-failure"))
 
     resp_json = admin_request.get("job.get_job_by_service_and_job_id", service_id=service_id, job_id=job_id)
 
@@ -624,12 +629,12 @@ def test_get_jobs_should_return_statistics(admin_request, sample_template):
     earlier = datetime.utcnow() - timedelta(days=1)
     job_1 = create_job(sample_template, processing_started=earlier)
     job_2 = create_job(sample_template, processing_started=now)
-    create_notification(job=job_1, status="created")
-    create_notification(job=job_1, status="created")
-    create_notification(job=job_1, status="created")
-    create_notification(job=job_2, status="sending")
-    create_notification(job=job_2, status="sending")
-    create_notification(job=job_2, status="sending")
+    save_notification(create_notification(job=job_1, status="created"))
+    save_notification(create_notification(job=job_1, status="created"))
+    save_notification(create_notification(job=job_1, status="created"))
+    save_notification(create_notification(job=job_2, status="sending"))
+    save_notification(create_notification(job=job_2, status="sending"))
+    save_notification(create_notification(job=job_2, status="sending"))
 
     resp_json = admin_request.get("job.get_jobs_by_service", service_id=sample_template.service_id)
 
@@ -769,7 +774,7 @@ def test_get_jobs_should_retrieve_from_ft_notification_status_for_old_jobs(admin
     create_ft_notification_status(date(2017, 6, 6), job=job_1, notification_status="delivered", count=2)
     create_ft_notification_status(date(2017, 6, 7), job=job_1, notification_status="delivered", count=4)
     # job2's new enough
-    create_notification(job=job_2, status="created", created_at=not_quite_three_days_ago)
+    save_notification(create_notification(job=job_2, status="created", created_at=not_quite_three_days_ago))
 
     # this isn't picked up because the job is too new
     create_ft_notification_status(date(2017, 6, 7), job=job_2, notification_status="delivered", count=8)
@@ -777,7 +782,7 @@ def test_get_jobs_should_retrieve_from_ft_notification_status_for_old_jobs(admin
     create_ft_notification_status(date(2017, 6, 7), job=job_3, notification_status="delivered", count=16)
 
     # this isn't picked up because we're using the ft status table for job_1 as it's old
-    create_notification(job=job_1, status="created", created_at=not_quite_three_days_ago)
+    save_notification(create_notification(job=job_1, status="created", created_at=not_quite_three_days_ago))
 
     resp_json = admin_request.get("job.get_jobs_by_service", service_id=sample_template.service_id)
 

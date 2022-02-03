@@ -38,6 +38,9 @@ class QueueNames(object):
     # further.
     DATABASE = "database-tasks"
 
+    # A queue for the tasks associated with the batch saving
+    NOTIFY_CACHE = "notifiy-cache-tasks"
+
     # Queue for sending all SMS, except long dedicated numbers.
     SEND_SMS = "send-sms-tasks"
 
@@ -143,6 +146,7 @@ class Config(object):
     PERFORMANCE_PLATFORM_URL = "https://www.performance.service.gov.uk/data/govuk-notify/"
 
     # Zendesk
+    ZENDESK_API_URL = os.getenv("ZENDESK_API_URL")
     ZENDESK_API_KEY = os.getenv("ZENDESK_API_KEY")
     ZENDESK_SELL_API_URL = os.getenv("ZENDESK_SELL_API_URL")
     ZENDESK_SELL_API_KEY = os.getenv("ZENDESK_SELL_API_KEY")
@@ -238,6 +242,8 @@ class Config(object):
     # templates.
     ALLOW_HTML_SERVICE_IDS: List[str] = [id.strip() for id in os.getenv("ALLOW_HTML_SERVICE_IDS", "").split(",")]
 
+    BATCH_INSERTION_CHUNK_SIZE = int(os.getenv("BATCH_INSERTION_CHUNK_SIZE", 500))
+
     BROKER_URL = "sqs://"
     BROKER_TRANSPORT_OPTIONS = {
         "region": AWS_REGION,
@@ -282,6 +288,17 @@ class Config(object):
             "schedule": crontab(minute="0, 15, 30, 45"),
             "options": {"queue": QueueNames.PERIODIC},
         },
+        "heartbeart-inbox-sms": {
+            "task": "heartbeart-inbox-sms",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "heartbeart-inbox-email": {
+            "task": "heartbeart-inbox-email",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        ""
         # app/celery/nightly_tasks.py
         "timeout-sending-notifications": {
             "task": "timeout-sending-notifications",
@@ -422,6 +439,8 @@ class Config(object):
 
     # feature flag to toggle persistance of notification in celery instead of the API
     FF_NOTIFICATION_CELERY_PERSISTENCE = os.getenv("FF_NOTIFICATION_CELERY_PERSISTENCE", False)
+    FF_BATCH_INSERTION = os.getenv("FF_BATCH_INSERTION", False)
+    FF_REDIS_BATCH_SAVING = os.getenv("FF_REDIS_BATCH_SAVING", False)
 
 
 ######################

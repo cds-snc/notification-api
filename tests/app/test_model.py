@@ -2,7 +2,7 @@ import pytest
 from freezegun import freeze_time
 from sqlalchemy.exc import IntegrityError
 
-from app import encryption
+from app import signer
 from app.models import (
     EMAIL_TYPE,
     MOBILE_TYPE,
@@ -28,6 +28,7 @@ from tests.app.db import (
     create_service,
     create_template,
     create_template_folder,
+    save_notification,
 )
 
 
@@ -110,7 +111,7 @@ def test_status_conversion(initial_statuses, expected_statuses):
 )
 def test_notification_for_csv_returns_correct_type(sample_service, template_type, recipient):
     template = create_template(sample_service, template_type=template_type)
-    notification = create_notification(template, to_field=recipient)
+    notification = save_notification(create_notification(template, to_field=recipient))
 
     serialized = notification.serialize_for_csv()
     assert serialized["template_type"] == template_type
@@ -118,7 +119,7 @@ def test_notification_for_csv_returns_correct_type(sample_service, template_type
 
 @freeze_time("2016-01-01 11:09:00.000000")
 def test_notification_for_csv_returns_correct_job_row_number(sample_job):
-    notification = create_notification(sample_job.template, sample_job, job_row_number=0)
+    notification = save_notification(create_notification(sample_job.template, sample_job, job_row_number=0))
 
     serialized = notification.serialize_for_csv()
     assert serialized["row_number"] == 1
@@ -143,7 +144,7 @@ def test_notification_for_csv_returns_correct_job_row_number(sample_job):
 )
 def test_notification_for_csv_returns_formatted_status(sample_service, template_type, status, expected_status):
     template = create_template(sample_service, template_type=template_type)
-    notification = create_notification(template, status=status)
+    notification = save_notification(create_notification(template, status=status))
 
     serialized = notification.serialize_for_csv()
     assert serialized["status"] == expected_status
@@ -151,7 +152,7 @@ def test_notification_for_csv_returns_formatted_status(sample_service, template_
 
 @freeze_time("2017-03-26 23:01:53.321312")
 def test_notification_for_csv_returns_est_correctly(sample_template):
-    notification = create_notification(sample_template)
+    notification = save_notification(create_notification(sample_template))
 
     serialized = notification.serialize_for_csv()
     assert serialized["created_at"] == "2017-03-26 19:01:53"
@@ -165,7 +166,7 @@ def test_notification_personalisation_getter_returns_empty_dict_from_None():
 
 def test_notification_personalisation_getter_always_returns_empty_dict():
     noti = Notification()
-    noti._personalisation = encryption.encrypt({})
+    noti._personalisation = signer.sign({})
     assert noti.personalisation == {}
 
 
@@ -174,7 +175,7 @@ def test_notification_personalisation_setter_always_sets_empty_dict(input_value)
     noti = Notification()
     noti.personalisation = input_value
 
-    assert noti._personalisation == encryption.encrypt({})
+    assert noti._personalisation == signer.sign({})
 
 
 def test_notification_subject_is_none_for_sms():
@@ -184,7 +185,7 @@ def test_notification_subject_is_none_for_sms():
 @pytest.mark.parametrize("template_type", ["email", "letter"])
 def test_notification_subject_fills_in_placeholders(sample_service, template_type):
     template = create_template(service=sample_service, template_type=template_type, subject="((name))")
-    notification = create_notification(template=template, personalisation={"name": "hello"})
+    notification = save_notification(create_notification(template=template, personalisation={"name": "hello"}))
     assert notification.subject == "hello"
 
 
@@ -232,7 +233,7 @@ def test_letter_notification_serializes_with_subject(client, sample_letter_templ
 
 
 def test_notification_references_template_history(client, sample_template):
-    noti = create_notification(sample_template)
+    noti = save_notification(create_notification(sample_template))
     sample_template.version = 3
     sample_template.content = "New template content"
 
@@ -246,7 +247,7 @@ def test_notification_references_template_history(client, sample_template):
 def test_notification_requires_a_valid_template_version(client, sample_template):
     sample_template.version = 2
     with pytest.raises(IntegrityError):
-        create_notification(sample_template)
+        save_notification(create_notification(sample_template))
 
 
 def test_inbound_number_serializes_with_service(client, notify_db_session):
@@ -370,3 +371,10 @@ def test_login_event_serialization(sample_login_event):
     json = sample_login_event.serialize()
     assert json["data"] == sample_login_event.data
     assert json["created_at"]
+
+
+class TestNotificationModel:
+    def test_queue_name_in_notifications(self, sample_service):
+        template = create_template(sample_service, template_type="email")
+        notification = save_notification(create_notification(template, to_field="test@example.com", queue_name="tester"))
+        assert notification.queue_name == "tester"

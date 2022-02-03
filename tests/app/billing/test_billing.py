@@ -20,6 +20,7 @@ from tests.app.db import (
     create_rate,
     create_service,
     create_template,
+    save_notification,
 )
 
 APR_2016_MONTH_START = datetime(2016, 3, 31, 23, 00, 00)
@@ -184,7 +185,7 @@ def test_get_yearly_usage_by_monthly_from_ft_billing_populates_deltas(client, no
         notification_type="sms",
     )
 
-    create_notification(template=sms_template, status="delivered")
+    save_notification(create_notification(template=sms_template, status="delivered"))
 
     assert FactBilling.query.count() == 0
 

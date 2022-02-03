@@ -233,13 +233,16 @@ def create_notification(
     rate_multiplier=None,
     international=False,
     phone_prefix=None,
-    scheduled_for=None,
     normalised_to=None,
     one_off=False,
     reply_to_text=None,
     created_by_id=None,
     postage=None,
+    queue_name=None,
 ):
+    """
+    Creates in memory Notification Model
+    """
     assert job or template
     if job:
         template = job.template
@@ -293,20 +296,34 @@ def create_notification(
         "reply_to_text": reply_to_text,
         "created_by_id": created_by_id,
         "postage": postage,
+        "queue_name": queue_name,
     }
-    notification = Notification(**data)
-    dao_create_notification(notification)
-    if scheduled_for:
-        scheduled_notification = ScheduledNotification(
-            id=uuid.uuid4(),
-            notification_id=notification.id,
-            scheduled_for=datetime.strptime(scheduled_for, "%Y-%m-%d %H:%M"),
-        )
-        if status != "created":
-            scheduled_notification.pending = False
-        dao_created_scheduled_notification(scheduled_notification)
+    return Notification(**data)
 
-    return notification
+
+def save_notification(notification_model):
+    """
+    Save Notification into the DB
+    """
+    dao_create_notification(notification_model)
+    return notification_model
+
+
+def save_scheduled_notification(notification_model, scheduled_for):
+    """
+    Create and save ScheduledNotifcation object
+    """
+    dao_create_notification(notification_model)
+    scheduled_notification = ScheduledNotification(
+        id=uuid.uuid4(),
+        notification_id=notification_model.id,
+        scheduled_for=datetime.strptime(scheduled_for, "%Y-%m-%d %H:%M"),
+    )
+    if notification_model.status != "created":
+        scheduled_notification.pending = False
+    dao_created_scheduled_notification(scheduled_notification)
+
+    return notification_model
 
 
 def create_notification_history(
