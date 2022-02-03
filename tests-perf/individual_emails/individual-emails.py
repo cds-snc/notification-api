@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 from locust import HttpUser, constant_pacing, task
 
