@@ -24,8 +24,11 @@ class Buffer(Enum):
     def inbox_name(self, suffix=None):
         return f"{self.value}:{suffix}" if suffix else self.value
 
+    def inflight_prefix(self, suffix: str = None) -> str:
+        return f"{Buffer.IN_FLIGHT.value}:{str(suffix)}" if suffix else f"{Buffer.IN_FLIGHT.value}"
+
     def inflight_name(self, receipt: UUID = uuid4(), suffix: str = None) -> str:
-        return f"{Buffer.IN_FLIGHT.value}:{str(suffix)}:{str(receipt)}" if suffix else f"{Buffer.IN_FLIGHT.value}:{str(receipt)}"
+        return f"{self.inflight_prefix(suffix)}:{str(receipt)}"
 
 
 class Queue(ABC):
@@ -105,7 +108,7 @@ class RedisQueue(Queue):
         return (receipt, results)
 
     def expire_inflights(self):
-        for key in self._redis_client.scan_iter(f"{Buffer.IN_FLIGHT.value}*"):
+        for key in self._redis_client.scan_iter(f"{Buffer.IN_FLIGHT.inflight_prefix(self._suffix)}*"):
             if self._redis_client.object("idletime", key) > self._expire_inflight_after_seconds:
                 self.move_from_inflight(key)
 
