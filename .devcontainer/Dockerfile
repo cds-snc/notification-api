@@ -28,7 +28,7 @@ RUN curl -O -J -L https://github.com/ryanoasis/nerd-fonts/releases/download/v2.1
     && rm FiraMono.zip \
     && fc-cache -fv
 
-RUN curl -fsSL https://starship.rs/install.sh | bash -s -- -y
+RUN curl -fsSL https://starship.rs/install.sh | sh -s -- -y
 
 COPY .devcontainer/scripts/notify-dev-entrypoint.sh /usr/local/bin/
 
