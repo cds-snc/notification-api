@@ -14,6 +14,8 @@ from app.celery.scheduled_tasks import (
     delete_verify_codes,
     heartbeat_inbox_email,
     heartbeat_inbox_sms,
+    in_flight_to_inbox_email,
+    in_flight_to_inbox_sms,
     replay_created_notifications,
     run_scheduled_jobs,
     send_scheduled_notifications,
