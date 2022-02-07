@@ -182,6 +182,16 @@ class TestRedisQueue:
             assert len(redis.keys("*")) == 0
 
     @pytest.mark.serial
+    def test_move_from_inflight(self, redis, redis_queue):
+        with self.given_inbox_with_many_indexes(redis, redis_queue):
+            (receipt, _) = redis_queue.poll(10)
+
+            redis_queue.__move_from_inflight(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX))
+
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == REDIS_ELEMENTS_COUNT
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 0
+
+    @pytest.mark.serial
     def test_messages_serialization_after_poll(self, redis, redis_queue):
         self.delete_all_list(redis)
         notification = (
