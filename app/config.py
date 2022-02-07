@@ -288,13 +288,8 @@ class Config(object):
             "schedule": crontab(minute="0, 15, 30, 45"),
             "options": {"queue": QueueNames.PERIODIC},
         },
-        "in-flight-to-inbox-sms": {
-            "task": "in-flight-to-inbox-sms",
-            "schedule": 30,
-            "options": {"queue": QueueNames.PERIODIC},
-        },
-        "in-flight-to-inbox-email": {
-            "task": "in-flight-to-inbox-email",
+        "in-flight-to-inbox": {
+            "task": "in-flight-to-inbox",
             "schedule": 30,
             "options": {"queue": QueueNames.PERIODIC},
         },

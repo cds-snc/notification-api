@@ -527,12 +527,8 @@ class TestHeartbeatQueues:
 
 
 class TestRecoverExpiredNotification:
-    def test_recover_expired_notifications_sms(self):
+    def test_recover_expired_notifications(self):
         recover_expired_notifications_sms()
 
         tasks.sms_queue.expire_inflights.assert_called_once()
-
-    def test_recover_expired_notifications_email(self):
-        recover_expired_notifications_email()
-
         tasks.email_queue.expire_inflights.assert_called_once()
