@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 from flask import Flask
+from freezegun import freeze_time
 from pytest_mock_resources import RedisConfig, create_redis_fixture
 
 from app import create_app, flask_redis
@@ -180,6 +181,24 @@ class TestRedisQueue:
             assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
             assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 0
             assert len(redis.keys("*")) == 0
+
+    @pytest.mark.serial
+    def test_expire_old_inflights(self, redis, redis_queue):
+        with self.given_inbox_with_many_indexes(redis, redis_queue):
+            freezer = freeze_time("2020-01-14 12:00:01")
+            freezer.start()
+            (receipt1, _) = redis_queue.poll(10)
+            (receipt2, _) = redis_queue.poll(10)
+            freezer.stop()
+
+            freezer = freeze_time("2020-01-14 13:00:01")
+            freezer.start()
+            redis_queue.expire_inflights()
+            freezer.stop()
+
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == REDIS_ELEMENTS_COUNT
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt1, QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt2, QNAME_SUFFIX)) == 0
 
     @pytest.mark.serial
     def test_move_from_inflight(self, redis, redis_queue):
