@@ -1,3 +1,4 @@
+import time
 from contextlib import contextmanager
 from uuid import uuid4
 
@@ -57,7 +58,7 @@ class TestRedisQueue:
 
     @pytest.fixture()
     def redis_queue(self, app):
-        q = RedisQueue(QNAME_SUFFIX)
+        q = RedisQueue(QNAME_SUFFIX, 1)
         q.init_app(flask_redis)
         return q
 
@@ -180,6 +181,23 @@ class TestRedisQueue:
             assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
             assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 0
             assert len(redis.keys("*")) == 0
+
+    @pytest.mark.serial
+    def test_expire_inflights_does_not_expire_early(self, redis, redis_queue):
+        with self.given_inbox_with_many_indexes(redis, redis_queue):
+            (receipt, _) = redis_queue.poll(10)
+            redis_queue.expire_inflights()
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == REDIS_ELEMENTS_COUNT - 10
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 10
+
+    @pytest.mark.serial
+    def test_expire_inflights(self, redis, redis_queue):
+        with self.given_inbox_with_many_indexes(redis, redis_queue):
+            (receipt, _) = redis_queue.poll(10)
+            time.sleep(2)
+            redis_queue.expire_inflights()
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == REDIS_ELEMENTS_COUNT
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 0
 
     @pytest.mark.serial
     def test_move_from_inflight(self, redis, redis_queue):
