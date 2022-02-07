@@ -5,6 +5,8 @@ from enum import Enum
 from typing import Any, Dict
 from uuid import UUID, uuid4
 
+from flask import current_app
+
 
 def generate_element(length=10) -> str:
     elem = "".join(random.choice(string.ascii_lowercase) for i in range(length))
@@ -83,12 +85,14 @@ class RedisQueue(Queue):
     """Implementation of a queue using Redis."""
 
     LUA_MOVE_TO_INFLIGHT = "move-in-inflight"
+    LUA_MOVE_FROM_INFLIGHT = "move-from-inflight"
 
     scripts: Dict[str, Any] = {}
 
-    def __init__(self, suffix=None) -> None:
+    def __init__(self, suffix=None, expire_inflight_after_seconds=300) -> None:
         self._inbox = Buffer.INBOX.inbox_name(suffix)
         self._suffix = suffix
+        self._expire_inflight_after_seconds = expire_inflight_after_seconds
 
     def init_app(self, redis):
         self._redis_client = redis
@@ -99,6 +103,12 @@ class RedisQueue(Queue):
         in_flight_key = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
         results = self.__move_to_inflight(in_flight_key, count)
         return (receipt, results)
+
+    def expire_inflights(self):
+        for key in self._redis_client.scan_iter(f"{Buffer.IN_FLIGHT.value}*"):
+            idle = self._redis_client.object("idletime", key)
+            if idle > self._expire_inflight_after_seconds:
+                self.__move_from_inflight(key)
 
     def acknowledge(self, receipt: UUID):
         inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
@@ -111,6 +121,12 @@ class RedisQueue(Queue):
         results = self.scripts[self.LUA_MOVE_TO_INFLIGHT](args=[self._inbox, in_flight_key, count])
         decoded = [result.decode("utf-8") for result in results]
         return decoded
+
+    def __move_from_inflight(self, in_flight_key: str):
+        self.scripts[self.LUA_MOVE_FROM_INFLIGHT](args=[in_flight_key, self._inbox])
+        current_app.logger.warning(f"Moved inflight {in_flight_key} back to inbox {self._inbox}")
+        self._redis_client.delete(in_flight_key)
+        pass
 
     def __register_scripts(self):
         self.scripts[self.LUA_MOVE_TO_INFLIGHT] = self._redis_client.register_script(
@@ -135,6 +151,33 @@ class RedisQueue(Queue):
                 current    = current + chunk_size+1
                 chunk_size = math.min((count-1) - current, DEFAULT_CHUNK)
             end
+
+            return all
+            """
+        )
+
+        self.scripts[self.LUA_MOVE_FROM_INFLIGHT] = self._redis_client.register_script(
+            """
+            local DEFAULT_CHUNK = 99
+
+            local source        = ARGV[1]
+            local destination   = ARGV[2]
+            local count         = tonumber(redis.call("LLEN", source))
+
+            local chunk_size    = math.min(math.max(0, count-1), DEFAULT_CHUNK)
+            local current       = 0
+            local all           = {}
+
+            while current < count do
+                local elements = redis.call("LRANGE", source, 0, chunk_size)
+                redis.call("LPUSH", destination, unpack(elements))
+                redis.call("LTRIM", source, chunk_size+1, -1)
+                for i=1,#elements do all[#all+1] = elements[i] end
+
+                current    = current + chunk_size+1
+                chunk_size = math.min((count-1) - current, DEFAULT_CHUNK)
+            end
+
 
             return all
             """
