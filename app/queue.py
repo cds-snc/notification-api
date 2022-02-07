@@ -106,9 +106,8 @@ class RedisQueue(Queue):
 
     def expire_inflights(self):
         for key in self._redis_client.scan_iter(f"{Buffer.IN_FLIGHT.value}*"):
-            idle = self._redis_client.object("idletime", key)
-            if idle > self._expire_inflight_after_seconds:
-                self.__move_from_inflight(key)
+            if self._redis_client.object("idletime", key) > self._expire_inflight_after_seconds:
+                self.move_from_inflight(key)
 
     def acknowledge(self, receipt: UUID):
         inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
@@ -122,7 +121,7 @@ class RedisQueue(Queue):
         decoded = [result.decode("utf-8") for result in results]
         return decoded
 
-    def __move_from_inflight(self, in_flight_key: str):
+    def move_from_inflight(self, in_flight_key: str):
         self.scripts[self.LUA_MOVE_FROM_INFLIGHT](args=[in_flight_key, self._inbox])
         current_app.logger.warning(f"Moved inflight {in_flight_key} back to inbox {self._inbox}")
         self._redis_client.delete(in_flight_key)

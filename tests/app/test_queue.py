@@ -186,7 +186,7 @@ class TestRedisQueue:
         with self.given_inbox_with_many_indexes(redis, redis_queue):
             (receipt, _) = redis_queue.poll(10)
 
-            redis_queue.__move_from_inflight(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX))
+            redis_queue.move_from_inflight(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX))
 
             assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == REDIS_ELEMENTS_COUNT
             assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 0
