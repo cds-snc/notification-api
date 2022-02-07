@@ -523,6 +523,7 @@ class TestHeartbeatQueues:
             queue="database-tasks",
         )
 
+
 class TestInflughtToInbox:
     def test_in_flight_to_inbox_sms(self, mocker):
         mocker.patch("app.sms_queue.expire_inflights", side_effect=[("receipt-id", ["1", "2", "3", "4"])])

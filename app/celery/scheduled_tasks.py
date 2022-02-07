@@ -230,6 +230,7 @@ def in_flight_to_inbox_sms():
     for notification in notifications:
         sms_queue.publish(notification)
 
+
 @notify_celery.task(name="in-flight-to-inbox-email")
 @statsd(namespace="tasks")
 def in_flight_to_inbox_email():
@@ -237,6 +238,7 @@ def in_flight_to_inbox_email():
 
     for notification in notifications:
         email_queue.publish(notification)
+
 
 @notify_celery.task(name="heartbeart-inbox-sms")
 @statsd(namespace="tasks")
