@@ -125,7 +125,6 @@ class RedisQueue(Queue):
         self.scripts[self.LUA_MOVE_FROM_INFLIGHT](args=[in_flight_key, self._inbox])
         current_app.logger.warning(f"Moved inflight {in_flight_key} back to inbox {self._inbox}")
         self._redis_client.delete(in_flight_key)
-        pass
 
     def __register_scripts(self):
         self.scripts[self.LUA_MOVE_TO_INFLIGHT] = self._redis_client.register_script(
