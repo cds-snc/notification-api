@@ -14,8 +14,8 @@ from app.celery.scheduled_tasks import (
     delete_verify_codes,
     heartbeat_inbox_email,
     heartbeat_inbox_sms,
-    in_flight_to_inbox_email,
-    in_flight_to_inbox_sms,
+    recover_expired_notifications_email,
+    recover_expired_notifications_sms,
     replay_created_notifications,
     run_scheduled_jobs,
     send_scheduled_notifications,
@@ -526,23 +526,13 @@ class TestHeartbeatQueues:
         )
 
 
-class TestInflughtToInbox:
-    def test_in_flight_to_inbox_sms(self, mocker):
-        mocker.patch("app.sms_queue.expire_inflights", side_effect=[("receipt-id", ["1", "2", "3", "4"])])
+class TestRecoverExpiredNotification:
+    def test_recover_expired_notifications_sms(self):
+        recover_expired_notifications_sms()
 
-        in_flight_to_inbox_sms()
+        tasks.sms_queue.expire_inflights.assert_called_once()
 
-        tasks.sms_queue.publish.assert_called_once_with("1")
-        tasks.sms_queue.publish.assert_called_once_with("2")
-        tasks.sms_queue.publish.assert_called_once_with("3")
-        tasks.sms_queue.publish.assert_called_once_with("4")
+    def test_recover_expired_notifications_email(self):
+        recover_expired_notifications_email()
 
-    def test_in_flight_to_inbox_email(self, mocker):
-        mocker.patch("app.email_queue.expire_inflights", side_effect=[("receipt-id", ["1", "2", "3", "4"])])
-
-        in_flight_to_inbox_email()
-
-        tasks.email_queue.publish.assert_called_once_with("1")
-        tasks.email_queue.publish.assert_called_once_with("2")
-        tasks.email_queue.publish.assert_called_once_with("3")
-        tasks.email_queue.publish.assert_called_once_with("4")
+        tasks.email_queue.expire_inflights.assert_called_once()

@@ -224,21 +224,13 @@ def check_templated_letter_state():
 
 @notify_celery.task(name="in-flight-to-inbox-sms")
 @statsd(namespace="tasks")
-def in_flight_to_inbox_sms():
-    _, notifications = sms_queue.expire_inflights()
-
-    for notification in notifications:
-        sms_queue.publish(notification)
-
+def recover_expired_notifications_sms():
+    sms_queue.expire_inflights()
 
 @notify_celery.task(name="in-flight-to-inbox-email")
 @statsd(namespace="tasks")
-def in_flight_to_inbox_email():
-    _, notifications = email_queue.expire_inflights()
-
-    for notification in notifications:
-        email_queue.publish(notification)
-
+def recover_expired_notifications_email():
+    email_queue.expire_inflights()
 
 @notify_celery.task(name="heartbeart-inbox-sms")
 @statsd(namespace="tasks")
