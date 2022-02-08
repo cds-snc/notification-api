@@ -88,7 +88,8 @@ class RedisQueue(Queue):
     """Implementation of a queue using Redis."""
 
     LUA_MOVE_TO_INFLIGHT = "move-in-inflight"
-    LUA_MOVE_FROM_INFLIGHT = "move-from-inflight"
+    # LUA_MOVE_FROM_INFLIGHT = "move-from-inflight"
+    LUA_EXPIRE_INFLIGHTS = "expire-inflights"
 
     scripts: Dict[str, Any] = {}
 
@@ -108,9 +109,14 @@ class RedisQueue(Queue):
         return (receipt, results)
 
     def expire_inflights(self):
-        for key in self._redis_client.scan_iter(f"{Buffer.IN_FLIGHT.inflight_prefix(self._suffix)}*"):
-            if self._redis_client.object("idletime", key) > self._expire_inflight_after_seconds:
-                self.__move_from_inflight(key)
+        args = [f"{Buffer.IN_FLIGHT.inflight_prefix()}:{self._suffix}*", self._inbox, self._expire_inflight_after_seconds]
+        expired = self.scripts[self.LUA_EXPIRE_INFLIGHTS](args=args)
+        if expired:
+            current_app.logger.warning(f"Moved inflights {expired} back to inbox {self._inbox}")
+
+        # for key in self._redis_client.scan_iter(f"{Buffer.IN_FLIGHT.inflight_prefix(self._suffix)}*"):
+        #     if self._redis_client.object("idletime", key) > self._expire_inflight_after_seconds:
+        #         self.__move_from_inflight(key)
 
     def acknowledge(self, receipt: UUID):
         inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
@@ -124,10 +130,10 @@ class RedisQueue(Queue):
         decoded = [result.decode("utf-8") for result in results]
         return decoded
 
-    def __move_from_inflight(self, in_flight_key: str):
-        self.scripts[self.LUA_MOVE_FROM_INFLIGHT](args=[in_flight_key, self._inbox])
-        current_app.logger.warning(f"Moved inflight {in_flight_key} back to inbox {self._inbox}")
-        self._redis_client.delete(in_flight_key)
+    # def __move_from_inflight(self, in_flight_key: str):
+    #     self.scripts[self.LUA_MOVE_FROM_INFLIGHT](args=[in_flight_key, self._inbox])
+    #     current_app.logger.warning(f"Moved inflight {in_flight_key} back to inbox {self._inbox}")
+    #     self._redis_client.delete(in_flight_key)
 
     def __register_scripts(self):
         self.scripts[self.LUA_MOVE_TO_INFLIGHT] = self._redis_client.register_script(
@@ -157,30 +163,62 @@ class RedisQueue(Queue):
             """
         )
 
-        self.scripts[self.LUA_MOVE_FROM_INFLIGHT] = self._redis_client.register_script(
+        # self.scripts[self.LUA_MOVE_FROM_INFLIGHT] = self._redis_client.register_script(
+        #     """
+        #     local DEFAULT_CHUNK = 99
+
+        #     local source        = ARGV[1]
+        #     local destination   = ARGV[2]
+        #     local count         = tonumber(redis.call("LLEN", source))
+
+        #     local chunk_size    = math.min(math.max(0, count-1), DEFAULT_CHUNK)
+        #     local current       = 0
+        #     local all           = {}
+
+        #     while current < count do
+        #         local elements = redis.call("LRANGE", source, 0, chunk_size)
+        #         redis.call("LPUSH", destination, unpack(elements))
+        #         redis.call("LTRIM", source, chunk_size+1, -1)
+        #         for i=1,#elements do all[#all+1] = elements[i] end
+
+        #         current    = current + chunk_size+1
+        #         chunk_size = math.min((count-1) - current, DEFAULT_CHUNK)
+        #     end
+
+        #     return all
+        #     """
+        # )
+
+        self.scripts[self.LUA_EXPIRE_INFLIGHTS] = self._redis_client.register_script(
             """
-            local DEFAULT_CHUNK = 99
+            local DEFAULT_CHUNK   = 99
+            local inflight_prefix = ARGV[1]
+            local destination     = ARGV[2]
+            local expire_after    = tonumber(ARGV[3])
 
-            local source        = ARGV[1]
-            local destination   = ARGV[2]
-            local count         = tonumber(redis.call("LLEN", source))
+            local inflight_keys     = redis.call("keys", inflight_prefix)
+            local expired_inflights = {}
 
-            local chunk_size    = math.min(math.max(0, count-1), DEFAULT_CHUNK)
-            local current       = 0
-            local all           = {}
+            for i, source in pairs(inflight_keys) do
+                local idle = redis.call("object", "idletime", source)
+                if ( idle > 10) then
+                    local count         = tonumber(redis.call("LLEN", source))
+                    local chunk_size    = math.min(math.max(0, count-1), DEFAULT_CHUNK)
+                    local current       = 0
 
-            while current < count do
-                local elements = redis.call("LRANGE", source, 0, chunk_size)
-                redis.call("LPUSH", destination, unpack(elements))
-                redis.call("LTRIM", source, chunk_size+1, -1)
-                for i=1,#elements do all[#all+1] = elements[i] end
+                    while current < count do
+                        local elements = redis.call("LRANGE", source, 0, chunk_size)
+                        redis.call("LPUSH", destination, unpack(elements))
+                        current    = current + chunk_size+1
+                        chunk_size = math.min((count-1) - current, DEFAULT_CHUNK)
+                    end
 
-                current    = current + chunk_size+1
-                chunk_size = math.min((count-1) - current, DEFAULT_CHUNK)
+                    redis.call("del", source)
+                end
+                expired_inflights[#expired_inflights+1] = source
             end
 
-
-            return all
+            return expired_inflights
             """
         )
 
