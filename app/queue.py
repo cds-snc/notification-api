@@ -199,25 +199,24 @@ class RedisQueue(Queue):
             local inflight_keys     = redis.call("keys", inflight_prefix)
             local expired_inflights = {}
 
-            for i, source in pairs(inflight_keys) do
-                local idle = redis.call("object", "idletime", source)
-                if ( idle > 10) then
-                    local count         = tonumber(redis.call("LLEN", source))
+            for i, inflight in pairs(inflight_keys) do
+                local idle = redis.call("object", "idletime", inflight)
+                if ( idle > expire_after) then
+                    local count         = tonumber(redis.call("LLEN", inflight))
                     local chunk_size    = math.min(math.max(0, count-1), DEFAULT_CHUNK)
                     local current       = 0
 
                     while current < count do
-                        local elements = redis.call("LRANGE", source, 0, chunk_size)
+                        local elements = redis.call("LRANGE", inflight, 0, chunk_size)
                         redis.call("LPUSH", destination, unpack(elements))
                         current    = current + chunk_size+1
                         chunk_size = math.min((count-1) - current, DEFAULT_CHUNK)
                     end
 
-                    redis.call("del", source)
+                    expired_inflights[#expired_inflights+1] = inflight
+                    redis.call("del", inflight)
                 end
-                expired_inflights[#expired_inflights+1] = source
             end
-
             return expired_inflights
             """
         )
