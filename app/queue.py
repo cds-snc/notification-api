@@ -160,28 +160,31 @@ class RedisQueue(Queue):
             local destination     = ARGV[2]
             local expire_after    = tonumber(ARGV[3])
 
-            local inflight_keys     = redis.call("keys", inflight_prefix)
+            local cursor = "0";
             local expired_inflights = {}
+            repeat
+                local scan_result = redis.call("SCAN", cursor, "MATCH", inflight_prefix, "COUNT", 100);
+                cursor = scan_result[1]
+                for i, inflight in pairs(scan_result[2]) do
+                    local idle = redis.call("object", "idletime", inflight)
+                    if ( idle > expire_after) then
+                        local count         = tonumber(redis.call("LLEN", inflight))
+                        local chunk_size    = math.min(math.max(0, count-1), DEFAULT_CHUNK)
+                        local current       = 0
 
-            for i, inflight in pairs(inflight_keys) do
-                local idle = redis.call("object", "idletime", inflight)
-                if ( idle > expire_after) then
-                    local count         = tonumber(redis.call("LLEN", inflight))
-                    local chunk_size    = math.min(math.max(0, count-1), DEFAULT_CHUNK)
-                    local current       = 0
+                        while current < count do
+                            local elements = redis.call("LRANGE", inflight, 0, chunk_size)
+                            redis.call("LPUSH", destination, unpack(elements))
+                            redis.call("LTRIM", inflight, chunk_size+1, -1)
+                            current    = current + chunk_size+1
+                            chunk_size = math.min((count-1) - current, DEFAULT_CHUNK)
+                        end
 
-                    while current < count do
-                        local elements = redis.call("LRANGE", inflight, 0, chunk_size)
-                        redis.call("LPUSH", destination, unpack(elements))
-                        redis.call("LTRIM", inflight, chunk_size+1, -1)
-                        current    = current + chunk_size+1
-                        chunk_size = math.min((count-1) - current, DEFAULT_CHUNK)
+                        expired_inflights[#expired_inflights+1] = inflight
+                        redis.call("del", inflight)
                     end
-
-                    expired_inflights[#expired_inflights+1] = inflight
-                    redis.call("del", inflight)
                 end
-            end
+            until cursor == "0";
             return expired_inflights
             """
         )
