@@ -14,7 +14,7 @@ from notifications_utils.template import SMSMessageTemplate
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import DATETIME_FORMAT, db, encryption
+from app import DATETIME_FORMAT, db, signer
 from app.aws import s3
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.celery.nightly_tasks import (
@@ -429,8 +429,8 @@ def replay_service_callbacks(file_name, service_id):
             "service_callback_api_url": callback_api.url,
             "service_callback_api_bearer_token": callback_api.bearer_token,
         }
-        encrypted_status_update = encryption.encrypt(data)
-        send_delivery_status_to_service.apply_async([str(n.id), encrypted_status_update], queue=QueueNames.CALLBACKS)
+        signed_status_update = signer.sign(data)
+        send_delivery_status_to_service.apply_async([str(n.id), signed_status_update], queue=QueueNames.CALLBACKS)
 
     print(
         "Replay service status for service: {}. Sent {} notification status updates to the queue".format(

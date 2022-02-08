@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 
-from app import db, encryption
+from app import db, signer
 from app.dao.dao_utils import transactional, version_class
 from app.models import ApiKey
 
@@ -27,7 +27,7 @@ def expire_api_key(service_id, api_key_id):
 
 
 def get_api_key_by_secret(secret):
-    return db.on_reader().query(ApiKey).filter_by(_secret=encryption.encrypt(str(secret))).options(joinedload("service")).one()
+    return db.on_reader().query(ApiKey).filter_by(_secret=signer.sign(str(secret))).options(joinedload("service")).one()
 
 
 def get_model_api_keys(service_id, id=None):

@@ -199,5 +199,5 @@ def test_process_sns_results_calls_service_callback(sample_template, notify_db_s
         statsd_client.timing_with_dates.assert_any_call("callback.sns.elapsed-time", datetime.utcnow(), notification.sent_at)
         statsd_client.incr.assert_any_call("callback.sns.delivered")
         updated_notification = get_notification_by_id(notification.id)
-        encrypted_data = create_delivery_status_callback_data(updated_notification, callback_api)
-        send_mock.assert_called_once_with([str(notification.id), encrypted_data], queue="service-callbacks")
+        signed_data = create_delivery_status_callback_data(updated_notification, callback_api)
+        send_mock.assert_called_once_with([str(notification.id), signed_data], queue="service-callbacks")
