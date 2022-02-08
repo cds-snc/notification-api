@@ -88,7 +88,6 @@ class RedisQueue(Queue):
     """Implementation of a queue using Redis."""
 
     LUA_MOVE_TO_INFLIGHT = "move-in-inflight"
-    # LUA_MOVE_FROM_INFLIGHT = "move-from-inflight"
     LUA_EXPIRE_INFLIGHTS = "expire-inflights"
 
     scripts: Dict[str, Any] = {}
@@ -174,6 +173,7 @@ class RedisQueue(Queue):
                     while current < count do
                         local elements = redis.call("LRANGE", inflight, 0, chunk_size)
                         redis.call("LPUSH", destination, unpack(elements))
+                        redis.call("LTRIM", inflight, chunk_size+1, -1)
                         current    = current + chunk_size+1
                         chunk_size = math.min((count-1) - current, DEFAULT_CHUNK)
                     end

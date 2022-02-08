@@ -185,10 +185,16 @@ class TestRedisQueue:
     @pytest.mark.serial
     def test_expire_inflights(self, redis, redis_queue):
         with self.given_inbox_with_many_indexes(redis, redis_queue):
+            inbox_name = Buffer.INBOX.inbox_name(QNAME_SUFFIX)
+            expected_inbox_contents = redis.lrange(inbox_name, 0, REDIS_ELEMENTS_COUNT)
+
             (receipt, _) = redis_queue.poll(10)
             time.sleep(2)
             redis_queue.expire_inflights()
-            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == REDIS_ELEMENTS_COUNT
+
+            assert redis.llen(inbox_name) == REDIS_ELEMENTS_COUNT
+            actual_inbox_contents = redis.lrange(inbox_name, 0, REDIS_ELEMENTS_COUNT)
+            assert expected_inbox_contents == actual_inbox_contents
             assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 0
 
     @pytest.mark.serial
