@@ -13,9 +13,16 @@
 	},
 
 	"containerEnv": {
-		"SHELL": "/bin/bash"
+		"SHELL": "/bin/bash",
 	},
 
+  "features": {
+		"docker-from-docker": {
+			"version": "latest",
+			"moby": true
+		}
+	},
+  
 	"extensions": [
 		"donjayamanne.python-extension-pack",
 		"ms-azuretools.vscode-docker",
