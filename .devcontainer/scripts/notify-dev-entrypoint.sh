@@ -34,6 +34,3 @@ pip3 install -r requirements_for_test.txt
 flask db upgrade
 
 wall "The dev container entrypoint setup is complete!"
-
-# Bubble up the main Docker command to container.
-exec "$@"
