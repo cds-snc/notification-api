@@ -16,7 +16,7 @@
 		"SHELL": "/bin/bash",
 	},
 
-  "features": {
+	"features": {
 		"docker-from-docker": {
 			"version": "latest",
 			"moby": true
