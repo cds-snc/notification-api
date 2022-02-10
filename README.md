@@ -19,7 +19,7 @@ For any issues during the following instructions, make sure to review the
 
 ### Local installation instruction 
 
-On OS X:
+#### On OS X:
 
 1. Install PyEnv with Homebrew. This will preserve your sanity. 
 
@@ -95,6 +95,23 @@ file. Copy that file to `.env` and customize it to your needs.
 
 `make test`
 
+#### In a [VS Code devcontainer](https://code.visualstudio.com/docs/remote/containers-tutorial)
+
+1. Install VS Code
+
+`brew install --cask visual-studio-code`
+
+2. Install Docker
+   
+`brew install --cask docker`
+   
+3. Install the [Remote-Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+
+4. In VS Code run "Remote-Containers: Open Folder in Container..." and select this repository folder
+
+5. Run the service
+
+`flask run -p 6011 --host=0.0.0.0`
 
 
 ##  To run the queues 
