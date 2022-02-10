@@ -1,4 +1,6 @@
 from contextlib import contextmanager
+from os import getenv
+from urllib.parse import urlparse
 from uuid import uuid4
 
 import pytest
@@ -12,7 +14,8 @@ from app.queue import Buffer, MockQueue, RedisQueue, generate_element
 
 @pytest.fixture(scope="session")
 def pmr_redis_config():
-    return RedisConfig(image="redis:6.2", host="localhost", port="6380", ci_port="6380")
+    parsed_uri = urlparse(getenv("REDIS_URL"))
+    return RedisConfig(image="redis:6.2", host=parsed_uri.hostname, port="6380", ci_port="6380")
 
 
 redis = create_redis_fixture(scope="function")
