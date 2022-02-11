@@ -415,8 +415,7 @@ def dao_fetch_todays_stats_for_service(service_id):
 
 
 def fetch_todays_total_message_count(service_id):
-    midnight = get_midnight(datetime.now, tz=pytz.utc)
-
+    midnight = get_midnight(datetime.now(), tz=pytz.utc)
     result = (
         db.session.query(func.count(Notification.id).label("count"))
         .filter(
