@@ -121,7 +121,7 @@ class TestMidnightDateTime:
                 datetime(2022, 7, 1, 0, 00, 00, tzinfo=eastern),
             ),
             (
-                datetime(2022, 7, 1, 18, 00, 00, tzinfo=eastern),
+                datetime(2022, 7, 1, 20, 00, 00, tzinfo=eastern),
                 datetime(2022, 7, 1, 0, 00, 00, tzinfo=eastern),
             ),
         ],
