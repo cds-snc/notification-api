@@ -79,5 +79,5 @@ def get_financial_year_for_datetime(start_date):
         return year
 
 
-def get_midnight(datetime: datetime, tz=pytz.utc) -> datetime:
-    return datetime.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(tz)
+def get_midnight(datetime: datetime) -> datetime:
+    return datetime.replace(hour=0, minute=0, second=0, microsecond=0)
