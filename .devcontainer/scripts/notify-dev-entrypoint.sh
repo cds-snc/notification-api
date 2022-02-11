@@ -16,6 +16,12 @@ echo -e "alias l='exa -alh'" >> ~/.bashrc
 echo -e "alias ll='exa -alh@ --git'" >> ~/.bashrc
 echo -e "alias lt='exa -al -T -L 2'" >> ~/.bashrc
 
+# Kubectl aliases and command autocomplete
+echo -e "alias k='kubectl'" >> ~/.bashrc
+echo -e "source <(kubectl completion bash)" >> ~/.bashrc
+echo -e "complete -F __start_kubectl k" >> ~/.bashrc
+echo -e "source /usr/share/bash-completion/bash_completion" >> ~/.bashrc
+
 cd /workspace 
 
 # Warm up git index prior to display status in prompt else it will 
