@@ -1,8 +1,8 @@
 import json
 import uuid
-import pytz
 from datetime import date, datetime, timedelta
 
+import pytz
 from flask import current_app
 from notifications_utils.clients.redis import service_cache_key
 from notifications_utils.statsd_decorators import statsd
