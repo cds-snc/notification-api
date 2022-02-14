@@ -526,7 +526,10 @@ class TestHeartbeatQueues:
 
 
 class TestRecoverExpiredNotification:
-    def test_recover_expired_notifications(self):
+    def test_recover_expired_notifications(self, mocker):
+        mocker.patch("app.celery.tasks.sms_queue.expire_inflights")
+        mocker.patch("app.celery.tasks.email_queue.expire_inflights")
+
         recover_expired_notifications()
 
         tasks.sms_queue.expire_inflights.assert_called_once()
