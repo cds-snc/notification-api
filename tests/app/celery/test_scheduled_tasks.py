@@ -14,8 +14,7 @@ from app.celery.scheduled_tasks import (
     delete_verify_codes,
     heartbeat_inbox_email,
     heartbeat_inbox_sms,
-    recover_expired_notifications_email,
-    recover_expired_notifications_sms,
+    recover_expired_notifications,
     replay_created_notifications,
     run_scheduled_jobs,
     send_scheduled_notifications,
@@ -528,7 +527,7 @@ class TestHeartbeatQueues:
 
 class TestRecoverExpiredNotification:
     def test_recover_expired_notifications(self):
-        recover_expired_notifications_sms()
+        recover_expired_notifications()
 
         tasks.sms_queue.expire_inflights.assert_called_once()
         tasks.email_queue.expire_inflights.assert_called_once()
