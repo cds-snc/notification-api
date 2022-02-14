@@ -228,6 +228,7 @@ def recover_expired_notifications():
     sms_queue.expire_inflights()
     email_queue.expire_inflights()
 
+
 @notify_celery.task(name="heartbeart-inbox-sms")
 @statsd(namespace="tasks")
 def heartbeat_inbox_sms():
