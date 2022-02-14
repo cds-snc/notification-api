@@ -12,10 +12,6 @@
 		"terminal.integrated.fontFamily": "Fira Mono Medium Nerd Font Complete Mono, MonoLisa, monospace"
 	},
 
-	"containerEnv": {
-		"SHELL": "/bin/bash",
-	},
-
 	"features": {
 		"docker-from-docker": {
 			"version": "latest",
@@ -33,7 +29,8 @@
 		"visualstudioexptteam.vscodeintellicode",
 		"yzhang.markdown-all-in-one",
 		"ms-ossdata.vscode-postgresql",
-		"googlecloudtools.cloudcode"
+		"googlecloudtools.cloudcode",
+		"GitHub.copilot"
 	],
 
 	"postCreateCommand": "notify-dev-entrypoint.sh"
