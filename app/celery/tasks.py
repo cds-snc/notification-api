@@ -263,6 +263,7 @@ def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: O
     """
     decrypted_notifications: List[Any] = []
     notification_id_queue: Dict = {}
+    saved_notifications = []
     for signed_notification in signed_notifications:
         notification = signer.verify(signed_notification)
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
@@ -407,6 +408,7 @@ def save_emails(self, service_id: str, signed_notification: List[Any], receipt: 
     """
     decrypted_notifications: List[Any] = []
     notification_id_queue: Dict = {}
+    saved_notifications = []
     for signed_notification in signed_notification:
         notification = signer.verify(signed_notification)
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
@@ -647,7 +649,7 @@ def handle_exception(task, notification, notification_id, exc):
 
 def handle_list_of_exception(task, list_notification, exc):
     for notification in list_notification:
-        notification_id = notification.notification_id
+        notification_id = notification["notification_id"]
         if not get_notification_by_id(notification_id):
             retry_msg = "{task} notification for job {job} row number {row} and notification id {noti}".format(
                 task=task.__name__,
