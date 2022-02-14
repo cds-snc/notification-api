@@ -33,7 +33,8 @@
 		"visualstudioexptteam.vscodeintellicode",
 		"yzhang.markdown-all-in-one",
 		"ms-ossdata.vscode-postgresql",
-		"googlecloudtools.cloudcode"
+		"googlecloudtools.cloudcode",
+		"GitHub.copilot"
 	],
 
 	"postCreateCommand": "notify-dev-entrypoint.sh"
