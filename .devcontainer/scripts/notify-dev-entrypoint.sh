@@ -8,13 +8,18 @@ set -ex
 ###################################################################
 
 # Define aliases
-echo -e "\n\n# User's Aliases" >> ~/.bashrc
-echo -e "alias fd=fdfind" >> ~/.bashrc
-echo -e "alias l='ls -al --color'" >> ~/.bashrc
-echo -e "alias ls='exa'" >> ~/.bashrc
-echo -e "alias l='exa -alh'" >> ~/.bashrc
-echo -e "alias ll='exa -alh@ --git'" >> ~/.bashrc
-echo -e "alias lt='exa -al -T -L 2'" >> ~/.bashrc
+echo -e "\n\n# User's Aliases" >> ~/.zshrc
+echo -e "alias fd=fdfind" >> ~/.zshrc
+echo -e "alias l='ls -al --color'" >> ~/.zshrc
+echo -e "alias ls='exa'" >> ~/.zshrc
+echo -e "alias l='exa -alh'" >> ~/.zshrc
+echo -e "alias ll='exa -alh@ --git'" >> ~/.zshrc
+echo -e "alias lt='exa -al -T -L 2'" >> ~/.zshrc
+
+# Kubectl aliases and command autocomplete
+echo -e "alias k='kubectl'" >> ~/.zshrc
+echo -e "source <(kubectl completion zsh)" >> ~/.zshrc
+echo -e "complete -F __start_kubectl k" >> ~/.zshrc
 
 cd /workspace 
 
