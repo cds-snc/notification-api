@@ -15,7 +15,6 @@ Metrics_Config.log_group_name = "BatchSaving"
 
 @metric_scope
 def put_batch_saving_metric(queue: RedisQueue, metrics):
-    import pdb; pdb.set_trace()
     try:
         metrics.set_namespace("BatchSaving")
         metrics.set_dimensions({"inbox": queue._inbox})
