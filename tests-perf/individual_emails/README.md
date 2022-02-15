@@ -14,8 +14,9 @@ PERF_TEST_AUTH_HEADER="apikey-v1 xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 PERF_TEST_EMAIL_TEMPLATE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
-Note that `individual-emails.py` is configured to have each user send approximately 200 emails per minute.
+Note that `individual-emails.py` is configured to have each user send 1 email per second.
 
+You can supply a `--ref=test` option (defined in `individual-emails.py`) that will set a prefix for the notification's `client_reference`. This is useful in testing that all POSTs were processed successfully.
 ## How to run
 
 There are two ways to run Locust, with the UI or headless.
@@ -35,7 +36,8 @@ Follow the localhost address that the console will display to get to the UI. It 
 You can pass the necessary parameters to the command line to run in the headless mode. For example:
 
 ```shell
-locust -f ./individual-emails.py --headless --users=5 --html=k8s_1000.html
+locust -f ./individual-emails.py --headless --stop-timeout=10 --host=https://api-k8s.staging.notification.cdssandbox.xyz --users=5 --html=k8s_1000.html
 ```
 
-You can also modify the *locust.config* file to enable the headless mode and define the necessary users, spawn rate and run time.
+You can also set many of these parameters in the *locust.conf* file.
+

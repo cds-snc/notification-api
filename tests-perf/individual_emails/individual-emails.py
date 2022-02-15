@@ -1,9 +1,15 @@
 import os
+import uuid
 
 from dotenv import load_dotenv
-from locust import HttpUser, constant_pacing, task
+from locust import HttpUser, constant_pacing, events, task
 
 load_dotenv()
+
+
+@events.init_command_line_parser.add_listener
+def _(parser):
+    parser.add_argument("--ref", type=str, default="test", help="Prefix for reference")
 
 
 class NotifyApiUser(HttpUser):
@@ -17,12 +23,7 @@ class NotifyApiUser(HttpUser):
 
     @task(1)
     def send_email_notifications(self):
-        json = self.__email_json(self.email_template)
+        reference_id = f"{self.environment.parsed_options.ref} {uuid.uuid4()}"
+        json = {"email_address": self.email_address, "template_id": self.email_template, "reference": reference_id}
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
-
-    def __email_json(self, template_id, personalisation={}):
-        return {
-            "email_address": self.email_address,
-            "template_id": template_id,
-            "personalisation": personalisation,
-        }
+        print(reference_id)
