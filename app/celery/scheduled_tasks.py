@@ -222,6 +222,13 @@ def check_templated_letter_state():
             )
 
 
+@notify_celery.task(name="in-flight-to-inbox")
+@statsd(namespace="tasks")
+def recover_expired_notifications():
+    sms_queue.expire_inflights()
+    email_queue.expire_inflights()
+
+
 @notify_celery.task(name="heartbeart-inbox-sms")
 @statsd(namespace="tasks")
 def heartbeat_inbox_sms():

@@ -288,6 +288,11 @@ class Config(object):
             "schedule": crontab(minute="0, 15, 30, 45"),
             "options": {"queue": QueueNames.PERIODIC},
         },
+        "in-flight-to-inbox": {
+            "task": "in-flight-to-inbox",
+            "schedule": 30,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
         "heartbeart-inbox-sms": {
             "task": "heartbeart-inbox-sms",
             "schedule": 10,
