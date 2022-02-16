@@ -31,5 +31,4 @@ def put_batch_saving_metric(queue: RedisQueue, count: int, metrics: MetricsLogge
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
         current_app.logger.exception(message)
-        pass
     return
