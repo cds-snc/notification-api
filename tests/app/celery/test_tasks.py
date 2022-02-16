@@ -577,18 +577,18 @@ def test_should_process_all_sms_job(sample_job_with_placeholdered_template, mock
 
 
 @pytest.mark.parametrize(
-    "template_type, research_mode, expected_function, expected_queue, api_key_id, sender_id",
+    "template_type, research_mode, expected_function, expected_queue, api_key_id, sender_id, reference",
     [
-        (SMS_TYPE, False, "save_sms", "database-tasks", None, None),
-        (SMS_TYPE, True, "save_sms", "research-mode-tasks", uuid.uuid4(), uuid.uuid4()),
-        (EMAIL_TYPE, False, "save_email", "database-tasks", uuid.uuid4(), uuid.uuid4()),
-        (EMAIL_TYPE, True, "save_email", "research-mode-tasks", None, None),
-        (LETTER_TYPE, False, "save_letter", "database-tasks", None, None),
-        (LETTER_TYPE, True, "save_letter", "research-mode-tasks", uuid.uuid4(), uuid.uuid4()),
+        (SMS_TYPE, False, "save_sms", "database-tasks", None, None, None),
+        (SMS_TYPE, True, "save_sms", "research-mode-tasks", uuid.uuid4(), uuid.uuid4(), "ref1"),
+        (EMAIL_TYPE, False, "save_email", "database-tasks", uuid.uuid4(), uuid.uuid4(), "ref2"),
+        (EMAIL_TYPE, True, "save_email", "research-mode-tasks", None, None, None),
+        (LETTER_TYPE, False, "save_letter", "database-tasks", None, None, None),
+        (LETTER_TYPE, True, "save_letter", "research-mode-tasks", uuid.uuid4(), uuid.uuid4(), "ref3"),
     ],
 )
 def test_process_row_sends_save_task(
-    notify_api, template_type, research_mode, expected_function, expected_queue, api_key_id, sender_id, mocker
+    notify_api, template_type, research_mode, expected_function, expected_queue, api_key_id, sender_id, reference, mocker
 ):
     service_allowed_to_send_to_mock = mocker.patch("app.service.utils.safelisted_members", return_value=None)
     mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
@@ -600,7 +600,7 @@ def test_process_row_sends_save_task(
 
     process_row(
         Row(
-            {"foo": "bar", "to": "recip", "reference": "ref1"},
+            {"foo": "bar", "to": "recip", "reference": reference} if reference else {"foo": "bar", "to": "recip"},
             index="row_num",
             error_fn=lambda k, v: None,
             recipient_column_headers=["to"],
@@ -623,7 +623,7 @@ def test_process_row_sends_save_task(
             "row_number": "row_num",
             "personalisation": {"foo": "bar"},
             "queue": None,
-            "client_reference": "ref1",
+            "client_reference": reference,
         }
     )
     task_mock.assert_called_once_with(
