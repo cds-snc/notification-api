@@ -7,6 +7,8 @@ from uuid import UUID, uuid4
 
 from flask import current_app
 
+from app.aws.metrics import put_batch_saving_metric
+
 
 def generate_element(length=10) -> str:
     elem = "".join(random.choice(string.ascii_lowercase) for i in range(length))
@@ -119,10 +121,12 @@ class RedisQueue(Queue):
 
     def publish(self, message: str):
         self._redis_client.rpush(self._inbox, message)
+        put_batch_saving_metric(self, 1)
 
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
         results = self.scripts[self.LUA_MOVE_TO_INFLIGHT](args=[self._inbox, in_flight_key, count])
         decoded = [result.decode("utf-8") for result in results]
+        put_batch_saving_metric(self, count)
         return decoded
 
     def __register_scripts(self):
