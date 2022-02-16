@@ -149,6 +149,7 @@ def job_complete(job: Job, resumed=False, start=None):
 
 def process_row(row: Row, template: Template, job: Job, service: Service):
     template_type = template.template_type
+    client_reference = row.get("reference")
     signed = signer.sign(
         {
             "api_key": job.api_key_id and str(job.api_key_id),
@@ -159,6 +160,7 @@ def process_row(row: Row, template: Template, job: Job, service: Service):
             "row_number": row.index,
             "personalisation": dict(row.personalisation),
             "queue": queue_to_use(job.notification_count),
+            "client_reference": client_reference.data if client_reference else None,
         }
     )
 
@@ -199,6 +201,7 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
 
     for row in rows:
         if service_allowed_to_send_to(row.recipient, service, KEY_TYPE_NORMAL):
+            client_reference = row.get("reference")
             signed_row = signer.sign(
                 {
                     "api_key": job.api_key_id and str(job.api_key_id),
@@ -210,6 +213,7 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
                     "personalisation": dict(row.personalisation),
                     "queue": queue_to_use(job.notification_count),
                     "sender_id": sender_id,
+                    "client_reference": client_reference.data if client_reference else None,
                 }
             )
             if template_type == SMS_TYPE:

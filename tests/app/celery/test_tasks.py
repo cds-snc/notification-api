@@ -600,7 +600,7 @@ def test_process_row_sends_save_task(
 
     process_row(
         Row(
-            {"foo": "bar", "to": "recip"},
+            {"foo": "bar", "to": "recip", "reference": "ref1"},
             index="row_num",
             error_fn=lambda k, v: None,
             recipient_column_headers=["to"],
@@ -623,6 +623,7 @@ def test_process_row_sends_save_task(
             "row_number": "row_num",
             "personalisation": {"foo": "bar"},
             "queue": None,
+            "client_reference": "ref1",
         }
     )
     task_mock.assert_called_once_with(
