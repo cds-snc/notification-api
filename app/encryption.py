@@ -2,16 +2,16 @@ from flask_bcrypt import check_password_hash, generate_password_hash
 from itsdangerous import URLSafeSerializer
 
 
-class Encryption:
+class CryptoSigner:
     def init_app(self, app):
         self.serializer = URLSafeSerializer(app.config.get("SECRET_KEY"))
         self.salt = app.config.get("DANGEROUS_SALT")
 
-    def encrypt(self, thing_to_encrypt):
-        return self.serializer.dumps(thing_to_encrypt, salt=self.salt)
+    def sign(self, to_sign):
+        return self.serializer.dumps(to_sign, salt=self.salt)
 
-    def decrypt(self, thing_to_decrypt):
-        return self.serializer.loads(thing_to_decrypt, salt=self.salt)
+    def verify(self, to_verify):
+        return self.serializer.loads(to_verify, salt=self.salt)
 
 
 def hashpw(password):

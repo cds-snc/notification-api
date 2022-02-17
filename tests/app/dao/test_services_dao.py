@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 from freezegun import freeze_time
@@ -610,7 +610,7 @@ def test_get_service_by_id_uses_redis_cache_when_use_cache_specified(notify_db_s
     service = dao_fetch_service_by_id(sample_service.id, use_cache=True)
 
     assert mocked_redis_get.called
-    assert str(sample_service.id) == service[0].id
+    assert str(sample_service.id) == service.id
 
 
 def test_create_service_returns_service_with_default_permissions(notify_db_session):
@@ -1035,15 +1035,22 @@ def test_fetch_stats_should_not_gather_notifications_older_than_7_days(sample_te
     assert len(stats) == rows_returned
 
 
-def test_dao_fetch_todays_total_message_count_returns_count_for_today(
-    notify_db_session,
-):
-    notification = save_notification(create_notification(template=create_template(service=create_service())))
-    assert fetch_todays_total_message_count(notification.service.id) == 1
+@pytest.mark.usefixtures("notify_db_session")
+class TestFetchTotalMessageCount:
+    def test_dao_fetch_todays_total_message_count_returns_count_for_today(self):
+        notification = save_notification(create_notification(template=create_template(service=create_service())))
+        assert fetch_todays_total_message_count(notification.service.id) == 1
 
+    def test_dao_fetch_todays_total_message_count_returns_0_when_no_messages_for_today(self):
+        assert fetch_todays_total_message_count(uuid.uuid4()) == 0
 
-def test_dao_fetch_todays_total_message_count_returns_0_when_no_messages_for_today(notify_db, notify_db_session):
-    assert fetch_todays_total_message_count(uuid.uuid4()) == 0
+    def test_dao_fetch_todays_total_message_count_returns_0_with_yesterday_messages(self):
+        today = datetime.utcnow().date()
+        yesterday = today - timedelta(days=1)
+        notification = save_notification(
+            create_notification(created_at=yesterday, template=create_template(service=create_service()))
+        )
+        assert fetch_todays_total_message_count(notification.service.id) == 0
 
 
 def test_dao_fetch_todays_stats_for_all_services_includes_all_services(

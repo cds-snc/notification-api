@@ -2,7 +2,7 @@ import pytest
 from freezegun import freeze_time
 from sqlalchemy.exc import IntegrityError
 
-from app import encryption
+from app import signer
 from app.models import (
     EMAIL_TYPE,
     MOBILE_TYPE,
@@ -166,7 +166,7 @@ def test_notification_personalisation_getter_returns_empty_dict_from_None():
 
 def test_notification_personalisation_getter_always_returns_empty_dict():
     noti = Notification()
-    noti._personalisation = encryption.encrypt({})
+    noti._personalisation = signer.sign({})
     assert noti.personalisation == {}
 
 
@@ -175,7 +175,7 @@ def test_notification_personalisation_setter_always_sets_empty_dict(input_value)
     noti = Notification()
     noti.personalisation = input_value
 
-    assert noti._personalisation == encryption.encrypt({})
+    assert noti._personalisation == signer.sign({})
 
 
 def test_notification_subject_is_none_for_sms():
@@ -371,3 +371,10 @@ def test_login_event_serialization(sample_login_event):
     json = sample_login_event.serialize()
     assert json["data"] == sample_login_event.data
     assert json["created_at"]
+
+
+class TestNotificationModel:
+    def test_queue_name_in_notifications(self, sample_service):
+        template = create_template(sample_service, template_type="email")
+        notification = save_notification(create_notification(template, to_field="test@example.com", queue_name="tester"))
+        assert notification.queue_name == "tester"

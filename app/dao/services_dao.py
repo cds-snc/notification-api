@@ -1,8 +1,8 @@
 import json
 import uuid
 from datetime import date, datetime, timedelta
-from typing import Tuple, Union
 
+import pytz
 from flask import current_app
 from notifications_utils.clients.redis import service_cache_key
 from notifications_utils.statsd_decorators import statsd
@@ -12,7 +12,7 @@ from sqlalchemy.sql.expression import and_, asc, case, func
 
 from app import db, redis_store
 from app.dao.dao_utils import VersionOptions, transactional, version_class
-from app.dao.date_util import get_current_financial_year
+from app.dao.date_util import get_current_financial_year, get_midnight
 from app.dao.email_branding_dao import dao_get_email_branding_by_name
 from app.dao.letter_branding_dao import dao_get_letter_branding_by_name
 from app.dao.organisation_dao import dao_get_organisation_by_email_address
@@ -189,12 +189,12 @@ def dao_fetch_live_services_data():
     return results
 
 
-def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Union[Service, Tuple[Service, dict]]:
+def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Service:
     if use_cache:
         service_cache = redis_store.get(service_cache_key(service_id))
         if service_cache:
             service_cache_decoded = json.loads(service_cache.decode("utf-8"))["data"]
-            return Service.from_json(service_cache_decoded), service_cache_decoded
+            return Service.from_json(service_cache_decoded)
 
     query = Service.query.filter_by(id=service_id).options(joinedload("users"))
     if only_active:
@@ -415,12 +415,13 @@ def dao_fetch_todays_stats_for_service(service_id):
 
 
 def fetch_todays_total_message_count(service_id):
+    midnight = get_midnight(datetime.now(tz=pytz.utc))
     result = (
         db.session.query(func.count(Notification.id).label("count"))
         .filter(
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
-            func.date(Notification.created_at) == date.today(),
+            Notification.created_at > midnight,
         )
         .group_by(
             Notification.notification_type,

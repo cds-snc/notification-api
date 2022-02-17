@@ -132,8 +132,51 @@ def test_post_sms_notification_with_persistance_in_celery_returns_201(
     assert mocked.called
 
 
+class TestRedisBatchSaving:
+    @pytest.mark.parametrize("reference", [None, "reference_from_client"])
+    def test_post_notification_with_redis_batch_saving_returns_201(
+        self, notify_api, client, sample_template_with_placeholders, mocker, reference
+    ):
+        notify_api.config["FF_REDIS_BATCH_SAVING"] = True
+        mocked_redis_publish = mocker.patch("app.queue.RedisQueue.publish")
+
+        data = {
+            "phone_number": "+16502532222",
+            "template_id": str(sample_template_with_placeholders.id),
+            "personalisation": {" Name": "Jo"},
+        }
+        if reference:
+            data.update({"reference": reference})
+        auth_header = create_authorization_header(service_id=sample_template_with_placeholders.service_id)
+
+        response = client.post(
+            path="/v2/notifications/sms",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert validate(resp_json, post_sms_response) == resp_json
+        assert resp_json["reference"] == reference
+        assert resp_json["content"]["body"] == sample_template_with_placeholders.content.replace("(( Name))", "Jo")
+        assert resp_json["content"]["from_number"] == current_app.config["FROM_NUMBER"]
+        assert "v2/notifications/{}".format(resp_json["id"]) in resp_json["uri"]
+        assert resp_json["template"]["id"] == str(sample_template_with_placeholders.id)
+        assert resp_json["template"]["version"] == sample_template_with_placeholders.version
+        assert (
+            "services/{}/templates/{}".format(
+                sample_template_with_placeholders.service_id,
+                sample_template_with_placeholders.id,
+            )
+            in resp_json["template"]["uri"]
+        )
+        assert not resp_json["scheduled_for"]
+        assert mocked_redis_publish.called
+
+
 def test_post_sms_notification_uses_inbound_number_as_sender(notify_api, client, notify_db_session, mocker):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     service = create_service_with_inbound_number(inbound_number="1")
     template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
@@ -163,6 +206,7 @@ def test_post_sms_notification_uses_inbound_number_as_sender(notify_api, client,
 
 def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(notify_api, client, notify_db_session, mocker):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     service = create_service_with_inbound_number(inbound_number="6502532222")
     template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
@@ -192,6 +236,7 @@ def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(notify_api
 
 def test_post_sms_notification_returns_201_with_sms_sender_id(notify_api, client, sample_template_with_placeholders, mocker):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="123456")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     data = {
@@ -221,6 +266,7 @@ def test_post_sms_notification_with_celery_persistence_returns_201_with_sms_send
     notify_api, client, sample_template_with_placeholders, mocker
 ):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="123456")
     mocked = mocker.patch("app.celery.tasks.save_sms.apply_async")
     data = {
@@ -245,6 +291,7 @@ def test_post_sms_notification_with_celery_persistence_returns_201_with_sms_send
 
 def test_post_sms_notification_uses_sms_sender_id_reply_to(notify_api, client, sample_template_with_placeholders, mocker):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="6502532222")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
     data = {
@@ -274,6 +321,7 @@ def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after
     notify_api, client, sample_template, mocker
 ):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     sms_sender = create_service_sms_sender(service=sample_template.service, sms_sender="123456", is_default=False)
     mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     data = {
@@ -575,8 +623,7 @@ def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
 ):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     sample = create_template(service=sample_service, template_type=notification_type)
-    persist_mock = mocker.patch("app.v2.notifications.post_notifications.persist_notification")
-    deliver_mock = mocker.patch("app.v2.notifications.post_notifications.send_notification_to_queue")
+    save_mock = mocker.patch("app.v2.notifications.post_notifications.db_save_and_send_notification")
     mocker.patch(
         "app.v2.notifications.post_notifications.check_rate_limiting",
         side_effect=RateLimitError("LIMIT", "INTERVAL", "TYPE"),
@@ -600,8 +647,7 @@ def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
     assert message == "Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds"
     assert status_code == 429
 
-    assert not persist_mock.called
-    assert not deliver_mock.called
+    assert not save_mock.called
 
 
 def test_post_sms_notification_returns_400_if_not_allowed_to_send_int_sms(

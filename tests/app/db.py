@@ -238,6 +238,7 @@ def create_notification(
     reply_to_text=None,
     created_by_id=None,
     postage=None,
+    queue_name=None,
 ):
     """
     Creates in memory Notification Model
@@ -295,6 +296,7 @@ def create_notification(
         "reply_to_text": reply_to_text,
         "created_by_id": created_by_id,
         "postage": postage,
+        "queue_name": queue_name,
     }
     return Notification(**data)
 
