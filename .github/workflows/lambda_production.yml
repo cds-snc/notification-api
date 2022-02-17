@@ -4,7 +4,7 @@ name: Build and push lambda image to production
 on:
   workflow_dispatch:
   push:
-    branches: [master]
+    branches: [main]
 
 env:
   REGISTRY: ${{ secrets.PRODUCTION_API_LAMBDA_ECR_ACCOUNT }}.dkr.ecr.ca-central-1.amazonaws.com/notify
