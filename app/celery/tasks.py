@@ -334,8 +334,8 @@ def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: O
         )
 
     if receipt:
-        current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
         sms_queue.acknowledge(receipt)
+        current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
 
 
 @notify_celery.task(bind=True, name="save-sms", max_retries=5, default_retry_delay=300)
@@ -479,8 +479,8 @@ def save_emails(self, service_id: str, signed_notification: List[Any], receipt: 
             )
 
     if receipt:
-        current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
         email_queue.acknowledge(receipt)
+        current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
 
 
 @notify_celery.task(bind=True, name="save-email", max_retries=5, default_retry_delay=300)
@@ -657,12 +657,14 @@ def handle_list_of_exception(task, list_notification, exc, receipt: Optional[UUI
     for notification in list_notification:
         notification_id = notification["notification_id"]
         if not get_notification_by_id(notification_id):
-            retry_msg = "{task} notification for job {job} row number {row} and notification id {notif} and receipt {receipt}".format(
-                task=task.__name__,
-                job=notification.get("job", None),
-                row=notification.get("row_number", None),
-                notif=notification_id,
-                receipt=receipt
+            retry_msg = (
+                "{task} notification for job {job} row number {row} and notification id {notif} and receipt {receipt}".format(
+                    task=task.__name__,
+                    job=notification.get("job", None),
+                    row=notification.get("row_number", None),
+                    notif=notification_id,
+                    receipt=receipt,
+                )
             )
             # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
             # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
