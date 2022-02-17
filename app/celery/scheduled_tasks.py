@@ -243,7 +243,7 @@ def heartbeat_inbox_sms():
 
     while list_of_sms_notifications:
         save_smss.apply_async((None, list_of_sms_notifications, receipt_id_sms), queue=QueueNames.DATABASE)
-        current_app.logger.info(f"SMS UUID: {receipt_id_sms} sent to Inflight List")
+        current_app.logger.info(f"Batch saving: SMS receipt {receipt_id_sms} sent to in-flight.")
         receipt_id_sms, list_of_sms_notifications = sms_queue.poll()
 
 
@@ -261,5 +261,5 @@ def heartbeat_inbox_email():
 
     while list_of_email_notifications:
         save_emails.apply_async((None, list_of_email_notifications, receipt_id_email), queue=QueueNames.DATABASE)
-        current_app.logger.info(f"Email UUID: {receipt_id_email} sent to Inflight List")
+        current_app.logger.info(f"Batch saving: email receipt {receipt_id_email} sent to in-flight.")
         receipt_id_email, list_of_email_notifications = email_queue.poll()

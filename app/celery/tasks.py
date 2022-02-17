@@ -312,8 +312,9 @@ def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: O
         saved_notifications = persist_notifications(verified_notifications)
         if receipt:
             sms_queue.acknowledge(receipt)
+            current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
     except SQLAlchemyError as e:
-        handle_notifications_exception(self, verified_notifications, e)
+        handle_notifications_exception(self, verified_notifications, e, receipt)
 
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
     research_mode = service.research_mode  # type: ignore
@@ -455,8 +456,9 @@ def save_emails(self, service_id: str, signed_notification: List[Any], receipt: 
         saved_notifications = persist_notifications(verified_notifications)
         if receipt:
             email_queue.acknowledge(receipt)
+            current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
     except SQLAlchemyError as e:
-        handle_notifications_exception(self, verified_notifications, e)
+        handle_notifications_exception(self, verified_notifications, e, receipt)
 
     if saved_notifications:
         check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
@@ -632,11 +634,12 @@ def handle_notification_exception(task, notification, notification_id, exception
     # send to the retry queue.
     found = get_notification_by_id(notification_id)
     if not found:
-        retry_msg = "{task} notification for job {job} row number {row} and notification id {noti}".format(
+        retry_msg = "{task} notification for job {job} row number {row} and notification id {notif} and receipt {receipt}".format(
             task=task.__name__,
             job=notification.get("job", None),
             row=notification.get("row_number", None),
-            noti=notification_id,
+            notif=notification_id,
+            receipt=receipt
         )
         current_app.logger.exception("Retry" + retry_msg)
         try:
@@ -655,6 +658,10 @@ def handle_notification_exception(task, notification, notification_id, exception
 
 
 def handle_notifications_exception(task, notifications: list[Any], exception, receipt: UUID = None):
+    if receipt:
+        current_app.logger.info(f"Batch saving: could not persist notifications with receipt {receipt}")
+    else:
+        current_app.logger.info("Batch saving: could not persist notifications.")
     for notification in notifications:
         notification_id = notification["notification_id"]
         handle_notification_exception(task, notification, notification_id, exception)
