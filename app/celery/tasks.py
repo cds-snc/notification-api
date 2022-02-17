@@ -312,7 +312,7 @@ def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: O
         saved_notifications = persist_notifications(decrypted_notifications)
 
     except SQLAlchemyError as e:
-        handle_list_of_exception(self, decrypted_notifications, e)
+        handle_list_of_exception(self, decrypted_notifications, e, receipt)
 
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
     research_mode = service.research_mode  # type: ignore
@@ -334,6 +334,7 @@ def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: O
         )
 
     if receipt:
+        current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
         sms_queue.acknowledge(receipt)
 
 
@@ -456,7 +457,7 @@ def save_emails(self, service_id: str, signed_notification: List[Any], receipt: 
         # if the data is not present in the encrypted data then fallback on whats needed for process_job
         saved_notifications = persist_notifications(decrypted_notifications)
     except SQLAlchemyError as e:
-        handle_list_of_exception(self, decrypted_notifications, e)
+        handle_list_of_exception(self, decrypted_notifications, e, receipt)
 
     if saved_notifications:
         check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
@@ -478,6 +479,7 @@ def save_emails(self, service_id: str, signed_notification: List[Any], receipt: 
             )
 
     if receipt:
+        current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
         email_queue.acknowledge(receipt)
 
 
@@ -647,15 +649,20 @@ def handle_exception(task, notification, notification_id, exc):
             current_app.logger.error("Max retry failed" + retry_msg)
 
 
-def handle_list_of_exception(task, list_notification, exc):
+def handle_list_of_exception(task, list_notification, exc, receipt: Optional[UUID]):
+    if receipt:
+        current_app.logger.info(f"Batch saving: could not persist notifications with receipt {receipt}")
+    else:
+        current_app.logger.info("Batch saving: could not persist notifications.")
     for notification in list_notification:
         notification_id = notification["notification_id"]
         if not get_notification_by_id(notification_id):
-            retry_msg = "{task} notification for job {job} row number {row} and notification id {noti}".format(
+            retry_msg = "{task} notification for job {job} row number {row} and notification id {notif} and receipt {receipt}".format(
                 task=task.__name__,
                 job=notification.get("job", None),
                 row=notification.get("row_number", None),
-                noti=notification_id,
+                notif=notification_id,
+                receipt=receipt
             )
             # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
             # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
@@ -664,7 +671,7 @@ def handle_list_of_exception(task, list_notification, exc):
             try:
                 task.retry(queue=QueueNames.RETRY, exc=exc)
             except task.MaxRetriesExceededError:
-                current_app.logger.error("Max retry failed" + retry_msg)
+                current_app.logger.error(f"Max retry failed: {retry_msg}")
 
 
 def get_template_class(template_type):
