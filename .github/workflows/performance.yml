@@ -25,7 +25,7 @@ jobs:
       - name: Run performance tests
         run: /bin/bash -c "pip install -r requirements_for_test.txt && locust --headless --config tests-perf/locust/locust.conf -f tests-perf/locust/locust-notifications.py"
       - name: Notify Slack channel if this performance test job fails
-        if: ${{ failure() && github.ref == 'refs/heads/master' }}
+        if: ${{ failure() && github.ref == 'refs/heads/main' }}
         run: |
           json="{'text':'Scheduled CI Performance testing failed: <https://github.com/cds-snc/notification-api/actions|GitHub actions>'}"
           curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
