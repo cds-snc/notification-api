@@ -10,6 +10,35 @@ from alembic.config import Config
 from flask import Flask
 
 from app import create_app, db
+from app.config import str_to_bool
+
+
+@pytest.fixture(autouse=True)
+def environment_vars_fixtures():
+    environment_vars = os.environ.copy()
+    os.environ["BATCH_SAVING_ENABLED"] = "False"
+
+    yield
+
+    os.environ = environment_vars
+
+
+def test_when_env_value_is_a_valid_boolean(environment_vars_fixtures):
+    assert str_to_bool(os.environ["BATCH_SAVING_ENABLED"]) is False
+
+    os.environ["BATCH_SAVING_ENABLED"] = "True"
+
+    assert str_to_bool(os.environ["BATCH_SAVING_ENABLED"]) is True
+
+    os.environ["BATCH_SAVING_ENABLED"] = "true"
+
+    assert str_to_bool(os.environ["BATCH_SAVING_ENABLED"]) is True
+
+
+def test_when_env_value_is_not_a_valid_boolean(environment_vars_fixtures):
+    os.environ["BATCH_SAVING_ENABLED"] = "random_env_value"
+
+    assert str_to_bool(os.environ["BATCH_SAVING_ENABLED"]) is False
 
 
 def pytest_configure(config):
