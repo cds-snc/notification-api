@@ -639,7 +639,7 @@ def handle_notification_exception(task, notification, notification_id, exception
             job=notification.get("job", None),
             row=notification.get("row_number", None),
             notif=notification_id,
-            receipt=receipt
+            receipt=receipt,
         )
         current_app.logger.exception("Retry" + retry_msg)
         try:
