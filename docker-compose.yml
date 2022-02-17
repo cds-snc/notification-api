@@ -92,6 +92,24 @@ services:
       - db
       - redis
       - web
+  worker_email:
+    image: notification-api
+    restart: on-failure
+    build:
+      context: .
+      dockerfile: local/Dockerfile
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SQLALCHEMY_DATABASE_URI=postgres://postgres:chummy@db:5432/notification_api
+    entrypoint: local/scripts/notify-worker-entrypoint.sh
+    command: >
+      bash -c "sh /app/scripts/run_celery_email.sh"
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+      - web
   tests:
     image: notification-api-tests
     restart: "no"
