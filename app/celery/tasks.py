@@ -312,7 +312,6 @@ def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: O
         saved_notifications = persist_notifications(verified_notifications)
         if receipt:
             sms_queue.acknowledge(receipt)
-
     except SQLAlchemyError as e:
         handle_notifications_exception(self, verified_notifications, e)
 
@@ -454,6 +453,8 @@ def save_emails(self, service_id: str, signed_notification: List[Any], receipt: 
         # this task is used by two main things... process_job and process_sms_or_email_notification
         # if the data is not present in the encrypted data then fallback on whats needed for process_job
         saved_notifications = persist_notifications(verified_notifications)
+        if receipt:
+            email_queue.acknowledge(receipt)
     except SQLAlchemyError as e:
         handle_notifications_exception(self, verified_notifications, e)
 
@@ -475,9 +476,6 @@ def save_emails(self, service_id: str, signed_notification: List[Any], receipt: 
                     notification.job,
                 )
             )
-
-    if receipt:
-        email_queue.acknowledge(receipt)
 
 
 @notify_celery.task(bind=True, name="save-email", max_retries=5, default_retry_delay=300)
@@ -628,11 +626,12 @@ def update_letter_notifications_to_error(self, notification_references):
     raise NotificationTechnicalFailureException(message)
 
 
-def handle_notification_exception(task, notification, notification_id, exception):
+def handle_notification_exception(task, notification, notification_id, exception, receipt: UUID = None):
     # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
     # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
     # send to the retry queue.
-    if not get_notification_by_id(notification_id):
+    found = get_notification_by_id(notification_id)
+    if not found:
         retry_msg = "{task} notification for job {job} row number {row} and notification id {noti}".format(
             task=task.__name__,
             job=notification.get("job", None),
@@ -644,9 +643,18 @@ def handle_notification_exception(task, notification, notification_id, exception
             task.retry(queue=QueueNames.RETRY, exc=exception)
         except task.MaxRetriesExceededError:
             current_app.logger.error("Max retry failed" + retry_msg)
+            # Put notification in dead letter queue if receipt exists?
+
+    # The notification does exist in the database and we have a receipt for the buffer queue:
+    # we can safely remove associated notifications then.
+    elif receipt:
+        if found.notification_type == EMAIL_TYPE:
+            email_queue.acknowledge(receipt)
+        elif found.notification_type == SMS_TYPE:
+            sms_queue.acknowledge(receipt)
 
 
-def handle_notifications_exception(task, notifications, exception):
+def handle_notifications_exception(task, notifications: list[Any], exception, receipt: UUID = None):
     for notification in notifications:
         notification_id = notification["notification_id"]
         handle_notification_exception(task, notification, notification_id, exception)
