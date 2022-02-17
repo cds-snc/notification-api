@@ -1769,13 +1769,25 @@ def test_send_method_stats_by_service(sample_service, sample_organisation):
     )
 
 
-def test_bulk_insert_notification(sample_template):
-    assert len(Notification.query.all()) == 0
-    n1 = create_notification(sample_template, client_reference="happy")
-    n1.id = None
-    n1.status = None
-    n2 = create_notification(sample_template, client_reference="sad")
-    n3 = create_notification(sample_template, client_reference="loud")
-    bulk_insert_notifications([n1, n2, n3])
-    all_notifications = get_notifications_for_service(sample_template.service_id).items
-    assert len(all_notifications) == 3
+class TestBulkInsertNotifications:
+    def test_bulk_insert_notification(self, sample_template):
+        assert len(Notification.query.all()) == 0
+        n1 = create_notification(sample_template, client_reference="happy")
+        n1.id = None
+        n1.status = None
+        n2 = create_notification(sample_template, client_reference="sad")
+        n3 = create_notification(sample_template, client_reference="loud")
+        bulk_insert_notifications([n1, n2, n3])
+        all_notifications = get_notifications_for_service(sample_template.service_id).items
+        assert len(all_notifications) == 3
+
+    def test_bulk_insert_notification_duplicate_ids(self, sample_template):
+        assert len(Notification.query.all()) == 0
+        n1 = create_notification(sample_template, client_reference="happy")
+        n2 = create_notification(sample_template, client_reference="sad")
+        n3 = create_notification(sample_template, client_reference="loud")
+        n1.id = n2.id
+        n1.status = n2.status
+        with pytest.raises(Exception):
+            bulk_insert_notifications([n1, n2, n3])
+        assert len(get_notifications_for_service(sample_template.service_id).items) == 0

@@ -17,6 +17,7 @@ from notifications_utils.timezones import (
 )
 from sqlalchemy import asc, desc, func
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql import functions
@@ -107,7 +108,11 @@ def bulk_insert_notifications(notifications):
             notification.status = NOTIFICATION_CREATED
 
     # TODO: Add error handling (Redis queue?) for failed notifications
-    return db.session.bulk_save_objects(notifications)
+    try:
+        return db.session.bulk_save_objects(notifications)
+    except IntegrityError as e:
+        current_app.logger.error(e)
+        raise
 
 
 def _decide_permanent_temporary_failure(current_status, status):
