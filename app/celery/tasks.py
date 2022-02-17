@@ -261,7 +261,7 @@ def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: O
     is not None then it is passed to the RedisQueue to let it know it
     can delete the inflight notifications.
     """
-    decrypted_notifications: List[Any] = []
+    verified_notifications: List[Any] = []
     notification_id_queue: Dict = {}
     saved_notifications = []
     for signed_notification in signed_notifications:
@@ -303,16 +303,18 @@ def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: O
             notification["created_at"] = datetime.utcnow()
             notification["job_id"] = notification.get("job", None)
             notification["job_row_number"] = notification.get("row_number", None)
-            decrypted_notifications.append(notification)
+            verified_notifications.append(notification)
             notification_id_queue[notification_id] = notification.get("queue")
 
     try:
         # this task is used by two main things... process_job and process_sms_or_email_notification
         # if the data is not present in the encrypted data then fallback on whats needed for process_job
-        saved_notifications = persist_notifications(decrypted_notifications)
+        saved_notifications = persist_notifications(verified_notifications)
+        if receipt:
+            sms_queue.acknowledge(receipt)
 
     except SQLAlchemyError as e:
-        handle_list_of_exception(self, decrypted_notifications, e)
+        handle_notifications_exception(self, verified_notifications, e)
 
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
     research_mode = service.research_mode  # type: ignore
@@ -332,9 +334,6 @@ def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: O
                 notification.job,
             )
         )
-
-    if receipt:
-        sms_queue.acknowledge(receipt)
 
 
 @notify_celery.task(bind=True, name="save-sms", max_retries=5, default_retry_delay=300)
@@ -394,7 +393,7 @@ def save_sms(self, service_id, notification_id, signed_notification, sender_id=N
         )
 
     except SQLAlchemyError as e:
-        handle_exception(self, notification, notification_id, e)
+        handle_notification_exception(self, notification, notification_id, e)
 
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
@@ -406,7 +405,7 @@ def save_emails(self, service_id: str, signed_notification: List[Any], receipt: 
     is not None then it is passed to the RedisQueue to let it know it
     can delete the inflight notifications.
     """
-    decrypted_notifications: List[Any] = []
+    verified_notifications: List[Any] = []
     notification_id_queue: Dict = {}
     saved_notifications = []
     for signed_notification in signed_notification:
@@ -448,15 +447,15 @@ def save_emails(self, service_id: str, signed_notification: List[Any], receipt: 
             notification["created_at"] = datetime.utcnow()
             notification["job_id"] = notification.get("job", None)
             notification["job_row_number"] = notification.get("row_number", None)
-            decrypted_notifications.append(notification)
+            verified_notifications.append(notification)
             notification_id_queue[notification_id] = notification.get("queue")
 
     try:
         # this task is used by two main things... process_job and process_sms_or_email_notification
         # if the data is not present in the encrypted data then fallback on whats needed for process_job
-        saved_notifications = persist_notifications(decrypted_notifications)
+        saved_notifications = persist_notifications(verified_notifications)
     except SQLAlchemyError as e:
-        handle_list_of_exception(self, decrypted_notifications, e)
+        handle_notifications_exception(self, verified_notifications, e)
 
     if saved_notifications:
         check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
@@ -531,7 +530,7 @@ def save_email(self, service_id, notification_id, signed_notification, sender_id
 
         current_app.logger.debug("Email {} created at {}".format(saved_notification.id, saved_notification.created_at))
     except SQLAlchemyError as e:
-        handle_exception(self, notification, notification_id, e)
+        handle_notification_exception(self, notification, notification_id, e)
 
 
 @notify_celery.task(bind=True, name="save-letter", max_retries=5, default_retry_delay=300)
@@ -592,7 +591,7 @@ def save_letter(
 
         current_app.logger.debug("Letter {} created at {}".format(saved_notification.id, saved_notification.created_at))
     except SQLAlchemyError as e:
-        handle_exception(self, notification, notification_id, e)
+        handle_notification_exception(self, notification, notification_id, e)
 
 
 @notify_celery.task(bind=True, name="update-letter-notifications-to-sent")
@@ -629,7 +628,10 @@ def update_letter_notifications_to_error(self, notification_references):
     raise NotificationTechnicalFailureException(message)
 
 
-def handle_exception(task, notification, notification_id, exc):
+def handle_notification_exception(task, notification, notification_id, exception):
+    # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
+    # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
+    # send to the retry queue.
     if not get_notification_by_id(notification_id):
         retry_msg = "{task} notification for job {job} row number {row} and notification id {noti}".format(
             task=task.__name__,
@@ -637,34 +639,17 @@ def handle_exception(task, notification, notification_id, exc):
             row=notification.get("row_number", None),
             noti=notification_id,
         )
-        # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
-        # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
-        # send to the retry queue.
         current_app.logger.exception("Retry" + retry_msg)
         try:
-            task.retry(queue=QueueNames.RETRY, exc=exc)
+            task.retry(queue=QueueNames.RETRY, exc=exception)
         except task.MaxRetriesExceededError:
             current_app.logger.error("Max retry failed" + retry_msg)
 
 
-def handle_list_of_exception(task, list_notification, exc):
-    for notification in list_notification:
+def handle_notifications_exception(task, notifications, exception):
+    for notification in notifications:
         notification_id = notification["notification_id"]
-        if not get_notification_by_id(notification_id):
-            retry_msg = "{task} notification for job {job} row number {row} and notification id {noti}".format(
-                task=task.__name__,
-                job=notification.get("job", None),
-                row=notification.get("row_number", None),
-                noti=notification_id,
-            )
-            # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
-            # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
-            # send to the retry queue.
-            current_app.logger.exception("Retry" + retry_msg)
-            try:
-                task.retry(queue=QueueNames.RETRY, exc=exc)
-            except task.MaxRetriesExceededError:
-                current_app.logger.error("Max retry failed" + retry_msg)
+        handle_notification_exception(task, notification, notification_id, exception)
 
 
 def get_template_class(template_type):
