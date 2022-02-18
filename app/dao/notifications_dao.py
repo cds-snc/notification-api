@@ -110,7 +110,7 @@ def bulk_insert_notifications(notifications):
     # TODO: Add error handling (Redis queue?) for failed notifications
     try:
         return db.session.bulk_save_objects(notifications)
-    except IntegrityError as e:
+    except IntegrityError:
         raise
 
 
