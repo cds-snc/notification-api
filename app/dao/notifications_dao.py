@@ -108,10 +108,7 @@ def bulk_insert_notifications(notifications):
             notification.status = NOTIFICATION_CREATED
 
     # TODO: Add error handling (Redis queue?) for failed notifications
-    try:
-        return db.session.bulk_save_objects(notifications)
-    except IntegrityError:
-        raise
+    return db.session.bulk_save_objects(notifications)
 
 
 def _decide_permanent_temporary_failure(current_status, status):
