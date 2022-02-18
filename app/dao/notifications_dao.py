@@ -111,7 +111,6 @@ def bulk_insert_notifications(notifications):
     try:
         return db.session.bulk_save_objects(notifications)
     except IntegrityError as e:
-        current_app.logger.error(e)
         raise
 
 
