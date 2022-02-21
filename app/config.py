@@ -24,7 +24,7 @@ if os.getenv("VCAP_SERVICES"):
 def str_to_bool(env_val) -> bool:
     try:
         return ast.literal_eval(env_val)
-    except Exception:
+    except:
         return False
 
 
@@ -173,12 +173,12 @@ class Config(object):
     CRONITOR_KEYS = json.loads(os.getenv("CRONITOR_KEYS", "{}"))
 
     # Antivirus
-    MLWR_HOST = str_to_bool(os.getenv("MLWR_HOST", False))
+    MLWR_HOST = os.getenv("MLWR_HOST", False)
     MLWR_USER = os.getenv("MLWR_USER", "")
     MLWR_KEY = os.getenv("MLWR_KEY", "")
 
     # PII check
-    SCAN_FOR_PII = str_to_bool(os.getenv("SCAN_FOR_PII", False))
+    SCAN_FOR_PII = os.getenv("SCAN_FOR_PII", False)
 
     # Documentation
     DOCUMENTATION_DOMAIN = os.getenv("DOCUMENTATION_DOMAIN", "documentation.notification.canada.ca")
@@ -451,8 +451,8 @@ class Config(object):
     CSV_BULK_REDIRECT_THRESHOLD = os.getenv("CSV_BULK_REDIRECT_THRESHOLD", 200)
 
     # feature flag to toggle persistance of notification in celery instead of the API
-    FF_NOTIFICATION_CELERY_PERSISTENCE = str_to_bool(os.getenv("FF_NOTIFICATION_CELERY_PERSISTENCE", False))
-    FF_BATCH_INSERTION = str_to_bool(os.getenv("FF_BATCH_INSERTION", False))
+    FF_NOTIFICATION_CELERY_PERSISTENCE = os.getenv("FF_NOTIFICATION_CELERY_PERSISTENCE", False)
+    FF_BATCH_INSERTION = os.getenv("FF_BATCH_INSERTION", False)
     FF_REDIS_BATCH_SAVING = str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING", False))
 
 
