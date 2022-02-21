@@ -7,7 +7,12 @@ from uuid import UUID, uuid4
 
 from flask import current_app
 
-from app.aws.metrics import put_batch_saving_metric
+from app.aws.metrics import (
+    put_batch_saving_metric,
+    put_batch_saving_in_flight_metric,
+    put_batch_saving_expiry_metric,
+    put_batch_saving_inflight_processed,
+)
 
 
 def generate_element(length=10) -> str:
@@ -107,17 +112,20 @@ class RedisQueue(Queue):
         receipt = uuid4()
         in_flight_key = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
         results = self.__move_to_inflight(in_flight_key, count)
+        put_batch_saving_in_flight_metric(1)
         return (receipt, results)
 
     def expire_inflights(self):
         args = [f"{Buffer.IN_FLIGHT.inflight_prefix()}:{self._suffix}*", self._inbox, self._expire_inflight_after_seconds]
         expired = self.scripts[self.LUA_EXPIRE_INFLIGHTS](args=args)
         if expired:
+            put_batch_saving_expiry_metric(len(expired))
             current_app.logger.warning(f"Moved inflights {expired} back to inbox {self._inbox}")
 
     def acknowledge(self, receipt: UUID):
         inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
         self._redis_client.delete(inflight_name)
+        put_batch_saving_inflight_processed(1)
 
     def publish(self, message: str):
         self._redis_client.rpush(self._inbox, message)
@@ -126,7 +134,6 @@ class RedisQueue(Queue):
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
         results = self.scripts[self.LUA_MOVE_TO_INFLIGHT](args=[self._inbox, in_flight_key, count])
         decoded = [result.decode("utf-8") for result in results]
-        put_batch_saving_metric(self, count)
         return decoded
 
     def __register_scripts(self):
