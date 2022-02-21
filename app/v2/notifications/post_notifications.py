@@ -299,7 +299,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             sms_queue.publish(signed_notification_data)
         else:
             email_queue.publish(signed_notification_data)
-        current_app.logger.info(f"{notification_type} {notification['id']} sent to RedisQueue")
+        current_app.logger.info(f"Batch saving: {notification_type} {notification['id']} sent to buffer queue.")
 
     elif current_app.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] and not simulated:
         # depending on the type route to the appropriate save task

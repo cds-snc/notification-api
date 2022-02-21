@@ -79,7 +79,7 @@ def test_should_set_cache_value_as_value_from_database_if_cache_not_set(
         mocker.patch("app.notifications.validators.redis_store.get", return_value=None)
         mocker.patch("app.notifications.validators.redis_store.set")
         check_service_over_daily_message_limit(key_type, sample_service)
-        app.notifications.validators.redis_store.set.assert_called_with(str(sample_service.id) + "-2016-01-01-count", 5, ex=3600)
+        app.notifications.validators.redis_store.set.assert_called_with(str(sample_service.id) + "-2016-01-01-count", 5, ex=7200)
 
 
 def test_should_not_access_database_if_redis_disabled(notify_api, sample_service, mocker):

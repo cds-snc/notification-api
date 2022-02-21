@@ -9,10 +9,16 @@
 		"python.linting.pylintEnabled": true,
 		"python.linting.pylintPath": "/usr/local/bin/pylint",
 		"python.pythonPath": "/usr/local/bin/python",
-		"terminal.integrated.shell.linux": "/bin/bash",
-		"terminal.integrated.fontFamily": "FiraCode Nerd Font Mono"
+		"terminal.integrated.fontFamily": "Fira Mono Medium Nerd Font Complete Mono, MonoLisa, monospace"
 	},
 
+	"features": {
+		"docker-from-docker": {
+			"version": "latest",
+			"moby": true
+		}
+	},
+  
 	"extensions": [
 		"donjayamanne.python-extension-pack",
 		"ms-azuretools.vscode-docker",
@@ -23,6 +29,9 @@
 		"visualstudioexptteam.vscodeintellicode",
 		"yzhang.markdown-all-in-one",
 		"ms-ossdata.vscode-postgresql",
-		"googlecloudtools.cloudcode"
-	]
+		"googlecloudtools.cloudcode",
+		"GitHub.copilot"
+	],
+
+	"postCreateCommand": "notify-dev-entrypoint.sh"
 }

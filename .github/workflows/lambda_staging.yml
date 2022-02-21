@@ -4,7 +4,7 @@ name: Build, push, and deploy lambda image to staging
 on:
   workflow_dispatch:
   push:
-    branches: [master]
+    branches: [main]
 
 env:
   REGISTRY: ${{ secrets.STAGING_API_LAMBDA_ECR_ACCOUNT }}.dkr.ecr.ca-central-1.amazonaws.com/notify
