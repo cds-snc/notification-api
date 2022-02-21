@@ -44,8 +44,9 @@ more-itertools==8.12.0
 awscli-cwlogs>=1.4.6,<1.5
 aws-embedded-metrics==1.0.7
 
-# Putting upgrade on hold due to v2 introducing breaking changes
+# Putting upgrade on hold due to new version introducing breaking changes
 Werkzeug==1.0.1
+MarkupSafe==2.0.1
 
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
 itsdangerous==0.24  # pyup: <1.0.0
@@ -98,7 +99,6 @@ Jinja2==2.11.3
 jmespath==0.10.0
 kombu==5.2.3
 Mako==1.1.6
-MarkupSafe==2.1.0
 mistune==0.8.4
 multidict==6.0.2
 orderedset==2.0.3

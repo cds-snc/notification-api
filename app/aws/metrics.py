@@ -14,11 +14,11 @@ if TYPE_CHECKING:  # A special Python 3 constant that is assumed to be True by 3
 
     from app.queue import RedisQueue
 
-Metrics_Config = get_config()
-Metrics_Config.agent_endpoint = Config.CLOUDWATCH_AGENT_ENDPOINT
-Metrics_Config.service_name = "BatchSaving"
-Metrics_Config.service_type = "Redis"
-Metrics_Config.log_group_name = "BatchSaving"
+metrics_config = get_config()
+metrics_config.agent_endpoint = Config.CLOUDWATCH_AGENT_ENDPOINT
+metrics_config.service_name = "BatchSaving"
+metrics_config.service_type = "Redis"
+metrics_config.log_group_name = "BatchSaving"
 
 
 @metric_scope
