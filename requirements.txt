@@ -89,7 +89,7 @@ cryptography==36.0.1
 Deprecated==1.2.13
 dnspython==1.16.0
 docutils==0.15.2
-filelock==3.5.1
+filelock==3.6.0
 flask-redis==0.4.0
 frozenlist==1.3.0
 future==0.18.2
@@ -98,7 +98,7 @@ Jinja2==2.11.3
 jmespath==0.10.0
 kombu==5.2.3
 Mako==1.1.6
-MarkupSafe==2.0.1
+MarkupSafe==2.1.0
 mistune==0.8.4
 multidict==6.0.2
 orderedset==2.0.3
