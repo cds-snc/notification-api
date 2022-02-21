@@ -22,9 +22,6 @@ if os.getenv("VCAP_SERVICES"):
 
 
 def str_to_bool(env_val) -> bool:
-    if env_val is bool:
-        return env_val
-
     return ast.literal_eval(str(env_val))
 
 
