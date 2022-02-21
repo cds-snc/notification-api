@@ -15,7 +15,7 @@ from app.config import str_to_bool
 @pytest.fixture(autouse=True)
 def environment_vars_fixtures():
     environment_vars = os.environ.copy()
-    os.environ["BATCH_SAVING_ENABLED"] = "False"
+    os.environ["FF_REDIS_BATCH_SAVING"] = "False"
 
     yield
 
@@ -23,17 +23,28 @@ def environment_vars_fixtures():
 
 
 def test_when_env_value_is_a_valid_boolean(environment_vars_fixtures):
-    assert str_to_bool(os.environ["BATCH_SAVING_ENABLED"]) is False
+    assert str_to_bool(os.environ["FF_REDIS_BATCH_SAVING"]) is False
 
-    os.environ["BATCH_SAVING_ENABLED"] = "True"
+    os.environ["FF_REDIS_BATCH_SAVING"] = "True"
 
-    assert str_to_bool(os.environ["BATCH_SAVING_ENABLED"]) is True
+    assert str_to_bool(os.environ["FF_REDIS_BATCH_SAVING"]) is True
 
 
 def test_when_env_value_is_not_a_valid_boolean(environment_vars_fixtures):
-    os.environ["BATCH_SAVING_ENABLED"] = "random_env_value"
+    with pytest.raises(ValueError):
+        os.environ["FF_REDIS_BATCH_SAVING"] = "true"
 
-    assert str_to_bool(os.environ["BATCH_SAVING_ENABLED"]) is False
+        str_to_bool(os.environ["FF_REDIS_BATCH_SAVING"])
+
+    with pytest.raises(ValueError):
+        os.environ["FF_REDIS_BATCH_SAVING"] = "false"
+
+        str_to_bool(os.environ["FF_REDIS_BATCH_SAVING"])
+
+    with pytest.raises(ValueError):
+        os.environ["FF_REDIS_BATCH_SAVING"] = "random_env_value"
+
+        str_to_bool(os.environ["FF_REDIS_BATCH_SAVING"])
 
 
 def pytest_configure(config):

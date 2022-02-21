@@ -22,10 +22,10 @@ if os.getenv("VCAP_SERVICES"):
 
 
 def str_to_bool(env_val) -> bool:
-    try:
-        return ast.literal_eval(env_val)
-    except:
-        return False
+    if env_val is bool:
+        return env_val
+
+    return ast.literal_eval(str(env_val))
 
 
 class QueueNames(object):
