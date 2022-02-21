@@ -17,7 +17,6 @@ from notifications_utils.timezones import (
 )
 from sqlalchemy import asc, desc, func
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql import functions
