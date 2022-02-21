@@ -8,10 +8,10 @@ from uuid import UUID, uuid4
 from flask import current_app
 
 from app.aws.metrics import (
-    put_batch_saving_metric,
-    put_batch_saving_in_flight_metric,
     put_batch_saving_expiry_metric,
+    put_batch_saving_in_flight_metric,
     put_batch_saving_inflight_processed,
+    put_batch_saving_metric,
 )
 
 
