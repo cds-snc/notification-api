@@ -1,4 +1,3 @@
-import logging
 import os
 from contextlib import contextmanager
 from urllib.parse import urlparse
@@ -13,17 +12,6 @@ from app import create_app, db
 
 
 def pytest_configure(config):
-    # Create a log file for each test process
-    log_file = config.getini("log_file")
-    log_level = config.getini("log_file_level")
-    worker_process = os.environ.get("PYTEST_XDIST_WORKER")
-    if log_file and log_level and worker_process:
-        logging.basicConfig(
-            format="%(asctime)s %(name)s %(levelname)s %(message)s",
-            filename=log_file.replace(".log", f".{worker_process}.log"),
-            level=log_level,
-        )
-
     # Swap to test database if running from devcontainer
     if os.environ.get("SQLALCHEMY_DATABASE_TEST_URI") is not None:
         os.environ["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_TEST_URI")
@@ -114,10 +102,6 @@ def notify_db(notify_api, worker_id):
         "writer": uri_db_writer,
     }
 
-    logging.debug(f"{worker_id} notify_db app config writer `{current_app.config['SQLALCHEMY_BINDS']['writer']}`")
-    logging.debug(f"{worker_id} notify_db app config reader `{current_app.config['SQLALCHEMY_BINDS']['reader']}`")
-    logging.debug(f"{worker_id} notify_db create writer database `{uri_db_writer}`")
-
     create_test_db(uri_db_writer)
 
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -126,7 +110,6 @@ def notify_db(notify_api, worker_id):
     config.set_main_option("script_location", ALEMBIC_CONFIG)
 
     with notify_api.app_context():
-        logging.debug(f"{worker_id} notify_db running database migrations")
         upgrade(config, "head")
 
     grant_test_db(uri_db_writer, uri_db_reader)
