@@ -2,13 +2,12 @@ from __future__ import annotations  # PEP 563 -- Postponed Evaluation of Annotat
 
 from typing import TYPE_CHECKING
 
+from aws_embedded_metrics import metric_scope  # type: ignore
 from aws_embedded_metrics.config import get_config  # type: ignore
 from botocore.exceptions import ClientError
 from flask import current_app
 
 from app.config import Config
-
-from .metrics_scope import metric_scope  # type: ignore
 
 if TYPE_CHECKING:  # A special Python 3 constant that is assumed to be True by 3rd party static type checkers
     from aws_embedded_metrics.logger.metrics_logger import MetricsLogger  # type: ignore
