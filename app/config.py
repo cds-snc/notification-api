@@ -393,7 +393,7 @@ class Config(object):
 
     FROM_NUMBER = "development"
 
-    STATSD_HOST = os.getenv("STATSD_HOST") # CloudWatch agent, shared with embedded metrics
+    STATSD_HOST = os.getenv("STATSD_HOST")  # CloudWatch agent, shared with embedded metrics
     STATSD_PORT = 8125
     STATSD_ENABLED = bool(STATSD_HOST)
 
