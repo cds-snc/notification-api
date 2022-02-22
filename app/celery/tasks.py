@@ -632,33 +632,23 @@ def update_letter_notifications_to_error(self, notification_references):
     raise NotificationTechnicalFailureException(message)
 
 
-def handle_save_error(task, notification, notification_id, exception, receipt: UUID = None):
+def handle_save_error(task, notification, notification_id, exception):
     # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
     # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
     # send to the retry queue.
     found = get_notification_by_id(notification_id)
     if not found:
-        retry_msg = "{task} notification for job {job} row number {row} and notification id {notif} and receipt {receipt}".format(
+        retry_msg = "{task} notification for job {job} row number {row} and notification id {notif}".format(
             task=task.__name__,
             job=notification.get("job", None),
             row=notification.get("row_number", None),
             notif=notification_id,
-            receipt=receipt,
         )
         current_app.logger.exception("Retry" + retry_msg)
         try:
             task.retry(queue=QueueNames.RETRY, exc=exception)
         except task.MaxRetriesExceededError:
             current_app.logger.error("Max retry failed" + retry_msg)
-            # Put notification in dead letter queue if receipt exists?
-
-    # The notification does exist in the database and we have a receipt for the buffer queue:
-    # we can safely remove associated notifications then.
-    elif receipt:
-        if found.notification_type == EMAIL_TYPE:
-            email_queue.acknowledge(receipt)
-        elif found.notification_type == SMS_TYPE:
-            sms_queue.acknowledge(receipt)
 
 
 def handle_batch_error_and_forward(
