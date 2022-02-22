@@ -44,3 +44,4 @@ COPY .devcontainer/scripts/notify-dev-entrypoint.sh /usr/local/bin/
 ENV SHELL /bin/zsh
 
 EXPOSE 8000
+EXPOSE 6011
