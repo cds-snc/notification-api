@@ -86,24 +86,25 @@ def test_queue_names_all_queues_correct():
 
 def test_when_env_value_is_a_valid_boolean(reload_config):
     os.environ["FF_REDIS_BATCH_SAVING"] = "False"
-    assert str_to_bool(os.environ["FF_REDIS_BATCH_SAVING"], True) is False
+    assert str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING"), True) is False
 
     os.environ["FF_REDIS_BATCH_SAVING"] = "True"
-    assert str_to_bool(os.environ["FF_REDIS_BATCH_SAVING"], False) is True
+    assert str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING"), False) is True
 
 
 def test_when_env_value_default_is_used(reload_config):
     os.environ["SOME_OTHER_ENV_VAR"] = "true"
-    assert str_to_bool(os.environ["SOME_OTHER_ENV_VAR"], False) is False
+    assert str_to_bool(os.getenv("SOME_OTHER_ENV_VAR"), False) is False
 
     os.environ["FF_REDIS_BATCH_SAVING"] = "false"
-    assert str_to_bool(os.environ["FF_REDIS_BATCH_SAVING"], True) is True
+    assert str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING"), True) is True
 
     os.environ["FF_REDIS_BATCH_SAVING"] = ""
-    assert str_to_bool(os.environ["FF_REDIS_BATCH_SAVING"], True) is True
+    assert str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING"), True) is True
 
     os.environ["FF_REDIS_BATCH_SAVING"] = "mmmm cheese"
-    assert str_to_bool(os.environ["FF_REDIS_BATCH_SAVING"], True) is True
+    assert str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING"), True) is True
 
+    assert str_to_bool(os.getenv("NON_EXISTENT_ENV_VAR"), False) is False
     assert str_to_bool(None, True) is True
     assert str_to_bool(None, False) is False
