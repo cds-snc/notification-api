@@ -54,7 +54,7 @@ def put_batch_saving_in_flight_metric(count: int, metrics: MetricsLogger):
     try:
         metrics.set_namespace("NotificationCanadaCa")
         metrics.put_metric("inflight", count, "Count")
-        metrics.set_dimensions({"created": True})
+        metrics.set_dimensions({"created": "True"})
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
         current_app.logger.exception(message)
@@ -73,7 +73,7 @@ def put_batch_saving_inflight_processed(count: int, metrics: MetricsLogger):
     try:
         metrics.set_namespace("NotificationCanadaCa")
         metrics.put_metric("inflight", count, "Count")
-        metrics.set_dimensions({"acknowledged": True})
+        metrics.set_dimensions({"acknowledged": "True"})
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
         current_app.logger.exception(message)
