@@ -31,7 +31,7 @@
 		"ms-ossdata.vscode-postgresql",
 		"googlecloudtools.cloudcode",
 		"GitHub.copilot",
-    "ms-vsliveshare.vsliveshare"
+		"ms-vsliveshare.vsliveshare"
 	],
 
 	"postCreateCommand": "notify-dev-entrypoint.sh"
