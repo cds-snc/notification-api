@@ -677,12 +677,13 @@ def handle_batch_error_and_forward(
                 (service.id, notification_id, signed, None),
                 queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
             )
-    else:  # end of the loop, purge the notifications from the buffer queue:
-        if receipt:
-            if notification_type == EMAIL_TYPE:
-                email_queue.acknowledge(receipt)
-            else:
-                sms_queue.acknowledge(receipt)
+
+    # end of the loop, purge the notifications from the buffer queue:
+    if receipt:
+        if notification_type == EMAIL_TYPE:
+            email_queue.acknowledge(receipt)
+        else:
+            sms_queue.acknowledge(receipt)
 
 
 def get_template_class(template_type):
