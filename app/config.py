@@ -24,9 +24,13 @@ if os.getenv("VCAP_SERVICES"):
 
 
 def str_to_bool(str_val: Optional[str], default_value: bool) -> bool:
-    if str_val == "True":
+    # Converts a string value to a boolean, or returns the default value if the string is
+    # not recognised as a valid boolean value
+    str_val_normalized = str_val.lower().strip() if str_val else ""
+
+    if str_val_normalized == "true":
         return True
-    elif str_val == "False":
+    elif str_val_normalized == "false":
         return False
     else:
         LOGGER.error(f"str_to_bool: '{str_val}' is not a valid boolean value")
