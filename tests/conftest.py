@@ -9,42 +9,6 @@ from alembic.config import Config
 from flask import Flask
 
 from app import create_app, db
-from app.config import str_to_bool
-
-
-@pytest.fixture(autouse=True)
-def environment_vars_fixtures():
-    environment_vars = os.environ.copy()
-    os.environ["FF_REDIS_BATCH_SAVING"] = "False"
-
-    yield
-
-    os.environ = environment_vars
-
-
-def test_when_env_value_is_a_valid_boolean(environment_vars_fixtures):
-    assert str_to_bool(os.environ["FF_REDIS_BATCH_SAVING"]) is False
-
-    os.environ["FF_REDIS_BATCH_SAVING"] = "True"
-
-    assert str_to_bool(os.environ["FF_REDIS_BATCH_SAVING"]) is True
-
-
-def test_when_env_value_is_not_a_valid_boolean(environment_vars_fixtures):
-    with pytest.raises(ValueError):
-        os.environ["FF_REDIS_BATCH_SAVING"] = "true"
-
-        str_to_bool(os.environ["FF_REDIS_BATCH_SAVING"])
-
-    with pytest.raises(ValueError):
-        os.environ["FF_REDIS_BATCH_SAVING"] = "false"
-
-        str_to_bool(os.environ["FF_REDIS_BATCH_SAVING"])
-
-    with pytest.raises(ValueError):
-        os.environ["FF_REDIS_BATCH_SAVING"] = "random_env_value"
-
-        str_to_bool(os.environ["FF_REDIS_BATCH_SAVING"])
 
 
 def pytest_configure(config):

@@ -1,8 +1,8 @@
-import ast
 import json
+import logging
 import os
 from datetime import timedelta
-from typing import Any, List
+from typing import Any, List, Optional
 
 from dotenv import load_dotenv
 from fido2.server import Fido2Server
@@ -10,6 +10,8 @@ from fido2.webauthn import PublicKeyCredentialRpEntity
 from kombu import Exchange, Queue
 
 from celery.schedules import crontab
+
+LOGGER = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -21,8 +23,14 @@ if os.getenv("VCAP_SERVICES"):
     extract_cloudfoundry_config()
 
 
-def str_to_bool(env_val) -> bool:
-    return ast.literal_eval(str(env_val))
+def str_to_bool(str_val: Optional[str], default_value: bool) -> bool:
+    if str_val == "True":
+        return True
+    elif str_val == "False":
+        return False
+    else:
+        LOGGER.error(f"str_to_bool: '{str_val}' is not a valid boolean value")
+        return default_value
 
 
 class QueueNames(object):
@@ -451,9 +459,9 @@ class Config(object):
     CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"udp://127.0.0.1:{STATSD_PORT}")
 
     # feature flag to toggle persistance of notification in celery instead of the API
-    FF_NOTIFICATION_CELERY_PERSISTENCE = os.getenv("FF_NOTIFICATION_CELERY_PERSISTENCE", False)
-    FF_BATCH_INSERTION = os.getenv("FF_BATCH_INSERTION", False)
-    FF_REDIS_BATCH_SAVING = str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING", False))
+    FF_NOTIFICATION_CELERY_PERSISTENCE = str_to_bool(os.getenv("FF_NOTIFICATION_CELERY_PERSISTENCE"), False)
+    FF_BATCH_INSERTION = str_to_bool(os.getenv("FF_BATCH_INSERTION"), False)
+    FF_REDIS_BATCH_SAVING = str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING"), False)
 
 
 ######################
