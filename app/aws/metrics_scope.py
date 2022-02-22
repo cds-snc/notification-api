@@ -15,7 +15,7 @@ import asyncio
 import inspect
 from functools import wraps
 
-from aws_embedded_metrics.logger.metrics_logger_factory import create_metrics_logger
+from aws_embedded_metrics.logger.metrics_logger_factory import create_metrics_logger # type: ignore
 
 
 def metric_scope(fn):  # type: ignore
