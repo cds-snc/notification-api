@@ -13,8 +13,7 @@ class TestBatchSavingMetricsFunctions:
 
         put_batch_saving_metric.__wrapped__(redis_queue, 1, metrics_logger_mock)
         metrics_logger_mock.set_dimensions.assert_called_with({"list_name": "foo"})
-        metrics_logger_mock.put_metric.assert_called_with("published", 1, "Count")
-        metrics_logger_mock.set_property.assert_called_with("expiry", 100)
+        metrics_logger_mock.put_metric.assert_called_with("batch_saving_published", 1, "Count")
 
     def test_put_batch_metric_multiple_items(self, mocker):
         redis_queue = mocker.MagicMock()
@@ -25,8 +24,7 @@ class TestBatchSavingMetricsFunctions:
 
         put_batch_saving_metric.__wrapped__(redis_queue, 20, metrics_logger_mock)
         metrics_logger_mock.set_dimensions.assert_called_with({"list_name": "foo"})
-        metrics_logger_mock.put_metric.assert_called_with("published", 20, "Count")
-        metrics_logger_mock.set_property.assert_called_with("expiry", 100)
+        metrics_logger_mock.put_metric.assert_called_with("batch_saving_published", 20, "Count")
 
     def test_put_batch_saving_in_flight_metric(self, mocker):
         metrics_logger_mock = mocker.MagicMock()
@@ -35,8 +33,8 @@ class TestBatchSavingMetricsFunctions:
         )
 
         put_batch_saving_in_flight_metric.__wrapped__(1, metrics_logger_mock)
-        metrics_logger_mock.set_dimensions.assert_called_with({"created": True})
-        metrics_logger_mock.put_metric.assert_called_with("inflight", 1, "Count")
+        metrics_logger_mock.set_dimensions.assert_called_with({"created": "True"})
+        metrics_logger_mock.put_metric.assert_called_with("batch_saving_inflight", 1, "Count")
 
     def test_put_batch_saving_inflight_processed(self, mocker):
         metrics_logger_mock = mocker.MagicMock()
@@ -45,8 +43,8 @@ class TestBatchSavingMetricsFunctions:
         )
 
         put_batch_saving_inflight_processed.__wrapped__(1, metrics_logger_mock)
-        metrics_logger_mock.set_dimensions.assert_called_with({"acknowledged": True})
-        metrics_logger_mock.put_metric.assert_called_with("inflight", 1, "Count")
+        metrics_logger_mock.set_dimensions.assert_called_with({"acknowledged": "True"})
+        metrics_logger_mock.put_metric.assert_called_with("batch_saving_inflight", 1, "Count")
 
     def test_put_batch_saving_expiry_metric(self, mocker):
         metrics_logger_mock = mocker.MagicMock()
@@ -55,4 +53,5 @@ class TestBatchSavingMetricsFunctions:
         )
 
         put_batch_saving_expiry_metric.__wrapped__(1, metrics_logger_mock)
-        metrics_logger_mock.put_metric.assert_called_with("expired", 1, "Count")
+        metrics_logger_mock.put_metric.assert_called_with("batch_saving_inflight", 1, "Count")
+        metrics_logger_mock.set_dimensions.assert_called_with({"expired": "True"})
