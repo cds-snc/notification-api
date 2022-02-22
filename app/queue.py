@@ -1,3 +1,4 @@
+import asyncio
 import random
 import string
 from abc import ABC, abstractmethod
@@ -6,6 +7,13 @@ from typing import Any, Dict
 from uuid import UUID, uuid4
 
 from flask import current_app
+
+from app.aws.metrics import (
+    put_batch_saving_expiry_metric,
+    put_batch_saving_in_flight_metric,
+    put_batch_saving_inflight_processed,
+    put_batch_saving_metric,
+)
 
 
 def generate_element(length=10) -> str:
@@ -97,6 +105,18 @@ class RedisQueue(Queue):
         self._suffix = suffix
         self._expire_inflight_after_seconds = expire_inflight_after_seconds
 
+        # Create async event loop for CloudWatch metrics
+        try:
+            loop = (
+                asyncio.get_event_loop()
+            )  # This will fail to create a new event loop if called outside the main thread. https://bugs.python.org/issue39381
+        except RuntimeError as ex:
+            if "There is no current event loop in thread" in str(ex):
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            else:
+                raise
+
     def init_app(self, redis):
         self._redis_client = redis
         self.__register_scripts()
@@ -105,20 +125,24 @@ class RedisQueue(Queue):
         receipt = uuid4()
         in_flight_key = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
         results = self.__move_to_inflight(in_flight_key, count)
+        put_batch_saving_in_flight_metric(1)
         return (receipt, results)
 
     def expire_inflights(self):
         args = [f"{Buffer.IN_FLIGHT.inflight_prefix()}:{self._suffix}*", self._inbox, self._expire_inflight_after_seconds]
         expired = self.scripts[self.LUA_EXPIRE_INFLIGHTS](args=args)
         if expired:
+            put_batch_saving_expiry_metric(len(expired))
             current_app.logger.warning(f"Moved inflights {expired} back to inbox {self._inbox}")
 
     def acknowledge(self, receipt: UUID):
         inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
         self._redis_client.delete(inflight_name)
+        put_batch_saving_inflight_processed(1)
 
     def publish(self, message: str):
         self._redis_client.rpush(self._inbox, message)
+        put_batch_saving_metric(self, 1)
 
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
         results = self.scripts[self.LUA_MOVE_TO_INFLIGHT](args=[self._inbox, in_flight_key, count])
