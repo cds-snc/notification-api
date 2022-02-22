@@ -30,7 +30,8 @@
 		"yzhang.markdown-all-in-one",
 		"ms-ossdata.vscode-postgresql",
 		"googlecloudtools.cloudcode",
-		"GitHub.copilot"
+		"GitHub.copilot",
+    "ms-vsliveshare.vsliveshare"
 	],
 
 	"postCreateCommand": "notify-dev-entrypoint.sh"
