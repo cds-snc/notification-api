@@ -410,7 +410,7 @@ class Config(object):
 
     FROM_NUMBER = "development"
 
-    STATSD_HOST = os.getenv("STATSD_HOST")
+    STATSD_HOST = os.getenv("STATSD_HOST") # CloudWatch agent, shared with embedded metrics
     STATSD_PORT = 8125
     STATSD_ENABLED = bool(STATSD_HOST)
 
@@ -459,8 +459,9 @@ class Config(object):
     CSV_MAX_ROWS_BULK_SEND = os.getenv("CSV_MAX_ROWS_BULK_SEND", 100_000)
     CSV_BULK_REDIRECT_THRESHOLD = os.getenv("CSV_BULK_REDIRECT_THRESHOLD", 200)
 
-    # Endpoint of Cloudwatch agent running as a side car in EKS
-    CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"udp://{STATSD_HOST}:{STATSD_PORT}")
+    # Endpoint of Cloudwatch agent running as a side car in EKS listening for embedded metrics
+    CLOUDWATCH_AGENT_EMF_PORT = 8135
+    CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"udp://{STATSD_HOST}:{CLOUDWATCH_AGENT_EMF_PORT}")
 
     # feature flag to toggle persistance of notification in celery instead of the API
     FF_NOTIFICATION_CELERY_PERSISTENCE = str_to_bool(os.getenv("FF_NOTIFICATION_CELERY_PERSISTENCE"), False)
