@@ -107,9 +107,7 @@ class RedisQueue(Queue):
 
         # Create async event loop for CloudWatch metrics
         try:
-            loop = (
-                asyncio.get_event_loop()
-            )  # This will fail to create a new event loop if called outside the main thread. https://bugs.python.org/issue39381
+            asyncio.get_event_loop()  # This will fail to create a new event loop if called outside the main thread. https://bugs.python.org/issue39381
         except RuntimeError as ex:
             if "There is no current event loop in thread" in str(ex):
                 loop = asyncio.new_event_loop()
