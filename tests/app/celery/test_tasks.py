@@ -249,6 +249,70 @@ class TestBatchSaving:
         )
         mock_acknowldege.assert_called_once_with(receipt)
 
+    def test_should_not_forward_sms_on_duplicate(self, sample_template_with_placeholders, mocker):
+        notification1 = _notification_json(
+            sample_template_with_placeholders,
+            to="+1 650 253 2221",
+            personalisation={"name": "Jo"},
+        )
+        notification1["id"] = str(uuid.uuid4())
+        notification1["service_id"] = str(sample_template_with_placeholders.service.id)
+
+        mock_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+        mock_persist_notifications = mocker.patch(
+            "app.celery.tasks.persist_notifications", side_effect=IntegrityError(None, None, None)
+        )
+        mock_get_notification = mocker.patch("app.celery.tasks.get_notification_by_id", return_value=notification1)
+        mock_save_sms = mocker.patch("app.celery.tasks.save_sms.apply_async")
+        mock_acknowldege = mocker.patch("app.sms_queue.acknowledge")
+
+        receipt = uuid.uuid4()
+        notifications = [signer.sign(notification1)]
+
+        save_smss(
+            None,
+            notifications,
+            receipt,
+        )
+
+        mock_deliver_sms.assert_not_called()
+        mock_persist_notifications.assert_called_once()
+        mock_get_notification.assert_called_once_with(notification1["id"])
+        mock_save_sms.assert_not_called()
+        mock_acknowldege.assert_called_once_with(receipt)
+
+    def test_should_not_forward_email_on_duplicate(self, sample_email_template_with_placeholders, mocker):
+        notification1 = _notification_json(
+            sample_email_template_with_placeholders,
+            to="test1@gmail.com",
+            personalisation={"name": "Jo"},
+        )
+        notification1["id"] = str(uuid.uuid4())
+        notification1["service_id"] = str(sample_email_template_with_placeholders.service.id)
+
+        mock_deliver_email = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+        mock_persist_notifications = mocker.patch(
+            "app.celery.tasks.persist_notifications", side_effect=IntegrityError(None, None, None)
+        )
+        mock_get_notification = mocker.patch("app.celery.tasks.get_notification_by_id", return_value=notification1)
+        mock_save_email = mocker.patch("app.celery.tasks.save_email.apply_async")
+        mock_acknowldege = mocker.patch("app.email_queue.acknowledge")
+
+        receipt = uuid.uuid4()
+        notifications = [signer.sign(notification1)]
+
+        save_emails(
+            None,
+            notifications,
+            receipt,
+        )
+
+        mock_deliver_email.assert_not_called()
+        mock_persist_notifications.assert_called_once()
+        mock_get_notification.assert_called_once_with(notification1["id"])
+        mock_save_email.assert_not_called()
+        mock_acknowldege.assert_called_once_with(receipt)
+
 
 # -------------- process_job tests -------------- #
 
