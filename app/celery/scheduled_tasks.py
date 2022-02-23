@@ -231,7 +231,7 @@ def recover_expired_notifications():
 
 @notify_celery.task(name="beat-inbox-sms")
 @statsd(namespace="tasks")
-def heartbeat_inbox_sms():
+def beat_inbox_sms():
     """
     The function acts as a beat schedule to a list of notifications in the queue.
     The post_api will push all the notifications into the above list.
@@ -249,7 +249,7 @@ def heartbeat_inbox_sms():
 
 @notify_celery.task(name="beat-inbox-email")
 @statsd(namespace="tasks")
-def heartbeat_inbox_email():
+def beat_inbox_email():
     """
     The function acts as a beat schedule to a list of notifications in the queue.
     The post_api will push all the notifications into the above list.
