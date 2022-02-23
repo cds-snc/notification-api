@@ -49,16 +49,8 @@ def metric_scope(fn):  # type: ignore
             except Exception as e:
                 raise e
             finally:
-                try:
-                    loop = (
-                        asyncio.get_event_loop()
-                    )  # This will fail to create a new event loop if called outside the main thread. https://bugs.python.org/issue39381
-                except RuntimeError as ex:
-                    if "There is no current event loop in thread" in str(ex):
-                        loop = asyncio.new_event_loop()  # https://github.com/awslabs/aws-embedded-metrics-python/issues/14
-                        asyncio.set_event_loop(loop)
-                    else:
-                        raise
+                loop = asyncio.get_event_loop()
+                loop.run_until_complete(logger.flush())
 
                 if not loop.is_running:
                     loop.run_until_complete(logger.flush())
