@@ -7,13 +7,13 @@ from freezegun import freeze_time
 from app import db
 from app.celery import scheduled_tasks, tasks
 from app.celery.scheduled_tasks import (
+    beat_inbox_email,
+    beat_inbox_sms,
     check_job_status,
     check_precompiled_letter_state,
     check_templated_letter_state,
     delete_invitations,
     delete_verify_codes,
-    beat_inbox_email,
-    beat_inbox_sms,
     recover_expired_notifications,
     replay_created_notifications,
     run_scheduled_jobs,
