@@ -20,7 +20,7 @@ metrics_config.service_name = "BatchSaving"
 metrics_config.service_type = "Redis"
 metrics_config.log_group_name = "BatchSaving"
 
-if Config.STATSD_ENABLED == False:
+if not Config.STATSD_ENABLED:
     metrics_config.disable_metric_extraction = True
 
 
