@@ -229,11 +229,11 @@ def recover_expired_notifications():
     email_queue.expire_inflights()
 
 
-@notify_celery.task(name="heartbeart-inbox-sms")
+@notify_celery.task(name="beat-inbox-sms")
 @statsd(namespace="tasks")
 def heartbeat_inbox_sms():
     """
-    The function acts as a heartbeat to a list of notifications in the queue.
+    The function acts as a beat schedule to a list of notifications in the queue.
     The post_api will push all the notifications into the above list.
     The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
     to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
@@ -247,11 +247,11 @@ def heartbeat_inbox_sms():
         receipt_id_sms, list_of_sms_notifications = sms_queue.poll()
 
 
-@notify_celery.task(name="heartbeart-inbox-email")
+@notify_celery.task(name="beat-inbox-email")
 @statsd(namespace="tasks")
 def heartbeat_inbox_email():
     """
-    The function acts as a heartbeat to a list of notifications in the queue.
+    The function acts as a beat schedule to a list of notifications in the queue.
     The post_api will push all the notifications into the above list.
     The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
     to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB

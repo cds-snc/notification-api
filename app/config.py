@@ -307,16 +307,16 @@ class Config(object):
         },
         "in-flight-to-inbox": {
             "task": "in-flight-to-inbox",
-            "schedule": 30,
+            "schedule": 300,
             "options": {"queue": QueueNames.PERIODIC},
         },
-        "heartbeart-inbox-sms": {
-            "task": "heartbeart-inbox-sms",
+        "beat-inbox-sms": {
+            "task": "beat-inbox-sms",
             "schedule": 10,
             "options": {"queue": QueueNames.PERIODIC},
         },
-        "heartbeart-inbox-email": {
-            "task": "heartbeart-inbox-email",
+        "beat-inbox-email": {
+            "task": "beat-inbox-email",
             "schedule": 10,
             "options": {"queue": QueueNames.PERIODIC},
         },
