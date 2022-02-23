@@ -49,10 +49,7 @@ def metric_scope(fn):  # type: ignore
             except Exception as e:
                 raise e
             finally:
-                loop = asyncio.get_event_loop()
+                loop = asyncio.new_event_loop()
                 loop.run_until_complete(logger.flush())
-
-                if not loop.is_running:
-                    loop.run_until_complete(logger.flush())
 
         return wrapper

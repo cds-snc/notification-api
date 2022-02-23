@@ -105,16 +105,6 @@ class RedisQueue(Queue):
         self._suffix = suffix
         self._expire_inflight_after_seconds = expire_inflight_after_seconds
 
-        # Create async event loop for CloudWatch metrics
-        try:
-            asyncio.get_event_loop()  # This will fail to create a new event loop if called outside the main thread. https://bugs.python.org/issue39381
-        except RuntimeError as ex:
-            if "There is no current event loop in thread" in str(ex):
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            else:
-                raise
-
     def init_app(self, redis):
         self._redis_client = redis
         self.__register_scripts()
