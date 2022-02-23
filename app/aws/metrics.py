@@ -6,7 +6,6 @@ from aws_embedded_metrics import metric_scope  # type: ignore
 from aws_embedded_metrics.config import get_config  # type: ignore
 from botocore.exceptions import ClientError
 from flask import current_app
-from sqlalchemy import false
 
 from app.config import Config
 
