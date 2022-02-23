@@ -318,7 +318,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
             current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
-        handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt)
+        handle_batch_error_and_forward(signed_and_verified, SMS_TYPE, e, receipt)
 
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
     research_mode = service.research_mode  # type: ignore
@@ -412,8 +412,8 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
     verified_notifications: List[Any] = []
     notification_id_queue: Dict = {}
     saved_notifications = []
-    for signed_notifications in signed_notifications:
-        notification = signer.verify(signed_notifications)
+    for signed_notification in signed_notifications:
+        notification = signer.verify(signed_notification)
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
 
@@ -462,7 +462,7 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
             current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
-        handle_batch_error_and_forward(self, signed_and_verified, EMAIL_TYPE, e, receipt)
+        handle_batch_error_and_forward(signed_and_verified, EMAIL_TYPE, e, receipt)
 
     if saved_notifications:
         check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
@@ -652,7 +652,7 @@ def handle_save_error(task, notification, notification_id, exception):
 
 
 def handle_batch_error_and_forward(
-    task, signed_and_verified: list[tuple[Any, Any]], notification_type: str, exception, receipt: UUID = None
+    signed_and_verified: list[tuple[Any, Any]], notification_type: str, exception, receipt: UUID = None
 ):
     if receipt:
         current_app.logger.exception(f"Batch saving: could not persist notifications with receipt {receipt}", exception)

@@ -10,7 +10,7 @@ from notifications_utils.columns import Row
 from notifications_utils.recipients import RecipientCSV
 from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate
 from requests import RequestException
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app import DATETIME_FORMAT, redis_store, signer
 from app.celery import provider_tasks, tasks
@@ -98,8 +98,9 @@ def email_job_with_placeholders(notify_db, notify_db_session, sample_email_templ
     return create_job(template=sample_email_template_with_placeholders)
 
 
+@pytest.mark.usefixtures("notify_db_session")
 class TestBatchSaving:
-    def test_should_save_smss(self, notify_db_session, sample_template_with_placeholders, mocker):
+    def test_should_save_smss(self, sample_template_with_placeholders, mocker):
         notification1 = _notification_json(
             sample_template_with_placeholders,
             to="+1 650 253 2221",
@@ -140,7 +141,7 @@ class TestBatchSaving:
 
         acknowldege_mock.assert_called_once_with(receipt)
 
-    def test_should_save_emails(self, notify_db_session, sample_email_template_with_placeholders, mocker):
+    def test_should_save_emails(self, sample_email_template_with_placeholders, mocker):
         notification1 = _notification_json(
             sample_email_template_with_placeholders,
             to="test1@gmail.com",
@@ -181,6 +182,72 @@ class TestBatchSaving:
         assert persisted_notification[0].notification_type == EMAIL_TYPE
 
         acknowldege_mock.assert_called_once_with(receipt)
+
+    def test_should_forward_sms_on_error(self, sample_template_with_placeholders, mocker):
+        notification1 = _notification_json(
+            sample_template_with_placeholders,
+            to="+1 650 253 2221",
+            personalisation={"name": "Jo"},
+        )
+        notification1["id"] = str(uuid.uuid4())
+        notification1["service_id"] = str(sample_template_with_placeholders.service.id)
+
+        mock_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+        mock_persist_notifications = mocker.patch(
+            "app.celery.tasks.persist_notifications", side_effect=IntegrityError(None, None, None)
+        )
+        mock_save_sms = mocker.patch("app.celery.tasks.save_sms.apply_async")
+        mock_acknowldege = mocker.patch("app.sms_queue.acknowledge")
+
+        receipt = uuid.uuid4()
+        notifications = [signer.sign(notification1)]
+
+        save_smss(
+            None,
+            notifications,
+            receipt,
+        )
+
+        mock_deliver_sms.assert_not_called()
+        mock_persist_notifications.assert_called_once()
+        mock_save_sms.assert_called_once_with(
+            (sample_template_with_placeholders.service.id, notification1["id"], signer.sign(notification1), None),
+            queue=QueueNames.DATABASE,
+        )
+        mock_acknowldege.assert_called_once_with(receipt)
+
+    def test_should_forward_email_on_error(self, sample_email_template_with_placeholders, mocker):
+        notification1 = _notification_json(
+            sample_email_template_with_placeholders,
+            to="test1@gmail.com",
+            personalisation={"name": "Jo"},
+        )
+        notification1["id"] = str(uuid.uuid4())
+        notification1["service_id"] = str(sample_email_template_with_placeholders.service.id)
+
+        mock_deliver_email = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+        mock_persist_notifications = mocker.patch(
+            "app.celery.tasks.persist_notifications", side_effect=IntegrityError(None, None, None)
+        )
+        mock_save_email = mocker.patch("app.celery.tasks.save_email.apply_async")
+        mock_acknowldege = mocker.patch("app.email_queue.acknowledge")
+
+        receipt = uuid.uuid4()
+        notifications = [signer.sign(notification1)]
+
+        save_emails(
+            None,
+            notifications,
+            receipt,
+        )
+
+        mock_deliver_email.assert_not_called()
+        mock_persist_notifications.assert_called_once()
+        mock_save_email.assert_called_once_with(
+            (sample_email_template_with_placeholders.service.id, notification1["id"], signer.sign(notification1), None),
+            queue=QueueNames.DATABASE,
+        )
+        mock_acknowldege.assert_called_once_with(receipt)
 
 
 # -------------- process_job tests -------------- #
