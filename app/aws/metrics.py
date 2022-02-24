@@ -31,6 +31,8 @@ def put_batch_saving_metric(metrics_logger: MetricsLogger, queue: RedisQueue, co
         count (int): default: 1, count of an item added to the INBOX.
         metrics (MetricsLogger): Submit metric to cloudwatch
     """
+    if metrics_config.disable_metric_extraction:
+        return
     try:
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_published", count, "Count")
@@ -50,6 +52,8 @@ def put_batch_saving_inflight_metric(metrics_logger: MetricsLogger, count: int):
         count (int): default: 1, count of an inflight list created.
         metrics (MetricsLogger): Submit metric to cloudwatch
     """
+    if metrics_config.disable_metric_extraction:
+        return
     try:
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_inflight", count, "Count")
@@ -69,6 +73,8 @@ def put_batch_saving_inflight_processed(metrics_logger: MetricsLogger, count: in
         count (int): default: 1, count of an inflight list created.
         metrics (MetricsLogger): Submit metric to cloudwatch
     """
+    if metrics_config.disable_metric_extraction:
+        return
     try:
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_inflight", count, "Count")
@@ -89,6 +95,8 @@ def put_batch_saving_expiry_metric(metrics_logger, count: int):
         count (int): Number of inlfight lists sent to inbox
         metrics (MetricsLogger): Submit metric to cloudwatch
     """
+    if metrics_config.disable_metric_extraction:
+        return
     try:
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_inflight", count, "Count")
