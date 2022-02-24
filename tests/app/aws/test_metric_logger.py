@@ -2,8 +2,12 @@ from os import environ
 from unittest.mock import patch
 
 from aws_embedded_metrics.config import get_config  # type: ignore
-from aws_embedded_metrics.environment.ec2_environment import EC2Environment
-from aws_embedded_metrics.environment.lambda_environment import LambdaEnvironment
+from aws_embedded_metrics.environment.ec2_environment import (
+    EC2Environment,  # type: ignore
+)
+from aws_embedded_metrics.environment.lambda_environment import (
+    LambdaEnvironment,  # type: ignore
+)
 
 from app.aws.metrics_logger import MetricsLogger
 

@@ -1,12 +1,16 @@
-from __future__ import annotations  # PEP 563 -- Postponed Evaluation of Annotations
-
 from os import environ
 
 from aws_embedded_metrics import MetricsLogger as _MetricsLogger  # type: ignore
 from aws_embedded_metrics.config import get_config  # type: ignore
-from aws_embedded_metrics.environment.ec2_environment import EC2Environment
-from aws_embedded_metrics.environment.lambda_environment import LambdaEnvironment
-from aws_embedded_metrics.environment.local_environment import LocalEnvironment
+from aws_embedded_metrics.environment.ec2_environment import (  # type: ignore
+    EC2Environment,
+)
+from aws_embedded_metrics.environment.lambda_environment import (  # type: ignore
+    LambdaEnvironment,
+)
+from aws_embedded_metrics.environment.local_environment import (  # type: ignore
+    LocalEnvironment,
+)
 
 from app.config import Config
 
@@ -37,8 +41,5 @@ class MetricsLogger(_MetricsLogger):
     def flush(self) -> None:
         """Override the default async MetricsLogger.flush method, flushing to stdout immediately"""
         sink = self.environment.get_sink()
-        sink.accept(self.context)
-        self.context = self.context.create_copy_with_context()
-
-    def with_dimensions(self, *dimensions):
-        return self.set_dimensions(*dimensions)
+        sink.accept(self.context)  # type: ignore
+        self.context = self.context.create_copy_with_context()  # type: ignore
