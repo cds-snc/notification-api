@@ -3,6 +3,7 @@
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "dev",
 	"workspaceFolder": "/workspace",
+	"shutdownAction": "stopCompose",
 
 	"settings": { 
 		"[python]": {
