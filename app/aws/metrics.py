@@ -8,11 +8,8 @@ from flask import current_app
 
 from app.config import Config
 
-from .metrics_scope import metric_scope  # type: ignore
-
 if TYPE_CHECKING:  # A special Python 3 constant that is assumed to be True by 3rd party static type checkers
-    from aws_embedded_metrics.logger.metrics_logger import MetricsLogger  # type: ignore
-
+    from app.aws.metrics_logger import MetricsLogger
     from app.queue import RedisQueue
 
 metrics_config = get_config()
@@ -25,8 +22,7 @@ if not Config.STATSD_ENABLED:
     metrics_config.disable_metric_extraction = True
 
 
-@metric_scope
-def put_batch_saving_metric(queue: RedisQueue, count: int, metrics: MetricsLogger):
+def put_batch_saving_metric(metrics_logger: MetricsLogger, queue: RedisQueue, count: int):
     """
     Metric to calculate how many items are put in an INBOX
 
@@ -36,17 +32,17 @@ def put_batch_saving_metric(queue: RedisQueue, count: int, metrics: MetricsLogge
         metrics (MetricsLogger): Submit metric to cloudwatch
     """
     try:
-        metrics.set_namespace("NotificationCanadaCa")
-        metrics.put_metric("batch_saving_published", count, "Count")
-        metrics.set_dimensions({"list_name": queue._inbox})
+        metrics_logger.set_namespace("NotificationCanadaCa")
+        metrics_logger.put_metric("batch_saving_published", count, "Count")
+        metrics_logger.set_dimensions({"list_name": queue._inbox})
+        metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
         current_app.logger.exception(message)
     return
 
 
-@metric_scope
-def put_batch_saving_in_flight_metric(count: int, metrics: MetricsLogger):
+def put_batch_saving_inflight_metric(metrics_logger: MetricsLogger, count: int):
     """
     Metric to calculate how many inflight lists have been created
 
@@ -55,17 +51,17 @@ def put_batch_saving_in_flight_metric(count: int, metrics: MetricsLogger):
         metrics (MetricsLogger): Submit metric to cloudwatch
     """
     try:
-        metrics.set_namespace("NotificationCanadaCa")
-        metrics.put_metric("batch_saving_inflight", count, "Count")
-        metrics.set_dimensions({"created": "True"})
+        metrics_logger.set_namespace("NotificationCanadaCa")
+        metrics_logger.put_metric("batch_saving_inflight", count, "Count")
+        metrics_logger.set_dimensions({"created": "True"})
+        metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
         current_app.logger.exception(message)
     return
 
 
-@metric_scope
-def put_batch_saving_inflight_processed(count: int, metrics: MetricsLogger):
+def put_batch_saving_inflight_processed(metrics_logger: MetricsLogger, count: int):
     """
     Metric to calculate how many inflight lists have been processed.
 
@@ -74,17 +70,17 @@ def put_batch_saving_inflight_processed(count: int, metrics: MetricsLogger):
         metrics (MetricsLogger): Submit metric to cloudwatch
     """
     try:
-        metrics.set_namespace("NotificationCanadaCa")
-        metrics.put_metric("batch_saving_inflight", count, "Count")
-        metrics.set_dimensions({"acknowledged": "True"})
+        metrics_logger.set_namespace("NotificationCanadaCa")
+        metrics_logger.put_metric("batch_saving_inflight", count, "Count")
+        metrics_logger.set_dimensions({"acknowledged": "True"})
+        metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
         current_app.logger.exception(message)
     return
 
 
-@metric_scope
-def put_batch_saving_expiry_metric(count: int, metrics: MetricsLogger):
+def put_batch_saving_expiry_metric(metrics_logger, count: int):
     """
     Metric to calculate how many inflight list have not been processed and instead
     sent back to the inbox.
@@ -94,9 +90,10 @@ def put_batch_saving_expiry_metric(count: int, metrics: MetricsLogger):
         metrics (MetricsLogger): Submit metric to cloudwatch
     """
     try:
-        metrics.set_namespace("NotificationCanadaCa")
-        metrics.put_metric("batch_saving_inflight", count, "Count")
-        metrics.set_dimensions({"expired": "True"})
+        metrics_logger.set_namespace("NotificationCanadaCa")
+        metrics_logger.put_metric("batch_saving_inflight", count, "Count")
+        metrics_logger.set_dimensions({"expired": "True"})
+        metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
         current_app.logger.exception(message)
