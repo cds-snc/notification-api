@@ -23,13 +23,11 @@ class MetricsLogger(_MetricsLogger):
         metrics_config.service_name = "BatchSaving"
         metrics_config.service_type = "Redis"
         metrics_config.log_group_name = "BatchSaving"
+
         metrics_config.disable_metric_extraction = True
 
         if "AWS_EXECUTION_ENV" in environ:
             metrics_config.environment = "lambda"
-
-        if not Config.STATSD_ENABLED:
-            metrics_config.disable_metric_extraction = True
 
         lower_configured_enviroment = metrics_config.environment.lower()
         if lower_configured_enviroment == "local":
