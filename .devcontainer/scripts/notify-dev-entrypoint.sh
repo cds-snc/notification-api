@@ -18,6 +18,8 @@ echo -e "alias lt='exa -al -T -L 2'" >> ~/.zshrc
 
 # Kubectl aliases and command autocomplete
 echo -e "alias k='kubectl'" >> ~/.zshrc
+echo -e "alias k-staging='aws eks --region ca-central-1 update-kubeconfig --name notification-canada-ca-staging-eks-cluster'" >> ~/.zshrc
+echo -e "alias k-prod='aws eks --region ca-central-1 update-kubeconfig --name notification-canada-ca-production-eks-cluster'" >> ~/.zshrc
 echo -e "source <(kubectl completion zsh)" >> ~/.zshrc
 echo -e "complete -F __start_kubectl k" >> ~/.zshrc
 
