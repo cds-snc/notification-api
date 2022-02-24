@@ -38,7 +38,7 @@ def put_batch_saving_metric(metrics_logger: MetricsLogger, queue: RedisQueue, co
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
-        current_app.logger.exception(message)
+        current_app.logger.warning(message)
     return
 
 
@@ -57,7 +57,7 @@ def put_batch_saving_inflight_metric(metrics_logger: MetricsLogger, count: int):
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
-        current_app.logger.exception(message)
+        current_app.logger.warning(message)
     return
 
 
@@ -76,7 +76,7 @@ def put_batch_saving_inflight_processed(metrics_logger: MetricsLogger, count: in
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
-        current_app.logger.exception(message)
+        current_app.logger.warning(message)
     return
 
 
@@ -96,5 +96,5 @@ def put_batch_saving_expiry_metric(metrics_logger, count: int):
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
-        current_app.logger.exception(message)
+        current_app.logger.warning(message)
     return

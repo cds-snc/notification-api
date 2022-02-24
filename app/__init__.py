@@ -46,8 +46,8 @@ zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
 flask_redis = FlaskRedis()
 redis_store = RedisClient()
-# TODO: Rework instantiation to decouple redis_store.redis_store and pass it in.\
 metrics_logger = MetricsLogger()
+# TODO: Rework instantiation to decouple redis_store.redis_store and pass it in.\
 email_queue = RedisQueue("email")
 sms_queue = RedisQueue("sms")
 performance_platform_client = PerformancePlatformClient()
