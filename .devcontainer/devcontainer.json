@@ -1,11 +1,11 @@
 {
-	"name": "Python 3.9 & PostgreSQL",
+	"name": "notification-api",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "dev",
 	"workspaceFolder": "/workspace",
 	"shutdownAction": "stopCompose",
 
-	"settings": { 
+	"settings": {
 		"[python]": {
 			"editor.formatOnSave": true
 		},
@@ -14,16 +14,20 @@
 		"python.linting.pylintEnabled": true,
 		"python.linting.pylintPath": "/usr/local/bin/pylint",
 		"python.pythonPath": "/usr/local/bin/python",
-		"terminal.integrated.fontFamily": "Fira Mono Medium Nerd Font Complete Mono, MonoLisa, monospace"
 	},
 
 	"features": {
 		"docker-from-docker": {
 			"version": "latest",
 			"moby": true
+		},
+		"kubectl-helm-minikube": {
+			"version": "latest",
+			"helm": "latest",
+			"minikube": "none"
 		}
 	},
-  
+
 	"extensions": [
 		"donjayamanne.python-extension-pack",
 		"ms-azuretools.vscode-docker",
@@ -39,5 +43,7 @@
 		"ms-vsliveshare.vsliveshare"
 	],
 
-	"postCreateCommand": "notify-dev-entrypoint.sh"
+	"postCreateCommand": "notify-dev-entrypoint.sh",
+
+	"remoteUser": "vscode"
 }
