@@ -1,5 +1,6 @@
 from os import environ
 from unittest.mock import patch
+from uuid import uuid4
 
 from aws_embedded_metrics.config import get_config  # type: ignore
 from aws_embedded_metrics.environment.ec2_environment import (  # type: ignore
@@ -34,7 +35,8 @@ class TestMetricsLogger:
         metrics_config = get_config()
         metrics_config.environment = "local"
         metrics_logger = MetricsLogger()
-        metrics_logger.put_metric("foo_bar_baz", 1, "Count")
+        metric_name = f"foo_bar_baz_{str(uuid4())}"
+        metrics_logger.put_metric(metric_name, 1, "Count")
         metrics_logger.flush()
         captured = capsys.readouterr()
-        assert '{"foo_bar_baz": 1}' in captured.out
+        assert metric_name in str(captured.out)
