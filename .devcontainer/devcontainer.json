@@ -1,11 +1,11 @@
 {
-	"name": "Python 3.9 & PostgreSQL",
+	"name": "notification-api",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "dev",
 	"workspaceFolder": "/workspace",
 	"shutdownAction": "stopCompose",
 
-	"settings": { 
+	"settings": {
 		"[python]": {
 			"editor.formatOnSave": true
 		},
@@ -21,9 +21,14 @@
 		"docker-from-docker": {
 			"version": "latest",
 			"moby": true
+		},
+		"kubectl-helm-minikube": {
+			"version": "latest",
+			"helm": "latest",
+			"minikube": "none"
 		}
 	},
-  
+
 	"extensions": [
 		"donjayamanne.python-extension-pack",
 		"ms-azuretools.vscode-docker",
