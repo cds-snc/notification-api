@@ -2,7 +2,6 @@ from __future__ import annotations  # PEP 563 -- Postponed Evaluation of Annotat
 
 from typing import TYPE_CHECKING
 
-from aws_embedded_metrics.config import get_config  # type: ignore
 from botocore.exceptions import ClientError
 from flask import current_app
 
