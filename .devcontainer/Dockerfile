@@ -1,8 +1,5 @@
-FROM python:3.9
+FROM mcr.microsoft.com/vscode/devcontainers/python:0-3.9
 
-ARG USERNAME=vscode
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
 ARG KUBENS_VERSION="0.9.4"
 ARG OCTANT_VERSION="0.25.1"
 
@@ -31,11 +28,6 @@ RUN apt-get update \
         tldr \
         unzip \
         vim \
-        zsh \
-    && groupadd --gid $USER_GID $USERNAME \
-    && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
-    && chmod 0440 /etc/sudoers.d/$USERNAME \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
@@ -53,15 +45,6 @@ RUN curl -Lo octant.tar.gz https://github.com/vmware-tanzu/octant/releases/downl
     && tar -xvf octant.tar.gz \
     && mv octant_${OCTANT_VERSION}_Linux-64bit/octant /usr/local/bin/ \
     && rm -rf octant_${OCTANT_VERSION}_Linux-64bit
-
-# Install fonts
-RUN curl -O -J -L https://github.com/ryanoasis/nerd-fonts/releases/download/v2.1.0/FiraMono.zip \
-    && unzip FiraMono.zip -d ~/.fonts \
-    && rm FiraMono.zip \
-    && fc-cache -fv
-
-# Install oh-my-zsh
-RUN sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 
 COPY .devcontainer/scripts/notify-dev-entrypoint.sh /usr/local/bin/
 

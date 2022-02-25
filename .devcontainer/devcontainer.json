@@ -14,7 +14,6 @@
 		"python.linting.pylintEnabled": true,
 		"python.linting.pylintPath": "/usr/local/bin/pylint",
 		"python.pythonPath": "/usr/local/bin/python",
-		"terminal.integrated.fontFamily": "Fira Mono Medium Nerd Font Complete Mono, MonoLisa, monospace"
 	},
 
 	"features": {
@@ -44,5 +43,7 @@
 		"ms-vsliveshare.vsliveshare"
 	],
 
-	"postCreateCommand": "notify-dev-entrypoint.sh"
+	"postCreateCommand": "notify-dev-entrypoint.sh",
+
+	"remoteUser": "vscode"
 }
