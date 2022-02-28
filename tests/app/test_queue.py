@@ -327,6 +327,16 @@ class TestRedisQueueMetricUsage:
             assert pbsim_mock.assert_called_with(mock.ANY, 1) is None
 
     @pytest.mark.serial
+    def test_polling_metric_no_results(self, redis, redis_queue, mocker):
+        with self.given_inbox_with_one_element(redis, redis_queue):
+            pbsim_mock = mocker.patch("app.queue.put_batch_saving_inflight_metric")
+            redis_queue.poll(10)
+            assert pbsim_mock.assert_called_with(mock.ANY, 1) is None
+            pbsim_mock.reset_mock()
+            redis_queue.poll(10)
+            assert not pbsim_mock.called, "put_batch_saving_inflight_metric was called and should not have been"
+
+    @pytest.mark.serial
     def test_acknowledged_metric(self, redis, redis_queue, mocker):
         with self.given_inbox_with_one_element(redis, redis_queue):
             pbsip_mock = mocker.patch("app.queue.put_batch_saving_inflight_processed")
