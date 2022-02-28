@@ -206,14 +206,11 @@ def get_notification_with_personalisation(service_id, notification_id, key_type)
 
 
 @statsd(namespace="dao")
-def get_notification_by_id(notification_id, service_id=None, _raise=False):
+def get_notification_by_id(notification_id, service_id=None, _raise=False) -> Notification:
     filters = [Notification.id == notification_id]
-
     if service_id:
         filters.append(Notification.service_id == service_id)
-
     query = db.on_reader().query(Notification).filter(*filters)
-
     return query.one() if _raise else query.first()
 
 

@@ -17,6 +17,7 @@ from notifications_utils.clients.zendesk.zendesk_client import ZendeskClient
 from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
 from werkzeug.local import LocalProxy
 
+from app.aws.metrics_logger import MetricsLogger
 from app.celery.celery import NotifyCelery
 from app.clients import Clients
 from app.clients.document_download import DocumentDownloadClient
@@ -45,7 +46,8 @@ zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
 flask_redis = FlaskRedis()
 redis_store = RedisClient()
-# TODO: Rework instantiation to decouple redis_store.redis_store and pass it in.
+metrics_logger = MetricsLogger()
+# TODO: Rework instantiation to decouple redis_store.redis_store and pass it in.\
 email_queue = RedisQueue("email")
 sms_queue = RedisQueue("sms")
 performance_platform_client = PerformancePlatformClient()
@@ -85,8 +87,8 @@ def create_app(application, config=None):
     clients.init_app(sms_clients=[aws_sns_client], email_clients=[aws_ses_client])
 
     flask_redis.init_app(application)
-    sms_queue.init_app(flask_redis)
-    email_queue.init_app(flask_redis)
+    sms_queue.init_app(flask_redis, metrics_logger)
+    email_queue.init_app(flask_redis, metrics_logger)
     redis_store.init_app(application)
 
     register_blueprint(application)

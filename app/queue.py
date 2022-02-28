@@ -7,6 +7,13 @@ from uuid import UUID, uuid4
 
 from flask import current_app
 
+from app.aws.metrics import (
+    put_batch_saving_expiry_metric,
+    put_batch_saving_inflight_metric,
+    put_batch_saving_inflight_processed,
+    put_batch_saving_metric,
+)
+
 
 def generate_element(length=10) -> str:
     elem = "".join(random.choice(string.ascii_lowercase) for i in range(length))
@@ -97,28 +104,33 @@ class RedisQueue(Queue):
         self._suffix = suffix
         self._expire_inflight_after_seconds = expire_inflight_after_seconds
 
-    def init_app(self, redis):
+    def init_app(self, redis, metrics_logger):
         self._redis_client = redis
         self.__register_scripts()
+        self.__metrics_logger = metrics_logger
 
     def poll(self, count=10) -> tuple[UUID, list[str]]:
         receipt = uuid4()
         in_flight_key = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
         results = self.__move_to_inflight(in_flight_key, count)
+        put_batch_saving_inflight_metric(self.__metrics_logger, 1)
         return (receipt, results)
 
     def expire_inflights(self):
         args = [f"{Buffer.IN_FLIGHT.inflight_prefix()}:{self._suffix}*", self._inbox, self._expire_inflight_after_seconds]
         expired = self.scripts[self.LUA_EXPIRE_INFLIGHTS](args=args)
         if expired:
+            put_batch_saving_expiry_metric(self.__metrics_logger, len(expired))
             current_app.logger.warning(f"Moved inflights {expired} back to inbox {self._inbox}")
 
     def acknowledge(self, receipt: UUID):
         inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
         self._redis_client.delete(inflight_name)
+        put_batch_saving_inflight_processed(self.__metrics_logger, 1)
 
     def publish(self, message: str):
         self._redis_client.rpush(self._inbox, message)
+        put_batch_saving_metric(self.__metrics_logger, self, 1)
 
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
         results = self.scripts[self.LUA_MOVE_TO_INFLIGHT](args=[self._inbox, in_flight_key, count])

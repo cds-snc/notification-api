@@ -1,6 +1,7 @@
 import time
 from contextlib import contextmanager
 from os import getenv
+from unittest import mock
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -8,7 +9,7 @@ import pytest
 from flask import Flask
 from pytest_mock_resources import RedisConfig, create_redis_fixture
 
-from app import create_app, flask_redis
+from app import create_app, flask_redis, metrics_logger
 from app.config import Config, Test
 from app.queue import Buffer, MockQueue, RedisQueue, generate_element
 
@@ -62,7 +63,7 @@ class TestRedisQueue:
     @pytest.fixture()
     def redis_queue(self, app):
         q = RedisQueue(QNAME_SUFFIX, 1)
-        q.init_app(flask_redis)
+        q.init_app(flask_redis, metrics_logger)
         return q
 
     @contextmanager
@@ -135,7 +136,7 @@ class TestRedisQueue:
         self.delete_all_list(redis)
         try:
             redis_queue = RedisQueue(suffix)
-            redis_queue.init_app(flask_redis)
+            redis_queue.init_app(flask_redis, metrics_logger)
             element = generate_element()
             redis_queue.publish(element)
             assert redis.llen(Buffer.INBOX.inbox_name(suffix)) == 1
@@ -253,3 +254,94 @@ class TestMockQueue:
 
     def test_acknowledged_messages(self, mock_queue):
         mock_queue.acknowledge([1, 2, 3])
+
+
+class TestRedisQueueMetricUsage:
+    @pytest.fixture(autouse=True)
+    def app(self):
+        config: Config = Test()
+        config.REDIS_ENABLED = True
+        app = Flask(config.NOTIFY_ENVIRONMENT)
+        create_app(app, config)
+        ctx = app.app_context()
+        ctx.push()
+        with app.test_request_context():
+            yield app
+        ctx.pop()
+        return app
+
+    @pytest.fixture()
+    def redis_queue(self, app):
+        q = RedisQueue(QNAME_SUFFIX, 1)
+        q.init_app(flask_redis, metrics_logger)
+        return q
+
+    @contextmanager
+    def given_inbox_with_one_element(self, redis, redis_queue):
+        self.delete_all_list(redis)
+        notification = generate_element()
+        try:
+            redis_queue.publish(notification)
+            yield
+        finally:
+            self.delete_all_list(redis)
+
+    @contextmanager
+    def given_inbox_with_many_indexes(self, redis, redis_queue):
+        self.delete_all_list(redis)
+        try:
+            indexes = [str(i) for i in range(0, REDIS_ELEMENTS_COUNT)]
+            [redis_queue.publish(index) for index in indexes]
+            yield
+        finally:
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def delete_all_list(self, redis):
+        self.delete_all_inbox(redis)
+        self.delete_all_inflight(redis)
+
+    @pytest.mark.serial
+    def delete_all_inbox(self, redis):
+        for key in redis.scan_iter(f"{Buffer.INBOX.value}*"):
+            redis.delete(key)
+
+    @pytest.mark.serial
+    def delete_all_inflight(self, redis):
+        for key in redis.scan_iter(f"{Buffer.IN_FLIGHT.value}*"):
+            redis.delete(key)
+
+    @pytest.mark.serial
+    def test_put_batch_saving_metric(self, redis, redis_queue, mocker):
+        pbsm_mock = mocker.patch("app.queue.put_batch_saving_metric")
+        element = generate_element()
+        redis_queue.publish(element)
+        assert pbsm_mock.assert_called_with(mock.ANY, mock.ANY, 1) is None
+        self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_metric(self, redis, redis_queue, mocker):
+        with self.given_inbox_with_one_element(redis, redis_queue):
+            pbsim_mock = mocker.patch("app.queue.put_batch_saving_inflight_metric")
+            redis_queue.poll(10)
+            assert pbsim_mock.assert_called_with(mock.ANY, 1) is None
+
+    @pytest.mark.serial
+    def test_acknowledged_metric(self, redis, redis_queue, mocker):
+        with self.given_inbox_with_one_element(redis, redis_queue):
+            pbsip_mock = mocker.patch("app.queue.put_batch_saving_inflight_processed")
+            (receipt, _) = redis_queue.poll(10)
+            redis_queue.acknowledge(receipt)
+            assert pbsip_mock.assert_called_with(mock.ANY, 1) is None
+
+    def test_put_batch_saving_expiry_metric(self, redis, redis_queue, mocker):
+        with self.given_inbox_with_many_indexes(redis, redis_queue):
+            pbsem_mock = mocker.patch("app.queue.put_batch_saving_expiry_metric")
+            Buffer.INBOX.inbox_name(QNAME_SUFFIX)
+            redis.set("not_inflight", "test")
+            redis_queue.poll(10)
+            redis_queue.poll(10)
+            redis_queue.poll(10)
+            time.sleep(2)
+            redis_queue.expire_inflights()
+            assert pbsem_mock.assert_called_with(mock.ANY, 3) is None

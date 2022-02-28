@@ -101,6 +101,7 @@ def notify_db(notify_api, worker_id):
         "reader": uri_db_reader,
         "writer": uri_db_writer,
     }
+
     create_test_db(uri_db_writer)
 
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))

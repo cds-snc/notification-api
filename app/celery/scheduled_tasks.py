@@ -229,11 +229,11 @@ def recover_expired_notifications():
     email_queue.expire_inflights()
 
 
-@notify_celery.task(name="heartbeart-inbox-sms")
+@notify_celery.task(name="beat-inbox-sms")
 @statsd(namespace="tasks")
-def heartbeat_inbox_sms():
+def beat_inbox_sms():
     """
-    The function acts as a heartbeat to a list of notifications in the queue.
+    The function acts as a beat schedule to a list of notifications in the queue.
     The post_api will push all the notifications into the above list.
     The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
     to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
@@ -243,15 +243,15 @@ def heartbeat_inbox_sms():
 
     while list_of_sms_notifications:
         save_smss.apply_async((None, list_of_sms_notifications, receipt_id_sms), queue=QueueNames.DATABASE)
-        current_app.logger.info(f"SMS UUID: {receipt_id_sms} sent to Inflight List")
+        current_app.logger.info(f"Batch saving: SMS receipt {receipt_id_sms} sent to in-flight.")
         receipt_id_sms, list_of_sms_notifications = sms_queue.poll()
 
 
-@notify_celery.task(name="heartbeart-inbox-email")
+@notify_celery.task(name="beat-inbox-email")
 @statsd(namespace="tasks")
-def heartbeat_inbox_email():
+def beat_inbox_email():
     """
-    The function acts as a heartbeat to a list of notifications in the queue.
+    The function acts as a beat schedule to a list of notifications in the queue.
     The post_api will push all the notifications into the above list.
     The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
     to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
@@ -261,5 +261,5 @@ def heartbeat_inbox_email():
 
     while list_of_email_notifications:
         save_emails.apply_async((None, list_of_email_notifications, receipt_id_email), queue=QueueNames.DATABASE)
-        current_app.logger.info(f"Email UUID: {receipt_id_email} sent to Inflight List")
+        current_app.logger.info(f"Batch saving: email receipt {receipt_id_email} sent to in-flight.")
         receipt_id_email, list_of_email_notifications = email_queue.poll()

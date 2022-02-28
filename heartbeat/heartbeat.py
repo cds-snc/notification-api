@@ -1,5 +1,5 @@
 """
-Code to keep the lambda function alive.
+Code to keep the lambda API alive.
 """
 import ast
 import os
