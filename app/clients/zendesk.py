@@ -81,5 +81,5 @@ class Zendesk(object):
         if response.status_code != 201:
             raise requests.HTTPError(
                 response.status_code,
-                f"Failed to create zendesk ticket for email: {self.contact.email_address} using token {self.token[:5]}",
+                f"Failed to create zendesk ticket for email: {self.contact.email_address} using token {self.token[:5]} and url {self.api_url}. Reason: {response.text}",
             )
