@@ -113,7 +113,8 @@ class RedisQueue(Queue):
         receipt = uuid4()
         in_flight_key = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
         results = self.__move_to_inflight(in_flight_key, count)
-        put_batch_saving_inflight_metric(self.__metrics_logger, 1)
+        if results:
+            put_batch_saving_inflight_metric(self.__metrics_logger, 1)
         return (receipt, results)
 
     def expire_inflights(self):
