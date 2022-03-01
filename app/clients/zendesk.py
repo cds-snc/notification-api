@@ -52,14 +52,14 @@ class Zendesk(object):
 
         return message
 
-    # Update for Zendesk API Ticket format
-    # read docs: https://developer.zendesk.com/rest_api/docs/core/tickets#create-ticket
+    # Update for Zendesk API Request format
+    # read docs: https://developer.zendesk.com/api-reference/ticketing/tickets/ticket-requests/#create-request
     def _generate_ticket(self) -> Dict[str, Dict[str, Union[str, int, List[str]]]]:
         return {
-            "ticket": {
+            "request": {
                 "subject": self.contact.friendly_support_type,
-                "description": self._generate_description(),
-                "email": self.contact.email_address,
+                "comment": {"body": self._generate_description()},
+                "requester": {"name": self.contact.name, "email": self.contact.email_address},
                 "tags": self.contact.tags
                 + ["notification_api"],  # Custom tag used to auto-assign ticket to the notification support group
             }
@@ -70,9 +70,9 @@ class Zendesk(object):
             raise NotImplementedError
 
         # The API and field definitions are defined here:
-        # https://developer.zendesk.com/rest_api/docs/support/tickets
+        # https://developer.zendesk.com/rest_api/docs/support/requests
         response = requests.post(
-            urljoin(self.api_url, "/api/v2/tickets"),
+            urljoin(self.api_url, "/api/v2/requests"),
             json=self._generate_ticket(),
             auth=HTTPBasicAuth(f"{self.contact.email_address}/token", self.token),
             timeout=5,
