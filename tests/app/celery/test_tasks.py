@@ -383,7 +383,6 @@ class TestBatchSaving:
         )
 
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-        acknowldege_mock = mocker.patch("app.sms_queue.acknowledge")
 
         save_smss(
             str(sample_template_with_placeholders.service.id),

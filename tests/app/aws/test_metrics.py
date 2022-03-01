@@ -3,7 +3,6 @@ from botocore.exceptions import ClientError
 from flask import Flask
 
 from app import create_app
-from app.aws import metrics_logger
 from app.aws.metrics import (
     put_batch_saving_bulk_created,
     put_batch_saving_bulk_processed,
