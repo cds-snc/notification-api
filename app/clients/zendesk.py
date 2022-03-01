@@ -1,5 +1,3 @@
-from __future__ import annotations  # PEP 563 -- Postponed Evaluation of Annotations
-
 from typing import Any, Dict, List, Union
 from urllib.parse import urljoin
 
