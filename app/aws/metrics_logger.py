@@ -19,7 +19,6 @@ class MetricsLogger(_MetricsLogger):
     def __init__(self):
         super().__init__(None, None)
         self.metrics_config = get_config()
-        self.metrics_config.agent_endpoint = Config.CLOUDWATCH_AGENT_ENDPOINT
         self.metrics_config.service_name = "BatchSaving"
         self.metrics_config.service_type = "Redis"
         self.metrics_config.log_group_name = "BatchSaving"
@@ -29,6 +28,8 @@ class MetricsLogger(_MetricsLogger):
 
         if "AWS_EXECUTION_ENV" in environ:
             self.metrics_config.environment = "lambda"
+        else:
+            self.metrics_config.agent_endpoint = Config.CLOUDWATCH_AGENT_ENDPOINT
 
         lower_configured_enviroment = self.metrics_config.environment.lower()
         if lower_configured_enviroment == "local":
