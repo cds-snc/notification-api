@@ -1,4 +1,6 @@
-from typing import Dict, List, Union
+from __future__ import annotations  # PEP 563 -- Postponed Evaluation of Annotations
+
+from typing import Any, Dict, List, Union
 from urllib.parse import urljoin
 
 import requests
@@ -54,7 +56,7 @@ class Zendesk(object):
 
     # Update for Zendesk API Request format
     # read docs: https://developer.zendesk.com/api-reference/ticketing/tickets/ticket-requests/#create-request
-    def _generate_ticket(self) -> Dict[str, Dict[str, Union[str, int, List[str]]]]:
+    def _generate_ticket(self) -> Union[Dict[str, Any], List[Any]]:
         return {
             "request": {
                 "subject": self.contact.friendly_support_type,
