@@ -3,7 +3,10 @@ from botocore.exceptions import ClientError
 from flask import Flask
 
 from app import create_app
+from app.aws import metrics_logger
 from app.aws.metrics import (
+    put_batch_saving_bulk_created,
+    put_batch_saving_bulk_processed,
     put_batch_saving_expiry_metric,
     put_batch_saving_inflight_metric,
     put_batch_saving_inflight_processed,
@@ -72,6 +75,16 @@ class TestBatchSavingMetricsFunctions:
         put_batch_saving_expiry_metric(metrics_logger_mock, 1)
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_inflight", 1, "Count")
         metrics_logger_mock.set_dimensions.assert_called_with({"expired": "True"})
+
+    def test_put_batch_saving_bulk_created(self, metrics_logger_mock):
+        put_batch_saving_bulk_created(metrics_logger_mock, 1)
+        metrics_logger_mock.put_metric.assert_called_with("batch_saving_bulk", 1, "Count")
+        metrics_logger_mock.set_dimensions.assert_called_with({"created": "True"})
+
+    def test_put_batch_saving_bulk_processed(self, metrics_logger_mock):
+        put_batch_saving_bulk_processed(metrics_logger_mock, 1)
+        metrics_logger_mock.put_metric.assert_called_with("batch_saving_bulk", 1, "Count")
+        metrics_logger_mock.set_dimensions.assert_called_with({"acknowledged": "True"})
 
     def test_put_batch_metric_unknown_error(self, mocker, metrics_logger_mock):
         redis_queue = mocker.MagicMock()

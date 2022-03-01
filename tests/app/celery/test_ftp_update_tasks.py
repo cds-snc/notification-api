@@ -159,13 +159,10 @@ def test_update_letter_notifications_statuses_persisted(notify_api, mocker, samp
     assert failed_letter.status == NOTIFICATION_TEMPORARY_FAILURE
     assert failed_letter.billable_units == 2
     assert failed_letter.updated_at
-    assert (
-        "DVLA response file: {filename} has failed letters with notification.reference {failures}".format(
-            filename="NOTIFY-20170823160812-RSP.TXT",
-            failures=[format(failed_letter.reference)],
-        )
-        in str(e)
-    )
+    assert "DVLA response file: {filename} has failed letters with notification.reference {failures}".format(
+        filename="NOTIFY-20170823160812-RSP.TXT",
+        failures=[format(failed_letter.reference)],
+    ) in str(e)
 
 
 def test_update_letter_notifications_does_not_call_send_callback_if_no_db_entry(notify_api, mocker, sample_letter_template):
