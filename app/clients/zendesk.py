@@ -1,9 +1,8 @@
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 from urllib.parse import urljoin
 
 import requests
 from flask import current_app
-from requests.auth import HTTPBasicAuth
 
 from app.user.contact_request import ContactRequest
 
@@ -52,14 +51,15 @@ class Zendesk(object):
 
         return message
 
-    # Update for Zendesk API Ticket format
-    # read docs: https://developer.zendesk.com/rest_api/docs/core/tickets#create-ticket
-    def _generate_ticket(self) -> Dict[str, Dict[str, Union[str, int, List[str]]]]:
+    # Update for Zendesk API Request format
+    # read docs: https://developer.zendesk.com/api-reference/ticketing/tickets/ticket-requests/#create-request
+    def _generate_ticket(self) -> Union[Dict[str, Any], List[Any]]:
+        name_or_default = self.contact.name if self.contact.name else "User/Utilisateur"  # name is a mandatory field in zendesk
         return {
-            "ticket": {
+            "request": {
                 "subject": self.contact.friendly_support_type,
-                "description": self._generate_description(),
-                "email": self.contact.email_address,
+                "comment": {"body": self._generate_description()},
+                "requester": {"name": name_or_default, "email": self.contact.email_address},
                 "tags": self.contact.tags
                 + ["notification_api"],  # Custom tag used to auto-assign ticket to the notification support group
             }
@@ -69,17 +69,17 @@ class Zendesk(object):
         if not self.api_url or not self.token:
             raise NotImplementedError
 
+        print(self._generate_ticket())
         # The API and field definitions are defined here:
-        # https://developer.zendesk.com/rest_api/docs/support/tickets
+        # https://developer.zendesk.com/rest_api/docs/support/requests
         response = requests.post(
-            urljoin(self.api_url, "/api/v2/tickets"),
+            urljoin(self.api_url, "/api/v2/requests"),
             json=self._generate_ticket(),
-            auth=HTTPBasicAuth(f"{self.contact.email_address}/token", self.token),
             timeout=5,
         )
 
         if response.status_code != 201:
             raise requests.HTTPError(
                 response.status_code,
-                f"Failed to create zendesk ticket for email: {self.contact.email_address} using token {self.token[:5]}",
+                f"Failed to create zendesk ticket for email: {self.contact.email_address} using token {self.token[:5]} and url {self.api_url}. Reason: {response.text}",
             )

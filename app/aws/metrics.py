@@ -74,7 +74,7 @@ def put_batch_saving_inflight_processed(metrics_logger: MetricsLogger, count: in
     return
 
 
-def put_batch_saving_expiry_metric(metrics_logger, count: int):
+def put_batch_saving_expiry_metric(metrics_logger: MetricsLogger, count: int):
     """
     Metric to calculate how many inflight list have not been processed and instead
     sent back to the inbox.
@@ -89,6 +89,49 @@ def put_batch_saving_expiry_metric(metrics_logger, count: int):
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_inflight", count, "Count")
         metrics_logger.set_dimensions({"expired": "True"})
+        metrics_logger.flush()
+    except ClientError as e:
+        message = "Error sending CloudWatch Metric: {}".format(e)
+        current_app.logger.warning(message)
+    return
+
+
+def put_batch_saving_bulk_created(metrics_logger: MetricsLogger, count: int):
+    """
+    Metric to calculate how many notifications are sent through
+    the bulk api
+
+    Args:
+        count (int): Number of inlfight lists sent to inbox
+        metrics (MetricsLogger): Submit metric to cloudwatch
+    """
+    if metrics_logger.metrics_config.disable_metric_extraction:
+        return
+    try:
+        metrics_logger.set_namespace("NotificationCanadaCa")
+        metrics_logger.put_metric("batch_saving_bulk", count, "Count")
+        metrics_logger.set_dimensions({"created": "True"})
+        metrics_logger.flush()
+    except ClientError as e:
+        message = "Error sending CloudWatch Metric: {}".format(e)
+        current_app.logger.warning(message)
+    return
+
+
+def put_batch_saving_bulk_processed(metrics_logger: MetricsLogger, count: int):
+    """
+    Metric to calculate how many bulk insertion have been processed.
+
+    Args:
+        count (int): default: 1, count of an inflight list created.
+        metrics (MetricsLogger): Submit metric to cloudwatch
+    """
+    if metrics_logger.metrics_config.disable_metric_extraction:
+        return
+    try:
+        metrics_logger.set_namespace("NotificationCanadaCa")
+        metrics_logger.put_metric("batch_saving_bulk", count, "Count")
+        metrics_logger.set_dimensions({"acknowledged": "True"})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)

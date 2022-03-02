@@ -19,12 +19,17 @@ from app import (
     create_random_identifier,
     create_uuid,
     email_queue,
+    metrics_logger,
     notify_celery,
     signer,
     sms_queue,
     statsd_client,
 )
 from app.aws import s3
+from app.aws.metrics import (
+    put_batch_saving_bulk_created,
+    put_batch_saving_bulk_processed,
+)
 from app.celery import (  # noqa: F401
     letters_pdf_tasks,
     process_sns_receipts_tasks,
@@ -125,6 +130,7 @@ def process_job(job_id):
         rows = csv.get_rows()
         for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
             process_rows(result, template, job, service)
+            put_batch_saving_bulk_created(metrics_logger, 1)
     else:
         for row in csv.get_rows():
             process_row(row, template, job, service)
@@ -316,6 +322,9 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
         if receipt:
             sms_queue.acknowledge(receipt)
             current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
+        else:
+            put_batch_saving_bulk_processed(metrics_logger, 1)
+
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(signed_and_verified, SMS_TYPE, e, receipt)
@@ -460,6 +469,8 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
         if receipt:
             email_queue.acknowledge(receipt)
             current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
+        else:
+            put_batch_saving_bulk_processed(metrics_logger, 1)
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(signed_and_verified, EMAIL_TYPE, e, receipt)
