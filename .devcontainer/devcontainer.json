@@ -40,7 +40,9 @@
 		"ms-ossdata.vscode-postgresql",
 		"googlecloudtools.cloudcode",
 		"GitHub.copilot",
-		"ms-vsliveshare.vsliveshare"
+		"ms-vsliveshare.vsliveshare",
+		"mtxr.sqltools",
+		"mtxr.sqltools-driver-pg",
 	],
 
 	"postCreateCommand": "notify-dev-entrypoint.sh",
