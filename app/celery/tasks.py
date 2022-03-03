@@ -666,9 +666,9 @@ def handle_batch_error_and_forward(
     signed_and_verified: list[tuple[Any, Any]], notification_type: str, exception, receipt: UUID = None
 ):
     if receipt:
-        current_app.logger.exception(f"Batch saving: could not persist notifications with receipt {receipt}", exception)
+        current_app.logger.warning(f"Batch saving: could not persist notifications with receipt {receipt}: {str(exception)}")
     else:
-        current_app.logger.exception("Batch saving: could not persist notifications.", exception)
+        current_app.logger.warning(f"Batch saving: could not persist notifications: {str(exception)}")
 
     for (signed, notification) in signed_and_verified:
         notification_id = notification["notification_id"]
