@@ -131,6 +131,23 @@ scripts/run_celery_beat.sh
 
 This codebase is Python 3 only. At the moment we run 3.9.1 in production. You will run into problems if you try to use Python 3.4 or older.
 
+### To run Performance tests
+
+Ask your teamate for the following keys and add to .env
+```
+PERF_TEST_AUTH_HEADER =
+PERF_TEST_BULK_EMAIL_TEMPLATE_ID=
+PERF_TEST_EMAIL_WITH_LINK_TEMPLATE_ID=
+PERF_TEST_EMAIL_TEMPLATE_ID=
+PERF_TEST_EMAIL_WITH_ATTACHMENT_TEMPLATE_ID=
+PERF_TEST_SMS_TEMPLATE_ID =
+```
+
+And run the performance tests using. We generally test with 3000 users every 20 seconds (but use your best judgement).
+```
+locust -f tests-perf/locust/locust-notifications.py
+```
+
 ## To update application dependencies
 
 `requirements.txt` file is generated from the `requirements-app.txt` in order to pin
