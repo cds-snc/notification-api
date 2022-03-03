@@ -122,7 +122,7 @@ def process_job(job_id):
     TemplateClass = get_template_class(db_template.template_type)
     template = TemplateClass(db_template.__dict__)
 
-    current_app.logger.debug("Starting job {} processing {} notifications".format(job_id, job.notification_count))
+    current_app.logger.info("Starting job {} processing {} notifications".format(job_id, job.notification_count))
 
     csv = get_recipient_csv(job, template)
 
