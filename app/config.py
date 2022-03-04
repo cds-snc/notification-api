@@ -307,7 +307,7 @@ class Config(object):
         },
         "in-flight-to-inbox": {
             "task": "in-flight-to-inbox",
-            "schedule": 300,
+            "schedule": 60,
             "options": {"queue": QueueNames.PERIODIC},
         },
         "beat-inbox-sms": {

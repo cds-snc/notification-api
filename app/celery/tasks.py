@@ -219,7 +219,7 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
                     "personalisation": dict(row.personalisation),
                     "queue": queue_to_use(job.notification_count),
                     "sender_id": sender_id,
-                    "client_reference": client_reference.data if client_reference else None,
+                    "client_reference": client_reference.data,  # will return None if missing
                 }
             )
             if template_type == SMS_TYPE:
