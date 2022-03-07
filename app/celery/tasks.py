@@ -122,7 +122,7 @@ def process_job(job_id):
     TemplateClass = get_template_class(db_template.template_type)
     template = TemplateClass(db_template.__dict__)
 
-    current_app.logger.debug("Starting job {} processing {} notifications".format(job_id, job.notification_count))
+    current_app.logger.info("Starting job {} processing {} notifications".format(job_id, job.notification_count))
 
     csv = get_recipient_csv(job, template)
 
@@ -219,7 +219,7 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
                     "personalisation": dict(row.personalisation),
                     "queue": queue_to_use(job.notification_count),
                     "sender_id": sender_id,
-                    "client_reference": client_reference.data if client_reference else None,
+                    "client_reference": client_reference.data,  # will return None if missing
                 }
             )
             if template_type == SMS_TYPE:
