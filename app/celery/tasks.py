@@ -19,12 +19,17 @@ from app import (
     create_random_identifier,
     create_uuid,
     email_queue,
+    metrics_logger,
     notify_celery,
     signer,
     sms_queue,
     statsd_client,
 )
 from app.aws import s3
+from app.aws.metrics import (
+    put_batch_saving_bulk_created,
+    put_batch_saving_bulk_processed,
+)
 from app.celery import (  # noqa: F401
     letters_pdf_tasks,
     process_sns_receipts_tasks,
@@ -117,7 +122,7 @@ def process_job(job_id):
     TemplateClass = get_template_class(db_template.template_type)
     template = TemplateClass(db_template.__dict__)
 
-    current_app.logger.debug("Starting job {} processing {} notifications".format(job_id, job.notification_count))
+    current_app.logger.info("Starting job {} processing {} notifications".format(job_id, job.notification_count))
 
     csv = get_recipient_csv(job, template)
 
@@ -125,6 +130,7 @@ def process_job(job_id):
         rows = csv.get_rows()
         for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
             process_rows(result, template, job, service)
+            put_batch_saving_bulk_created(metrics_logger, 1)
     else:
         for row in csv.get_rows():
             process_row(row, template, job, service)
@@ -149,6 +155,7 @@ def job_complete(job: Job, resumed=False, start=None):
 
 def process_row(row: Row, template: Template, job: Job, service: Service):
     template_type = template.template_type
+    client_reference = row.get("reference")
     signed = signer.sign(
         {
             "api_key": job.api_key_id and str(job.api_key_id),
@@ -159,6 +166,7 @@ def process_row(row: Row, template: Template, job: Job, service: Service):
             "row_number": row.index,
             "personalisation": dict(row.personalisation),
             "queue": queue_to_use(job.notification_count),
+            "client_reference": client_reference.data if client_reference else None,
         }
     )
 
@@ -199,6 +207,7 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
 
     for row in rows:
         if service_allowed_to_send_to(row.recipient, service, KEY_TYPE_NORMAL):
+            client_reference = row.get("reference")
             signed_row = signer.sign(
                 {
                     "api_key": job.api_key_id and str(job.api_key_id),
@@ -210,6 +219,7 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
                     "personalisation": dict(row.personalisation),
                     "queue": queue_to_use(job.notification_count),
                     "sender_id": sender_id,
+                    "client_reference": client_reference.data,  # will return None if missing
                 }
             )
             if template_type == SMS_TYPE:
@@ -254,15 +264,16 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
 
 @notify_celery.task(bind=True, name="save-smss", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: Optional[UUID]):
+def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], receipt: Optional[UUID]):
     """
     Function that takes a list of signed notifications, stores
     them in the DB and then sends these to the queue. If the receipt
     is not None then it is passed to the RedisQueue to let it know it
     can delete the inflight notifications.
     """
-    decrypted_notifications: List[Any] = []
+    verified_notifications: List[Any] = []
     notification_id_queue: Dict = {}
+    saved_notifications = []
     for signed_notification in signed_notifications:
         notification = signer.verify(signed_notification)
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
@@ -302,16 +313,21 @@ def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: O
             notification["created_at"] = datetime.utcnow()
             notification["job_id"] = notification.get("job", None)
             notification["job_row_number"] = notification.get("row_number", None)
-            decrypted_notifications.append(notification)
+            verified_notifications.append(notification)
             notification_id_queue[notification_id] = notification.get("queue")
 
     try:
-        # this task is used by two main things... process_job and process_sms_or_email_notification
-        # if the data is not present in the encrypted data then fallback on whats needed for process_job
-        saved_notifications = persist_notifications(decrypted_notifications)
+        # If the data is not present in the encrypted data then fallback on whats needed for process_job.
+        saved_notifications = persist_notifications(verified_notifications)
+        if receipt:
+            sms_queue.acknowledge(receipt)
+            current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
+        else:
+            put_batch_saving_bulk_processed(metrics_logger, 1)
 
     except SQLAlchemyError as e:
-        handle_list_of_exception(self, decrypted_notifications, e)
+        signed_and_verified = list(zip(signed_notifications, verified_notifications))
+        handle_batch_error_and_forward(signed_and_verified, SMS_TYPE, e, receipt)
 
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
     research_mode = service.research_mode  # type: ignore
@@ -331,9 +347,6 @@ def save_smss(self, service_id: str, signed_notifications: List[Any], receipt: O
                 notification.job,
             )
         )
-
-    if receipt:
-        sms_queue.acknowledge(receipt)
 
 
 @notify_celery.task(bind=True, name="save-sms", max_retries=5, default_retry_delay=300)
@@ -393,21 +406,22 @@ def save_sms(self, service_id, notification_id, signed_notification, sender_id=N
         )
 
     except SQLAlchemyError as e:
-        handle_exception(self, notification, notification_id, e)
+        handle_save_error(self, notification, notification_id, e)
 
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_emails(self, service_id: str, signed_notification: List[Any], receipt: Optional[UUID]):
+def save_emails(self, service_id: Optional[str], signed_notifications: List[Any], receipt: Optional[UUID]):
     """
     Function that takes a list of signed notifications, stores
     them in the DB and then sends these to the queue. If the receipt
     is not None then it is passed to the RedisQueue to let it know it
     can delete the inflight notifications.
     """
-    decrypted_notifications: List[Any] = []
+    verified_notifications: List[Any] = []
     notification_id_queue: Dict = {}
-    for signed_notification in signed_notification:
+    saved_notifications = []
+    for signed_notification in signed_notifications:
         notification = signer.verify(signed_notification)
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
@@ -446,15 +460,20 @@ def save_emails(self, service_id: str, signed_notification: List[Any], receipt: 
             notification["created_at"] = datetime.utcnow()
             notification["job_id"] = notification.get("job", None)
             notification["job_row_number"] = notification.get("row_number", None)
-            decrypted_notifications.append(notification)
+            verified_notifications.append(notification)
             notification_id_queue[notification_id] = notification.get("queue")
 
     try:
-        # this task is used by two main things... process_job and process_sms_or_email_notification
-        # if the data is not present in the encrypted data then fallback on whats needed for process_job
-        saved_notifications = persist_notifications(decrypted_notifications)
+        # If the data is not present in the encrypted data then fallback on whats needed for process_job
+        saved_notifications = persist_notifications(verified_notifications)
+        if receipt:
+            email_queue.acknowledge(receipt)
+            current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
+        else:
+            put_batch_saving_bulk_processed(metrics_logger, 1)
     except SQLAlchemyError as e:
-        handle_list_of_exception(self, decrypted_notifications, e)
+        signed_and_verified = list(zip(signed_notifications, verified_notifications))
+        handle_batch_error_and_forward(signed_and_verified, EMAIL_TYPE, e, receipt)
 
     if saved_notifications:
         check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
@@ -474,9 +493,6 @@ def save_emails(self, service_id: str, signed_notification: List[Any], receipt: 
                     notification.job,
                 )
             )
-
-    if receipt:
-        email_queue.acknowledge(receipt)
 
 
 @notify_celery.task(bind=True, name="save-email", max_retries=5, default_retry_delay=300)
@@ -529,7 +545,7 @@ def save_email(self, service_id, notification_id, signed_notification, sender_id
 
         current_app.logger.debug("Email {} created at {}".format(saved_notification.id, saved_notification.created_at))
     except SQLAlchemyError as e:
-        handle_exception(self, notification, notification_id, e)
+        handle_save_error(self, notification, notification_id, e)
 
 
 @notify_celery.task(bind=True, name="save-letter", max_retries=5, default_retry_delay=300)
@@ -590,7 +606,7 @@ def save_letter(
 
         current_app.logger.debug("Letter {} created at {}".format(saved_notification.id, saved_notification.created_at))
     except SQLAlchemyError as e:
-        handle_exception(self, notification, notification_id, e)
+        handle_save_error(self, notification, notification_id, e)
 
 
 @notify_celery.task(bind=True, name="update-letter-notifications-to-sent")
@@ -627,42 +643,58 @@ def update_letter_notifications_to_error(self, notification_references):
     raise NotificationTechnicalFailureException(message)
 
 
-def handle_exception(task, notification, notification_id, exc):
-    if not get_notification_by_id(notification_id):
-        retry_msg = "{task} notification for job {job} row number {row} and notification id {noti}".format(
+def handle_save_error(task, notification, notification_id, exception):
+    # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
+    # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
+    # send to the retry queue.
+    found = get_notification_by_id(notification_id)
+    if not found:
+        retry_msg = "{task} notification for job {job} row number {row} and notification id {notif}".format(
             task=task.__name__,
             job=notification.get("job", None),
             row=notification.get("row_number", None),
-            noti=notification_id,
+            notif=notification_id,
         )
-        # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
-        # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
-        # send to the retry queue.
         current_app.logger.exception("Retry" + retry_msg)
         try:
-            task.retry(queue=QueueNames.RETRY, exc=exc)
+            task.retry(queue=QueueNames.RETRY, exc=exception)
         except task.MaxRetriesExceededError:
             current_app.logger.error("Max retry failed" + retry_msg)
 
 
-def handle_list_of_exception(task, list_notification, exc):
-    for notification in list_notification:
-        notification_id = notification.notification_id
-        if not get_notification_by_id(notification_id):
-            retry_msg = "{task} notification for job {job} row number {row} and notification id {noti}".format(
-                task=task.__name__,
-                job=notification.get("job", None),
-                row=notification.get("row_number", None),
-                noti=notification_id,
+def handle_batch_error_and_forward(
+    signed_and_verified: list[tuple[Any, Any]], notification_type: str, exception, receipt: UUID = None
+):
+    if receipt:
+        current_app.logger.warning(f"Batch saving: could not persist notifications with receipt {receipt}: {str(exception)}")
+    else:
+        current_app.logger.warning(f"Batch saving: could not persist notifications: {str(exception)}")
+
+    for (signed, notification) in signed_and_verified:
+        notification_id = notification["notification_id"]
+        service = notification["service"]
+        # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
+        # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
+        # send to the retry queue.
+        found = get_notification_by_id(notification_id)
+        if not found and service:
+            forward_msg = "Batch saving: forwarding notification {notif} to individual save from receipt {receipt}.".format(
+                notif=notification_id,
+                receipt=receipt,
             )
-            # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
-            # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
-            # send to the retry queue.
-            current_app.logger.exception("Retry" + retry_msg)
-            try:
-                task.retry(queue=QueueNames.RETRY, exc=exc)
-            except task.MaxRetriesExceededError:
-                current_app.logger.error("Max retry failed" + retry_msg)
+            current_app.logger.info(forward_msg)
+            save_fn = save_email if notification_type == EMAIL_TYPE else save_sms
+            save_fn.apply_async(
+                (service.id, notification_id, signed, None),
+                queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
+            )
+
+    # end of the loop, purge the notifications from the buffer queue:
+    if receipt:
+        if notification_type == EMAIL_TYPE:
+            email_queue.acknowledge(receipt)
+        else:
+            sms_queue.acknowledge(receipt)
 
 
 def get_template_class(template_type):

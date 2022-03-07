@@ -7,13 +7,14 @@ from freezegun import freeze_time
 from app import db
 from app.celery import scheduled_tasks, tasks
 from app.celery.scheduled_tasks import (
+    beat_inbox_email,
+    beat_inbox_sms,
     check_job_status,
     check_precompiled_letter_state,
     check_templated_letter_state,
     delete_invitations,
     delete_verify_codes,
-    heartbeat_inbox_email,
-    heartbeat_inbox_sms,
+    recover_expired_notifications,
     replay_created_notifications,
     run_scheduled_jobs,
     send_scheduled_notifications,
@@ -499,12 +500,12 @@ def test_check_templated_letter_state_during_utc(mocker, sample_letter_template)
 
 
 class TestHeartbeatQueues:
-    def test_heartbeat_inbox_sms(self, mocker):
+    def test_beat_inbox_sms(self, mocker):
         mocker.patch("app.celery.tasks.current_app.logger.info")
         mocker.patch("app.sms_queue.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
         mocker.patch("app.celery.tasks.save_smss.apply_async")
 
-        heartbeat_inbox_sms()
+        beat_inbox_sms()
 
         tasks.save_smss.apply_async.assert_called_once_with(
             (None, ["1", "2", "3", "4"], "rec123"),
@@ -516,9 +517,20 @@ class TestHeartbeatQueues:
         mocker.patch("app.email_queue.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
         mocker.patch("app.celery.tasks.save_emails.apply_async")
 
-        heartbeat_inbox_email()
+        beat_inbox_email()
 
         tasks.save_emails.apply_async.assert_called_once_with(
             (None, ["1", "2", "3", "4"], "rec123"),
             queue="database-tasks",
         )
+
+
+class TestRecoverExpiredNotification:
+    def test_recover_expired_notifications(self, mocker):
+        mocker.patch("app.celery.tasks.sms_queue.expire_inflights")
+        mocker.patch("app.celery.tasks.email_queue.expire_inflights")
+
+        recover_expired_notifications()
+
+        tasks.sms_queue.expire_inflights.assert_called_once()
+        tasks.email_queue.expire_inflights.assert_called_once()

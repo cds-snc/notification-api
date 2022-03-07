@@ -11,6 +11,13 @@ from flask import Flask
 from app import create_app, db
 
 
+def pytest_configure(config):
+    # Swap to test database if running from devcontainer
+    if os.environ.get("SQLALCHEMY_DATABASE_TEST_URI") is not None:
+        os.environ["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_TEST_URI")
+        os.environ["SQLALCHEMY_DATABASE_READER_URI"] = os.environ.get("SQLALCHEMY_DATABASE_TEST_URI")
+
+
 @pytest.fixture(scope="session")
 def notify_api():
     app = Flask("test")
@@ -94,6 +101,7 @@ def notify_db(notify_api, worker_id):
         "reader": uri_db_reader,
         "writer": uri_db_writer,
     }
+
     create_test_db(uri_db_writer)
 
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))

@@ -19,7 +19,7 @@ For any issues during the following instructions, make sure to review the
 
 ### Local installation instruction 
 
-On OS X:
+#### On OS X:
 
 1. Install PyEnv with Homebrew. This will preserve your sanity. 
 
@@ -95,6 +95,23 @@ file. Copy that file to `.env` and customize it to your needs.
 
 `make test`
 
+#### In a [VS Code devcontainer](https://code.visualstudio.com/docs/remote/containers-tutorial)
+
+1. Install VS Code
+
+`brew install --cask visual-studio-code`
+
+2. Install Docker
+   
+`brew install --cask docker`
+   
+3. Install the [Remote-Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+
+4. In VS Code run "Remote-Containers: Open Folder in Container..." and select this repository folder
+
+5. Run the service
+
+`flask run -p 6011 --host=0.0.0.0`
 
 
 ##  To run the queues 
@@ -113,6 +130,23 @@ scripts/run_celery_beat.sh
 ### Python version
 
 This codebase is Python 3 only. At the moment we run 3.9.1 in production. You will run into problems if you try to use Python 3.4 or older.
+
+### To run Performance tests
+
+Ask your teamate for the following keys and add to .env
+```
+PERF_TEST_AUTH_HEADER =
+PERF_TEST_BULK_EMAIL_TEMPLATE_ID=
+PERF_TEST_EMAIL_WITH_LINK_TEMPLATE_ID=
+PERF_TEST_EMAIL_TEMPLATE_ID=
+PERF_TEST_EMAIL_WITH_ATTACHMENT_TEMPLATE_ID=
+PERF_TEST_SMS_TEMPLATE_ID =
+```
+
+And run the performance tests using. We generally test with 3000 users every 20 seconds (but use your best judgement).
+```
+locust -f tests-perf/locust/locust-notifications.py
+```
 
 ## To update application dependencies
 

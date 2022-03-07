@@ -36,6 +36,10 @@ mypy .
 display_result $? 1 "Type check"
 
 # Run tests that need serial execution.
+if ! docker info > /dev/null 2>&1; then
+  echo "This test uses docker, and it isn't running - please start docker and try again."
+  exit 1
+fi
 py.test --disable-pytest-warnings --cov=app --cov-report=term-missing tests/ --junitxml=test_results_serial.xml -v --maxfail=10 -m "serial"
 display_result $? 2 "Unit tests [serial]"
 

@@ -1,7 +1,8 @@
 import json
+import logging
 import os
 from datetime import timedelta
-from typing import Any, List
+from typing import Any, List, Optional
 
 from dotenv import load_dotenv
 from fido2.server import Fido2Server
@@ -9,6 +10,8 @@ from fido2.webauthn import PublicKeyCredentialRpEntity
 from kombu import Exchange, Queue
 
 from celery.schedules import crontab
+
+LOGGER = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -18,6 +21,20 @@ if os.getenv("VCAP_SERVICES"):
     from app.cloudfoundry_config import extract_cloudfoundry_config
 
     extract_cloudfoundry_config()
+
+
+def str_to_bool(str_val: Optional[str], default_value: bool) -> bool:
+    # Converts a string value to a boolean, or returns the default value if the string is
+    # not recognised as a valid boolean value
+    str_val_normalized = str_val.lower().strip() if str_val else ""
+
+    if str_val_normalized == "true":
+        return True
+    elif str_val_normalized == "false":
+        return False
+    else:
+        LOGGER.error(f"str_to_bool: '{str_val}' is not a valid boolean value")
+        return default_value
 
 
 class QueueNames(object):
@@ -288,13 +305,18 @@ class Config(object):
             "schedule": crontab(minute="0, 15, 30, 45"),
             "options": {"queue": QueueNames.PERIODIC},
         },
-        "heartbeart-inbox-sms": {
-            "task": "heartbeart-inbox-sms",
+        "in-flight-to-inbox": {
+            "task": "in-flight-to-inbox",
+            "schedule": 60,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "beat-inbox-sms": {
+            "task": "beat-inbox-sms",
             "schedule": 10,
             "options": {"queue": QueueNames.PERIODIC},
         },
-        "heartbeart-inbox-email": {
-            "task": "heartbeart-inbox-email",
+        "beat-inbox-email": {
+            "task": "beat-inbox-email",
             "schedule": 10,
             "options": {"queue": QueueNames.PERIODIC},
         },
@@ -388,7 +410,7 @@ class Config(object):
 
     FROM_NUMBER = "development"
 
-    STATSD_HOST = os.getenv("STATSD_HOST")
+    STATSD_HOST = os.getenv("STATSD_HOST")  # CloudWatch agent, shared with embedded metrics
     STATSD_PORT = 8125
     STATSD_ENABLED = bool(STATSD_HOST)
 
@@ -437,10 +459,15 @@ class Config(object):
     CSV_MAX_ROWS_BULK_SEND = os.getenv("CSV_MAX_ROWS_BULK_SEND", 100_000)
     CSV_BULK_REDIRECT_THRESHOLD = os.getenv("CSV_BULK_REDIRECT_THRESHOLD", 200)
 
+    # Endpoint of Cloudwatch agent running as a side car in EKS listening for embedded metrics
+    FF_CLOUDWATCH_METRICS_ENABLED = str_to_bool(os.getenv("FF_CLOUDWATCH_METRICS_ENABLED"), False)
+    CLOUDWATCH_AGENT_EMF_PORT = 25888
+    CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"tcp://{STATSD_HOST}:{CLOUDWATCH_AGENT_EMF_PORT}")
+
     # feature flag to toggle persistance of notification in celery instead of the API
-    FF_NOTIFICATION_CELERY_PERSISTENCE = os.getenv("FF_NOTIFICATION_CELERY_PERSISTENCE", False)
-    FF_BATCH_INSERTION = os.getenv("FF_BATCH_INSERTION", False)
-    FF_REDIS_BATCH_SAVING = os.getenv("FF_REDIS_BATCH_SAVING", False)
+    FF_NOTIFICATION_CELERY_PERSISTENCE = str_to_bool(os.getenv("FF_NOTIFICATION_CELERY_PERSISTENCE"), False)
+    FF_BATCH_INSERTION = str_to_bool(os.getenv("FF_BATCH_INSERTION"), False)
+    FF_REDIS_BATCH_SAVING = str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING"), False)
 
 
 ######################
