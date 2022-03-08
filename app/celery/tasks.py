@@ -206,28 +206,27 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
     encrypted_letters: List[Any] = []
 
     for row in rows:
-        if service_allowed_to_send_to(row.recipient, service, KEY_TYPE_NORMAL):
-            client_reference = row.get("reference")
-            signed_row = signer.sign(
-                {
-                    "api_key": job.api_key_id and str(job.api_key_id),
-                    "template": str(template.id),
-                    "template_version": job.template_version,
-                    "job": str(job.id),
-                    "to": row.recipient,
-                    "row_number": row.index,
-                    "personalisation": dict(row.personalisation),
-                    "queue": queue_to_use(job.notification_count),
-                    "sender_id": sender_id,
-                    "client_reference": client_reference.data,  # will return None if missing
-                }
-            )
-            if template_type == SMS_TYPE:
-                encrypted_smss.append(signed_row)
-            if template_type == EMAIL_TYPE:
-                encrypted_emails.append(signed_row)
-            if template_type == LETTER_TYPE:
-                encrypted_letters.append(encrypted_letters)
+        client_reference = row.get("reference")
+        signed_row = signer.sign(
+            {
+                "api_key": job.api_key_id and str(job.api_key_id),
+                "template": str(template.id),
+                "template_version": job.template_version,
+                "job": str(job.id),
+                "to": row.recipient,
+                "row_number": row.index,
+                "personalisation": dict(row.personalisation),
+                "queue": queue_to_use(job.notification_count),
+                "sender_id": sender_id,
+                "client_reference": client_reference.data,  # will return None if missing
+            }
+        )
+        if template_type == SMS_TYPE:
+            encrypted_smss.append(signed_row)
+        if template_type == EMAIL_TYPE:
+            encrypted_emails.append(signed_row)
+        if template_type == LETTER_TYPE:
+            encrypted_letters.append(encrypted_letters)
 
     # the same_sms and save_email task are going to be using template and service objects from cache
     # these objects are transient and will not have relationships loaded

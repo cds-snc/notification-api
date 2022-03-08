@@ -795,6 +795,31 @@ class TestRestrictedServices:
         assert response.status_code == 201
         assert json.loads(response.get_data(as_text=True))
 
+    def test_post_bulk_flags_recipient_in_safelist_with_restricted_service(self, notify_db_session, client, mocker):
+        service = create_service(restricted=True, service_permissions=[EMAIL_TYPE])
+        user_1 = create_user(email="foo@example.com")
+        user_2 = create_user(email="bar@example.com")
+        service.users = [user_1, user_2]
+        template = create_template(service=service, template_type="email")
+        create_api_key(service=service, key_type="team")
+        job_id = str(uuid.uuid4())
+        mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=job_id)
+
+        data = {
+            "name": "job_name",
+            "template_id": template.id,
+            "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
+        }
+        auth_header = create_authorization_header(service_id=service.id, key_type="team")
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 201
+        assert json.loads(response.get_data(as_text=True))
+
 
 # TODO: duplicate
 def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms(
