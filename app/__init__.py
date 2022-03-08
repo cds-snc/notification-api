@@ -94,6 +94,10 @@ def create_app(application, config=None):
     register_blueprint(application)
     register_v2_blueprints(application)
 
+    # Log the application configuration
+    config_values = config.get_config(config.get_sensitive_config())
+    application.logger.info(f"Notify config: {config_values}")
+
     # avoid circular imports by importing this file later
     from app.commands import setup_commands
 
