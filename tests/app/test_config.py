@@ -132,6 +132,15 @@ def test_get_config(reload_config):
         assert not callable(getattr(config.Config, key))
 
 
+def test_get_safe_config(mocker, reload_config):
+    mock_get_config = mocker.patch("app.config.Config.get_config")
+    mock_get_sensitive_config = mocker.patch("app.config.Config.get_sensitive_config")
+
+    config.Config.get_safe_config()
+    assert mock_get_config.called
+    assert mock_get_sensitive_config.called
+
+
 def get_sensitive_config():
     sensitive_config = config.Config.get_sensitive_config()
     assert sensitive_config

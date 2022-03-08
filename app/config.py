@@ -503,6 +503,11 @@ class Config(object):
                 config[attr] = attr_value
         return config
 
+    @classmethod
+    def get_safe_config(cls) -> dict[str, Any]:
+        "Returns a dict of config keys and values with sensitive values masked"
+        return cls.get_config(cls.get_sensitive_config())
+
 
 ######################
 # Config overrides ###
