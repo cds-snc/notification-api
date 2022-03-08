@@ -122,11 +122,11 @@ def test_get_config():
     logged_config = config.Config.get_config([])
     assert logged_config["ADMIN_BASE_URL"] == "http://foo.bar"
     assert logged_config["AWS_REGION"] == "dark-side-of-the-moon"
-    
+
     config.Config.AWS_SES_SECRET_KEY = "1234"
     logged_config = config.Config.get_config(["AWS_SES_SECRET_KEY"])
     assert logged_config["AWS_SES_SECRET_KEY"] == "***"
-    
+
     for key, _ in logged_config.items():
         assert not key.startswith("__")
         assert not callable(getattr(config.Config, key))
