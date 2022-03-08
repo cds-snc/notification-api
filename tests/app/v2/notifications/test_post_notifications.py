@@ -37,6 +37,7 @@ from tests.app.db import (
     create_service_sms_sender,
     create_service_with_inbound_number,
     create_template,
+    create_user,
 )
 from tests.conftest import set_config
 
@@ -769,6 +770,30 @@ def test_post_sms_notification_returns_400_if_number_not_safelisted(notify_db_se
             f'- see {get_document_url("en", "keys.html#team-and-safelist")}',
         }
     ]
+
+
+class TestRestrictedServices:
+    @pytest.mark.parametrize("restricted", [True])
+    def test_post_sms_notification_returns_201_if_number_safelisted_and_teamkey(self, notify_db_session, client, restricted):
+        service = create_service(restricted=restricted, service_permissions=[SMS_TYPE, INTERNATIONAL_SMS_TYPE])
+        user = create_user(mobile_number="+16132532235")
+        service.users = [user]
+        template = create_template(service=service)
+        create_api_key(service=service, key_type="team")
+
+        data = {
+            "phone_number": "+16132532235",
+            "template_id": template.id,
+        }
+        auth_header = create_authorization_header(service_id=service.id, key_type="team")
+
+        response = client.post(
+            path="/v2/notifications/sms",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 201
+        assert json.loads(response.get_data(as_text=True))
 
 
 # TODO: duplicate
