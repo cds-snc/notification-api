@@ -116,7 +116,7 @@ def test_when_env_value_default_is_used(reload_config):
     assert str_to_bool(None, False) is False
 
 
-def test_get_config():
+def test_get_config(reload_config):
     config.Config.ADMIN_BASE_URL = "http://foo.bar"
     config.Config.AWS_REGION = "dark-side-of-the-moon"
     logged_config = config.Config.get_config([])
