@@ -469,6 +469,45 @@ class Config(object):
     FF_BATCH_INSERTION = str_to_bool(os.getenv("FF_BATCH_INSERTION"), False)
     FF_REDIS_BATCH_SAVING = str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING"), False)
 
+    @classmethod
+    def get_sensitive_config(cls) -> list[str]:
+        "List of config keys that contain sensitive information"
+        return [
+            "ADMIN_CLIENT_SECRET",
+            "SECRET_KEY",
+            "DANGEROUS_SALT",
+            "SQLALCHEMY_DATABASE_URI",
+            "SQLALCHEMY_DATABASE_READER_URI",
+            "SQLALCHEMY_BINDS",
+            "REDIS_URL",
+            "ZENDESK_API_KEY",
+            "ZENDESK_SELL_API_KEY",
+            "FRESH_DESK_API_KEY",
+            "MLWR_USER",
+            "MLWR_KEY",
+            "AWS_SES_ACCESS_KEY",
+            "AWS_SES_SECRET_KEY",
+            "ROUTE_SECRET_KEY_1",
+            "ROUTE_SECRET_KEY_2",
+            "TEMPLATE_PREVIEW_API_KEY",
+            "DOCUMENT_DOWNLOAD_API_KEY",
+        ]
+
+    @classmethod
+    def get_config(cls, sensitive_config: list[str]) -> dict[str, Any]:
+        "Returns a dict of config keys and values"
+        config = {}
+        for attr in dir(cls):
+            attr_value = "***" if attr in sensitive_config else getattr(cls, attr)
+            if not attr.startswith("__") and not callable(attr_value):
+                config[attr] = attr_value
+        return config
+
+    @classmethod
+    def get_safe_config(cls) -> dict[str, Any]:
+        "Returns a dict of config keys and values with sensitive values masked"
+        return cls.get_config(cls.get_sensitive_config())
+
 
 ######################
 # Config overrides ###
