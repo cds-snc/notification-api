@@ -774,12 +774,14 @@ def test_post_sms_notification_returns_400_if_number_not_safelisted(notify_db_se
 
 class TestRestrictedServices:
     @pytest.mark.parametrize("restricted", [True])
-    def test_post_sms_notification_returns_201_if_number_safelisted_and_teamkey(self, notify_db_session, client, restricted):
+    def test_post_sms_notification_returns_201_if_number_safelisted_and_teamkey(self, notify_db_session, client, restricted, mocker, notify_api):
         service = create_service(restricted=restricted, service_permissions=[SMS_TYPE, INTERNATIONAL_SMS_TYPE])
         user = create_user(mobile_number="+16132532235")
         service.users = [user]
         template = create_template(service=service)
         create_api_key(service=service, key_type="team")
+        mocker.patch("app.celery.tasks.save_sms.apply_async")
+        notify_api.config["FF_REDIS_BATCH_SAVING"] = True
 
         data = {
             "phone_number": "+16132532235",
