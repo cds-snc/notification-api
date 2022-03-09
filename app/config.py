@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import timedelta
-from typing import Any, List, Optional
+from typing import Any, List
 
 from dotenv import load_dotenv
 from environs import Env

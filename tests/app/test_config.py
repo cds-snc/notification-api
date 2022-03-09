@@ -5,7 +5,7 @@ from unittest import mock
 import pytest
 
 from app import config
-from app.config import QueueNames, str_to_bool
+from app.config import QueueNames
 
 
 def cf_conf():
