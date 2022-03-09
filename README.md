@@ -87,7 +87,7 @@ file. Copy that file to `.env` and customize it to your needs.
 
 15. Run the service
 
-`flask run -p 6011 --host=0.0.0.0`
+`make run`
 
 15a. To test
 
@@ -111,7 +111,7 @@ file. Copy that file to `.env` and customize it to your needs.
 
 5. Run the service
 
-`flask run -p 6011 --host=0.0.0.0`
+`make run`
 
 
 ##  To run the queues 
