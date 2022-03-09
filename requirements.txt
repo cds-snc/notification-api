@@ -8,6 +8,7 @@ boto==2.49.0
 cffi==1.14.5
 celery[sqs]==5.0.5
 docopt==0.6.2
+environs==9.3.2 # pyup: <9.3.3 # marshmallow v3 throws errors
 fido2==0.9.1
 Flask-Bcrypt==0.7.1
 flask-marshmallow==0.14.0
@@ -97,7 +98,7 @@ future==0.18.2
 greenlet==1.1.2
 Jinja2==2.11.3
 jmespath==0.10.0
-kombu==5.2.3
+kombu==5.2.4
 Mako==1.1.6
 mistune==0.8.4
 multidict==6.0.2
