@@ -1,18 +1,18 @@
 import json
-import logging
 import os
 from datetime import timedelta
 from typing import Any, List, Optional
 
 from dotenv import load_dotenv
+from environs import Env
 from fido2.server import Fido2Server
 from fido2.webauthn import PublicKeyCredentialRpEntity
 from kombu import Exchange, Queue
 
 from celery.schedules import crontab
 
-LOGGER = logging.getLogger(__name__)
-
+env = Env()
+env.read_env()
 load_dotenv()
 
 if os.getenv("VCAP_SERVICES"):
@@ -21,20 +21,6 @@ if os.getenv("VCAP_SERVICES"):
     from app.cloudfoundry_config import extract_cloudfoundry_config
 
     extract_cloudfoundry_config()
-
-
-def str_to_bool(str_val: Optional[str], default_value: bool, key_name: str = None) -> bool:
-    # Converts a string value to a boolean, or returns the default value if the string is
-    # not recognised as a valid boolean value
-    str_val_normalized = str_val.lower().strip() if str_val else ""
-
-    if str_val_normalized == "true":
-        return True
-    elif str_val_normalized == "false":
-        return False
-    else:
-        LOGGER.error(f"'{key_name}' value str_to_bool:'{str_val}' is not a valid boolean value")
-        return default_value
 
 
 class QueueNames(object):
@@ -154,7 +140,7 @@ class Config(object):
 
     # URL of redis instance
     REDIS_URL = os.getenv("REDIS_URL")
-    REDIS_ENABLED = os.getenv("REDIS_ENABLED") == "1"
+    REDIS_ENABLED = env.bool("REDIS_ENABLED", False)
     EXPIRE_CACHE_TEN_MINUTES = 600
     EXPIRE_CACHE_EIGHT_DAYS = 8 * 24 * 60 * 60
 
@@ -187,7 +173,7 @@ class Config(object):
     MLWR_KEY = os.getenv("MLWR_KEY", "")
 
     # PII check
-    SCAN_FOR_PII = os.getenv("SCAN_FOR_PII", False)
+    SCAN_FOR_PII = env.bool("SCAN_FOR_PII", False)
 
     # Documentation
     DOCUMENTATION_DOMAIN = os.getenv("DOCUMENTATION_DOMAIN", "documentation.notification.canada.ca")
@@ -212,10 +198,10 @@ class Config(object):
     NOTIFY_APP_NAME = "api"
     SQLALCHEMY_RECORD_QUERIES = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_POOL_SIZE = int(os.getenv("SQLALCHEMY_POOL_SIZE", 5))
+    SQLALCHEMY_POOL_SIZE = env.int("SQLALCHEMY_POOL_SIZE", 5)
     SQLALCHEMY_POOL_TIMEOUT = 30
     SQLALCHEMY_POOL_RECYCLE = 300
-    SQLALCHEMY_ECHO = bool(os.getenv("SQLALCHEMY_ECHO", None))
+    SQLALCHEMY_ECHO = env.bool("SQLALCHEMY_ECHO", False)
     PAGE_SIZE = 50
     API_PAGE_SIZE = 250
     TEST_MESSAGE_FILENAME = "Test message"
@@ -460,18 +446,14 @@ class Config(object):
     CSV_BULK_REDIRECT_THRESHOLD = os.getenv("CSV_BULK_REDIRECT_THRESHOLD", 200)
 
     # Endpoint of Cloudwatch agent running as a side car in EKS listening for embedded metrics
-    FF_CLOUDWATCH_METRICS_ENABLED = str_to_bool(
-        os.getenv("FF_CLOUDWATCH_METRICS_ENABLED"), False, "FF_CLOUDWATCH_METRICS_ENABLED"
-    )
+    FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
     CLOUDWATCH_AGENT_EMF_PORT = 25888
     CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"tcp://{STATSD_HOST}:{CLOUDWATCH_AGENT_EMF_PORT}")
 
     # feature flag to toggle persistance of notification in celery instead of the API
-    FF_NOTIFICATION_CELERY_PERSISTENCE = str_to_bool(
-        os.getenv("FF_NOTIFICATION_CELERY_PERSISTENCE"), False, "FF_NOTIFICATION_CELERY_PERSISTENCE"
-    )
-    FF_BATCH_INSERTION = str_to_bool(os.getenv("FF_BATCH_INSERTION"), False, "FF_BATCH_INSERTION")
-    FF_REDIS_BATCH_SAVING = str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING"), False, "FF_REDIS_BATCH_SAVING")
+    FF_NOTIFICATION_CELERY_PERSISTENCE = env.bool("FF_NOTIFICATION_CELERY_PERSISTENCE", False)
+    FF_BATCH_INSERTION = env.bool("FF_BATCH_INSERTION", False)
+    FF_REDIS_BATCH_SAVING = env.bool("FF_REDIS_BATCH_SAVING", False)
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
@@ -540,7 +522,7 @@ class Development(Config):
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", "postgresql://postgres@localhost/notification_api")
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
-    ANTIVIRUS_ENABLED = os.getenv("ANTIVIRUS_ENABLED") == "1"
+    ANTIVIRUS_ENABLED = env.bool("ANTIVIRUS_ENABLED", False)
 
     for queue in QueueNames.all_queues():
         Config.CELERY_QUEUES.append(Queue(queue, Exchange("default"), routing_key=queue))

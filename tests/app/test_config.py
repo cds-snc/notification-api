@@ -84,38 +84,6 @@ def test_queue_names_all_queues_correct():
     )
 
 
-def test_when_env_value_is_a_valid_boolean(reload_config):
-    os.environ["FF_REDIS_BATCH_SAVING"] = "False"
-    assert str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING"), True) is False
-
-    os.environ["FF_REDIS_BATCH_SAVING"] = "True"
-    assert str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING"), False) is True
-
-    assert str_to_bool("True", False) is True
-    assert str_to_bool("tRuE", False) is True
-    assert str_to_bool("true", False) is True
-    assert str_to_bool("False", True) is False
-    assert str_to_bool("false", True) is False
-    assert str_to_bool("FALSE", True) is False
-    assert str_to_bool("       FALSE        ", True) is False
-
-
-def test_when_env_value_default_is_used(reload_config):
-    os.environ["SOME_OTHER_ENV_VAR"] = "this is fine"
-    assert str_to_bool(os.getenv("SOME_OTHER_ENV_VAR"), False) is False
-
-    os.environ["FF_REDIS_BATCH_SAVING"] = "true false"
-    assert str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING"), True) is True
-
-    os.environ["FF_REDIS_BATCH_SAVING"] = ""
-    assert str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING"), True) is True
-
-    assert str_to_bool(os.getenv("NON_EXISTENT_ENV_VAR"), False) is False
-    assert str_to_bool("mmmm cheese", True) is True
-    assert str_to_bool(None, True) is True
-    assert str_to_bool(None, False) is False
-
-
 def test_get_config(reload_config):
     config.Config.ADMIN_BASE_URL = "http://foo.bar"
     config.Config.AWS_REGION = "dark-side-of-the-moon"
