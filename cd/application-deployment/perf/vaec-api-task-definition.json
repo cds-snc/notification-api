@@ -75,6 +75,10 @@
           "value": "https://qa.vaprofile.va.gov"
         },
         {
+          "name": "UI_HOST_NAME",
+          "value": "https://perf.notifications.va.gov"
+        },
+        {
           "name": "VANOTIFY_SSL_CERT_PATH",
           "value": "/app/certs/vanotify_ssl_cert.pem"
         },
