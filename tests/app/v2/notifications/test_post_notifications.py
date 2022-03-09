@@ -875,6 +875,8 @@ def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms_with_celer
 
 def test_post_sms_should_persist_supplied_sms_number(notify_api, client, sample_template_with_placeholders, mocker):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_BATCH_INSERTION"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     data = {
         "phone_number": "+16502532222",
@@ -1018,6 +1020,8 @@ def test_post_notification_with_wrong_type_of_sender(
 
 def test_post_email_notification_with_valid_reply_to_id_returns_201(notify_api, client, sample_email_template, mocker):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_BATCH_INSERTION"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     reply_to_email = create_reply_to_email(sample_email_template.service, "test@test.com")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     data = {
