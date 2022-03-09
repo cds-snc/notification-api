@@ -23,7 +23,7 @@ if os.getenv("VCAP_SERVICES"):
     extract_cloudfoundry_config()
 
 
-def str_to_bool(str_val: Optional[str], default_value: bool) -> bool:
+def str_to_bool(str_val: Optional[str], default_value: bool, key_name: str = None) -> bool:
     # Converts a string value to a boolean, or returns the default value if the string is
     # not recognised as a valid boolean value
     str_val_normalized = str_val.lower().strip() if str_val else ""
@@ -33,7 +33,7 @@ def str_to_bool(str_val: Optional[str], default_value: bool) -> bool:
     elif str_val_normalized == "false":
         return False
     else:
-        LOGGER.error(f"str_to_bool: '{str_val}' is not a valid boolean value")
+        LOGGER.error(f"'{key_name}' value str_to_bool:'{str_val}' is not a valid boolean value")
         return default_value
 
 
@@ -460,14 +460,18 @@ class Config(object):
     CSV_BULK_REDIRECT_THRESHOLD = os.getenv("CSV_BULK_REDIRECT_THRESHOLD", 200)
 
     # Endpoint of Cloudwatch agent running as a side car in EKS listening for embedded metrics
-    FF_CLOUDWATCH_METRICS_ENABLED = str_to_bool(os.getenv("FF_CLOUDWATCH_METRICS_ENABLED"), False)
+    FF_CLOUDWATCH_METRICS_ENABLED = str_to_bool(
+        os.getenv("FF_CLOUDWATCH_METRICS_ENABLED"), False, "FF_CLOUDWATCH_METRICS_ENABLED"
+    )
     CLOUDWATCH_AGENT_EMF_PORT = 25888
     CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"tcp://{STATSD_HOST}:{CLOUDWATCH_AGENT_EMF_PORT}")
 
     # feature flag to toggle persistance of notification in celery instead of the API
-    FF_NOTIFICATION_CELERY_PERSISTENCE = str_to_bool(os.getenv("FF_NOTIFICATION_CELERY_PERSISTENCE"), False)
-    FF_BATCH_INSERTION = str_to_bool(os.getenv("FF_BATCH_INSERTION"), False)
-    FF_REDIS_BATCH_SAVING = str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING"), False)
+    FF_NOTIFICATION_CELERY_PERSISTENCE = str_to_bool(
+        os.getenv("FF_NOTIFICATION_CELERY_PERSISTENCE"), False, "FF_NOTIFICATION_CELERY_PERSISTENCE"
+    )
+    FF_BATCH_INSERTION = str_to_bool(os.getenv("FF_BATCH_INSERTION"), False, "FF_BATCH_INSERTION")
+    FF_REDIS_BATCH_SAVING = str_to_bool(os.getenv("FF_REDIS_BATCH_SAVING"), False, "FF_REDIS_BATCH_SAVING")
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
