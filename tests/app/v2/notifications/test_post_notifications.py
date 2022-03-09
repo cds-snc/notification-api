@@ -799,7 +799,7 @@ class TestRestrictedServices:
         assert response.status_code == 201
         assert json.loads(response.get_data(as_text=True))
 
-    def test_post_bulk_flags_recipient_in_safelist_with_restricted_service(self, notify_db_session, client, mocker):
+    def test_post_bulk_recipient_in_safelist_with_restricted_service(self, notify_db_session, client, mocker):
         service = create_service(restricted=True, service_permissions=[EMAIL_TYPE])
         user_1 = create_user(email="foo@example.com")
         user_2 = create_user(email="bar@example.com")
