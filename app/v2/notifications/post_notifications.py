@@ -278,7 +278,23 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
     signed_notification_data = signer.sign(notification)
 
     scheduled_for = form.get("scheduled_for", None)
-    if scheduled_for:
+
+    if simulated:
+        notification = transform_notification(
+            template_id=template.id,
+            template_version=template.version,
+            recipient=form_send_to,
+            service=service,
+            personalisation=personalisation,
+            notification_type=notification_type,
+            api_key_id=api_key.id,
+            key_type=api_key.key_type,
+            client_reference=form.get("reference", None),
+            reply_to_text=reply_to_text,
+        )
+        current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
+
+    elif scheduled_for:
         notification = persist_notification(  # keep scheduled notifications using the old code path for now
             template_id=template.id,
             template_version=template.version,
@@ -293,14 +309,14 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         )
         persist_scheduled_notification(notification.id, form["scheduled_for"])
 
-    elif current_app.config["FF_REDIS_BATCH_SAVING"] and not simulated:
+    elif current_app.config["FF_REDIS_BATCH_SAVING"]:
         if notification_type == SMS_TYPE:
             sms_queue.publish(signed_notification_data)
         else:
             email_queue.publish(signed_notification_data)
         current_app.logger.info(f"Batch saving: {notification_type} {notification['id']} sent to buffer queue.")
 
-    elif current_app.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] and not simulated:
+    else:
         # depending on the type route to the appropriate save task
         if notification_type == EMAIL_TYPE:
             current_app.logger.info("calling save email task")
@@ -313,30 +329,6 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
                 (authenticated_service.id, create_uuid(), signed_notification_data, None),
                 queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
             )
-
-    else:
-        notification = transform_notification(
-            template_id=template.id,
-            template_version=template.version,
-            recipient=form_send_to,
-            service=service,
-            personalisation=personalisation,
-            notification_type=notification_type,
-            api_key_id=api_key.id,
-            key_type=api_key.key_type,
-            client_reference=form.get("reference", None),
-            reply_to_text=reply_to_text,
-        )
-        if not simulated:
-            notification.queue_name = choose_queue(
-                notification=notification,
-                research_mode=service.research_mode,
-                queue=template.queue_to_use(),
-            )
-            db_save_and_send_notification(notification)
-
-        else:
-            current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
 
     if not isinstance(notification, Notification):
         notification["template_id"] = notification["template"]

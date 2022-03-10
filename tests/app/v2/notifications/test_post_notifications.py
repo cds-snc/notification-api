@@ -50,9 +50,11 @@ def rows_to_csv(rows):
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
-def test_post_sms_notification_returns_201(notify_api, client, sample_template_with_placeholders, mocker, reference):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
-    mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+def test_post_sms_notification_with_redis_batch_saving_returns_201(
+    notify_api, client, sample_template_with_placeholders, mocker, reference
+):
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = True
+    mocked_publish = mocker.patch("app.queue.RedisQueue.publish")
     data = {
         "phone_number": "+16502532222",
         "template_id": str(sample_template_with_placeholders.id),
@@ -70,16 +72,10 @@ def test_post_sms_notification_returns_201(notify_api, client, sample_template_w
     assert response.status_code == 201
     resp_json = json.loads(response.get_data(as_text=True))
     assert validate(resp_json, post_sms_response) == resp_json
-    notifications = Notification.query.all()
-    assert len(notifications) == 1
-    assert notifications[0].status == NOTIFICATION_CREATED
-    notification_id = notifications[0].id
-    assert notifications[0].postage is None
-    assert resp_json["id"] == str(notification_id)
     assert resp_json["reference"] == reference
     assert resp_json["content"]["body"] == sample_template_with_placeholders.content.replace("(( Name))", "Jo")
     assert resp_json["content"]["from_number"] == current_app.config["FROM_NUMBER"]
-    assert "v2/notifications/{}".format(notification_id) in resp_json["uri"]
+    assert "v2/notifications/{}".format(resp_json["id"]) in resp_json["uri"]
     assert resp_json["template"]["id"] == str(sample_template_with_placeholders.id)
     assert resp_json["template"]["version"] == sample_template_with_placeholders.version
     assert (
@@ -90,14 +86,14 @@ def test_post_sms_notification_returns_201(notify_api, client, sample_template_w
         in resp_json["template"]["uri"]
     )
     assert not resp_json["scheduled_for"]
-    assert mocked.called
+    assert mocked_publish.called
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
 def test_post_sms_notification_with_persistance_in_celery_returns_201(
     notify_api, client, sample_template_with_placeholders, mocker, reference
 ):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     mocked = mocker.patch("app.celery.tasks.save_sms.apply_async")
     data = {
         "phone_number": "+16502532222",
@@ -176,11 +172,10 @@ class TestRedisBatchSaving:
 
 
 def test_post_sms_notification_uses_inbound_number_as_sender(notify_api, client, notify_db_session, mocker):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
-    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = True
     service = create_service_with_inbound_number(inbound_number="1")
     template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
-    mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+    mocker.patch("app.queue.RedisQueue.publish")
     data = {
         "phone_number": "+16502532222",
         "template_id": str(template.id),
@@ -196,13 +191,7 @@ def test_post_sms_notification_uses_inbound_number_as_sender(notify_api, client,
     assert response.status_code == 201
     resp_json = json.loads(response.get_data(as_text=True))
     assert validate(resp_json, post_sms_response) == resp_json
-    notifications = Notification.query.all()
-    assert len(notifications) == 1
-    notification_id = notifications[0].id
-    assert resp_json["id"] == str(notification_id)
     assert resp_json["content"]["from_number"] == "1"
-    assert notifications[0].reply_to_text == "1"
-    mocked.assert_called_once_with([str(notification_id)], queue="send-sms-tasks")
 
 
 def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(notify_api, client, notify_db_session, mocker):
