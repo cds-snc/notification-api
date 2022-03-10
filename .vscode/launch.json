@@ -9,36 +9,6 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "test_sqs_queue_rate setup",
-            "type": "python",
-            "request": "launch",
-            "module": "scripts.test_sqs_queue_rate",
-            "args": [
-                "setup"
-            ],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "test_sqs_queue_rate test",
-            "type": "python",
-            "request": "launch",
-            "module": "scripts.test_sqs_queue_rate",
-            "args": [
-                "test"
-            ],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "test_sqs_queue_rate cleanup",
-            "type": "python",
-            "request": "launch",
-            "module": "scripts.test_sqs_queue_rate",
-            "args": [
-                "cleanup"
-            ],
-            "console": "integratedTerminal"
-        },
-        {
             "name": "Python: Flask",
             "type": "python",
             "request": "launch",
@@ -91,12 +61,6 @@
             ],
             "gevent": true,
             "console": "integratedTerminal"
-        },
-        {
-            "name": "Debug Unit Test",
-            "type": "python",
-            "request": "test",
-            "justMyCode": false,
         }
     ]
 }
