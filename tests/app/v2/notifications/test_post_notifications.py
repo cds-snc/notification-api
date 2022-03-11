@@ -195,11 +195,10 @@ def test_post_sms_notification_uses_inbound_number_as_sender(notify_api, client,
 
 
 def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(notify_api, client, notify_db_session, mocker):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
-    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = True
+    mocker.patch("app.queue.RedisQueue.publish")
     service = create_service_with_inbound_number(inbound_number="6502532222")
     template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
-    mocked = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
     data = {
         "phone_number": "+16502532222",
         "template_id": str(template.id),
@@ -215,20 +214,14 @@ def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(notify_api
     assert response.status_code == 201
     resp_json = json.loads(response.get_data(as_text=True))
     assert validate(resp_json, post_sms_response) == resp_json
-    notifications = Notification.query.all()
-    assert len(notifications) == 1
-    notification_id = notifications[0].id
-    assert resp_json["id"] == str(notification_id)
     assert resp_json["content"]["from_number"] == "+16502532222"
-    assert notifications[0].reply_to_text == "+16502532222"
-    mocked.assert_called_once_with([str(notification_id)], queue="send-throttled-sms-tasks")
 
 
 def test_post_sms_notification_returns_201_with_sms_sender_id(notify_api, client, sample_template_with_placeholders, mocker):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
-    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = True
+    mocker.patch("app.queue.RedisQueue.publish")
+
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="123456")
-    mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     data = {
         "phone_number": "+16502532222",
         "template_id": str(sample_template_with_placeholders.id),
@@ -246,16 +239,11 @@ def test_post_sms_notification_returns_201_with_sms_sender_id(notify_api, client
     resp_json = json.loads(response.get_data(as_text=True))
     assert validate(resp_json, post_sms_response) == resp_json
     assert resp_json["content"]["from_number"] == sms_sender.sms_sender
-    notifications = Notification.query.all()
-    assert len(notifications) == 1
-    assert notifications[0].reply_to_text == sms_sender.sms_sender
-    mocked.assert_called_once_with([resp_json["id"]], queue="send-sms-tasks")
 
 
 def test_post_sms_notification_with_celery_persistence_returns_201_with_sms_sender_id(
     notify_api, client, sample_template_with_placeholders, mocker
 ):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
     notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="123456")
     mocked = mocker.patch("app.celery.tasks.save_sms.apply_async")
@@ -280,10 +268,9 @@ def test_post_sms_notification_with_celery_persistence_returns_201_with_sms_send
 
 
 def test_post_sms_notification_uses_sms_sender_id_reply_to(notify_api, client, sample_template_with_placeholders, mocker):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
-    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = True
+    mocker.patch("app.queue.RedisQueue.publish")
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="6502532222")
-    mocked = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
     data = {
         "phone_number": "+16502532222",
         "template_id": str(sample_template_with_placeholders.id),
@@ -301,12 +288,9 @@ def test_post_sms_notification_uses_sms_sender_id_reply_to(notify_api, client, s
     resp_json = json.loads(response.get_data(as_text=True))
     assert validate(resp_json, post_sms_response) == resp_json
     assert resp_json["content"]["from_number"] == "+16502532222"
-    notifications = Notification.query.all()
-    assert len(notifications) == 1
-    assert notifications[0].reply_to_text == "+16502532222"
-    mocked.assert_called_once_with([resp_json["id"]], queue="send-throttled-sms-tasks")
 
 
+@pytest.mark.skip(reason="only applies to old persist in api code path. For new code should move down the stack")
 def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after_post_notification(
     notify_api, client, sample_template, mocker
 ):
@@ -434,8 +418,8 @@ def test_notification_returns_400_and_for_schema_problems(client, sample_templat
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
 def test_post_email_notification_returns_201(notify_api, client, sample_email_template_with_placeholders, mocker, reference):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
-    mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = True
+    mocked_publish = mocker.patch("app.queue.RedisQueue.publish")
     data = {
         "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
         "template_id": sample_email_template_with_placeholders.id,
@@ -452,20 +436,14 @@ def test_post_email_notification_returns_201(notify_api, client, sample_email_te
     assert response.status_code == 201
     resp_json = json.loads(response.get_data(as_text=True))
     assert validate(resp_json, post_email_response) == resp_json
-    notification = Notification.query.one()
-    assert notification.status == NOTIFICATION_CREATED
-    assert notification.postage is None
-    assert resp_json["id"] == str(notification.id)
     assert resp_json["reference"] == reference
-    assert notification.reference is None
-    assert notification.reply_to_text is None
     assert resp_json["content"]["body"] == sample_email_template_with_placeholders.content.replace("((name))", "Bob")
     assert resp_json["content"]["subject"] == sample_email_template_with_placeholders.subject.replace("((name))", "Bob")
     assert resp_json["content"]["from_email"] == "{}@{}".format(
         sample_email_template_with_placeholders.service.email_from,
         current_app.config["NOTIFY_EMAIL_DOMAIN"],
     )
-    assert "v2/notifications/{}".format(notification.id) in resp_json["uri"]
+    assert "v2/notifications/{}".format(resp_json["id"]) in resp_json["uri"]
     assert resp_json["template"]["id"] == str(sample_email_template_with_placeholders.id)
     assert resp_json["template"]["version"] == sample_email_template_with_placeholders.version
     assert (
@@ -476,14 +454,14 @@ def test_post_email_notification_returns_201(notify_api, client, sample_email_te
         in resp_json["template"]["uri"]
     )
     assert not resp_json["scheduled_for"]
-    assert mocked.called
+    assert mocked_publish.called
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
 def test_post_email_notification_returns_201_with_celery_persistence(
     notify_api, client, sample_email_template_with_placeholders, mocker, reference
 ):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     mocked = mocker.patch("app.celery.tasks.save_email.apply_async")
     data = {
         "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
@@ -557,6 +535,7 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
     assert Notification.query.count() == 0
 
 
+@pytest.mark.skip(reason="only applies to old persist in api code path. For new code should move down the stack")
 @pytest.mark.parametrize(
     "notification_type, key_send_to, send_to",
     [
@@ -601,6 +580,7 @@ def test_send_notification_uses_appropriate_queue_according_to_template_process_
     mocked.assert_called_once_with([notification_id], queue=f"{process_type}-tasks")
 
 
+# @pytest.mark.skip(reason="only applies to old persist in api code path. Do we need to modify?")
 @pytest.mark.parametrize(
     "notification_type, key_send_to, send_to",
     [
@@ -771,7 +751,7 @@ class TestRestrictedServices:
         service.users = [user]
         template = create_template(service=service)
         create_api_key(service=service, key_type="team")
-        mocker.patch("app.celery.tasks.save_sms.apply_async")
+        mocker.patch("app.queue.RedisQueue.publish")
         notify_api.config["FF_REDIS_BATCH_SAVING"] = True
 
         data = {
@@ -814,7 +794,6 @@ class TestRestrictedServices:
         assert json.loads(response.get_data(as_text=True))
 
 
-# TODO: duplicate
 def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms(
     notify_api,
     sample_service,
@@ -822,8 +801,8 @@ def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms(
     client,
     mocker,
 ):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
-    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = True
+    mocker.patch("app.queue.RedisQueue.publish")
 
     data = {"phone_number": "+20-12-1234-1234", "template_id": sample_template.id}
     auth_header = create_authorization_header(service_id=sample_service.id)
@@ -838,7 +817,6 @@ def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms(
     assert response.headers["Content-type"] == "application/json"
 
 
-# TODO: duplicate
 def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms_with_celery_persistence(
     notify_api,
     sample_service,
@@ -846,7 +824,7 @@ def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms_with_celer
     client,
     mocker,
 ):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     mocker.patch("app.celery.tasks.save_sms.apply_async")
 
     data = {"phone_number": "+20-12-1234-1234", "template_id": sample_template.id}
@@ -862,6 +840,7 @@ def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms_with_celer
     assert response.headers["Content-type"] == "application/json"
 
 
+@pytest.mark.skip(reason="only applies to old persist in api code path. Do we need to modify?")
 def test_post_sms_should_persist_supplied_sms_number(notify_api, client, sample_template_with_placeholders, mocker):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
     notify_api.config["FF_BATCH_INSERTION"] = False
@@ -1008,9 +987,9 @@ def test_post_notification_with_wrong_type_of_sender(
 
 
 def test_post_email_notification_with_valid_reply_to_id_returns_201(notify_api, client, sample_email_template, mocker):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
-    notify_api.config["FF_BATCH_INSERTION"] = False
-    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = True
+    mocked_publish = mocker.patch("app.queue.RedisQueue.publish")
+
     reply_to_email = create_reply_to_email(sample_email_template.service, "test@test.com")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     data = {
@@ -1027,12 +1006,7 @@ def test_post_email_notification_with_valid_reply_to_id_returns_201(notify_api, 
     assert response.status_code == 201
     resp_json = json.loads(response.get_data(as_text=True))
     assert validate(resp_json, post_email_response) == resp_json
-    notification = Notification.query.first()
-    assert notification.reply_to_text == "test@test.com"
-    assert resp_json["id"] == str(notification.id)
-    assert mocked.called
-
-    assert notification.reply_to_text == reply_to_email.email_address
+    assert mocked_publish.called
 
 
 def test_post_email_notification_with_invalid_reply_to_id_returns_400(client, sample_email_template, mocker, fake_uuid):
@@ -1087,6 +1061,7 @@ def test_post_email_notification_with_archived_reply_to_id_returns_400(client, s
     assert "BadRequestError" in resp_json["errors"][0]["error"]
 
 
+@pytest.mark.skip(reason="mainly applies to old persist in api code path. For new code should move down the stack")
 @pytest.mark.parametrize(
     "filename, file_data, sending_method",
     [
@@ -1105,7 +1080,6 @@ def test_post_notification_with_document_upload(
     template = create_template(service=service, template_type="email", content=content)
 
     statsd_mock = mocker.patch("app.v2.notifications.post_notifications.statsd_client")
-    mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
     document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
     document_download_mock.return_value = document_response
