@@ -50,8 +50,6 @@ from app.models import (
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
-    choose_queue,
-    db_save_and_send_notification,
     persist_notification,
     persist_scheduled_notification,
     simulated_recipient,

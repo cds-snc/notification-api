@@ -991,7 +991,6 @@ def test_post_email_notification_with_valid_reply_to_id_returns_201(notify_api, 
     mocked_publish = mocker.patch("app.queue.RedisQueue.publish")
 
     reply_to_email = create_reply_to_email(sample_email_template.service, "test@test.com")
-    mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     data = {
         "email_address": sample_email_template.service.users[0].email_address,
         "template_id": sample_email_template.id,
