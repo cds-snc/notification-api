@@ -9,6 +9,8 @@ import pytest
 from flask import current_app, json
 from freezegun import freeze_time
 
+from app import signer
+from app.config import QueueNames
 from app.dao.jobs_dao import dao_get_job_by_id
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
@@ -62,7 +64,10 @@ def test_post_sms_notification_with_redis_batch_saving_returns_201(
     }
     if reference:
         data.update({"reference": reference})
-    auth_header = create_authorization_header(service_id=sample_template_with_placeholders.service_id)
+
+    (auth_header, api_key) = create_authorization_header(
+        service_id=sample_template_with_placeholders.service_id, api_key_required=True
+    )
 
     response = client.post(
         path="/v2/notifications/sms",
@@ -86,7 +91,21 @@ def test_post_sms_notification_with_redis_batch_saving_returns_201(
         in resp_json["template"]["uri"]
     )
     assert not resp_json["scheduled_for"]
-    assert mocked_publish.called
+
+    notification = {
+        "id": resp_json["id"],
+        "template": str(sample_template_with_placeholders.id),
+        "service_id": str(sample_template_with_placeholders.service_id),
+        "template_version": str(sample_template_with_placeholders.version),
+        "to": "+16502532222",
+        "personalisation": {" Name": "Jo"},
+        "simulated": False,
+        "api_key": str(api_key.id),
+        "key_type": str(api_key.key_type),
+        "client_reference": reference,
+    }
+    signed_notification_data = signer.sign(notification)
+    mocked_publish.assert_called_with(signed_notification_data)
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
@@ -94,7 +113,7 @@ def test_post_sms_notification_with_persistance_in_celery_returns_201(
     notify_api, client, sample_template_with_placeholders, mocker, reference
 ):
     notify_api.config["FF_REDIS_BATCH_SAVING"] = False
-    mocked = mocker.patch("app.celery.tasks.save_sms.apply_async")
+    mocked_celery_apply_async = mocker.patch("app.celery.tasks.save_sms.apply_async")
     data = {
         "phone_number": "+16502532222",
         "template_id": str(sample_template_with_placeholders.id),
@@ -102,7 +121,10 @@ def test_post_sms_notification_with_persistance_in_celery_returns_201(
     }
     if reference:
         data.update({"reference": reference})
-    auth_header = create_authorization_header(service_id=sample_template_with_placeholders.service_id)
+
+    (auth_header, api_key) = create_authorization_header(
+        service_id=sample_template_with_placeholders.service_id, api_key_required=True
+    )
 
     response = client.post(
         path="/v2/notifications/sms",
@@ -126,7 +148,32 @@ def test_post_sms_notification_with_persistance_in_celery_returns_201(
         in resp_json["template"]["uri"]
     )
     assert not resp_json["scheduled_for"]
-    assert mocked.called
+
+    notification = {
+        "id": resp_json["id"],
+        "template": str(sample_template_with_placeholders.id),
+        "service_id": str(sample_template_with_placeholders.service_id),
+        "template_version": str(sample_template_with_placeholders.version),
+        "to": "+16502532222",
+        "personalisation": {" Name": "Jo"},
+        "simulated": False,
+        "api_key": str(api_key.id),
+        "key_type": str(api_key.key_type),
+        "client_reference": reference,
+    }
+    signed_notification_data = signer.sign(notification)
+
+    # call looks like
+    # apply_async(
+    #     (sample_template_with_placeholders.service_id, create_uuid(), signed_notification_data, None),
+    #     queue=QueueNames.DATABASE,
+    # )
+    # we have to ignore the (random) value of create_uuid()
+    actual_call_args = mocked_celery_apply_async.call_args
+    assert actual_call_args[0][0][0] == sample_template_with_placeholders.service_id
+    assert actual_call_args[0][0][2] == signed_notification_data
+    assert actual_call_args[0][0][3] is None
+    assert actual_call_args[1] == {"queue": QueueNames.DATABASE}
 
 
 def test_post_sms_notification_uses_inbound_number_as_sender(notify_api, client, notify_db_session, mocker):
