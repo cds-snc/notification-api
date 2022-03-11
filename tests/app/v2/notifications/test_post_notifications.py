@@ -591,9 +591,9 @@ def test_send_notification_uses_appropriate_queue_according_to_template_process_
 def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
     notify_api, client, sample_service, mocker, notification_type, key_send_to, send_to
 ):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = True
+    mocked_publish = mocker.patch("app.queue.RedisQueue.publish")
     sample = create_template(service=sample_service, template_type=notification_type)
-    save_mock = mocker.patch("app.v2.notifications.post_notifications.db_save_and_send_notification")
     mocker.patch(
         "app.v2.notifications.post_notifications.check_rate_limiting",
         side_effect=RateLimitError("LIMIT", "INTERVAL", "TYPE"),
@@ -617,7 +617,7 @@ def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
     assert message == "Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds"
     assert status_code == 429
 
-    assert not save_mock.called
+    assert not mocked_publish.called
 
 
 def test_post_sms_notification_returns_400_if_not_allowed_to_send_int_sms(
