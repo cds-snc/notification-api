@@ -1,4 +1,5 @@
-FROM python:3.6-alpine
+# Alpine Linux 3.15 is supported until 1 November 2023.
+FROM python:3.8-alpine3.15
 
 ENV PYTHONDONTWRITEBYTECODE 1
 
@@ -14,7 +15,7 @@ RUN apk add --no-cache --virtual .build-deps \
     musl-dev \
     rust \
     cargo \
-  && python -m pip install --upgrade pip==21.0.1 \
+  && python -m pip install --upgrade pip==22.0.4 \
   && python -m pip install wheel \
   && pip install --no-cache-dir -r requirements_for_test.txt \
   && apk del .build-deps

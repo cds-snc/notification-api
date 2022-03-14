@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import (
     JSON,
     JSONB,
 )
-from sqlalchemy import UniqueConstraint, CheckConstraint, Index
+from sqlalchemy import and_, CheckConstraint, Index, UniqueConstraint
 from notifications_utils.columns import Columns
 from notifications_utils.recipients import (
     validate_email_address,
@@ -891,9 +891,24 @@ class TemplateBase(db.Model):
         else:
             return None
 
+    # https://docs.sqlalchemy.org/en/13/orm/extensions/hybrid.html
+    # https://stackoverflow.com/questions/55690796/sqlalchemy-typeerror-boolean-value-of-this-clause-is-not-defined/55692795#55692795
+
     @hybrid_property
     def is_precompiled_letter(self):
+        """
+        This is for instance level evaluation.
+        """
+
         return self.hidden and self.name == PRECOMPILED_TEMPLATE_NAME and self.template_type == LETTER_TYPE
+
+    @is_precompiled_letter.expression
+    def is_precompiled_letter(cls):
+        """
+        This is for class level evaluation (i.e. for queries).
+        """
+
+        return and_(cls.hidden, cls.name == PRECOMPILED_TEMPLATE_NAME, cls.template_type == LETTER_TYPE)
 
     @is_precompiled_letter.setter
     def is_precompiled_letter(self, value):
