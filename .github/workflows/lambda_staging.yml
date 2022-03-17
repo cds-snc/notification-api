@@ -29,7 +29,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.STAGING_ECR_SECRET_ACCESS_KEY }}
           aws-region: ca-central-1
 
-      - name: Retrieve AWS Distro for OpenTelemetry Lambda layer
+      - name: Retrieve New Relic Lambda layer
         working-directory: ./ci
         run: |
           aws lambda get-layer-version-by-arn \

@@ -21,14 +21,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Build container
-        run: |
-          docker build \
-          --build-arg GIT_SHA=${GITHUB_SHA::7} \
-          -t $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} \
-          . \
-          -f ci/Dockerfile.lambda
-
       - name: Configure AWS credentials
         id: aws-creds
         uses: aws-actions/configure-aws-credentials@v1
@@ -36,6 +28,23 @@ jobs:
           aws-access-key-id: ${{ secrets.PRODUCTION_ECR_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.PRODUCTION_ECR_SECRET_ACCESS_KEY }}
           aws-region: ca-central-1
+          
+      - name: Retrieve New Relic Lambda layer
+        working-directory: ./ci
+        run: |
+          aws lambda get-layer-version-by-arn \
+          --region ca-central-1 \
+          --arn arn:aws:lambda:ca-central-1:451483290750:layer:NewRelicPython39:12 \
+          | jq -r '.Content.Location' \
+          | xargs curl -o newrelic-layer.zip        
+
+      - name: Build container
+        run: |
+          docker build \
+          --build-arg GIT_SHA=${GITHUB_SHA::7} \
+          -t $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} \
+          . \
+          -f ci/Dockerfile.lambda
 
       - name: Login to ECR
         id: login-ecr
