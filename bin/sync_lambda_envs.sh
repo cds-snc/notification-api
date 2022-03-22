@@ -4,6 +4,8 @@
 # Since lambda & k8s environments have some variance, this script will remove any environment
 # variable that is already set when run within the lambda runtime environment
 
+TMP_ENV_FILE="/tmp/.env"
+
 var_expand() {
   if [ -z "${1-}" ] || [ $# -ne 1 ]; then
     printf 'var_expand: expected one argument\n' >&2;
@@ -12,7 +14,7 @@ var_expand() {
   eval printf '%s' "\"\${$1?}\"" 2> /dev/null # Variable double substitution to be able to check for variable
 }
 
-remove_existing_envs() {
+load_non_existing_envs() {
   local envFile=${1:-.env}
   local isComment='^[[:space:]]*#'
   local isBlank='^[[:space:]]*$'
@@ -24,15 +26,17 @@ remove_existing_envs() {
       continue
     fi
     key=$(echo "$line" | cut -d '=' -f 1)
+    value=$(echo "$line" | cut -d '=' -f 2-)
 
     if [ -z $(var_expand $key) ]; then # Check if environment variable doesn't exist
-      echo $line >> ${TASK_ROOT}/.env.lambda
+      eval "export ${key}=\"$(echo \${value})\""
     fi
     
-  done < ${TASK_ROOT}/.env
+  done < $TMP_ENV_FILE
 }
 
-aws ssm get-parameters --region ca-central-1 --with-decryption --names ENVIRONMENT_VARIABLES --query 'Parameters[*].Value' --output text > "${TASK_ROOT}/.env"
-> ${TASK_ROOT}/.env.lambda 
-remove_existing_envs
-mv ${TASK_ROOT}/.env.lambda ${TASK_ROOT}/.env
+if [ ! -f "$TMP_ENV_FILE" ]; then # Only setup envs once per lambda lifecycle
+  echo "Retrieving environment parameters"
+  aws ssm get-parameters --region ca-central-1 --with-decryption --names ENVIRONMENT_VARIABLES --query 'Parameters[*].Value' --output text > "$TMP_ENV_FILE"
+  load_non_existing_envs
+fi
