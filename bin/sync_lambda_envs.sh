@@ -9,7 +9,7 @@ var_expand() {
     printf 'var_expand: expected one argument\n' >&2;
     return 1;
   fi
-  eval printf '%s' "\"\${$1?}\"" 2> /dev/null
+  eval printf '%s' "\"\${$1?}\"" 2> /dev/null # Variable double substitution to be able to check for variable
 }
 
 remove_existing_envs() {
@@ -18,21 +18,17 @@ remove_existing_envs() {
   local isBlank='^[[:space:]]*$'
   while IFS= read -r line; do
     if echo $line | grep -Eq $isComment; then # Ignore comment line
-     continue
+      continue
     fi
     if echo $line | grep -Eq $isBlank; then # Ignore blank line
       continue
     fi
     key=$(echo "$line" | cut -d '=' -f 1)
-    value=$(echo "$line" | cut -d '=' -f 2-)
 
     if [ -z $(var_expand $key) ]; then # Check if environment variable doesn't exist
-      : # Do nothing since we want to add this line to the lambda env file
-    else
-      continue # environment variable exists, skip to next line in .env
+      echo $line >> ${TASK_ROOT}/.env.lambda
     fi
-
-    echo $line >> ${TASK_ROOT}/.env.lambda
+    
   done < ${TASK_ROOT}/.env
 }
 
