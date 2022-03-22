@@ -38,6 +38,6 @@ load_non_existing_envs() {
 if [ ! -f "$TMP_ENV_FILE" ]; then # Only setup envs once per lambda lifecycle
   echo "Retrieving environment parameters"
   aws ssm get-parameters --region ca-central-1 --with-decryption --names ENVIRONMENT_VARIABLES --query 'Parameters[*].Value' --output text > "$TMP_ENV_FILE"
-  load_non_existing_envs
-  rm -f $TMP_ENV_FILE
 fi
+
+load_non_existing_envs
