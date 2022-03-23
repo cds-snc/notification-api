@@ -1,31 +1,32 @@
+# Build this Dockerfile from the notification-api root directory.
+
+# Python 3.8 is supported until 14 October 2024.
 # Alpine Linux 3.15 is supported until 1 November 2023.
 FROM python:3.8-alpine3.15
 
-ENV PYTHONDONTWRITEBYTECODE 1
-
-RUN apk add --no-cache bash build-base git postgresql-dev g++ make libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    # With this environment variable set, the Flask development server will print
+    # debug output and automatically restart in response to code changes.
+    FLASK_ENV=development
 
 RUN adduser -h /app -D vanotify
-
 WORKDIR /app
 
-COPY --chown=vanotify requirements.txt /app/requirements.txt
+# TODO - Use requirements-app.txt instead?  This might facilitate keeping subdependencies updated.
+COPY --chown=vanotify requirements.txt .
 
-RUN apk add --no-cache --virtual .build-deps \
-    gcc \
-    musl-dev \
-    rust \
-    cargo \
+RUN apk add --no-cache bash build-base postgresql-dev libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev \
+  && apk add --no-cache --virtual .build-deps musl-dev rust cargo git \
+  # Install Python dependencies.
   && python -m pip install --upgrade pip==22.0.4 \
   && python -m pip install wheel \
   && pip install --no-cache-dir -r requirements.txt \
+  # Remove build dependencies.
+  && rm requirements.txt \
   && apk del --no-cache .build-deps
 
+# Bind the projects's root directory to the image.  See also docker-compose-local.yml.
+VOLUME /app
+
 USER vanotify
-
-COPY --chown=vanotify . /app
-
-RUN make generate-version-file
-
-ENTRYPOINT ["./scripts/save_certificate.sh"]
 CMD ["./scripts/run_app.sh"]

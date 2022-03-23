@@ -29,6 +29,9 @@ Contains:
 - [Deployment Workflow](#deployment-workflow)
 - [To run the queues](#to-run-the-queues)
 - [Running in Docker](#running-in-docker)
+    - [Local Development](#local-development)
+    - [Testing](#testing)
+    - [Production](#production)
 - [AWS Configuration](#aws-configuration)
     - [Install tools](#install-tools)
     - [Useful commands](#useful-commands)
@@ -294,25 +297,32 @@ scripts/run_celery_beat.sh
 ---
 
 ## Running in Docker
-Make sure to copy over the .docker-env.example file and fill in the values.
 
-When building the docker image for the first time, run `docker-compose -f ci/docker-compose-local.yml build app`
+First, open `ci/.docker-env.example`, fill in values as desired, and save as `ci/.docker-env`.
 
-To run all the tests
-`docker-compose -f ci/docker-compose-test.yml up --build --abort-on-container-exit`
+### Local Development
 
-To run the application and it's associated postgres instance
-`docker-compose -f ci/docker-compose.yml up --build --abort-on-container-exit`
+Follow these steps to run the app locally for development.  The resulting container will have your local notification-api directory mounted, and Flask will run in development mode.  Changes you make to the code should trigger Flask to restart on the container.
 
-To run the app locally, with celery using localstack
-`docker-compose -f ci/docker-compose-local.yml up --build`
+Start by building the Docker local image: `docker-compose -f ci/docker-compose-local.yml build app`.  Repeating this step is only necessary when Dockerfile.local changes.
 
-If you're running with `docker-compose-local.yml`, and AWS SES is enabled as a provider, you may need to
-run the following to give the (simulated) SES permission to (pretend to) send emails:
+To run the app, and its ecosystem, locally, run `docker-compose -f ci/docker-compose-local.yml up`.  To see useful flags that you might want to use with the `up` subcommand, run `docker-compose up --help`.
+
+If AWS SES is enabled as a provider, you may need to run the following command to give the (simulated) SES permission to (pretend to) send e-mails:
 
 ```
 aws ses verify-email-identity --email-address stage-notifications@notifications.va.gov --endpoint-url=http://localhost:4566
 ```
+
+To support running locally, the repository includes a default `app/version.py` file, which must be present at runtime to avoid raising ImportError.  The production container build process overwrites this file with current values.
+
+### Testing
+
+To run all tests: `docker-compose -f ci/docker-compose-test.yml up --build --abort-on-container-exit`.
+
+### Production
+
+To run the application and it's associated Postgres instance: `docker-compose -f ci/docker-compose.yml up --build --abort-on-container-exit`.
 
 ---
 
