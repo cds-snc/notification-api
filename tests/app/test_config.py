@@ -109,7 +109,7 @@ def test_get_safe_config(mocker, reload_config):
     assert mock_get_sensitive_config.called
 
 
-def get_sensitive_config():
+def test_get_sensitive_config():
     sensitive_config = config.Config.get_sensitive_config()
     assert sensitive_config
     for key in sensitive_config:
