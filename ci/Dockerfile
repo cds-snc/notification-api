@@ -1,3 +1,4 @@
+# Python 3.8 is supported until 14 October 2024.
 # Alpine Linux 3.15 is supported until 1 November 2023.
 FROM python:3.8-alpine3.15
 

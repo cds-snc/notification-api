@@ -28,6 +28,9 @@ Contains:
     - [Other useful commands](#other-useful-commands)
 - [Deployment Workflow](#deployment-workflow)
 - [To run the queues](#to-run-the-queues)
+- [Maintaining Docker Images](#maintaining-docker-images)
+    - [Versions and Support Dates](#versions-and-support-dates)
+    - [How to Update](#how-to-update)
 - [Running in Docker](#running-in-docker)
 - [AWS Configuration](#aws-configuration)
     - [Install tools](#install-tools)
@@ -292,6 +295,25 @@ scripts/run_celery.sh
 scripts/run_celery_beat.sh
 ```
 ---
+
+## Maintaining Docker Images
+
+This application defines Docker images for production, testing, and development via Dockerfile and YAML files in the "ci" directory.  These images depend on base images from [Docker Hub](https://hub.docker.com/), and the base images provide specific versions of various technologies.  These images dependencies should be updated periodically to continue using actively supported versions.
+
+### Versions and Support Dates
+
+| Technology | End of Support | Notes | Affected Files in ci/ |
+|------------|----------------|-------|-----------------------|
+| Python 3.8 | 14 October 2024 | | Dockerfile, Dockerfile.local, Dockerfile.test, Dockerfile.userflow |
+| Alpine Linux 3.15 | 1 November 2023 | | Dockerfile, Dockerfile.local, Dockerfile.test |
+| Postgres 11.8 | 9 November 2023 for v11.x | The YAML files specify v11.8.  As of March 2022, versions 11.15 and 14.2 are available. | docker-compose.yml, docker-compose-local.yml, docker-compose-test.yml |
+| localstack | None given.  The YAML files specifies v0.12.3.  As of March 2022, v0.14.1 is available. | As of March 2022, localstack requires Python 3.6-3.9. | docker-compose-local.yml |
+| bbyars/mountebank 2.4.0 | None given. | Newer versions are available. | docker-compose-local.yml |
+| redis | | No version specified. | docker-compose-local.yml |
+
+### How to Update
+
+To update the images, change the `FROM` directive at the top of Dockerfiles and the `image` directive in YAML files.  Rebuild affected dependent containers, and run the unit tests (as described in the next section) to verify the changes.  For example, if ci/Dockerfile begins with the line "FROM python:3.8-alpine3.15", you could change it to "FROM python:3.10-alpine3.15".  Visit Docker Hub to see what version tags are available for a given image.
 
 ## Running in Docker
 Make sure to copy over the .docker-env.example file and fill in the values.
