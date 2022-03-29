@@ -393,7 +393,7 @@ def process_precompiled_letter_notifications(*, letter_data, api_key, template, 
 def get_reply_to_text(notification_type, form, template):
     reply_to = None
     if notification_type == EMAIL_TYPE:
-        if template.reply_to_email != None:
+        if template.reply_to_email is not None:
             reply_to = template.reply_to_email
         else:
             service_email_reply_to_id = form.get("email_reply_to_id", None)
