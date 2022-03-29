@@ -5,6 +5,8 @@ services:
       context: ..
       dockerfile: ci/Dockerfile.local
     image: notification_api
+    volumes:
+      - "../:/app:ro"
     ports:
       - 6011:6011
     env_file:
@@ -24,7 +26,9 @@ services:
     image: notification_api
     env_file:
       - .docker-env
-    command: bash -c "make generate-version-file && flask db upgrade"
+    volumes:
+      - "../:/app:ro"
+    command: ["bash", "-c", "flask db upgrade"]
     depends_on:
       - db
   localstack:
@@ -46,14 +50,16 @@ services:
     image: notification_api
     env_file:
       - .docker-env
+    volumes:
+      - "../:/app:ro"
     command: >
-      sh -c "./scripts/wait_for_it.sh localstack:4566 --timeout=30 -- ./scripts/run_celery.sh"
+      sh -c "/app/scripts/wait_for_it.sh localstack:4566 --timeout=30 -- /app/scripts/run_celery.sh"
     depends_on:
       - app
       - localstack
       - mountebank
     healthcheck:
-      test: ["CMD", "sh", "-c", "./scripts/check_celery.sh"]
+      test: ["CMD", "sh", "-c", "/app/scripts/check_celery.sh"]
       interval: 30s
       timeout: 10s
       retries: 5

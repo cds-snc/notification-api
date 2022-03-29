@@ -321,3 +321,5 @@ fileignoreconfig:
       checksum: fc35ebbc81d323d615005cdb21fcc5b7b4904a196e00e69a04f4c32e55923321
     - filename: tests/app/model/test_user.py
       checksum: 5d92c38eec9aef25ea7628adde186923908815c439a34c517a72a7ab4c072cf5
+    - filename: app/version.py
+      checksum: 23d122d955d3394591dbd4423f6b8a6c0bb0d5f67cd86e788007a303f92839dd
