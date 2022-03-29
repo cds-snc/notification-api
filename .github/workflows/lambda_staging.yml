@@ -52,4 +52,4 @@ jobs:
         run: |
           aws lambda update-function-code \
             --function-name ${{ matrix.image }} \
-            --image-uri $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7}
+            --image-uri $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} > /dev/null 2>&1
