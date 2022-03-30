@@ -30,7 +30,6 @@ jobs:
           aws-region: ca-central-1
 
       - name: Retrieve New Relic Lambda layer
-        working-directory: ./ci
         run: |
           aws lambda get-layer-version-by-arn \
           --region ca-central-1 \
