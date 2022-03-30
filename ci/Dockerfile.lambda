@@ -13,8 +13,6 @@ RUN python -m pip install --upgrade pip
 RUN set -ex && mkdir ${TASK_ROOT}
 
 WORKDIR ${TASK_ROOT}
-COPY ./newrelic-layer.zip /tmp/newrelic-layer.zip
-RUN unzip /tmp/newrelic-layer.zip -d /opt && rm /tmp/newrelic-layer.zip
 
 COPY requirements.txt ${TASK_ROOT}
 RUN set -ex && pip3 install -r requirements.txt
@@ -34,6 +32,9 @@ ADD https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest
 COPY bin/entry.sh /
 COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
+
+# New Relic lambda layer
+RUN unzip newrelic-layer.zip -d /opt && rm newrelic-layer.zip
 
 ENTRYPOINT [ "/entry.sh" ]
 CMD [ "newrelic_lambda_wrapper.handler" ]
