@@ -1,9 +1,10 @@
 FROM python:3.9-alpine3.13
 
+ENV PYTHONPATH "${PYTHONPATH}:/opt/python/lib/python3.9/site-packages"
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV TASK_ROOT /app
 
-RUN apk add --no-cache bash build-base git libtool cmake autoconf automake gcc musl-dev postgresql-dev g++ libexecinfo-dev make libffi-dev libmagic libcurl curl-dev rust cargo && rm -rf /var/cache/apk/*
+RUN apk add --no-cache bash build-base git libtool cmake autoconf automake gcc musl-dev postgresql-dev g++ libc6-compat libexecinfo-dev make libffi-dev libmagic libcurl curl-dev rust cargo && rm -rf /var/cache/apk/*
 
 # update pip
 RUN python -m pip install wheel
@@ -15,7 +16,7 @@ WORKDIR ${TASK_ROOT}
 
 COPY requirements.txt ${TASK_ROOT}
 RUN set -ex && pip3 install -r requirements.txt
-RUN pip3 install awslambdaric
+RUN pip3 install awslambdaric newrelic-lambda
 
 COPY . ${TASK_ROOT}
 
@@ -32,5 +33,11 @@ COPY bin/entry.sh /
 COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
+# New Relic lambda layer
+RUN unzip newrelic-layer.zip -d /opt && rm newrelic-layer.zip
+
 ENTRYPOINT [ "/entry.sh" ]
-CMD [ "application.handler" ]
+
+# Launch the New Relic lambda wrapper which will then launch the app
+# handler defined in the NEW_RELIC_LAMBDA_HANDLER environment variable
+CMD [ "newrelic_lambda_wrapper.handler" ] 
