@@ -2,7 +2,7 @@
 # Alpine Linux 3.15 is supported until 1 November 2023.
 FROM python:3.8-alpine3.15
 
-ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONDONTWRITEBYTECODE=1
 
 RUN apk add --no-cache bash build-base git postgresql-dev g++ make libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev
 RUN set -ex && mkdir /app
