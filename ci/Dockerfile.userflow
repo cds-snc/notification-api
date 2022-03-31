@@ -9,6 +9,7 @@ RUN set -ex && mkdir /app
 COPY requirements_for_user_flows.txt /app/requirements_for_user_flows.txt
 WORKDIR /app
 RUN pip install -r requirements_for_user_flows.txt
+  && rm requirements_for_user_flows.txt
 
 COPY . /app
 CMD ["sh", "-c", "make user_flows"]

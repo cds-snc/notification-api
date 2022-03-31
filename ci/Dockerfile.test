@@ -4,21 +4,18 @@ FROM python:3.8-alpine3.15
 
 ENV PYTHONDONTWRITEBYTECODE 1
 
-RUN apk add --no-cache bash build-base git postgresql-dev g++ make libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev
-RUN set -ex && mkdir /app
-
-COPY requirements_for_test.txt /app/requirements_for_test.txt
-COPY requirements.txt /app/requirements.txt
 WORKDIR /app
+COPY requirements.txt requirements_for_test.txt /app/
 
-RUN apk add --no-cache --virtual .build-deps \
-    gcc \
-    musl-dev \
-    rust \
-    cargo \
+RUN apk add --no-cache bash build-base postgresql-dev make libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev git \
+  && apk add --no-cache --virtual .build-deps musl-dev rust cargo \
+  && set -ex \
   && python -m pip install --upgrade pip==22.0.4 \
   && python -m pip install wheel \
+  # This installs both requirements files.
   && pip install --no-cache-dir -r requirements_for_test.txt \
+  # Remove build dependencies.
+  && rm requirements.txt requirements_for_test.txt \
   && apk del .build-deps
 
 COPY . /app
