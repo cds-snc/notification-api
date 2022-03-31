@@ -4,10 +4,10 @@ FROM python:3.8-alpine3.15
 
 ARG GIT_SHA
 
-ENV PYTHONDONTWRITEBYTECODE 1 \
+ENV PYTHONDONTWRITEBYTECODE=1 \
     REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
     PORT=6011 \
-    GIT_SHA ${GIT_SHA}
+    GIT_SHA=${GIT_SHA}
 
 COPY ./certs/VA-Internal-S2-RCA1-v1.crt /usr/local/share/ca-certificates/VA-Internal-S2-RCA1-v1.crt
 COPY ./certs/VA-Internal-S2-ICA4.crt /usr/local/share/ca-certificates/VA-Internal-S2-ICA4.crt
@@ -33,7 +33,7 @@ RUN apk add --no-cache bash build-base postgresql-dev libffi-dev libmagic libcur
 # Copy the host's build context directory (notification-api/) to the image's working directory (/app).
 COPY --chown=vanotify . .
 
-# Generate the version file, app/version.py.  This overwrites the default file needed file local development.
+# Generate the version file, app/version.py.  This overwrites the default file needed for local development.
 RUN apk add --no-cache make \
   && make generate-version-file \
   # Remove build dependencies.
