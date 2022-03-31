@@ -386,7 +386,7 @@ def test_post_email_notification_with_reply_to_returns_201(
     assert resp_json['billing_code'] == "TESTCODE"
     assert resp_json['reference'] == reference
     assert notification.reference is None
-    assert notification.reply_to_text is None
+    assert notification.reply_to_text == 'testing@email.com'
     assert resp_json['content']['body'] == sample_email_template_with_reply_to.content \
         .replace('((name))', 'Bob')
     assert resp_json['content']['subject'] == sample_email_template_with_reply_to.subject \

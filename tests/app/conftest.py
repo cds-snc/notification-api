@@ -518,14 +518,14 @@ def sample_email_template_with_placeholders(sample_service):
     )
 
 
-@pytest.ficture(scope='function')
+@pytest.fixture(scope='function')
 def sample_email_template_with_reply_to(sample_service):
     return create_template(
         sample_service,
         template_type=EMAIL_TYPE,
         subject="((name))",
         content="Hello ((name))\nThis is an email from GOV.UK",
-        reply_to="testing@email.com"
+        reply_to_email="testing@email.com"
     )
 
 
