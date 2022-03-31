@@ -333,8 +333,9 @@ def test_post_email_notification_returns_201(
         "personalisation": {"name": "Bob"},
         "billing_code": "TESTCODE"
     }
-    if reference:
-        data.update({"reference": reference})
+
+    if reference is not None:
+        data["reference"] = reference
 
     response = post_send_notification(client, sample_email_template_with_placeholders.service, 'email', data)
     assert response.status_code == 201
@@ -357,6 +358,46 @@ def test_post_email_notification_returns_201(
     assert resp_json['template']['version'] == sample_email_template_with_placeholders.version
     assert 'services/{}/templates/{}'.format(str(sample_email_template_with_placeholders.service_id),
                                              str(sample_email_template_with_placeholders.id)) \
+           in resp_json['template']['uri']
+    assert not resp_json["scheduled_for"]
+    assert mock_deliver_email.called
+
+
+@pytest.mark.parametrize("reference", [None, "reference_from_client"])
+def test_post_email_notification_with_reply_to_returns_201(
+        client, sample_email_template_with_reply_to, mock_deliver_email, reference
+):
+    data = {
+        "email_address": sample_email_template_with_reply_to.service.users[0].email_address,
+        "template_id": sample_email_template_with_reply_to.id,
+        "personalisation": {"name": "Bob"},
+        "billing_code": "TESTCODE"
+    }
+
+    if reference is not None:
+        data["reference"] = reference
+
+    response = post_send_notification(client, sample_email_template_with_reply_to.service, 'email', data)
+    assert response.status_code == 201
+    resp_json = json.loads(response.get_data(as_text=True))
+    assert validate(resp_json, post_email_response) == resp_json
+    notification = Notification.query.one()
+    assert notification.status == NOTIFICATION_CREATED
+    assert notification.postage is None
+    assert resp_json['id'] == str(notification.id)
+    assert resp_json['billing_code'] == "TESTCODE"
+    assert resp_json['reference'] == reference
+    assert notification.reference is None
+    assert notification.reply_to_text == 'testing@email.com'
+    assert resp_json['content']['body'] == sample_email_template_with_reply_to.content \
+        .replace('((name))', 'Bob')
+    assert resp_json['content']['subject'] == sample_email_template_with_reply_to.subject \
+        .replace('((name))', 'Bob')
+    assert 'v2/notifications/{}'.format(notification.id) in resp_json['uri']
+    assert resp_json['template']['id'] == str(sample_email_template_with_reply_to.id)
+    assert resp_json['template']['version'] == sample_email_template_with_reply_to.version
+    assert 'services/{}/templates/{}'.format(str(sample_email_template_with_reply_to.service_id),
+                                             str(sample_email_template_with_reply_to.id)) \
            in resp_json['template']['uri']
     assert not resp_json["scheduled_for"]
     assert mock_deliver_email.called
