@@ -333,8 +333,9 @@ def test_post_email_notification_returns_201(
         "personalisation": {"name": "Bob"},
         "billing_code": "TESTCODE"
     }
-    if reference:
-        data.update({"reference": reference})
+
+    if reference is not None:
+        data["reference"] = reference
 
     response = post_send_notification(client, sample_email_template_with_placeholders.service, 'email', data)
     assert response.status_code == 201
@@ -372,8 +373,9 @@ def test_post_email_notification_with_reply_to_returns_201(
         "personalisation": {"name": "Bob"},
         "billing_code": "TESTCODE"
     }
-    if reference:
-        data.update({"reference": reference})
+
+    if reference is not None:
+        data["reference"] = reference
 
     response = post_send_notification(client, sample_email_template_with_reply_to.service, 'email', data)
     assert response.status_code == 201

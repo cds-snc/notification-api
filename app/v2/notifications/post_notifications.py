@@ -401,7 +401,7 @@ def get_reply_to_text(notification_type, form, template):
                 reply_to = check_service_email_reply_to_id(
                     str(authenticated_service.id), service_email_reply_to_id, notification_type
                 )
-            if service_email_reply_to_id is None:
+            if reply_to is None:
                 template.get_reply_to_text()
 
     elif notification_type == SMS_TYPE:
