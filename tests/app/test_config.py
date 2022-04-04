@@ -85,7 +85,7 @@ def test_queue_names_all_queues_correct():
 
 
 def test_get_safe_config(mocker, reload_config):
-    mock_get_class_attrs = mocker.patch("notification_utils.logging.get_class_attrs")
+    mock_get_class_attrs = mocker.patch("notifications_utils.logging.get_class_attrs")
     mock_get_sensitive_config = mocker.patch("app.config.Config.get_sensitive_config")
 
     config.Config.get_safe_config()
