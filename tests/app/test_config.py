@@ -84,28 +84,12 @@ def test_queue_names_all_queues_correct():
     )
 
 
-def test_get_config(reload_config):
-    config.Config.ADMIN_BASE_URL = "http://foo.bar"
-    config.Config.AWS_REGION = "dark-side-of-the-moon"
-    logged_config = config.Config.get_config([])
-    assert logged_config["ADMIN_BASE_URL"] == "http://foo.bar"
-    assert logged_config["AWS_REGION"] == "dark-side-of-the-moon"
-
-    config.Config.AWS_SES_SECRET_KEY = "1234"
-    logged_config = config.Config.get_config(["AWS_SES_SECRET_KEY"])
-    assert logged_config["AWS_SES_SECRET_KEY"] == "***"
-
-    for key, _ in logged_config.items():
-        assert not key.startswith("__")
-        assert not callable(getattr(config.Config, key))
-
-
 def test_get_safe_config(mocker, reload_config):
-    mock_get_config = mocker.patch("app.config.Config.get_config")
+    mock_get_class_attrs = mocker.patch("notification_utils.logging.get_class_attrs")
     mock_get_sensitive_config = mocker.patch("app.config.Config.get_sensitive_config")
 
     config.Config.get_safe_config()
-    assert mock_get_config.called
+    assert mock_get_class_attrs.called
     assert mock_get_sensitive_config.called
 
 
