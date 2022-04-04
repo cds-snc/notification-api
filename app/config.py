@@ -8,6 +8,7 @@ from environs import Env
 from fido2.server import Fido2Server
 from fido2.webauthn import PublicKeyCredentialRpEntity
 from kombu import Exchange, Queue
+from notifications_utils import logging
 
 from celery.schedules import crontab
 
@@ -480,19 +481,9 @@ class Config(object):
         ]
 
     @classmethod
-    def get_config(cls, sensitive_config: list[str]) -> dict[str, Any]:
-        "Returns a dict of config keys and values"
-        config = {}
-        for attr in dir(cls):
-            attr_value = "***" if attr in sensitive_config else getattr(cls, attr)
-            if not attr.startswith("__") and not callable(attr_value):
-                config[attr] = attr_value
-        return config
-
-    @classmethod
     def get_safe_config(cls) -> dict[str, Any]:
         "Returns a dict of config keys and values with sensitive values masked"
-        return cls.get_config(cls.get_sensitive_config())
+        return logging.get_class_attrs(cls, cls.get_sensitive_config())
 
 
 ######################
