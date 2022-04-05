@@ -490,6 +490,13 @@ def test_get_notification_with_personalisation_by_id(sample_template):
     assert notification_from_db.scheduled_notification.scheduled_for == datetime(2017, 5, 5, 14, 15)
 
 
+def test_get_notification_with_personalisation_by_id_no_result(sample_template, fake_uuid, mocker):
+    mock_logger = mocker.patch("app.authentication.auth.current_app.logger.warning")
+    with pytest.raises(NoResultFound):
+        get_notification_with_personalisation(sample_template.service.id, fake_uuid, key_type=None)
+        assert mock_logger.called
+
+
 def test_get_notification_by_id_when_notification_exists(sample_notification):
     notification_from_db = get_notification_by_id(sample_notification.id)
 
