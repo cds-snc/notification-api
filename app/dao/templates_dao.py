@@ -55,12 +55,11 @@ def dao_update_template(template):
 
 @transactional
 def dao_update_template_reply_to(template_id, reply_to):
-    Template.query.filter_by(id=template_id).update(
-        {"service_letter_contact_id": reply_to,
-         "updated_at": datetime.utcnow(),
-         "version": Template.version + 1,
-         }
-    )
+    Template.query.filter_by(id=template_id).update({
+        "service_letter_contact_id": reply_to,
+        "updated_at": datetime.utcnow(),
+        "version": Template.version + 1,
+    })
     template = Template.query.filter_by(id=template_id).one()
 
     history = TemplateHistory(**

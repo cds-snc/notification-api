@@ -278,7 +278,8 @@ def _template_has_not_changed(current_data, updated_template):
     return all(
         current_data[key] == updated_template[key]
         for key in (
-            'name', 'content', 'subject', 'archived', 'process_type', 'postage', 'provider_id', 'communication_item_id'
+            'name', 'content', 'subject', 'archived', 'process_type', 'postage', 'provider_id',
+            'communication_item_id', 'reply_to_email'
         )
     )
 
