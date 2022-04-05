@@ -1,5 +1,6 @@
 import functools
 import string
+import traceback
 from datetime import datetime, timedelta
 
 from boto.exception import BotoClientError
@@ -205,7 +206,7 @@ def get_notification_with_personalisation(service_id, notification_id, key_type)
     try:
         return Notification.query.filter_by(**filter_dict).options(joinedload("template")).one()
     except NoResultFound:
-        current_app.logger.warning(f"Failed to get notification with filter: {filter_dict}")
+        current_app.logger.warning(f"Failed to get notification with filter: {filter_dict}\n\n{traceback.format_exc()}")
         raise
 
 
