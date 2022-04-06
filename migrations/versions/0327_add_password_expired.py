@@ -17,8 +17,9 @@ timeout = 1200  # in seconds, i.e. 20 minutes
 
 
 def upgrade():
-    op.add_column("users", sa.Column("password_expired", sa.Boolean(), nullable=False))
-
+    op.add_column("users", sa.Column("password_expired", sa.Boolean(), nullable=True))
+    op.execute("UPDATE users SET password_expired = false")
+    op.alter_column('users', 'password_expired', nullable=False)
 
 def downgrade():
     op.drop_column("users", "password_expired")
