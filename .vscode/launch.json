@@ -19,7 +19,8 @@
             },
             "args": [
                 "run",
-                "--no-debugger"
+                "--no-debugger",
+                "-p 6011"
             ],
             "jinja": true,
             "justMyCode": false
