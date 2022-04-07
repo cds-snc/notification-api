@@ -1,0 +1,82 @@
+version: "3"
+services:
+  app:
+    image: notification_api
+    container_name: ci_app_migrate
+    volumes:
+      - "../:/app:rw"
+    ports:
+      - 6011:6011
+    env_file:
+      - .docker-env
+    depends_on:
+      - migrations
+      - localstack
+    command: ["bash", "-c", "flask db migrate"]
+  db:
+    image: postgres:11.8
+    restart: unless-stopped
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=LocalPassword
+      - POSTGRES_DB=notification_api
+  migrations:
+    image: notification_api
+    env_file:
+      - .docker-env
+    volumes:
+      - "../:/app:ro"
+    command: ["bash", "-c", "flask db upgrade"]
+    depends_on:
+      - db
+  localstack:
+    image: localstack/localstack:0.12.3
+    container_name: localstack
+    ports:
+      - "4566:4566"
+    env_file:
+      - .docker-env
+    environment:
+      - SERVICES=sqs,ses,s3
+      - DEFAULT_REGION=us-east-2
+      - DATA_DIR=/tmp/localstack/data
+      - START_WEB=0
+      - HOSTNAME_EXTERNAL=localstack
+    volumes:
+      - './localstack_setup.sh:/docker-entrypoint-initaws.d/setup.sh'
+  celery:
+    image: notification_api
+    env_file:
+      - .docker-env
+    volumes:
+      - "../:/app:ro"
+    command: >
+      sh -c "/app/scripts/wait_for_it.sh localstack:4566 --timeout=30 -- /app/scripts/run_celery.sh"
+    depends_on:
+      - app
+      - localstack
+      - mountebank
+    healthcheck:
+      test: ["CMD", "sh", "-c", "/app/scripts/check_celery.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  mountebank:
+    container_name: mountebank
+    image: bbyars/mountebank:2.4.0
+    volumes:
+      - ../scripts/mountebank:/mountebank
+    ports:
+      - 2525:2525
+      - 7005:7005
+      - 7006:7006
+      - 7007:7007
+      - 7008:7008
+    command: start --configfile /mountebank/imposters.ejs --allowInjection
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+
+
