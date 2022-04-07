@@ -180,6 +180,7 @@ class User(BaseModel):
             "state": self.state,
             "blocked": self.blocked,
             "additional_information": self.additional_information,
+            "password_expired": self.password_expired,
         }
 
     def serialize_for_users_list(self) -> dict:
