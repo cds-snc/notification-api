@@ -176,9 +176,11 @@ def test_update_user_attribute_blocked():
 
 def test_update_user_password(notify_api, notify_db, notify_db_session, sample_user):
     password = "newpassword"
+    sample_user.password_expired = True
     assert not sample_user.check_password(password)
     update_user_password(sample_user, password)
     assert sample_user.check_password(password)
+    assert not sample_user.password_expired
 
 
 def test_count_user_verify_codes(sample_user):
