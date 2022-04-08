@@ -2119,3 +2119,17 @@ class CommunicationItem(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     va_profile_item_id = db.Column(db.Integer, nullable=False)
     name = db.Column(db.Text(), nullable=False)
+
+
+class VAProfileLocalCache(db.Model):
+    """
+    VA Notify caches person IDs to lighten the load on the MPI databse.
+
+    Master Patient Index (MPI) - Per the "VA Master Person Index, Service Description Document" v4.3 (December 2020),
+        the "ICN" field, which seems to be a primary key, is a string of 29 characters.
+    """
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    mpi_icn = db.Column(db.String(29), nullable=False)
+    va_profile_id = db.Column(db.Integer, nullable=False)
+    va_profile_item_id = db.Column(db.Integer, nullable=False)

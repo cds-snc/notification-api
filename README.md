@@ -324,11 +324,11 @@ First, open `ci/.docker-env.example`, fill in values as desired, and save as `ci
 
 ### Local Development
 
-Follow these steps to run the app locally for development.  The resulting container will have your local notification-api directory mounted, and Flask will run in development mode.  Changes you make to the code should trigger Flask to restart on the container.
+Follow these steps to run the app locally for development.  The resulting container will have your local notification-api directory mounted in read-only mode, and Flask will run in development mode.  Changes you make to the code should trigger Flask to restart on the container.
 
-Start by building the Docker local image: `docker-compose -f ci/docker-compose-local.yml build app`.  Repeating this step is only necessary when Dockerfile.local changes.
+Start by building the Docker local image, "notification_api": `docker-compose -f ci/docker-compose-local.yml build app`.  Repeating this step is only necessary when Dockerfile.local changes.
 
-To run the app, and its ecosystem, locally, run `docker-compose -f ci/docker-compose-local.yml up`.  To see useful flags that you might want to use with the `up` subcommand, run `docker-compose up --help`.
+To run the app, and its ecosystem, locally, run `docker-compose -f ci/docker-compose-local.yml up`.  To see useful flags that you might want to use with the `up` subcommand, run `docker-compose up --help`.  This docker-compose command create the container ci_app_1, among others.
 
 If AWS SES is enabled as a provider, you may need to run the following command to give the (simulated) SES permission to (pretend to) send e-mails:
 
@@ -337,6 +337,14 @@ aws ses verify-email-identity --email-address stage-notifications@notifications.
 ```
 
 To support running locally, the repository includes a default `app/version.py` file, which must be present at runtime to avoid raising ImportError.  The production container build process overwrites this file with current values.
+
+#### Creating Database Migrations
+
+Running `flask db migrate` on the container ci_app_1 errors because the files in the migrations folder are read-only.  Follow this procedure to create a database migration using Flask:
+
+1. Ensure all containers are stopped.
+2. Run `docker-compose -f ci/docker-compose-local-migrate.yml up`.  This creates the container ci_app_migrate with your local notification-api directory mounted in read-write mode.  The container runs `flask db migrate` and exits.
+3. Press Ctrl-C to stop the containers, and identify the new file in migrations/versions.  (Running `git status` is a quick way to do this.)  Rename and edit the new file as desired.
 
 ### Testing
 

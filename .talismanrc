@@ -323,3 +323,5 @@ fileignoreconfig:
       checksum: 5d92c38eec9aef25ea7628adde186923908815c439a34c517a72a7ab4c072cf5
     - filename: app/version.py
       checksum: 23d122d955d3394591dbd4423f6b8a6c0bb0d5f67cd86e788007a303f92839dd
+    - filename: ci/docker-compose-local-migrate.yml
+      checksum: 31016501e750cfa8664d599191f64bd5a7ade4a062f107caa0e576c2f3451942
