@@ -43,3 +43,5 @@ services:
     command: redis-server --port 6380
     ports:
       - "6380:6380"
+    expose:
+      - "6380"

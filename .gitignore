@@ -28,6 +28,7 @@ var/
 .installed.cfg
 *.egg
 /cache
+newrelic-layer.zip
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -71,6 +72,7 @@ target/
 environment.sh
 .envrc
 .env
+.env.lambda
 
 celerybeat-schedule
 celerybeat-schedule.*

@@ -446,6 +446,7 @@ def test_get_user_by_email(client, sample_service):
     assert sample_user.mobile_number == fetched["mobile_number"]
     assert sample_user.email_address == fetched["email_address"]
     assert sample_user.state == fetched["state"]
+    assert sample_user.password_expired == fetched["password_expired"]
     assert sorted(expected_permissions) == sorted(fetched["permissions"][str(sample_service.id)])
 
 

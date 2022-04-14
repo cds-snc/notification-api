@@ -184,7 +184,6 @@ def post_notification(notification_type):
         form = validate(request_json, post_letter_request)
     else:
         abort(404)
-
     check_service_has_permission(notification_type, authenticated_service.permissions)
 
     scheduled_for = form.get("scheduled_for", None)

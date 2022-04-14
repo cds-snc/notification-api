@@ -37,6 +37,7 @@ from tests.app.db import (
     create_service_sms_sender,
     create_service_with_inbound_number,
     create_template,
+    create_user,
 )
 from tests.conftest import set_config
 
@@ -771,6 +772,59 @@ def test_post_sms_notification_returns_400_if_number_not_safelisted(notify_db_se
     ]
 
 
+class TestRestrictedServices:
+    @pytest.mark.parametrize("restricted", [True])
+    def test_post_sms_notification_returns_201_if_number_safelisted_and_teamkey(
+        self, notify_db_session, client, restricted, mocker, notify_api
+    ):
+        service = create_service(restricted=restricted, service_permissions=[SMS_TYPE, INTERNATIONAL_SMS_TYPE])
+        user = create_user(mobile_number="+16132532235")
+        service.users = [user]
+        template = create_template(service=service)
+        create_api_key(service=service, key_type="team")
+        mocker.patch("app.celery.tasks.save_sms.apply_async")
+        notify_api.config["FF_REDIS_BATCH_SAVING"] = True
+
+        data = {
+            "phone_number": "+16132532235",
+            "template_id": template.id,
+        }
+        auth_header = create_authorization_header(service_id=service.id, key_type="team")
+
+        response = client.post(
+            path="/v2/notifications/sms",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 201
+        assert json.loads(response.get_data(as_text=True))
+
+    def test_post_bulk_notification_returns_201_if_number_safelisted_and_teamkey(self, notify_db_session, client, mocker):
+        service = create_service(restricted=True, service_permissions=[EMAIL_TYPE])
+        user_1 = create_user(email="foo@example.com")
+        user_2 = create_user(email="bar@example.com")
+        service.users = [user_1, user_2]
+        template = create_template(service=service, template_type="email")
+        create_api_key(service=service, key_type="team")
+        job_id = str(uuid.uuid4())
+        mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=job_id)
+
+        data = {
+            "name": "job_name",
+            "template_id": template.id,
+            "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
+        }
+        auth_header = create_authorization_header(service_id=service.id, key_type="team")
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 201
+        assert json.loads(response.get_data(as_text=True))
+
+
 # TODO: duplicate
 def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms(
     notify_api,
@@ -821,6 +875,8 @@ def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms_with_celer
 
 def test_post_sms_should_persist_supplied_sms_number(notify_api, client, sample_template_with_placeholders, mocker):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_BATCH_INSERTION"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     data = {
         "phone_number": "+16502532222",
@@ -964,6 +1020,8 @@ def test_post_notification_with_wrong_type_of_sender(
 
 def test_post_email_notification_with_valid_reply_to_id_returns_201(notify_api, client, sample_email_template, mocker):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_BATCH_INSERTION"] = False
+    notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     reply_to_email = create_reply_to_email(sample_email_template.service, "test@test.com")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     data = {

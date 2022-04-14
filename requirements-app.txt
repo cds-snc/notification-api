@@ -6,6 +6,7 @@ boto==2.49.0
 cffi==1.14.5
 celery[sqs]==5.0.5
 docopt==0.6.2
+environs==9.3.2 # pyup: <9.3.3 # marshmallow v3 throws errors
 fido2==0.9.1
 Flask-Bcrypt==0.7.1
 flask-marshmallow==0.14.0
@@ -49,7 +50,7 @@ MarkupSafe==2.0.1
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
 itsdangerous==0.24  # pyup: <1.0.0
 
-git+https://github.com/cds-snc/notifier-utils.git@46.3.0#egg=notifications-utils
+git+https://github.com/cds-snc/notifier-utils.git@46.5.0#egg=notifications-utils
 
 # MLWR
 socketio-client==0.5.6

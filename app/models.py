@@ -124,6 +124,7 @@ class User(BaseModel):
     )
     blocked = db.Column(db.Boolean, nullable=False, default=False)
     additional_information = db.Column(JSONB(none_as_null=True), nullable=True, default={})
+    password_expired = db.Column(db.Boolean, nullable=False, default=False)
 
     # either email auth or a mobile number must be provided
     CheckConstraint("auth_type = 'email_auth' or mobile_number is not null")
@@ -179,6 +180,7 @@ class User(BaseModel):
             "state": self.state,
             "blocked": self.blocked,
             "additional_information": self.additional_information,
+            "password_expired": self.password_expired,
         }
 
     def serialize_for_users_list(self) -> dict:

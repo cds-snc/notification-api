@@ -30,7 +30,7 @@ services:
       - SQLALCHEMY_DATABASE_URI=postgres://postgres:chummy@db:5432/notification_api
     entrypoint: local/scripts/notify-web-entrypoint.sh
     command: >
-      bash -c "make generate-version-file && flask run -p 6011 --host=0.0.0.0"
+      bash -c "make generate-version-file && make run"
     volumes:
       - .:/app
     ports:

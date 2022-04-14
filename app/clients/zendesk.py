@@ -69,7 +69,6 @@ class Zendesk(object):
         if not self.api_url or not self.token:
             raise NotImplementedError
 
-        print(self._generate_ticket())
         # The API and field definitions are defined here:
         # https://developer.zendesk.com/rest_api/docs/support/requests
         response = requests.post(
