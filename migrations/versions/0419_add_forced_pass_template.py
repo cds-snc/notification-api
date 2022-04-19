@@ -81,3 +81,4 @@ def upgrade():
 def downgrade():
     op.get_bind()
     op.execute("delete from templates where id = '{}'".format("e9a65a6b-497b-42f2-8f43-1736e43e13b3"))
+    op.execute("delete from templates_history where id = '{}'".format("e9a65a6b-497b-42f2-8f43-1736e43e13b3"))
