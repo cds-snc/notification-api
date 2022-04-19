@@ -31,8 +31,7 @@ def upgrade():
                                  VALUES ('{}', '{}', '{}', '{}', '{}', False, '{}', '{}', '{}', 1, '{}', False)
                               """
 
-    password_reset_content = (
-        """
+    password_reset_content = """
         Hi ((Name)),
         To reset your password, click this link:
         [Password reset](((url))?lang=en)
@@ -45,7 +44,6 @@ def upgrade():
         Ce lien est unique. Ne le transmettez à personne. 
         Si vous navez pas demandé ce courriel, veuillez [nous contacter](https://notification.canada.ca/contact?lang=fr).
         """
-    )
 
     op.execute(
         template_insert.format(
@@ -57,7 +55,7 @@ def upgrade():
             service_id,
             "Force reset your Notify password",
             user_id,
-            "normal"
+            "normal",
         )
     )
 
