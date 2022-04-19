@@ -20,7 +20,8 @@
             "args": [
                 "run",
                 "--no-debugger",
-                "-p 6011"
+                "-p 6011",
+                "--host=0.0.0.0"
             ],
             "jinja": true,
             "justMyCode": false
