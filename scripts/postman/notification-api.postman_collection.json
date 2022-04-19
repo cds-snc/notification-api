@@ -1728,7 +1728,7 @@
 											}
 										],
 										"url": {
-											"raw": "{{notification-api-url}}/service/{{service-id}}/template/{{sms-template-id}}",
+											"raw": "{{notification-api-url}}/service/{{service-id}}/template/{{email-template-id}}",
 											"host": [
 												"{{notification-api-url}}"
 											],
@@ -1736,7 +1736,7 @@
 												"service",
 												"{{service-id}}",
 												"template",
-												"{{sms-template-id}}"
+												"{{email-template-id}}"
 											]
 										}
 									},
@@ -2066,7 +2066,7 @@
 											}
 										],
 										"url": {
-											"raw": "{{notification-api-url}}/service/{{service-id}}/template/{{email-template-id}}",
+											"raw": "{{notification-api-url}}/service/{{service-id}}/template/{{sms-template-id}}",
 											"host": [
 												"{{notification-api-url}}"
 											],
@@ -2074,7 +2074,7 @@
 												"service",
 												"{{service-id}}",
 												"template",
-												"{{email-template-id}}"
+												"{{sms-template-id}}"
 											]
 										}
 									},
