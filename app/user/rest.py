@@ -606,13 +606,13 @@ def update_password(user_id):
     user = get_user_by_id(user_id=user_id)
     req_json = request.get_json()
     pwd = req_json.get("_password")
-    
+
     login_data = {}
-    
-    if ("loginData" in req_json):
+
+    if "loginData" in req_json:
         login_data = ["loginData"]
-        del req_json ["loginData"]
-    
+        del req_json["loginData"]
+
     update_dct, errors = user_update_password_schema_load_json.load(req_json)
     if errors:
         raise InvalidRequest(errors, status_code=400)
@@ -623,7 +623,7 @@ def update_password(user_id):
         raise InvalidRequest(errors, status_code=400)
 
     update_user_password(user, pwd)
-    
+
     # save login event
     if login_data is not None and login_data != {}:
         save_login_event(LoginEvent(user_id=user.id, data=login_data))
