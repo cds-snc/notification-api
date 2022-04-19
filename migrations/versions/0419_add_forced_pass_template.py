@@ -24,12 +24,17 @@ service_id = "d6aa2c68-a2d9-4437-ab19-3ae8eb202553"
 
 
 def upgrade():
-    password = hashpw(str(uuid.uuid4()))
     op.get_bind()
     template_insert = """INSERT INTO templates (id, name, template_type, created_at,
                                                 content, archived, service_id, subject, created_by_id, version, process_type, hidden)
                                  VALUES ('{}', '{}', '{}', '{}', '{}', False, '{}', '{}', '{}', 1, '{}', False)
                               """
+
+    template_history_insert = """INSERT INTO templates_history (id, name, template_type, created_at,
+                                                                content, archived, service_id,
+                                                                subject, created_by_id, version, process_type, hidden)
+                                 VALUES ('{}', '{}', '{}', '{}', '{}', False, '{}', '{}', '{}', 1, 'normal', False)
+                            """
 
     password_reset_content = """
         Hi ((Name)),
@@ -44,6 +49,19 @@ def upgrade():
         Ce lien est unique. Ne le transmettez à personne. 
         Si vous navez pas demandé ce courriel, veuillez [nous contacter](https://notification.canada.ca/contact?lang=fr).
         """
+
+    op.execute(
+        template_history_insert.format(
+            "e9a65a6b-497b-42f2-8f43-1736e43e13b3",
+            "Notify email verification code",
+            "email",
+            datetime.utcnow(),
+            password_reset_content,
+            service_id,
+            "Force reset your Notify password",
+            user_id,
+        )
+    )
 
     op.execute(
         template_insert.format(
