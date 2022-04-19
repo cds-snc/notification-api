@@ -53,7 +53,7 @@ def upgrade():
     op.execute(
         template_history_insert.format(
             "e9a65a6b-497b-42f2-8f43-1736e43e13b3",
-            "Notify email verification code",
+            "Notify forced-password reset email",
             "email",
             datetime.utcnow(),
             password_reset_content,
