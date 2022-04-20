@@ -2134,4 +2134,5 @@ class VAProfileLocalCache(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     mpi_icn = db.Column(db.String(29), nullable=False)
     va_profile_id = db.Column(db.Integer, nullable=False)
-    va_profile_item_id = db.Column(db.Integer, nullable=False)
+    communication_item_id = db.Column(db.Integer, nullable=False)
+    communication_channel_name = db.Column(db.String(255), nullable=False)
