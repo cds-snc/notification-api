@@ -625,7 +625,7 @@ def update_password(user_id):
     update_user_password(user, pwd)
 
     # save login event
-    if login_data is not None and login_data != {}:
+    if login_data:
         save_login_event(LoginEvent(user_id=user.id, data=login_data))
 
     changes = {"password": "password updated"}
