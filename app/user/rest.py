@@ -601,6 +601,37 @@ def send_user_reset_password():
     return jsonify({}), 204
 
 
+@user_blueprint.route("/forced-password-reset", methods=["POST"])
+def send_forced_user_reset_password():
+    email, errors = email_data_request_schema.load(request.get_json())
+
+    user_to_send_to = get_user_by_email(email["email"])
+
+    if user_to_send_to.blocked:
+        return jsonify({"message": "cannot reset password: user blocked"}), 400
+
+    template = dao_get_template_by_id(current_app.config["FORCED_PASSWORD_RESET_TEMPLATE_ID"])
+    service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
+    saved_notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        recipient=email["email"],
+        service=service,
+        personalisation={
+            "user_name": user_to_send_to.name,
+            "url": _create_reset_password_url(user_to_send_to.email_address),
+        },
+        notification_type=template.template_type,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+        reply_to_text=service.get_default_reply_to_email_address(),
+    )
+
+    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+
+    return jsonify({}), 204
+
+
 @user_blueprint.route("/<uuid:user_id>/update-password", methods=["POST"])
 def update_password(user_id):
     user = get_user_by_id(user_id=user_id)
