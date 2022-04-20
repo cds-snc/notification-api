@@ -987,6 +987,40 @@ def test_update_user_password_failes_when_banned_password_used(client, sample_se
     assert resp.status_code == 400
 
 
+def test_update_user_password_creates_LoginEvent_when_loginData_provided(client, sample_service, mocker):
+    sample_user = sample_service.users[0]
+    new_password = "Sup3rS3cur3_P4ssw0rd"
+    data = {"_password": new_password, "loginData": {"some": "data"}}
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+
+    resp = client.post(
+        url_for("user.update_password", user_id=sample_user.id),
+        data=json.dumps(data),
+        headers=headers,
+    )
+    assert resp.status_code == 200
+
+    assert LoginEvent.query.count() == 1
+
+
+def test_update_user_password_does_not_create_LoginEvent_when_loginData_not_provided(client, sample_service, mocker):
+    sample_user = sample_service.users[0]
+    new_password = "Sup3rS3cur3_P4ssw0rd"
+    data = {"_password": new_password}
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+
+    resp = client.post(
+        url_for("user.update_password", user_id=sample_user.id),
+        data=json.dumps(data),
+        headers=headers,
+    )
+    assert resp.status_code == 200
+
+    assert LoginEvent.query.count() == 0
+
+
 def test_activate_user(admin_request, sample_user):
     sample_user.state = "pending"
 
