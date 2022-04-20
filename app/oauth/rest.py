@@ -20,6 +20,8 @@ from .exceptions import IdpAssignmentException, OAuthException, IncorrectGithubI
 from app.oauth.registry import oauth_registry
 from app.schema_validation import validate
 from .auth_schema import password_login_request
+from app.dao.services_dao import dao_fetch_all_services_by_user
+from app.schemas import service_schema
 
 oauth_blueprint = Blueprint('oauth', __name__, url_prefix='/auth')
 register_errors(oauth_blueprint)
@@ -107,6 +109,15 @@ def authorize():
                 current_app.logger.error(e)
                 statsd_client.incr('oauth.authorization.github_id_mismatch')
                 return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
+
+
+@oauth_blueprint.route('/my-services/<uuid:user_id>', methods=['GET'])
+def get_services_by_user(user_id):
+    only_active = request.args.get('only_active') == 'True'
+
+    services = dao_fetch_all_services_by_user(user_id, only_active)
+    data = service_schema.dump(services, many=True).data
+    return jsonify(data=data)
 
 
 @oauth_blueprint.route('/callback')

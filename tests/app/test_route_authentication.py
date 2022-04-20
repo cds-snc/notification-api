@@ -34,6 +34,7 @@ def test_all_routes_have_authentication(client, db_session):
         '/auth/redeem-token',
         '/auth/token',
         '/platform-stats/monthly',
+        '/auth/my-services/<uuid:user_id>'
     }
 
     for route in routes_without_authentication:
