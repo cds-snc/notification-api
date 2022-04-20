@@ -815,9 +815,11 @@ class TemplateBase(db.Model):
     content = db.Column(db.Text, nullable=False)
     archived = db.Column(db.Boolean, nullable=False, default=False)
     hidden = db.Column(db.Boolean, nullable=False, default=False)
+    onsite_notification = db.Column(db.Boolean, nullable=False, default=False)
     subject = db.Column(db.Text)
     postage = db.Column(db.String, nullable=True)
     reply_to_email = db.Column(db.String(254), nullable=True)
+
     CheckConstraint("""
         CASE WHEN template_type = 'letter' THEN
             postage is not null and postage in ('first', 'second')
