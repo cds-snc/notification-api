@@ -704,6 +704,26 @@ def test_send_user_reset_password_should_send_reset_password_link(client, sample
 
 
 @freeze_time("2016-01-01 11:09:00.061258")
+def test_send_user_reset_password_should_send_reset_password_link(
+    client, sample_user, mocker, forced_password_reset_email_template
+):
+    mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    data = json.dumps({"email": sample_user.email_address})
+    auth_header = create_authorization_header()
+    notify_service = forced_password_reset_email_template.service
+    resp = client.post(
+        url_for("user.send_forced_user_reset_password"),
+        data=data,
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert resp.status_code == 204
+    notification = Notification.query.first()
+    mocked.assert_called_once_with([str(notification.id)], queue="notify-internal-tasks")
+    assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
+
+
+@freeze_time("2016-01-01 11:09:00.061258")
 def test_send_user_reset_password_should_send_400_if_user_blocked(client, mocker, password_reset_email_template):
     blocked_user = create_user(blocked=True, email="blocked@cds-snc.ca")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
