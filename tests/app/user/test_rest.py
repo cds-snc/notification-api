@@ -704,7 +704,7 @@ def test_send_user_reset_password_should_send_reset_password_link(client, sample
 
 
 @freeze_time("2016-01-01 11:09:00.061258")
-def test_send_user_reset_password_should_send_reset_password_link(
+def test_send_user_forced_reset_password_should_send_reset_password_link(
     client, sample_user, mocker, forced_password_reset_email_template
 ):
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
