@@ -610,7 +610,7 @@ def update_password(user_id):
     login_data = {}
 
     if "loginData" in req_json:
-        login_data = ["loginData"]
+        login_data = req_json["loginData"]
         del req_json["loginData"]
 
     update_dct, errors = user_update_password_schema_load_json.load(req_json)
