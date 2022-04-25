@@ -271,7 +271,6 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
     can delete the inflight notifications.
     """
     verified_notifications: List[Any] = []
-    notification_id_queue: Dict = {}
     saved_notifications = []
     for signed_notification in signed_notifications:
         notification = signer.verify(signed_notification)
@@ -311,8 +310,8 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
         notification["created_at"] = datetime.utcnow()
         notification["job_id"] = notification.get("job", None)
         notification["job_row_number"] = notification.get("row_number", None)
+        notification["queue_name"] = notification.get("queue") or template.queue_to_use()
         verified_notifications.append(notification)
-        notification_id_queue[notification_id] = notification.get("queue")
 
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job.
@@ -331,11 +330,10 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
     research_mode = service.research_mode  # type: ignore
 
     for notification in saved_notifications:
-        queue = notification_id_queue.get(notification.id) or template.queue_to_use()  # type: ignore
         send_notification_to_queue(
             notification,
             research_mode,
-            queue=queue,
+            queue=notification["queue_name"],
         )
 
         current_app.logger.debug(
@@ -387,12 +385,13 @@ def save_sms(self, service_id, notification_id, signed_notification, sender_id=N
             job_id=notification.get("job", None),
             job_row_number=notification.get("row_number", None),
             reply_to_text=reply_to_text,
+            queue_name=notification.get("queue") or template.queue_to_use(),
         )
 
         send_notification_to_queue(
             saved_notification,
             service.research_mode,
-            queue=notification.get("queue") or template.queue_to_use(),
+            queue=notification.get("queue_name"),
         )
 
         current_app.logger.debug(
@@ -417,7 +416,6 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
     can delete the inflight notifications.
     """
     verified_notifications: List[Any] = []
-    notification_id_queue: Dict = {}
     saved_notifications = []
     for signed_notification in signed_notifications:
         notification = signer.verify(signed_notification)
@@ -457,8 +455,8 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
         notification["created_at"] = datetime.utcnow()
         notification["job_id"] = notification.get("job", None)
         notification["job_row_number"] = notification.get("row_number", None)
+        notification["queue_name"] = notification.get("queue") or template.queue_to_use()
         verified_notifications.append(notification)
-        notification_id_queue[notification_id] = notification.get("queue")
 
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job
@@ -476,7 +474,7 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
         check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
         research_mode = service.research_mode  # type: ignore
         for notification in saved_notifications:
-            queue = notification_id_queue.get(notification.id) or template.queue_to_use()  # type: ignore
+            queue = notification["queue_name"]
             send_notification_to_queue(
                 notification,
                 research_mode,
@@ -533,11 +531,12 @@ def save_email(self, service_id, notification_id, signed_notification, sender_id
             job_row_number=notification.get("row_number", None),
             reply_to_text=reply_to_text,
             client_reference=notification.get("client_reference", None),
+            queue_name=notification.get("queue") or template.queue_to_use(),
         )
         send_notification_to_queue(
             saved_notification,
             service.research_mode,
-            queue=notification.get("queue") or template.queue_to_use(),
+            queue=notification.get("queue_name"),
         )
 
         current_app.logger.debug("Email {} created at {}".format(saved_notification.id, saved_notification.created_at))
@@ -590,6 +589,7 @@ def save_letter(
             reference=create_random_identifier(),
             reply_to_text=template.get_reply_to_text(),
             status=status,
+            queue_name=notification.get("queue") or template.queue_to_use(),
         )
 
         if not service.research_mode:

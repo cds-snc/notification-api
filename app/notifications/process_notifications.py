@@ -261,6 +261,10 @@ def send_notification_to_queue(notification, research_mode, queue=None):
     current_app.logger.info(
         "{} {} sent to the {} queue for delivery".format(notification.notification_type, notification.id, queue)
     )
+    if notification.queue_name != queue:
+        current_app.logger.info(
+            f"Warning: notification {notification.id} has queue_name {notification.queue_name} but was sent using queue {queue}"
+        )
 
 
 def persist_notifications(notifications):
@@ -295,6 +299,7 @@ def persist_notifications(notifications):
             status=notification.get("status"),
             reply_to_text=notification.get("reply_to_text"),
             billable_units=notification.get("billable_units"),
+            queue_name=notification.get("queue_name"),
         )
 
         if notification.get("notification_type") == SMS_TYPE:
