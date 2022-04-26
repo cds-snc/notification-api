@@ -19,6 +19,7 @@ from app.dao.notifications_dao import (
     dao_create_notification,
     dao_created_scheduled_notification,
     dao_delete_notifications_by_id,
+    dao_update_notification,
 )
 from app.models import (
     EMAIL_TYPE,
@@ -257,7 +258,9 @@ def send_notification_to_queue(notification, research_mode, queue=None):
     except Exception:
         dao_delete_notifications_by_id(notification.id)
         raise
-
+    if notification.queue_name != queue:
+        notification.queue_name = queue
+        dao_update_notification(notification)
     current_app.logger.info(
         "{} {} sent to the {} queue for delivery".format(notification.notification_type, notification.id, queue)
     )

@@ -391,6 +391,8 @@ def test_send_notification_to_queue(
     send_notification_to_queue(notification=notification, research_mode=research_mode, queue=requested_queue)
 
     mocked.assert_called_once_with([str(notification.id)], queue=expected_queue)
+    assert Notification.query.all()[0].queue_name == "Steve"
+    
 
 
 def test_send_notification_to_queue_throws_exception_deletes_notification(sample_notification, mocker):
