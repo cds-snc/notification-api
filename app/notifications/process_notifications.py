@@ -19,8 +19,9 @@ from app.dao.notifications_dao import (
     dao_create_notification,
     dao_created_scheduled_notification,
     dao_delete_notifications_by_id,
-    dao_update_notification,
 )
+from app.dao.templates_dao import dao_get_template_by_id
+from app.dao.services_dao import dao_fetch_service_by_id
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
@@ -96,6 +97,8 @@ def persist_notification(
         reply_to_text=reply_to_text,
         billable_units=billable_units,
     )
+    template = dao_get_template_by_id(template_id, template_version)
+    notification.queue_name = choose_queue(notification=notification,research_mode=service.research_mode,queue=template.queue_to_use())
 
     if notification_type == SMS_TYPE:
         formatted_recipient = validate_and_format_phone_number(recipient, international=True)
@@ -258,12 +261,11 @@ def send_notification_to_queue(notification, research_mode, queue=None):
     except Exception:
         dao_delete_notifications_by_id(notification.id)
         raise
-    if notification.queue_name != queue:
-        notification.queue_name = queue
-        dao_update_notification(notification)
     current_app.logger.info(
         "{} {} sent to the {} queue for delivery".format(notification.notification_type, notification.id, queue)
     )
+    if notification.queue_name != queue:
+        current_app.logger.info(f"Warning: notification {notification.id} has queue_name {notification.queue_name} but was sent to queue {queue}")
 
 
 def persist_notifications(notifications):
@@ -299,6 +301,9 @@ def persist_notifications(notifications):
             reply_to_text=notification.get("reply_to_text"),
             billable_units=notification.get("billable_units"),
         )
+        template = dao_get_template_by_id(notification_obj.template_id, notification_obj.template_version)
+        service = dao_fetch_service_by_id(service_id)
+        notification_obj.queue_name = choose_queue(notification=notification_obj, research_mode=service.research_mode, queue=template.queue_to_use())
 
         if notification.get("notification_type") == SMS_TYPE:
             formatted_recipient = validate_and_format_phone_number(notification_recipient, international=True)
