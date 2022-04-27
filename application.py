@@ -3,9 +3,9 @@ from __future__ import print_function
 
 import os
 
-import awsgi
 import newrelic.agent  # See https://bit.ly/2xBVKBH
 import sentry_sdk
+from apig_wsgi import make_lambda_handler
 from dotenv import load_dotenv
 from flask import Flask
 from sentry_sdk.integrations.celery import CeleryIntegration
@@ -28,7 +28,8 @@ if "SENTRY_URL" in os.environ:
 application = Flask("api")
 application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
 app = create_app(application)
-app
+
+apig_wsgi_handler = make_lambda_handler(app, binary_support=True)
 
 if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("")
@@ -44,4 +45,4 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
 def handler(event, context):
     newrelic.agent.initialize()  # noqa: E402
     newrelic.agent.register_application(timeout=20.0)
-    return awsgi.response(app, event, context)
+    return apig_wsgi_handler(event, context)
