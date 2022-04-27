@@ -97,7 +97,7 @@ def persist_notification(
         reply_to_text=reply_to_text,
         billable_units=billable_units,
     )
-    template = dao_get_template_by_id(template_id, template_version)
+    template = dao_get_template_by_id(template_id, template_version, use_cache=True)
     notification.queue_name = choose_queue(notification=notification,research_mode=service.research_mode,queue=template.queue_to_use())
 
     if notification_type == SMS_TYPE:
@@ -301,8 +301,8 @@ def persist_notifications(notifications):
             reply_to_text=notification.get("reply_to_text"),
             billable_units=notification.get("billable_units"),
         )
-        template = dao_get_template_by_id(notification_obj.template_id, notification_obj.template_version)
-        service = dao_fetch_service_by_id(service_id)
+        template = dao_get_template_by_id(notification_obj.template_id, notification_obj.template_version, use_cache=True)
+        service = dao_fetch_service_by_id(service_id, use_cache=True)
         notification_obj.queue_name = choose_queue(notification=notification_obj, research_mode=service.research_mode, queue=template.queue_to_use())
 
         if notification.get("notification_type") == SMS_TYPE:
