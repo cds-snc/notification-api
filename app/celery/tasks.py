@@ -156,6 +156,7 @@ def job_complete(job: Job, resumed=False, start=None):
 def process_row(row: Row, template: Template, job: Job, service: Service):
     template_type = template.template_type
     client_reference = row.get("reference")
+    sender_id = str(job.sender_id) if job.sender_id else None
     signed = signer.sign(
         {
             "api_key": job.api_key_id and str(job.api_key_id),
@@ -163,8 +164,8 @@ def process_row(row: Row, template: Template, job: Job, service: Service):
             "template_version": job.template_version,
             "job": str(job.id),
             "to": row.recipient,
-            "reply_to_text": service.service_email_reply_to,
-            "row_number": row.index,
+            "reply_to_text": dao_get_reply_to_by_id(service.id, sender_id).email_address,
+            "row_number": row.i0ndex,
             "personalisation": dict(row.personalisation),
             "queue": queue_to_use(job.notification_count),
             "client_reference": client_reference.data if client_reference else None,
@@ -172,8 +173,6 @@ def process_row(row: Row, template: Template, job: Job, service: Service):
     )
 
     notification_id = create_uuid()
-
-    sender_id = str(job.sender_id) if job.sender_id else None
 
     send_fns = {SMS_TYPE: save_sms, EMAIL_TYPE: save_email, LETTER_TYPE: save_letter}
 
@@ -215,7 +214,7 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
                 "template_version": job.template_version,
                 "job": str(job.id),
                 "to": row.recipient,
-                "reply_to_text": service.service_email_reply_to,
+                "reply_to_text": dao_get_reply_to_by_id(service.id, sender_id).email_address,
                 "row_number": row.index,
                 "personalisation": dict(row.personalisation),
                 "queue": queue_to_use(job.notification_count),

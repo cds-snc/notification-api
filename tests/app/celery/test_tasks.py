@@ -77,6 +77,7 @@ def _notification_json(template, to, personalisation=None, job_id=None, row_numb
         "template": str(template.id),
         "template_version": template.version,
         "to": to,
+        # "reply_to_text": service_email_reply_to_dao.dao_get_reply_to_by_id(template.service.id, job.sender_id),
         "notification_type": template.template_type,
         "personalisation": personalisation or {},
         "job": job_id and str(job_id),
