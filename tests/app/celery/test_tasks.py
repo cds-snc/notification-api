@@ -68,19 +68,17 @@ from tests.conftest import set_config_values
 
 reply_to = ServiceEmailReplyTo()
 
-
 class AnyStringWith(str):
     def __eq__(self, other):
         return self in other
 
 
 def _notification_json(template, to, personalisation=None, job_id=None, row_number=0, queue=None):
-    job = jobs_dao.dao_get_job_by_id(job_id)
     return {
         "template": str(template.id),
         "template_version": template.version,
         "to": to,
-        "reply_to_text": "",
+        "reply_to_text": reply_to,
         "notification_type": template.template_type,
         "personalisation": personalisation or {},
         "job": job_id and str(job_id),
