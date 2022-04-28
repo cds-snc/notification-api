@@ -67,17 +67,20 @@ from tests.app.db import (
 from tests.conftest import set_config_values
 
 
+reply_to = ServiceEmailReplyTo()
+
 class AnyStringWith(str):
     def __eq__(self, other):
         return self in other
 
 
 def _notification_json(template, to, personalisation=None, job_id=None, row_number=0, queue=None):
+    job = jobs_dao.dao_get_job_by_id(job_id)
     return {
         "template": str(template.id),
         "template_version": template.version,
         "to": to,
-        # "reply_to_text": service_email_reply_to_dao.dao_get_reply_to_by_id(template.service.id, job.sender_id),
+        "reply_to_text": "",
         "notification_type": template.template_type,
         "personalisation": personalisation or {},
         "job": job_id and str(job_id),
@@ -1201,6 +1204,7 @@ def test_save_email_should_save_default_email_reply_to_text_on_notification(noti
 
     notification = _notification_json(template, to="test@example.com")
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
 
     notification_id = uuid.uuid4()
     save_email(
@@ -1219,6 +1223,7 @@ def test_save_sms_should_save_default_smm_sender_notification_reply_to_text_on(n
 
     notification = _notification_json(template, to="6502532222")
     mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
 
     notification_id = uuid.uuid4()
     save_sms(
@@ -1239,6 +1244,7 @@ def test_should_put_save_email_task_in_research_mode_queue_if_research_mode_serv
     notification = _notification_json(template, to="test@test.com")
 
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
 
     notification_id = uuid.uuid4()
 
@@ -1266,6 +1272,7 @@ def test_save_emails(notify_db_session, mocker):
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
 
     save_emails(
         str(template.service_id),
@@ -1292,6 +1299,7 @@ def test_should_route_save_email_task_to_appropriate_queue_according_to_template
     notification = _notification_json(template, to="test@test.com")
 
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
 
     notification_id = uuid.uuid4()
 
@@ -1313,6 +1321,7 @@ def test_should_route_save_email_task_to_bulk_on_large_csv_file(notify_db_sessio
     notification = _notification_json(template, to="test@test.com", queue="bulk-tasks")
 
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
 
     notification_id = uuid.uuid4()
 
@@ -1358,6 +1367,7 @@ def test_should_save_sms_template_to_and_persist_with_job_id(sample_job, mocker)
 def test_should_use_email_template_and_persist(sample_email_template_with_placeholders, sample_api_key, mocker):
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     mock_over_daily_limit = mocker.patch("app.celery.tasks.check_service_over_daily_message_limit")
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
 
     now = datetime(2016, 1, 1, 11, 9, 0)
     notification_id = uuid.uuid4()
@@ -1397,6 +1407,7 @@ def test_should_use_email_template_and_persist(sample_email_template_with_placeh
 
 
 def test_save_email_should_use_template_version_from_job_not_latest(sample_email_template, mocker):
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     notification = _notification_json(sample_email_template, "my_email@my_email.com")
     version_on_notification = sample_email_template.version
     # Change the template
@@ -1427,6 +1438,7 @@ def test_save_email_should_use_template_version_from_job_not_latest(sample_email
 
 
 def test_should_use_email_template_subject_placeholders(sample_email_template_with_placeholders, mocker):
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     notification = _notification_json(sample_email_template_with_placeholders, "my_email@my_email.com", {"name": "Jo"})
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
@@ -1450,6 +1462,7 @@ def test_should_use_email_template_subject_placeholders(sample_email_template_wi
 
 
 def test_save_email_uses_the_reply_to_text_when_provided(sample_email_template, mocker):
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     notification = _notification_json(sample_email_template, "my_email@my_email.com")
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
@@ -1472,6 +1485,7 @@ def test_save_email_uses_the_reply_to_text_when_provided(sample_email_template, 
 
 
 def test_save_email_uses_the_default_reply_to_text_if_sender_id_is_none(sample_email_template, mocker):
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     notification = _notification_json(sample_email_template, "my_email@my_email.com")
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
@@ -1491,6 +1505,7 @@ def test_save_email_uses_the_default_reply_to_text_if_sender_id_is_none(sample_e
 
 
 def test_should_use_email_template_and_persist_without_personalisation(sample_email_template, mocker):
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     notification = _notification_json(sample_email_template, "my_email@my_email.com")
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
@@ -1516,6 +1531,7 @@ def test_should_use_email_template_and_persist_without_personalisation(sample_em
 
 
 def test_save_sms_should_go_to_retry_queue_if_database_errors(sample_template, mocker):
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     notification = _notification_json(sample_template, "+1 650 253 2222")
 
     expected_exception = SQLAlchemyError()
@@ -1542,6 +1558,7 @@ def test_save_sms_should_go_to_retry_queue_if_database_errors(sample_template, m
 
 
 def test_save_email_should_go_to_retry_queue_if_database_errors(sample_email_template, mocker):
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     notification = _notification_json(sample_email_template, "test@example.gov.uk")
 
     expected_exception = SQLAlchemyError()
@@ -1568,6 +1585,7 @@ def test_save_email_should_go_to_retry_queue_if_database_errors(sample_email_tem
 
 
 def test_save_email_does_not_send_duplicate_and_does_not_put_in_retry_queue(sample_notification, mocker):
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     json = _notification_json(
         sample_notification.template,
         sample_notification.to,
@@ -1590,6 +1608,7 @@ def test_save_email_does_not_send_duplicate_and_does_not_put_in_retry_queue(samp
 
 
 def test_save_sms_does_not_send_duplicate_and_does_not_put_in_retry_queue(sample_notification, mocker):
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     json = _notification_json(sample_notification.template, "6502532222", job_id=uuid.uuid4(), row_number=1)
     deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     retry = mocker.patch("app.celery.tasks.save_sms.retry", side_effect=Exception())
@@ -1783,6 +1802,7 @@ def test_save_letter_uses_template_reply_to_text(mocker, notify_db_session):
 
 
 def test_save_sms_uses_sms_sender_reply_to_text(mocker, notify_db_session):
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     service = create_service_with_defined_sms_sender(sms_sender_value="6502532222")
     template = create_template(service=service)
 
@@ -1801,6 +1821,7 @@ def test_save_sms_uses_sms_sender_reply_to_text(mocker, notify_db_session):
 
 
 def test_save_sms_uses_non_default_sms_sender_reply_to_text_if_provided(mocker, notify_db_session):
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     service = create_service_with_defined_sms_sender(sms_sender_value="07123123123")
     template = create_template(service=service)
     new_sender = service_sms_sender_dao.dao_add_sms_sender_for_service(service.id, "new-sender", False)
@@ -2075,6 +2096,7 @@ def test_process_incomplete_job_sms(mocker, sample_template):
         "app.celery.tasks.s3.get_job_from_s3",
         return_value=load_example_csv("multiple_sms"),
     )
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     save_sms = mocker.patch("app.celery.tasks.save_sms.apply_async")
 
     job = create_job(
@@ -2106,6 +2128,7 @@ def test_process_incomplete_job_with_notifications_all_sent(mocker, sample_templ
         "app.celery.tasks.s3.get_job_from_s3",
         return_value=load_example_csv("multiple_sms"),
     )
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     mock_save_sms = mocker.patch("app.celery.tasks.save_sms.apply_async")
 
     job = create_job(
@@ -2145,6 +2168,7 @@ def test_process_incomplete_jobs_sms(mocker, sample_template):
         "app.celery.tasks.s3.get_job_from_s3",
         return_value=load_example_csv("multiple_sms"),
     )
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     mock_save_sms = mocker.patch("app.celery.tasks.save_sms.apply_async")
 
     job = create_job(
@@ -2196,6 +2220,7 @@ def test_process_incomplete_jobs_no_notifications_added(mocker, sample_template)
         "app.celery.tasks.s3.get_job_from_s3",
         return_value=load_example_csv("multiple_sms"),
     )
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     mock_save_sms = mocker.patch("app.celery.tasks.save_sms.apply_async")
 
     job = create_job(
@@ -2224,6 +2249,7 @@ def test_process_incomplete_jobs(mocker):
         "app.celery.tasks.s3.get_job_from_s3",
         return_value=load_example_csv("multiple_sms"),
     )
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     mock_save_sms = mocker.patch("app.celery.tasks.save_sms.apply_async")
 
     jobs = []
@@ -2238,6 +2264,7 @@ def test_process_incomplete_job_no_job_in_database(mocker, fake_uuid):
         "app.celery.tasks.s3.get_job_from_s3",
         return_value=load_example_csv("multiple_sms"),
     )
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     mock_save_sms = mocker.patch("app.celery.tasks.save_sms.apply_async")
 
     with pytest.raises(expected_exception=Exception):
@@ -2252,6 +2279,7 @@ def test_process_incomplete_job_email(mocker, sample_email_template):
         "app.celery.tasks.s3.get_job_from_s3",
         return_value=load_example_csv("multiple_email"),
     )
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     mock_email_saver = mocker.patch("app.celery.tasks.save_email.apply_async")
 
     job = create_job(
@@ -2282,6 +2310,7 @@ def test_process_incomplete_job_letter(mocker, sample_letter_template):
         "app.celery.tasks.s3.get_job_from_s3",
         return_value=load_example_csv("multiple_letter"),
     )
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     mock_letter_saver = mocker.patch("app.celery.tasks.save_letter.apply_async")
 
     job = create_job(

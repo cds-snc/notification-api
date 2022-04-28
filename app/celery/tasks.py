@@ -165,7 +165,7 @@ def process_row(row: Row, template: Template, job: Job, service: Service):
             "job": str(job.id),
             "to": row.recipient,
             "reply_to_text": dao_get_reply_to_by_id(service.id, sender_id).email_address,
-            "row_number": row.i0ndex,
+            "row_number": row.index,
             "personalisation": dict(row.personalisation),
             "queue": queue_to_use(job.notification_count),
             "client_reference": client_reference.data if client_reference else None,
