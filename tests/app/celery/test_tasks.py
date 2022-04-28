@@ -68,6 +68,7 @@ from tests.conftest import set_config_values
 
 reply_to = ServiceEmailReplyTo()
 
+
 class AnyStringWith(str):
     def __eq__(self, other):
         return self in other
