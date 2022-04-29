@@ -14,34 +14,65 @@ def lambda_handler(event: any, context: any):
             regarding what triggered the lambda (context.invoked_function_arn).
     """
 
-    connection = http.client.HTTPSConnection(
-        os.environ['vetext_api_endpoint_domain'])
+    try: 
+        vetext_api_endpoint_domain = os.environ['vetext_api_endpoint_domain']
+    except KeyError as e: 
+        return {
+            'statusCode': 424,
+            'body': "Missing vetext api endpoint domain "
+        }
+
+    try: 
+        vetext_api_endpoint_auth = os.environ['vetext_api_endpoint_auth']
+    except KeyError as e: 
+        return {
+            'statusCode': 424,
+            'body': "Missing vetext api endpoint auth token"
+        }
+
+    try: 
+        vetext_api_endpoint_path = os.environ['vetext_api_endpoint_path']
+    except KeyError as e: 
+        return {
+            'statusCode': 424,
+            'body': "Missing vetext api endpoint path"
+        }
+
+    try: 
+        vetext_request_drop_sqs_url = os.environ['vetext_request_drop_sqs_url']
+    except KeyError as e: 
+        return {
+            'statusCode': 424,
+            'body': "Missing vetext request drop sqs url"
+        }
+
+    connection = http.client.HTTPSConnection(vetext_api_endpoint_domain)
 
     # Authorization is basic token authentication that is stored in environment.
     headers = {
         'Content-type': 'application/json',
-        'Authorization': os.environ['vetext_api_endpoint_auth']
+        'Authorization': vetext_api_endpoint_auth
     }
 
     # event["body"] is a url-encoded string.
     #   parse_qs converts url-encoded strings to dictionary objects
     event_body = urllib.parse.parse_qs(event["body"])
-
+    
     body = {
-        "accountSid": event_body.get("AccountSid", ""),
-        "messageSid": event_body.get("MessageSid", ""),
+        "accountSid": event_body.get("AccountSid", [""])[0],
+        "messageSid": event_body.get("MessageSid", [""])[0],
         "messagingServiceSid": "",
-        "to": event_body.get("To", ""),
-        "from": event_body.get("From", ""),
-        "messageStatus": event_body.get("SmsStatus", ""),
-        "body": event_body.get("Body", "")
+        "to": event_body.get("To", [""])[0],
+        "from": event_body.get("From", [""])[0],
+        "messageStatus": event_body.get("SmsStatus", [""])[0],
+        "body": event_body.get("Body", [""])[0]
     }
 
     json_data = json.dumps(body)
 
     connection.request(
         'POST',
-        os.environ['vetext_api_endpoint_path'],
+        vetext_api_endpoint_path,
         json_data,
         headers)
 
@@ -49,7 +80,7 @@ def lambda_handler(event: any, context: any):
 
     if response.status != 200:
         sqs = boto3.client('sqs')
-        queue_url = os.environ['vetext_request_drop_sqs_url']
+        queue_url = vetext_request_drop_sqs_url
 
         queue_msg = json.dumps(event)
         queue_msg_attrs = {
