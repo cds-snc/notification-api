@@ -14,44 +14,25 @@ def lambda_handler(event: any, context: any):
             regarding what triggered the lambda (context.invoked_function_arn).
     """
 
-    try: 
-        vetext_api_endpoint_domain = os.environ['vetext_api_endpoint_domain']
-    except KeyError as e: 
+    try:
+        assert os.environ.get('vetext_api_endpoint_domain') is not None, 'vetext_api_endpoint_domain'
+        assert os.environ.get('vetext_api_endpoint_auth') is not None, 'vetext_api_endpoint_auth'
+        assert os.environ.get('vetext_api_endpoint_path') is not None, 'vetext_api_endpoint_path'
+        assert os.environ.get('vetext_request_drop_sqs_url') is not None, 'vetext_api_endpoint_path'
+    except AssertionError as e:
+        print(f'Failed to find environmental variable: {e}')
+        # Handle failed env variable
         return {
             'statusCode': 424,
-            'body': "Missing vetext api endpoint domain "
+            'body': "Missing env variable"
         }
 
-    try: 
-        vetext_api_endpoint_auth = os.environ['vetext_api_endpoint_auth']
-    except KeyError as e: 
-        return {
-            'statusCode': 424,
-            'body': "Missing vetext api endpoint auth token"
-        }
-
-    try: 
-        vetext_api_endpoint_path = os.environ['vetext_api_endpoint_path']
-    except KeyError as e: 
-        return {
-            'statusCode': 424,
-            'body': "Missing vetext api endpoint path"
-        }
-
-    try: 
-        vetext_request_drop_sqs_url = os.environ['vetext_request_drop_sqs_url']
-    except KeyError as e: 
-        return {
-            'statusCode': 424,
-            'body': "Missing vetext request drop sqs url"
-        }
-
-    connection = http.client.HTTPSConnection(vetext_api_endpoint_domain)
+    connection = http.client.HTTPSConnection(os.environ.get('vetext_api_endpoint_domain'))
 
     # Authorization is basic token authentication that is stored in environment.
     headers = {
         'Content-type': 'application/json',
-        'Authorization': vetext_api_endpoint_auth
+        'Authorization': os.environ.get('vetext_api_endpoint_auth')
     }
 
     # event["body"] is a url-encoded string.
@@ -72,7 +53,7 @@ def lambda_handler(event: any, context: any):
 
     connection.request(
         'POST',
-        vetext_api_endpoint_path,
+        os.environ.get('vetext_api_endpoint_path'),
         json_data,
         headers)
 
@@ -80,7 +61,7 @@ def lambda_handler(event: any, context: any):
 
     if response.status != 200:
         sqs = boto3.client('sqs')
-        queue_url = vetext_request_drop_sqs_url
+        queue_url = os.environ.get('vetext_request_drop_sqs_url')
 
         queue_msg = json.dumps(event)
         queue_msg_attrs = {
