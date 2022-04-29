@@ -5,6 +5,7 @@ import http.client
 import os
 import urllib.parse
 import boto3
+import logging
 
 def lambda_handler(event: any, context: any):
     """this method takes in an event passed in by either an alb or sqs.
@@ -46,12 +47,7 @@ def lambda_handler(event: any, context: any):
 
     response = connection.getresponse()
 
-    if response.status == 200:
-        return {
-            'statusCode': 200,
-            'body': response.read().decode()
-        }
-    else:
+    if response.status != 200:
         sqs = boto3.client('sqs')
         queue_url = os.environ['vetext_request_drop_sqs_url']
 
@@ -69,4 +65,9 @@ def lambda_handler(event: any, context: any):
         return {
             'statusCode': response.status,
             'body': response.read().decode()
-        }
+        }        
+    
+    return {
+        'statusCode': 200,
+        'body': response.read().decode()
+    }
