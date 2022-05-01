@@ -23,7 +23,7 @@ def lambda_handler(event: any, context: any):
         if (event["requestContext"] and event["requestContext"]["elb"]):
             print("alb invocation")
             event_bodies = get_body_from_alb_invocation(event)            
-        elif event.Records and event.Records[0].eventSource == 'aws:sqs':
+        elif event["Records"] and event["Records"][0].eventSource == 'aws:sqs':
             print("sqs invoication")
             event_bodies = get_body_from_sqs_invocation(event)
         else:
@@ -32,7 +32,7 @@ def lambda_handler(event: any, context: any):
             }
 
         print(event_bodies)
-        
+
         responses = []
 
         for event_body in event_bodies:            
