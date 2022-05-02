@@ -2,10 +2,14 @@
 
 import json
 import http.client
+import ssl
 import os
+import logging
 from urllib.parse import parse_qsl
 from base64 import b64decode
 import boto3
+
+logger = logging.getLogger()
 
 def lambda_handler(event: any, context: any):
     """this method takes in an event passed in by either an alb or sqs.
@@ -47,6 +51,7 @@ def lambda_handler(event: any, context: any):
 
         print(responses)
     except KeyError as e:
+        logging.exception(e)
         # Handle failed env variable
         print(f'Failed to find environmental variable: {e}')
         # Place request on SQS for processing after environment variable issue is resolved
@@ -56,11 +61,13 @@ def lambda_handler(event: any, context: any):
             'statusCode': 424
         }
     except http.client.HTTPException as e:
+        logging.exception(e)
         # Handle failed http request to vetext endpoint
         print(f'Failure with http connection or request: {e}')
         # Place request on SQS for processing after environment variable issue is resolved
         push_to_sqs(event)
     except Exception as e:
+        logging.exception(e)        
         # Place request on dead letter queue so that it can be analyzed 
         #   for potential processing at a later time
         print(f'Unknown Failure: {e}')
@@ -108,7 +115,7 @@ def get_body_from_alb_invocation(event):
 
 def make_vetext_request(request_body):
     try:
-        connection = http.client.HTTPSConnection(os.environ.get('vetext_api_endpoint_domain'))
+        connection = http.client.HTTPSConnection(os.environ.get('vetext_api_endpoint_domain'),  context = ssl._create_unverified_context())
 
         # Authorization is basic token authentication that is stored in environment.
         headers = {
