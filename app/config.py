@@ -456,6 +456,7 @@ class Config(object):
     FF_NOTIFICATION_CELERY_PERSISTENCE = env.bool("FF_NOTIFICATION_CELERY_PERSISTENCE", False)
     FF_BATCH_INSERTION = env.bool("FF_BATCH_INSERTION", False)
     FF_REDIS_BATCH_SAVING = env.bool("FF_REDIS_BATCH_SAVING", False)
+    FF_PRIORITY_LANES = env.bool("FF_PRIORITY_LANES", False)
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
