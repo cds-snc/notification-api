@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import (
     JSON,
     JSONB,
 )
-from sqlalchemy import UniqueConstraint, CheckConstraint, Index
+from sqlalchemy import and_, CheckConstraint, Index, UniqueConstraint
 from notifications_utils.columns import Columns
 from notifications_utils.recipients import (
     validate_email_address,
@@ -815,8 +815,11 @@ class TemplateBase(db.Model):
     content = db.Column(db.Text, nullable=False)
     archived = db.Column(db.Boolean, nullable=False, default=False)
     hidden = db.Column(db.Boolean, nullable=False, default=False)
+    onsite_notification = db.Column(db.Boolean, nullable=False, default=False)
     subject = db.Column(db.Text)
     postage = db.Column(db.String, nullable=True)
+    reply_to_email = db.Column(db.String(254), nullable=True)
+
     CheckConstraint("""
         CASE WHEN template_type = 'letter' THEN
             postage is not null and postage in ('first', 'second')
@@ -891,9 +894,24 @@ class TemplateBase(db.Model):
         else:
             return None
 
+    # https://docs.sqlalchemy.org/en/13/orm/extensions/hybrid.html
+    # https://stackoverflow.com/questions/55690796/sqlalchemy-typeerror-boolean-value-of-this-clause-is-not-defined/55692795#55692795
+
     @hybrid_property
     def is_precompiled_letter(self):
+        """
+        This is for instance level evaluation.
+        """
+
         return self.hidden and self.name == PRECOMPILED_TEMPLATE_NAME and self.template_type == LETTER_TYPE
+
+    @is_precompiled_letter.expression
+    def is_precompiled_letter(cls):
+        """
+        This is for class level evaluation (i.e. for queries).
+        """
+
+        return and_(cls.hidden, cls.name == PRECOMPILED_TEMPLATE_NAME, cls.template_type == LETTER_TYPE)
 
     @is_precompiled_letter.setter
     def is_precompiled_letter(self, value):
@@ -2103,3 +2121,18 @@ class CommunicationItem(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     va_profile_item_id = db.Column(db.Integer, nullable=False)
     name = db.Column(db.Text(), nullable=False)
+
+
+class VAProfileLocalCache(db.Model):
+    """
+    VA Notify caches person IDs to lighten the load on the MPI databse.
+
+    Master Patient Index (MPI) - Per the "VA Master Person Index, Service Description Document" v4.3 (December 2020),
+        the "ICN" field, which seems to be a primary key, is a string of 29 characters.
+    """
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    mpi_icn = db.Column(db.String(29), nullable=False)
+    va_profile_id = db.Column(db.Integer, nullable=False)
+    communication_item_id = db.Column(db.Integer, nullable=False)
+    communication_channel_name = db.Column(db.String(255), nullable=False)

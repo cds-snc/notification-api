@@ -664,3 +664,10 @@ class TestCallback:
         assert response.status_code == 401
         assert response.json == {"error": "Unauthorized", "description": "Authentication failure"}
         assert mock_statsd.incr.called_with('oauth.authorization.failure')
+
+
+class TestGetServicesByUser:
+    def test_should_return_200(self, client, sample_user):
+        json_resp = client.get('/auth/my-services/{}'.format(sample_user.id))
+
+        assert json_resp.status_code == 200

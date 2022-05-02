@@ -75,6 +75,10 @@
           "value": "https://qa.vaprofile.va.gov"
         },
         {
+          "name": "UI_HOST_NAME",
+          "value": "https://perf.notifications.va.gov"
+        },
+        {
           "name": "VANOTIFY_SSL_CERT_PATH",
           "value": "/app/certs/vanotify_ssl_cert.pem"
         },
@@ -141,6 +145,22 @@
         {
           "name": "PLATFORM_STATS_ENABLED",
           "value": "False"
+        },
+        {
+          "name": "VA_SSO_ENABLED",
+          "value": "True"
+        },
+        {
+          "name": "VA_SSO_SERVER_METADATA_URL",
+          "value": "https://preprod.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/metadata/ISAMOP/.well-known/oauth-authorization-server"
+        },
+        {
+          "name": "VA_SSO_AUTHORIZE_URL",
+          "value": "https://preprod.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/authorize"
+        },
+        {
+          "name": "VA_SSO_ACCESS_TOKEN_URL",
+          "value": "https://preprod.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/token"
         }
       ],
       "secrets": [
@@ -187,6 +207,14 @@
         {
           "name": "REDIS_URL",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/redis/url"
+        },
+        {
+          "name": "VA_SSO_CLIENT_ID",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/iam-sso-client-id"
+        },
+        {
+          "name": "VA_SSO_CLIENT_SECRET",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/iam-sso-client-secret"
         }
       ]
     },

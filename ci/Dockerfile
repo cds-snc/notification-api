@@ -1,7 +1,13 @@
-FROM python:3.6-alpine
+# Python 3.8 is supported until 14 October 2024.
+# Alpine Linux 3.15 is supported until 1 November 2023.
+FROM python:3.8-alpine3.15
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+ARG GIT_SHA
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
+    PORT=6011 \
+    GIT_SHA=${GIT_SHA}
 
 COPY ./certs/VA-Internal-S2-RCA1-v1.crt /usr/local/share/ca-certificates/VA-Internal-S2-RCA1-v1.crt
 COPY ./certs/VA-Internal-S2-ICA4.crt /usr/local/share/ca-certificates/VA-Internal-S2-ICA4.crt
@@ -23,10 +29,19 @@ RUN apk add --no-cache --virtual .build-deps \
     musl-dev \
     rust \
     cargo \
-  && python -m pip install --upgrade pip==21.3.1 \
+  && python -m pip install --upgrade pip==22.0.4 \
   && python -m pip install wheel \
   && pip install --no-cache-dir -r requirements.txt \
   && apk del --no-cache .build-deps
+
+# Copy the host's build context directory (notification-api/) to the image's working directory (/app).
+COPY --chown=vanotify . .
+
+# Generate the version file, app/version.py.  This overwrites the default file needed for local development.
+RUN apk add --no-cache make \
+  && make generate-version-file \
+  # Remove build dependencies.
+  && apk del --no-cache make
 
 USER vanotify
 

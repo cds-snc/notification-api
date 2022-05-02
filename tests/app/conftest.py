@@ -401,7 +401,8 @@ def sample_template(
         service=None,
         created_by=None,
         process_type='normal',
-        permissions=[EMAIL_TYPE, SMS_TYPE]
+        permissions=[EMAIL_TYPE, SMS_TYPE],
+        reply_to_email=None
 ):
     if user is None:
         user = create_user()
@@ -420,7 +421,8 @@ def sample_template(
         'created_by': created_by,
         'archived': archived,
         'hidden': hidden,
-        'process_type': process_type
+        'process_type': process_type,
+        'reply_to_email': reply_to_email
     }
     if template_type in ['email', 'letter']:
         data.update({
@@ -513,6 +515,17 @@ def sample_email_template_with_placeholders(sample_service):
         template_type=EMAIL_TYPE,
         subject="((name))",
         content="Hello ((name))\nThis is an email from GOV.UK",
+    )
+
+
+@pytest.fixture(scope='function')
+def sample_email_template_with_reply_to(sample_service):
+    return create_template(
+        sample_service,
+        template_type=EMAIL_TYPE,
+        subject="((name))",
+        content="Hello ((name))\nThis is an email from GOV.UK",
+        reply_to_email="testing@email.com"
     )
 
 

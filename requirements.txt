@@ -62,7 +62,6 @@ charset-normalizer==2.0.9
 click==8.0.3
 colorama==0.4.3
 cryptography==36.0.0
-dataclasses==0.8
 Deprecated==1.2.13
 dnspython==1.16.0
 docutils==0.15.2

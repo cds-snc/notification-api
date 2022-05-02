@@ -1,12 +1,10 @@
 version: "3"
 services:
   app:
-    build:
-      context: ..
-      dockerfile: ci/Dockerfile.local
     image: notification_api
+    container_name: ci_app_migrate
     volumes:
-      - "../:/app:ro"
+      - "../:/app:rw"
     ports:
       - 6011:6011
     env_file:
@@ -14,6 +12,7 @@ services:
     depends_on:
       - migrations
       - localstack
+    command: ["bash", "-c", "flask db migrate"]
   db:
     image: postgres:11.8
     restart: unless-stopped
