@@ -132,7 +132,7 @@ def test_cache_is_not_incremented_on_failure_to_persist_notification(sample_api_
     mocked_redis = mocker.patch("app.redis_store.get")
     mock_service_template_cache = mocker.patch("app.redis_store.get_all_from_hash")
     mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
-    mocker.patch("app.notifications.process_notifications.choose_queue", return_value="email_queue") 
+    mocker.patch("app.notifications.process_notifications.choose_queue", return_value="email_queue")
     with pytest.raises(SQLAlchemyError):
         persist_notification(
             template_id=None,
@@ -196,7 +196,7 @@ def test_persist_notification_with_optionals(sample_job, sample_api_key, mocker,
     mocked_redis = mocker.patch("app.notifications.process_notifications.redis_store.get")
     mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
     mocker.patch("app.notifications.process_notifications.choose_queue", return_value="email_queue")
-  
+
     n_id = uuid.uuid4()
     created_at = datetime.datetime(2016, 11, 11, 16, 8, 18)
     persist_notification(
