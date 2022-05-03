@@ -24,6 +24,7 @@ redis = create_redis_fixture(scope="function")
 REDIS_ELEMENTS_COUNT = 123
 
 QNAME_SUFFIX = "qsuffix"
+PROCESS_TYPE = "process_type"
 
 
 class TestBuffer:
@@ -35,6 +36,10 @@ class TestBuffer:
         assert Buffer.INBOX.inbox_name("test") == "inbox:test"
         assert Buffer.IN_FLIGHT.inbox_name("test") == "in-flight:test"
 
+    def test_when_name_suffix_process_is_supplied(self):
+        assert Buffer.INBOX.inbox_name("test", "normal") == "inbox:test:normal"
+        assert Buffer.IN_FLIGHT.inbox_name("test", "normal") == "in-flight:test:normal"
+
     def test_when_get_inflight_name_suffix_is_not_supplied(self):
         receipt = uuid4()
         assert Buffer.INBOX.inflight_name(receipt=receipt) == f"in-flight:{receipt}"
@@ -44,6 +49,17 @@ class TestBuffer:
         receipt = uuid4()
         assert Buffer.INBOX.inflight_name(receipt=receipt, suffix="test") == f"in-flight:test:{receipt}"
         assert Buffer.IN_FLIGHT.inflight_name(receipt=receipt, suffix="test") == f"in-flight:test:{receipt}"
+
+    def test_when_get_inflight_name_suffix_process_type_is_supplied(self):
+        receipt = uuid4()
+        assert (
+            Buffer.INBOX.inflight_name(receipt=receipt, suffix="test", process_type="normal")
+            == f"in-flight:test:normal:{receipt}"
+        )
+        assert (
+            Buffer.IN_FLIGHT.inflight_name(receipt=receipt, suffix="test", process_type="normal")
+            == f"in-flight:test:normal:{receipt}"
+        )
 
 
 class TestRedisQueue:
@@ -62,7 +78,13 @@ class TestRedisQueue:
 
     @pytest.fixture()
     def redis_queue(self, app):
-        q = RedisQueue(QNAME_SUFFIX, 1)
+        q = RedisQueue(QNAME_SUFFIX, expire_inflight_after_seconds=1)
+        q.init_app(flask_redis, metrics_logger)
+        return q
+
+    @pytest.fixture()
+    def redis_queue_with_process(self, app):
+        q = RedisQueue(QNAME_SUFFIX, expire_inflight_after_seconds=1, process_type=PROCESS_TYPE)
         q.init_app(flask_redis, metrics_logger)
         return q
 
@@ -76,6 +98,16 @@ class TestRedisQueue:
         finally:
             self.delete_all_list(redis)
 
+    # @contextmanager
+    # def given_inbox_with_one_element_process_type(self, redis, redis_queue_with_process):
+    #     self.delete_all_list(redis)
+    #     notification = generate_element()
+    #     try:
+    #         redis_queue_with_process.publish(notification)
+    #         yield
+    #     finally:
+    #         self.delete_all_list(redis)
+
     @contextmanager
     def given_inbox_with_many_indexes(self, redis, redis_queue):
         self.delete_all_list(redis)
@@ -85,6 +117,16 @@ class TestRedisQueue:
             yield
         finally:
             self.delete_all_list(redis)
+
+    # @contextmanager
+    # def given_inbox_with_many_indexes_process_type(self, redis, redis_queue_with_process):
+    #     self.delete_all_list(redis)
+    #     try:
+    #         indexes = [str(i) for i in range(0, REDIS_ELEMENTS_COUNT)]
+    #         [redis_queue_with_process.publish(index) for index in indexes]
+    #         yield
+    #     finally:
+    #         self.delete_all_list(redis)
 
     @pytest.mark.serial
     def delete_all_list(self, redis):
@@ -102,8 +144,13 @@ class TestRedisQueue:
             redis.delete(key)
 
     @pytest.mark.serial
-    def test_put_mesages(self, redis, redis_queue):
+    @pytest.mark.parametrize(redis_queue, ["redis_queue", "redis_queue_with_process"])
+    def test_put_messages(self, redis, redis_queue, request):
+        redis_queue = request.getfixturevalue(redis_queue)
         element = generate_element()
+        import pdb
+
+        pdb.set_trace()
         redis_queue.publish(element)
         assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 1
         self.delete_all_list(redis)
@@ -272,7 +319,7 @@ class TestRedisQueueMetricUsage:
 
     @pytest.fixture()
     def redis_queue(self, app):
-        q = RedisQueue(QNAME_SUFFIX, 1)
+        q = RedisQueue(QNAME_SUFFIX, expire_inflight_after_seconds=1)
         q.init_app(flask_redis, metrics_logger)
         return q
 
