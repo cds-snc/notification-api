@@ -58,6 +58,7 @@ from app.dao.services_dao import (
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import DVLAException, NotificationTechnicalFailureException
 from app.models import (
+    BULK,
     DVLA_RESPONSE_STATUS_SENT,
     EMAIL_TYPE,
     JOB_STATUS_CANCELLED,
@@ -67,15 +68,13 @@ from app.models import (
     JOB_STATUS_SENDING_LIMITS_EXCEEDED,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
-    NORMAL,
-    PRIORITY,
-    BULK,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_RETURNED_LETTER,
     NOTIFICATION_SENDING,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
+    PRIORITY,
     SMS_TYPE,
     DailySortedLetter,
     Job,
@@ -171,7 +170,7 @@ def choose_database_queue(template: Template, service: Service):
             return QueueNames.RESEARCH_MODE
         else:
             return QueueNames.DATABASE
-            
+
 
 def process_row(row: Row, template: Template, job: Job, service: Service):
     template_type = template.template_type
@@ -701,14 +700,16 @@ def handle_batch_error_and_forward(
             )
             current_app.logger.info(forward_msg)
             save_fn = save_email if notification_type == EMAIL_TYPE else save_sms
-            
-            template = dao_get_template_by_id(notification.get("template_id"), notification.get("template_version"), use_cache=True)
+
+            template = dao_get_template_by_id(
+                notification.get("template_id"), notification.get("template_version"), use_cache=True
+            )
             # if the template is obtained from cache a tuple will be returned where
             # the first element is the Template object and the second the template cache data
             # in the form of a dict
             if isinstance(template, tuple):
                 template = template[0]
-                     
+
             save_fn.apply_async(
                 (service.id, notification_id, signed, None),
                 queue=choose_database_queue(template, service),
