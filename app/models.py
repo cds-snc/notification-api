@@ -2131,7 +2131,7 @@ class VAProfileLocalCache(db.Model):
         the "ICN" field, which seems to be a primary key, is a string of 29 characters.
     """
 
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = db.Column(db.Integer, primary_key=True)
     mpi_icn = db.Column(db.String(29), nullable=False)
     va_profile_id = db.Column(db.Integer, nullable=False)
     communication_item_id = db.Column(db.Integer, nullable=False)
