@@ -40,7 +40,7 @@
                 "--pidfile",
                 "/tmp/celery.pid",
                 "-l",
-                "INFO",
+                "DEBUG",
                 "-Q",
                 "database-tasks,job-tasks,notify-internal-tasks,periodic-tasks,priority-tasks,bulk-tasks,reporting-tasks,research-mode-tasks,retry-tasks,send-sms-tasks,send-email-tasks,service-callbacks,delivery-receipts",
             ]
