@@ -11,7 +11,7 @@ import boto3
 
 logger = logging.getLogger()
 
-def lambda_handler(event: any, context: any):
+def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
     """this method takes in an event passed in by either an alb or sqs.
         @param: event   -  contains data pertaining to an incoming sms from Twilio
         @param: context -  contains information regarding information
