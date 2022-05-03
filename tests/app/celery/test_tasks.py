@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from app import DATETIME_FORMAT, redis_store, signer
 from app.celery import provider_tasks, tasks
 from app.celery.tasks import (
+    choose_database_queue,
     get_template_class,
     process_incomplete_job,
     process_incomplete_jobs,
@@ -41,6 +42,9 @@ from app.models import (
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
     SMS_TYPE,
+    NORMAL,
+    PRIORITY,
+    BULK,
     Job,
     Notification,
     NotificationHistory,
@@ -50,6 +54,7 @@ from app.models import (
 from app.schemas import service_schema, template_schema
 from celery.exceptions import Retry
 from tests.app import load_example_csv
+from tests.app.conftest import sample_template, sample_service
 from tests.app.db import (
     create_inbound_sms,
     create_job,
@@ -99,6 +104,41 @@ def email_job_with_placeholders(notify_db, notify_db_session, sample_email_templ
     return create_job(template=sample_email_template_with_placeholders)
 
 
+@pytest.mark.parametrize("research_mode,template_priority",
+                         [(True, PRIORITY), (True, NORMAL), (True, BULK),(False, PRIORITY), (False, NORMAL), (False, BULK)]
+                         )
+def test_choose_database_queue_FF_PRIORITY_LANES_false(mocker, notify_db, notify_db_session, notify_api, research_mode, template_priority):
+    mocker.patch.object(Config, "FF_PRIORITY_LANES", False)
+    service = sample_service(notify_db, notify_db_session, research_mode=research_mode)
+    template = sample_template(notify_db, notify_db_session, process_type=template_priority)
+    
+    expected_queue =  QueueNames.RESEARCH_MODE if research_mode else QueueNames.DATABASE
+    actual_queue = choose_database_queue(template, service)
+    
+    assert expected_queue == actual_queue
+    
+@pytest.mark.parametrize("research_mode,template_priority",
+                         [(True, PRIORITY), (True, NORMAL), (True, BULK),(False, PRIORITY), (False, NORMAL), (False, BULK)]
+                         )
+def test_choose_database_queue_FF_PRIORITY_LANES_true(mocker, notify_db, notify_db_session, notify_api, research_mode, template_priority):
+    mocker.patch.object(Config, "FF_PRIORITY_LANES", True)
+    service = sample_service(notify_db, notify_db_session, research_mode=research_mode)
+    template = sample_template(notify_db, notify_db_session, process_type=template_priority)
+    
+    if research_mode:
+        expected_queue = QueueNames.RESEARCH_MODE
+    elif template_priority == PRIORITY:
+        expected_queue = QueueNames.PRIORITY_DATABASE
+    elif template_priority == NORMAL:
+        expected_queue = QueueNames.NORMAL_DATABASE
+    elif template_priority == BULK:
+        expected_queue = QueueNames.BULK_DATABASE
+    
+    actual_queue = choose_database_queue(template, service)
+    
+    assert expected_queue == actual_queue
+    
+    
 @pytest.mark.usefixtures("notify_db_session")
 class TestBatchSaving:
     def test_should_save_smss(self, sample_template_with_placeholders, mocker):
