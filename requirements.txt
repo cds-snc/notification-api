@@ -3,7 +3,7 @@
 # Run `make freeze-requirements` to update requirements.txt
 # with package version changes made in requirements-app.txt
 
-aws-wsgi==0.2.7
+apig-wsgi==2.13.0
 boto==2.49.0
 cffi==1.14.5
 celery[sqs]==5.0.5
@@ -67,7 +67,7 @@ rsa>=4.1 # not directly required, pinned by Snyk to avoid a vulnerability
 ## The following requirements were added by pip freeze:
 aiohttp==3.8.1
 aiosignal==1.2.0
-alembic==1.7.6
+alembic==1.7.7
 amqp==5.0.9
 async-timeout==4.0.2
 attrs==21.4.0
@@ -105,13 +105,13 @@ multidict==6.0.2
 orderedset==2.0.3
 packaging==21.3
 phonenumbers==8.12.21
-prompt-toolkit==3.0.28
+prompt-toolkit==3.0.29
 py-w3c==0.3.1
 pyasn1==0.4.8
 pycparser==2.21
 pycurl==7.43.0.5
 pyOpenSSL==22.0.0
-pyparsing==3.0.7
+pyparsing==3.0.8
 PyPDF2==1.26.0
 pyrsistent==0.18.1
 python-dateutil==2.8.2
@@ -122,7 +122,7 @@ s3transfer==0.4.2
 six==1.16.0
 smartypants==2.0.1
 statsd==3.3.0
-urllib3==1.26.8
+urllib3==1.26.9
 vine==5.0.0
 wcwidth==0.2.5
 webencodings==0.5.1
