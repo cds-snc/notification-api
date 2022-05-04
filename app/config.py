@@ -43,13 +43,13 @@ class QueueNames(object):
     DATABASE = "database-tasks"
 
     # database operations for high priority notifications
-    PRIORITY_DATABASE = "priority-database-tasks.fifo"
+    PRIORITY_DATABASE = "-priority-database-tasks.fifo"
 
     # database operations for normal priority notifications
-    NORMAL_DATABASE = "normal-database-tasks"
+    NORMAL_DATABASE = "-normal-database-tasks"
 
     # database operations for bulk notifications
-    BULK_DATABASE = "bulk-database-tasks"
+    BULK_DATABASE = "-bulk-database-tasks"
 
     # A queue for the tasks associated with the batch saving
     NOTIFY_CACHE = "notifiy-cache-tasks"
