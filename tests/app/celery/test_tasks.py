@@ -441,6 +441,9 @@ def test_should_process_sms_job(sample_job, mocker):
 
 
 def test_should_process_sms_job_with_sender_id(sample_template, mocker, fake_uuid):
+    reply_to = ServiceEmailReplyTo()
+    reply_to.email_address = "notify@digital.cabinet-office.gov.uk"
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     job = create_job(template=sample_template, sender_id=fake_uuid)
     mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
     mocker.patch("app.celery.tasks.save_sms.apply_async")
@@ -562,6 +565,9 @@ def test_should_not_process_job_if_already_pending(sample_template, mocker):
 
 
 def test_should_process_email_job_if_exactly_on_send_limits(notify_db_session, mocker):
+    reply_to = ServiceEmailReplyTo()
+    reply_to.email_address = "notify@digital.cabinet-office.gov.uk"
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     service = create_service(message_limit=10)
     template = create_template(service=service, template_type="email")
     job = create_job(template=template, notification_count=10)
@@ -691,6 +697,9 @@ def test_should_process_email_job(email_job_with_placeholders, mocker):
 
 
 def test_should_process_emails_job(email_job_with_placeholders, mocker):
+    reply_to = ServiceEmailReplyTo()
+    reply_to.email_address = "notify@digital.cabinet-office.gov.uk"
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     email_csv = """email_address,name
     test@test.com,foo
     YOLO@test2.com,foo2
@@ -730,6 +739,9 @@ def test_should_process_emails_job(email_job_with_placeholders, mocker):
 
 
 def test_should_process_email_job_with_sender_id(sample_email_template, mocker, fake_uuid):
+    reply_to = ServiceEmailReplyTo()
+    reply_to.email_address = "notify@digital.cabinet-office.gov.uk"
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     email_csv = """email_address,name
     test@test.com,foo
     """
@@ -931,6 +943,9 @@ def test_should_not_save_sms_if_team_key_and_recipient_not_in_team(notify_db_ses
 
 
 def test_should_not_save_email_if_restricted_service_and_invalid_email_address(notify_db_session, mocker):
+    reply_to = ServiceEmailReplyTo()
+    reply_to.email_address = "notify@digital.cabinet-office.gov.uk"
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     user = create_user()
     service = create_service(user=user, restricted=True)
     template = create_template(service=service, template_type="email", subject="Hello")
