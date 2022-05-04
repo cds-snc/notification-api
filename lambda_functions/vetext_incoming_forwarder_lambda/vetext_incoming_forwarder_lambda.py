@@ -9,8 +9,6 @@ from urllib.parse import parse_qsl
 from base64 import b64decode
 import boto3
 
-logger = logging.getLogger()
-
 def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
     """this method takes in an event passed in by either an alb or sqs.
         @param: event   -  contains data pertaining to an incoming sms from Twilio
@@ -19,23 +17,27 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
     """
 
     try:
-        print(event)
+        logging.debug(event)
 
         # Determine if the invoker of the lambda is SQS or ALB
         #   SQS will submit batches of records so there is potential for multiple events to be processed
         #   ALB will submit a single request but to simplify code, it will also return an array of event bodies
         if (event["requestContext"] and event["requestContext"]["elb"]):
-            print("alb invocation")
+            logging.info("alb invocation")
             event_bodies = get_body_from_alb_invocation(event)            
         elif event["Records"] and event["Records"][0].eventSource == 'aws:sqs':
-            print("sqs invoication")
+            logging.info("sqs invoication")
             event_bodies = get_body_from_sqs_invocation(event)
         else:
+            logging.error("Invalid Event. Expecting the source of an invocation to be from alb or sqs")
+
+            push_to_sqs(event)
+
             return{
-                'statusCode':400
+                'statusCode': 400
             }
 
-        print(event_bodies)
+        logging.debug(event_bodies)
 
         responses = []
 
@@ -45,11 +47,15 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
             if response.status != 200:
                 push_to_sqs(event)
 
-            print(response.read().decode())
+            logging.debug(response.read().decode())
 
             responses.append(response)
 
-        print(responses)
+        logging.debug(responses)
+        
+        return {
+            'statusCode': 200
+        }
     except KeyError as e:
         logging.exception(e)
         # Handle failed env variable
@@ -66,16 +72,20 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
         print(f'Failure with http connection or request: {e}')
         # Place request on SQS for processing after environment variable issue is resolved
         push_to_sqs(event)
+
+        return{
+            'statusCode':503
+        }
     except Exception as e:
         logging.exception(e)        
         # Place request on dead letter queue so that it can be analyzed 
         #   for potential processing at a later time
         print(f'Unknown Failure: {e}')
         push_to_sqs(event)
-    
-    return {
-        'statusCode': 200
-    }
+
+        return{
+            'statusCode':500
+        }
 
 def get_body_from_sqs_invocation(event):
     event_bodies = []
