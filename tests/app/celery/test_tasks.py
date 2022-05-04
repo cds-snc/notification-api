@@ -66,8 +66,7 @@ from tests.app.db import (
 )
 from tests.conftest import set_config_values
 
-reply_to = ServiceEmailReplyTo()
-
+reply_to = ServiceEmailReplyTo().email_address
 
 class AnyStringWith(str):
     def __eq__(self, other):
@@ -1461,6 +1460,7 @@ def test_should_use_email_template_subject_placeholders(sample_email_template_wi
 
 
 def test_save_email_uses_the_reply_to_text_when_provided(sample_email_template, mocker):
+    reply_to = ServiceEmailReplyTo()
     mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     notification = _notification_json(sample_email_template, "my_email@my_email.com")
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
@@ -2090,7 +2090,7 @@ def test_send_inbound_sms_to_service_does_not_retries_if_request_returns_404(not
 
 
 def test_process_incomplete_job_sms(mocker, sample_template):
-
+    reply_to = ServiceEmailReplyTo()
     mocker.patch(
         "app.celery.tasks.s3.get_job_from_s3",
         return_value=load_example_csv("multiple_sms"),
@@ -2162,7 +2162,7 @@ def test_process_incomplete_job_with_notifications_all_sent(mocker, sample_templ
 
 
 def test_process_incomplete_jobs_sms(mocker, sample_template):
-
+    reply_to = ServiceEmailReplyTo()
     mocker.patch(
         "app.celery.tasks.s3.get_job_from_s3",
         return_value=load_example_csv("multiple_sms"),
@@ -2215,6 +2215,7 @@ def test_process_incomplete_jobs_sms(mocker, sample_template):
 
 
 def test_process_incomplete_jobs_no_notifications_added(mocker, sample_template):
+    reply_to = ServiceEmailReplyTo()
     mocker.patch(
         "app.celery.tasks.s3.get_job_from_s3",
         return_value=load_example_csv("multiple_sms"),
@@ -2273,7 +2274,7 @@ def test_process_incomplete_job_no_job_in_database(mocker, fake_uuid):
 
 
 def test_process_incomplete_job_email(mocker, sample_email_template):
-
+    reply_to = ServiceEmailReplyTo()
     mocker.patch(
         "app.celery.tasks.s3.get_job_from_s3",
         return_value=load_example_csv("multiple_email"),
@@ -2305,6 +2306,7 @@ def test_process_incomplete_job_email(mocker, sample_email_template):
 
 
 def test_process_incomplete_job_letter(mocker, sample_letter_template):
+    reply_to = ServiceEmailReplyTo()
     mocker.patch(
         "app.celery.tasks.s3.get_job_from_s3",
         return_value=load_example_csv("multiple_letter"),
