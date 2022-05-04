@@ -318,6 +318,9 @@ class TestBatchSaving:
         mock_acknowldege.assert_called_once_with(receipt)
 
     def test_should_process_smss_job_metric_check(self, mocker):
+        reply_to = ServiceEmailReplyTo()
+        reply_to.email_address = "notify@digital.cabinet-office.gov.uk"
+        mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
         pbsbc_mock = mocker.patch("app.celery.tasks.put_batch_saving_bulk_created")
         service = create_service(message_limit=20)
         template = create_template(service=service)
@@ -463,6 +466,9 @@ def test_should_process_sms_job_with_sender_id(sample_template, mocker, fake_uui
 def test_should_redirect_job_to_queue_depending_on_csv_threshold(
     notify_api, sample_job, mocker, fake_uuid, csv_threshold, expected_queue
 ):
+    reply_to = ServiceEmailReplyTo()
+    reply_to.email_address = "notify@digital.cabinet-office.gov.uk"
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     mock_save_email = mocker.patch("app.celery.tasks.save_email")
     mocker.patch("app.service.utils.safelisted_members", return_value=None)
 
@@ -585,6 +591,9 @@ def test_should_process_email_job_if_exactly_on_send_limits(notify_db_session, m
 
 
 def test_should_process_smss_job(notify_db_session, mocker):
+    reply_to = ServiceEmailReplyTo()
+    reply_to.email_address = "notify@digital.cabinet-office.gov.uk"
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     service = create_service(message_limit=20)
     template = create_template(service=service)
     job = create_job(template=template, notification_count=10, original_file_name="multiple_sms.csv")
