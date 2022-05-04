@@ -414,6 +414,9 @@ class TestBatchSaving:
 
 
 def test_should_process_sms_job(sample_job, mocker):
+    reply_to = ServiceEmailReplyTo()
+    reply_to.email_address = "notify@digital.cabinet-office.gov.uk"
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
     mocker.patch("app.celery.tasks.save_sms.apply_async")
     mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
@@ -661,6 +664,9 @@ def test_should_not_create_save_task_for_empty_file(sample_job, mocker):
 
 
 def test_should_process_email_job(email_job_with_placeholders, mocker):
+    reply_to = ServiceEmailReplyTo()
+    reply_to.email_address = "notify@digital.cabinet-office.gov.uk"
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     email_csv = """email_address,name
     test@test.com,foo
     """
@@ -792,6 +798,9 @@ def test_should_process_letter_job(sample_letter_job, mocker):
 
 
 def test_should_process_all_sms_job(sample_job_with_placeholdered_template, mocker):
+    reply_to = ServiceEmailReplyTo()
+    reply_to.email_address = "notify@digital.cabinet-office.gov.uk"
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     mocker.patch(
         "app.celery.tasks.s3.get_job_from_s3",
         return_value=load_example_csv("multiple_sms"),
@@ -888,6 +897,9 @@ def test_process_row_sends_save_task(
 
 
 def test_should_not_save_sms_if_restricted_service_and_invalid_number(notify_db_session, mocker):
+    reply_to = ServiceEmailReplyTo()
+    reply_to.email_address = "notify@digital.cabinet-office.gov.uk"
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     user = create_user(mobile_number="6502532222")
     service = create_service(user=user, restricted=True)
     template = create_template(service=service)
@@ -914,6 +926,9 @@ def test_should_not_save_sms_if_restricted_service_and_invalid_number(notify_db_
 
 
 def test_should_not_save_sms_if_team_key_and_recipient_not_in_team(notify_db_session, mocker):
+    reply_to = ServiceEmailReplyTo()
+    reply_to.email_address = "notify@digital.cabinet-office.gov.uk"
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     user = create_user(mobile_number="6502532222")
     service = create_service(user=user, restricted=True)
     template = create_template(service=service)
@@ -926,7 +941,7 @@ def test_should_not_save_sms_if_team_key_and_recipient_not_in_team(notify_db_ses
     save_sms_mock = mocker.patch("app.celery.tasks.save_sms.apply_async")
 
     process_row(
-        Row(
+        Row
             {"foo": "bar", "to": notification["to"]},
             index="row_num",
             error_fn=lambda k, v: None,
