@@ -1965,7 +1965,7 @@ def test_post_bulk_creates_job_and_dispatches_celery_task(
     }
 
 
-class TestPriorityLanes:
+class TestBatchPriorityLanes:
     @pytest.mark.parametrize("process_type", ["bulk", "normal", "priority"])
     def test_sms_each_queue_is_used(self, notify_api, client, service_factory, mocker, process_type):
         # turn required feature flags on
