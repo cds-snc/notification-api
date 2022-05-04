@@ -21,6 +21,7 @@ from app import (
     email_queue,
     metrics_logger,
     notify_celery,
+    RedisQueues,
     signer,
     sms_queue,
     statsd_client,
