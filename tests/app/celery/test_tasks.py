@@ -68,6 +68,7 @@ from tests.conftest import set_config_values
 
 reply_to = ServiceEmailReplyTo().email_address
 
+
 class AnyStringWith(str):
     def __eq__(self, other):
         return self in other
@@ -1461,6 +1462,7 @@ def test_should_use_email_template_subject_placeholders(sample_email_template_wi
 
 def test_save_email_uses_the_reply_to_text_when_provided(sample_email_template, mocker):
     reply_to = ServiceEmailReplyTo()
+    reply_to.email_address = "other@example.com"
     mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     notification = _notification_json(sample_email_template, "my_email@my_email.com")
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
