@@ -31,8 +31,9 @@ Contains:
 - [Maintaining Docker Images](#maintaining-docker-images)
     - [Versions and Support Dates](#versions-and-support-dates)
     - [How to Update](#how-to-update)
-- [Running in Docker](#running-in-docker)
-    - [Local Development](#local-development)
+- [Local Development with Docker](#local-development)
+    - [Run the local Docker containers](#running-in-docker)
+    - [Creating Database Migrations](#migrations)
     - [Testing](#testing)
     - [Production](#production)
 - [AWS Configuration](#aws-configuration)
@@ -309,7 +310,7 @@ This application defines Docker images for production, testing, and development 
 |------------|----------------|-------|-----------------------|
 | Python 3.8 | 14 October 2024 | | Dockerfile, Dockerfile.local, Dockerfile.test, Dockerfile.userflow |
 | Alpine Linux 3.15 | 1 November 2023 | | Dockerfile, Dockerfile.local, Dockerfile.test |
-| Postgres 11.8 | 9 November 2023 for v11.x | The YAML files specify v11.8.  As of March 2022, versions 11.15 and 14.2 are available. | docker-compose.yml, docker-compose-local.yml, docker-compose-test.yml |
+| Postgres 11 | [9 November 2023](https://www.postgresql.org/support/versioning/) | | docker-compose.yml, docker-compose-local.yml, docker-compose-local-migrate.yml, docker-compose-test.yml |
 | localstack | None given.  The YAML files specifies v0.12.3.  As of March 2022, v0.14.1 is available. | As of March 2022, localstack requires Python 3.6-3.9. | docker-compose-local.yml |
 | bbyars/mountebank 2.4.0 | None given. | Newer versions are available. | docker-compose-local.yml |
 | redis | | No version specified. | docker-compose-local.yml |
@@ -318,17 +319,23 @@ This application defines Docker images for production, testing, and development 
 
 To update the images, change the `FROM` directive at the top of Dockerfiles and the `image` directive in YAML files.  Rebuild affected dependent containers, and run the unit tests (as described in the next section) to verify the changes.  For example, if ci/Dockerfile begins with the line "FROM python:3.8-alpine3.15", you could change it to "FROM python:3.10-alpine3.15".  Visit Docker Hub to see what version tags are available for a given image.
 
-## Running in Docker
+## Local Development with Docker
 
-First, open `ci/.docker-env.example`, fill in values as desired, and save as `ci/.docker-env`.
+First, open `ci/.docker-env.example`, fill in values as desired, and save as `ci/.docker-env`.  Then build the "notification_api" Docker image by running this command:
 
-### Local Development
+```
+docker-compose -f ci/docker-compose-local.yml build app
+```
 
-Follow these steps to run the app locally for development.  The resulting container will have your local notification-api directory mounted in read-only mode, and Flask will run in development mode.  Changes you make to the code should trigger Flask to restart on the container.
+**Rebuild notification_api whenever Dockerfile.local changes or when dependencies change.**
 
-Start by building the Docker local image, "notification_api": `docker-compose -f ci/docker-compose-local.yml build app`.  Repeating this step is only necessary when Dockerfile.local changes.
+The associated container will have your local notification-api/ directory mounted in read-only mode, and Flask will run in development mode.  Changes you make to the code should trigger Flask to restart on the container.
 
-To run the app, and its ecosystem, locally, run `docker-compose -f ci/docker-compose-local.yml up`.  To see useful flags that you might want to use with the `up` subcommand, run `docker-compose up --help`.  This docker-compose command create the container ci_app_1, among others.
+### Run the local Docker containers
+
+To run the app, and its ecosystem, locally, run: `docker-compose -f ci/docker-compose-local.yml up`.
+
+To see useful flags that you might want to use with the `up` subcommand, run `docker-compose up --help`.  This docker-compose command creates the container ci_app_1, among others.
 
 If AWS SES is enabled as a provider, you may need to run the following command to give the (simulated) SES permission to (pretend to) send e-mails:
 
@@ -338,7 +345,7 @@ aws ses verify-email-identity --email-address stage-notifications@notifications.
 
 To support running locally, the repository includes a default `app/version.py` file, which must be present at runtime to avoid raising ImportError.  The production container build process overwrites this file with current values.
 
-#### Creating Database Migrations
+### Creating Database Migrations
 
 Running `flask db migrate` on the container ci_app_1 errors because the files in the migrations folder are read-only.  Follow this procedure to create a database migration using Flask:
 
@@ -353,6 +360,8 @@ To run all tests: `docker-compose -f ci/docker-compose-test.yml up --build --abo
 ### Production
 
 To run the application and it's associated Postgres instance: `docker-compose -f ci/docker-compose.yml up --build --abort-on-container-exit`.
+
+Note that the production infrastructure does not use docker-compose.yml.
 
 ---
 

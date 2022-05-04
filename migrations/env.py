@@ -1,5 +1,7 @@
 from __future__ import with_statement
 from alembic import context
+from alembic_utils.pg_function import PGFunction
+from alembic_utils.replaceable_entity import register_entities
 from sqlalchemy import engine_from_config, pool
 from logging.config import fileConfig
 
@@ -23,6 +25,38 @@ target_metadata = current_app.extensions['migrate'].db.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
+
+#######################################################################
+# Define and register the stored procedures for VA Profile integration.
+#######################################################################
+
+va_profile_opt_in = PGFunction(
+  schema="public",
+  signature="va_profile_opt_in (_mpi_icn varchar(29), _va_profile_id integer, _communication_item_id integer, _communication_channel_name varchar(255))",
+  definition="""\
+RETURNS void
+LANGUAGE sql AS $$
+    INSERT INTO va_profile_local_cache(mpi_icn, va_profile_id, communication_item_id, communication_channel_name)
+    VALUES (_mpi_icn, _va_profile_id, _communication_item_id, _communication_channel_name)
+    ON CONFLICT DO NOTHING;
+$$;"""
+)
+
+va_profile_opt_out = PGFunction(
+  schema="public",
+  signature="va_profile_opt_out(_va_profile_id integer, _communication_item_id integer, _communication_channel_name varchar(255))",
+  definition="""\
+RETURNS void
+LANGUAGE sql AS $$
+    DELETE FROM va_profile_local_cache
+    WHERE va_profile_id = _va_profile_id AND communication_item_id = _communication_item_id AND communication_channel_name = _communication_channel_name;
+$$;"""
+)
+
+register_entities([va_profile_opt_in, va_profile_opt_out])
+
+#######################################################################
 
 def run_migrations_offline():
     """Run migrations in 'offline' mode.

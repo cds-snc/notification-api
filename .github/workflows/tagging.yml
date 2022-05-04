@@ -1,7 +1,6 @@
 name: Create Git and Docker tags
 
-on:
-  deployment_status
+on: deployment_status
 
 jobs:
   create-staging-tags:
@@ -10,7 +9,7 @@ jobs:
     outputs:
       tag: ${{ steps.tag-git-commit.outputs.TAG }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.deployment.ref }}
       - name: Tag Git Commit
@@ -35,11 +34,11 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'staging'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.deployment.ref }}
       - name: Tag Git Commit
-        id:  tag-git-commit
+        id: tag-git-commit
         run: |
           bash ./scripts/tag_git_staging.sh ${{ github.event.deployment.ref }}
       - name: Configure VAEC AWS Credentials
@@ -59,15 +58,15 @@ jobs:
     runs-on: ubuntu-latest
     needs: [create-staging-tags]
     steps:
-    - uses: actions/github-script@v4.1
-      with:
-        github-token: ${{secrets.GH_ACCESS_TOKEN}}
-        script: |
-          github.repos.createDeployment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            ref: '${{ needs.create-staging-tags.outputs.tag }}',
-            environment: 'staging',
-            required_contexts: [],
-            auto_merge: false,
-          });
+      - uses: actions/github-script@v4.1
+        with:
+          github-token: ${{secrets.GH_ACCESS_TOKEN}}
+          script: |
+            github.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: '${{ needs.create-staging-tags.outputs.tag }}',
+              environment: 'staging',
+              required_contexts: [],
+              auto_merge: false,
+            });

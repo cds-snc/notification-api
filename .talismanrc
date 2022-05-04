@@ -259,10 +259,6 @@ fileignoreconfig:
       checksum: 7660f017c0462141816cbf32466e2c3a2eed61f3aacd5dde7ec42cde5d337510
     - filename: tests/app/notifications/test_validators.py
       checksum: efce5afc3015a7bdcae7e027da762acf1fefe782b30a5a92855b253cad6c3050
-    - filename: requirements-app.txt
-      checksum: 45aba00528f1e77c2324c4af006a6f6f8a4e93a2f053b940e2d7c3d680cbe0cb
-    - filename: requirements.txt
-      checksum: f1597fdd5927bb7f551fef1501477326b3b8f60502dd6c87ef7513b9c0df8476
     - filename: app/notifications/validators.py
       checksum: 7660f017c0462141816cbf32466e2c3a2eed61f3aacd5dde7ec42cde5d337510
     - filename: requirements-app.txt
@@ -270,7 +266,7 @@ fileignoreconfig:
     - filename: tests/app/notifications/test_validators.py
       checksum: efce5afc3015a7bdcae7e027da762acf1fefe782b30a5a92855b253cad6c3050
     - filename: requirements.txt
-      checksum: f1597fdd5927bb7f551fef1501477326b3b8f60502dd6c87ef7513b9c0df8476
+      checksum: eb7fa12fdf1102d05d6d1147ed124aae0eb2c54b54144cdab4912863e4a4fd86
     - filename: app/va/va_profile/va_profile_client.py
       checksum: 2942cb80f53433d4c129c2fbd43ba7b28f252d2daf30ad2c93bf8255d3d1e179
     - filename: ci/.docker-env.example
@@ -325,3 +321,7 @@ fileignoreconfig:
       checksum: 23d122d955d3394591dbd4423f6b8a6c0bb0d5f67cd86e788007a303f92839dd
     - filename: ci/docker-compose-local-migrate.yml
       checksum: 31016501e750cfa8664d599191f64bd5a7ade4a062f107caa0e576c2f3451942
+    - filename: sql/va_profile_opt_in_out.sql
+      checksum: 9584f62cf0635ce57696c9c520a3c671b504ed2dcba7fafe50b9727ff2d2ce58
+    - filename: migrations/env.py
+      checksum: 2dd4f14a2d88a892182c9f3b32a5ff058691066982e71a72a6aa5a0856db1cd6

@@ -15,7 +15,7 @@ services:
       - migrations
       - localstack
   db:
-    image: postgres:11.8
+    image: postgres:11
     restart: unless-stopped
     ports:
       - 5432:5432
