@@ -12,6 +12,7 @@ from notifications_utils.recipients import (
 )
 
 from app import (
+    RedisQueues,
     api_user,
     authenticated_service,
     create_uuid,
@@ -45,6 +46,7 @@ from app.models import (
     NOTIFICATION_PENDING_VIRUS_CHECK,
     NOTIFICATION_SENDING,
     SMS_TYPE,
+    TEMPLATE_PROCESS_TYPE,
     UPLOAD_DOCUMENT,
     Notification,
 )
@@ -67,6 +69,7 @@ from app.notifications.validators import (
     validate_template,
     validate_template_exists,
 )
+from app.queue import RedisQueue
 from app.schema_validation import validate
 from app.schemas import job_schema
 from app.service.utils import safelisted_members
@@ -292,6 +295,25 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             reply_to_text=reply_to_text,
         )
         persist_scheduled_notification(notification.id, form["scheduled_for"])
+    elif current_app.config["FF_REDIS_BATCH_SAVING"] and current_app.config["FF_PRIORITY_LANES"] and not simulated:
+        if notification_type == SMS_TYPE:
+            if template.process_type == "priority": #TEMPLATE_PROCESS_TYPE.PRIORITY:
+                RedisQueues.SMS_PRIORITY.publish(signed_notification_data)
+            elif template.process_type == "normal": #TEMPLATE_PROCESS_TYPE.NORMAL:
+                RedisQueues.SMS_NORMAL.publish(signed_notification_data)
+            elif template.process_type == "bulk": #TEMPLATE_PROCESS_TYPE.BULK:
+                RedisQueues.SMS_BULK.publish(signed_notification_data)
+        elif notification_type == EMAIL_TYPE:
+            if template.process_type == "priority": #TEMPLATE_PROCESS_TYPE.PRIORITY:
+                RedisQueues.EMAIL_PRIORITY.publish(signed_notification_data)
+            elif template.process_type == "normal": #TEMPLATE_PROCESS_TYPE.NORMAL:
+                RedisQueues.EMAIL_NORMAL.publish(signed_notification_data)
+            elif template.process_type == "bulk": #TEMPLATE_PROCESS_TYPE.BULK:
+                RedisQueues.EMAIL_BULK.publish(signed_notification_data)
+
+        current_app.logger.info(
+            f"Batch saving: {notification_type}/{template.process_type} {notification['id']} sent to buffer queue."
+        )
 
     elif current_app.config["FF_REDIS_BATCH_SAVING"] and not simulated:
         if notification_type == SMS_TYPE:
