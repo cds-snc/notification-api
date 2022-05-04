@@ -1043,7 +1043,10 @@ def test_save_sms_should_use_redis_cache_to_retrieve_service_and_template_when_p
         bytes(json.dumps(json_service_data, default=lambda o: hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
         bytes(json.dumps(json_template_date, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
         False,
+        bytes(json.dumps(json_template_date, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
+        False,
     ]
+    mocker.patch("app.notifications.process_notifications.choose_queue", return_value="email_queue")
 
     save_sms(sample_template_with_placeholders.service_id, uuid.uuid4(), signer.sign(notification), sender_id)
 
@@ -1095,7 +1098,10 @@ def test_save_email_should_use_redis_cache_to_retrieve_service_and_template_when
         bytes(json.dumps(json_service_data, default=lambda o: hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
         bytes(json.dumps(json_template_date, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
         False,
+        bytes(json.dumps(json_template_date, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
+        False,
     ]
+    mocker.patch("app.notifications.process_notifications.choose_queue", return_value="email_queue")
 
     save_email(sample_template.service_id, uuid.uuid4(), signer.sign(notification), sender_id)
 
