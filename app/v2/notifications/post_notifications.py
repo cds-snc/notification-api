@@ -35,18 +35,21 @@ from app.dao.services_dao import fetch_todays_total_message_count
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.letters.utils import upload_letter_pdf
 from app.models import (
+    BULK,
     EMAIL_TYPE,
     JOB_STATUS_PENDING,
     JOB_STATUS_SCHEDULED,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     LETTER_TYPE,
+    NORMAL,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PENDING_VIRUS_CHECK,
     NOTIFICATION_SENDING,
+    PRIORITY,
     SMS_TYPE,
-    TEMPLATE_PROCESS_TYPE,
+    NORMAL,
     UPLOAD_DOCUMENT,
     Notification,
 )
@@ -297,18 +300,18 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         persist_scheduled_notification(notification.id, form["scheduled_for"])
     elif current_app.config["FF_REDIS_BATCH_SAVING"] and current_app.config["FF_PRIORITY_LANES"] and not simulated:
         if notification_type == SMS_TYPE:
-            if template.process_type == "priority": #TEMPLATE_PROCESS_TYPE.PRIORITY:
+            if template.process_type == PRIORITY:
                 RedisQueues.SMS_PRIORITY.publish(signed_notification_data)
-            elif template.process_type == "normal": #TEMPLATE_PROCESS_TYPE.NORMAL:
+            elif template.process_type == NORMAL:
                 RedisQueues.SMS_NORMAL.publish(signed_notification_data)
-            elif template.process_type == "bulk": #TEMPLATE_PROCESS_TYPE.BULK:
+            elif template.process_type == BULK:
                 RedisQueues.SMS_BULK.publish(signed_notification_data)
         elif notification_type == EMAIL_TYPE:
-            if template.process_type == "priority": #TEMPLATE_PROCESS_TYPE.PRIORITY:
+            if template.process_type == PRIORITY:
                 RedisQueues.EMAIL_PRIORITY.publish(signed_notification_data)
-            elif template.process_type == "normal": #TEMPLATE_PROCESS_TYPE.NORMAL:
+            elif template.process_type == NORMAL:
                 RedisQueues.EMAIL_NORMAL.publish(signed_notification_data)
-            elif template.process_type == "bulk": #TEMPLATE_PROCESS_TYPE.BULK:
+            elif template.process_type == BULK:
                 RedisQueues.EMAIL_BULK.publish(signed_notification_data)
 
         current_app.logger.info(
