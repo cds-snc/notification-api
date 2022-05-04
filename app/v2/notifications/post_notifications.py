@@ -199,6 +199,8 @@ def post_notification(notification_type):
         notification_type,
     )
 
+    current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
+
     reply_to = get_reply_to_text(notification_type, form, template)
 
     if notification_type == LETTER_TYPE:
