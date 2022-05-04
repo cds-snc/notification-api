@@ -98,15 +98,15 @@ class TestRedisQueue:
         finally:
             self.delete_all_list(redis)
 
-    # @contextmanager
-    # def given_inbox_with_one_element_process_type(self, redis, redis_queue_with_process):
-    #     self.delete_all_list(redis)
-    #     notification = generate_element()
-    #     try:
-    #         redis_queue_with_process.publish(notification)
-    #         yield
-    #     finally:
-    #         self.delete_all_list(redis)
+    @contextmanager
+    def given_inbox_with_one_element_process_type(self, redis, redis_queue_with_process):
+        self.delete_all_list(redis)
+        notification = generate_element()
+        try:
+            redis_queue_with_process.publish(notification)
+            yield
+        finally:
+            self.delete_all_list(redis)
 
     @contextmanager
     def given_inbox_with_many_indexes(self, redis, redis_queue):
@@ -118,15 +118,15 @@ class TestRedisQueue:
         finally:
             self.delete_all_list(redis)
 
-    # @contextmanager
-    # def given_inbox_with_many_indexes_process_type(self, redis, redis_queue_with_process):
-    #     self.delete_all_list(redis)
-    #     try:
-    #         indexes = [str(i) for i in range(0, REDIS_ELEMENTS_COUNT)]
-    #         [redis_queue_with_process.publish(index) for index in indexes]
-    #         yield
-    #     finally:
-    #         self.delete_all_list(redis)
+    @contextmanager
+    def given_inbox_with_many_indexes_process_type(self, redis, redis_queue_with_process):
+        self.delete_all_list(redis)
+        try:
+            indexes = [str(i) for i in range(0, REDIS_ELEMENTS_COUNT)]
+            [redis_queue_with_process.publish(index) for index in indexes]
+            yield
+        finally:
+            self.delete_all_list(redis)
 
     @pytest.mark.serial
     def delete_all_list(self, redis):
@@ -144,15 +144,17 @@ class TestRedisQueue:
             redis.delete(key)
 
     @pytest.mark.serial
-    @pytest.mark.parametrize(redis_queue, ["redis_queue", "redis_queue_with_process"])
-    def test_put_messages(self, redis, redis_queue, request):
-        redis_queue = request.getfixturevalue(redis_queue)
+    def test_put_messages(self, redis, redis_queue):
         element = generate_element()
-        import pdb
-
-        pdb.set_trace()
         redis_queue.publish(element)
         assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 1
+        self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_put_messages_with_process(self, redis, redis_queue_with_process):
+        element = generate_element()
+        redis_queue_with_process.publish(element)
+        assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) == 1
         self.delete_all_list(redis)
 
     @pytest.mark.serial
@@ -163,6 +165,17 @@ class TestRedisQueue:
             assert isinstance(elements[0], str)
             assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
             assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 1
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_message_with_process(self, redis, redis_queue_with_process):
+        with self.given_inbox_with_one_element_process_type(redis, redis_queue_with_process):
+            (receipt, elements) = redis_queue_with_process.poll(10)
+            assert len(elements) == 1
+            assert isinstance(elements[0], str)
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX, process_type=PROCESS_TYPE)) == 1
+            self.delete_all_list(redis)
 
     @pytest.mark.serial
     @pytest.mark.parametrize("count", [0, 1, 98, 99, 100, 101, REDIS_ELEMENTS_COUNT, REDIS_ELEMENTS_COUNT + 1, 500])
@@ -176,6 +189,21 @@ class TestRedisQueue:
             else:
                 assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
             assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == real_count
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    @pytest.mark.parametrize("count", [0, 1, 98, 99, 100, 101, REDIS_ELEMENTS_COUNT, REDIS_ELEMENTS_COUNT + 1, 500])
+    def test_polling_many_messages_with_process(self, redis, redis_queue_with_process, count):
+        with self.given_inbox_with_many_indexes(redis, redis_queue_with_process):
+            real_count = count if count < REDIS_ELEMENTS_COUNT else REDIS_ELEMENTS_COUNT
+            (receipt, elements) = redis_queue_with_process.poll(count)
+            assert len(elements) == real_count
+            if count < REDIS_ELEMENTS_COUNT:
+                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) > 0
+            else:
+                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX, process_type=PROCESS_TYPE)) == real_count
+            self.delete_all_list(redis)
 
     @pytest.mark.serial
     @pytest.mark.parametrize("suffix", ["smss", "emails", "🎅", "", None])
