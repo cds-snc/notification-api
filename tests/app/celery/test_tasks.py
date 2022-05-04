@@ -814,6 +814,9 @@ def test_should_process_all_sms_job(sample_job_with_placeholdered_template, mock
 def test_process_row_sends_save_task(
     notify_api, template_type, research_mode, expected_function, expected_queue, api_key_id, sender_id, reference, mocker
 ):
+    reply_to = ServiceEmailReplyTo()
+    reply_to.email_address = "notify@digital.cabinet-office.gov.uk"
+    mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
     service_allowed_to_send_to_mock = mocker.patch("app.service.utils.safelisted_members", return_value=None)
     mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
     task_mock = mocker.patch("app.celery.tasks.{}.apply_async".format(expected_function))
@@ -844,6 +847,7 @@ def test_process_row_sends_save_task(
             "template_version": "temp_vers",
             "job": "job_id",
             "to": "recip",
+            "reply_to_text": "notify@digital.cabinet-office.gov.uk",
             "row_number": "row_num",
             "personalisation": {"foo": "bar"},
             "queue": None,
