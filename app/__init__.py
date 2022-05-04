@@ -98,8 +98,6 @@ def create_app(application, config=None):
     clients.init_app(sms_clients=[aws_sns_client], email_clients=[aws_ses_client])
 
     flask_redis.init_app(application)
-    sms_queue.init_app(flask_redis, metrics_logger)
-    email_queue.init_app(flask_redis, metrics_logger)
     redis_store.init_app(application)
 
     # Priority lanes feature (FF_PRIORITY_LANES)
@@ -111,6 +109,10 @@ def create_app(application, config=None):
         RedisQueues.EMAIL_BULK.init_app(flask_redis, metrics_logger)
         RedisQueues.EMAIL_NORMAL.init_app(flask_redis, metrics_logger)
         RedisQueues.EMAIL_PRIORITY.init_app(flask_redis, metrics_logger)
+    
+    else:
+        sms_queue.init_app(flask_redis, metrics_logger)
+        email_queue.init_app(flask_redis, metrics_logger)
     # END FF_PRIORITY_LANES
 
     register_blueprint(application)
