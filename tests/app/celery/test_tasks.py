@@ -941,7 +941,7 @@ def test_should_not_save_sms_if_team_key_and_recipient_not_in_team(notify_db_ses
     save_sms_mock = mocker.patch("app.celery.tasks.save_sms.apply_async")
 
     process_row(
-        Row
+        Row(
             {"foo": "bar", "to": notification["to"]},
             index="row_num",
             error_fn=lambda k, v: None,
