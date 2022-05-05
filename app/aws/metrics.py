@@ -1,7 +1,6 @@
 from __future__ import annotations  # PEP 563 -- Postponed Evaluation of Annotations
 
 from typing import TYPE_CHECKING
-from app.config import Config
 
 from botocore.exceptions import ClientError
 from flask import current_app
