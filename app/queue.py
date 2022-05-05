@@ -108,6 +108,22 @@ class RedisQueue(Queue):
     scripts: Dict[str, Any] = {}
 
     def __init__(self, suffix=None, expire_inflight_after_seconds=300, process_type=None) -> None:
+        """
+        Constructor for the Redis Queue
+
+        suffix: str
+            Suffix can be of type "inbox" or "in-flight". Defines what type of Redis list is created
+        expire_inflight_after_seconds: int
+            Seconds indiciating how long an in-flight list should be kept around before being sent to
+            the inbox
+        process_type: str
+            String indiciating the priority of the notification. It can be one of "priority", "bulk" or "normal"
+
+        Return:
+        -------
+        RedisQueue
+
+        """
         self._inbox = Buffer.INBOX.inbox_name(suffix, process_type)
         self._suffix = suffix
         self._process_type = process_type
