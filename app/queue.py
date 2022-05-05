@@ -28,14 +28,28 @@ class Buffer(Enum):
     INBOX = "inbox"
     IN_FLIGHT = "in-flight"
 
-    def inbox_name(self, suffix=None):
-        return f"{self.value}:{suffix}" if suffix else self.value
+    def inbox_name(self, suffix=None, process_type=None):
+        if process_type and suffix:
+            return f"{self.value}:{suffix}:{process_type}"
+        if suffix:
+            return f"{self.value}:{suffix}"
+        if process_type:
+            # Added two ":" to keep the same format as suffix:process_type
+            return f"{self.value}::{str(process_type)}"
+        return self.value
 
-    def inflight_prefix(self, suffix: str = None) -> str:
-        return f"{Buffer.IN_FLIGHT.value}:{str(suffix)}" if suffix else f"{Buffer.IN_FLIGHT.value}"
+    def inflight_prefix(self, suffix: str = None, process_type: str = None) -> str:
+        if process_type and suffix:
+            return f"{Buffer.IN_FLIGHT.value}:{str(suffix)}:{str(process_type)}"
+        if suffix:
+            return f"{Buffer.IN_FLIGHT.value}:{str(suffix)}"
+        if process_type:
+            # Added two ":" to keep the same format as suffix:process_type
+            return f"{Buffer.IN_FLIGHT.value}::{str(process_type)}"
+        return f"{Buffer.IN_FLIGHT.value}"
 
-    def inflight_name(self, receipt: UUID = uuid4(), suffix: str = None) -> str:
-        return f"{self.inflight_prefix(suffix)}:{str(receipt)}"
+    def inflight_name(self, receipt: UUID = uuid4(), suffix: str = None, process_type: str = None) -> str:
+        return f"{self.inflight_prefix(suffix, process_type)}:{str(receipt)}"
 
 
 class Queue(ABC):
@@ -99,10 +113,27 @@ class RedisQueue(Queue):
 
     scripts: Dict[str, Any] = {}
 
-    def __init__(self, suffix=None, expire_inflight_after_seconds=300) -> None:
-        self._inbox = Buffer.INBOX.inbox_name(suffix)
+    def __init__(self, suffix=None, expire_inflight_after_seconds=300, process_type=None) -> None:
+        """
+        Constructor for the Redis Queue
+
+        suffix: str
+            Suffix can be of type "inbox" or "in-flight". Defines what type of Redis list is created
+        expire_inflight_after_seconds: int
+            Seconds indicating how long an in-flight list should be kept around before being sent to
+            the inbox
+        process_type: str
+            String indicating the priority of the notification. It can be one of "priority", "bulk" or "normal"
+
+        Return:
+        -------
+        RedisQueue
+
+        """
+        self._inbox = Buffer.INBOX.inbox_name(suffix, process_type)
         self._inflight_prefix = Buffer.IN_FLIGHT.inflight_prefix(suffix)
         self._suffix = suffix
+        self._process_type = process_type
         self._expire_inflight_after_seconds = expire_inflight_after_seconds
 
     def init_app(self, redis, metrics_logger):
@@ -112,21 +143,28 @@ class RedisQueue(Queue):
 
     def poll(self, count=10) -> tuple[UUID, list[str]]:
         receipt = uuid4()
-        in_flight_key = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
+        in_flight_key = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
         results = self.__move_to_inflight(in_flight_key, count)
         if results:
             put_batch_saving_inflight_metric(self.__metrics_logger, self, 1)
         return (receipt, results)
 
     def expire_inflights(self):
-        args = [f"{Buffer.IN_FLIGHT.inflight_prefix()}:{self._suffix}*", self._inbox, self._expire_inflight_after_seconds]
+        if self._process_type:
+            args = [
+                f"{Buffer.IN_FLIGHT.inflight_prefix()}:{self._suffix}:{self._process_type}*",
+                self._inbox,
+                self._expire_inflight_after_seconds,
+            ]
+        else:
+            args = [f"{Buffer.IN_FLIGHT.inflight_prefix()}:{self._suffix}*", self._inbox, self._expire_inflight_after_seconds]
         expired = self.scripts[self.LUA_EXPIRE_INFLIGHTS](args=args)
         if expired:
             put_batch_saving_expiry_metric(self.__metrics_logger, len(expired))
             current_app.logger.warning(f"Moved inflights {expired} back to inbox {self._inbox}")
 
     def acknowledge(self, receipt: UUID):
-        inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
+        inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
         self._redis_client.delete(inflight_name)
         put_batch_saving_inflight_processed(self.__metrics_logger, self, 1)
 
