@@ -17,7 +17,7 @@ def put_batch_saving_metric(metrics_logger: MetricsLogger, queue: RedisQueue, co
 
     Args:
         queue (RedisQueue): Implementation of queue.RedisQueue for BatchSaving
-        count (int): default: 1, count of an item added to the INBOX.
+        count (int): count of an item added to the INBOX.
         metrics (MetricsLogger): Submit metric to cloudwatch
     """
     if metrics_logger.metrics_config.disable_metric_extraction:
@@ -38,7 +38,7 @@ def put_batch_saving_inflight_metric(metrics_logger: MetricsLogger, queue: Redis
     Metric to calculate how many inflight lists have been created
 
     Args:
-        count (int): default: 1, count of an inflight list created.
+        count (int): count of an inflight list created.
         metrics (MetricsLogger): Submit metric to cloudwatch
     """
     if metrics_logger.metrics_config.disable_metric_extraction:
@@ -60,7 +60,7 @@ def put_batch_saving_inflight_processed(metrics_logger: MetricsLogger, queue: Re
     Metric to calculate how many inflight lists have been processed.
 
     Args:
-        count (int): default: 1, count of an inflight list created.
+        count (int): count of an inflight list created.
         metrics (MetricsLogger): Submit metric to cloudwatch
     """
     if metrics_logger.metrics_config.disable_metric_extraction:
@@ -83,7 +83,7 @@ def put_batch_saving_expiry_metric(metrics_logger: MetricsLogger, queue: RedisQu
     sent back to the inbox.
 
     Args:
-        count (int): Number of inlfight lists sent to inbox
+        count (int): Number of inflight lists sent to inbox
         metrics (MetricsLogger): Submit metric to cloudwatch
     """
     if metrics_logger.metrics_config.disable_metric_extraction:
@@ -106,8 +106,9 @@ def put_batch_saving_bulk_created(metrics_logger: MetricsLogger, count: int, typ
     the bulk api
 
     Args:
-        count (int): Number of inlfight lists sent to inbox
+        count (int): Number of bulk job batches created
         metrics (MetricsLogger): Submit metric to cloudwatch
+        type: priority and notification type
     """
     if metrics_logger.metrics_config.disable_metric_extraction:
         return
@@ -128,8 +129,9 @@ def put_batch_saving_bulk_processed(metrics_logger: MetricsLogger, count: int, t
     Metric to calculate how many bulk insertion have been processed.
 
     Args:
-        count (int): default: 1, count of an inflight list created.
+        count (int): Number of bulk job batches processed
         metrics (MetricsLogger): Submit metric to cloudwatch
+        type: priority and notification type
     """
     if metrics_logger.metrics_config.disable_metric_extraction:
         return
