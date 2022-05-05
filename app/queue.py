@@ -33,6 +33,9 @@ class Buffer(Enum):
             return f"{self.value}:{suffix}:{process_type}"
         if suffix:
             return f"{self.value}:{suffix}"
+        if process_type:
+            #Added two ":" to keep the same format as suffix:process_type
+            return f"{self.value}::{str(process_type)}"
         return self.value
 
     def inflight_prefix(self, suffix: str = None, process_type: str = None) -> str:
@@ -40,6 +43,9 @@ class Buffer(Enum):
             return f"{Buffer.IN_FLIGHT.value}:{str(suffix)}:{str(process_type)}"
         if suffix:
             return f"{Buffer.IN_FLIGHT.value}:{str(suffix)}"
+        if process_type:
+            #Added two ":" to keep the same format as suffix:process_type
+            return f"{Buffer.IN_FLIGHT.value}::{str(process_type)}"
         return f"{Buffer.IN_FLIGHT.value}"
 
     def inflight_name(self, receipt: UUID = uuid4(), suffix: str = None, process_type: str = None) -> str:
@@ -114,10 +120,10 @@ class RedisQueue(Queue):
         suffix: str
             Suffix can be of type "inbox" or "in-flight". Defines what type of Redis list is created
         expire_inflight_after_seconds: int
-            Seconds indiciating how long an in-flight list should be kept around before being sent to
+            Seconds indicating how long an in-flight list should be kept around before being sent to
             the inbox
         process_type: str
-            String indiciating the priority of the notification. It can be one of "priority", "bulk" or "normal"
+            String indicating the priority of the notification. It can be one of "priority", "bulk" or "normal"
 
         Return:
         -------
