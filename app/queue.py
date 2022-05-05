@@ -34,7 +34,7 @@ class Buffer(Enum):
         if suffix:
             return f"{self.value}:{suffix}"
         if process_type:
-            #Added two ":" to keep the same format as suffix:process_type
+            # Added two ":" to keep the same format as suffix:process_type
             return f"{self.value}::{str(process_type)}"
         return self.value
 
@@ -44,7 +44,7 @@ class Buffer(Enum):
         if suffix:
             return f"{Buffer.IN_FLIGHT.value}:{str(suffix)}"
         if process_type:
-            #Added two ":" to keep the same format as suffix:process_type
+            # Added two ":" to keep the same format as suffix:process_type
             return f"{Buffer.IN_FLIGHT.value}::{str(process_type)}"
         return f"{Buffer.IN_FLIGHT.value}"
 
