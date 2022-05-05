@@ -1,6 +1,7 @@
 from __future__ import annotations  # PEP 563 -- Postponed Evaluation of Annotations
 
 from typing import TYPE_CHECKING
+from app.config import Config
 
 from botocore.exceptions import ClientError
 from flask import current_app
@@ -32,7 +33,7 @@ def put_batch_saving_metric(metrics_logger: MetricsLogger, queue: RedisQueue, co
     return
 
 
-def put_batch_saving_inflight_metric(metrics_logger: MetricsLogger, count: int):
+def put_batch_saving_inflight_metric(metrics_logger: MetricsLogger, queue: RedisQueue, count: int):
     """
     Metric to calculate how many inflight lists have been created
 
@@ -46,6 +47,7 @@ def put_batch_saving_inflight_metric(metrics_logger: MetricsLogger, count: int):
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_inflight", count, "Count")
         metrics_logger.set_dimensions({"created": "True"})
+        metrics_logger.set_dimensions({"type": queue._suffix})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
@@ -53,7 +55,7 @@ def put_batch_saving_inflight_metric(metrics_logger: MetricsLogger, count: int):
     return
 
 
-def put_batch_saving_inflight_processed(metrics_logger: MetricsLogger, count: int):
+def put_batch_saving_inflight_processed(metrics_logger: MetricsLogger, queue: RedisQueue, count: int):
     """
     Metric to calculate how many inflight lists have been processed.
 
@@ -67,6 +69,7 @@ def put_batch_saving_inflight_processed(metrics_logger: MetricsLogger, count: in
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_inflight", count, "Count")
         metrics_logger.set_dimensions({"acknowledged": "True"})
+        metrics_logger.set_dimensions({"type": queue._suffix})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
@@ -74,7 +77,7 @@ def put_batch_saving_inflight_processed(metrics_logger: MetricsLogger, count: in
     return
 
 
-def put_batch_saving_expiry_metric(metrics_logger: MetricsLogger, count: int):
+def put_batch_saving_expiry_metric(metrics_logger: MetricsLogger, queue: RedisQueue, count: int):
     """
     Metric to calculate how many inflight list have not been processed and instead
     sent back to the inbox.
@@ -89,6 +92,7 @@ def put_batch_saving_expiry_metric(metrics_logger: MetricsLogger, count: int):
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_inflight", count, "Count")
         metrics_logger.set_dimensions({"expired": "True"})
+        metrics_logger.set_dimensions({"type": queue._suffix})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
@@ -96,7 +100,7 @@ def put_batch_saving_expiry_metric(metrics_logger: MetricsLogger, count: int):
     return
 
 
-def put_batch_saving_bulk_created(metrics_logger: MetricsLogger, count: int):
+def put_batch_saving_bulk_created(metrics_logger: MetricsLogger, count: int, type: str = "none"):
     """
     Metric to calculate how many notifications are sent through
     the bulk api
@@ -111,6 +115,7 @@ def put_batch_saving_bulk_created(metrics_logger: MetricsLogger, count: int):
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_bulk", count, "Count")
         metrics_logger.set_dimensions({"created": "True"})
+        metrics_logger.set_dimensions({"type": type})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
@@ -118,7 +123,7 @@ def put_batch_saving_bulk_created(metrics_logger: MetricsLogger, count: int):
     return
 
 
-def put_batch_saving_bulk_processed(metrics_logger: MetricsLogger, count: int):
+def put_batch_saving_bulk_processed(metrics_logger: MetricsLogger, count: int, type: str = "none"):
     """
     Metric to calculate how many bulk insertion have been processed.
 
@@ -132,6 +137,7 @@ def put_batch_saving_bulk_processed(metrics_logger: MetricsLogger, count: int):
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_bulk", count, "Count")
         metrics_logger.set_dimensions({"acknowledged": "True"})
+        metrics_logger.set_dimensions({"type": type})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)

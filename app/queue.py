@@ -101,6 +101,7 @@ class RedisQueue(Queue):
 
     def __init__(self, suffix=None, expire_inflight_after_seconds=300) -> None:
         self._inbox = Buffer.INBOX.inbox_name(suffix)
+        self._inflight_prefix = Buffer.IN_FLIGHT.inflight_prefix(suffix)
         self._suffix = suffix
         self._expire_inflight_after_seconds = expire_inflight_after_seconds
 
@@ -114,7 +115,7 @@ class RedisQueue(Queue):
         in_flight_key = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
         results = self.__move_to_inflight(in_flight_key, count)
         if results:
-            put_batch_saving_inflight_metric(self.__metrics_logger, 1)
+            put_batch_saving_inflight_metric(self.__metrics_logger, self, 1)
         return (receipt, results)
 
     def expire_inflights(self):
@@ -127,7 +128,7 @@ class RedisQueue(Queue):
     def acknowledge(self, receipt: UUID):
         inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix)
         self._redis_client.delete(inflight_name)
-        put_batch_saving_inflight_processed(self.__metrics_logger, 1)
+        put_batch_saving_inflight_processed(self.__metrics_logger, self, 1)
 
     def publish(self, message: str):
         self._redis_client.rpush(self._inbox, message)
