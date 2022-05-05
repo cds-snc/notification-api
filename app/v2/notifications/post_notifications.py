@@ -49,7 +49,6 @@ from app.models import (
     NOTIFICATION_SENDING,
     PRIORITY,
     SMS_TYPE,
-    NORMAL,
     UPLOAD_DOCUMENT,
     Notification,
 )
@@ -72,7 +71,6 @@ from app.notifications.validators import (
     validate_template,
     validate_template_exists,
 )
-from app.queue import RedisQueue
 from app.schema_validation import validate
 from app.schemas import job_schema
 from app.service.utils import safelisted_members
@@ -253,6 +251,27 @@ def post_notification(notification_type):
     return jsonify(resp), 201
 
 
+# Priority lanes feature (FF_PRIORITY_LANES)
+def triage_notification_to_queues(notification_type, signed_notification_data, template):
+    if notification_type == SMS_TYPE:
+        if template.process_type == PRIORITY:
+            RedisQueues.SMS_PRIORITY.publish(signed_notification_data)
+        elif template.process_type == NORMAL:
+            RedisQueues.SMS_NORMAL.publish(signed_notification_data)
+        elif template.process_type == BULK:
+            RedisQueues.SMS_BULK.publish(signed_notification_data)
+    elif notification_type == EMAIL_TYPE:
+        if template.process_type == PRIORITY:
+            RedisQueues.EMAIL_PRIORITY.publish(signed_notification_data)
+        elif template.process_type == NORMAL:
+            RedisQueues.EMAIL_NORMAL.publish(signed_notification_data)
+        elif template.process_type == BULK:
+            RedisQueues.EMAIL_BULK.publish(signed_notification_data)
+
+
+# END FF_PRIORITY_LANES
+
+
 def process_sms_or_email_notification(*, form, notification_type, api_key, template, service, reply_to_text=None):
     form_send_to = form["email_address"] if notification_type == EMAIL_TYPE else form["phone_number"]
 
@@ -298,26 +317,14 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             reply_to_text=reply_to_text,
         )
         persist_scheduled_notification(notification.id, form["scheduled_for"])
+    # Priority lanes feature (FF_PRIORITY_LANES)
     elif current_app.config["FF_REDIS_BATCH_SAVING"] and current_app.config["FF_PRIORITY_LANES"] and not simulated:
-        if notification_type == SMS_TYPE:
-            if template.process_type == PRIORITY:
-                RedisQueues.SMS_PRIORITY.publish(signed_notification_data)
-            elif template.process_type == NORMAL:
-                RedisQueues.SMS_NORMAL.publish(signed_notification_data)
-            elif template.process_type == BULK:
-                RedisQueues.SMS_BULK.publish(signed_notification_data)
-        elif notification_type == EMAIL_TYPE:
-            if template.process_type == PRIORITY:
-                RedisQueues.EMAIL_PRIORITY.publish(signed_notification_data)
-            elif template.process_type == NORMAL:
-                RedisQueues.EMAIL_NORMAL.publish(signed_notification_data)
-            elif template.process_type == BULK:
-                RedisQueues.EMAIL_BULK.publish(signed_notification_data)
+        triage_notification_to_queues(notification_type, signed_notification_data, template)
 
         current_app.logger.info(
             f"Batch saving: {notification_type}/{template.process_type} {notification['id']} sent to buffer queue."
         )
-
+    # END FF_PRIORITY_LANES
     elif current_app.config["FF_REDIS_BATCH_SAVING"] and not simulated:
         if notification_type == SMS_TYPE:
             sms_queue.publish(signed_notification_data)

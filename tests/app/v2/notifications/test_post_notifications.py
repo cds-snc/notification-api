@@ -1,6 +1,5 @@
 import base64
 import csv
-import pdb
 import uuid
 from datetime import datetime, timedelta
 from io import StringIO
@@ -1971,7 +1970,7 @@ class TestBatchPriorityLanes:
         # turn required feature flags on
         notify_api.config["FF_REDIS_BATCH_SAVING"] = True
         notify_api.config["FF_PRIORITY_LANES"] = True
-        
+
         mock_redisQueue_SMS_BULK = mocker.patch("app.RedisQueues.SMS_BULK.publish")
         mock_redisQueue_SMS_NORMAL = mocker.patch("app.RedisQueues.SMS_NORMAL.publish")
         mock_redisQueue_SMS_PRIORITY = mocker.patch("app.RedisQueues.SMS_PRIORITY.publish")
@@ -1993,27 +1992,28 @@ class TestBatchPriorityLanes:
             headers=[("Content-Type", "application/json"), auth_header],
         )
         assert response.status_code == 201
-        
-        if process_type == 'bulk':
-            assert mock_redisQueue_SMS_BULK.called
-        elif process_type == 'normal':
-            assert mock_redisQueue_SMS_NORMAL.called
-        elif process_type == 'priority':
-            assert mock_redisQueue_SMS_PRIORITY.called
 
+        if process_type == "bulk":
+            assert mock_redisQueue_SMS_BULK.called
+        elif process_type == "normal":
+            assert mock_redisQueue_SMS_NORMAL.called
+        elif process_type == "priority":
+            assert mock_redisQueue_SMS_PRIORITY.called
 
     @pytest.mark.parametrize("process_type", ["bulk", "normal", "priority"])
     def test_email_each_queue_is_used(self, notify_api, client, mocker, service_factory, process_type):
         # turn required feature flags on
         notify_api.config["FF_REDIS_BATCH_SAVING"] = True
         notify_api.config["FF_PRIORITY_LANES"] = True
-        
+
         mock_redisQueue_EMAIL_BULK = mocker.patch("app.RedisQueues.EMAIL_BULK.publish")
         mock_redisQueue_EMAIL_NORMAL = mocker.patch("app.RedisQueues.EMAIL_NORMAL.publish")
         mock_redisQueue_EMAIL_PRIORITY = mocker.patch("app.RedisQueues.EMAIL_PRIORITY.publish")
 
         service = service_factory.get("one")
-        template = create_template(service=service, template_type="email", content="Hello (( Name))\nYour thing is due soon", process_type=process_type)
+        template = create_template(
+            service=service, template_type="email", content="Hello (( Name))\nYour thing is due soon", process_type=process_type
+        )
 
         data = {
             "email_address": template.service.users[0].email_address,
@@ -2030,9 +2030,9 @@ class TestBatchPriorityLanes:
         )
         assert response.status_code == 201
         # pytest.set_trace()
-        if process_type == 'bulk':
+        if process_type == "bulk":
             assert mock_redisQueue_EMAIL_BULK.called
-        elif process_type == 'normal':
+        elif process_type == "normal":
             assert mock_redisQueue_EMAIL_NORMAL.called
-        elif process_type == 'priority':
+        elif process_type == "priority":
             assert mock_redisQueue_EMAIL_PRIORITY.called

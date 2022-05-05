@@ -67,6 +67,8 @@ class RedisQueues(object):
     EMAIL_BULK = RedisQueue("email_bulk")
     EMAIL_NORMAL = RedisQueue("email_normal")
     EMAIL_PRIORITY = RedisQueue("email_priority")
+
+
 # END FF_PRIORITY_LANES
 
 
@@ -103,13 +105,13 @@ def create_app(application, config=None):
     # Priority lanes feature (FF_PRIORITY_LANES)
     # initialize redis queues
     if application.config["FF_PRIORITY_LANES"]:
-        RedisQueues.SMS_BULK.init_app(flask_redis, metrics_logger)    
+        RedisQueues.SMS_BULK.init_app(flask_redis, metrics_logger)
         RedisQueues.SMS_NORMAL.init_app(flask_redis, metrics_logger)
         RedisQueues.SMS_PRIORITY.init_app(flask_redis, metrics_logger)
         RedisQueues.EMAIL_BULK.init_app(flask_redis, metrics_logger)
         RedisQueues.EMAIL_NORMAL.init_app(flask_redis, metrics_logger)
         RedisQueues.EMAIL_PRIORITY.init_app(flask_redis, metrics_logger)
-    
+
     else:
         sms_queue.init_app(flask_redis, metrics_logger)
         email_queue.init_app(flask_redis, metrics_logger)
