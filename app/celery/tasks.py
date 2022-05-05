@@ -58,6 +58,7 @@ from app.dao.services_dao import (
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import DVLAException, NotificationTechnicalFailureException
 from app.models import (
+    BULK,
     DVLA_RESPONSE_STATUS_SENT,
     EMAIL_TYPE,
     JOB_STATUS_CANCELLED,
@@ -73,6 +74,7 @@ from app.models import (
     NOTIFICATION_SENDING,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
+    PRIORITY,
     SMS_TYPE,
     DailySortedLetter,
     Job,
@@ -153,6 +155,23 @@ def job_complete(job: Job, resumed=False, start=None):
         )
 
 
+def choose_database_queue(template: Template, service: Service):
+    if Config.FF_PRIORITY_LANES:
+        if service.research_mode:
+            return QueueNames.RESEARCH_MODE
+        elif template.process_type == PRIORITY:
+            return QueueNames.PRIORITY_DATABASE
+        elif template.process_type == BULK:
+            return QueueNames.BULK_DATABASE
+        else:
+            return QueueNames.NORMAL_DATABASE
+    else:
+        if service.research_mode:
+            return QueueNames.RESEARCH_MODE
+        else:
+            return QueueNames.DATABASE
+
+
 def process_row(row: Row, template: Template, job: Job, service: Service):
     template_type = template.template_type
     client_reference = row.get("reference")
@@ -192,7 +211,7 @@ def process_row(row: Row, template: Template, job: Job, service: Service):
                 signed,
             ),
             task_kwargs,
-            queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
+            queue=choose_database_queue(template, service),
         )
     else:
         current_app.logger.debug("SMS {} failed as restricted service".format(notification_id))
@@ -233,17 +252,17 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
     if encrypted_smss:
         save_smss.apply_async(
             (str(service.id), encrypted_smss, None),
-            queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
+            queue=choose_database_queue(template, service),
         )
     if encrypted_emails:
         save_emails.apply_async(
             (str(service.id), encrypted_emails, None),
-            queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
+            queue=choose_database_queue(template, service),
         )
     if encrypted_letters:
         save_letters.apply_async(
             (str(service.id), encrypted_letters),
-            queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
+            queue=choose_database_queue(template, service),
         )
 
 
@@ -681,9 +700,19 @@ def handle_batch_error_and_forward(
             )
             current_app.logger.info(forward_msg)
             save_fn = save_email if notification_type == EMAIL_TYPE else save_sms
+
+            template = dao_get_template_by_id(
+                notification.get("template_id"), notification.get("template_version"), use_cache=True
+            )
+            # if the template is obtained from cache a tuple will be returned where
+            # the first element is the Template object and the second the template cache data
+            # in the form of a dict
+            if isinstance(template, tuple):
+                template = template[0]
+
             save_fn.apply_async(
                 (service.id, notification_id, signed, None),
-                queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
+                queue=choose_database_queue(template, service),
             )
 
     # end of the loop, purge the notifications from the buffer queue:
