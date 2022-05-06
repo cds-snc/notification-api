@@ -61,12 +61,12 @@ authenticated_service = LocalProxy(lambda: _request_ctx_stack.top.authenticated_
 
 # Priority lanes feature (FF_PRIORITY_LANES)
 class RedisQueues(object):
-    SMS_BULK = RedisQueue("sms_bulk")
-    SMS_NORMAL = RedisQueue("sms_normal")
-    SMS_PRIORITY = RedisQueue("sms_priority")
-    EMAIL_BULK = RedisQueue("email_bulk")
-    EMAIL_NORMAL = RedisQueue("email_normal")
-    EMAIL_PRIORITY = RedisQueue("email_priority")
+    SMS_BULK = RedisQueue("sms_bulk", process_type="bulk")
+    SMS_NORMAL = RedisQueue("sms", process_type="normal")
+    SMS_PRIORITY = RedisQueue("sms", process_type="priority")
+    EMAIL_BULK = RedisQueue("email", process_type="bulk")
+    EMAIL_NORMAL = RedisQueue("email", process_type="normal")
+    EMAIL_PRIORITY = RedisQueue("email", process_type="priority")
 
 
 # END FF_PRIORITY_LANES
