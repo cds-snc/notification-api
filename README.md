@@ -131,11 +131,12 @@ To update the images, change the `FROM` directive at the top of Dockerfiles and 
 
 The Docker image used in local development, ci/Dockerfile.local, builds with the Python packages given by requirements-app.txt, which specifies only the top level dependencies.  This ensures that the local image always builds with the most recent sub-dependencies, and developers only need to keep track of the top level dependencies.
 
-The Docker image used in production, ci/Dockerfile, builds with the Python packages given by requirements.txt, which freezes all dependencies.  **Prior to any deployment to AWS beyond the "development" environment, update requirements.txt as follows**:
+The Docker image used in production, ci/Dockerfile, builds with the Python packages given by requirements.txt, which freezes all dependencies.  **Prior to any deployment to AWS, update requirements.txt as follows**:
 
 1. If necessary, build the notification_api Docker image using the docker-compose command given in [Local Development](#local-development).
 2. Run `docker run --rm -i notification_api pip freeze > requirements.txt`.
 3. Open requirements.txt, and manually remove any warning messages at the start of the file.
+4. Assuming all unit tests are passing, note any top level dependency updates.  Update requirements-app.txt to make their minimum version equal to the version actually installed according to requirements.txt.
 
 ### Deploy using Github Actions
 

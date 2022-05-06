@@ -5,13 +5,13 @@ asn1crypto==1.5.1
 async-timeout==4.0.2
 attrs==21.4.0
 Authlib==1.0.1
-awscli==1.23.7
+awscli==1.23.8
 bcrypt==3.2.2
 billiard==3.6.4.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.22.7
-botocore==1.25.7
+boto3==1.22.8
+botocore==1.25.8
 cachelib==0.6.0
 celery==4.4.7
 certifi==2021.10.8
@@ -22,8 +22,10 @@ click-datetime==0.2
 colorama==0.4.4
 cryptography==37.0.2
 Deprecated==1.2.13
+dnspython==2.2.1
 docopt==0.6.2
 docutils==0.15.2
+eventlet==0.33.0
 fido2==0.9.3
 Flask==1.1.4
 Flask-Bcrypt==0.7.1
@@ -35,6 +37,7 @@ flask-redis==0.4.0
 Flask-SQLAlchemy @ git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd1a20a21e682262
 flupy==1.1.9
 future==0.18.2
+greenlet==1.1.2
 gunicorn==20.1.0
 idna==3.3
 importlib-metadata==4.11.3
@@ -43,7 +46,7 @@ iso8601==1.0.2
 itsdangerous==1.1.0
 Jinja2==2.11.3
 jmespath==1.0.0
-jsonschema==4.4.0
+jsonschema==4.5.1
 kombu==4.6.11
 Mako==1.2.0
 MarkupSafe==2.0.1
