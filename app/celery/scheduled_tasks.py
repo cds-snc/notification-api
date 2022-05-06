@@ -225,8 +225,7 @@ def check_templated_letter_state():
 @notify_celery.task(name="in-flight-to-inbox")
 @statsd(namespace="tasks")
 def recover_expired_notifications():
-    sms_queue.expire_inflights()
-    email_queue.expire_inflights()
+    
 
     # Priority lanes feature (FF_PRIORITY_LANES)
     if current_app.config["FF_PRIORITY_LANES"]:
@@ -236,8 +235,10 @@ def recover_expired_notifications():
         RedisQueues.EMAIL_BULK.expire_inflights()
         RedisQueues.EMAIL_NORMAL.expire_inflights()
         RedisQueues.EMAIL_PRIORITY.expire_inflights()
+    else:
+        sms_queue.expire_inflights()
+        email_queue.expire_inflights()
     # END FF_PRIORITY_LANES
-
 
 @notify_celery.task(name="beat-inbox-sms")
 @statsd(namespace="tasks")
@@ -249,7 +250,6 @@ def beat_inbox_sms():
     to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
     and actually sends the sms for each notification saved.
     """
-    # TODO: ask what to do here
     receipt_id_sms, list_of_sms_notifications = sms_queue.poll()
 
     while list_of_sms_notifications:
