@@ -1,0 +1,287 @@
+{
+    "ACCOUNT_CHANGE_TEMPLATE_ID": "5b39e16a-9ff8-487c-9bfb-9e06bdb70f36",
+    "ADMIN_BASE_URL": "https://notification.canada.ca",
+    "ADMIN_CLIENT_SECRET": "***",
+    "ADMIN_CLIENT_USER_NAME": "notify-admin",
+    "ALLOW_HTML_SERVICE_IDS": [
+        "98277a4a-63e4-47c3-8194-dffe8ed51c08",
+        "c500520b-977f-49df-8695-84e1c50a90da"
+    ],
+    "ALREADY_REGISTERED_EMAIL_TEMPLATE_ID": "0880fbb1-a0c6-46f0-9a8e-36c986381ceb",
+    "API_HOST_NAME": "https://api.notification.canada.ca",
+    "API_PAGE_SIZE": 250,
+    "API_RATE_LIMIT_ENABLED": True,
+    "ASSET_DOMAIN": "assets.notification.canada.ca",
+    "ASSET_UPLOAD_BUCKET_NAME": "notification-canada-ca-production-asset-upload",
+    "AWS_PINPOINT_REGION": "us-west-2",
+    "AWS_REGION": "ca-central-1",
+    "AWS_ROUTE53_ZONE": "Z5DPTU6YXL733",
+    "AWS_SES_ACCESS_KEY": "***",
+    "AWS_SES_REGION": "us-east-1",
+    "AWS_SES_SECRET_KEY": "***",
+    "AWS_US_TOLL_FREE_NUMBER": "+18449261787",
+    "BATCH_INSERTION_CHUNK_SIZE": 10,
+    "BRANDING_REQUEST_TEMPLATE_ID": "7d423d9e-e94e-4118-879d-d52f383206ae",
+    "BROKER_TRANSPORT_OPTIONS": {
+        "region": "ca-central-1",
+        "polling_interval": 1,
+        "visibility_timeout": 310,
+        "queue_name_prefix": "eks-notification-canada-ca"
+    },
+    "BROKER_URL": "sqs://",
+    "BULK_SEND_TEST_SERVICE_ID": "70996de4-ebe2-44c6-a0da-5587a86f37bd",
+    "CELERYBEAT_SCHEDULE": {
+        "run-scheduled-jobs": {
+            "task": "run-scheduled-jobs",
+            "schedule": <crontab: * * * * * (m/h/d/dM/MY)>,
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        },
+        "delete-verify-codes": {
+            "task": "delete-verify-codes",
+            "schedule": datetime.timedelta(seconds=3780),
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        },
+        "delete-invitations": {
+            "task": "delete-invitations",
+            "schedule": datetime.timedelta(seconds=3960),
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        },
+        "check-job-status": {
+            "task": "check-job-status",
+            "schedule": <crontab: * * * * * (m/h/d/dM/MY)>,
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        },
+        "replay-created-notifications": {
+            "task": "replay-created-notifications",
+            "schedule": <crontab: 0,
+            15,
+            30,
+            45 * * * * (m/h/d/dM/MY)>,
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        },
+        "in-flight-to-inbox": {
+            "task": "in-flight-to-inbox",
+            "schedule": 60,
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        },
+        "beat-inbox-sms": {
+            "task": "beat-inbox-sms",
+            "schedule": 10,
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        },
+        "beat-inbox-email": {
+            "task": "beat-inbox-email",
+            "schedule": 10,
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        },
+        "timeout-sending-notifications": {
+            "task": "timeout-sending-notifications",
+            "schedule": <crontab: 5 0 * * * (m/h/d/dM/MY)>,
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        },
+        "create-nightly-billing": {
+            "task": "create-nightly-billing",
+            "schedule": <crontab: 15 0 * * * (m/h/d/dM/MY)>,
+            "options": {
+                "queue": "reporting-tasks"
+            }
+        },
+        "create-nightly-notification-status": {
+            "task": "create-nightly-notification-status",
+            "schedule": <crontab: 30 0 * * * (m/h/d/dM/MY)>,
+            "options": {
+                "queue": "reporting-tasks"
+            }
+        },
+        "delete-sms-notifications": {
+            "task": "delete-sms-notifications",
+            "schedule": <crontab: 15 4 * * * (m/h/d/dM/MY)>,
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        },
+        "delete-email-notifications": {
+            "task": "delete-email-notifications",
+            "schedule": <crontab: 30 4 * * * (m/h/d/dM/MY)>,
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        },
+        "delete-letter-notifications": {
+            "task": "delete-letter-notifications",
+            "schedule": <crontab: 45 4 * * * (m/h/d/dM/MY)>,
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        },
+        "delete-inbound-sms": {
+            "task": "delete-inbound-sms",
+            "schedule": <crontab: 40 1 * * * (m/h/d/dM/MY)>,
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        },
+        "send-daily-performance-platform-stats": {
+            "task": "send-daily-performance-platform-stats",
+            "schedule": <crontab: 0 2 * * * (m/h/d/dM/MY)>,
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        },
+        "remove_transformed_dvla_files": {
+            "task": "remove_transformed_dvla_files",
+            "schedule": <crontab: 40 3 * * * (m/h/d/dM/MY)>,
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        },
+        "remove_sms_email_jobs": {
+            "task": "remove_sms_email_jobs",
+            "schedule": <crontab: 0 4 * * * (m/h/d/dM/MY)>,
+            "options": {
+                "queue": "periodic-tasks"
+            }
+        }
+    },
+    "CELERY_ACCEPT_CONTENT": [
+        "json"
+    ],
+    "CELERY_ENABLE_UTC": True,
+    "CELERY_IMPORTS": ("app.celery.tasks",
+    "app.celery.scheduled_tasks",
+    "app.celery.reporting_tasks",
+    "app.celery.nightly_tasks"),
+    "CELERY_QUEUES": [<unbound Queue priority-tasks -> <unbound Exchange default(direct)> -> priority-tasks>, <unbound Queue periodic-tasks -> <unbound Exchange default(direct)> -> periodic-tasks>, <unbound Queue bulk-tasks -> <unbound Exchange default(direct)> -> bulk-tasks>, <unbound Queue database-tasks -> <unbound Exchange default(direct)> -> database-tasks>, <unbound Queue send-sms-tasks -> <unbound Exchange default(direct)> -> send-sms-tasks>, <unbound Queue send-throttled-sms-tasks -> <unbound Exchange default(direct)> -> send-throttled-sms-tasks>, <unbound Queue send-email-tasks -> <unbound Exchange default(direct)> -> send-email-tasks>, <unbound Queue research-mode-tasks -> <unbound Exchange default(direct)> -> research-mode-tasks>, <unbound Queue reporting-tasks -> <unbound Exchange default(direct)> -> reporting-tasks>, <unbound Queue job-tasks -> <unbound Exchange default(direct)> -> job-tasks>, <unbound Queue retry-tasks -> <unbound Exchange default(direct)> -> retry-tasks>, <unbound Queue notify-internal-tasks -> <unbound Exchange default(direct)> -> notify-internal-tasks>, <unbound Queue service-callbacks -> <unbound Exchange default(direct)> -> service-callbacks>, <unbound Queue delivery-receipts -> <unbound Exchange default(direct)> -> delivery-receipts>, <unbound Queue priority-tasks -> <unbound Exchange default(direct)> -> priority-tasks>, <unbound Queue periodic-tasks -> <unbound Exchange default(direct)> -> periodic-tasks>, <unbound Queue bulk-tasks -> <unbound Exchange default(direct)> -> bulk-tasks>, <unbound Queue database-tasks -> <unbound Exchange default(direct)> -> database-tasks>, <unbound Queue send-sms-tasks -> <unbound Exchange default(direct)> -> send-sms-tasks>, <unbound Queue send-throttled-sms-tasks -> <unbound Exchange default(direct)> -> send-throttled-sms-tasks>, <unbound Queue send-email-tasks -> <unbound Exchange default(direct)> -> send-email-tasks>, <unbound Queue research-mode-tasks -> <unbound Exchange default(direct)> -> research-mode-tasks>, <unbound Queue reporting-tasks -> <unbound Exchange default(direct)> -> reporting-tasks>, <unbound Queue job-tasks -> <unbound Exchange default(direct)> -> job-tasks>, <unbound Queue retry-tasks -> <unbound Exchange default(direct)> -> retry-tasks>, <unbound Queue notify-internal-tasks -> <unbound Exchange default(direct)> -> notify-internal-tasks>, <unbound Queue service-callbacks -> <unbound Exchange default(direct)> -> service-callbacks>, <unbound Queue delivery-receipts -> <unbound Exchange default(direct)> -> delivery-receipts>
+    ],
+    "CELERY_TASK_SERIALIZER": "json",
+    "CELERY_TIMEZONE": "America/Toronto",
+    "CHANGE_EMAIL_CONFIRMATION_TEMPLATE_ID": "eb4d9930-87ab-4aef-9bce-786762687884",
+    "CHECK_PROXY_HEADER": False,
+    "CLOUDWATCH_AGENT_EMF_PORT": 25888,
+    "CLOUDWATCH_AGENT_ENDPOINT": "tcp://None:25888",
+    "CONTACT_US_TEMPLATE_ID": "8ea9b7a0-a824-4dd3-a4c3-1f508ed20a69",
+    "CRONITOR_ENABLED": False,
+    "CRONITOR_KEYS": {},
+    "CSV_BULK_REDIRECT_THRESHOLD": 200,
+    "CSV_MAX_ROWS": 50000,
+    "CSV_MAX_ROWS_BULK_SEND": 100000,
+    "CSV_UPLOAD_BUCKET_NAME": "notification-canada-ca-production-csv-upload",
+    "DAILY_LIMIT_UPDATED_TEMPLATE_ID": "b3c766e6-be32-4edf-b8db-0f04ef404edc",
+    "DANGEROUS_SALT": "***",
+    "DEBUG": False,
+    "DOCUMENTATION_DOMAIN": "documentation.notification.canada.ca",
+    "DOCUMENT_DOWNLOAD_API_HOST": "https://api.document.notification.canada.ca",
+    "DOCUMENT_DOWNLOAD_API_KEY": "***",
+    "DVLA_BUCKETS": {
+        "job": "production-dvla-file-per-job",
+        "notification": "production-dvla-letter-api-files"
+    },
+    "DVLA_RESPONSE_BUCKET_NAME": "notifications.service.gov.uk-ftp",
+    "EMAIL_2FA_TEMPLATE_ID": "299726d2-dba6-42b8-8209-30e1d66ea164",
+    "EXPIRE_CACHE_EIGHT_DAYS": 691200,
+    "EXPIRE_CACHE_TEN_MINUTES": 600,
+    "FF_BATCH_INSERTION": True,
+    "FF_CLOUDWATCH_METRICS_ENABLED": True,
+    "FF_NOTIFICATION_CELERY_PERSISTENCE": True,
+    "FF_REDIS_BATCH_SAVING": True,
+    "FIDO2_SERVER": <fido2.server.Fido2Server object at 0x7f675ea3f610>,
+    "FREE_SMS_TIER_FRAGMENT_COUNT": 250000,
+    "FRESH_DESK_API_KEY": "***",
+    "FRESH_DESK_API_URL": "https://cds-snc.freshdesk.com",
+    "FRESH_DESK_PRODUCT_ID": "61000000046",
+    "FROM_NUMBER": "CANADA.CA",
+    "HC_EN_SERVICE_ID": "9d7eb35c-e15f-46d0-b7a4-6859b843fedb",
+    "HC_FR_SERVICE_ID": "3e2589c4-a0d7-4592-9eb9-c178cddf2b1f",
+    "INVALID_PDF_BUCKET_NAME": "production-letters-invalid-pdf",
+    "INVITATION_EMAIL_TEMPLATE_ID": "4f46df42-f795-4cc4-83bb-65ca312f49cc",
+    "INVITATION_EXPIRATION_DAYS": 2,
+    "JOBS_MAX_SCHEDULE_HOURS_AHEAD": 96,
+    "LETTERS_PDF_BUCKET_NAME": "production-letters-pdf",
+    "LETTERS_SCAN_BUCKET_NAME": "production-letters-scan",
+    "MAX_LETTER_PDF_COUNT_PER_ZIP": 500,
+    "MAX_LETTER_PDF_ZIP_FILESIZE": 41943040,
+    "MAX_VERIFY_CODE_COUNT": 10,
+    "MLWR_HOST": "False",
+    "MLWR_KEY": "***",
+    "MLWR_USER": "***",
+    "MOU_NOTIFY_TEAM_ALERT_TEMPLATE_ID": "d0e66c4c-0c50-43f0-94f5-f85b613202d4",
+    "MOU_SIGNED_ON_BEHALF_ON_BEHALF_RECEIPT_TEMPLATE_ID": "522b6657-5ca5-4368-a294-6b527703bd0b",
+    "MOU_SIGNED_ON_BEHALF_SIGNER_RECEIPT_TEMPLATE_ID": "c20206d5-bf03-4002-9a90-37d5032d9e84",
+    "MOU_SIGNER_RECEIPT_TEMPLATE_ID": "4fd2e43c-309b-4e50-8fb8-1955852d9d71",
+    "NEAR_DAILY_LIMIT_TEMPLATE_ID": "5d3e4322-4ee6-457a-a710-c48755f6b643",
+    "NEW_USER_EMAIL_VERIFICATION_TEMPLATE_ID": "ece42649-22a8-4d06-b87f-d52d5d3f0a27",
+    "NOTIFICATION_QUEUE_PREFIX": "eks-notification-canada-ca",
+    "NOTIFY_APP_NAME": "api",
+    "NOTIFY_EMAIL_DOMAIN": "notification.canada.ca",
+    "NOTIFY_ENVIRONMENT": "production",
+    "NOTIFY_LOG_PATH": "",
+    "NOTIFY_SERVICE_ID": "d6aa2c68-a2d9-4437-ab19-3ae8eb202553",
+    "NOTIFY_USER_ID": "6af522d0-2915-4e52-83a3-3690455a5fe6",
+    "NO_REPLY_TEMPLATE_ID": "86950840-6da4-4865-841b-16028110e980",
+    "ONE_OFF_MESSAGE_FILENAME": "Report",
+    "ORGANISATION_INVITATION_EMAIL_TEMPLATE_ID": "203566f0-d835-47c5-aa06-932439c86573",
+    "PAGE_SIZE": 50,
+    "PASSWORD_RESET_TEMPLATE_ID": "474e9242-823b-4f99-813d-ed392e7f1201",
+    "PERFORMANCE_PLATFORM_ENABLED": False,
+    "PERFORMANCE_PLATFORM_ENDPOINTS": {},
+    "PERFORMANCE_PLATFORM_URL": "https://www.performance.service.gov.uk/data/govuk-notify/",
+    "REACHED_DAILY_LIMIT_TEMPLATE_ID": "fd29f796-fcdc-471b-a0d4-0093880d9173",
+    "REDIS_ENABLED": True,
+    "REDIS_URL": "***",
+    "REPLY_TO_EMAIL_ADDRESS_VERIFICATION_TEMPLATE_ID": "a42f1d17-9404-46d5-a647-d013bdfca3e1",
+    "ROUTE_SECRET_KEY_1": "***",
+    "ROUTE_SECRET_KEY_2": "***",
+    "SCAN_FOR_PII": False,
+    "SECRET_KEY": "***",
+    "SENDING_NOTIFICATIONS_TIMEOUT_PERIOD": 259200,
+    "SERVICE_NOW_LIVE_TEMPLATE_ID": "618185c6-3636-49cd-b7d2-6f6f5eb3bdde",
+    "SIMULATED_EMAIL_ADDRESSES": ("simulate-delivered@notification.canada.ca",
+    "simulate-delivered-2@notification.canada.ca",
+    "simulate-delivered-3@notification.canada.ca"),
+    "SIMULATED_SMS_NUMBERS": ("+16132532222",
+    "+16132532223",
+    "+16132532224"),
+    "SMS_CODE_TEMPLATE_ID": "36fb0730-6259-4da1-8a80-c8de22ad4246",
+    "SQLALCHEMY_BINDS": "***",
+    "SQLALCHEMY_DATABASE_READER_URI": "***",
+    "SQLALCHEMY_DATABASE_URI": "***",
+    "SQLALCHEMY_ECHO": False,
+    "SQLALCHEMY_POOL_RECYCLE": 300,
+    "SQLALCHEMY_POOL_SIZE": 256,
+    "SQLALCHEMY_POOL_TIMEOUT": 30,
+    "SQLALCHEMY_RECORD_QUERIES": False,
+    "SQLALCHEMY_TRACK_MODIFICATIONS": False,
+    "STATSD_ENABLED": False,
+    "STATSD_HOST": None,
+    "STATSD_PORT": 8125,
+    "STATSD_PREFIX": None,
+    "TEAM_MEMBER_EDIT_EMAIL_TEMPLATE_ID": "c73f1d71-4049-46d5-a647-d013bdeca3f0",
+    "TEAM_MEMBER_EDIT_MOBILE_TEMPLATE_ID": "8a31520f-4751-4789-8ea1-fe54496725eb",
+    "TEMPLATE_PREVIEW_API_HOST": "http://localhost:6013",
+    "TEMPLATE_PREVIEW_API_KEY": "***",
+    "TEST_LETTERS_BUCKET_NAME": "production-test-letters",
+    "TEST_MESSAGE_FILENAME": "Test message",
+    "TRANSIENT_UPLOADED_LETTERS": "production-transient-uploaded-letters",
+    "ZENDESK_API_KEY": "***",
+    "ZENDESK_API_URL": "https://cds-snc.zendesk.com",
+    "ZENDESK_SELL_API_KEY": "***",
+    "ZENDESK_SELL_API_URL": "https://api.getbase.com"
+}

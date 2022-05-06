@@ -399,14 +399,14 @@ class TestRedisQueueMetricUsage:
         with self.given_inbox_with_one_element(redis, redis_queue):
             pbsim_mock = mocker.patch("app.queue.put_batch_saving_inflight_metric")
             redis_queue.poll(10)
-            assert pbsim_mock.assert_called_with(mock.ANY, 1) is None
+            assert pbsim_mock.assert_called_with(mock.ANY, mock.ANY, 1) is None
 
     @pytest.mark.serial
     def test_polling_metric_no_results(self, redis, redis_queue, mocker):
         with self.given_inbox_with_one_element(redis, redis_queue):
             pbsim_mock = mocker.patch("app.queue.put_batch_saving_inflight_metric")
             redis_queue.poll(10)
-            assert pbsim_mock.assert_called_with(mock.ANY, 1) is None
+            assert pbsim_mock.assert_called_with(mock.ANY, mock.ANY, 1) is None
             pbsim_mock.reset_mock()
             redis_queue.poll(10)
             assert not pbsim_mock.called, "put_batch_saving_inflight_metric was called and should not have been"
@@ -417,7 +417,7 @@ class TestRedisQueueMetricUsage:
             pbsip_mock = mocker.patch("app.queue.put_batch_saving_inflight_processed")
             (receipt, _) = redis_queue.poll(10)
             redis_queue.acknowledge(receipt)
-            assert pbsip_mock.assert_called_with(mock.ANY, 1) is None
+            assert pbsip_mock.assert_called_with(mock.ANY, mock.ANY, 1) is None
 
     def test_put_batch_saving_expiry_metric(self, redis, redis_queue, mocker):
         with self.given_inbox_with_many_indexes(redis, redis_queue):
@@ -429,4 +429,4 @@ class TestRedisQueueMetricUsage:
             redis_queue.poll(10)
             time.sleep(2)
             redis_queue.expire_inflights()
-            assert pbsem_mock.assert_called_with(mock.ANY, 3) is None
+            assert pbsem_mock.assert_called_with(mock.ANY, mock.ANY, 3) is None
