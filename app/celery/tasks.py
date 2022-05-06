@@ -204,6 +204,7 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
     encrypted_smss: List[Any] = []
     encrypted_emails: List[Any] = []
     encrypted_letters: List[Any] = []
+    reply_to_text = dao_get_reply_to_by_id(service.id, sender_id).email_address if service.id and sender_id else None
 
     for row in rows:
         client_reference = row.get("reference")
@@ -214,7 +215,7 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
                 "template_version": job.template_version,
                 "job": str(job.id),
                 "to": row.recipient,
-                "reply_to_text": dao_get_reply_to_by_id(service.id, sender_id).email_address,
+                "reply_to_text": reply_to_text,
                 "row_number": row.index,
                 "personalisation": dict(row.personalisation),
                 "queue": queue_to_use(job.notification_count),
