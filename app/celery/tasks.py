@@ -220,10 +220,11 @@ def process_row(row: Row, template: Template, job: Job, service: Service):
 def process_rows(rows: List, template: Template, job: Job, service: Service):
     template_type = template.template_type
     sender_id = str(job.sender_id) if job.sender_id else None
+    service_id = service.id if service else None
     encrypted_smss: List[Any] = []
     encrypted_emails: List[Any] = []
     encrypted_letters: List[Any] = []
-    reply_to_text = dao_get_reply_to_by_id(service.id, sender_id).email_address if service.id and sender_id else None
+    reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address if service_id and sender_id else None
 
     for row in rows:
         client_reference = row.get("reference")
