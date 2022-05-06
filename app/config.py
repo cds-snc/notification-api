@@ -42,6 +42,15 @@ class QueueNames(object):
     # further.
     DATABASE = "database-tasks"
 
+    # database operations for high priority notifications
+    PRIORITY_DATABASE = "-priority-database-tasks.fifo"
+
+    # database operations for normal priority notifications
+    NORMAL_DATABASE = "-normal-database-tasks"
+
+    # database operations for bulk notifications
+    BULK_DATABASE = "-bulk-database-tasks"
+
     # A queue for the tasks associated with the batch saving
     NOTIFY_CACHE = "notifiy-cache-tasks"
 
@@ -87,6 +96,9 @@ class QueueNames(object):
             QueueNames.PERIODIC,
             QueueNames.BULK,
             QueueNames.DATABASE,
+            QueueNames.PRIORITY_DATABASE,
+            QueueNames.NORMAL_DATABASE,
+            QueueNames.BULK_DATABASE,
             QueueNames.SEND_SMS,
             QueueNames.SEND_THROTTLED_SMS,
             QueueNames.SEND_EMAIL,
@@ -193,7 +205,6 @@ class Config(object):
     AWS_PINPOINT_REGION = os.getenv("AWS_PINPOINT_REGION", "us-west-2")
     AWS_US_TOLL_FREE_NUMBER = os.getenv("AWS_US_TOLL_FREE_NUMBER")
     CSV_UPLOAD_BUCKET_NAME = os.getenv("CSV_UPLOAD_BUCKET_NAME", "notification-alpha-canada-ca-csv-upload")
-    ASSET_UPLOAD_BUCKET_NAME = os.getenv("ASSET_UPLOAD_BUCKET_NAME", "notification-alpha-canada-ca-asset-upload")
     ASSET_DOMAIN = os.getenv("ASSET_DOMAIN", "assets.notification.canada.ca")
     INVITATION_EXPIRATION_DAYS = 2
     NOTIFY_APP_NAME = "api"
