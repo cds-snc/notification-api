@@ -59,13 +59,15 @@ def validate_schema_date_with_hour(instance):
 def validate(json_to_validate, schema):
     validator = Draft7Validator(schema, format_checker=format_checker)
     errors = list(validator.iter_errors(json_to_validate))
-    if errors.__len__() > 0:
+    if len(errors) > 0:
         raise ValidationError(build_error_message(errors))
+
+    # TODO - This assumes that json_to_validate is a dictionary.  It could raise AttributeError.
     if json_to_validate.get('personalisation', None):
         json_to_validate['personalisation'], errors = decode_personalisation_files(
             json_to_validate.get('personalisation', {})
         )
-        if errors.__len__() > 0:
+        if len(errors) > 0:
             error_message = json.dumps({
                 "status_code": 400,
                 "errors": errors

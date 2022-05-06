@@ -10,17 +10,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN adduser -h /app -D vanotify
 WORKDIR /app
 
-# TODO - Use requirements-app.txt instead?  This might facilitate keeping subdependencies updated.
-COPY --chown=vanotify requirements.txt .
+COPY --chown=vanotify requirements-app.txt .
 
 RUN apk add --no-cache bash build-base postgresql-dev libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev \
   && apk add --no-cache --virtual .build-deps musl-dev rust cargo git \
   # Install Python dependencies.
   && python -m pip install --upgrade pip==22.0.4 \
   && python -m pip install wheel \
-  && pip install --no-cache-dir -r requirements.txt \
+  && pip install --no-cache-dir -r requirements-app.txt \
   # Remove build dependencies.
-  && rm requirements.txt \
+  && rm requirements-app.txt \
   && apk del --no-cache .build-deps
 
 # Bind the projects's root directory to the image.  See also docker-compose-local.yml.

@@ -22,13 +22,9 @@ RUN adduser -h /app -D vanotify
 
 WORKDIR /app
 
-COPY --chown=vanotify requirements.txt /app/requirements.txt
+COPY --chown=vanotify requirements.txt .
 
-RUN apk add --no-cache --virtual .build-deps \
-    gcc \
-    musl-dev \
-    rust \
-    cargo \
+RUN apk add --no-cache --virtual .build-deps gcc musl-dev rust cargo \
   && python -m pip install --upgrade pip==22.0.4 \
   && python -m pip install wheel \
   && pip install --no-cache-dir -r requirements.txt \
@@ -45,8 +41,6 @@ RUN apk add --no-cache make \
 
 USER vanotify
 
-COPY --chown=vanotify . /app
-RUN make generate-version-file
 ENV PORT=6011
 ARG GIT_SHA
 ENV GIT_SHA ${GIT_SHA}

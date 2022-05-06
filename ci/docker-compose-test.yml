@@ -4,6 +4,10 @@ services:
     build:
       context: ..
       dockerfile: ci/Dockerfile.test
+    volumes:
+      # Write access is necessary because the test runner writes output.
+      # Running "make test" includes deleting that output.
+      - "../:/app:rw"
     environment: 
       - SQLALCHEMY_DATABASE_URI=postgresql://postgres:LocalPassword@db:5432/test_notification_api
       - NOTIFY_ENVIRONMENT=test
