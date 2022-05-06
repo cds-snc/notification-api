@@ -253,8 +253,17 @@ def post_notification(notification_type):
     return jsonify(resp), 201
 
 
-# Priority lanes feature (FF_PRIORITY_LANES)
 def triage_notification_to_queues(notification_type, signed_notification_data, template):
+    """Determine which queue to use based on notification_type and process_type
+
+    Args:
+        notification_type: Type of notification being sent; either SMS_TYPE or EMAIL_TYPE
+        signed_notification_data: Encrypted notification data
+        template: Template used to send notification
+    Returns:
+        None
+
+    """
     if notification_type == SMS_TYPE:
         if template.process_type == PRIORITY:
             RedisQueues.SMS_PRIORITY.publish(signed_notification_data)
@@ -269,9 +278,6 @@ def triage_notification_to_queues(notification_type, signed_notification_data, t
             RedisQueues.EMAIL_NORMAL.publish(signed_notification_data)
         elif template.process_type == BULK:
             RedisQueues.EMAIL_BULK.publish(signed_notification_data)
-
-
-# END FF_PRIORITY_LANES
 
 
 def process_sms_or_email_notification(*, form, notification_type, api_key, template, service, reply_to_text=None):
