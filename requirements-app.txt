@@ -28,11 +28,11 @@ git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd
 
 # The production image defined by Dockerfile uses Gunicorn.  The development image defined by Dockerfile.local
 # runs the application with the Flask development server by default.
-gunicorn>=20.1.0
+gunicorn[eventlet]>=20.1.0
 
 iso8601>=1.0.2
 itsdangerous>=1.1.0
-jsonschema>=4.4.0
+jsonschema>=4.5.1
 
 # 5 May 2022: Celery depends on this package, and the Docker image build failed with the newest version.
 # Ignoring security vulnerability 42497 in Makefile.  The vulnerability is fixed in kombu>=5.2.1.
