@@ -1971,9 +1971,9 @@ class TestBatchPriorityLanes:
         notify_api.config["FF_REDIS_BATCH_SAVING"] = True
         notify_api.config["FF_PRIORITY_LANES"] = True
 
-        mock_redisQueue_SMS_BULK = mocker.patch("app.RedisQueues.SMS_BULK.publish")
-        mock_redisQueue_SMS_NORMAL = mocker.patch("app.RedisQueues.SMS_NORMAL.publish")
-        mock_redisQueue_SMS_PRIORITY = mocker.patch("app.RedisQueues.SMS_PRIORITY.publish")
+        mock_redisQueue_SMS_BULK = mocker.patch("app.sms_bulk.publish")
+        mock_redisQueue_SMS_NORMAL = mocker.patch("app.sms_normal.publish")
+        mock_redisQueue_SMS_PRIORITY = mocker.patch("app.sms_priority.publish")
 
         service = service_factory.get("one")
         template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon", process_type=process_type)
@@ -2006,9 +2006,9 @@ class TestBatchPriorityLanes:
         notify_api.config["FF_REDIS_BATCH_SAVING"] = True
         notify_api.config["FF_PRIORITY_LANES"] = True
 
-        mock_redisQueue_EMAIL_BULK = mocker.patch("app.RedisQueues.EMAIL_BULK.publish")
-        mock_redisQueue_EMAIL_NORMAL = mocker.patch("app.RedisQueues.EMAIL_NORMAL.publish")
-        mock_redisQueue_EMAIL_PRIORITY = mocker.patch("app.RedisQueues.EMAIL_PRIORITY.publish")
+        mock_redisQueue_EMAIL_BULK = mocker.patch("app.email_bulk.publish")
+        mock_redisQueue_EMAIL_NORMAL = mocker.patch("app.email_normal.publish")
+        mock_redisQueue_EMAIL_PRIORITY = mocker.patch("app.email_priority.publish")
 
         service = service_factory.get("one")
         template = create_template(

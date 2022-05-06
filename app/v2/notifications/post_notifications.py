@@ -12,14 +12,19 @@ from notifications_utils.recipients import (
 )
 
 from app import (
-    RedisQueues,
     api_user,
     authenticated_service,
     create_uuid,
     document_download_client,
+    email_bulk,
+    email_normal,
+    email_priority,
     email_queue,
     notify_celery,
     signer,
+    sms_bulk,
+    sms_normal,
+    sms_priority,
     sms_queue,
     statsd_client,
 )
@@ -266,18 +271,18 @@ def triage_notification_to_queues(notification_type, signed_notification_data, t
     """
     if notification_type == SMS_TYPE:
         if template.process_type == PRIORITY:
-            RedisQueues.SMS_PRIORITY.publish(signed_notification_data)
+            sms_priority.publish(signed_notification_data)
         elif template.process_type == NORMAL:
-            RedisQueues.SMS_NORMAL.publish(signed_notification_data)
+            sms_normal.publish(signed_notification_data)
         elif template.process_type == BULK:
-            RedisQueues.SMS_BULK.publish(signed_notification_data)
+            sms_bulk.publish(signed_notification_data)
     elif notification_type == EMAIL_TYPE:
         if template.process_type == PRIORITY:
-            RedisQueues.EMAIL_PRIORITY.publish(signed_notification_data)
+            email_priority.publish(signed_notification_data)
         elif template.process_type == NORMAL:
-            RedisQueues.EMAIL_NORMAL.publish(signed_notification_data)
+            email_normal.publish(signed_notification_data)
         elif template.process_type == BULK:
-            RedisQueues.EMAIL_BULK.publish(signed_notification_data)
+            email_bulk.publish(signed_notification_data)
 
 
 def process_sms_or_email_notification(*, form, notification_type, api_key, template, service, reply_to_text=None):

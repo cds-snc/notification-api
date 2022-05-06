@@ -5,7 +5,18 @@ from notifications_utils.statsd_decorators import statsd
 from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import RedisQueues, email_queue, notify_celery, sms_queue, zendesk_client
+from app import (
+    email_bulk,
+    email_normal,
+    email_priority,
+    email_queue,
+    notify_celery,
+    sms_bulk,
+    sms_normal,
+    sms_priority,
+    sms_queue,
+    zendesk_client,
+)
 from app.celery.tasks import process_job, save_emails, save_smss
 from app.config import QueueNames, TaskNames
 from app.dao.invited_org_user_dao import (
@@ -228,12 +239,12 @@ def recover_expired_notifications():
 
     # Priority lanes feature (FF_PRIORITY_LANES)
     if current_app.config["FF_PRIORITY_LANES"]:
-        RedisQueues.SMS_BULK.expire_inflights()
-        RedisQueues.SMS_NORMAL.expire_inflights()
-        RedisQueues.SMS_PRIORITY.expire_inflights()
-        RedisQueues.EMAIL_BULK.expire_inflights()
-        RedisQueues.EMAIL_NORMAL.expire_inflights()
-        RedisQueues.EMAIL_PRIORITY.expire_inflights()
+        sms_bulk.expire_inflights()
+        sms_normal.expire_inflights()
+        sms_priority.expire_inflights()
+        email_bulk.expire_inflights()
+        email_normal.expire_inflights()
+        email_priority.expire_inflights()
     else:
         sms_queue.expire_inflights()
         email_queue.expire_inflights()
