@@ -225,7 +225,6 @@ def check_templated_letter_state():
 @notify_celery.task(name="in-flight-to-inbox")
 @statsd(namespace="tasks")
 def recover_expired_notifications():
-    
 
     # Priority lanes feature (FF_PRIORITY_LANES)
     if current_app.config["FF_PRIORITY_LANES"]:
@@ -239,6 +238,7 @@ def recover_expired_notifications():
         sms_queue.expire_inflights()
         email_queue.expire_inflights()
     # END FF_PRIORITY_LANES
+
 
 @notify_celery.task(name="beat-inbox-sms")
 @statsd(namespace="tasks")
