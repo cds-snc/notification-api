@@ -69,9 +69,6 @@ class RedisQueues(object):
     EMAIL_PRIORITY = RedisQueue("email", process_type="priority")
 
 
-# END FF_PRIORITY_LANES
-
-
 def create_app(application, config=None):
     from app.config import configs
 
