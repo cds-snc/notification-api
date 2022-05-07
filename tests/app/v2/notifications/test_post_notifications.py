@@ -1962,3 +1962,77 @@ def test_post_bulk_creates_job_and_dispatches_celery_task(
             "sender_id": str(reply_to_email.id) if use_sender_id else None,
         }
     }
+
+
+class TestBatchPriorityLanes:
+    @pytest.mark.parametrize("process_type", ["bulk", "normal", "priority"])
+    def test_sms_each_queue_is_used(self, notify_api, client, service_factory, mocker, process_type):
+        # turn required feature flags on
+        notify_api.config["FF_REDIS_BATCH_SAVING"] = True
+        notify_api.config["FF_PRIORITY_LANES"] = True
+
+        mock_redisQueue_SMS_BULK = mocker.patch("app.sms_bulk.publish")
+        mock_redisQueue_SMS_NORMAL = mocker.patch("app.sms_normal.publish")
+        mock_redisQueue_SMS_PRIORITY = mocker.patch("app.sms_priority.publish")
+
+        service = service_factory.get("one")
+        template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon", process_type=process_type)
+
+        data = {
+            "phone_number": "+16502532222",
+            "template_id": str(template.id),
+            "personalisation": {" Name": "Jo"},
+        }
+
+        auth_header = create_authorization_header(service_id=template.service_id)
+
+        response = client.post(
+            path="/v2/notifications/sms",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 201
+
+        if process_type == "bulk":
+            assert mock_redisQueue_SMS_BULK.called
+        elif process_type == "normal":
+            assert mock_redisQueue_SMS_NORMAL.called
+        elif process_type == "priority":
+            assert mock_redisQueue_SMS_PRIORITY.called
+
+    @pytest.mark.parametrize("process_type", ["bulk", "normal", "priority"])
+    def test_email_each_queue_is_used(self, notify_api, client, mocker, service_factory, process_type):
+        # turn required feature flags on
+        notify_api.config["FF_REDIS_BATCH_SAVING"] = True
+        notify_api.config["FF_PRIORITY_LANES"] = True
+
+        mock_redisQueue_EMAIL_BULK = mocker.patch("app.email_bulk.publish")
+        mock_redisQueue_EMAIL_NORMAL = mocker.patch("app.email_normal.publish")
+        mock_redisQueue_EMAIL_PRIORITY = mocker.patch("app.email_priority.publish")
+
+        service = service_factory.get("one")
+        template = create_template(
+            service=service, template_type="email", content="Hello (( Name))\nYour thing is due soon", process_type=process_type
+        )
+
+        data = {
+            "email_address": template.service.users[0].email_address,
+            "template_id": str(template.id),
+            "personalisation": {"name": "Jo"},
+        }
+
+        auth_header = create_authorization_header(service_id=template.service_id)
+
+        response = client.post(
+            path="/v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 201
+        # pytest.set_trace()
+        if process_type == "bulk":
+            assert mock_redisQueue_EMAIL_BULK.called
+        elif process_type == "normal":
+            assert mock_redisQueue_EMAIL_NORMAL.called
+        elif process_type == "priority":
+            assert mock_redisQueue_EMAIL_PRIORITY.called
