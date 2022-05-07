@@ -175,7 +175,9 @@ def choose_database_queue(template: Template, service: Service):
 def process_row(row: Row, template: Template, job: Job, service: Service):
     template_type = template.template_type
     client_reference = row.get("reference")
+    service_id = service.id if service else None
     sender_id = str(job.sender_id) if job.sender_id else None
+    reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address if service_id and sender_id else None
     signed = signer.sign(
         {
             "api_key": job.api_key_id and str(job.api_key_id),
@@ -183,7 +185,7 @@ def process_row(row: Row, template: Template, job: Job, service: Service):
             "template_version": job.template_version,
             "job": str(job.id),
             "to": row.recipient,
-            "reply_to_text": dao_get_reply_to_by_id(service.id, sender_id).email_address,
+            "reply_to_text": reply_to_text,
             "row_number": row.index,
             "personalisation": dict(row.personalisation),
             "queue": queue_to_use(job.notification_count),
