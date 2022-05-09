@@ -534,3 +534,22 @@ class TestRecoverExpiredNotification:
 
         tasks.sms_queue.expire_inflights.assert_called_once()
         tasks.email_queue.expire_inflights.assert_called_once()
+
+    def test_recover_expired_notifications_priority_lanes(self, mocker, notify_api):
+        notify_api.config["FF_PRIORITY_LANES"] = False
+
+        sms_bulk = mocker.patch("app.sms_bulk.expire_inflights")
+        sms_normal = mocker.patch("app.sms_normal.expire_inflights")
+        sms_priority = mocker.patch("app.sms_priority.expire_inflights")
+        email_bulk = mocker.patch("app.email_bulk.expire_inflights")
+        email_normal = mocker.patch("app.email_normal.expire_inflights")
+        email_priority = mocker.patch("app.email_priority.expire_inflights")
+
+        recover_expired_notifications()
+
+        sms_bulk.assert_called_once()
+        sms_normal.assert_called_once()
+        sms_priority.assert_called_once()
+        email_bulk.assert_called_once()
+        email_normal.assert_called_once()
+        email_priority.assert_called_once()
