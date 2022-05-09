@@ -135,6 +135,11 @@ jobs:
           zip -j pinpoint_inbound_sms_lambda pinpoint_inbound_sms/pinpoint_inbound_sms_lambda.py
           aws lambda update-function-code --function-name project-${{ github.event.inputs.environment }}-pinpoint-inbound-sms-lambda --zip-file fileb://pinpoint_inbound_sms_lambda.zip
 
+      - name: Package and deploy VA Profile opt-in/out lambda function
+        run: |
+          zip -j va_profile_opt_in_out_lambda va_profile/va_profile_opt_in_out_lambda.py
+          aws lambda update-function-code --function-name project-${{ github.event.deployment.environment }}-va-profile-opt-in-out-lambda --zip-file fileb://va_profile_opt_in_out_lambda.zip
+
       - name: Package and deploy nightly stats bigquery upload lambda function
         run: |
           cd nightly_stats_bigquery_upload/

@@ -30,6 +30,7 @@ We currently do not:
     - [Creating database migrations](#creating-database-migrations)
     - [Unit testing](#unit-testing)
     - [Building the production application container](#building-the-production-application-container)
+    - [Using Localstack](#using-localstack)
 - [Maintaining Docker Images](#maintaining-docker-images)
 - [Deployment Workflow](#deployment-workflow)
     - [Update requirements.txt](#update-requirementstxt)
@@ -113,6 +114,12 @@ docker-compose -f ci/docker-compose.yml up --build --abort-on-container-exit
 ```
 
 Note that the production infrastructure does not use docker-compose.yml.
+
+###
+
+Using Localstack
+
+TODO
 
 ---
 

@@ -32,14 +32,14 @@ services:
     depends_on:
       - db
   localstack:
-    image: localstack/localstack:0.12.3
+    image: localstack/localstack
     container_name: localstack
     ports:
       - "4566:4566"
     env_file:
       - .docker-env
     environment:
-      - SERVICES=sqs,ses,s3
+      - SERVICES=ec2,iam,lambda,s3,ses,sqs,sts
       - DEFAULT_REGION=us-east-2
       - DATA_DIR=/tmp/localstack/data
       - START_WEB=0
