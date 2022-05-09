@@ -73,7 +73,6 @@ def put_batch_saving_inflight_processed(metrics_logger: MetricsLogger, queue: Re
         metrics_logger.set_dimensions({"acknowledged": "True"})
         metrics_logger.set_dimensions({"notification_type": queue._suffix or "none"})
         metrics_logger.set_dimensions({"priority": queue._process_type or "none"})
-
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
@@ -125,7 +124,6 @@ def put_batch_saving_bulk_created(
         metrics_logger.set_dimensions({"created": "True"})
         metrics_logger.set_dimensions({"notification_type": notification_type})
         metrics_logger.set_dimensions({"priority": priority})
-
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
