@@ -39,14 +39,19 @@ class TestBatchSavingMetricsFunctions:
     def test_put_batch_metric(self, mocker, metrics_logger_mock):
         redis_queue = mocker.MagicMock()
         redis_queue._inbox = "foo"
+        redis_queue._suffix = "bar"
+        redis_queue._process_type = "baz"
         put_batch_saving_metric(metrics_logger_mock, redis_queue, 1)
-        metrics_logger_mock.set_dimensions.assert_called_with({"list_name": "foo"})
+        metrics_logger_mock.set_dimensions.assert_has_calls(
+            [call({"list_name": "foo"}), call({"notification_type": "bar"}), call({"priority": "baz"})]
+        )
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_published", 1, "Count")
-        assert metrics_logger_mock.set_dimensions.called, "set_dimensions was not called and should have been"
 
     def test_put_batch_metric_disabled(self, mocker, metrics_logger_mock):
         redis_queue = mocker.MagicMock()
         redis_queue._inbox = "foo"
+        redis_queue._suffix = "bar"
+        redis_queue._process_type = "baz"
         metrics_logger_mock.metrics_config.disable_metric_extraction = True
         put_batch_saving_metric(metrics_logger_mock, redis_queue, 1)
         assert not metrics_logger_mock.set_dimensions.called, "set_dimensions was called and should not have been"
@@ -55,41 +60,57 @@ class TestBatchSavingMetricsFunctions:
     def test_put_batch_metric_multiple_items(self, mocker, metrics_logger_mock):
         redis_queue = mocker.MagicMock()
         redis_queue._inbox = "foo"
-
+        redis_queue._suffix = "bar"
+        redis_queue._process_type = "baz"
         put_batch_saving_metric(metrics_logger_mock, redis_queue, 20)
-        metrics_logger_mock.set_dimensions.assert_called_with({"list_name": "foo"})
+        metrics_logger_mock.set_dimensions.assert_has_calls(
+            [call({"list_name": "foo"}), call({"notification_type": "bar"}), call({"priority": "baz"})]
+        )
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_published", 20, "Count")
 
     def test_put_batch_saving_in_flight_metric(self, mocker, metrics_logger_mock):
         redis_queue = mocker.MagicMock()
-        redis_queue._suffix = "bar"
+        redis_queue._suffix = "foo"
+        redis_queue._process_type = "bar"
         put_batch_saving_inflight_metric(metrics_logger_mock, redis_queue, 1)
-        metrics_logger_mock.set_dimensions.assert_has_calls([call({"created": "True"}), call({"type": "bar"})])
+        metrics_logger_mock.set_dimensions.assert_has_calls(
+            [call({"created": "True"}), call({"notification_type": "foo"}), call({"priority": "bar"})]
+        )
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_inflight", 1, "Count")
 
     def test_put_batch_saving_inflight_processed(self, mocker, metrics_logger_mock):
         redis_queue = mocker.MagicMock()
-        redis_queue._suffix = "bar"
+        redis_queue._suffix = "foo"
+        redis_queue._process_type = "bar"
         put_batch_saving_inflight_processed(metrics_logger_mock, redis_queue, 1)
-        metrics_logger_mock.set_dimensions.assert_has_calls([call({"acknowledged": "True"}), call({"type": "bar"})])
+        metrics_logger_mock.set_dimensions.assert_has_calls(
+            [call({"acknowledged": "True"}), call({"notification_type": "foo"}), call({"priority": "bar"})]
+        )
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_inflight", 1, "Count")
 
     def test_put_batch_saving_expiry_metric(self, mocker, metrics_logger_mock):
         redis_queue = mocker.MagicMock()
-        redis_queue._suffix = "bar"
+        redis_queue._suffix = "foo"
+        redis_queue._process_type = "bar"
         put_batch_saving_expiry_metric(metrics_logger_mock, redis_queue, 1)
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_inflight", 1, "Count")
-        metrics_logger_mock.set_dimensions.assert_has_calls([call({"expired": "True"}), call({"type": "bar"})])
+        metrics_logger_mock.set_dimensions.assert_has_calls(
+            [call({"expired": "True"}), call({"notification_type": "foo"}), call({"priority": "bar"})]
+        )
 
     def test_put_batch_saving_bulk_created(self, metrics_logger_mock):
         put_batch_saving_bulk_created(metrics_logger_mock, 1)
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_bulk", 1, "Count")
-        metrics_logger_mock.set_dimensions.assert_has_calls([call({"created": "True"}), call({"type": "none"})])
+        metrics_logger_mock.set_dimensions.assert_has_calls(
+            [call({"created": "True"}), call({"notification_type": "none"}), call({"priority": "none"})]
+        )
 
     def test_put_batch_saving_bulk_processed(self, metrics_logger_mock):
         put_batch_saving_bulk_processed(metrics_logger_mock, 1)
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_bulk", 1, "Count")
-        metrics_logger_mock.set_dimensions.assert_has_calls([call({"acknowledged": "True"}), call({"type": "none"})])
+        metrics_logger_mock.set_dimensions.assert_has_calls(
+            [call({"acknowledged": "True"}), call({"notification_type": "none"}), call({"priority": "none"})]
+        )
 
     def test_put_batch_metric_unknown_error(self, mocker, metrics_logger_mock):
         redis_queue = mocker.MagicMock()

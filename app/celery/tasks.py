@@ -91,10 +91,6 @@ from app.service.utils import service_allowed_to_send_to
 from app.utils import get_csv_max_rows
 
 
-def metric_type(template):
-    return f"{template.process_type}_{template.template_type}"
-
-
 @notify_celery.task(name="process-job")
 @statsd(namespace="tasks")
 def process_job(job_id):
@@ -137,7 +133,9 @@ def process_job(job_id):
         for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
             process_rows(result, template, job, service)
             if Config.FF_PRIORITY_LANES:
-                put_batch_saving_bulk_created(metrics_logger, 1, type=metric_type(template))
+                put_batch_saving_bulk_created(
+                    metrics_logger, 1, notification_type=template.template_type, priority=template.process_type
+                )
             else:
                 put_batch_saving_bulk_created(metrics_logger, 1)
     else:
@@ -348,7 +346,12 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
             current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
         else:
             if Config.FF_PRIORITY_LANES:
-                put_batch_saving_bulk_processed(metrics_logger, 1, type=metric_type(template))
+                put_batch_saving_bulk_processed(
+                    metrics_logger,
+                    1,
+                    notification_type=SMS_TYPE,
+                    priority="none",  # TODO: fix priority when rest of code supports it
+                )
             else:
                 put_batch_saving_bulk_processed(metrics_logger, 1)
 
@@ -497,7 +500,12 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
             current_app.logger.info(f"Batch saving: {receipt} removed from buffer queue.")
         else:
             if Config.FF_PRIORITY_LANES:
-                put_batch_saving_bulk_processed(metrics_logger, 1, type=metric_type(template))
+                put_batch_saving_bulk_processed(
+                    metrics_logger,
+                    1,
+                    notification_type=EMAIL_TYPE,
+                    priority="none",  # TODO: fix priority when rest of code supports it
+                )
             else:
                 put_batch_saving_bulk_processed(metrics_logger, 1)
     except SQLAlchemyError as e:
