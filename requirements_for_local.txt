@@ -1,0 +1,8 @@
+# This package contains CLI tools useful for integrating localstack and Terraform.
+localstack
+
+# This is a thin wrapper around the AWS CLI, which must already be installed.
+awscli-local
+
+# This is a thin wrapper around the Terraform CLI, which must already be installed.
+terraform-local
