@@ -160,7 +160,7 @@ def service_can_send_to_recipient(send_to, key_type, service, allow_safelisted_r
             message = (
                 "Can’t send to this recipient when service is in trial mode " f'– see {get_document_url("en", "keys.html#live")}'
             )
-        raise BadRequestError(message=message)
+        raise BadRequestError(message=message, status_code=400)
 
 
 def service_has_permission(notify_type, permissions):
