@@ -102,7 +102,11 @@ TODO - How to run individual tests?
 
 ### Building the production application container
 
-To verify that the production application container build should succeed during deployment, run: `docker-compose -f ci/docker-compose.yml up --build --abort-on-container-exit`.
+To verify that the production application container build should succeed during deployment, run:
+
+```
+docker-compose -f ci/docker-compose.yml up --build --abort-on-container-exit
+```
 
 Note that the production infrastructure does not use docker-compose.yml.
 

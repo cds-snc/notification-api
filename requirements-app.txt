@@ -13,6 +13,10 @@ celery[sqs]>=4.4.7
 click-datetime>=0.2
 
 docopt>=0.6.2
+
+# 9 May 2022: Gunicorn raises ImportError with newer versions.
+eventlet < 0.31.0
+
 fido2>=0.9.3
 Flask < 2.0
 Flask-Bcrypt==0.7.1
@@ -28,7 +32,8 @@ git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd
 
 # The production image defined by Dockerfile uses Gunicorn.  The development image defined by Dockerfile.local
 # runs the application with the Flask development server by default.
-gunicorn[eventlet]>=20.1.0
+# 9 May 2022: Newer versions cause build or runtime issues.
+gunicorn[eventlet] < 20.1.0
 
 iso8601>=1.0.2
 itsdangerous>=1.1.0
