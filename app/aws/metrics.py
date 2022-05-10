@@ -25,8 +25,6 @@ def put_batch_saving_metric(metrics_logger: MetricsLogger, queue: RedisQueue, co
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_published", count, "Count")
         metrics_logger.set_dimensions({"list_name": queue._inbox})
-        metrics_logger.set_dimensions({"notification_type": queue._suffix or "none"})
-        metrics_logger.set_dimensions({"priority": queue._process_type or "none"})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
