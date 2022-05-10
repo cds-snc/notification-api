@@ -14,8 +14,8 @@ click-datetime>=0.2
 
 docopt>=0.6.2
 
-# 9 May 2022: Gunicorn raises ImportError with newer versions.
-eventlet < 0.31.0
+# 10 May 2022: Newer versions--even 0.30.3--cause import errors.
+eventlet==0.30.2
 
 fido2>=0.9.3
 Flask < 2.0
