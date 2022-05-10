@@ -11,6 +11,7 @@ from requests.exceptions import HTTPError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import statsd_client
+from app.dao.permissions_dao import permission_dao
 from app.model import User
 from app.dao.users_dao import create_or_retrieve_user, get_user_by_email, retrieve_match_or_create_user
 from app.errors import register_errors
@@ -116,7 +117,18 @@ def get_services_by_user(user_id):
     only_active = request.args.get('only_active') == 'True'
 
     services = dao_fetch_all_services_by_user(user_id, only_active)
-    data = service_schema.dump(services, many=True).data
+    permissions = permission_dao.get_permissions_by_user_id(user_id)
+
+    permissions_by_service = {}
+    for user_permission in permissions:
+        service_id = str(user_permission.service_id)
+        if service_id not in permissions_by_service:
+            permissions_by_service[service_id] = []
+        permissions_by_service[service_id].append(user_permission.permission)
+    data = {
+        "services": service_schema.dump(services, many=True).data,
+        "permissions": permissions_by_service
+    }
     return jsonify(data=data)
 
 

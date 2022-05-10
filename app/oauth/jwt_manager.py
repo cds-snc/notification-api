@@ -12,7 +12,6 @@ def transform_user_to_identity_for_jwt(user: User):
         'id': user.id,
         'name': user.name,
         'email_address': user.email_address,
-        'permissions': user.get_permissions()
     }
 
 
