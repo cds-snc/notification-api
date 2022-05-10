@@ -39,19 +39,15 @@ class TestBatchSavingMetricsFunctions:
     def test_put_batch_metric(self, mocker, metrics_logger_mock):
         redis_queue = mocker.MagicMock()
         redis_queue._inbox = "foo"
-        redis_queue._suffix = "bar"
-        redis_queue._process_type = "baz"
+
         put_batch_saving_metric(metrics_logger_mock, redis_queue, 1)
-        metrics_logger_mock.set_dimensions.assert_has_calls(
-            [call({"list_name": "foo"}), call({"notification_type": "bar"}), call({"priority": "baz"})]
-        )
+        metrics_logger_mock.set_dimensions.assert_called_with({"list_name": "foo"})
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_published", 1, "Count")
+        assert metrics_logger_mock.set_dimensions.called, "set_dimensions was not called and should have been"
 
     def test_put_batch_metric_disabled(self, mocker, metrics_logger_mock):
         redis_queue = mocker.MagicMock()
         redis_queue._inbox = "foo"
-        redis_queue._suffix = "bar"
-        redis_queue._process_type = "baz"
         metrics_logger_mock.metrics_config.disable_metric_extraction = True
         put_batch_saving_metric(metrics_logger_mock, redis_queue, 1)
         assert not metrics_logger_mock.set_dimensions.called, "set_dimensions was called and should not have been"
@@ -60,12 +56,9 @@ class TestBatchSavingMetricsFunctions:
     def test_put_batch_metric_multiple_items(self, mocker, metrics_logger_mock):
         redis_queue = mocker.MagicMock()
         redis_queue._inbox = "foo"
-        redis_queue._suffix = "bar"
-        redis_queue._process_type = "baz"
+
         put_batch_saving_metric(metrics_logger_mock, redis_queue, 20)
-        metrics_logger_mock.set_dimensions.assert_has_calls(
-            [call({"list_name": "foo"}), call({"notification_type": "bar"}), call({"priority": "baz"})]
-        )
+        metrics_logger_mock.set_dimensions.assert_called_with({"list_name": "foo"})
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_published", 20, "Count")
 
     def test_put_batch_saving_in_flight_metric(self, mocker, metrics_logger_mock):
