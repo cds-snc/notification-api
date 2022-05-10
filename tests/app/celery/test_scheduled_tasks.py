@@ -8,7 +8,13 @@ from app import db
 from app.celery import scheduled_tasks, tasks
 from app.celery.scheduled_tasks import (
     beat_inbox_email,
+    beat_inbox_email_bulk,
+    beat_inbox_email_normal,
+    beat_inbox_email_priority,
     beat_inbox_sms,
+    beat_inbox_sms_bulk,
+    beat_inbox_sms_normal,
+    beat_inbox_sms_priority,
     check_job_status,
     check_precompiled_letter_state,
     check_templated_letter_state,
@@ -524,9 +530,88 @@ class TestHeartbeatQueues:
             queue="database-tasks",
         )
 
+    def test_beat_inbox_sms_normal(self, notify_api, mocker):
+        notify_api.config["FF_PRIORITY_LANES"] = True
+        mocker.patch("app.celery.tasks.current_app.logger.info")
+        mocker.patch("app.sms_normal.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
+        mocker.patch("app.celery.tasks.save_smss.apply_async")
+
+        beat_inbox_sms_normal()
+
+        tasks.save_smss.apply_async.assert_called_once_with(
+            (None, ["1", "2", "3", "4"], "rec123"),
+            queue="-normal-database-tasks",
+        )
+
+    def test_beat_inbox_sms_bulk(self, notify_api, mocker):
+        notify_api.config["FF_PRIORITY_LANES"] = True
+        mocker.patch("app.celery.tasks.current_app.logger.info")
+        mocker.patch("app.sms_bulk.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
+        mocker.patch("app.celery.tasks.save_smss.apply_async")
+
+        beat_inbox_sms_bulk()
+
+        tasks.save_smss.apply_async.assert_called_once_with(
+            (None, ["1", "2", "3", "4"], "rec123"),
+            queue="-bulk-database-tasks",
+        )
+
+    def test_beat_inbox_sms_priority(self, notify_api, mocker):
+        notify_api.config["FF_PRIORITY_LANES"] = True
+        mocker.patch("app.celery.tasks.current_app.logger.info")
+        mocker.patch("app.sms_priority.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
+        mocker.patch("app.celery.tasks.save_smss.apply_async")
+
+        beat_inbox_sms_priority()
+
+        tasks.save_smss.apply_async.assert_called_once_with(
+            (None, ["1", "2", "3", "4"], "rec123"),
+            queue="-priority-database-tasks.fifo",
+        )
+
+    def test_beat_inbox_email_normal(self, notify_api, mocker):
+        notify_api.config["FF_PRIORITY_LANES"] = True
+        mocker.patch("app.celery.tasks.current_app.logger.info")
+        mocker.patch("app.email_normal.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
+        mocker.patch("app.celery.tasks.save_emails.apply_async")
+
+        beat_inbox_email_normal()
+
+        tasks.save_emails.apply_async.assert_called_once_with(
+            (None, ["1", "2", "3", "4"], "rec123"),
+            queue="-normal-database-tasks",
+        )
+
+    def test_beat_inbox_email_bulk(self, notify_api, mocker):
+        notify_api.config["FF_PRIORITY_LANES"] = True
+        mocker.patch("app.celery.tasks.current_app.logger.info")
+        mocker.patch("app.email_bulk.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
+        mocker.patch("app.celery.tasks.save_emails.apply_async")
+
+        beat_inbox_email_bulk()
+
+        tasks.save_emails.apply_async.assert_called_once_with(
+            (None, ["1", "2", "3", "4"], "rec123"),
+            queue="-bulk-database-tasks",
+        )
+
+    def test_beat_inbox_email_priority(self, notify_api, mocker):
+        notify_api.config["FF_PRIORITY_LANES"] = True
+        mocker.patch("app.celery.tasks.current_app.logger.info")
+        mocker.patch("app.email_priority.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
+        mocker.patch("app.celery.tasks.save_emails.apply_async")
+
+        beat_inbox_email_priority()
+
+        tasks.save_emails.apply_async.assert_called_once_with(
+            (None, ["1", "2", "3", "4"], "rec123"),
+            queue="-priority-database-tasks.fifo",
+        )
+
 
 class TestRecoverExpiredNotification:
-    def test_recover_expired_notifications(self, mocker):
+    def test_recover_expired_notifications(self, notify_api, mocker):
+        notify_api.config["FF_PRIORITY_LANES"] = False
         mocker.patch("app.celery.tasks.sms_queue.expire_inflights")
         mocker.patch("app.celery.tasks.email_queue.expire_inflights")
 

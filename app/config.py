@@ -319,6 +319,36 @@ class Config(object):
             "schedule": 10,
             "options": {"queue": QueueNames.PERIODIC},
         },
+        "beat-inbox-sms-normal": {
+            "task": "beat-inbox-sms-normal",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "beat-inbox-sms-bulk": {
+            "task": "beat-inbox-sms-bulk",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "beat-inbox-sms-priority": {
+            "task": "beat-inbox-sms-priority",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "beat-inbox-email-normal": {
+            "task": "beat-inbox-email-normal",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "beat-inbox-email-bulk": {
+            "task": "beat-inbox-email-bulk",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "beat-inbox-email-priority": {
+            "task": "beat-inbox-email-priority",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
         ""
         # app/celery/nightly_tasks.py
         "timeout-sending-notifications": {
