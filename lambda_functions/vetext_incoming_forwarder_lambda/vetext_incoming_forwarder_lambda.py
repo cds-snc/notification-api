@@ -19,7 +19,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
     """
 
     try:
-        print(event)
+        logging.debug(event)
 
         # Determine if the invoker of the lambda is SQS or ALB
         #   SQS will submit batches of records so there is potential for multiple events to be processed
@@ -35,7 +35,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
                 'statusCode':400
             }
 
-        print(event_bodies)
+        logging.debug(event_bodies)
 
         responses = []
 
@@ -80,7 +80,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
 def get_body_from_sqs_invocation(event):
     event_bodies = []
 
-    try: 
+    try:         
         for record in event.Records:
             # record is a sqs event that contains a body
             # body is an alb request that failed in an initial request
@@ -113,14 +113,30 @@ def get_body_from_alb_invocation(event):
     except:
         raise
 
+def read_from_ssm(key: str) -> str:
+    boto_client = boto3.client('ssm')
+    
+    resp = boto_client.get_parameter(
+        Name=f"{key}",
+        WithDecryption=True
+    )
+
+    logging.info(resp)
+
+    return resp["Parameter"]["Value"]
+
 def make_vetext_request(request_body):
     try:
         connection = http.client.HTTPSConnection(os.environ.get('vetext_api_endpoint_domain'),  context = ssl._create_unverified_context())
 
         # Authorization is basic token authentication that is stored in environment.
+        authToken = read_from_ssm(os.environ.get('vetext_api_auth_ssm_path'))
+
+        logging.info(f'ssm key: {authToken}')
+
         headers = {
             'Content-type': 'application/json',
-            'Authorization': os.environ.get('vetext_api_endpoint_auth')
+            'Authorization': 'Basic ' + authToken
         }
 
         body = {
