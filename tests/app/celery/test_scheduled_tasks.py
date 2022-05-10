@@ -610,7 +610,8 @@ class TestHeartbeatQueues:
 
 
 class TestRecoverExpiredNotification:
-    def test_recover_expired_notifications(self, mocker):
+    def test_recover_expired_notifications(self, notify_api, mocker):
+        notify_api.config["FF_PRIORITY_LANES"] = False
         mocker.patch("app.celery.tasks.sms_queue.expire_inflights")
         mocker.patch("app.celery.tasks.email_queue.expire_inflights")
 
