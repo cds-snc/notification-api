@@ -79,106 +79,95 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
 
 def get_body_from_sqs_invocation(event):
     event_bodies = []
-
-    try:         
-        for record in event.Records:
-            # record is a sqs event that contains a body
-            # body is an alb request that failed in an initial request
-            # event is a json document with a body attribute that contains
-            #   the payload of the twilio webhook
-            # event["body"] is a base 64 encoded string
-            # parse_qsl converts url-encoded strings to array of tuple objects
-            # event_body takes the array of tuples and creates a dictionary
-            event_body_decoded = parse_qsl(b64decode(record["body"]).decode('utf-8'))
-            event_body = dict(event_body_decoded)
-            event_bodies.append(event_body)
-
-        return event_bodies
-    except:
-        raise
-
-def get_body_from_alb_invocation(event):
-    event_bodies = []
-
-    try: 
+    for record in event.Records:
+        # record is a sqs event that contains a body
+        # body is an alb request that failed in an initial request
         # event is a json document with a body attribute that contains
         #   the payload of the twilio webhook
         # event["body"] is a base 64 encoded string
         # parse_qsl converts url-encoded strings to array of tuple objects
         # event_body takes the array of tuples and creates a dictionary
-        event_body_decoded = parse_qsl(b64decode(event["body"]).decode('utf-8'))
-        event_bodies.append(dict(event_body_decoded))
+        event_body_decoded = parse_qsl(b64decode(record["body"]).decode('utf-8'))
+        event_body = dict(event_body_decoded)
+        event_bodies.append(event_body)
 
-        return event_bodies
-    except:
-        raise
+    return event_bodies
+
+def get_body_from_alb_invocation(event):
+    event_bodies = []
+
+    # event is a json document with a body attribute that contains
+    #   the payload of the twilio webhook
+    # event["body"] is a base 64 encoded string
+    # parse_qsl converts url-encoded strings to array of tuple objects
+    # event_body takes the array of tuples and creates a dictionary
+    event_body_decoded = parse_qsl(b64decode(event["body"]).decode('utf-8'))
+    event_bodies.append(dict(event_body_decoded))
+
+    return event_bodies
+    
 
 def read_from_ssm(key: str) -> str:
     boto_client = boto3.client('ssm')
     
-    resp = boto_client.get_parameter(
-        Name=f"{key}",
+    response = boto_client.get_parameter(
+        Name=key,
         WithDecryption=True
     )
 
-    logging.info(resp)
+    logging.info(response)
 
-    return resp["Parameter"]["Value"]
+    return response.get("Parameter", {}).get("Value", '')
 
-def make_vetext_request(request_body):
-    try:
-        connection = http.client.HTTPSConnection(os.environ.get('vetext_api_endpoint_domain'),  context = ssl._create_unverified_context())
+def make_vetext_request(request_body):    
+    connection = http.client.HTTPSConnection(os.environ.get('vetext_api_endpoint_domain'),  context = ssl._create_unverified_context())
 
-        # Authorization is basic token authentication that is stored in environment.
-        authToken = read_from_ssm(os.environ.get('vetext_api_auth_ssm_path'))
+    # Authorization is basic token authentication that is stored in environment.
+    authToken = read_from_ssm(os.environ.get('vetext_api_auth_ssm_path'))
 
-        logging.info(f'ssm key: {authToken}')
+    logging.info(f'ssm key: {authToken}')
 
-        headers = {
-            'Content-type': 'application/json',
-            'Authorization': 'Basic ' + authToken
+    headers = {
+        'Content-type': 'application/json',
+        'Authorization': 'Basic ' + authToken
+    }
+
+    body = {
+            "accountSid": request_body.get("AccountSid", ""),
+            "messageSid": request_body.get("MessageSid", ""),
+            "messagingServiceSid": "",
+            "to": request_body.get("To", ""),
+            "from": request_body.get("From", ""),
+            "messageStatus": request_body.get("SmsStatus", ""),
+            "body": request_body.get("Body", "")
         }
 
-        body = {
-                "accountSid": request_body.get("AccountSid", ""),
-                "messageSid": request_body.get("MessageSid", ""),
-                "messagingServiceSid": "",
-                "to": request_body.get("To", ""),
-                "from": request_body.get("From", ""),
-                "messageStatus": request_body.get("SmsStatus", ""),
-                "body": request_body.get("Body", "")
-            }
+    json_data = json.dumps(body)
 
-        json_data = json.dumps(body)
+    connection.request(
+        'POST',
+        os.environ.get('vetext_api_endpoint_path'),
+        json_data,
+        headers)
 
-        connection.request(
-            'POST',
-            os.environ.get('vetext_api_endpoint_path'),
-            json_data,
-            headers)
+    response = connection.getresponse()
 
-        response = connection.getresponse()
-
-        return response
-    except:
-        raise
+    return response    
 
 def push_to_sqs(event):
-    try:
-        """Places event on queue to be retried at a later time"""
-        sqs = boto3.client('sqs')
-        queue_url = os.environ.get('vetext_request_drop_sqs_url')
+    """Places event on queue to be retried at a later time"""
+    sqs = boto3.client('sqs')
+    queue_url = os.environ.get('vetext_request_drop_sqs_url')
 
-        queue_msg = json.dumps(event)
-        queue_msg_attrs = {
-            'source': {
-                'DataType': 'String',
-                'StringValue': 'twilio'
-            }
+    queue_msg = json.dumps(event)
+    queue_msg_attrs = {
+        'source': {
+            'DataType': 'String',
+            'StringValue': 'twilio'
         }
+    }
 
-        sqs.send_message(QueueUrl=queue_url,
-                        MessageAttributes=queue_msg_attrs,
-                        MessageBody=queue_msg)
-    except:
-        raise
+    sqs.send_message(QueueUrl=queue_url,
+                    MessageAttributes=queue_msg_attrs,
+                    MessageBody=queue_msg)
+    
