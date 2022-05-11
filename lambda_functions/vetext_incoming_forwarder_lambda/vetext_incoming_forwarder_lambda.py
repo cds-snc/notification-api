@@ -34,7 +34,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
         else:
             logger.error("Invalid Event. Expecting the source of an invocation to be from alb or sqs")
 
-            push_to_sqs(event)
+            push_to_sqs(event["body"])
 
             return{
                 'statusCode': 400
@@ -48,7 +48,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
             response = make_vetext_request(event_body)
 
             if response.status != 200:
-                push_to_sqs(event)
+                push_to_sqs(event["body"])
 
             logger.debug(response.read().decode())
 
@@ -64,7 +64,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
         # Handle failed env variable
         print(f'Failed to find key: {e}')
         # Place request on SQS for processing after environment variable issue is resolved
-        push_to_sqs(event)
+        push_to_sqs(event["body"])
 
         return {
             'statusCode': 424
@@ -74,7 +74,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
         # Handle failed http request to vetext endpoint
         print(f'Failure with http connection or request: {e}')
         # Place request on SQS for processing after environment variable issue is resolved
-        push_to_sqs(event)
+        push_to_sqs(event["body"])
 
         return{
             'statusCode':503
@@ -84,7 +84,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
         # Place request on dead letter queue so that it can be analyzed 
         #   for potential processing at a later time
         print(f'Unknown Failure: {e}')
-        push_to_sqs(event)
+        push_to_sqs(event["body"])
 
         return{
             'statusCode':500
@@ -92,7 +92,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
 
 def get_body_from_sqs_invocation(event):
     event_bodies = []
-    for record in event.Records:
+    for record in event["Records"]:
         # record is a sqs event that contains a body
         # body is an alb request that failed in an initial request
         # event is a json document with a body attribute that contains
