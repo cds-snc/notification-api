@@ -1,6 +1,6 @@
 from __future__ import annotations  # PEP 563 -- Postponed Evaluation of Annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from botocore.exceptions import ClientError
 from flask import current_app
@@ -46,8 +46,8 @@ def put_batch_saving_inflight_metric(metrics_logger: MetricsLogger, queue: Redis
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_inflight", count, "Count")
         metrics_logger.set_dimensions({"created": "True"})
-        metrics_logger.set_dimensions({"notification_type": queue._suffix or "none"})
-        metrics_logger.set_dimensions({"priority": queue._process_type or "none"})
+        metrics_logger.set_dimensions({"notification_type": queue._suffix})
+        metrics_logger.set_dimensions({"priority": queue._process_type})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
@@ -69,8 +69,8 @@ def put_batch_saving_inflight_processed(metrics_logger: MetricsLogger, queue: Re
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_inflight", count, "Count")
         metrics_logger.set_dimensions({"acknowledged": "True"})
-        metrics_logger.set_dimensions({"notification_type": queue._suffix or "none"})
-        metrics_logger.set_dimensions({"priority": queue._process_type or "none"})
+        metrics_logger.set_dimensions({"notification_type": queue._suffix})
+        metrics_logger.set_dimensions({"priority": queue._process_type})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
@@ -93,8 +93,8 @@ def put_batch_saving_expiry_metric(metrics_logger: MetricsLogger, queue: RedisQu
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_inflight", count, "Count")
         metrics_logger.set_dimensions({"expired": "True"})
-        metrics_logger.set_dimensions({"notification_type": queue._suffix or "none"})
-        metrics_logger.set_dimensions({"priority": queue._process_type or "none"})
+        metrics_logger.set_dimensions({"notification_type": queue._suffix})
+        metrics_logger.set_dimensions({"priority": queue._process_type})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
@@ -103,7 +103,7 @@ def put_batch_saving_expiry_metric(metrics_logger: MetricsLogger, queue: RedisQu
 
 
 def put_batch_saving_bulk_created(
-    metrics_logger: MetricsLogger, count: int, notification_type: str = "none", priority: str = "none"
+    metrics_logger: MetricsLogger, count: int, notification_type: Optional(str) = None, priority: Optional(str) = None
 ):
     """
     Metric to calculate how many notifications are sent through
@@ -130,7 +130,7 @@ def put_batch_saving_bulk_created(
 
 
 def put_batch_saving_bulk_processed(
-    metrics_logger: MetricsLogger, count: int, notification_type: str = "none", priority: str = "none"
+    metrics_logger: MetricsLogger, count: int, notification_type: Optional(str) = None, priority: Optional(str) = None
 ):
     """
     Metric to calculate how many bulk insertion have been processed.

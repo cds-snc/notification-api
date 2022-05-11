@@ -350,7 +350,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
                     metrics_logger,
                     1,
                     notification_type=SMS_TYPE,
-                    priority="none",  # TODO: fix priority when rest of code supports it
+                    priority=None,  # TODO: fix priority when rest of code supports it
                 )
             else:
                 put_batch_saving_bulk_processed(metrics_logger, 1)
@@ -504,7 +504,7 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
                     metrics_logger,
                     1,
                     notification_type=EMAIL_TYPE,
-                    priority="none",  # TODO: fix priority when rest of code supports it
+                    priority=None,  # TODO: fix priority when rest of code supports it
                 )
             else:
                 put_batch_saving_bulk_processed(metrics_logger, 1)
