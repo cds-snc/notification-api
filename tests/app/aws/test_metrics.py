@@ -92,10 +92,10 @@ class TestBatchSavingMetricsFunctions:
         )
 
     def test_put_batch_saving_bulk_created(self, metrics_logger_mock):
-        put_batch_saving_bulk_created(metrics_logger_mock, 1)
+        put_batch_saving_bulk_created(metrics_logger_mock, 1, "foo", "bar")
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_bulk", 1, "Count")
         metrics_logger_mock.set_dimensions.assert_has_calls(
-            [call({"created": "True"}), call({"notification_type": None}), call({"priority": None})]
+            [call({"created": "True"}), call({"notification_type": "foo"}), call({"priority": "bar"})]
         )
 
     def test_put_batch_saving_bulk_processed(self, metrics_logger_mock):

@@ -68,6 +68,7 @@ from app.models import (
     JOB_STATUS_SENDING_LIMITS_EXCEEDED,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
+    NORMAL,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_RETURNED_LETTER,
@@ -132,12 +133,10 @@ def process_job(job_id):
         rows = csv.get_rows()
         for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
             process_rows(result, template, job, service)
-            if Config.FF_PRIORITY_LANES:
-                put_batch_saving_bulk_created(
-                    metrics_logger, 1, notification_type=template.template_type, priority=template.process_type
-                )
-            else:
-                put_batch_saving_bulk_created(metrics_logger, 1)
+            put_batch_saving_bulk_created(
+                metrics_logger, 1, notification_type=template.template_type, priority=template.process_type
+            )
+
     else:
         for row in csv.get_rows():
             process_row(row, template, job, service)
@@ -297,6 +296,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
     verified_notifications: List[Any] = []
     notification_id_queue: Dict = {}
     saved_notifications = []
+    notification_priority = NORMAL
     for signed_notification in signed_notifications:
         notification = signer.verify(signed_notification)
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
@@ -337,7 +337,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
         notification["job_row_number"] = notification.get("row_number", None)
         verified_notifications.append(notification)
         notification_id_queue[notification_id] = notification.get("queue")
-
+        notification_priority = template.process_type
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job.
         saved_notifications = persist_notifications(verified_notifications)
@@ -350,10 +350,10 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
                     metrics_logger,
                     1,
                     notification_type=SMS_TYPE,
-                    priority=None,  # TODO: fix priority when rest of code supports it
+                    priority=notification_priority,
                 )
             else:
-                put_batch_saving_bulk_processed(metrics_logger, 1)
+                put_batch_saving_bulk_processed(metrics_logger, 1, "should not show up", "should not show up")
 
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
@@ -451,6 +451,7 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
     verified_notifications: List[Any] = []
     notification_id_queue: Dict = {}
     saved_notifications = []
+    notification_priority = NORMAL
     for signed_notification in signed_notifications:
         notification = signer.verify(signed_notification)
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
@@ -491,6 +492,7 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
         notification["job_row_number"] = notification.get("row_number", None)
         verified_notifications.append(notification)
         notification_id_queue[notification_id] = notification.get("queue")
+        notification_priority = template.process_type
 
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job
@@ -504,10 +506,10 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
                     metrics_logger,
                     1,
                     notification_type=EMAIL_TYPE,
-                    priority=None,  # TODO: fix priority when rest of code supports it
+                    priority=notification_priority,
                 )
             else:
-                put_batch_saving_bulk_processed(metrics_logger, 1)
+                put_batch_saving_bulk_processed(metrics_logger, 1, "should not show up", "should not show up")
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(signed_and_verified, EMAIL_TYPE, e, receipt)
