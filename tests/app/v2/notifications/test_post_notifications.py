@@ -784,6 +784,7 @@ class TestRestrictedServices:
         create_api_key(service=service, key_type="team")
         mocker.patch("app.celery.tasks.save_sms.apply_async")
         notify_api.config["FF_REDIS_BATCH_SAVING"] = True
+        notify_api.config["FF_PRIORITY_LANES"] = False
 
         data = {
             "phone_number": "+16132532235",
@@ -834,6 +835,7 @@ def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms(
     mocker,
 ):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = False
+    notify_api.config["FF_PRIORITY_LANES"] = False
     mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
     data = {"phone_number": "+20-12-1234-1234", "template_id": sample_template.id}
@@ -858,6 +860,7 @@ def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms_with_celer
     mocker,
 ):
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
+    notify_api.config["FF_PRIORITY_LANES"] = False
     mocker.patch("app.celery.tasks.save_sms.apply_async")
 
     data = {"phone_number": "+20-12-1234-1234", "template_id": sample_template.id}
