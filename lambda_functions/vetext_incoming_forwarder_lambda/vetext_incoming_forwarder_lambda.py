@@ -9,6 +9,9 @@ from urllib.parse import parse_qsl
 from base64 import b64decode
 import boto3
 
+logger = logging.getLogger()
+logger.setLevel(logger.DEBUG)
+
 def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
     """this method takes in an event passed in by either an alb or sqs.
         @param: event   -  contains data pertaining to an incoming sms from Twilio
@@ -17,20 +20,19 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
     """
 
     try:
-        # logging.debug(event)
-        print(event)
-
+        logger.debug(event)
+        
         # Determine if the invoker of the lambda is SQS or ALB
         #   SQS will submit batches of records so there is potential for multiple events to be processed
         #   ALB will submit a single request but to simplify code, it will also return an array of event bodies
-        if (event["requestContext"] and event["requestContext"]["elb"]):
-            logging.info("alb invocation")
+        if (hasattr(event, "requestContext") and hasattr(event["requestContext"], "elb")):
+            logger.info("alb invocation")
             event_bodies = get_body_from_alb_invocation(event)            
-        elif event["Records"] and event["Records"][0].eventSource == 'aws:sqs':
-            logging.info("sqs invoication")
+        elif (hasattr(event,"Records")):
+            logger.info("sqs invoication")
             event_bodies = get_body_from_sqs_invocation(event)
         else:
-            logging.error("Invalid Event. Expecting the source of an invocation to be from alb or sqs")
+            logger.error("Invalid Event. Expecting the source of an invocation to be from alb or sqs")
 
             push_to_sqs(event)
 
@@ -38,7 +40,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
                 'statusCode': 400
             }
 
-        logging.debug(event_bodies)
+        logger.debug(event_bodies)
 
         responses = []
 
@@ -48,17 +50,17 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
             if response.status != 200:
                 push_to_sqs(event)
 
-            logging.debug(response.read().decode())
+            logger.debug(response.read().decode())
 
             responses.append(response)
 
-        logging.debug(responses)
+        logger.debug(responses)
         
         return {
             'statusCode': 200
         }
     except KeyError as e:
-        logging.exception(e)
+        logger.exception(e)
         # Handle failed env variable
         print(f'Failed to find environmental variable: {e}')
         # Place request on SQS for processing after environment variable issue is resolved
@@ -68,7 +70,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
             'statusCode': 424
         }
     except http.client.HTTPException as e:
-        logging.exception(e)
+        logger.exception(e)
         # Handle failed http request to vetext endpoint
         print(f'Failure with http connection or request: {e}')
         # Place request on SQS for processing after environment variable issue is resolved
@@ -78,7 +80,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
             'statusCode':503
         }
     except Exception as e:
-        logging.exception(e)        
+        logger.exception(e)        
         # Place request on dead letter queue so that it can be analyzed 
         #   for potential processing at a later time
         print(f'Unknown Failure: {e}')
@@ -126,7 +128,7 @@ def read_from_ssm(key: str) -> str:
         WithDecryption=True
     )
 
-    logging.info(response)
+    logger.info(response)
 
     return response.get("Parameter", {}).get("Value", '')
 
@@ -136,7 +138,7 @@ def make_vetext_request(request_body):
     # Authorization is basic token authentication that is stored in environment.
     authToken = read_from_ssm(os.environ.get('vetext_api_auth_ssm_path'))
 
-    logging.info(f'ssm key: {authToken}')
+    logger.info(f'ssm key: {authToken}')
 
     headers = {
         'Content-type': 'application/json',
