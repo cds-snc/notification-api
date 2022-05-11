@@ -21,14 +21,14 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
 
     try:
         logger.debug(event)
-        
+
         # Determine if the invoker of the lambda is SQS or ALB
         #   SQS will submit batches of records so there is potential for multiple events to be processed
         #   ALB will submit a single request but to simplify code, it will also return an array of event bodies
-        if (hasattr(event, "requestContext") and hasattr(event["requestContext"], "elb")):
+        if "requestContext" in event and "elb" in event["requestContext"]:
             logger.info("alb invocation")
             event_bodies = get_body_from_alb_invocation(event)            
-        elif (hasattr(event,"Records")):
+        elif "Records" in event:
             logger.info("sqs invoication")
             event_bodies = get_body_from_sqs_invocation(event)
         else:
@@ -62,7 +62,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
     except KeyError as e:
         logger.exception(e)
         # Handle failed env variable
-        print(f'Failed to find environmental variable: {e}')
+        print(f'Failed to find key: {e}')
         # Place request on SQS for processing after environment variable issue is resolved
         push_to_sqs(event)
 
