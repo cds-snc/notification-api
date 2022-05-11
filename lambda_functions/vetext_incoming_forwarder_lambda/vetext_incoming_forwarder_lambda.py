@@ -19,7 +19,8 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
     """
 
     try:
-        logging.debug(event)
+        # logging.debug(event)
+        print(event)
 
         # Determine if the invoker of the lambda is SQS or ALB
         #   SQS will submit batches of records so there is potential for multiple events to be processed
