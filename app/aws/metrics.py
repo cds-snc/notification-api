@@ -103,7 +103,7 @@ def put_batch_saving_expiry_metric(metrics_logger: MetricsLogger, queue: RedisQu
 
 
 def put_batch_saving_bulk_created(
-    metrics_logger: MetricsLogger, count: int, notification_type: Optional(str) = None, priority: Optional(str) = None
+    metrics_logger: MetricsLogger, count: int, notification_type: Optional[str] = None, priority: Optional[str] = None
 ):
     """
     Metric to calculate how many notifications are sent through
@@ -130,7 +130,7 @@ def put_batch_saving_bulk_created(
 
 
 def put_batch_saving_bulk_processed(
-    metrics_logger: MetricsLogger, count: int, notification_type: Optional(str) = None, priority: Optional(str) = None
+    metrics_logger: MetricsLogger, count: int, notification_type: Optional[str] = None, priority: Optional[str] = None
 ):
     """
     Metric to calculate how many bulk insertion have been processed.
