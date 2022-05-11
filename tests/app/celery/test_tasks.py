@@ -82,6 +82,7 @@ def _notification_json(template, to, personalisation=None, job_id=None, row_numb
         "template": str(template.id),
         "template_version": template.version,
         "to": to,
+        "reply_to_text": "notify@digital.cabinet-office.gov.uk",
         "notification_type": template.template_type,
         "personalisation": personalisation or {},
         "job": job_id and str(job_id),
@@ -512,7 +513,8 @@ def test_should_redirect_job_to_queue_depending_on_csv_threshold(
 
     template = Mock(id=1, template_type=EMAIL_TYPE)
     job = Mock(id=1, template_version="temp_vers", notification_count=1)
-    service = Mock(id=1, research_mode=False)
+    service = create_service(service_name="notify service " + str(uuid.uuid1()), email_from=str(uuid.uuid1()) + "@digital.cabinet-office.gov.uk""@digital.cabinet-office.gov.uk")
+    create_reply_to_email(service=service, email_address="notify@digital.cabinet-office.gov.uk")
 
     row = next(
         RecipientCSV(
@@ -864,7 +866,8 @@ def test_process_row_sends_save_task(
     signer_mock = mocker.patch("app.celery.tasks.signer.sign")
     template = Mock(id="template_id", template_type=template_type)
     job = Mock(id="job_id", template_version="temp_vers", notification_count=1, api_key_id=api_key_id, sender_id=sender_id)
-    service = Mock(id="service_id", research_mode=research_mode)
+    service = create_service(service_name="notify service " + str(uuid.uuid1()), email_from=str(uuid.uuid1()) + "@digital.cabinet-office.gov.uk")
+    create_reply_to_email(service=service, email_address="notify@digital.cabinet-office.gov.uk")
 
     process_row(
         Row(
@@ -888,6 +891,7 @@ def test_process_row_sends_save_task(
             "template_version": "temp_vers",
             "job": "job_id",
             "to": "recip",
+            "reply_to_text": "notify@digital.cabinet-office.gov.uk",
             "row_number": "row_num",
             "personalisation": {"foo": "bar"},
             "queue": None,
@@ -896,13 +900,13 @@ def test_process_row_sends_save_task(
     )
     task_mock.assert_called_once_with(
         (
-            "service_id",
+            str(service.id),
             "noti_uuid",
             # signed data
             signer_mock.return_value,
         ),
         {"sender_id": str(sender_id)} if sender_id else {},
-        queue=expected_queue,
+        queue=QueueNames.DATABASE,
     )
 
 
