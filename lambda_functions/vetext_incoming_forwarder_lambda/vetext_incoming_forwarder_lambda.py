@@ -10,7 +10,7 @@ from base64 import b64decode
 import boto3
 
 logger = logging.getLogger()
-logger.setLevel(logger.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
     """this method takes in an event passed in by either an alb or sqs.
