@@ -454,7 +454,34 @@ class TestBatchSaving:
 # -------------- process_job tests -------------- #
 
 
-def test_should_process_sms_job(sample_job, mocker):
+def test_should_process_sms_job_FF_PRIORITY_LANES_true(sample_job, mocker):
+    mocker.patch.object(Config, "FF_PRIORITY_LANES", True)
+    mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
+    mocker.patch("app.celery.tasks.save_sms.apply_async")
+    mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
+    mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
+
+    redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
+
+    process_job(sample_job.id)
+    s3.get_job_from_s3.assert_called_once_with(str(sample_job.service.id), str(sample_job.id))
+    assert signer.sign.call_args[0][0]["to"] == "+441234123123"
+    assert signer.sign.call_args[0][0]["template"] == str(sample_job.template.id)
+    assert signer.sign.call_args[0][0]["template_version"] == sample_job.template.version
+    assert signer.sign.call_args[0][0]["personalisation"] == {"phonenumber": "+441234123123"}
+    assert signer.sign.call_args[0][0]["row_number"] == 0
+    tasks.save_sms.apply_async.assert_called_once_with(
+        (str(sample_job.service_id), "uuid", "something_encrypted"), {}, queue=QueueNames.NORMAL_DATABASE
+    )
+    job = jobs_dao.dao_get_job_by_id(sample_job.id)
+    assert job.job_status == "finished"
+    assert job.processing_started is not None
+    assert job.created_at is not None
+    redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
+
+
+def test_should_process_sms_job_FF_PRIORITY_LANES_false(sample_job, mocker):
+    mocker.patch.object(Config, "FF_PRIORITY_LANES", False)
     mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
     mocker.patch("app.celery.tasks.save_sms.apply_async")
     mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
@@ -2121,8 +2148,39 @@ def test_send_inbound_sms_to_service_does_not_retries_if_request_returns_404(not
     mocked.call_count == 0
 
 
-def test_process_incomplete_job_sms(mocker, sample_template):
+def test_process_incomplete_job_sms_FF_PRIORITY_LANES_true(mocker, sample_template):
+    mocker.patch.object(Config, "FF_PRIORITY_LANES", True)
+    mocker.patch(
+        "app.celery.tasks.s3.get_job_from_s3",
+        return_value=load_example_csv("multiple_sms"),
+    )
+    save_sms = mocker.patch("app.celery.tasks.save_sms.apply_async")
 
+    job = create_job(
+        template=sample_template,
+        notification_count=10,
+        created_at=datetime.utcnow() - timedelta(hours=2),
+        scheduled_for=datetime.utcnow() - timedelta(minutes=31),
+        processing_started=datetime.utcnow() - timedelta(minutes=31),
+        job_status=JOB_STATUS_ERROR,
+    )
+
+    save_notification(create_notification(sample_template, job, 0))
+    save_notification(create_notification(sample_template, job, 1))
+
+    assert Notification.query.filter(Notification.job_id == job.id).count() == 2
+
+    process_incomplete_job(str(job.id))
+
+    completed_job = Job.query.filter(Job.id == job.id).one()
+
+    assert completed_job.job_status == JOB_STATUS_FINISHED
+
+    assert save_sms.call_count == 8  # There are 10 in the file and we've added two already
+
+
+def test_process_incomplete_job_sms_FF_PRIORITY_LANES_false(mocker, sample_template):
+    mocker.patch.object(Config, "FF_PRIORITY_LANES", False)
     mocker.patch(
         "app.celery.tasks.s3.get_job_from_s3",
         return_value=load_example_csv("multiple_sms"),
