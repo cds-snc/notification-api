@@ -134,7 +134,7 @@ def process_job(job_id):
         for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
             process_rows(result, template, job, service)
             put_batch_saving_bulk_created(
-                metrics_logger, 1, notification_type=template.template_type, priority=template.process_type
+                metrics_logger, 1, notification_type=db_template.template_type, priority=db_template.process_type
             )
 
     else:

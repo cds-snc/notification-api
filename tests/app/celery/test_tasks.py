@@ -409,7 +409,7 @@ class TestBatchSaving:
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
-        assert pbsbc_mock.assert_called_with(mock.ANY, 1) is None
+        assert pbsbc_mock.assert_called_with(mock.ANY, 1, notification_type="sms", priority="normal") is None
 
     def test_process_smss_job_metric(self, sample_template_with_placeholders, mocker):
         pbsbp_mock = mocker.patch("app.celery.tasks.put_batch_saving_bulk_processed")
@@ -448,7 +448,7 @@ class TestBatchSaving:
         assert persisted_notification[0].personalisation == {"name": "Jo"}
         assert persisted_notification[0]._personalisation == signer.sign({"name": "Jo"})
         assert persisted_notification[0].notification_type == SMS_TYPE
-        assert pbsbp_mock.assert_called_with(mock.ANY, 1) is None
+        assert pbsbp_mock.assert_called_with(mock.ANY, 1, "should not show up", "should not show up") is None
 
 
 # -------------- process_job tests -------------- #
