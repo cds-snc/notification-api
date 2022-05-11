@@ -1,3 +1,0 @@
--r requirements.txt
-# Mocks AWS services to enable local development 
-localstack

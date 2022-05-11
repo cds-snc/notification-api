@@ -424,6 +424,12 @@ class TestRequiresUserInService:
 
         user = create_user()
         service = create_service(service_name='some-service')
+        # The requires_user_in_service_or_admin middleware requires this.
+        dao_add_user_to_service(
+            service,
+            user,
+            permissions=[Permission(service=service, user=user, permission='manage_users')]
+        )
 
         token = create_access_token(identity=user)
         mocker.patch("app.authentication.auth.verify_jwt_in_request", side_effect=ExpiredSignatureError)

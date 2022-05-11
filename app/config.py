@@ -6,7 +6,8 @@ from dotenv import load_dotenv
 from celery.schedules import crontab
 from kombu import Exchange, Queue
 
-from fido2.server import Fido2Server, RelyingParty
+from fido2.server import Fido2Server
+from fido2.webauthn import PublicKeyCredentialRpEntity
 
 from app.provider_details import HighestPriorityStrategy
 
@@ -441,7 +442,7 @@ class Config(object):
     NOTIFY_LOG_PATH = ''
 
     FIDO2_SERVER = Fido2Server(
-        RelyingParty(os.getenv('FIDO2_DOMAIN', 'localhost'), 'Notification'),
+        PublicKeyCredentialRpEntity(os.getenv('FIDO2_DOMAIN', 'localhost'), 'Notification'),
         verify_origin=lambda x: True)
 
     # OAuth
