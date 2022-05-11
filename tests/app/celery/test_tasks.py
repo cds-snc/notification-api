@@ -513,7 +513,10 @@ def test_should_redirect_job_to_queue_depending_on_csv_threshold(
 
     template = Mock(id=1, template_type=EMAIL_TYPE)
     job = Mock(id=1, template_version="temp_vers", notification_count=1)
-    service = create_service(service_name="notify service " + str(uuid.uuid1()), email_from=str(uuid.uuid1()) + "@digital.cabinet-office.gov.uk""@digital.cabinet-office.gov.uk")
+    service = create_service(
+        service_name="notify service " + str(uuid.uuid1()),
+        email_from=str(uuid.uuid1()) + "@digital.cabinet-office.gov.uk" "@digital.cabinet-office.gov.uk",
+    )
     create_reply_to_email(service=service, email_address="notify@digital.cabinet-office.gov.uk")
 
     row = next(
@@ -866,7 +869,9 @@ def test_process_row_sends_save_task(
     signer_mock = mocker.patch("app.celery.tasks.signer.sign")
     template = Mock(id="template_id", template_type=template_type)
     job = Mock(id="job_id", template_version="temp_vers", notification_count=1, api_key_id=api_key_id, sender_id=sender_id)
-    service = create_service(service_name="notify service " + str(uuid.uuid1()), email_from=str(uuid.uuid1()) + "@digital.cabinet-office.gov.uk")
+    service = create_service(
+        service_name="notify service " + str(uuid.uuid1()), email_from=str(uuid.uuid1()) + "@digital.cabinet-office.gov.uk"
+    )
     create_reply_to_email(service=service, email_address="notify@digital.cabinet-office.gov.uk")
 
     process_row(
