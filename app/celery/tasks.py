@@ -124,6 +124,7 @@ def process_job(job_id):
 
     TemplateClass = get_template_class(db_template.template_type)
     template = TemplateClass(db_template.__dict__)
+    template.process_type = db_template.process_type
 
     current_app.logger.info("Starting job {} processing {} notifications".format(job_id, job.notification_count))
 
@@ -943,6 +944,7 @@ def process_incomplete_job(job_id):
 
     TemplateClass = get_template_class(db_template.template_type)
     template = TemplateClass(db_template.__dict__)
+    template.process_type = db_template.process_type
 
     csv = get_recipient_csv(job, template)
     for row in csv.get_rows():
