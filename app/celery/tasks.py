@@ -383,7 +383,7 @@ def save_sms(self, service_id, notification_id, signed_notification, sender_id=N
     # the first element is the Template object and the second the template cache data
     # in the form of a dict
     elif isinstance(template, tuple):
-        reply_to_text = template[1].get("reply_to_text")
+        reply_to_text = template[1].get("reply_to_text") # type: ignore
         template = template[0]
     else:
         reply_to_text = template.get_reply_to_text()
@@ -461,7 +461,7 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
         # the first element is the Template object and the second the template cache data
         # in the form of a dict
         elif isinstance(template, tuple):
-            reply_to_text = template[1].get("reply_to_text")
+            reply_to_text = template[1].get("reply_to_text") # type: ignore
             template = template[0]
         else:
             reply_to_text = template.get_reply_to_text()
@@ -529,7 +529,7 @@ def save_email(self, service_id, notification_id, signed_notification, sender_id
     # the first element is the Template object and the second the template cache data
     # in the form of a dict
     elif isinstance(template, tuple):
-        reply_to_text = template[1].get("reply_to_text")
+        reply_to_text = template[1].get("reply_to_text") # type: ignore
         template = template[0]
     else:
         reply_to_text = template.get_reply_to_text()
