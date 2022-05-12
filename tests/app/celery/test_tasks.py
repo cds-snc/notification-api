@@ -104,46 +104,46 @@ def email_job_with_placeholders(notify_db, notify_db_session, sample_email_templ
     return create_job(template=sample_email_template_with_placeholders)
 
 
-@pytest.mark.parametrize(
-    "research_mode,template_priority",
-    [(True, PRIORITY), (True, NORMAL), (True, BULK), (False, PRIORITY), (False, NORMAL), (False, BULK)],
-)
-def test_choose_database_queue_FF_PRIORITY_LANES_false(
-    mocker, notify_db, notify_db_session, notify_api, research_mode, template_priority
-):
-    mocker.patch.object(Config, "FF_PRIORITY_LANES", False)
-    service = sample_service(notify_db, notify_db_session, research_mode=research_mode)
-    template = sample_template(notify_db, notify_db_session, process_type=template_priority)
+class TestChooseDatabaseQueue:
+    @pytest.mark.parametrize(
+        "research_mode,template_priority",
+        [(True, PRIORITY), (True, NORMAL), (True, BULK), (False, PRIORITY), (False, NORMAL), (False, BULK)],
+    )
+    def test_choose_database_queue_FF_PRIORITY_LANES_false(
+        self, mocker, notify_db, notify_db_session, notify_api, research_mode, template_priority
+    ):
+        mocker.patch.object(Config, "FF_PRIORITY_LANES", False)
+        service = sample_service(notify_db, notify_db_session, research_mode=research_mode)
+        template = sample_template(notify_db, notify_db_session, process_type=template_priority)
 
-    expected_queue = QueueNames.RESEARCH_MODE if research_mode else QueueNames.DATABASE
-    actual_queue = choose_database_queue(template, service)
+        expected_queue = QueueNames.RESEARCH_MODE if research_mode else QueueNames.DATABASE
+        actual_queue = choose_database_queue(template, service)
 
-    assert expected_queue == actual_queue
+        assert expected_queue == actual_queue
 
+    @pytest.mark.parametrize(
+        "research_mode,template_priority",
+        [(True, PRIORITY), (True, NORMAL), (True, BULK), (False, PRIORITY), (False, NORMAL), (False, BULK)],
+    )
+    def test_choose_database_queue_FF_PRIORITY_LANES_true(
+        self, mocker, notify_db, notify_db_session, notify_api, research_mode, template_priority
+    ):
+        mocker.patch.object(Config, "FF_PRIORITY_LANES", True)
+        service = sample_service(notify_db, notify_db_session, research_mode=research_mode)
+        template = sample_template(notify_db, notify_db_session, process_type=template_priority)
 
-@pytest.mark.parametrize(
-    "research_mode,template_priority",
-    [(True, PRIORITY), (True, NORMAL), (True, BULK), (False, PRIORITY), (False, NORMAL), (False, BULK)],
-)
-def test_choose_database_queue_FF_PRIORITY_LANES_true(
-    mocker, notify_db, notify_db_session, notify_api, research_mode, template_priority
-):
-    mocker.patch.object(Config, "FF_PRIORITY_LANES", True)
-    service = sample_service(notify_db, notify_db_session, research_mode=research_mode)
-    template = sample_template(notify_db, notify_db_session, process_type=template_priority)
+        if research_mode:
+            expected_queue = QueueNames.RESEARCH_MODE
+        elif template_priority == PRIORITY:
+            expected_queue = QueueNames.PRIORITY_DATABASE
+        elif template_priority == NORMAL:
+            expected_queue = QueueNames.NORMAL_DATABASE
+        elif template_priority == BULK:
+            expected_queue = QueueNames.BULK_DATABASE
 
-    if research_mode:
-        expected_queue = QueueNames.RESEARCH_MODE
-    elif template_priority == PRIORITY:
-        expected_queue = QueueNames.PRIORITY_DATABASE
-    elif template_priority == NORMAL:
-        expected_queue = QueueNames.NORMAL_DATABASE
-    elif template_priority == BULK:
-        expected_queue = QueueNames.BULK_DATABASE
+        actual_queue = choose_database_queue(template, service)
 
-    actual_queue = choose_database_queue(template, service)
-
-    assert expected_queue == actual_queue
+        assert expected_queue == actual_queue
 
 
 @pytest.mark.usefixtures("notify_db_session")
