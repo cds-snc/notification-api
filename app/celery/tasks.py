@@ -355,7 +355,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
 
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
-        handle_batch_error_and_forward(signed_and_verified, SMS_TYPE, e, receipt)
+        handle_batch_error_and_forward(signed_and_verified, SMS_TYPE, e, receipt, template)
 
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
     research_mode = service.research_mode  # type: ignore
@@ -503,7 +503,7 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
             put_batch_saving_bulk_processed(metrics_logger, 1)
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
-        handle_batch_error_and_forward(signed_and_verified, EMAIL_TYPE, e, receipt)
+        handle_batch_error_and_forward(signed_and_verified, EMAIL_TYPE, e, receipt, template)
 
     if saved_notifications:
         check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
@@ -693,7 +693,7 @@ def handle_save_error(task, notification, notification_id, exception):
 
 
 def handle_batch_error_and_forward(
-    signed_and_verified: list[tuple[Any, Any]], notification_type: str, exception, receipt: UUID = None
+    signed_and_verified: list[tuple[Any, Any]], notification_type: str, exception, receipt: UUID = None, template: Template = None
 ):
     if receipt:
         current_app.logger.warning(f"Batch saving: could not persist notifications with receipt {receipt}: {str(exception)}")
