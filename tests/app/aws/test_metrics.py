@@ -39,7 +39,6 @@ class TestBatchSavingMetricsFunctions:
     def test_put_batch_metric(self, mocker, metrics_logger_mock):
         redis_queue = mocker.MagicMock()
         redis_queue._inbox = "foo"
-
         put_batch_saving_metric(metrics_logger_mock, redis_queue, 1)
         metrics_logger_mock.set_dimensions.assert_called_with({"list_name": "foo"})
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_published", 1, "Count")

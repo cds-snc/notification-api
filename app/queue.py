@@ -131,7 +131,6 @@ class RedisQueue(Queue):
 
         """
         self._inbox = Buffer.INBOX.inbox_name(suffix, process_type)
-        self._inflight_prefix = Buffer.IN_FLIGHT.inflight_prefix(suffix, process_type)
         self._suffix = suffix
         self._process_type = process_type
         self._expire_inflight_after_seconds = expire_inflight_after_seconds

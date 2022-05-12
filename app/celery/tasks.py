@@ -338,7 +338,9 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
         notification["job_row_number"] = notification.get("row_number", None)
         verified_notifications.append(notification)
         notification_id_queue[notification_id] = notification.get("queue")
-        notification_priority = template.process_type
+        if Config.FF_PRIORITY_LANES:
+            notification_priority = template.process_type
+
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job.
         saved_notifications = persist_notifications(verified_notifications)
@@ -493,7 +495,8 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
         notification["job_row_number"] = notification.get("row_number", None)
         verified_notifications.append(notification)
         notification_id_queue[notification_id] = notification.get("queue")
-        notification_priority = template.process_type
+        if Config.FF_PRIORITY_LANES:
+            notification_priority = template.process_type
 
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job
