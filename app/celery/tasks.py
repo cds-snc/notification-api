@@ -1,7 +1,7 @@
 import json
 from collections import defaultdict, namedtuple
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 from celery import uuid
 
