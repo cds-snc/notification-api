@@ -3,7 +3,6 @@ from collections import defaultdict, namedtuple
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
-from celery import uuid
 
 from flask import current_app
 from more_itertools import chunked
@@ -1014,7 +1013,7 @@ def get_recipient_csv(job: Job, template: Template) -> RecipientCSV:
     )
 
 
-def _acknowledge_notification(notification_type: Any, template: Any, receipt: uuid):
+def _acknowledge_notification(notification_type: Any, template: Any, receipt: UUID):
     """
     Acknowledge the notification has been saved to the DB and sent to the service.
 
