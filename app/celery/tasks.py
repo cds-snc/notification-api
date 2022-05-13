@@ -1,8 +1,9 @@
 import json
 from collections import defaultdict, namedtuple
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
+from celery import uuid
 
 from flask import current_app
 from more_itertools import chunked
@@ -163,7 +164,7 @@ def job_complete(job: Job, resumed=False, start=None):
         )
 
 
-def choose_database_queue(template: Template, service: Service):
+def choose_database_queue(template: Any, service: Service):
     if Config.FF_PRIORITY_LANES:
         if service.research_mode:
             return QueueNames.RESEARCH_MODE
@@ -693,7 +694,7 @@ def handle_save_error(task, notification, notification_id, exception):
 
 
 def handle_batch_error_and_forward(
-    signed_and_verified: list[tuple[Any, Any]], notification_type: str, exception, receipt: UUID = None, template: Template = None
+    signed_and_verified: list[tuple[Any, Any]], notification_type: str, exception, receipt: UUID = None, template: Any = None
 ):
     if receipt:
         current_app.logger.warning(f"Batch saving: could not persist notifications with receipt {receipt}: {str(exception)}")
@@ -1013,7 +1014,7 @@ def get_recipient_csv(job: Job, template: Template) -> RecipientCSV:
     )
 
 
-def _acknowledge_notification(notification_type, template, receipt):
+def _acknowledge_notification(notification_type: Any, template: Any, receipt: uuid):
     """
     Acknowledge the notification has been saved to the DB and sent to the service.
 
