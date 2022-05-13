@@ -476,7 +476,7 @@ class TestBatchSaving:
         assert persisted_notification[0].personalisation == {"name": "Jo"}
         assert persisted_notification[0]._personalisation == signer.sign({"name": "Jo"})
         assert persisted_notification[0].notification_type == SMS_TYPE
-        assert pbsbp_mock.assert_called_with(mock.ANY, 1, "should not show up", "should not show up") is None
+        assert pbsbp_mock.assert_called_with(mock.ANY, 1) is None
 
 
 class TestProcessJob:

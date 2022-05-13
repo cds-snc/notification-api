@@ -356,7 +356,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
                     priority=notification_priority,
                 )
             else:
-                put_batch_saving_bulk_processed(metrics_logger, 1, "should not show up", "should not show up")
+                put_batch_saving_bulk_processed(metrics_logger, 1)
 
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
@@ -513,7 +513,7 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
                     priority=notification_priority,
                 )
             else:
-                put_batch_saving_bulk_processed(metrics_logger, 1, "should not show up", "should not show up")
+                put_batch_saving_bulk_processed(metrics_logger, 1)
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(signed_and_verified, EMAIL_TYPE, e, receipt)

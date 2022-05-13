@@ -1,6 +1,6 @@
 from __future__ import annotations  # PEP 563 -- Postponed Evaluation of Annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from botocore.exceptions import ClientError
 from flask import current_app
@@ -107,7 +107,9 @@ def put_batch_saving_expiry_metric(metrics_logger: MetricsLogger, queue: RedisQu
     return
 
 
-def put_batch_saving_bulk_created(metrics_logger: MetricsLogger, count: int, notification_type: str, priority: str):
+def put_batch_saving_bulk_created(
+    metrics_logger: MetricsLogger, count: int, notification_type: Optional[str] = None, priority: Optional[str] = None
+):
     """
     Metric to calculate how many notifications are sent through
     the bulk api
@@ -124,8 +126,11 @@ def put_batch_saving_bulk_created(metrics_logger: MetricsLogger, count: int, not
         metrics_logger.put_metric("batch_saving_bulk", count, "Count")
         metrics_logger.set_dimensions({"created": "True"})
         if Config.FF_PRIORITY_LANES:
-            metrics_logger.set_dimensions({"notification_type": notification_type})
-            metrics_logger.set_dimensions({"priority": priority})
+            if notification_type is None or priority is None:
+                current_app.logger.warning("either notification_type or priority is None")
+            else:
+                metrics_logger.set_dimensions({"notification_type": notification_type})
+                metrics_logger.set_dimensions({"priority": priority})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
@@ -133,7 +138,9 @@ def put_batch_saving_bulk_created(metrics_logger: MetricsLogger, count: int, not
     return
 
 
-def put_batch_saving_bulk_processed(metrics_logger: MetricsLogger, count: int, notification_type: str, priority: str):
+def put_batch_saving_bulk_processed(
+    metrics_logger: MetricsLogger, count: int, notification_type: Optional[str] = None, priority: Optional[str] = None
+):
     """
     Metric to calculate how many bulk insertion have been processed.
 
@@ -149,8 +156,11 @@ def put_batch_saving_bulk_processed(metrics_logger: MetricsLogger, count: int, n
         metrics_logger.put_metric("batch_saving_bulk", count, "Count")
         metrics_logger.set_dimensions({"acknowledged": "True"})
         if Config.FF_PRIORITY_LANES:
-            metrics_logger.set_dimensions({"notification_type": notification_type})
-            metrics_logger.set_dimensions({"priority": priority})
+            if notification_type is None or priority is None:
+                current_app.logger.warning("either notification_type or priority is None")
+            else:
+                metrics_logger.set_dimensions({"notification_type": notification_type})
+                metrics_logger.set_dimensions({"priority": priority})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
