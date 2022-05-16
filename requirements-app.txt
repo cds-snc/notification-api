@@ -10,7 +10,7 @@ environs==9.3.2 # pyup: <9.3.3 # marshmallow v3 throws errors
 fido2==0.9.1
 Flask-Bcrypt==0.7.1
 flask-marshmallow==0.14.0
-Flask-Migrate==2.7.0
+Flask-Migrate==3.1.0
 git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd1a20a21e682262#egg=Flask-SQLAlchemy==2.3.2.dev20190108
 Flask==2.1.2
 click-datetime==0.2
@@ -27,7 +27,7 @@ PyJWT==2.1.0
 pytz==2021.3
 PyYAML==5.4.1
 SQLAlchemy==1.3.23
-sentry-sdk[flask]==1.0.0
+sentry-sdk[flask]==2.0.1
 cachelib==0.1.1
 
 newrelic==6.2.0.156
