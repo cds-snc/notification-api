@@ -81,7 +81,7 @@ cachetools==4.2.1
 certifi==2021.10.8
 chardet==4.0.0
 charset-normalizer==2.0.12
-click==7.1.2
+click==8.0.3
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
