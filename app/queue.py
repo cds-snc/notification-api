@@ -145,7 +145,7 @@ class RedisQueue(Queue):
         in_flight_key = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
         results = self.__move_to_inflight(in_flight_key, count)
         if results:
-            put_batch_saving_inflight_metric(self.__metrics_logger, 1)
+            put_batch_saving_inflight_metric(self.__metrics_logger, self, 1)
         return (receipt, results)
 
     def expire_inflights(self):
@@ -159,13 +159,13 @@ class RedisQueue(Queue):
             args = [f"{Buffer.IN_FLIGHT.inflight_prefix()}:{self._suffix}*", self._inbox, self._expire_inflight_after_seconds]
         expired = self.scripts[self.LUA_EXPIRE_INFLIGHTS](args=args)
         if expired:
-            put_batch_saving_expiry_metric(self.__metrics_logger, len(expired))
+            put_batch_saving_expiry_metric(self.__metrics_logger, self, len(expired))
             current_app.logger.warning(f"Moved inflights {expired} back to inbox {self._inbox}")
 
     def acknowledge(self, receipt: UUID):
         inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
         self._redis_client.delete(inflight_name)
-        put_batch_saving_inflight_processed(self.__metrics_logger, 1)
+        put_batch_saving_inflight_processed(self.__metrics_logger, self, 1)
 
     def publish(self, message: str):
         self._redis_client.rpush(self._inbox, message)

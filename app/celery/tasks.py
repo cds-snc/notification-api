@@ -140,7 +140,10 @@ def process_job(job_id):
         rows = csv.get_rows()
         for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
             process_rows(result, template, job, service)
-            put_batch_saving_bulk_created(metrics_logger, 1)
+            put_batch_saving_bulk_created(
+                metrics_logger, 1, notification_type=db_template.template_type, priority=db_template.process_type
+            )
+
     else:
         for row in csv.get_rows():
             process_row(row, template, job, service)
@@ -351,7 +354,15 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
                 f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
             )
         else:
-            put_batch_saving_bulk_processed(metrics_logger, 1)
+            if Config.FF_PRIORITY_LANES:
+                put_batch_saving_bulk_processed(
+                    metrics_logger,
+                    1,
+                    notification_type=SMS_TYPE,
+                    priority=process_type,
+                )
+            else:
+                put_batch_saving_bulk_processed(metrics_logger, 1)
 
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
@@ -500,7 +511,15 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
                 f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
             )
         else:
-            put_batch_saving_bulk_processed(metrics_logger, 1)
+            if Config.FF_PRIORITY_LANES:
+                put_batch_saving_bulk_processed(
+                    metrics_logger,
+                    1,
+                    notification_type=EMAIL_TYPE,
+                    priority=process_type,
+                )
+            else:
+                put_batch_saving_bulk_processed(metrics_logger, 1)
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(signed_and_verified, EMAIL_TYPE, e, receipt, template)
