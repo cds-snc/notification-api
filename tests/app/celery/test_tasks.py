@@ -217,6 +217,49 @@ class TestBatchSaving:
 
         acknowldege_mock.assert_called_once_with(receipt)
 
+    def test_should_save_smss_acknowledge_queue(self, sample_template_with_placeholders, notify_api, mocker):
+        notification1 = _notification_json(
+            sample_template_with_placeholders,
+            to="+1 650 253 2221",
+            personalisation={"name": "Jo"},
+        )
+        notification1_id = uuid.uuid4()
+        notification1["id"] = str(notification1_id)
+
+        notification2 = _notification_json(
+            sample_template_with_placeholders, to="+1 650 253 2222", personalisation={"name": "Test2"}
+        )
+
+        notification3 = _notification_json(
+            sample_template_with_placeholders, to="+1 650 253 2223", personalisation={"name": "Test3"}
+        )
+
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+        acknowldege_mock = mocker.patch("app.sms_normal.acknowledge")
+
+        mocker.patch.object(Config, "FF_PRIORITY_LANES", True)
+
+        receipt = uuid.uuid4()
+        save_smss(
+            str(sample_template_with_placeholders.service.id),
+            [signer.sign(notification1), signer.sign(notification2), signer.sign(notification3)],
+            receipt,
+        )
+
+        persisted_notification = Notification.query.all()
+        assert persisted_notification[0].id == notification1_id
+        assert persisted_notification[0].to == "+1 650 253 2221"
+        assert persisted_notification[1].to == "+1 650 253 2222"
+        assert persisted_notification[2].to == "+1 650 253 2223"
+        assert persisted_notification[0].template_id == sample_template_with_placeholders.id
+        assert persisted_notification[1].template_version == sample_template_with_placeholders.version
+        assert persisted_notification[0].status == "created"
+        assert persisted_notification[0].personalisation == {"name": "Jo"}
+        assert persisted_notification[0]._personalisation == signer.sign({"name": "Jo"})
+        assert persisted_notification[0].notification_type == SMS_TYPE
+
+        acknowldege_mock.assert_called_once_with(receipt)
+
     def test_should_save_emails(self, sample_email_template_with_placeholders, mocker):
         notification1 = _notification_json(
             sample_email_template_with_placeholders,
