@@ -47,10 +47,13 @@ def put_batch_saving_inflight_metric(metrics_logger: MetricsLogger, queue: Redis
     try:
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_inflight", count, "Count")
-        metrics_logger.set_dimensions({"created": "True"})
+
         if Config.FF_PRIORITY_LANES:
-            metrics_logger.set_dimensions({"notification_type": queue._suffix})
-            metrics_logger.set_dimensions({"priority": queue._process_type})
+            metrics_logger.set_dimensions(
+                {"created": "True", "notification_type": queue._suffix, "priority": queue._process_type}
+            )
+        else:
+            metrics_logger.set_dimensions({"created": "True"})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
@@ -71,10 +74,12 @@ def put_batch_saving_inflight_processed(metrics_logger: MetricsLogger, queue: Re
     try:
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_inflight", count, "Count")
-        metrics_logger.set_dimensions({"acknowledged": "True"})
         if Config.FF_PRIORITY_LANES:
-            metrics_logger.set_dimensions({"notification_type": queue._suffix})
-            metrics_logger.set_dimensions({"priority": queue._process_type})
+            metrics_logger.set_dimensions(
+                {"acknowledged": "True", "notification_type": queue._suffix, "priority": queue._process_type}
+            )
+        else:
+            metrics_logger.set_dimensions({"acknowledged": "True"})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
@@ -96,10 +101,12 @@ def put_batch_saving_expiry_metric(metrics_logger: MetricsLogger, queue: RedisQu
     try:
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_inflight", count, "Count")
-        metrics_logger.set_dimensions({"expired": "True"})
         if Config.FF_PRIORITY_LANES:
-            metrics_logger.set_dimensions({"notification_type": queue._suffix})
-            metrics_logger.set_dimensions({"priority": queue._process_type})
+            metrics_logger.set_dimensions(
+                {"expired": "True", "notification_type": queue._suffix, "priority": queue._process_type}
+            )
+        else:
+            metrics_logger.set_dimensions({"expired": "True"})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
@@ -124,13 +131,14 @@ def put_batch_saving_bulk_created(
     try:
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_bulk", count, "Count")
-        metrics_logger.set_dimensions({"created": "True"})
         if Config.FF_PRIORITY_LANES:
             if notification_type is None or priority is None:
                 current_app.logger.warning("either notification_type or priority is None")
+                metrics_logger.set_dimensions({"created": "True"})
             else:
-                metrics_logger.set_dimensions({"notification_type": notification_type})
-                metrics_logger.set_dimensions({"priority": priority})
+                metrics_logger.set_dimensions({"created": "True", "notification_type": notification_type, "priority": priority})
+        else:
+            metrics_logger.set_dimensions({"created": "True"})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
@@ -154,13 +162,17 @@ def put_batch_saving_bulk_processed(
     try:
         metrics_logger.set_namespace("NotificationCanadaCa")
         metrics_logger.put_metric("batch_saving_bulk", count, "Count")
-        metrics_logger.set_dimensions({"acknowledged": "True"})
+
         if Config.FF_PRIORITY_LANES:
             if notification_type is None or priority is None:
                 current_app.logger.warning("either notification_type or priority is None")
+                metrics_logger.set_dimensions({"acknowledged": "True"})
             else:
-                metrics_logger.set_dimensions({"notification_type": notification_type})
-                metrics_logger.set_dimensions({"priority": priority})
+                metrics_logger.set_dimensions(
+                    {"acknowledged": "True", "notification_type": notification_type, "priority": priority}
+                )
+        else:
+            metrics_logger.set_dimensions({"acknowledged": "True"})
         metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
