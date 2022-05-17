@@ -66,10 +66,7 @@ class TestBatchSavingMetricsFunctions:
         redis_queue._suffix = "foo"
         redis_queue._process_type = "bar"
         put_batch_saving_inflight_metric(metrics_logger_mock, redis_queue, 1)
-        assert metrics_logger_mock.set_dimensions.call_count == 3
-        metrics_logger_mock.set_dimensions.assert_has_calls(
-            [call({"created": "True"}), call({"notification_type": "foo"}), call({"priority": "bar"})]
-        )
+        metrics_logger_mock.set_dimensions.assert_called_with({"created": "True", "notification_type": "foo", "priority": "bar"})
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_inflight", 1, "Count")
 
     def test_put_batch_saving_in_flight_metric_FF_PRIORITY_LANES_false(self, mocker, metrics_logger_mock):
@@ -78,7 +75,6 @@ class TestBatchSavingMetricsFunctions:
         redis_queue._suffix = "foo"
         redis_queue._process_type = "bar"
         put_batch_saving_inflight_metric(metrics_logger_mock, redis_queue, 1)
-        assert metrics_logger_mock.set_dimensions.call_count == 1
         metrics_logger_mock.set_dimensions.assert_has_calls([call({"created": "True"})])
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_inflight", 1, "Count")
 
@@ -88,9 +84,8 @@ class TestBatchSavingMetricsFunctions:
         redis_queue._suffix = "foo"
         redis_queue._process_type = "bar"
         put_batch_saving_inflight_processed(metrics_logger_mock, redis_queue, 1)
-        assert metrics_logger_mock.set_dimensions.call_count == 3
-        metrics_logger_mock.set_dimensions.assert_has_calls(
-            [call({"acknowledged": "True"}), call({"notification_type": "foo"}), call({"priority": "bar"})]
+        metrics_logger_mock.set_dimensions.assert_called_with(
+            {"acknowledged": "True", "notification_type": "foo", "priority": "bar"}
         )
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_inflight", 1, "Count")
 
@@ -111,10 +106,7 @@ class TestBatchSavingMetricsFunctions:
         redis_queue._process_type = "bar"
         put_batch_saving_expiry_metric(metrics_logger_mock, redis_queue, 1)
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_inflight", 1, "Count")
-        assert metrics_logger_mock.set_dimensions.call_count == 3
-        metrics_logger_mock.set_dimensions.assert_has_calls(
-            [call({"expired": "True"}), call({"notification_type": "foo"}), call({"priority": "bar"})]
-        )
+        metrics_logger_mock.set_dimensions.assert_called_with({"expired": "True", "notification_type": "foo", "priority": "bar"})
 
     def test_put_batch_saving_expiry_metric_FF_PRIORITY_LANES_false(self, mocker, metrics_logger_mock):
         mocker.patch.object(Config, "FF_PRIORITY_LANES", False)
@@ -123,39 +115,33 @@ class TestBatchSavingMetricsFunctions:
         redis_queue._process_type = "bar"
         put_batch_saving_expiry_metric(metrics_logger_mock, redis_queue, 1)
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_inflight", 1, "Count")
-        assert metrics_logger_mock.set_dimensions.call_count == 1
-        metrics_logger_mock.set_dimensions.assert_has_calls([call({"expired": "True"})])
+        metrics_logger_mock.set_dimensions.assert_called_with({"expired": "True"})
 
     def test_put_batch_saving_bulk_created_FF_PRIORITY_LANES_true(self, mocker, metrics_logger_mock):
         mocker.patch.object(Config, "FF_PRIORITY_LANES", True)
         put_batch_saving_bulk_created(metrics_logger_mock, 1, "foo", "bar")
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_bulk", 1, "Count")
-        assert metrics_logger_mock.set_dimensions.call_count == 3
-        metrics_logger_mock.set_dimensions.assert_has_calls(
-            [call({"created": "True"}), call({"notification_type": "foo"}), call({"priority": "bar"})]
-        )
+        metrics_logger_mock.set_dimensions.assert_called_with({"created": "True", "notification_type": "foo", "priority": "bar"})
 
     def test_put_batch_saving_bulk_created_FF_PRIORITY_LANES_false(self, mocker, metrics_logger_mock):
         mocker.patch.object(Config, "FF_PRIORITY_LANES", False)
         put_batch_saving_bulk_created(metrics_logger_mock, 1, "foo", "bar")
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_bulk", 1, "Count")
-        assert metrics_logger_mock.set_dimensions.call_count == 1
         metrics_logger_mock.set_dimensions.assert_has_calls([call({"created": "True"})])
 
     def test_put_batch_saving_bulk_processed_FF_PRIORITY_LANES_true(self, mocker, metrics_logger_mock):
         mocker.patch.object(Config, "FF_PRIORITY_LANES", True)
         put_batch_saving_bulk_processed(metrics_logger_mock, 1, notification_type="foo", priority="bar")
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_bulk", 1, "Count")
-        assert metrics_logger_mock.set_dimensions.call_count == 3
-        metrics_logger_mock.set_dimensions.assert_has_calls(
-            [call({"acknowledged": "True"}), call({"notification_type": "foo"}), call({"priority": "bar"})]
+        assert metrics_logger_mock.set_dimensions.call_count == 1
+        metrics_logger_mock.set_dimensions.assert_called_with(
+            {"acknowledged": "True", "notification_type": "foo", "priority": "bar"}
         )
 
     def test_put_batch_saving_bulk_processed_FF_PRIORITY_LANES_false(self, mocker, metrics_logger_mock):
         mocker.patch.object(Config, "FF_PRIORITY_LANES", False)
         put_batch_saving_bulk_processed(metrics_logger_mock, 1, notification_type="foo", priority="bar")
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_bulk", 1, "Count")
-        assert metrics_logger_mock.set_dimensions.call_count == 1
         metrics_logger_mock.set_dimensions.assert_has_calls([call({"acknowledged": "True"})])
 
     def test_put_batch_metric_unknown_error(self, mocker, metrics_logger_mock):
