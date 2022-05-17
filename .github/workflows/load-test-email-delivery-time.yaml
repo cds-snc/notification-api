@@ -4,26 +4,26 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'The target environment (dev|staging|perf)'
+        description: "The target environment (dev|staging|perf)"
         required: true
-        default: 'perf'
+        default: "perf"
       commit_sha:
-        description: 'The commit SHA containing code you want to load test'
+        description: "The commit SHA containing code you want to load test"
         required: true
       email_limit:
-        description: 'Number of emails to send'
+        description: "Number of emails to send"
         required: true
-        default: '10'
+        default: "10"
       email_status_query_interval:
-        description: 'Number of seconds to wait between requests to query notification status'
+        description: "Number of seconds to wait between requests to query notification status"
         required: true
-        default: '1'
+        default: "1"
 
 jobs:
   trigger:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
