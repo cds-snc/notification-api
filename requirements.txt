@@ -95,7 +95,7 @@ flask-redis>=0.4.0
 frozenlist==1.3.0
 future==0.18.2
 greenlet==1.1.2
-Jinja2==3.1.2
+Jinja2>=2.10.1
 jmespath==0.10.0
 kombu==5.2.4
 Mako==1.1.6
