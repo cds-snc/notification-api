@@ -1,36 +1,36 @@
-name: Trigger
+name: Production Deployment Trigger
 
+# This is now to deploy specifically to production using an existing container tag up in ECR.
+# To deploy, go into ECR and find the tag SHA or hash that you wish to deploy.
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to provision (dev|staging|perf|prod)'
+        description: "This is now to deploy specifically to production using an existing container tag up in ECR. "
         required: true
-        default: 'dev'
+        default: "prod"
       ref:
-        description: 'Git and docker tag (can be a commit SHA).'
+        description: "Docker tag (can be a commit SHA)."
         required: true
 
 jobs:
   trigger:
     runs-on: ubuntu-latest
     steps:
+      
       - name: Choose environment
         id: choose-environment
-        uses: actions/github-script@v4.1
+        uses: actions/github-script@v6
         with:
           script: |
             const mapEventToEnvironment = () => {
-              if (context.eventName === 'deployment_status' && context.payload.deployment_status.state == 'success' && context.payload.deployment_status.environment == 'dev') return { "environment": 'staging', "ref": context.payload.deployment.ref };
-              if (context.eventName === 'workflow_dispatch') return { "environment": context.payload.inputs.environment, "ref": context.payload.inputs.ref };
-              return { "environment": undefined, "ref": undefined };
-            };
+            if (context.payload.inputs.environment == 'prod') return { "environment": context.payload.inputs.environment, "ref": context.payload.inputs.ref };
             const { environment, ref } = mapEventToEnvironment();
             core.setOutput('environment', environment);
             core.setOutput('ref', ref);
 
       - name: Start VAEC deployment
-        uses: actions/github-script@v4.1
+        uses: actions/github-script@v6
         if: ${{ steps.choose-environment.outputs.environment }}
         with:
           github-token: ${{secrets.GH_ACCESS_TOKEN}}

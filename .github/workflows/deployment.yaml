@@ -1,4 +1,4 @@
-name:  Application deployment
+name: Application deployment
 concurrency: ${{ github.event.deployment.environment }}
 
 on:
@@ -39,7 +39,7 @@ jobs:
       image-tag: ${{ steps.set-image-tag.outputs.image-tag }}
       ecr-registry: ${{ steps.set-ecr-registry.outputs.ecr-registry }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.deployment.ref }}
 
@@ -50,7 +50,7 @@ jobs:
 
       - name: Set ECR registry
         id: set-ecr-registry
-        uses: actions/github-script@v4.1
+        uses: actions/github-script@v6
         with:
           script: |
             const inputRepo = '${{ github.event.deployment.payload.imageRepository }}';
@@ -67,7 +67,7 @@ jobs:
       ECR_REGISTRY: ${{ needs.set-env-vars.outputs.ecr-registry }}
       IMAGE_TAG: ${{ needs.set-env-vars.outputs.image-tag }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.deployment.ref }}
 
@@ -105,7 +105,7 @@ jobs:
       ECR_REGISTRY: ${{ needs.set-env-vars.outputs.ecr-registry }}
       IMAGE_TAG: ${{ needs.set-env-vars.outputs.image-tag }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.deployment.ref }}
 
@@ -142,7 +142,7 @@ jobs:
       ECR_REGISTRY: ${{ needs.set-env-vars.outputs.ecr-registry }}
       IMAGE_TAG: ${{ needs.set-env-vars.outputs.image-tag }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.deployment.ref }}
 
@@ -174,12 +174,12 @@ jobs:
 
   deploy-celery-beat:
     runs-on: ubuntu-latest
-    needs: [ set-env-vars, run-migrations ]
+    needs: [set-env-vars, run-migrations]
     env:
       ECR_REGISTRY: ${{ needs.set-env-vars.outputs.ecr-registry }}
       IMAGE_TAG: ${{ needs.set-env-vars.outputs.image-tag }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.deployment.ref }}
 
@@ -209,76 +209,18 @@ jobs:
           cluster: ${{ github.event.deployment.environment }}-notification-cluster
           wait-for-service-stability: true
 
-  deploy-lambdas:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: './lambda_functions'
-    needs: [run-migrations]
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.deployment.ref }}
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-gov-west-1
-          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
-          role-skip-session-tagging: true
-          role-duration-seconds: 1800
-
-      - name: Set Python version
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.8'
-
-      - name: Package and deploy SES Callback lambda function
-        run: |
-          zip -j ses_callback_lambda ses_callback/ses_callback_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.deployment.environment }}-ses-callback-lambda --zip-file fileb://ses_callback_lambda.zip
-
-      - name: Package and deploy Two Way SMS lambda function
-        run: |
-          zip -j two_way_sms_lambda two_way_sms/two_way_sms_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.deployment.environment }}-two-way-sms-lambda --zip-file fileb://two_way_sms_lambda.zip
-
-      - name: Package and deploy pinpoint callback lambda function
-        run: |
-          zip -j pinpoint_callback_lambda pinpoint_callback/pinpoint_callback_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.deployment.environment }}-pinpoint-callback-lambda --zip-file fileb://pinpoint_callback_lambda.zip
-
-      - name: Package and deploy pinpoint inbound sms lambda function
-        run: |
-          zip -j pinpoint_inbound_sms_lambda pinpoint_inbound_sms/pinpoint_inbound_sms_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.deployment.environment }}-pinpoint-inbound-sms-lambda --zip-file fileb://pinpoint_inbound_sms_lambda.zip
-
-      - name: Package and deploy vetext incoming forwarder lambda
-        run: |
-          zip -j vetext_incoming_forwarder_lambda vetext_incoming_forwarder_lambda/vetext_incoming_forwarder_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.deployment.environment }}-vetext-incoming-forwarder-lambda --zip-file fileb://vetext_incoming_forwarder_lambda.zip
-
-      - name: Package and deploy nightly stats bigquery upload lambda function
-        run: |
-          cd nightly_stats_bigquery_upload/
-          python3 -m venv venv
-          source venv/bin/activate
-          pip install -r requirements-lambda.txt
-          deactivate
-          cd venv/lib/python3.8/site-packages
-          zip -r9 ../../../../nightly_stats_bigquery_upload_lambda.zip .
-          cd ../../../../
-          zip -ugj nightly_stats_bigquery_upload_lambda nightly_stats_bigquery_upload_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.deployment.environment }}-nightly-stats-bigquery-upload-lambda --zip-file fileb://nightly_stats_bigquery_upload_lambda.zip
-
   run-user-flows:
     runs-on: ubuntu-latest
-    needs: [run-migrations, deploy-api, deploy-celery, deploy-celery-beat, deploy-lambdas]
+    needs:
+      [
+        run-migrations,
+        deploy-api,
+        deploy-celery,
+        deploy-celery-beat,
+      ]
     if: ${{ 'dev' == github.event.deployment.environment }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.deployment.ref }}
 
@@ -304,13 +246,22 @@ jobs:
 
   deployment-status:
     runs-on: ubuntu-latest
-    needs: [validate-env, set-env-vars, run-migrations, deploy-api, deploy-celery, deploy-celery-beat, run-user-flows, deploy-lambdas]
+    needs:
+      [
+        validate-env,
+        set-env-vars,
+        run-migrations,
+        deploy-api,
+        deploy-celery,
+        deploy-celery-beat,
+        run-user-flows,
+      ]
     if: always()
     steps:
-      - uses: actions/github-script@v4.1
+      - uses: actions/github-script@v6
         with:
           github-token: ${{secrets.GH_ACCESS_TOKEN}}
-          previews: 'flash-preview,ant-man-preview'
+          previews: "flash-preview,ant-man-preview"
           script: |
             const needs = ${{ toJson(needs) }};
             let deploymentState = Object.entries(needs).reduce((state, jobEntry) => {

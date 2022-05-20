@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       imageTag:
-        description: 'Docker image tag to scna'
+        description: "Docker image tag to scan"
         required: true
 
 jobs:
   twistlock-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -26,7 +26,7 @@ jobs:
       - name: Login to VAEC ECR
         id: login-ecr-vaec
         uses: aws-actions/amazon-ecr-login@v1
-      
+
       - name: Perform twistlock scan
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-vaec.outputs.registry }}

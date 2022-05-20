@@ -4,30 +4,30 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'The target environment (dev|staging|perf)'
+        description: "The target environment (dev|staging|perf)"
         required: true
-        default: 'perf'
+        default: "perf"
       commit_sha:
-        description: 'The commit SHA containing code you want to load test'
+        description: "The commit SHA containing code you want to load test"
         required: true
       run_time:
-        description: 'Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.)'
+        description: "Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.)"
         required: true
-        default: '1m'
+        default: "1m"
       num_users:
-        description: 'Number of concurrent Locust users.'
+        description: "Number of concurrent Locust users."
         required: true
-        default: '5'
+        default: "5"
       spawn_rate:
-        description: 'The rate per second in which users are spawned.'
+        description: "The rate per second in which users are spawned."
         required: true
-        default: '1'
+        default: "1"
 
 jobs:
   trigger:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
