@@ -24,7 +24,7 @@ jobs:
         shell: bash {0}
         run: |
           ENVS=(dev staging perf)
-          INPUT="${{ github.event.deployment.environment }}"
+          INPUT="${{ github.event.inputs.environment }}"
           APPROVED=false
 
           for env in ${ENVS[@]}; do
