@@ -1,6 +1,8 @@
 name: Create Git and Docker tags
 
-on: deployment_status
+on: 
+  workflow_dispatch:
+    
 
 jobs:
   create-staging-tags:
@@ -58,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [create-staging-tags]
     steps:
-      - uses: actions/github-script@v4.1
+      - uses: actions/github-script@v6
         with:
           github-token: ${{secrets.GH_ACCESS_TOKEN}}
           script: |

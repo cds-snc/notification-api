@@ -1,19 +1,7 @@
 name: Development CI
 
 on:
-  push:
-    tags-ignore:
-      - "**"
-    branches-ignore:
-      - "dependabot/**"
-    paths-ignore:
-      - "user_flows/**.py"
-      - "lambda_functions/user_flows/*"
-      - "lambda_functions/vetext_incoming_forwarder_lambda/*"
-      - ".github/workflows/lambda-functions.yaml"
-  pull_request:
-    branches:
-      - master
+  workflow_dispatch:
 
 jobs:
   test:
@@ -32,17 +20,17 @@ jobs:
       - name: Install libcurl
         run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Set up Python 3.8
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
-          python-version: 3.8
+          python-version: "3.8"
 
       - name: Upgrade pip
         run: python -m pip install --upgrade pip
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
@@ -57,8 +45,8 @@ jobs:
   code-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
         with:
           python-version: "3.8"
       - run: make check-vulnerabilities
@@ -66,8 +54,8 @@ jobs:
   dependency-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
         with:
           python-version: "3.8"
       - run: make check-dependencies
@@ -81,7 +69,7 @@ jobs:
       IMAGE_TAG: ${{ github.sha }}
     steps:
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1.6.0
+        uses: docker/setup-buildx-action@v1.7.0
 
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -106,7 +94,7 @@ jobs:
           cache-from: type=gha,scope=api
           cache-to: type=gha,scope=api
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Perform twistlock scan
         uses: ./.github/actions/run-commands-on-ec2
@@ -128,7 +116,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-push
     steps:
-      - uses: actions/github-script@v4.1
+      - uses: actions/github-script@v6
         with:
           github-token: ${{secrets.GH_ACCESS_TOKEN}}
           script: |
