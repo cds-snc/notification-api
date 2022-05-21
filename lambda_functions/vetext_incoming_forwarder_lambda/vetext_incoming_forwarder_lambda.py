@@ -125,9 +125,9 @@ def process_body_from_alb_invocation(event):
     
 
 def read_from_ssm(key: str) -> str:
-    boto_client = boto3.client('ssm')
+    ssm_client = boto3.client('ssm')
     
-    response = boto_client.get_parameter(
+    response = ssm_client.get_parameter(
         Name=key,
         WithDecryption=True
     )
@@ -146,7 +146,7 @@ def make_vetext_request(request_body):
 
     headers = {
         'Content-type': 'application/json',
-        'Authorization': 'Basic OEZCMTRGN0I1NjE0NERDMEE2RUFCMzI5NDU4NUE4OEE6YW43ZnFCTW92a0NXeStLL29NTnZXZz09'
+        'Authorization': 'Basic ' + authToken
     }
 
     body = {
