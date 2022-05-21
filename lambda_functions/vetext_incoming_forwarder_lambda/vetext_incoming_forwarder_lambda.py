@@ -62,8 +62,6 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
         }
     except KeyError as e:
         logger.exception(e)
-        # Handle failed env variable
-        print(f'Failed to find key: {e}')
         # Place request on SQS for processing after environment variable issue is resolved
         push_to_sqs(event["body"])
 
@@ -72,8 +70,6 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
         }
     except http.client.HTTPException as e:
         logger.exception(e)
-        # Handle failed http request to vetext endpoint
-        print(f'Failure with http connection or request: {e}')
         # Place request on SQS for processing after environment variable issue is resolved
         push_to_sqs(event["body"])
 
@@ -84,7 +80,6 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
         logger.exception(e)        
         # Place request on dead letter queue so that it can be analyzed 
         #   for potential processing at a later time
-        print(f'Unknown Failure: {e}')
         push_to_sqs(event["body"])
 
         return{
