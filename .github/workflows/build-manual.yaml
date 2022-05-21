@@ -7,7 +7,7 @@ on:
         required: false
         default: "dev"
       branch:
-        description: "Brach to deploy from"
+        description: "Branch to deploy from"
         required: true
     paths-ignore:
       - "user_flows/**.py"
@@ -24,7 +24,7 @@ jobs:
         shell: bash {0}
         run: |
           ENVS=(dev staging perf)
-          INPUT="${{ github.event.deployment.environment }}"
+          INPUT="${{ github.event.inputs.environment }}"
           APPROVED=false
 
           for env in ${ENVS[@]}; do
