@@ -9,6 +9,7 @@ from urllib.parse import parse_qsl
 from base64 import b64decode
 import boto3
 
+logging.getLogger().setLevel(logging.DEBUG)
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
@@ -27,14 +28,14 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
         #   ALB will submit a single request but to simplify code, it will also return an array of event bodies
         if "requestContext" in event and "elb" in event["requestContext"]:
             logger.info("alb invocation")
-            event_bodies = get_body_from_alb_invocation(event)            
+            event_bodies = process_body_from_alb_invocation(event)            
         elif "Records" in event:
             logger.info("sqs invoication")
-            event_bodies = get_body_from_sqs_invocation(event)
+            event_bodies = process_body_from_sqs_invocation(event)
         else:
             logger.error("Invalid Event. Expecting the source of an invocation to be from alb or sqs")
 
-            push_to_sqs(event)
+            push_to_sqs(event["body"])
 
             return{
                 'statusCode': 400
@@ -48,7 +49,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
             response = make_vetext_request(event_body)
 
             if response.status != 200:
-                push_to_sqs(event)
+                push_to_sqs(event["body"])
 
             logger.debug(response.read().decode())
 
@@ -61,20 +62,16 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
         }
     except KeyError as e:
         logger.exception(e)
-        # Handle failed env variable
-        print(f'Failed to find key: {e}')
         # Place request on SQS for processing after environment variable issue is resolved
-        push_to_sqs(event)
+        push_to_sqs(event["body"])
 
         return {
             'statusCode': 424
         }
     except http.client.HTTPException as e:
         logger.exception(e)
-        # Handle failed http request to vetext endpoint
-        print(f'Failure with http connection or request: {e}')
         # Place request on SQS for processing after environment variable issue is resolved
-        push_to_sqs(event)
+        push_to_sqs(event["body"])
 
         return{
             'statusCode':503
@@ -83,16 +80,15 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
         logger.exception(e)        
         # Place request on dead letter queue so that it can be analyzed 
         #   for potential processing at a later time
-        print(f'Unknown Failure: {e}')
-        push_to_sqs(event)
+        push_to_sqs(event["body"])
 
         return{
             'statusCode':500
         }
 
-def get_body_from_sqs_invocation(event):
+def process_body_from_sqs_invocation(event):
     event_bodies = []
-    for record in event.Records:
+    for record in event["Records"]:
         # record is a sqs event that contains a body
         # body is an alb request that failed in an initial request
         # event is a json document with a body attribute that contains
@@ -100,13 +96,16 @@ def get_body_from_sqs_invocation(event):
         # event["body"] is a base 64 encoded string
         # parse_qsl converts url-encoded strings to array of tuple objects
         # event_body takes the array of tuples and creates a dictionary
-        event_body_decoded = parse_qsl(b64decode(record["body"]).decode('utf-8'))
-        event_body = dict(event_body_decoded)
-        event_bodies.append(event_body)
+        try:
+            event_body_decoded = parse_qsl(b64decode(record["body"]).decode('utf-8'))
+            event_body = dict(event_body_decoded)
+            event_bodies.append(event_body)
+        except:
+            push_to_sqs(record["body"])
 
     return event_bodies
 
-def get_body_from_alb_invocation(event):
+def process_body_from_alb_invocation(event):
     event_bodies = []
 
     # event is a json document with a body attribute that contains
@@ -121,9 +120,9 @@ def get_body_from_alb_invocation(event):
     
 
 def read_from_ssm(key: str) -> str:
-    boto_client = boto3.client('ssm')
+    ssm_client = boto3.client('ssm')
     
-    response = boto_client.get_parameter(
+    response = ssm_client.get_parameter(
         Name=key,
         WithDecryption=True
     )
