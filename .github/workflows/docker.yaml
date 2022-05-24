@@ -76,6 +76,14 @@ jobs:
       env:
         TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
 
+    - name: Generate docker SBOM
+      uses: cds-snc/security-tools/.github/actions/generate-sbom@d39a08b2145375940f52c0b4b8c58a8cf3603bdb
+      with:
+        dependency_track_api_key: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
+        docker_image: $DOCKER_SLUG:${GITHUB_SHA::7}
+        project_name: notification-api/docker
+        project_type: docker
+
     - name: Notify Slack channel if this job failed
       if: ${{ failure() }}
       run: |
