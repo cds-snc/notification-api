@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Generate app SBOM
-        uses: cds-snc/security-tools/.github/actions/generate-sbom@d39a08b2145375940f52c0b4b8c58a8cf3603bdb
+        uses: cds-snc/security-tools/.github/actions/generate-sbom@b09c1aefae9876dd2a23888c50b2daaa137ba01d # pin@v1
         with:
           dependency_track_api_key: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
           project_name: notification-api/app
