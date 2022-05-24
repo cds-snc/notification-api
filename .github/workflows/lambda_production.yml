@@ -53,5 +53,13 @@ jobs:
         run: |
           docker push $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7}
 
+      - name: Generate docker SBOM
+        uses: cds-snc/security-tools/.github/actions/generate-sbom@d39a08b2145375940f52c0b4b8c58a8cf3603bdb
+        with:
+          dependency_track_api_key: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
+          docker_image: $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7}
+          project_name: notification-api/docker/lambda
+          project_type: docker
+
       - name: Logout of Amazon ECR
         run: docker logout ${{ steps.login-ecr.outputs.registry }}

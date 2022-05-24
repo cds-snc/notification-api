@@ -81,7 +81,7 @@ jobs:
       with:
         dependency_track_api_key: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
         docker_image: $DOCKER_SLUG:${GITHUB_SHA::7}
-        project_name: notification-api/docker
+        project_name: notification-api/docker/k8s
         project_type: docker
 
     - name: Notify Slack channel if this job failed
