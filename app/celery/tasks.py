@@ -466,7 +466,6 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
     notification_id_queue: Dict = {}
     saved_notifications = []
     for signed_notification in signed_notifications:
-        notification = signer.verify(signed_notification)
         try:
             notification = signer.verify(signed_notification)
         except BadSignature:
