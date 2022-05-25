@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from flask import current_app
+from itsdangerous import BadSignature
 from more_itertools import chunked
 from notifications_utils.columns import Row
 from notifications_utils.recipients import RecipientCSV
@@ -304,7 +305,11 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
     notification_id_queue: Dict = {}
     saved_notifications = []
     for signed_notification in signed_notifications:
-        notification = signer.verify(signed_notification)
+        try:
+            notification = signer.verify(signed_notification)
+        except BadSignature:
+            current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
+            raise
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
 
@@ -462,6 +467,11 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
     saved_notifications = []
     for signed_notification in signed_notifications:
         notification = signer.verify(signed_notification)
+        try:
+            notification = signer.verify(signed_notification)
+        except BadSignature:
+            current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
+            raise
         service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
 
