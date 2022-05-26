@@ -15,8 +15,6 @@ on:
       - "lambda_functions/*"
       - ".github/workflows/lambda-functions.yaml"
     
-
-
 env:
   tf_version: 0.12.29
   AWS_ACCESS_KEY_ID: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
@@ -52,8 +50,8 @@ jobs:
           source venv/bin/activate
           pip install -r ../../requirements_for_user_flows.txt
           deactivate
-          cat va-internal-cert-chain.pem >> ./venv/lib/python3.6/site-packages/certifi/cacert.pem
-          cd venv/lib/python3.6/site-packages
+          cat va-internal-cert-chain.pem >> ./venv/lib/python3.8/site-packages/certifi/cacert.pem
+          cd venv/lib/python3.8/site-packages
           zip -r9 ../../../../user_flows_lambda.zip .
 
       - name: Package and deploy lambda function
@@ -138,7 +136,7 @@ jobs:
       - name: Package and deploy VA Profile opt-in/out lambda function
         run: |
           zip -j va_profile_opt_in_out_lambda va_profile/va_profile_opt_in_out_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.deployment.environment }}-va-profile-opt-in-out-lambda --zip-file fileb://va_profile_opt_in_out_lambda.zip
+          aws lambda update-function-code --function-name project-${{ github.event.inputs.environment }}-va-profile-opt-in-out-lambda --zip-file fileb://va_profile_opt_in_out_lambda.zip
 
       - name: Package and deploy nightly stats bigquery upload lambda function
         run: |
