@@ -97,7 +97,7 @@ future==0.18.2
 greenlet==1.1.2
 Jinja2>=2.10.1
 jmespath==0.10.0
-kombu==5.2.4
+kombu==5.2.3
 Mako==1.1.6
 mistune==0.8.4
 multidict==6.0.2
