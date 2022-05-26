@@ -54,7 +54,7 @@ jobs:
           docker push $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7}
 
       - name: Generate docker SBOM
-        uses: cds-snc/security-tools/.github/actions/generate-sbom@14ab23f07437d642594c56003db1f4bd34e54bbb # renovate: tag=v1
+        uses: cds-snc/security-tools/.github/actions/generate-sbom@4c6b386722985552f3f008d04279a3f01402cc35 # renovate: tag=v1
         with:
           dependency_track_api_key: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
           docker_image: $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7}

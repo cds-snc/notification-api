@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Generate app SBOM
-        uses: cds-snc/security-tools/.github/actions/generate-sbom@14ab23f07437d642594c56003db1f4bd34e54bbb # renovate: tag=v1
+        uses: cds-snc/security-tools/.github/actions/generate-sbom@4c6b386722985552f3f008d04279a3f01402cc35 # renovate: tag=v1
         with:
           dependency_track_api_key: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
           project_name: notification-api/app
