@@ -118,7 +118,7 @@ python-json-logger==2.0.1
 redis==4.1.4
 requests-file==1.5.1
 s3transfer==0.4.2
-setuptools==62.3.2
+setuptools<58
 six==1.16.0
 smartypants==2.0.1
 statsd==3.3.0
