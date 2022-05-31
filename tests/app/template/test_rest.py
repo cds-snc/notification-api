@@ -1717,6 +1717,35 @@ class TestGenerateHtmlPreviewForContent:
         assert response.data.decode('utf-8') == str(expected_preview_html)
         assert response.headers['Content-type'] == 'text/html; charset=utf-8'
 
+class TestGenerateHtmlPreviewForTemplateContent:
+
+    def test_should_generate_html_preview_for_template_content(self, client, sample_service):
+        user = create_user(platform_admin=True)
+        token = create_access_token(user)
+
+        response = client.post(
+            url_for('template.generate_html_preview_for_template_content', service_id=sample_service.id),
+            data=json.dumps({
+                'content': 'Foo'
+            }),
+            headers=[
+                ('Content-Type', 'application/json'),
+                ('Authorization', f'Bearer {token}')
+            ]
+        )
+
+        expected_preview_html = HTMLEmailTemplate(
+            {
+                'content': 'Foo',
+                'subject': ''
+            },
+            values={},
+            preview_mode=True
+        )
+
+        assert response.data.decode('utf-8') == str(expected_preview_html)
+        assert response.headers['Content-type'] == 'text/html; charset=utf-8'
+
 
 class TestTemplateNameAlreadyExists:
     def test_create_template_should_return_400_if_template_name_already_exists_on_service(
