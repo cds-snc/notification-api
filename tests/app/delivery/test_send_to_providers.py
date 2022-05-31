@@ -979,7 +979,7 @@ def test_notification_with_bad_file_attachment_url(mocker, notify_db, notify_db_
     personalisation = {
         "file": document_download_response(
             {
-                "direct_file_url": "file://foo.bar/file.txt",
+                "direct_file_url": "http://foo.bar/file.txt",
                 "url": "http://foo.bar/file.txt",
                 "mime_type": "application/pdf",
                 "mlwr_sid": "false",
