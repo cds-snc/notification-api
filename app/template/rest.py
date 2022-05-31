@@ -250,6 +250,22 @@ def generate_html_preview_for_content(service_id):
 
     return str(html_email), 200, {'Content-Type': 'text/html; charset=utf-8'}
 
+@template_blueprint.route("/generate-preview", methods=['POST'])
+@requires_admin_auth_or_user_in_service(required_permission='manage_templates')
+def generate_html_preview_for_template_content(service_id):
+    data = request.get_json()
+
+    html_email = HTMLEmailTemplate(
+        {
+            'content': data['content'],
+            'subject': ''
+        },
+        values={},
+        preview_mode=True
+    )
+
+    return str(html_email), 200, {'Content-Type': 'text/html; charset=utf-8'}
+
 
 @template_blueprint.route('/<uuid:template_id>/version/<int:version>')
 @requires_admin_auth_or_user_in_service(required_permission='manage_templates')
