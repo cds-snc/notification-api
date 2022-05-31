@@ -24,6 +24,7 @@ redis = create_redis_fixture(scope="function")
 REDIS_ELEMENTS_COUNT = 123
 
 QNAME_SUFFIX = "qsuffix"
+PROCESS_TYPE = "process_type"
 
 
 class TestBuffer:
@@ -35,6 +36,10 @@ class TestBuffer:
         assert Buffer.INBOX.inbox_name("test") == "inbox:test"
         assert Buffer.IN_FLIGHT.inbox_name("test") == "in-flight:test"
 
+    def test_when_name_suffix_process_is_supplied(self):
+        assert Buffer.INBOX.inbox_name("test", "normal") == "inbox:test:normal"
+        assert Buffer.IN_FLIGHT.inbox_name("test", "normal") == "in-flight:test:normal"
+
     def test_when_get_inflight_name_suffix_is_not_supplied(self):
         receipt = uuid4()
         assert Buffer.INBOX.inflight_name(receipt=receipt) == f"in-flight:{receipt}"
@@ -44,6 +49,17 @@ class TestBuffer:
         receipt = uuid4()
         assert Buffer.INBOX.inflight_name(receipt=receipt, suffix="test") == f"in-flight:test:{receipt}"
         assert Buffer.IN_FLIGHT.inflight_name(receipt=receipt, suffix="test") == f"in-flight:test:{receipt}"
+
+    def test_when_get_inflight_name_suffix_process_type_is_supplied(self):
+        receipt = uuid4()
+        assert (
+            Buffer.INBOX.inflight_name(receipt=receipt, suffix="test", process_type="normal")
+            == f"in-flight:test:normal:{receipt}"
+        )
+        assert (
+            Buffer.IN_FLIGHT.inflight_name(receipt=receipt, suffix="test", process_type="normal")
+            == f"in-flight:test:normal:{receipt}"
+        )
 
 
 class TestRedisQueue:
@@ -62,7 +78,13 @@ class TestRedisQueue:
 
     @pytest.fixture()
     def redis_queue(self, app):
-        q = RedisQueue(QNAME_SUFFIX, 1)
+        q = RedisQueue(QNAME_SUFFIX, expire_inflight_after_seconds=1)
+        q.init_app(flask_redis, metrics_logger)
+        return q
+
+    @pytest.fixture()
+    def redis_queue_with_process(self, app):
+        q = RedisQueue(QNAME_SUFFIX, expire_inflight_after_seconds=1, process_type=PROCESS_TYPE)
         q.init_app(flask_redis, metrics_logger)
         return q
 
@@ -77,11 +99,31 @@ class TestRedisQueue:
             self.delete_all_list(redis)
 
     @contextmanager
+    def given_inbox_with_one_element_process_type(self, redis, redis_queue_with_process):
+        self.delete_all_list(redis)
+        notification = generate_element()
+        try:
+            redis_queue_with_process.publish(notification)
+            yield
+        finally:
+            self.delete_all_list(redis)
+
+    @contextmanager
     def given_inbox_with_many_indexes(self, redis, redis_queue):
         self.delete_all_list(redis)
         try:
             indexes = [str(i) for i in range(0, REDIS_ELEMENTS_COUNT)]
             [redis_queue.publish(index) for index in indexes]
+            yield
+        finally:
+            self.delete_all_list(redis)
+
+    @contextmanager
+    def given_inbox_with_many_indexes_process_type(self, redis, redis_queue_with_process):
+        self.delete_all_list(redis)
+        try:
+            indexes = [str(i) for i in range(0, REDIS_ELEMENTS_COUNT)]
+            [redis_queue_with_process.publish(index) for index in indexes]
             yield
         finally:
             self.delete_all_list(redis)
@@ -102,10 +144,17 @@ class TestRedisQueue:
             redis.delete(key)
 
     @pytest.mark.serial
-    def test_put_mesages(self, redis, redis_queue):
+    def test_put_messages(self, redis, redis_queue):
         element = generate_element()
         redis_queue.publish(element)
         assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 1
+        self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_put_messages_with_process(self, redis, redis_queue_with_process):
+        element = generate_element()
+        redis_queue_with_process.publish(element)
+        assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) == 1
         self.delete_all_list(redis)
 
     @pytest.mark.serial
@@ -116,6 +165,17 @@ class TestRedisQueue:
             assert isinstance(elements[0], str)
             assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
             assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 1
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_message_with_process(self, redis, redis_queue_with_process):
+        with self.given_inbox_with_one_element_process_type(redis, redis_queue_with_process):
+            (receipt, elements) = redis_queue_with_process.poll(10)
+            assert len(elements) == 1
+            assert isinstance(elements[0], str)
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX, process_type=PROCESS_TYPE)) == 1
+            self.delete_all_list(redis)
 
     @pytest.mark.serial
     @pytest.mark.parametrize("count", [0, 1, 98, 99, 100, 101, REDIS_ELEMENTS_COUNT, REDIS_ELEMENTS_COUNT + 1, 500])
@@ -129,6 +189,21 @@ class TestRedisQueue:
             else:
                 assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
             assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == real_count
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    @pytest.mark.parametrize("count", [0, 1, 98, 99, 100, 101, REDIS_ELEMENTS_COUNT, REDIS_ELEMENTS_COUNT + 1, 500])
+    def test_polling_many_messages_with_process(self, redis, redis_queue_with_process, count):
+        with self.given_inbox_with_many_indexes(redis, redis_queue_with_process):
+            real_count = count if count < REDIS_ELEMENTS_COUNT else REDIS_ELEMENTS_COUNT
+            (receipt, elements) = redis_queue_with_process.poll(count)
+            assert len(elements) == real_count
+            if count < REDIS_ELEMENTS_COUNT:
+                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) > 0
+            else:
+                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX, process_type=PROCESS_TYPE)) == real_count
+            self.delete_all_list(redis)
 
     @pytest.mark.serial
     @pytest.mark.parametrize("suffix", ["smss", "emails", "🎅", "", None])
@@ -272,7 +347,7 @@ class TestRedisQueueMetricUsage:
 
     @pytest.fixture()
     def redis_queue(self, app):
-        q = RedisQueue(QNAME_SUFFIX, 1)
+        q = RedisQueue(QNAME_SUFFIX, expire_inflight_after_seconds=1)
         q.init_app(flask_redis, metrics_logger)
         return q
 
@@ -324,14 +399,14 @@ class TestRedisQueueMetricUsage:
         with self.given_inbox_with_one_element(redis, redis_queue):
             pbsim_mock = mocker.patch("app.queue.put_batch_saving_inflight_metric")
             redis_queue.poll(10)
-            assert pbsim_mock.assert_called_with(mock.ANY, 1) is None
+            assert pbsim_mock.assert_called_with(mock.ANY, mock.ANY, 1) is None
 
     @pytest.mark.serial
     def test_polling_metric_no_results(self, redis, redis_queue, mocker):
         with self.given_inbox_with_one_element(redis, redis_queue):
             pbsim_mock = mocker.patch("app.queue.put_batch_saving_inflight_metric")
             redis_queue.poll(10)
-            assert pbsim_mock.assert_called_with(mock.ANY, 1) is None
+            assert pbsim_mock.assert_called_with(mock.ANY, mock.ANY, 1) is None
             pbsim_mock.reset_mock()
             redis_queue.poll(10)
             assert not pbsim_mock.called, "put_batch_saving_inflight_metric was called and should not have been"
@@ -342,7 +417,7 @@ class TestRedisQueueMetricUsage:
             pbsip_mock = mocker.patch("app.queue.put_batch_saving_inflight_processed")
             (receipt, _) = redis_queue.poll(10)
             redis_queue.acknowledge(receipt)
-            assert pbsip_mock.assert_called_with(mock.ANY, 1) is None
+            assert pbsip_mock.assert_called_with(mock.ANY, mock.ANY, 1) is None
 
     def test_put_batch_saving_expiry_metric(self, redis, redis_queue, mocker):
         with self.given_inbox_with_many_indexes(redis, redis_queue):
@@ -354,4 +429,4 @@ class TestRedisQueueMetricUsage:
             redis_queue.poll(10)
             time.sleep(2)
             redis_queue.expire_inflights()
-            assert pbsem_mock.assert_called_with(mock.ANY, 3) is None
+            assert pbsem_mock.assert_called_with(mock.ANY, mock.ANY, 3) is None

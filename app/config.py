@@ -42,6 +42,15 @@ class QueueNames(object):
     # further.
     DATABASE = "database-tasks"
 
+    # database operations for high priority notifications
+    PRIORITY_DATABASE = "-priority-database-tasks.fifo"
+
+    # database operations for normal priority notifications
+    NORMAL_DATABASE = "-normal-database-tasks"
+
+    # database operations for bulk notifications
+    BULK_DATABASE = "-bulk-database-tasks"
+
     # A queue for the tasks associated with the batch saving
     NOTIFY_CACHE = "notifiy-cache-tasks"
 
@@ -87,6 +96,9 @@ class QueueNames(object):
             QueueNames.PERIODIC,
             QueueNames.BULK,
             QueueNames.DATABASE,
+            QueueNames.PRIORITY_DATABASE,
+            QueueNames.NORMAL_DATABASE,
+            QueueNames.BULK_DATABASE,
             QueueNames.SEND_SMS,
             QueueNames.SEND_THROTTLED_SMS,
             QueueNames.SEND_EMAIL,
@@ -150,8 +162,6 @@ class Config(object):
     PERFORMANCE_PLATFORM_URL = "https://www.performance.service.gov.uk/data/govuk-notify/"
 
     # Zendesk
-    ZENDESK_API_URL = os.getenv("ZENDESK_API_URL")
-    ZENDESK_API_KEY = os.getenv("ZENDESK_API_KEY")
     ZENDESK_SELL_API_URL = os.getenv("ZENDESK_SELL_API_URL")
     ZENDESK_SELL_API_KEY = os.getenv("ZENDESK_SELL_API_KEY")
 
@@ -193,7 +203,6 @@ class Config(object):
     AWS_PINPOINT_REGION = os.getenv("AWS_PINPOINT_REGION", "us-west-2")
     AWS_US_TOLL_FREE_NUMBER = os.getenv("AWS_US_TOLL_FREE_NUMBER")
     CSV_UPLOAD_BUCKET_NAME = os.getenv("CSV_UPLOAD_BUCKET_NAME", "notification-alpha-canada-ca-csv-upload")
-    ASSET_UPLOAD_BUCKET_NAME = os.getenv("ASSET_UPLOAD_BUCKET_NAME", "notification-alpha-canada-ca-asset-upload")
     ASSET_DOMAIN = os.getenv("ASSET_DOMAIN", "assets.notification.canada.ca")
     INVITATION_EXPIRATION_DAYS = 2
     NOTIFY_APP_NAME = "api"
@@ -223,6 +232,7 @@ class Config(object):
     EMAIL_2FA_TEMPLATE_ID = "299726d2-dba6-42b8-8209-30e1d66ea164"
     NEW_USER_EMAIL_VERIFICATION_TEMPLATE_ID = "ece42649-22a8-4d06-b87f-d52d5d3f0a27"
     PASSWORD_RESET_TEMPLATE_ID = "474e9242-823b-4f99-813d-ed392e7f1201"
+    FORCED_PASSWORD_RESET_TEMPLATE_ID = "e9a65a6b-497b-42f2-8f43-1736e43e13b3"
     ALREADY_REGISTERED_EMAIL_TEMPLATE_ID = "0880fbb1-a0c6-46f0-9a8e-36c986381ceb"
     CHANGE_EMAIL_CONFIRMATION_TEMPLATE_ID = "eb4d9930-87ab-4aef-9bce-786762687884"
     SERVICE_NOW_LIVE_TEMPLATE_ID = "618185c6-3636-49cd-b7d2-6f6f5eb3bdde"
@@ -304,6 +314,36 @@ class Config(object):
         },
         "beat-inbox-email": {
             "task": "beat-inbox-email",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "beat-inbox-sms-normal": {
+            "task": "beat-inbox-sms-normal",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "beat-inbox-sms-bulk": {
+            "task": "beat-inbox-sms-bulk",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "beat-inbox-sms-priority": {
+            "task": "beat-inbox-sms-priority",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "beat-inbox-email-normal": {
+            "task": "beat-inbox-email-normal",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "beat-inbox-email-bulk": {
+            "task": "beat-inbox-email-bulk",
+            "schedule": 10,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "beat-inbox-email-priority": {
+            "task": "beat-inbox-email-priority",
             "schedule": 10,
             "options": {"queue": QueueNames.PERIODIC},
         },
@@ -455,6 +495,7 @@ class Config(object):
     FF_NOTIFICATION_CELERY_PERSISTENCE = env.bool("FF_NOTIFICATION_CELERY_PERSISTENCE", False)
     FF_BATCH_INSERTION = env.bool("FF_BATCH_INSERTION", False)
     FF_REDIS_BATCH_SAVING = env.bool("FF_REDIS_BATCH_SAVING", False)
+    FF_PRIORITY_LANES = env.bool("FF_PRIORITY_LANES", False)
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
@@ -467,7 +508,6 @@ class Config(object):
             "SQLALCHEMY_DATABASE_READER_URI",
             "SQLALCHEMY_BINDS",
             "REDIS_URL",
-            "ZENDESK_API_KEY",
             "ZENDESK_SELL_API_KEY",
             "FRESH_DESK_API_KEY",
             "MLWR_USER",

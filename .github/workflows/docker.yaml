@@ -8,7 +8,7 @@ env:
   AWS_REGION: ca-central-1
   DOCKER_ORG: public.ecr.aws/v6b8u5o6
   DOCKER_SLUG: public.ecr.aws/v6b8u5o6/notify-api
-  KUBECTL_VERSION: '1.18.0'
+  KUBECTL_VERSION: '1.23.6'
 
 jobs:
   deploy:
@@ -75,6 +75,14 @@ jobs:
     - uses: cds-snc/notification-pr-bot@main
       env:
         TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
+
+    - name: Generate docker SBOM
+      uses: cds-snc/security-tools/.github/actions/generate-sbom@4c6b386722985552f3f008d04279a3f01402cc35 # renovate: tag=v1
+      with:
+        dependency_track_api_key: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
+        docker_image: $DOCKER_SLUG:${GITHUB_SHA::7}
+        project_name: notification-api/docker/k8s
+        project_type: docker
 
     - name: Notify Slack channel if this job failed
       if: ${{ failure() }}

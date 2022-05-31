@@ -52,7 +52,7 @@ def send_sms_to_provider(notification):
     service = notification.service
 
     if not service.active:
-        technical_failure(notification=notification)
+        inactive_service_failure(notification=notification)
         return
 
     if notification.status == "created":
@@ -125,7 +125,7 @@ def check_file_url(file_info: Dict[str, str], notification_id: UUID):
 def send_email_to_provider(notification: Notification):
     service = notification.service
     if not service.active:
-        technical_failure(notification=notification)
+        inactive_service_failure(notification=notification)
         return
     if notification.status == "created":
         provider = provider_to_use(EMAIL_TYPE, notification.id)
@@ -285,7 +285,7 @@ def get_html_email_options(service: Service):
     }
 
 
-def technical_failure(notification):
+def inactive_service_failure(notification):
     notification.status = NOTIFICATION_TECHNICAL_FAILURE
     dao_update_notification(notification)
     raise NotificationTechnicalFailureException(

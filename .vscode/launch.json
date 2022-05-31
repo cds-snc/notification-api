@@ -20,7 +20,8 @@
             "args": [
                 "run",
                 "--no-debugger",
-                "-p 6011"
+                "-p 6011",
+                "--host=0.0.0.0"
             ],
             "jinja": true,
             "justMyCode": false
@@ -41,7 +42,7 @@
                 "-l",
                 "DEBUG",
                 "-Q",
-                "database-tasks,job-tasks,notify-internal-tasks,periodic-tasks,priority-tasks,bulk-tasks,reporting-tasks,research-mode-tasks,retry-tasks,send-sms-tasks,send-email-tasks,service-callbacks,delivery-receipts",
+                "database-tasks,-priority-database-tasks.fifo,-normal-database-tasks,-bulk-database-tasks,job-tasks,notify-internal-tasks,periodic-tasks,priority-tasks,bulk-tasks,reporting-tasks,research-mode-tasks,retry-tasks,send-sms-tasks,send-email-tasks,service-callbacks,delivery-receipts",
             ]
         },
         {

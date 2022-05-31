@@ -16,9 +16,15 @@ from app import (
     authenticated_service,
     create_uuid,
     document_download_client,
+    email_bulk,
+    email_normal,
+    email_priority,
     email_queue,
     notify_celery,
     signer,
+    sms_bulk,
+    sms_normal,
+    sms_priority,
     sms_queue,
     statsd_client,
 )
@@ -34,16 +40,19 @@ from app.dao.services_dao import fetch_todays_total_message_count
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.letters.utils import upload_letter_pdf
 from app.models import (
+    BULK,
     EMAIL_TYPE,
     JOB_STATUS_PENDING,
     JOB_STATUS_SCHEDULED,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     LETTER_TYPE,
+    NORMAL,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PENDING_VIRUS_CHECK,
     NOTIFICATION_SENDING,
+    PRIORITY,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
     Notification,
@@ -199,6 +208,8 @@ def post_notification(notification_type):
         notification_type,
     )
 
+    current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
+
     reply_to = get_reply_to_text(notification_type, form, template)
 
     if notification_type == LETTER_TYPE:
@@ -247,6 +258,33 @@ def post_notification(notification_type):
     return jsonify(resp), 201
 
 
+def triage_notification_to_queues(notification_type, signed_notification_data, template):
+    """Determine which queue to use based on notification_type and process_type
+
+    Args:
+        notification_type: Type of notification being sent; either SMS_TYPE or EMAIL_TYPE
+        signed_notification_data: Encrypted notification data
+        template: Template used to send notification
+    Returns:
+        None
+
+    """
+    if notification_type == SMS_TYPE:
+        if template.process_type == PRIORITY:
+            sms_priority.publish(signed_notification_data)
+        elif template.process_type == NORMAL:
+            sms_normal.publish(signed_notification_data)
+        elif template.process_type == BULK:
+            sms_bulk.publish(signed_notification_data)
+    elif notification_type == EMAIL_TYPE:
+        if template.process_type == PRIORITY:
+            email_priority.publish(signed_notification_data)
+        elif template.process_type == NORMAL:
+            email_normal.publish(signed_notification_data)
+        elif template.process_type == BULK:
+            email_bulk.publish(signed_notification_data)
+
+
 def process_sms_or_email_notification(*, form, notification_type, api_key, template, service, reply_to_text=None):
     form_send_to = form["email_address"] if notification_type == EMAIL_TYPE else form["phone_number"]
 
@@ -292,7 +330,14 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             reply_to_text=reply_to_text,
         )
         persist_scheduled_notification(notification.id, form["scheduled_for"])
+    # Priority lanes feature (FF_PRIORITY_LANES)
+    elif current_app.config["FF_REDIS_BATCH_SAVING"] and current_app.config["FF_PRIORITY_LANES"] and not simulated:
+        triage_notification_to_queues(notification_type, signed_notification_data, template)
 
+        current_app.logger.info(
+            f"Batch saving: {notification_type}/{template.process_type} {notification['id']} sent to buffer queue."
+        )
+    # END FF_PRIORITY_LANES
     elif current_app.config["FF_REDIS_BATCH_SAVING"] and not simulated:
         if notification_type == SMS_TYPE:
             sms_queue.publish(signed_notification_data)

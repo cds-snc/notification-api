@@ -13,7 +13,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.clients.freshdesk import Freshdesk
-from app.clients.zendesk import Zendesk
 from app.clients.zendesk_sell import ZenDeskSell
 from app.config import Config, QueueNames
 from app.dao.fido2_key_dao import (
@@ -463,11 +462,6 @@ def send_contact_request(user_id):
     if contact.is_demo_request():
         return jsonify({}), 204
 
-    try:
-        Zendesk(contact).send_ticket()
-    except Exception as e:
-        current_app.logger.exception(e)
-
     status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
 
@@ -497,11 +491,6 @@ def send_branding_request(user_id):
         # This means that get_user_by_id couldn't find a user
         current_app.logger.error(e)
         return jsonify({}), 400
-
-    try:
-        Zendesk(contact).send_ticket()
-    except Exception as e:
-        current_app.logger.exception(e)
 
     status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
@@ -601,11 +590,49 @@ def send_user_reset_password():
     return jsonify({}), 204
 
 
+@user_blueprint.route("/forced-password-reset", methods=["POST"])
+def send_forced_user_reset_password():
+    email, errors = email_data_request_schema.load(request.get_json())
+
+    user_to_send_to = get_user_by_email(email["email"])
+
+    if user_to_send_to.blocked:
+        return jsonify({"message": "cannot reset password: user blocked"}), 400
+
+    template = dao_get_template_by_id(current_app.config["FORCED_PASSWORD_RESET_TEMPLATE_ID"])
+    service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
+    saved_notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        recipient=email["email"],
+        service=service,
+        personalisation={
+            "user_name": user_to_send_to.name,
+            "url": _create_reset_password_url(user_to_send_to.email_address),
+        },
+        notification_type=template.template_type,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+        reply_to_text=service.get_default_reply_to_email_address(),
+    )
+
+    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+
+    return jsonify({}), 204
+
+
 @user_blueprint.route("/<uuid:user_id>/update-password", methods=["POST"])
 def update_password(user_id):
     user = get_user_by_id(user_id=user_id)
     req_json = request.get_json()
     pwd = req_json.get("_password")
+
+    login_data = {}
+
+    if "loginData" in req_json:
+        login_data = req_json["loginData"]
+        del req_json["loginData"]
+
     update_dct, errors = user_update_password_schema_load_json.load(req_json)
     if errors:
         raise InvalidRequest(errors, status_code=400)
@@ -616,6 +643,11 @@ def update_password(user_id):
         raise InvalidRequest(errors, status_code=400)
 
     update_user_password(user, pwd)
+
+    # save login event
+    if login_data:
+        save_login_event(LoginEvent(user_id=user.id, data=login_data))
+
     changes = {"password": "password updated"}
 
     try:

@@ -61,3 +61,13 @@ jobs:
           aws lambda update-function-code \
             --function-name ${{ matrix.image }} \
             --image-uri $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} > /dev/null 2>&1
+
+      - name: Publish lambda version and update alias
+        run: |
+          aws lambda wait function-updated --function-name ${{ matrix.image }}
+          VERSION="$(aws lambda publish-version --function-name ${{ matrix.image }} | jq -r '.Version')"
+   
+          aws lambda update-alias \
+            --function-name ${{ matrix.image }} \
+            --name latest \
+            --function-version "$VERSION" > /dev/null 2>&1

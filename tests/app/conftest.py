@@ -860,6 +860,20 @@ def password_reset_email_template(notify_db, notify_db_session):
 
 
 @pytest.fixture(scope="function")
+def forced_password_reset_email_template(notify_db, notify_db_session):
+    service, user = notify_service(notify_db, notify_db_session)
+
+    return create_custom_template(
+        service=service,
+        user=user,
+        template_config_name="FORCED_PASSWORD_RESET_TEMPLATE_ID",
+        content="((user_name)) you can reset password by clicking ((url))",
+        subject="Forced reset your password",
+        template_type="email",
+    )
+
+
+@pytest.fixture(scope="function")
 def verify_reply_to_address_email_template(notify_db, notify_db_session):
     service, user = notify_service(notify_db, notify_db_session)
 

@@ -20,6 +20,8 @@ from app.dao.notifications_dao import (
     dao_created_scheduled_notification,
     dao_delete_notifications_by_id,
 )
+from app.dao.services_dao import dao_fetch_service_by_id
+from app.dao.templates_dao import dao_get_template_by_id
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
@@ -94,6 +96,15 @@ def persist_notification(
         status=status,
         reply_to_text=reply_to_text,
         billable_units=billable_units,
+    )
+    template = dao_get_template_by_id(template_id, template_version, use_cache=True)
+    # if the template is obtained from cache a tuple will be returned where
+    # the first element is the Template object and the second the template cache data
+    # in the form of a dict
+    if isinstance(template, tuple):
+        template = template[0]
+    notification.queue_name = choose_queue(
+        notification=notification, research_mode=service.research_mode, queue=template.queue_to_use()
     )
 
     if notification_type == SMS_TYPE:
@@ -261,6 +272,12 @@ def send_notification_to_queue(notification, research_mode, queue=None):
     current_app.logger.info(
         "{} {} sent to the {} queue for delivery".format(notification.notification_type, notification.id, queue)
     )
+    # TODO: once we've cleaned up all the unused code paths and ensured that this warning never occurs we can delete
+    # the warning as well as the above calculation of queue.
+    if notification.queue_name != queue:
+        current_app.logger.info(
+            f"Warning: notification {notification.id} has queue_name {notification.queue_name} but was sent to queue {queue}"
+        )
 
 
 def persist_notifications(notifications):
@@ -295,6 +312,16 @@ def persist_notifications(notifications):
             status=notification.get("status"),
             reply_to_text=notification.get("reply_to_text"),
             billable_units=notification.get("billable_units"),
+        )
+        template = dao_get_template_by_id(notification_obj.template_id, notification_obj.template_version, use_cache=True)
+        # if the template is obtained from cache a tuple will be returned where
+        # the first element is the Template object and the second the template cache data
+        # in the form of a dict
+        if isinstance(template, tuple):
+            template = template[0]
+        service = dao_fetch_service_by_id(service_id, use_cache=True)
+        notification_obj.queue_name = choose_queue(
+            notification=notification_obj, research_mode=service.research_mode, queue=template.queue_to_use()
         )
 
         if notification.get("notification_type") == SMS_TYPE:

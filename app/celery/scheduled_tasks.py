@@ -5,7 +5,18 @@ from notifications_utils.statsd_decorators import statsd
 from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import email_queue, notify_celery, sms_queue, zendesk_client
+from app import (
+    email_bulk,
+    email_normal,
+    email_priority,
+    email_queue,
+    notify_celery,
+    sms_bulk,
+    sms_normal,
+    sms_priority,
+    sms_queue,
+    zendesk_client,
+)
 from app.celery.tasks import process_job, save_emails, save_smss
 from app.config import QueueNames, TaskNames
 from app.dao.invited_org_user_dao import (
@@ -225,8 +236,19 @@ def check_templated_letter_state():
 @notify_celery.task(name="in-flight-to-inbox")
 @statsd(namespace="tasks")
 def recover_expired_notifications():
-    sms_queue.expire_inflights()
-    email_queue.expire_inflights()
+
+    # Priority lanes feature (FF_PRIORITY_LANES)
+    if current_app.config["FF_PRIORITY_LANES"]:
+        sms_bulk.expire_inflights()
+        sms_normal.expire_inflights()
+        sms_priority.expire_inflights()
+        email_bulk.expire_inflights()
+        email_normal.expire_inflights()
+        email_priority.expire_inflights()
+    else:
+        sms_queue.expire_inflights()
+        email_queue.expire_inflights()
+    # END FF_PRIORITY_LANES
 
 
 @notify_celery.task(name="beat-inbox-sms")
@@ -263,3 +285,117 @@ def beat_inbox_email():
         save_emails.apply_async((None, list_of_email_notifications, receipt_id_email), queue=QueueNames.DATABASE)
         current_app.logger.info(f"Batch saving: email receipt {receipt_id_email} sent to in-flight.")
         receipt_id_email, list_of_email_notifications = email_queue.poll()
+
+
+@notify_celery.task(name="beat-inbox-email-normal")
+@statsd(namespace="tasks")
+def beat_inbox_email_normal():
+    """
+    The function acts as a beat schedule to a list of notifications in the queue.
+    The post_api will push all the notifications with normal priority into the above list.
+    The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
+    to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
+    and actually sends the email for each notification saved.
+    """
+    if current_app.config["FF_PRIORITY_LANES"]:
+        receipt_id_email, list_of_email_notifications = email_normal.poll()
+
+        while list_of_email_notifications:
+            save_emails.apply_async((None, list_of_email_notifications, receipt_id_email), queue=QueueNames.NORMAL_DATABASE)
+            current_app.logger.info(f"Batch saving with Normal Priority: email receipt {receipt_id_email} sent to in-flight.")
+            receipt_id_email, list_of_email_notifications = email_normal.poll()
+
+
+@notify_celery.task(name="beat-inbox-email-bulk")
+@statsd(namespace="tasks")
+def beat_inbox_email_bulk():
+    """
+    The function acts as a beat schedule to a list of notifications in the queue.
+    The post_api will push all the notifications with bulk priority into the above list.
+    The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
+    to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
+    and actually sends the email for each notification saved.
+    """
+    if current_app.config["FF_PRIORITY_LANES"]:
+        receipt_id_email, list_of_email_notifications = email_bulk.poll()
+
+        while list_of_email_notifications:
+            save_emails.apply_async((None, list_of_email_notifications, receipt_id_email), queue=QueueNames.BULK_DATABASE)
+            current_app.logger.info(f"Batch saving with Bulk Priority: email receipt {receipt_id_email} sent to in-flight.")
+            receipt_id_email, list_of_email_notifications = email_bulk.poll()
+
+
+@notify_celery.task(name="beat-inbox-email-priority")
+@statsd(namespace="tasks")
+def beat_inbox_email_priority():
+    """
+    The function acts as a beat schedule to a list of notifications in the queue.
+    The post_api will push all the notifications with priority into the above list.
+    The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
+    to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
+    and actually sends the email for each notification saved.
+    """
+    if current_app.config["FF_PRIORITY_LANES"]:
+        receipt_id_email, list_of_email_notifications = email_priority.poll()
+
+        while list_of_email_notifications:
+            save_emails.apply_async((None, list_of_email_notifications, receipt_id_email), queue=QueueNames.PRIORITY_DATABASE)
+            current_app.logger.info(f"Batch saving with Priority: email receipt {receipt_id_email} sent to in-flight.")
+            receipt_id_email, list_of_email_notifications = email_priority.poll()
+
+
+@notify_celery.task(name="beat-inbox-sms-normal")
+@statsd(namespace="tasks")
+def beat_inbox_sms_normal():
+    """
+    The function acts as a beat schedule to a list of notifications in the queue.
+    The post_api will push all the notifications of normal priority into the above list.
+    The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
+    to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
+    and actually sends the sms for each notification saved.
+    """
+    if current_app.config["FF_PRIORITY_LANES"]:
+        receipt_id_sms, list_of_sms_notifications = sms_normal.poll()
+
+        while list_of_sms_notifications:
+            save_smss.apply_async((None, list_of_sms_notifications, receipt_id_sms), queue=QueueNames.NORMAL_DATABASE)
+            current_app.logger.info(f"Batch saving with Normal Priority: SMS receipt {receipt_id_sms} sent to in-flight.")
+            receipt_id_sms, list_of_sms_notifications = sms_normal.poll()
+
+
+@notify_celery.task(name="beat-inbox-sms-bulk")
+@statsd(namespace="tasks")
+def beat_inbox_sms_bulk():
+    """
+    The function acts as a beat schedule to a list of notifications in the queue.
+    The post_api will push all the notifications of bulk priority into the above list.
+    The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
+    to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
+    and actually sends the sms for each notification saved.
+    """
+    if current_app.config["FF_PRIORITY_LANES"]:
+        receipt_id_sms, list_of_sms_notifications = sms_bulk.poll()
+
+        while list_of_sms_notifications:
+            save_smss.apply_async((None, list_of_sms_notifications, receipt_id_sms), queue=QueueNames.BULK_DATABASE)
+            current_app.logger.info(f"Batch saving with Bulk Priority: SMS receipt {receipt_id_sms} sent to in-flight.")
+            receipt_id_sms, list_of_sms_notifications = sms_bulk.poll()
+
+
+@notify_celery.task(name="beat-inbox-sms-priority")
+@statsd(namespace="tasks")
+def beat_inbox_sms_priority():
+    """
+    The function acts as a beat schedule to a list of notifications in the queue.
+    The post_api will push all the notifications of priority into the above list.
+    The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
+    to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
+    and actually sends the sms for each notification saved.
+    """
+    if current_app.config["FF_PRIORITY_LANES"]:
+        receipt_id_sms, list_of_sms_notifications = sms_priority.poll()
+
+        while list_of_sms_notifications:
+            save_smss.apply_async((None, list_of_sms_notifications, receipt_id_sms), queue=QueueNames.PRIORITY_DATABASE)
+            current_app.logger.info(f"Batch saving with Bulk Priority: SMS receipt {receipt_id_sms} sent to in-flight.")
+            receipt_id_sms, list_of_sms_notifications = sms_priority.poll()

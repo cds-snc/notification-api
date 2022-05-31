@@ -704,6 +704,26 @@ def test_send_user_reset_password_should_send_reset_password_link(client, sample
 
 
 @freeze_time("2016-01-01 11:09:00.061258")
+def test_send_user_forced_reset_password_should_send_reset_password_link(
+    client, sample_user, mocker, forced_password_reset_email_template
+):
+    mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    data = json.dumps({"email": sample_user.email_address})
+    auth_header = create_authorization_header()
+    notify_service = forced_password_reset_email_template.service
+    resp = client.post(
+        url_for("user.send_forced_user_reset_password"),
+        data=data,
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert resp.status_code == 204
+    notification = Notification.query.first()
+    mocked.assert_called_once_with([str(notification.id)], queue="notify-internal-tasks")
+    assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
+
+
+@freeze_time("2016-01-01 11:09:00.061258")
 def test_send_user_reset_password_should_send_400_if_user_blocked(client, mocker, password_reset_email_template):
     blocked_user = create_user(blocked=True, email="blocked@cds-snc.ca")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
@@ -808,7 +828,6 @@ def test_send_contact_request_no_live_service(client, sample_user, mocker):
     }
 
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
-    mocked_zendesk = mocker.patch("app.user.rest.Zendesk.send_ticket", return_value=201)
     mocked_zendesk_sell = mocker.patch("app.user.rest.ZenDeskSell.send_contact_request", return_value=200)
 
     resp = client.post(
@@ -819,7 +838,6 @@ def test_send_contact_request_no_live_service(client, sample_user, mocker):
     assert resp.status_code == 204
 
     mocked_freshdesk.assert_called_once_with()
-    mocked_zendesk.assert_called_once_with()
 
     contact = ContactRequest(**data)
     contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
@@ -834,7 +852,6 @@ def test_send_contact_request_with_live_service(client, sample_service, mocker):
         "support_type": "ask_question",
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
-    mocked_zendesk = mocker.patch("app.user.rest.Zendesk.send_ticket", return_value=201)
     mocked_zendesk_sell = mocker.patch("app.user.rest.ZenDeskSell.send_contact_request", return_value=200)
 
     resp = client.post(
@@ -844,7 +861,6 @@ def test_send_contact_request_with_live_service(client, sample_service, mocker):
     )
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
-    mocked_zendesk.assert_called_once_with()
     mocked_zendesk_sell.assert_called_once_with(ContactRequest(**data))
 
 
@@ -880,7 +896,6 @@ def test_send_contact_request_go_live(client, sample_service, mocker):
         "service_id": str(sample_service.id),
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
-    mocked_zendesk = mocker.patch("app.user.rest.Zendesk.send_ticket", return_value=201)
     mocked_zendesk_sell = mocker.patch("app.user.rest.ZenDeskSell.send_go_live_request", return_value="1")
 
     resp = client.post(
@@ -890,7 +905,6 @@ def test_send_contact_request_go_live(client, sample_service, mocker):
     )
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
-    mocked_zendesk.assert_called_once_with()
     mocked_zendesk_sell.assert_called_once_with(sample_service, sample_user, ContactRequest(**data))
 
 
@@ -903,7 +917,6 @@ def test_send_branding_request(client, sample_service, mocker):
         "filename": "branding_url",
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
-    mocked_zendesk = mocker.patch("app.user.rest.Zendesk.send_ticket", return_value=201)
 
     resp = client.post(
         url_for("user.send_branding_request", user_id=str(sample_user.id)),
@@ -912,7 +925,6 @@ def test_send_branding_request(client, sample_service, mocker):
     )
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
-    mocked_zendesk.assert_called_once_with()
 
 
 def test_send_user_confirm_new_email_returns_204(client, sample_user, change_email_confirmation_template, mocker):
@@ -985,6 +997,40 @@ def test_update_user_password_failes_when_banned_password_used(client, sample_se
         headers=headers,
     )
     assert resp.status_code == 400
+
+
+def test_update_user_password_creates_LoginEvent_when_loginData_provided(client, sample_service, mocker):
+    sample_user = sample_service.users[0]
+    new_password = "Sup3rS3cur3_P4ssw0rd"
+    data = {"_password": new_password, "loginData": {"some": "data"}}
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+
+    resp = client.post(
+        url_for("user.update_password", user_id=sample_user.id),
+        data=json.dumps(data),
+        headers=headers,
+    )
+    assert resp.status_code == 200
+
+    assert LoginEvent.query.count() == 1
+
+
+def test_update_user_password_does_not_create_LoginEvent_when_loginData_not_provided(client, sample_service, mocker):
+    sample_user = sample_service.users[0]
+    new_password = "Sup3rS3cur3_P4ssw0rd"
+    data = {"_password": new_password}
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+
+    resp = client.post(
+        url_for("user.update_password", user_id=sample_user.id),
+        data=json.dumps(data),
+        headers=headers,
+    )
+    assert resp.status_code == 200
+
+    assert LoginEvent.query.count() == 0
 
 
 def test_activate_user(admin_request, sample_user):
