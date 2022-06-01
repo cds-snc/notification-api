@@ -1717,6 +1717,7 @@ class TestGenerateHtmlPreviewForContent:
         assert response.data.decode('utf-8') == str(expected_preview_html)
         assert response.headers['Content-type'] == 'text/html; charset=utf-8'
 
+
 class TestGenerateHtmlPreviewForTemplateContent:
 
     def test_should_generate_html_preview_for_template_content(self, client, sample_service):
