@@ -107,6 +107,8 @@ def create_app(application, config=None):
         email_bulk.init_app(flask_redis, metrics_logger)
         email_normal.init_app(flask_redis, metrics_logger)
         email_priority.init_app(flask_redis, metrics_logger)
+        sms_queue.init_app(flask_redis, metrics_logger)
+        email_queue.init_app(flask_redis, metrics_logger)
     else:
         sms_queue.init_app(flask_redis, metrics_logger)
         email_queue.init_app(flask_redis, metrics_logger)

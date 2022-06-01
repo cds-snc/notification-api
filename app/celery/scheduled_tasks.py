@@ -245,6 +245,11 @@ def recover_expired_notifications():
         email_bulk.expire_inflights()
         email_normal.expire_inflights()
         email_priority.expire_inflights()
+        try:
+            sms_queue.expire_inflights()
+            email_queue.expire_inflights()
+        except Exception:
+            current_app.logger.warning("SMS and Email queues without priority not found")
     else:
         sms_queue.expire_inflights()
         email_queue.expire_inflights()

@@ -1061,8 +1061,10 @@ def _acknowledge_notification(notification_type: Any, template: Any, receipt: UU
                 sms_normal.acknowledge(receipt)
             elif template.process_type == BULK:
                 sms_bulk.acknowledge(receipt)
-        else:
+        try:
             sms_queue.acknowledge(receipt)
+        except Exception:
+            current_app.logger.warning("SMS queue without priority doesn't exist")
     elif notification_type == EMAIL_TYPE:
         if Config.FF_PRIORITY_LANES:
             if template.process_type == PRIORITY:
@@ -1071,5 +1073,7 @@ def _acknowledge_notification(notification_type: Any, template: Any, receipt: UU
                 email_normal.acknowledge(receipt)
             elif template.process_type == BULK:
                 email_bulk.acknowledge(receipt)
-        else:
+        try:
             email_queue.acknowledge(receipt)
+        except Exception:
+            current_app.logger.warning("Email queue without priority doesn't exist")
