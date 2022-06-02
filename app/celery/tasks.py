@@ -1041,7 +1041,7 @@ def get_recipient_csv(job: Job, template: Template) -> RecipientCSV:
     )
 
 
-def _acknowledge_notification(notification_type: Any, template: Any, receipt: UUID):
+def _acknowledge_notification(notification_type: Any, template: Any, receipt: UUID):  # noqa
     """
     Acknowledge the notification has been saved to the DB and sent to the service.
 
