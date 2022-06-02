@@ -353,6 +353,9 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job.
         saved_notifications = persist_notifications(verified_notifications)
+        current_app.logger.info(
+            f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
+        )
         if receipt:
             _acknowledge_notification(SMS_TYPE, template, receipt)
             current_app.logger.info(
@@ -376,6 +379,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
     research_mode = service.research_mode  # type: ignore
 
+    current_app.logger.info(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
     for notification in saved_notifications:
         queue = notification_id_queue.get(notification.id) or template.queue_to_use()  # type: ignore
         send_notification_to_queue(
@@ -514,6 +518,9 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job
         saved_notifications = persist_notifications(verified_notifications)
+        current_app.logger.info(
+            f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
+        )
         if receipt:
             _acknowledge_notification(EMAIL_TYPE, template, receipt)
             current_app.logger.info(
@@ -534,6 +541,7 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
         handle_batch_error_and_forward(signed_and_verified, EMAIL_TYPE, e, receipt, template)
 
     if saved_notifications:
+        current_app.logger.info(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
         check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
         research_mode = service.research_mode  # type: ignore
         for notification in saved_notifications:
@@ -545,7 +553,7 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
             )
 
             current_app.logger.debug(
-                "SMS {} created at {} for job {}".format(
+                "Email {} created at {} for job {}".format(
                     notification.id,
                     notification.created_at,
                     notification.job,
@@ -1077,3 +1085,4 @@ def _acknowledge_notification(notification_type: Any, template: Any, receipt: UU
             email_queue.acknowledge(receipt)
         except Exception:
             current_app.logger.warning("Email queue without priority doesn't exist")
+    current_app.logger.info(f"ACKNOWLEDGED: {notification_type} for receipt_id {receipt}")
