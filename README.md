@@ -32,7 +32,7 @@ We currently do not:
     - [Building the production application container](#building-the-production-application-container)
 - [Maintaining Docker Images](#maintaining-docker-images)
 - [Deployment Workflow](#deployment-workflow)
-    - [Update requirements.txt](#update-requirementstxt)
+    - [Update requirements.txt](#update-requirements-txt)
     - [Deploy using Github Actions](#deploy-using-github-actions)
 - [To Run the Queues](#to-run-the-queues)
 - [AWS Lambda Functions](#aws-lambda-functions)
@@ -96,11 +96,7 @@ docker-compose -f ci/docker-compose-test.yml build test
 
 **Rebuild ci_test whenever Dockerfile.test, requirements_for_test.txt, or the notification_api image changes.**
 
-To run all unit tests:
-
-```docker-compose -f ci/docker-compose-test.yml up --abort-on-container-exit```
-
-The Github workflow also runs these tests when you push code.
+To run all unit tests: `docker-compose -f ci/docker-compose-test.yml up --abort-on-container-exit`.  The Github workflow also runs these tests when you push code.
 
 TODO - How to run individual tests?
 
