@@ -15,7 +15,7 @@ COPY --chown=vanotify requirements-app.txt .
 RUN apk add --no-cache bash build-base postgresql-dev libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev \
   && apk add --no-cache --virtual .build-deps musl-dev rust cargo git \
   # Install Python dependencies.
-  && python -m pip install --upgrade pip==22.0.4 \
+  && python -m pip install --upgrade pip \
   && python -m pip install wheel \
   && pip install --no-cache-dir -r requirements-app.txt \
   # Remove build dependencies.
