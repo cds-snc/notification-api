@@ -24,7 +24,7 @@ WORKDIR /app
 COPY --chown=vanotify requirements.txt .
 
 RUN apk add --no-cache --virtual .build-deps gcc musl-dev rust cargo \
-  && python -m pip install --upgrade pip==22.0.4 \
+  && python -m pip install --upgrade pip \
   && python -m pip install wheel \
   && pip install --no-cache-dir -r requirements.txt \
   && apk del --no-cache .build-deps
