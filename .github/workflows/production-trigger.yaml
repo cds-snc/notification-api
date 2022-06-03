@@ -17,7 +17,6 @@ jobs:
   trigger:
     runs-on: ubuntu-latest
     steps:
-      
       - name: Choose environment
         id: choose-environment
         uses: actions/github-script@v6
@@ -25,17 +24,17 @@ jobs:
           script: |
             const mapEventToEnvironment = () => {
             if (context.payload.inputs.environment == 'prod') return { "environment": context.payload.inputs.environment, "ref": context.payload.inputs.ref };
+            };
             const { environment, ref } = mapEventToEnvironment();
             core.setOutput('environment', environment);
             core.setOutput('ref', ref);
 
       - name: Start VAEC deployment
         uses: actions/github-script@v6
-        if: ${{ steps.choose-environment.outputs.environment }}
         with:
           github-token: ${{secrets.GH_ACCESS_TOKEN}}
           script: |
-            github.repos.createDeployment({
+            github.rest.repos.createDeployment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               ref: '${{ steps.choose-environment.outputs.ref }}',
