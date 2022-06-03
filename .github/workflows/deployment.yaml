@@ -211,13 +211,7 @@ jobs:
 
   run-user-flows:
     runs-on: ubuntu-latest
-    needs:
-      [
-        run-migrations,
-        deploy-api,
-        deploy-celery,
-        deploy-celery-beat,
-      ]
+    needs: [run-migrations, deploy-api, deploy-celery, deploy-celery-beat]
     if: ${{ 'dev' == github.event.deployment.environment }}
     steps:
       - uses: actions/checkout@v3
@@ -271,7 +265,7 @@ jobs:
               if (value.result === "skipped") return state;
               return state;
             }, "success");
-            github.repos.createDeploymentStatus({
+            github.rest.repos.createDeploymentStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
               deployment_id: context.payload.deployment.id,
