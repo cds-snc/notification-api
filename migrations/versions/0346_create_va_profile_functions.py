@@ -4,11 +4,9 @@ Revises: 0345_alter_VAProfileLocalCache
 Create Date: 2022-04-29 21:38:57.302588
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from alembic_utils.pg_function import PGFunction
-from sqlalchemy import text as sql_text
-from sqlalchemy.dialects import postgresql
 
 revision = '0346_create_va_profile_functions'
 down_revision = '0345_alter_VAProfileLocalCache'

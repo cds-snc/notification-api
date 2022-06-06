@@ -31,30 +31,25 @@ target_metadata = current_app.extensions['migrate'].db.metadata
 # Define and register the stored procedures for VA Profile integration.
 #######################################################################
 
-va_profile_opt_in = PGFunction(
+va_profile_opt_in_out = PGFunction(
   schema="public",
-  signature="va_profile_opt_in (_mpi_icn varchar(29), _va_profile_id integer, _communication_item_id integer, _communication_channel_name varchar(255))",
+  signature="va_profile_opt_in_out(_va_profile_id integer, _communication_item_id integer, _communication_channel_id integer, _allowed Boolean, _source_datetime timestamp)",
   definition="""\
-RETURNS void
+RETURNS boolean
 LANGUAGE sql AS $$
-    INSERT INTO va_profile_local_cache(mpi_icn, va_profile_id, communication_item_id, communication_channel_name)
-    VALUES (_mpi_icn, _va_profile_id, _communication_item_id, _communication_channel_name)
-    ON CONFLICT DO NOTHING;
+INSERT INTO va_profile_local_cache(va_profile_id, communication_item_id, communication_channel_id, source_datetime, allowed)
+    VALUES(_va_profile_id, _communication_item_id, _communication_channel_id, _source_datetime, _allowed)
+	ON CONFLICT ON CONSTRAINT uix_veteran_id DO UPDATE
+    SET allowed = _allowed, source_datetime = _source_datetime
+    WHERE _source_datetime > va_profile_local_cache.source_datetime
+        AND va_profile_local_cache.va_profile_id = _va_profile_id
+        AND va_profile_local_cache.communication_item_id = _communication_item_id
+        AND va_profile_local_cache.communication_channel_id = _communication_channel_id
+    RETURNING true
 $$;"""
 )
 
-va_profile_opt_out = PGFunction(
-  schema="public",
-  signature="va_profile_opt_out(_va_profile_id integer, _communication_item_id integer, _communication_channel_name varchar(255))",
-  definition="""\
-RETURNS void
-LANGUAGE sql AS $$
-    DELETE FROM va_profile_local_cache
-    WHERE va_profile_id = _va_profile_id AND communication_item_id = _communication_item_id AND communication_channel_name = _communication_channel_name;
-$$;"""
-)
-
-register_entities([va_profile_opt_in, va_profile_opt_out])
+register_entities([va_profile_opt_in_out])
 
 #######################################################################
 
