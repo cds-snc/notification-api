@@ -40,7 +40,7 @@ jobs:
       - name: Run tests
         env:
           SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost/test_notification_api
-        run: /bin/bash -c "pip install -r requirements-app.txt && pip install -r requirements_for_test.txt && make test"
+        run: /bin/bash -c "pip install -r requirements.txt && pip install -r requirements_for_test.txt && make test"
 
   code-scan:
     runs-on: ubuntu-latest

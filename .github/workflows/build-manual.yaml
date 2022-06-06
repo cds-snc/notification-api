@@ -4,7 +4,7 @@ on:
     inputs:
       environment:
         description: "Environment to provision (dev|staging|perf)"
-        required: false
+        required: true
         default: "dev"
       branch:
         description: "Branch to deploy from"
@@ -48,10 +48,8 @@ jobs:
           ref: ${{ github.event.inputs.branch }}
 
       - name: Set tags
-        id: set-image-tag
-        run: echo "::set-output name=image-tag""$(git rev-parse HEAD)"
-
-     
+        id: set-tag
+        run: echo "::set-output name=image-tag::"$(git rev-parse HEAD)""
 
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -69,14 +67,11 @@ jobs:
 
       - name: Docker Build
         uses: docker/build-push-action@v2
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr-vaec.outputs.registry }}
-          IMAGE_TAG: ${{ steps.set-image-tag.outputs.image-tag }}
         with:
           file: ci/Dockerfile
           context: .
           push: true
-          tags: $ECR_REGISTRY/$IMAGE_REPOSITORY:${{ github.event.inputs.branch }}-$IMAGE_TAG
+          tags: ${{ steps.login-ecr-vaec.outputs.registry }}/${{ env.IMAGE_REPOSITORY}}:${{ steps.set-tag.outputs.image-tag }}
 
   start-deployment:
     runs-on: ubuntu-latest
@@ -87,7 +82,7 @@ jobs:
           github-token: ${{secrets.GH_ACCESS_TOKEN}}
           script: |
             const payload = {"imageRepository": "notification_api"}
-            github.repos.createDeployment({
+            github.rest.repos.createDeployment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               ref: context.payload.inputs.branch,

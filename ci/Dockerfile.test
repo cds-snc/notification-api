@@ -5,7 +5,7 @@ WORKDIR /temp
 COPY requirements_for_test.txt .
 
 RUN apk add --no-cache --virtual .build-deps gcc musl-dev rust cargo \
-  && python -m pip install --upgrade pip==22.0.4 \
+  && python -m pip install --upgrade pip \
   && python -m pip install wheel \
   && pip install --no-cache-dir -r requirements_for_test.txt \
   && apk del .build-deps

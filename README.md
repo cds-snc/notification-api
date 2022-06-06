@@ -30,9 +30,10 @@ We currently do not:
     - [Creating database migrations](#creating-database-migrations)
     - [Unit testing](#unit-testing)
     - [Building the production application container](#building-the-production-application-container)
+    - [Using Localstack](#using-localstack)
 - [Maintaining Docker Images](#maintaining-docker-images)
 - [Deployment Workflow](#deployment-workflow)
-    - [Update requirements.txt](#update-requirements-txt)
+    - [Update requirements.txt](#update-requirementstxt)
     - [Deploy using Github Actions](#deploy-using-github-actions)
 - [To Run the Queues](#to-run-the-queues)
 - [AWS Lambda Functions](#aws-lambda-functions)
@@ -96,7 +97,11 @@ docker-compose -f ci/docker-compose-test.yml build test
 
 **Rebuild ci_test whenever Dockerfile.test, requirements_for_test.txt, or the notification_api image changes.**
 
-To run all unit tests: `docker-compose -f ci/docker-compose-test.yml up --abort-on-container-exit`.  The Github workflow also runs these tests when you push code.
+To run all unit tests:
+
+```docker-compose -f ci/docker-compose-test.yml up --abort-on-container-exit```
+
+The Github workflow also runs these tests when you push code.
 
 TODO - How to run individual tests?
 
@@ -109,6 +114,12 @@ docker-compose -f ci/docker-compose.yml up --build --abort-on-container-exit
 ```
 
 Note that the production infrastructure does not use docker-compose.yml.
+
+###
+
+Using Localstack
+
+TODO
 
 ---
 
