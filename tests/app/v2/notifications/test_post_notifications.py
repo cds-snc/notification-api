@@ -1217,8 +1217,8 @@ def test_post_notification_with_document_too_large(notify_api, client, notify_db
         headers=[("Content-Type", "application/json"), auth_header],
     )
 
-    assert response.status_code == 201
-    assert mocked.called
+    assert response.status_code == 400
+    assert not mocked.called
 
     resp_json = json.loads(response.get_data(as_text=True))
     print(f"resp_json={resp_json}")
