@@ -1,8 +1,8 @@
 import base64
 import csv
-import uuid
-import string
 import random
+import string
+import uuid
 from datetime import datetime, timedelta
 from io import StringIO
 from unittest.mock import call
@@ -1181,9 +1181,7 @@ def test_post_notification_with_document_upload(
         ("linked_file.txt", "link"),
     ],
 )
-def test_post_notification_with_document_too_large(
-    notify_api, client, notify_db_session, mocker, filename, sending_method
-):
+def test_post_notification_with_document_too_large(notify_api, client, notify_db_session, mocker, filename, sending_method):
     def random_sized_content(chars=string.ascii_uppercase + string.digits, size=10):
         return "".join(random.choice(chars) for _ in range(size))
 
