@@ -1222,7 +1222,10 @@ def test_post_notification_with_document_too_large(notify_api, client, notify_db
 
     resp_json = json.loads(response.get_data(as_text=True))
     print(f"resp_json={resp_json}")
-    assert validate(resp_json, post_email_response) == resp_json
+    # {'errors': [{'error': 'ValidationError', 'message': 'document : File size was greater than'}], 'status_code': 400}
+    assert "ValidationError" in resp_json["errors"][0]["error"]
+    assert filename in resp_json["errors"][0]["message"]
+    assert "and greater than allowed limit of" in resp_json["errors"][0]["message"]
 
     # if sending_method == "link":
     #     assert resp_json["content"]["body"] == f"Document: {document_response}"
