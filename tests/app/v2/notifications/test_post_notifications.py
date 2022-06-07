@@ -1,6 +1,8 @@
 import base64
 import csv
 import uuid
+import string
+import random
 from datetime import datetime, timedelta
 from io import StringIO
 from unittest.mock import call
@@ -1170,6 +1172,82 @@ def test_post_notification_with_document_upload(
         call("attachments.file-type.text/plain"),
         call("attachments.file-size.0-1mb"),
     ]
+
+
+@pytest.mark.parametrize(
+    "filename, sending_method",
+    [
+        ("attached_file.txt", "attach"),
+        ("linked_file.txt", "link"),
+    ],
+)
+def test_post_notification_with_document_too_large(
+    notify_api, client, notify_db_session, mocker, filename, sending_method
+):
+    def random_sized_content(chars=string.ascii_uppercase + string.digits, size=10):
+        return "".join(random.choice(chars) for _ in range(size))
+
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = True
+    service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
+    content = "See attached file."
+    if sending_method == "link":
+        content = "Document: ((document))"
+    template = create_template(service=service, template_type="email", content=content)
+
+    # statsd_mock = mocker.patch("app.v2.notifications.post_notifications.statsd_client")
+    mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
+    document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
+    document_download_mock.return_value = document_response
+
+    file_data = random_sized_content(size=1024 * 120 + 100)
+    # decoded_file = base64.b64decode(file_data)
+
+    data = {
+        "email_address": service.users[0].email_address,
+        "template_id": template.id,
+        "personalisation": {
+            "document": {
+                "file": file_data,
+                "filename": filename,
+                "sending_method": sending_method,
+            }
+        },
+    }
+
+    auth_header = create_authorization_header(service_id=service.id)
+    response = client.post(
+        path="v2/notifications/email",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 201, response.get_data(as_text=True)
+    resp_json = json.loads(response.get_data(as_text=True))
+    assert validate(resp_json, post_email_response) == resp_json
+    # document_download_mock.assert_called_once_with(
+    #     service.id,
+    #     {"file": decoded_file, "filename": filename, "sending_method": sending_method},
+    # )
+
+    # notification = Notification.query.one()
+    # assert notification.status == NOTIFICATION_CREATED
+    # assert notification.personalisation == {"document": document_response}
+
+    # if sending_method == "link":
+    #     assert resp_json["content"]["body"] == f"Document: {document_response}"
+    # else:
+    #     assert resp_json["content"]["body"] == "See attached file."
+
+    # assert statsd_mock.incr.call_args_list == [
+    #     call("attachments.nb-attachments.count-1"),
+    #     call("attachments.nb-attachments", count=1),
+    #     call(f"attachments.services.{service.id}", count=1),
+    #     call(f"attachments.templates.{template.id}", count=1),
+    #     call(f"attachments.sending-method.{sending_method}"),
+    #     call("attachments.file-type.text/plain"),
+    #     call("attachments.file-size.0-1mb"),
+    # ]
 
 
 @pytest.mark.parametrize(

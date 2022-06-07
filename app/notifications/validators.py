@@ -280,6 +280,15 @@ def decode_personalisation_files(personalisation_data):
     for key in file_keys:
         try:
             personalisation_data[key]["file"] = base64.b64decode(personalisation_data[key]["file"])
+            personalisation_size = len(personalisation_data[key]["file"])
+            current_app.logger.debug(f"Personalization data size detected at {personalisation_size} bytes.")
+            if personalisation_size > current_app.config["ATTACHMENT_SIZE_LIMIT"]:
+                errors.append(
+                    {
+                        "error": "ValidationError",
+                        "message": f"{key} : File size was greater than",
+                    }
+                )
         except Exception as e:
             errors.append(
                 {

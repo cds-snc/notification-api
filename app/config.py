@@ -195,6 +195,7 @@ class Config(object):
 
     NOTIFY_ENVIRONMENT = os.getenv("NOTIFY_ENVIRONMENT", "development")
     ADMIN_CLIENT_USER_NAME = "notify-admin"
+    ATTACHMENT_SIZE_LIMIT = env.int("ATTACHMENT_SIZE_LIMIT", 1024 * 120)  # 120k bytes limit by default
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
     AWS_ROUTE53_ZONE = os.getenv("AWS_ROUTE53_ZONE", "Z2OW036USASMAK")
     AWS_SES_REGION = os.getenv("AWS_SES_REGION", "us-east-1")
@@ -225,6 +226,7 @@ class Config(object):
 
     CHECK_PROXY_HEADER = False
 
+    # Notify's notifications templates
     NOTIFY_SERVICE_ID = "d6aa2c68-a2d9-4437-ab19-3ae8eb202553"
     NOTIFY_USER_ID = "6af522d0-2915-4e52-83a3-3690455a5fe6"
     INVITATION_EMAIL_TEMPLATE_ID = "4f46df42-f795-4cc4-83bb-65ca312f49cc"
@@ -252,8 +254,7 @@ class Config(object):
     REACHED_DAILY_LIMIT_TEMPLATE_ID = "fd29f796-fcdc-471b-a0d4-0093880d9173"
     DAILY_LIMIT_UPDATED_TEMPLATE_ID = "b3c766e6-be32-4edf-b8db-0f04ef404edc"
 
-    # List of allowed service IDs that are allowed to send HTML through their
-    # templates.
+    # Allowed service IDs able to send HTML through their templates.
     ALLOW_HTML_SERVICE_IDS: List[str] = [id.strip() for id in os.getenv("ALLOW_HTML_SERVICE_IDS", "").split(",")]
 
     BATCH_INSERTION_CHUNK_SIZE = int(os.getenv("BATCH_INSERTION_CHUNK_SIZE", 500))
