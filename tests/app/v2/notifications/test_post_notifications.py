@@ -99,7 +99,7 @@ def test_post_sms_notification_returns_201(notify_api, client, sample_template_w
 def test_post_sms_notification_with_persistance_in_celery_returns_201(
     notify_api, client, sample_template_with_placeholders, mocker, reference
 ):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = True
     mocked = mocker.patch("app.celery.tasks.save_sms.apply_async")
     data = {
         "phone_number": "+16502532222",
@@ -268,7 +268,7 @@ def test_post_sms_notification_returns_201_with_sms_sender_id(notify_api, client
 def test_post_sms_notification_with_celery_persistence_returns_201_with_sms_sender_id(
     notify_api, client, sample_template_with_placeholders, mocker
 ):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = True
     notify_api.config["FF_REDIS_BATCH_SAVING"] = False
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="123456")
     mocked = mocker.patch("app.celery.tasks.save_sms.apply_async")
@@ -496,7 +496,7 @@ def test_post_email_notification_returns_201(notify_api, client, sample_email_te
 def test_post_email_notification_returns_201_with_celery_persistence(
     notify_api, client, sample_email_template_with_placeholders, mocker, reference
 ):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = True
     mocked = mocker.patch("app.celery.tasks.save_email.apply_async")
     data = {
         "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
@@ -861,7 +861,7 @@ def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms_with_celer
     client,
     mocker,
 ):
-    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = 1
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = True
     notify_api.config["FF_PRIORITY_LANES"] = False
     mocker.patch("app.celery.tasks.save_sms.apply_async")
 
@@ -1186,27 +1186,24 @@ def test_post_notification_with_document_too_large(notify_api, client, notify_db
         return "".join(random.choice(chars) for _ in range(size))
 
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = True
+    mocked = mocker.patch("app.celery.tasks.save_email.apply_async")
     service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
     content = "See attached file."
     if sending_method == "link":
         content = "Document: ((document))"
     template = create_template(service=service, template_type="email", content=content)
 
-    # statsd_mock = mocker.patch("app.v2.notifications.post_notifications.statsd_client")
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
-    document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
-    document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
-    document_download_mock.return_value = document_response
 
     file_data = random_sized_content(size=1024 * 120 + 100)
-    # decoded_file = base64.b64decode(file_data)
+    encoded_file = base64.b64encode(file_data)
 
     data = {
         "email_address": service.users[0].email_address,
         "template_id": template.id,
         "personalisation": {
             "document": {
-                "file": file_data,
+                "file": encoded_file,
                 "filename": filename,
                 "sending_method": sending_method,
             }
@@ -1220,32 +1217,17 @@ def test_post_notification_with_document_too_large(notify_api, client, notify_db
         headers=[("Content-Type", "application/json"), auth_header],
     )
 
-    assert response.status_code == 201, response.get_data(as_text=True)
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert validate(resp_json, post_email_response) == resp_json
-    # document_download_mock.assert_called_once_with(
-    #     service.id,
-    #     {"file": decoded_file, "filename": filename, "sending_method": sending_method},
-    # )
+    assert response.status_code == 201
+    assert mocked.called
 
-    # notification = Notification.query.one()
-    # assert notification.status == NOTIFICATION_CREATED
-    # assert notification.personalisation == {"document": document_response}
+    resp_json = json.loads(response.get_data(as_text=True))
+    print(f"resp_json={resp_json}")
+    assert validate(resp_json, post_email_response) == resp_json
 
     # if sending_method == "link":
     #     assert resp_json["content"]["body"] == f"Document: {document_response}"
     # else:
     #     assert resp_json["content"]["body"] == "See attached file."
-
-    # assert statsd_mock.incr.call_args_list == [
-    #     call("attachments.nb-attachments.count-1"),
-    #     call("attachments.nb-attachments", count=1),
-    #     call(f"attachments.services.{service.id}", count=1),
-    #     call(f"attachments.templates.{template.id}", count=1),
-    #     call(f"attachments.sending-method.{sending_method}"),
-    #     call("attachments.file-type.text/plain"),
-    #     call("attachments.file-size.0-1mb"),
-    # ]
 
 
 @pytest.mark.parametrize(
