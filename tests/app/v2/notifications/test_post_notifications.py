@@ -1196,7 +1196,7 @@ def test_post_notification_with_document_too_large(notify_api, client, notify_db
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
     file_data = random_sized_content(size=1024 * 120 + 100)
-    encoded_file = base64.b64encode(file_data)
+    encoded_file = base64.b64encode(file_data.encode())
 
     data = {
         "email_address": service.users[0].email_address,
