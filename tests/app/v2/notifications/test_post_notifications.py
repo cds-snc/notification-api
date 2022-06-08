@@ -1175,13 +1175,17 @@ def test_post_notification_with_document_upload(
 
 
 @pytest.mark.parametrize(
-    "filename, sending_method",
+    "filename, sending_method, attachment_size, expected_success",
     [
-        ("attached_file.txt", "attach"),
-        ("linked_file.txt", "link"),
+        ("attached_file.txt", "attach", 1024 * 120 + 100, False),
+        ("linked_file.txt", "link", 1024 * 120 + 100, False),
+        ("attached_file.txt", "attach", 1024 * 120 - 100, True),
+        ("linked_file.txt", "link", 1024 * 120 - 100, True),
     ],
 )
-def test_post_notification_with_document_too_large(notify_api, client, notify_db_session, mocker, filename, sending_method):
+def test_post_notification_with_document_too_large(
+    notify_api, client, notify_db_session, mocker, filename, sending_method, attachment_size, expected_success
+):
     def random_sized_content(chars=string.ascii_uppercase + string.digits, size=10):
         return "".join(random.choice(chars) for _ in range(size))
 
@@ -1195,7 +1199,7 @@ def test_post_notification_with_document_too_large(notify_api, client, notify_db
 
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
-    file_data = random_sized_content(size=1024 * 120 + 100)
+    file_data = random_sized_content(size=attachment_size)
     encoded_file = base64.b64encode(file_data.encode()).decode()
 
     data = {
@@ -1217,20 +1221,16 @@ def test_post_notification_with_document_too_large(notify_api, client, notify_db
         headers=[("Content-Type", "application/json"), auth_header],
     )
 
-    assert response.status_code == 400
-    assert not mocked.called
-
-    resp_json = json.loads(response.get_data(as_text=True))
-    print(f"resp_json={resp_json}")
-    # {'errors': [{'error': 'ValidationError', 'message': 'document : File size was greater than'}], 'status_code': 400}
-    assert "ValidationError" in resp_json["errors"][0]["error"]
-    assert filename in resp_json["errors"][0]["message"]
-    assert "and greater than allowed limit of" in resp_json["errors"][0]["message"]
-
-    # if sending_method == "link":
-    #     assert resp_json["content"]["body"] == f"Document: {document_response}"
-    # else:
-    #     assert resp_json["content"]["body"] == "See attached file."
+    if expected_success:
+        assert mocked.called
+        assert response.status_code == 201
+    else:
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert not mocked.called
+        assert response.status_code == 400
+        assert "ValidationError" in resp_json["errors"][0]["error"]
+        assert filename in resp_json["errors"][0]["message"]
+        assert "and greater than allowed limit of" in resp_json["errors"][0]["message"]
 
 
 @pytest.mark.parametrize(
