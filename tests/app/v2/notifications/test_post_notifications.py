@@ -1197,7 +1197,11 @@ def test_post_notification_with_document_too_large(
         content = "Document: ((document))"
     template = create_template(service=service, template_type="email", content=content)
 
+    mocker.patch("app.v2.notifications.post_notifications.statsd_client")
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
+    document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
+    document_download_mock.return_value = document_response
 
     file_data = random_sized_content(size=attachment_size)
     encoded_file = base64.b64encode(file_data.encode()).decode()
