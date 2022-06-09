@@ -312,7 +312,7 @@ def validate_personalisation_num_files(json_personalisation):
         errors.append(
             {
                 "error": "ValidationError",
-                "message": f"File number exceed allowed limits of {files_num} and greater than allowed limit of {num_limit}.",
+                "message": f"File number exceed allowed limits of {num_limit} with number of {files_num}.",
             }
         )
     return json_personalisation, errors

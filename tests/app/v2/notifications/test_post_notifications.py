@@ -1237,6 +1237,68 @@ def test_post_notification_with_document_too_large(
 
 
 @pytest.mark.parametrize(
+    "sending_method, attachment_number, expected_success",
+    [
+        ("attach", 9, True),
+        ("link", 9, True),
+        ("attach", 10, True),
+        ("link", 10, True),
+        ("attach", 11, False),
+        ("link", 11, False),
+    ],
+)
+def test_post_notification_with_too_many_documents(
+    notify_api, client, notify_db_session, mocker, sending_method, attachment_number, expected_success
+):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = True
+    mocked = mocker.patch("app.celery.tasks.save_email.apply_async")
+    service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
+    content = "See attached file."
+    if sending_method == "link":
+        content = "Document: ((document))"
+    template = create_template(service=service, template_type="email", content=content)
+
+    mocker.patch("app.v2.notifications.post_notifications.statsd_client")
+    mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
+    document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
+    document_download_mock.return_value = document_response
+
+    documents = {}
+    for i in range(0, attachment_number):
+        file_data = random_sized_content()
+        encoded_file = base64.b64encode(file_data.encode()).decode()
+        documents[f"doc-{i}"] = {
+            "file": encoded_file,
+            "filename": f"doc-{i}",
+            "sending_method": sending_method,
+        }
+
+    data = {
+        "email_address": service.users[0].email_address,
+        "template_id": template.id,
+        "personalisation": documents,
+    }
+
+    auth_header = create_authorization_header(service_id=service.id)
+    response = client.post(
+        path="v2/notifications/email",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    if expected_success:
+        assert mocked.called
+        assert response.status_code == 201
+    else:
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert not mocked.called
+        assert response.status_code == 400
+        assert "ValidationError" in resp_json["errors"][0]["error"]
+        assert f"File number exceed allowed limits of 10 with number of {attachment_number}." in resp_json["errors"][0]["message"]
+
+
+@pytest.mark.parametrize(
     "personalisation_size, expected_success",
     [
         (1024 * 120 + 100, False),
@@ -1272,8 +1334,7 @@ def test_post_email_notification_with_personalisation_too_large(
         assert not mocked.called
         assert response.status_code == 400
         assert "ValidationError" in resp_json["errors"][0]["error"]
-        assert "content var" in resp_json["errors"][0]["message"]
-        assert "and greater than allowed limit of" in resp_json["errors"][0]["message"]
+        assert f"Personalisation variables size of {personalisation_size} bytes is greater than allowed limit of 122880 bytes" in resp_json["errors"][0]["message"]
 
 
 @pytest.mark.parametrize(
