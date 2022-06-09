@@ -195,7 +195,9 @@ class Config(object):
 
     NOTIFY_ENVIRONMENT = os.getenv("NOTIFY_ENVIRONMENT", "development")
     ADMIN_CLIENT_USER_NAME = "notify-admin"
-    ATTACHMENT_SIZE_LIMIT = env.int("ATTACHMENT_SIZE_LIMIT", 1024 * 120)  # 120k bytes limit by default
+    ATTACHMENT_SIZE_LIMIT = env.int(
+        "ATTACHMENT_SIZE_LIMIT", 1024 * 1024 * 10
+    )  # 10 megabytes limit by default per single attachment
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
     AWS_ROUTE53_ZONE = os.getenv("AWS_ROUTE53_ZONE", "Z2OW036USASMAK")
     AWS_SES_REGION = os.getenv("AWS_SES_REGION", "us-east-1")
