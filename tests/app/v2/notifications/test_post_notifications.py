@@ -29,7 +29,11 @@ from app.v2.notifications.notification_schemas import (
     post_sms_response,
 )
 from tests import create_authorization_header
-from tests.app.conftest import document_download_response, sample_template, random_sized_content
+from tests.app.conftest import (
+    document_download_response,
+    random_sized_content,
+    sample_template,
+)
 from tests.app.db import (
     create_api_key,
     create_reply_to_email,
