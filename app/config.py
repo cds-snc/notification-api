@@ -214,6 +214,7 @@ class Config(object):
     SQLALCHEMY_POOL_RECYCLE = 300
     SQLALCHEMY_ECHO = env.bool("SQLALCHEMY_ECHO", False)
     PAGE_SIZE = 50
+    PERSONALISATION_SIZE_LIMIT = env.int("PERSONALISATION_SIZE_LIMIT", 1024 * 120)  # 120k bytes limit by default
     API_PAGE_SIZE = 250
     TEST_MESSAGE_FILENAME = "Test message"
     ONE_OFF_MESSAGE_FILENAME = "Report"
