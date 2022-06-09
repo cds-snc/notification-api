@@ -278,8 +278,10 @@ def check_service_letter_contact_id(service_id, letter_contact_id, notification_
 def validate_personalisation_and_decode_files(json_personalisation):
     errors = []
     json_personalisation, errors_vars = validate_personalisation(json_personalisation)
+    json_personalisation, errors_num_file = validate_personalisation_num_files(json_personalisation)
     json_personalisation, errors_files = decode_personalisation_files(json_personalisation)
     errors.extend(errors_vars)
+    errors.extend(errors_num_file)
     errors.extend(errors_files)
     return json_personalisation, errors
 
