@@ -287,8 +287,8 @@ def validate_personalisation_and_decode_files(json_personalisation):
 def validate_personalisation(json_personalisation):
     errors = []
     values = [v for _, v in json_personalisation.items() if not isinstance(v, dict)]
-    all_values = functools.reduce(lambda v1, v2: v1 + v2, values)
-    size_all_values = len(all_values)
+    concat_values = functools.reduce(lambda v1, v2: v1 + v2, values, "")
+    size_all_values = len(concat_values)
     size_limit = current_app.config["PERSONALISATION_SIZE_LIMIT"]
     current_app.logger.debug(f"Personalization size of variables detected at {size_all_values} bytes.")
     if size_all_values > size_limit:
