@@ -1,7 +1,5 @@
 import base64
 import csv
-import random
-import string
 import uuid
 from datetime import datetime, timedelta
 from io import StringIO
@@ -31,7 +29,7 @@ from app.v2.notifications.notification_schemas import (
     post_sms_response,
 )
 from tests import create_authorization_header
-from tests.app.conftest import document_download_response, sample_template
+from tests.app.conftest import document_download_response, sample_template, random_sized_content
 from tests.app.db import (
     create_api_key,
     create_reply_to_email,
@@ -1186,9 +1184,6 @@ def test_post_notification_with_document_upload(
 def test_post_notification_with_document_too_large(
     notify_api, client, notify_db_session, mocker, filename, sending_method, attachment_size, expected_success
 ):
-    def random_sized_content(chars=string.ascii_uppercase + string.digits, size=10):
-        return "".join(random.choice(chars) for _ in range(size))
-
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = True
     mocked = mocker.patch("app.celery.tasks.save_email.apply_async")
     service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
@@ -1234,6 +1229,46 @@ def test_post_notification_with_document_too_large(
         assert response.status_code == 400
         assert "ValidationError" in resp_json["errors"][0]["error"]
         assert filename in resp_json["errors"][0]["message"]
+        assert "and greater than allowed limit of" in resp_json["errors"][0]["message"]
+
+
+@pytest.mark.parametrize(
+    "personalisation_size, expected_success",
+    [
+        (1024 * 120 + 100, False),
+        (1024 * 120 - 100, True),
+    ],
+)
+def test_post_email_notification_with_personalisation_too_large(
+    notify_api, client, sample_email_template_with_placeholders, mocker, personalisation_size, expected_success
+):
+    notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = True
+    mocked = mocker.patch("app.celery.tasks.save_email.apply_async")
+
+    data = {
+        "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
+        "template_id": sample_email_template_with_placeholders.id,
+        # "personalisation": {"name": random_sized_content(personalisation_size)},
+        "personalisation": {"content": random_sized_content(personalisation_size)},
+        "reference": "reference_from_client",
+    }
+
+    auth_header = create_authorization_header(service_id=sample_email_template_with_placeholders.service_id)
+    response = client.post(
+        path="v2/notifications/email",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+    
+    if expected_success:
+        assert mocked.called
+        assert response.status_code == 201
+    else:
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert not mocked.called
+        assert response.status_code == 400
+        assert "ValidationError" in resp_json["errors"][0]["error"]
+        assert "content var" in resp_json["errors"][0]["message"]
         assert "and greater than allowed limit of" in resp_json["errors"][0]["message"]
 
 
