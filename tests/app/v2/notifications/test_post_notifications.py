@@ -1177,10 +1177,10 @@ def test_post_notification_with_document_upload(
 @pytest.mark.parametrize(
     "filename, sending_method, attachment_size, expected_success",
     [
-        ("attached_file.txt", "attach", 1024 * 120 + 100, False),
-        ("linked_file.txt", "link", 1024 * 120 + 100, False),
-        ("attached_file.txt", "attach", 1024 * 120 - 100, True),
-        ("linked_file.txt", "link", 1024 * 120 - 100, True),
+        ("attached_file.txt", "attach", 1024 * 1024 * 10 + 100, False),
+        ("linked_file.txt", "link", 1024 * 1024 * 10 + 100, False),
+        ("attached_file.txt", "attach", 1024 * 1024 * 10 - 100, True),
+        ("linked_file.txt", "link", 1024 * 1024 * 10 - 100, True),
     ],
 )
 def test_post_notification_with_document_too_large(
