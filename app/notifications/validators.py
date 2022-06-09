@@ -1,5 +1,5 @@
-import functools
 import base64
+import functools
 from datetime import datetime, timedelta
 
 from flask import current_app
@@ -302,6 +302,22 @@ def validate_personalisation(json_personalisation):
     return json_personalisation, errors
 
 
+def validate_personalisation_num_files(json_personalisation):
+    errors = []
+    file_keys = [k for k, v in json_personalisation.items() if isinstance(v, dict) and "file" in v]
+    files_num = len(file_keys)
+    num_limit = current_app.config["ATTACHMENT_NUM_LIMIT"]
+    if files_num > num_limit:
+        current_app.logger.debug(f"Number of file attachments detected at {files_num}.")
+        errors.append(
+            {
+                "error": "ValidationError",
+                "message": f"File number exceed allowed limits of {files_num} and greater than allowed limit of {num_limit}.",
+            }
+        )
+    return json_personalisation, errors
+
+
 def decode_personalisation_files(json_personalisation):
     errors = []
     file_keys = [k for k, v in json_personalisation.items() if isinstance(v, dict) and "file" in v]
@@ -309,7 +325,7 @@ def decode_personalisation_files(json_personalisation):
         try:
             json_personalisation[key]["file"] = base64.b64decode(json_personalisation[key]["file"])
             personalisation_size = len(json_personalisation[key]["file"])
-            current_app.logger.debug(f"Personalization data size detected at {personalisation_size} bytes.")
+            current_app.logger.debug(f"File size detected at {personalisation_size} bytes.")
             size_limit = current_app.config["ATTACHMENT_SIZE_LIMIT"]
             if personalisation_size > size_limit:
                 filename = json_personalisation[key]["filename"]
