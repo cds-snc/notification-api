@@ -1259,7 +1259,7 @@ def test_post_email_notification_with_personalisation_too_large(
         data=json.dumps(data),
         headers=[("Content-Type", "application/json"), auth_header],
     )
-    
+
     if expected_success:
         assert mocked.called
         assert response.status_code == 201
