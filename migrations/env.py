@@ -35,8 +35,10 @@ va_profile_opt_in_out = PGFunction(
   schema="public",
   signature="va_profile_opt_in_out(_va_profile_id integer, _communication_item_id integer, _communication_channel_id integer, _allowed Boolean, _source_datetime timestamp)",
   definition="""\
-RETURNS boolean
-LANGUAGE sql AS $$
+RETURNS boolean AS
+$$
+DECLARE number_of_changed_records Int;
+BEGIN
 INSERT INTO va_profile_local_cache(va_profile_id, communication_item_id, communication_channel_id, source_datetime, allowed)
     VALUES(_va_profile_id, _communication_item_id, _communication_channel_id, _source_datetime, _allowed)
 	ON CONFLICT ON CONSTRAINT uix_veteran_id DO UPDATE
@@ -44,9 +46,13 @@ INSERT INTO va_profile_local_cache(va_profile_id, communication_item_id, communi
     WHERE _source_datetime > va_profile_local_cache.source_datetime
         AND va_profile_local_cache.va_profile_id = _va_profile_id
         AND va_profile_local_cache.communication_item_id = _communication_item_id
-        AND va_profile_local_cache.communication_channel_id = _communication_channel_id
-    RETURNING true
-$$;"""
+        AND va_profile_local_cache.communication_channel_id = _communication_channel_id;
+GET DIAGNOSTICS number_of_changed_records = ROW_COUNT; 
+RETURN number_of_changed_records > 0; 
+END
+$$
+LANGUAGE plpgsql
+"""
 )
 
 register_entities([va_profile_opt_in_out])
