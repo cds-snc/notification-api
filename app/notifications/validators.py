@@ -274,17 +274,44 @@ def check_service_letter_contact_id(service_id, letter_contact_id, notification_
             raise BadRequestError(message=message)
 
 
-def decode_personalisation_files(personalisation_data):
+def validate_personalisation_and_decode_files(json_personalisation):
     errors = []
-    file_keys = [k for k, v in personalisation_data.items() if isinstance(v, dict) and "file" in v]
+    json_personalisation, errors_vars = validate_personalisation(json_personalisation)
+    json_personalisation, errors_files = decode_personalisation_files(json_personalisation)
+    errors.extend(errors_vars)
+    errors.extend(errors_files)
+    return json_personalisation, errors
+
+
+def validate_personalisation(json_personalisation):
+    errors = []
+    variables = [k for k, v in json_personalisation.items() if not isinstance(v, dict)]
+    for var_name in variables:
+        var_value = json_personalisation[var_name]
+        var_size = len(var_value)
+        current_app.logger.debug(f"Personalization {var_name} var size detected at {var_size} bytes.")
+        size_limit = current_app.config["PERSONALISATION_SIZE_LIMIT"]
+        if var_size > size_limit:
+            errors.append(
+                {
+                    "error": "ValidationError",
+                    "message": f"{var_name} : Variable size for {var_size} and greater than allowed limit of {size_limit}.",
+                }
+            )
+    return json_personalisation, errors
+
+
+def decode_personalisation_files(json_personalisation):
+    errors = []
+    file_keys = [k for k, v in json_personalisation.items() if isinstance(v, dict) and "file" in v]
     for key in file_keys:
         try:
-            personalisation_data[key]["file"] = base64.b64decode(personalisation_data[key]["file"])
-            personalisation_size = len(personalisation_data[key]["file"])
+            json_personalisation[key]["file"] = base64.b64decode(json_personalisation[key]["file"])
+            personalisation_size = len(json_personalisation[key]["file"])
             current_app.logger.debug(f"Personalization data size detected at {personalisation_size} bytes.")
             size_limit = current_app.config["ATTACHMENT_SIZE_LIMIT"]
             if personalisation_size > size_limit:
-                filename = personalisation_data[key]["filename"]
+                filename = json_personalisation[key]["filename"]
                 errors.append(
                     {
                         "error": "ValidationError",
@@ -298,4 +325,4 @@ def decode_personalisation_files(personalisation_data):
                     "message": f"{key} : {str(e)} : Error decoding base64 field",
                 }
             )
-    return personalisation_data, errors
+    return json_personalisation, errors
