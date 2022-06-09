@@ -2133,7 +2133,7 @@ class VAProfileLocalCache(db.Model):
     va_profile_id = db.Column(db.Integer, nullable=False)
     communication_item_id = db.Column(db.Integer, nullable=False)
     communication_channel_id = db.Column(db.Integer, nullable=False)
-    source_datetime = db.Column(db.DateTime)
+    source_datetime = db.Column(db.DateTime, nullable=False)
 
     __table_args__ = (
         UniqueConstraint('va_profile_id', 'communication_item_id', 'communication_channel_id', name='uix_veteran_id'),
