@@ -1,3 +1,4 @@
+import functools
 import base64
 from datetime import datetime, timedelta
 
@@ -286,18 +287,18 @@ def validate_personalisation_and_decode_files(json_personalisation):
 def validate_personalisation(json_personalisation):
     errors = []
     variables = [k for k, v in json_personalisation.items() if not isinstance(v, dict)]
-    for var_name in variables:
-        var_value = json_personalisation[var_name]
-        var_size = len(var_value)
-        current_app.logger.debug(f"Personalization {var_name} var size detected at {var_size} bytes.")
-        size_limit = current_app.config["PERSONALISATION_SIZE_LIMIT"]
-        if var_size > size_limit:
-            errors.append(
-                {
-                    "error": "ValidationError",
-                    "message": f"{var_name} : Variable size for {var_size} and greater than allowed limit of {size_limit}.",
-                }
-            )
+    all_values = functools.reduce(lambda v1, v2: v1 + v2, variables.values())
+    size_all_values = len(all_values)
+    size_limit = current_app.config["PERSONALISATION_SIZE_LIMIT"]
+    current_app.logger.debug(f"Personalization size of variables detected at {size_all_values} bytes.")
+    if size_all_values > size_limit:
+        errors.append(
+            {
+                "error": "ValidationError",
+                "message": f"Personalisation variables size of {size_all_values} bytes is greater than allowed limit of {size_limit} bytes.",
+            }
+        )
+
     return json_personalisation, errors
 
 

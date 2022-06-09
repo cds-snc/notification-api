@@ -1252,8 +1252,8 @@ def test_post_email_notification_with_personalisation_too_large(
     data = {
         "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
         "template_id": sample_email_template_with_placeholders.id,
-        # "personalisation": {"name": random_sized_content(personalisation_size)},
-        "personalisation": {"content": random_sized_content(personalisation_size)},
+        # "personalisation": {"name": random_sized_content(size=personalisation_size)},
+        "personalisation": {"content": random_sized_content(size=personalisation_size)},
         "reference": "reference_from_client",
     }
 
