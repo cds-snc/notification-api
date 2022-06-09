@@ -1,6 +1,6 @@
 -r requirements.txt
 flake8==3.8.4
-isort==5.6.4
+isort==5.10.1
 moto==1.3.14
 idna==2.8
 pytest==3.10.1  # pyup: <4
@@ -16,9 +16,18 @@ strict-rfc3339==0.7
 rfc3987==1.3.8
 # used for creating manifest file locally
 jinja2-cli[yaml]==0.6.0
-black==21.5b2
-locust==1.5.3
-mypy==0.812
+black==22.3.0
+locust==2.9.0
 sqlalchemy-stubs==0.4
 networkx>=2.6 # not directly required, pinned by Snyk to avoid a vulnerability
 pytest-mock-resources[redis]==2.1.11
+mypy==0.961
+types-requests==2.27.30 # adding for mypy
+types-pytz==2021.3.8 # adding for mypy
+types-boto==2.49.15 # adding for mypy
+types-freezegun==1.1.9 # adding for mypy
+types-mock==4.0.15 # adding for mypy
+types-click==7.1.8 # adding for mypy
+sqlalchemy-stubs==0.4 # adding for mypy
+pytest-stub==1.1.0 # adding for mypy
+pytest_mock_resources
