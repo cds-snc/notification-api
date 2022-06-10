@@ -1287,12 +1287,12 @@ def test_post_notification_with_too_many_documents(
         headers=[("Content-Type", "application/json"), auth_header],
     )
 
+    resp_json = json.loads(response.get_data(as_text=True))
+    print(f"resp_json={resp_json}")
     if expected_success:
         assert mocked.called
         assert response.status_code == 201
     else:
-        resp_json = json.loads(response.get_data(as_text=True))
-        print(f"resp_json={resp_json}")
         assert not mocked.called
         assert response.status_code == 400
         assert "ValidationError" in resp_json["errors"][0]["error"]
