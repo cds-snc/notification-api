@@ -277,7 +277,7 @@ def check_service_letter_contact_id(service_id, letter_contact_id, notification_
 
 def validate_personalisation_and_decode_files(json_personalisation):
     errors = []
-    json_personalisation, errors_vars = validate_personalisation(json_personalisation)
+    json_personalisation, errors_vars = validate_personalisation_size(json_personalisation)
     json_personalisation, errors_num_file = validate_personalisation_num_files(json_personalisation)
     json_personalisation, errors_files = decode_personalisation_files(json_personalisation)
     errors.extend(errors_vars)
@@ -286,7 +286,7 @@ def validate_personalisation_and_decode_files(json_personalisation):
     return json_personalisation, errors
 
 
-def validate_personalisation(json_personalisation):
+def validate_personalisation_size(json_personalisation):
     errors = []
     values = [v for _, v in json_personalisation.items() if not isinstance(v, dict)]
     concat_values = functools.reduce(lambda v1, v2: v1 + v2, values, "")
