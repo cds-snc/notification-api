@@ -1253,10 +1253,11 @@ def test_post_notification_with_too_many_documents(
     notify_api.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] = True
     mocked = mocker.patch("app.celery.tasks.save_email.apply_async")
     service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
-    content = "See attached file."
+    template_content = "See attached file.\n"
     if sending_method == "link":
-        content = "Document: ((document))"
-    template = create_template(service=service, template_type="email", content=content)
+        for i in range(0, attachment_number):
+            template_content = template_content + f"Document: ((doc-{i}))\n"
+    template = create_template(service=service, template_type="email", content=template_content)
 
     mocker.patch("app.v2.notifications.post_notifications.statsd_client")
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
@@ -1326,11 +1327,12 @@ def test_post_email_notification_with_personalisation_too_large(
         headers=[("Content-Type", "application/json"), auth_header],
     )
 
+    resp_json = json.loads(response.get_data(as_text=True))
+    print(f"resp_json={resp_json}")
     if expected_success:
         assert mocked.called
         assert response.status_code == 201
     else:
-        resp_json = json.loads(response.get_data(as_text=True))
         assert not mocked.called
         assert response.status_code == 400
         assert "ValidationError" in resp_json["errors"][0]["error"]
