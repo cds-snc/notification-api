@@ -309,7 +309,7 @@ def validate_personalisation_num_files(json_personalisation):
     file_keys = [k for k, v in json_personalisation.items() if isinstance(v, dict) and "file" in v]
     files_num = len(file_keys)
     num_limit = current_app.config["ATTACHMENT_NUM_LIMIT"]
-    if files_num >= num_limit:
+    if files_num > num_limit:
         current_app.logger.debug(f"Number of file attachments detected at {files_num}.")
         errors.append(
             {
