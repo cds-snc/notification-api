@@ -99,7 +99,9 @@ docker-compose -f ci/docker-compose-test.yml build test
 
 To run all unit tests:
 
-```docker-compose -f ci/docker-compose-test.yml up --abort-on-container-exit```
+```
+docker-compose -f ci/docker-compose-test.yml up --abort-on-container-exit
+```
 
 The Github workflow also runs these tests when you push code.
 
