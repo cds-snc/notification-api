@@ -2,8 +2,8 @@
 alembic_utils>=0.7.7
 
 Authlib>=1.0.1
-boto3>=1.24.2
-botocore>=1.27.2
+boto3>=1.24.6
+botocore>=1.27.6
 cachelib>=0.7.0
 
 # 5 May 2022: Ignoring security vulnerabilities 42498 and 43738 in Makefile.
@@ -19,7 +19,9 @@ docopt>=0.6.2
 # 10 May 2022: Newer versions--even 0.30.3--cause import errors.
 eventlet==0.30.2
 
-fido2>=0.9.3
+# 9 June 2022: Flask raises ImportError with higher versions.
+fido2 < 1.0.0
+
 Flask < 2.0
 Flask-Bcrypt==0.7.1
 Flask-Cors==3.0.10
@@ -60,7 +62,7 @@ PyJWT>=2.4.0
 PyPDF2 < 2.0.0
 
 python-dotenv>=0.20.0
-python-magic>=0.4.26
+python-magic>=0.4.27
 
 # jsonschema requires this package to validate the date-time format but doesn't include it as a dependency.
 # Validation fails silently without it.
