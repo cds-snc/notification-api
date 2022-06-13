@@ -499,10 +499,10 @@ class Config(object):
     CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"tcp://{STATSD_HOST}:{CLOUDWATCH_AGENT_EMF_PORT}")
 
     # feature flag to toggle persistance of notification in celery instead of the API
-    FF_NOTIFICATION_CELERY_PERSISTENCE = env.bool("FF_NOTIFICATION_CELERY_PERSISTENCE", False)
-    FF_BATCH_INSERTION = env.bool("FF_BATCH_INSERTION", False)
-    FF_REDIS_BATCH_SAVING = env.bool("FF_REDIS_BATCH_SAVING", False)
-    FF_PRIORITY_LANES = env.bool("FF_PRIORITY_LANES", False)
+    FF_NOTIFICATION_CELERY_PERSISTENCE = env.bool("FF_NOTIFICATION_CELERY_PERSISTENCE", True)
+    FF_BATCH_INSERTION = env.bool("FF_BATCH_INSERTION", True)
+    FF_REDIS_BATCH_SAVING = env.bool("FF_REDIS_BATCH_SAVING", True)
+    FF_PRIORITY_LANES = env.bool("FF_PRIORITY_LANES", True)
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
