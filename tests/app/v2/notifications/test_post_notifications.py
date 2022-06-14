@@ -1302,8 +1302,8 @@ def test_post_notification_with_too_many_documents(
 @pytest.mark.parametrize(
     "personalisation_size, expected_success",
     [
-        (1024 * 120 + 100, False),
-        (1024 * 120 - 100, True),
+        (1024 * 50 + 100, False),
+        (1024 * 50 - 100, True),
     ],
 )
 def test_post_email_notification_with_personalisation_too_large(
