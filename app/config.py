@@ -195,6 +195,7 @@ class Config(object):
 
     NOTIFY_ENVIRONMENT = os.getenv("NOTIFY_ENVIRONMENT", "development")
     ADMIN_CLIENT_USER_NAME = "notify-admin"
+    ATTACHMENT_NUM_LIMIT = env.int("ATTACHMENT_NUM_LIMIT", 10)  # Limit of 10 attachments per notification.
     ATTACHMENT_SIZE_LIMIT = env.int(
         "ATTACHMENT_SIZE_LIMIT", 1024 * 1024 * 10
     )  # 10 megabytes limit by default per single attachment
@@ -216,6 +217,9 @@ class Config(object):
     SQLALCHEMY_POOL_RECYCLE = 300
     SQLALCHEMY_ECHO = env.bool("SQLALCHEMY_ECHO", False)
     PAGE_SIZE = 50
+    PERSONALISATION_SIZE_LIMIT = env.int(
+        "PERSONALISATION_SIZE_LIMIT", 1024 * 50
+    )  # 50k bytes limit by default for personalisation data per notification
     API_PAGE_SIZE = 250
     TEST_MESSAGE_FILENAME = "Test message"
     ONE_OFF_MESSAGE_FILENAME = "Report"
