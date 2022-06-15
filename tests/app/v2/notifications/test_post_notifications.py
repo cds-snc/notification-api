@@ -14,7 +14,6 @@ from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
-    NOTIFICATION_CREATED,
     SCHEDULE_NOTIFICATIONS,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
@@ -113,6 +112,7 @@ def test_post_sms_notification_uses_inbound_number_as_sender(notify_api, client,
     assert response.status_code == 201
     resp_json = json.loads(response.get_data(as_text=True))
     assert validate(resp_json, post_sms_response) == resp_json
+    assert mocked.called
 
 
 def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(notify_api, client, notify_db_session, mocker):
@@ -444,8 +444,6 @@ def test_send_notification_uses_appropriate_queue_according_to_template_process_
         headers=[("Content-Type", "application/json"), auth_header],
     )
 
-    notification_id = json.loads(response.data)["id"]
-
     assert response.status_code == 201
     mocked.called
 
@@ -722,7 +720,6 @@ def test_post_sms_should_persist_supplied_sms_number(notify_api, client, sample_
         headers=[("Content-Type", "application/json"), auth_header],
     )
     assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
     assert mocked.called
 
 
