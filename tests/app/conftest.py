@@ -1,4 +1,6 @@
 import json
+import random
+import string
 import uuid
 from datetime import datetime, timedelta
 
@@ -1234,3 +1236,7 @@ def document_download_response(override={}):
     }
 
     return {"status": "ok", "document": base | override}
+
+
+def random_sized_content(chars=string.ascii_uppercase + string.digits, size=10):
+    return "".join(random.choice(chars) for _ in range(size))
