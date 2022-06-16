@@ -17,6 +17,7 @@ from app.celery import provider_tasks
 from app.celery.lookup_recipient_communication_permissions_task import lookup_recipient_communication_permissions
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
+from app.celery.onsite_notification_tasks import send_va_onsite_notification_task
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
 from app.dao.service_sms_sender_dao import dao_get_sms_sender_by_service_id_and_number
@@ -138,7 +139,8 @@ def persist_notification(
     return notification
 
 
-def send_notification_to_queue(notification, research_mode, queue=None, recipient_id_type: str = None):
+def send_notification_to_queue(notification, research_mode, queue=None, recipient_id_type: str = None,
+                               onsite_enabled: bool = False):
     deliver_task, queue = _get_delivery_task(notification, research_mode, queue)
 
     template = notification.template
@@ -148,11 +150,9 @@ def send_notification_to_queue(notification, research_mode, queue=None, recipien
 
     try:
         tasks = [deliver_task.si(str(notification.id)).set(queue=queue)]
-        if (
-                recipient_id_type
-                and is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED)
-                and communication_item_id
-        ):
+        if (recipient_id_type and communication_item_id and
+           is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED)):
+
             tasks.insert(
                 0,
                 lookup_recipient_communication_permissions
@@ -162,6 +162,8 @@ def send_notification_to_queue(notification, research_mode, queue=None, recipien
 
             if recipient_id_type != IdentifierType.VA_PROFILE_ID.value:
                 tasks.insert(0, lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID))
+                tasks.insert(1, send_va_onsite_notification_task.si(notification.template.id, onsite_enabled)
+                                                                .set(queue=QueueNames.SEND_ONSITE_NOTIFICATION))
 
         chain(*tasks).apply_async()
 
@@ -203,17 +205,20 @@ def _get_delivery_task(notification, research_mode=False, queue=None):
 
 
 def send_to_queue_for_recipient_info_based_on_recipient_identifier(
-        notification: Notification, id_type: str, id_value: str, communication_item_id: uuid
+        notification: Notification, id_type: str, id_value: str, communication_item_id: uuid,
+        onsite_enabled: bool = False
 ) -> None:
     deliver_task, deliver_queue = _get_delivery_task(notification)
     if id_type == IdentifierType.VA_PROFILE_ID.value:
         tasks = [
+            send_va_onsite_notification_task.si(id_value, notification.template.id, onsite_enabled)
+                                            .set(queue=QueueNames.SEND_ONSITE_NOTIFICATION),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
             deliver_task.si(notification.id).set(queue=deliver_queue)
         ]
         if is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED) and communication_item_id:
             tasks.insert(
-                1,
+                len(tasks) - 1,
                 lookup_recipient_communication_permissions
                 .si(notification.id)
                 .set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
@@ -222,13 +227,15 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
     else:
         tasks = [
             lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID),
+            send_va_onsite_notification_task.si(notification.template.id, onsite_enabled)
+                                            .set(queue=QueueNames.SEND_ONSITE_NOTIFICATION),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
             deliver_task.si(notification.id).set(queue=deliver_queue)
         ]
 
         if is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED) and communication_item_id:
             tasks.insert(
-                2,
+                len(tasks) - 1,
                 lookup_recipient_communication_permissions
                 .si(notification.id)
                 .set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)

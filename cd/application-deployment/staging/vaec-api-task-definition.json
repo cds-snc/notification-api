@@ -75,6 +75,10 @@
           "value": "True"
         },
         {
+          "name": "VA_ONSITE_URL",
+          "value": "https://staging-api.va.gov"
+        },
+        {
           "name": "VA_PROFILE_URL",
           "value": "https://qa.vaprofile.va.gov"
         },
@@ -263,6 +267,10 @@
         {
           "name": "VA_SSO_CLIENT_SECRET",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/iam-sso-client-secret"
+        },
+        {
+          "name": "VA_ONSITE_SECRET",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/onsite/notification-priv"
         }
       ]
     },

@@ -132,6 +132,8 @@ def post_notification(notification_type):
         notification_type,
     )
 
+    onsite_enabled = template.onsite_notification
+
     reply_to = get_reply_to_text(notification_type, form, template)
 
     if notification_type == LETTER_TYPE:
@@ -149,7 +151,8 @@ def post_notification(notification_type):
                 api_key=api_user,
                 template=template,
                 service=authenticated_service,
-                reply_to_text=reply_to
+                reply_to_text=reply_to,
+                onsite_enabled=onsite_enabled
             )
         else:
             if accept_recipient_identifiers_enabled():
@@ -159,7 +162,8 @@ def post_notification(notification_type):
                     api_key=api_user,
                     template=template,
                     service=authenticated_service,
-                    reply_to_text=reply_to
+                    reply_to_text=reply_to,
+                    onsite_enabled=onsite_enabled
                 )
             else:
                 current_app.logger.debug("Sending a notification without contact information is not implemented.")
@@ -189,10 +193,12 @@ def post_notification(notification_type):
         url_root=request.url_root,
         scheduled_for=scheduled_for
     )
+
     return jsonify(resp), 201
 
 
-def process_sms_or_email_notification(*, form, notification_type, api_key, template, service, reply_to_text=None):
+def process_sms_or_email_notification(*, form, notification_type, api_key, template, service, reply_to_text=None,
+                                      onsite_enabled: bool = False):
     form_send_to = form['email_address'] if notification_type == EMAIL_TYPE else form['phone_number']
     send_to = validate_and_format_recipient(send_to=form_send_to,
                                             key_type=api_key.key_type,
@@ -234,14 +240,15 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
                 notification=notification,
                 research_mode=service.research_mode,
                 queue=queue_name,
-                recipient_id_type=recipient_id_type
+                recipient_id_type=recipient_id_type,
+                onsite_enabled=onsite_enabled
             )
 
     return notification
 
 
 def process_notification_with_recipient_identifier(*, form, notification_type, api_key, template, service,
-                                                   reply_to_text=None):
+                                                   reply_to_text=None, onsite_enabled: bool = False):
     personalisation = process_document_uploads(form.get('personalisation'), service)
 
     notification = persist_notification(
@@ -262,7 +269,8 @@ def process_notification_with_recipient_identifier(*, form, notification_type, a
         notification=notification,
         id_type=form['recipient_identifier']['id_type'],
         id_value=form['recipient_identifier']['id_value'],
-        communication_item_id=template.communication_item_id
+        communication_item_id=template.communication_item_id,
+        onsite_enabled=onsite_enabled
     )
 
     return notification

@@ -69,6 +69,10 @@
           "value": "True"
         },
         {
+          "name": "VA_ONSITE_URL",
+          "value": "https://staging-api.va.gov"
+        },
+        {
           "name": "VA_PROFILE_URL",
           "value": "https://qa.vaprofile.va.gov"
         },
@@ -229,6 +233,10 @@
         {
           "name": "VETEXT_PASSWORD",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/vetext/password"
+        },
+        {
+          "name": "VA_ONSITE_SECRET",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/onsite/notification-priv"
         }
       ],
       "command": ["sh", "-c", "/app/scripts/run_celery.sh"],

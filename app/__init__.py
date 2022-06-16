@@ -28,6 +28,7 @@ from app.clients.sms.twilio import TwilioSMSClient
 from app.clients.sms.aws_pinpoint import AwsPinpointClient
 from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
 from app.oauth.registry import oauth_registry
+from app.va.va_onsite import VAOnsiteClient
 from app.va.va_profile import VAProfileClient
 from app.va.mpi import MpiClient
 from app.va.vetext import VETextClient
@@ -63,6 +64,7 @@ zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
 redis_store = RedisClient()
 performance_platform_client = PerformancePlatformClient()
+va_onsite_client = VAOnsiteClient()
 va_profile_client = VAProfileClient()
 mpi_client = MpiClient()
 vetext_client = VETextClient()
@@ -130,6 +132,11 @@ def create_app(application):
         application.config['AWS_REGION'],
         application.logger,
         statsd_client
+    )
+    va_onsite_client.init_app(
+        application.logger,
+        application.config['VA_ONSITE_URL'],
+        application.config['VA_ONSITE_SECRET']
     )
     va_profile_client.init_app(
         application.logger,
