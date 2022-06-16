@@ -22,14 +22,12 @@ from app import (
     email_bulk,
     email_normal,
     email_priority,
-    email_queue,
     metrics_logger,
     notify_celery,
     signer,
     sms_bulk,
     sms_normal,
     sms_priority,
-    sms_queue,
     statsd_client,
 )
 from app.aws import s3
@@ -1051,10 +1049,6 @@ def _acknowledge_notification(notification_type: Any, template: Any, receipt: UU
             sms_normal.acknowledge(receipt)
         elif template.process_type == BULK:
             sms_bulk.acknowledge(receipt)
-        try:
-            sms_queue.acknowledge(receipt)
-        except Exception:
-            current_app.logger.warning("SMS queue without priority doesn't exist")
     elif notification_type == EMAIL_TYPE:
         if template.process_type == PRIORITY:
             email_priority.acknowledge(receipt)
@@ -1062,8 +1056,4 @@ def _acknowledge_notification(notification_type: Any, template: Any, receipt: UU
             email_normal.acknowledge(receipt)
         elif template.process_type == BULK:
             email_bulk.acknowledge(receipt)
-        try:
-            email_queue.acknowledge(receipt)
-        except Exception:
-            current_app.logger.warning("Email queue without priority doesn't exist")
     current_app.logger.info(f"ACKNOWLEDGED: {notification_type} for receipt_id {receipt}")

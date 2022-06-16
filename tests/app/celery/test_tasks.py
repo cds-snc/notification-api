@@ -177,7 +177,7 @@ class TestBatchSaving:
         )
 
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-        acknowldege_mock = mocker.patch("app.sms_queue.acknowledge")
+        acknowldege_mock = mocker.patch("app.sms_normal.acknowledge")
 
         receipt = uuid.uuid4()
         save_smss(
@@ -259,7 +259,7 @@ class TestBatchSaving:
         )
 
         mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
-        acknowldege_mock = mocker.patch("app.email_queue.acknowledge")
+        acknowldege_mock = mocker.patch("app.email_normal.acknowledge")
 
         receipt = uuid.uuid4()
 
@@ -297,7 +297,7 @@ class TestBatchSaving:
             "app.celery.tasks.persist_notifications", side_effect=IntegrityError(None, None, None)
         )
         mock_save_sms = mocker.patch("app.celery.tasks.save_sms.apply_async")
-        mock_acknowldege = mocker.patch("app.sms_queue.acknowledge")
+        mock_acknowldege = mocker.patch("app.sms_normal.acknowledge")
 
         receipt = uuid.uuid4()
         notifications = [signer.sign(notification1)]
@@ -330,7 +330,7 @@ class TestBatchSaving:
             "app.celery.tasks.persist_notifications", side_effect=IntegrityError(None, None, None)
         )
         mock_save_email = mocker.patch("app.celery.tasks.save_email.apply_async")
-        mock_acknowldege = mocker.patch("app.email_queue.acknowledge")
+        mock_acknowldege = mocker.patch("app.email_normal.acknowledge")
 
         receipt = uuid.uuid4()
         notifications = [signer.sign(notification1)]
@@ -364,7 +364,7 @@ class TestBatchSaving:
         )
         mock_get_notification = mocker.patch("app.celery.tasks.get_notification_by_id", return_value=notification1)
         mock_save_sms = mocker.patch("app.celery.tasks.save_sms.apply_async")
-        mock_acknowldege = mocker.patch("app.sms_queue.acknowledge")
+        mock_acknowldege = mocker.patch("app.sms_normal.acknowledge")
 
         receipt = uuid.uuid4()
         notifications = [signer.sign(notification1)]
@@ -396,7 +396,7 @@ class TestBatchSaving:
         )
         mock_get_notification = mocker.patch("app.celery.tasks.get_notification_by_id", return_value=notification1)
         mock_save_email = mocker.patch("app.celery.tasks.save_email.apply_async")
-        mock_acknowldege = mocker.patch("app.email_queue.acknowledge")
+        mock_acknowldege = mocker.patch("app.email_normal.acknowledge")
 
         receipt = uuid.uuid4()
         notifications = [signer.sign(notification1)]
@@ -787,6 +787,37 @@ class TestProcessJob:
         tasks.save_emails.apply_async.assert_called_once_with(
             (str(job.service_id), ["something_encrypted"], None), queue="-normal-database-tasks"
         )
+
+    @pytest.mark.skip(reason="the code paths don't exist for letter implementation")
+    @freeze_time("2016-01-01 11:09:00.061258")
+    def test_should_process_letter_job(self, sample_letter_job, mocker):
+        csv = """address_line_1,address_line_2,address_line_3,address_line_4,postcode,name
+        A1,A2,A3,A4,A_POST,Alice
+        """
+        s3_mock = mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=csv)
+        process_row_mock = mocker.patch("app.celery.tasks.process_row")
+        mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
+
+        process_job(sample_letter_job.id)
+
+        s3_mock.assert_called_once_with(str(sample_letter_job.service.id), str(sample_letter_job.id))
+
+        row_call = process_row_mock.mock_calls[0][1]
+        assert row_call[0].index == 0
+        assert row_call[0].recipient == ["A1", "A2", "A3", "A4", None, None, "A_POST"]
+        assert row_call[0].personalisation == {
+            "addressline1": "A1",
+            "addressline2": "A2",
+            "addressline3": "A3",
+            "addressline4": "A4",
+            "postcode": "A_POST",
+        }
+        assert row_call[2] == sample_letter_job
+        assert row_call[3] == sample_letter_job.service
+
+        assert process_row_mock.call_count == 1
+
+        assert sample_letter_job.job_status == "finished"
 
     def test_should_process_all_sms_job(self, sample_job_with_placeholdered_template, mocker):
         mocker.patch(

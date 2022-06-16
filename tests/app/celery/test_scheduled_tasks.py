@@ -7,11 +7,9 @@ from freezegun import freeze_time
 from app import db
 from app.celery import scheduled_tasks, tasks
 from app.celery.scheduled_tasks import (
-    beat_inbox_email,
     beat_inbox_email_bulk,
     beat_inbox_email_normal,
     beat_inbox_email_priority,
-    beat_inbox_sms,
     beat_inbox_sms_bulk,
     beat_inbox_sms_normal,
     beat_inbox_sms_priority,
@@ -506,30 +504,6 @@ def test_check_templated_letter_state_during_utc(mocker, sample_letter_template)
 
 
 class TestHeartbeatQueues:
-    def test_beat_inbox_sms(self, mocker):
-        mocker.patch("app.celery.tasks.current_app.logger.info")
-        mocker.patch("app.sms_queue.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
-        mocker.patch("app.celery.tasks.save_smss.apply_async")
-
-        beat_inbox_sms()
-
-        tasks.save_smss.apply_async.assert_called_once_with(
-            (None, ["1", "2", "3", "4"], "rec123"),
-            queue="database-tasks",
-        )
-
-    def test_heartbeat_inbox_email(self, mocker):
-        mocker.patch("app.celery.tasks.current_app.logger.info")
-        mocker.patch("app.email_queue.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
-        mocker.patch("app.celery.tasks.save_emails.apply_async")
-
-        beat_inbox_email()
-
-        tasks.save_emails.apply_async.assert_called_once_with(
-            (None, ["1", "2", "3", "4"], "rec123"),
-            queue="database-tasks",
-        )
-
     def test_beat_inbox_sms_normal(self, notify_api, mocker):
         mocker.patch("app.celery.tasks.current_app.logger.info")
         mocker.patch("app.sms_normal.poll", side_effect=[("rec123", ["1", "2", "3", "4"]), ("hello", [])])
@@ -604,7 +578,7 @@ class TestHeartbeatQueues:
 
 
 class TestRecoverExpiredNotification:
-    def test_recover_expired_notifications_priority_lanes(self, mocker, notify_api):
+    def test_recover_expired_notifications(self, mocker, notify_api):
         sms_bulk = mocker.patch("app.sms_bulk.expire_inflights")
         sms_normal = mocker.patch("app.sms_normal.expire_inflights")
         sms_priority = mocker.patch("app.sms_priority.expire_inflights")

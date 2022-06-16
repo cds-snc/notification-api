@@ -96,7 +96,6 @@ def create_app(application, config=None):
     flask_redis.init_app(application)
     redis_store.init_app(application)
 
-    # initialize redis queues
     sms_bulk.init_app(flask_redis, metrics_logger)
     sms_normal.init_app(flask_redis, metrics_logger)
     sms_priority.init_app(flask_redis, metrics_logger)

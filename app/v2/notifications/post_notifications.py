@@ -311,8 +311,6 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         "client_reference": form.get("reference", None),
     }
 
-    current_app.logger.info(f"Notification id {notification['id']} sent to buffer queue.")
-
     signed_notification_data = signer.sign(notification)
 
     scheduled_for = form.get("scheduled_for", None)
