@@ -59,6 +59,7 @@ class QueueNames(object):
     LOOKUP_VA_PROFILE_ID = 'lookup-va-profile-id-tasks'
     DELIVERY_RECEIPTS = 'delivery-receipts'
     COMMUNICATION_ITEM_PERMISSIONS = 'communication-item-permissions'
+    SEND_ONSITE_NOTIFICATION = 'onsite-notification-tasks'
 
     @staticmethod
     def all_queues():
@@ -80,7 +81,8 @@ class QueueNames(object):
             QueueNames.LOOKUP_CONTACT_INFO,
             QueueNames.LOOKUP_VA_PROFILE_ID,
             QueueNames.DELIVERY_RECEIPTS,
-            QueueNames.COMMUNICATION_ITEM_PERMISSIONS
+            QueueNames.COMMUNICATION_ITEM_PERMISSIONS,
+            QueueNames.SEND_ONSITE_NOTIFICATION
         ]
 
 
@@ -411,6 +413,9 @@ class Config(object):
     GRANICUS_URL = os.environ.get('GRANICUS_URL', 'https://tms.govdelivery.com')
     VA_PROFILE_URL = os.environ.get('VA_PROFILE_URL', 'https://int.vaprofile.va.gov')
     MPI_URL = os.environ.get('MPI_URL', 'https://ps.dev.iam.va.gov')
+
+    VA_ONSITE_URL = os.environ.get('VA_ONSITE_URL', 'https://staging-api.va.gov')
+    VA_ONSITE_SECRET = os.environ.get('VA_ONSITE_SECRET', '')
 
     VETEXT_URL = os.environ.get('VETEXT_URL', 'https://staging.api.vetext.va.gov/api/vetext/pub')
     VETEXT_USERNAME = os.environ.get('VETEXT_USERNAME', '')

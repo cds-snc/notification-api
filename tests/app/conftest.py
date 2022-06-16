@@ -540,6 +540,17 @@ def sample_email_template_with_html(sample_service):
 
 
 @pytest.fixture(scope='function')
+def sample_email_template_with_onsite_true(sample_service):
+    return create_template(
+        sample_service,
+        template_type=EMAIL_TYPE,
+        subject="((name))",
+        content="Hello ((name))\nThis is an email from GOV.UK",
+        onsite_notification=True,
+    )
+
+
+@pytest.fixture(scope='function')
 def sample_api_key(notify_db,
                    notify_db_session,
                    service=None,

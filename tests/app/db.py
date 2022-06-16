@@ -195,7 +195,8 @@ def create_template(
         folder=None,
         postage=None,
         process_type='normal',
-        reply_to_email=None
+        reply_to_email=None,
+        onsite_notification=False
 
 ):
     communication_item = CommunicationItem(id=uuid.uuid4(), va_profile_item_id=1, name='some name')
@@ -212,7 +213,8 @@ def create_template(
         'folder': folder,
         'process_type': process_type,
         'communication_item_id': communication_item.id,
-        'reply_to_email': reply_to_email
+        'reply_to_email': reply_to_email,
+        'onsite_notification': onsite_notification
     }
     if template_type == LETTER_TYPE:
         data["postage"] = postage or "second"

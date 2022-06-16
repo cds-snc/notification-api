@@ -16,6 +16,7 @@ BROKER_SSL_ENABLED='False'
 
 GRANICUS_TOKEN=
 
+VA_ONSITE_URL=http://host.docker.internal:7005
 VA_PROFILE_URL=http://host.docker.internal:7005
 GRANICUS_URL=http://host.docker.internal:7006
 MPI_URL=http://host.docker.internal:7007

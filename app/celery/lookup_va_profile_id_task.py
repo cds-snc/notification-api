@@ -32,6 +32,8 @@ def lookup_va_profile_id(self, notification_id):
             f"Successfully updated notification {notification_id} with VA PROFILE ID {va_profile_id}"
         )
 
+        return va_profile_id
+
     except MpiRetryableException as e:
         current_app.logger.warning(f"Received {str(e)} for notification {notification_id}.")
         try:
