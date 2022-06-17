@@ -1072,6 +1072,7 @@ class TestSaveSms:
         assert persisted_notification.notification_type == "sms"
         mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
 
+    @pytest.mark.skip(reason="Deprecated: This test needs to use save_smss path")
     @pytest.mark.parametrize("sender_id", [None, "996958a8-0c06-43be-a40e-56e4a2d1655c"])
     def test_save_sms_should_use_redis_cache_to_retrieve_service_and_template_when_possible(
         self, sample_template_with_placeholders, mocker, sender_id
