@@ -9,6 +9,7 @@ import pytest
 from flask import current_app, json
 from freezegun import freeze_time
 
+from app import signer
 from app.dao.jobs_dao import dao_get_job_by_id
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
@@ -861,9 +862,9 @@ def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms_with_celer
     assert response.headers["Content-type"] == "application/json"
 
 
-@pytest.mark.skip(reason="This test is not yet implemented")
-def test_post_sms_should_persist_supplied_sms_number(notify_api, client, sample_template_with_placeholders, mocker):
-    mocked = mocker.patch("app.sms_normal.publish")
+def test_post_sms_should_publish_supplied_sms_number(notify_api, client, sample_template_with_placeholders, mocker):
+    mock_publish = mocker.patch("app.sms_normal.publish")
+
     data = {
         "phone_number": "+16502532222",
         "template_id": str(sample_template_with_placeholders.id),
@@ -871,20 +872,19 @@ def test_post_sms_should_persist_supplied_sms_number(notify_api, client, sample_
     }
 
     auth_header = create_authorization_header(service_id=sample_template_with_placeholders.service_id)
-
     response = client.post(
         path="/v2/notifications/sms",
         data=json.dumps(data),
         headers=[("Content-Type", "application/json"), auth_header],
     )
+
     assert response.status_code == 201
     resp_json = json.loads(response.get_data(as_text=True))
-    notifications = Notification.query.all()
-    assert len(notifications) == 1
-    notification_id = notifications[0].id
-    assert "+16502532222" == notifications[0].to
-    assert resp_json["id"] == str(notification_id)
-    assert mocked.called
+
+    mock_publish_args = mock_publish.call_args.args[0]
+    mock_publish_args_unsigned = signer.verify(mock_publish_args)
+    assert mock_publish_args_unsigned["to"] == data["phone_number"]
+    assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
 
 @pytest.mark.parametrize(
