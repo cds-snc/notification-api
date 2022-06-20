@@ -196,7 +196,7 @@ def sample_service(
     email_from=None,
     permissions=None,
     research_mode=None,
-)
+):
     return create_sample_service(
         notify_db,
         notify_db_session,
