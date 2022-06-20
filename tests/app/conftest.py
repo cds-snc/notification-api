@@ -185,6 +185,7 @@ def create_sample_service(
 
     return service
 
+
 @pytest.fixture(scope="function")
 def sample_service(
     notify_db,
@@ -208,6 +209,7 @@ def sample_service(
         permissions=None,
         research_mode=None,
     )
+
 
 @pytest.fixture(scope="function", name="sample_service_full_permissions")
 def _sample_service_full_permissions(notify_db_session):
@@ -293,8 +295,7 @@ def sample_sms_template_with_html(sample_service):
     return create_template(sample_service, content="Hello (( Name))\nHere is <em>some HTML</em> & entities")
 
 
-@pytest.fixture(scope="function")
-def sample_email_template(
+def create_sample_email_template(
     notify_db,
     notify_db_session,
     template_name="Email Template Name",
@@ -327,8 +328,33 @@ def sample_email_template(
 
 
 @pytest.fixture(scope="function")
+def sample_email_template(
+    notify_db,
+    notify_db_session,
+    template_name="Email Template Name",
+    template_type="email",
+    user=None,
+    content="This is a template",
+    subject_line="Email Subject",
+    service=None,
+    permissions=[EMAIL_TYPE, SMS_TYPE],
+):
+    return create_sample_email_template(
+        notify_db,
+        notify_db_session,
+        template_name,
+        template_type,
+        user,
+        content,
+        subject_line,
+        service=None,
+        permissions=[EMAIL_TYPE, SMS_TYPE],
+    )
+
+
+@pytest.fixture(scope="function")
 def sample_template_without_email_permission(notify_db, notify_db_session):
-    return sample_email_template(notify_db, notify_db_session, permissions=[SMS_TYPE])
+    return create_sample_email_template(notify_db, notify_db_session, permissions=[SMS_TYPE])
 
 
 @pytest.fixture
@@ -344,7 +370,7 @@ def sample_trial_letter_template(sample_service_full_permissions):
 
 @pytest.fixture(scope="function")
 def sample_email_template_with_placeholders(notify_db, notify_db_session):
-    return sample_email_template(
+    return create_sample_email_template(
         notify_db,
         notify_db_session,
         content="Hello ((name))\nThis is an email from GOV.UK",
@@ -354,7 +380,7 @@ def sample_email_template_with_placeholders(notify_db, notify_db_session):
 
 @pytest.fixture(scope="function")
 def sample_email_template_with_html(notify_db, notify_db_session):
-    return sample_email_template(
+    return create_sample_email_template(
         notify_db,
         notify_db_session,
         content="Hello ((name))\nThis is an email from GOV.UK with <em>some HTML</em>",
@@ -364,7 +390,7 @@ def sample_email_template_with_html(notify_db, notify_db_session):
 
 @pytest.fixture(scope="function")
 def sample_email_template_with_advanced_html(notify_db, notify_db_session):
-    return sample_email_template(
+    return create_sample_email_template(
         notify_db,
         notify_db_session,
         content="<div style='color: pink' dir='rtl'>((name)) <em>some HTML</em> that should be right aligned</div>",
@@ -437,6 +463,7 @@ def create_sample_job(
     dao_create_job(job)
     return job
 
+
 @pytest.fixture(scope="function")
 def sample_job(
     notify_db,
@@ -465,6 +492,7 @@ def sample_job(
         archived=False,
     )
 
+
 @pytest.fixture(scope="function")
 def sample_job_with_placeholdered_template(
     sample_job,
@@ -489,7 +517,7 @@ def sample_email_job(notify_db, notify_db_session, service=None, template=None):
     if service is None:
         service = create_service(check_if_service_exists=True)
     if template is None:
-        template = sample_email_template(notify_db, notify_db_session, service=service)
+        template = create_sample_email_template(notify_db, notify_db_session, service=service)
     job_id = uuid.uuid4()
     data = {
         "id": job_id,
@@ -732,7 +760,7 @@ def sample_letter_notification(sample_letter_template):
 def sample_email_notification(notify_db, notify_db_session):
     created_at = datetime.utcnow()
     service = create_service(check_if_service_exists=True)
-    template = sample_email_template(notify_db, notify_db_session, service=service)
+    template = create_sample_email_template(notify_db, notify_db_session, service=service)
     job = sample_job(notify_db, notify_db_session, service=service, template=template)
 
     notification_id = uuid.uuid4()
