@@ -5,7 +5,7 @@ from app.notifications.callbacks import (
     create_complaint_callback_data,
     create_delivery_status_callback_data,
 )
-from tests.app.conftest import sample_notification as create_sample_notification
+from tests.app.conftest import create_sample_notification
 from tests.app.db import create_complaint, create_service_callback_api
 
 

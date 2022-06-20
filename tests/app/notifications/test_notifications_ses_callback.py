@@ -15,7 +15,7 @@ from app.notifications.notifications_ses_callback import (
     get_aws_responses,
     handle_complaint,
 )
-from tests.app.conftest import sample_notification as create_sample_notification
+from tests.app.conftest import create_sample_notification
 from tests.app.db import (
     create_notification,
     create_notification_history,

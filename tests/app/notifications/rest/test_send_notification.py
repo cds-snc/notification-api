@@ -31,7 +31,7 @@ from app.v2.errors import RateLimitError, TooManyRequestsError
 from tests import create_authorization_header
 from tests.app.conftest import create_sample_api_key
 from tests.app.conftest import sample_email_template as create_sample_email_template
-from tests.app.conftest import sample_notification as create_sample_notification
+from tests.app.conftest import create_sample_notification
 from tests.app.conftest import sample_service
 from tests.app.conftest import sample_service as create_sample_service
 from tests.app.conftest import sample_service_safelist as create_sample_service_safelist
