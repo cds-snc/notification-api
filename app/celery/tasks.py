@@ -22,14 +22,12 @@ from app import (
     email_bulk,
     email_normal,
     email_priority,
-    email_queue,
     metrics_logger,
     notify_celery,
     signer,
     sms_bulk,
     sms_normal,
     sms_priority,
-    sms_queue,
     statsd_client,
 )
 from app.aws import s3
@@ -137,17 +135,12 @@ def process_job(job_id):
 
     csv = get_recipient_csv(job, template)
 
-    if Config.FF_BATCH_INSERTION:
-        rows = csv.get_rows()
-        for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
-            process_rows(result, template, job, service)
-            put_batch_saving_bulk_created(
-                metrics_logger, 1, notification_type=db_template.template_type, priority=db_template.process_type
-            )
-
-    else:
-        for row in csv.get_rows():
-            process_row(row, template, job, service)
+    rows = csv.get_rows()
+    for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
+        process_rows(result, template, job, service)
+        put_batch_saving_bulk_created(
+            metrics_logger, 1, notification_type=db_template.template_type, priority=db_template.process_type
+        )
 
     job_complete(job, start=start)
 
@@ -168,20 +161,14 @@ def job_complete(job: Job, resumed=False, start=None):
 
 
 def choose_database_queue(template: Any, service: Service):
-    if Config.FF_PRIORITY_LANES:
-        if service.research_mode:
-            return QueueNames.RESEARCH_MODE
-        elif template.process_type == PRIORITY:
-            return QueueNames.PRIORITY_DATABASE
-        elif template.process_type == BULK:
-            return QueueNames.BULK_DATABASE
-        else:
-            return QueueNames.NORMAL_DATABASE
+    if service.research_mode:
+        return QueueNames.RESEARCH_MODE
+    elif template.process_type == PRIORITY:
+        return QueueNames.PRIORITY_DATABASE
+    elif template.process_type == BULK:
+        return QueueNames.BULK_DATABASE
     else:
-        if service.research_mode:
-            return QueueNames.RESEARCH_MODE
-        else:
-            return QueueNames.DATABASE
+        return QueueNames.NORMAL_DATABASE
 
 
 def process_row(row: Row, template: Template, job: Job, service: Service):
@@ -362,15 +349,12 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
                 f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
             )
         else:
-            if Config.FF_PRIORITY_LANES:
-                put_batch_saving_bulk_processed(
-                    metrics_logger,
-                    1,
-                    notification_type=SMS_TYPE,
-                    priority=process_type,
-                )
-            else:
-                put_batch_saving_bulk_processed(metrics_logger, 1)
+            put_batch_saving_bulk_processed(
+                metrics_logger,
+                1,
+                notification_type=SMS_TYPE,
+                priority=process_type,
+            )
 
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
@@ -527,15 +511,12 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
                 f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
             )
         else:
-            if Config.FF_PRIORITY_LANES:
-                put_batch_saving_bulk_processed(
-                    metrics_logger,
-                    1,
-                    notification_type=EMAIL_TYPE,
-                    priority=process_type,
-                )
-            else:
-                put_batch_saving_bulk_processed(metrics_logger, 1)
+            put_batch_saving_bulk_processed(
+                metrics_logger,
+                1,
+                notification_type=EMAIL_TYPE,
+                priority=process_type,
+            )
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(signed_and_verified, EMAIL_TYPE, e, receipt, template)
@@ -1062,27 +1043,17 @@ def _acknowledge_notification(notification_type: Any, template: Any, receipt: UU
     Returns: None
     """
     if notification_type == SMS_TYPE:
-        if Config.FF_PRIORITY_LANES:
-            if template.process_type == PRIORITY:
-                sms_priority.acknowledge(receipt)
-            elif template.process_type == NORMAL:
-                sms_normal.acknowledge(receipt)
-            elif template.process_type == BULK:
-                sms_bulk.acknowledge(receipt)
-        try:
-            sms_queue.acknowledge(receipt)
-        except Exception:
-            current_app.logger.warning("SMS queue without priority doesn't exist")
+        if template.process_type == PRIORITY:
+            sms_priority.acknowledge(receipt)
+        elif template.process_type == NORMAL:
+            sms_normal.acknowledge(receipt)
+        elif template.process_type == BULK:
+            sms_bulk.acknowledge(receipt)
     elif notification_type == EMAIL_TYPE:
-        if Config.FF_PRIORITY_LANES:
-            if template.process_type == PRIORITY:
-                email_priority.acknowledge(receipt)
-            elif template.process_type == NORMAL:
-                email_normal.acknowledge(receipt)
-            elif template.process_type == BULK:
-                email_bulk.acknowledge(receipt)
-        try:
-            email_queue.acknowledge(receipt)
-        except Exception:
-            current_app.logger.warning("Email queue without priority doesn't exist")
+        if template.process_type == PRIORITY:
+            email_priority.acknowledge(receipt)
+        elif template.process_type == NORMAL:
+            email_normal.acknowledge(receipt)
+        elif template.process_type == BULK:
+            email_bulk.acknowledge(receipt)
     current_app.logger.info(f"ACKNOWLEDGED: {notification_type} for receipt_id {receipt}")

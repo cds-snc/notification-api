@@ -314,16 +314,6 @@ class Config(object):
             "schedule": 60,
             "options": {"queue": QueueNames.PERIODIC},
         },
-        "beat-inbox-sms": {
-            "task": "beat-inbox-sms",
-            "schedule": 10,
-            "options": {"queue": QueueNames.PERIODIC},
-        },
-        "beat-inbox-email": {
-            "task": "beat-inbox-email",
-            "schedule": 10,
-            "options": {"queue": QueueNames.PERIODIC},
-        },
         "beat-inbox-sms-normal": {
             "task": "beat-inbox-sms-normal",
             "schedule": 10,
@@ -497,12 +487,6 @@ class Config(object):
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
     CLOUDWATCH_AGENT_EMF_PORT = 25888
     CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"tcp://{STATSD_HOST}:{CLOUDWATCH_AGENT_EMF_PORT}")
-
-    # feature flag to toggle persistance of notification in celery instead of the API
-    FF_NOTIFICATION_CELERY_PERSISTENCE = env.bool("FF_NOTIFICATION_CELERY_PERSISTENCE", False)
-    FF_BATCH_INSERTION = env.bool("FF_BATCH_INSERTION", False)
-    FF_REDIS_BATCH_SAVING = env.bool("FF_REDIS_BATCH_SAVING", False)
-    FF_PRIORITY_LANES = env.bool("FF_PRIORITY_LANES", False)
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:

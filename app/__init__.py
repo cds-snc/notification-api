@@ -58,8 +58,6 @@ clients = Clients()
 api_user = LocalProxy(lambda: _request_ctx_stack.top.api_user)
 authenticated_service = LocalProxy(lambda: _request_ctx_stack.top.authenticated_service)
 
-
-# Priority lanes feature (FF_PRIORITY_LANES)
 sms_bulk = RedisQueue("sms", process_type="bulk")
 sms_normal = RedisQueue("sms", process_type="normal")
 sms_priority = RedisQueue("sms", process_type="priority")
@@ -98,21 +96,12 @@ def create_app(application, config=None):
     flask_redis.init_app(application)
     redis_store.init_app(application)
 
-    # Priority lanes feature (FF_PRIORITY_LANES)
-    # initialize redis queues
-    if application.config["FF_PRIORITY_LANES"]:
-        sms_bulk.init_app(flask_redis, metrics_logger)
-        sms_normal.init_app(flask_redis, metrics_logger)
-        sms_priority.init_app(flask_redis, metrics_logger)
-        email_bulk.init_app(flask_redis, metrics_logger)
-        email_normal.init_app(flask_redis, metrics_logger)
-        email_priority.init_app(flask_redis, metrics_logger)
-        sms_queue.init_app(flask_redis, metrics_logger)
-        email_queue.init_app(flask_redis, metrics_logger)
-    else:
-        sms_queue.init_app(flask_redis, metrics_logger)
-        email_queue.init_app(flask_redis, metrics_logger)
-    # END FF_PRIORITY_LANES
+    sms_bulk.init_app(flask_redis, metrics_logger)
+    sms_normal.init_app(flask_redis, metrics_logger)
+    sms_priority.init_app(flask_redis, metrics_logger)
+    email_bulk.init_app(flask_redis, metrics_logger)
+    email_normal.init_app(flask_redis, metrics_logger)
+    email_priority.init_app(flask_redis, metrics_logger)
 
     register_blueprint(application)
     register_v2_blueprints(application)
