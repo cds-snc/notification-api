@@ -519,8 +519,7 @@ def sample_notification_with_job(
     )
 
 
-@pytest.fixture(scope="function")
-def sample_notification(
+def create_sample_notification(
     notify_db,
     notify_db_session,
     service=None,
@@ -610,6 +609,61 @@ def sample_notification(
         db.session.commit()
 
     return notification
+
+
+@pytest.fixture(scope="function")
+def sample_notification(
+    notify_db,
+    notify_db_session,
+    service=None,
+    template=None,
+    job=None,
+    job_row_number=None,
+    to_field=None,
+    status="created",
+    provider_response=None,
+    reference=None,
+    created_at=None,
+    sent_at=None,
+    billable_units=1,
+    personalisation=None,
+    api_key=None,
+    key_type=KEY_TYPE_NORMAL,
+    sent_by=None,
+    international=False,
+    client_reference=None,
+    rate_multiplier=1.0,
+    scheduled_for=None,
+    normalised_to=None,
+    postage=None,
+    queue_name=None,
+):
+    return create_sample_notification(
+        notify_db,
+        notify_db_session,
+        service=None,
+        template=None,
+        job=None,
+        job_row_number=None,
+        to_field=None,
+        status="created",
+        provider_response=None,
+        reference=None,
+        created_at=None,
+        sent_at=None,
+        billable_units=1,
+        personalisation=None,
+        api_key=None,
+        key_type=KEY_TYPE_NORMAL,
+        sent_by=None,
+        international=False,
+        client_reference=None,
+        rate_multiplier=1.0,
+        scheduled_for=None,
+        normalised_to=None,
+        postage=None,
+        queue_name=None,
+    )
 
 
 @pytest.fixture
