@@ -144,8 +144,7 @@ def sample_sms_code(notify_db, notify_db_session, code=None, code_type="sms", us
     return code
 
 
-@pytest.fixture(scope="function")
-def sample_service(
+def create_sample_service(
     notify_db,
     notify_db_session,
     service_name="Sample service",
@@ -186,6 +185,29 @@ def sample_service(
 
     return service
 
+@pytest.fixture(scope="function")
+def sample_service(
+    notify_db,
+    notify_db_session,
+    service_name="Sample service",
+    user=None,
+    restricted=False,
+    limit=1000,
+    email_from=None,
+    permissions=None,
+    research_mode=None,
+)
+    return create_sample_service(
+        notify_db,
+        notify_db_session,
+        service_name="Sample service",
+        user=None,
+        restricted=False,
+        limit=1000,
+        email_from=None,
+        permissions=None,
+        research_mode=None,
+    )
 
 @pytest.fixture(scope="function", name="sample_service_full_permissions")
 def _sample_service_full_permissions(notify_db_session):
@@ -379,8 +401,7 @@ def sample_team_api_key(notify_db, notify_db_session, service=None):
     return create_sample_api_key(notify_db, notify_db_session, service, KEY_TYPE_TEAM)
 
 
-@pytest.fixture(scope="function")
-def sample_job(
+def create_sample_job(
     notify_db,
     notify_db_session,
     service=None,
@@ -416,6 +437,33 @@ def sample_job(
     dao_create_job(job)
     return job
 
+@pytest.fixture(scope="function")
+def sample_job(
+    notify_db,
+    notify_db_session,
+    service=None,
+    template=None,
+    notification_count=1,
+    created_at=None,
+    job_status="pending",
+    scheduled_for=None,
+    processing_started=None,
+    original_file_name="some.csv",
+    archived=False,
+):
+    return create_sample_job(
+        notify_db,
+        notify_db_session,
+        service=None,
+        template=None,
+        notification_count=1,
+        created_at=None,
+        job_status="pending",
+        scheduled_for=None,
+        processing_started=None,
+        original_file_name="some.csv",
+        archived=False,
+    )
 
 @pytest.fixture(scope="function")
 def sample_job_with_placeholdered_template(
