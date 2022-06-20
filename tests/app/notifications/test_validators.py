@@ -23,7 +23,7 @@ from app.notifications.validators import (
 )
 from app.utils import get_document_url
 from app.v2.errors import BadRequestError, RateLimitError, TooManyRequestsError
-from tests.app.conftest import sample_api_key
+from tests.app.conftest import create_sample_api_key
 from tests.app.conftest import sample_notification as create_notification
 from tests.app.conftest import sample_service as create_service
 from tests.app.conftest import sample_service_safelist
@@ -387,7 +387,7 @@ def test_that_when_exceed_rate_limit_request_fails(notify_db, notify_db_session,
         mocker.patch("app.notifications.validators.services_dao")
 
         service = create_service(notify_db, notify_db_session, restricted=True)
-        api_key = sample_api_key(notify_db, notify_db_session, service=service, key_type=api_key_type)
+        api_key = create_sample_api_key(notify_db, notify_db_session, service=service, key_type=api_key_type)
         with pytest.raises(RateLimitError) as e:
             check_service_over_api_rate_limit(service, api_key)
 
@@ -407,7 +407,7 @@ def test_that_when_not_exceeded_rate_limit_request_succeeds(notify_db, notify_db
         mocker.patch("app.notifications.validators.services_dao")
 
         service = create_service(notify_db, notify_db_session, restricted=True)
-        api_key = sample_api_key(notify_db, notify_db_session, service=service, key_type="normal")
+        api_key = create_sample_api_key(notify_db, notify_db_session, service=service, key_type="normal")
 
         check_service_over_api_rate_limit(service, api_key)
         assert app.redis_store.exceeded_rate_limit.called_with("{}-{}".format(str(service.id), api_key.key_type), 3000, 60)
@@ -421,7 +421,7 @@ def test_should_not_rate_limit_if_limiting_is_disabled(notify_db, notify_db_sess
         mocker.patch("app.notifications.validators.services_dao")
 
         service = create_service(notify_db, notify_db_session, restricted=True)
-        api_key = sample_api_key(notify_db, notify_db_session, service=service)
+        api_key = create_sample_api_key(notify_db, notify_db_session, service=service)
 
         check_service_over_api_rate_limit(service, api_key)
         assert not app.redis_store.exceeded_rate_limit.called

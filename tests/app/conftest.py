@@ -350,8 +350,7 @@ def sample_email_template_with_advanced_html(notify_db, notify_db_session):
     )
 
 
-@pytest.fixture(scope="function")
-def sample_api_key(notify_db, notify_db_session, service=None, key_type=KEY_TYPE_NORMAL, name=None):
+def create_sample_api_key(notify_db, notify_db_session, service=None, key_type=KEY_TYPE_NORMAL, name=None):
     if service is None:
         service = create_service(check_if_service_exists=True)
     data = {
@@ -366,13 +365,18 @@ def sample_api_key(notify_db, notify_db_session, service=None, key_type=KEY_TYPE
 
 
 @pytest.fixture(scope="function")
+def sample_api_key(notify_db, notify_db_session, service=None, key_type=KEY_TYPE_NORMAL):
+    return create_sample_api_key(notify_db, notify_db_session, service, key_type)
+
+
+@pytest.fixture(scope="function")
 def sample_test_api_key(notify_db, notify_db_session, service=None):
-    return sample_api_key(notify_db, notify_db_session, service, KEY_TYPE_TEST)
+    return create_sample_api_key(notify_db, notify_db_session, service, KEY_TYPE_TEST)
 
 
 @pytest.fixture(scope="function")
 def sample_team_api_key(notify_db, notify_db_session, service=None):
-    return sample_api_key(notify_db, notify_db_session, service, KEY_TYPE_TEAM)
+    return create_sample_api_key(notify_db, notify_db_session, service, KEY_TYPE_TEAM)
 
 
 @pytest.fixture(scope="function")

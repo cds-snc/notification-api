@@ -1493,7 +1493,7 @@ def test_cannot_remove_only_user_from_service(notify_api, notify_db, notify_db_s
 # This test is just here verify get_service_and_api_key_history that is a temp solution
 # until proper ui is sorted out on admin app
 def test_get_service_and_api_key_history(notify_api, notify_db, notify_db_session, sample_service):
-    from tests.app.conftest import sample_api_key as create_sample_api_key
+    from tests.app.conftest import create_sample_api_key
 
     api_key = create_sample_api_key(notify_db, notify_db_session, service=sample_service)
 

@@ -29,7 +29,7 @@ from app.notifications.process_notifications import (
     transform_notification,
 )
 from app.v2.errors import BadRequestError
-from tests.app.conftest import sample_api_key as create_api_key
+from tests.app.conftest import create_api_key
 from tests.app.db import create_service, create_template
 
 
