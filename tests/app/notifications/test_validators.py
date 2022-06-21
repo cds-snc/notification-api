@@ -26,7 +26,7 @@ from app.v2.errors import BadRequestError, RateLimitError, TooManyRequestsError
 from tests.app.conftest import create_sample_api_key
 from tests.app.conftest import sample_notification as create_notification
 from tests.app.conftest import create_sample_service
-from tests.app.conftest import sample_service_safelist
+from tests.app.conftest import create_sample_service_safelist
 from tests.app.db import (
     create_letter_contact,
     create_reply_to_email,
@@ -288,9 +288,9 @@ def test_service_can_send_to_recipient_passes_for_live_service_non_team_member(k
 
 
 def test_service_can_send_to_recipient_passes_for_safelisted_recipient_passes(notify_db, notify_db_session, sample_service):
-    sample_service_safelist(notify_db, notify_db_session, email_address="some_other_email@test.com")
+    create_sample_service_safelist(notify_db, notify_db_session, email_address="some_other_email@test.com")
     assert service_can_send_to_recipient("some_other_email@test.com", "team", sample_service) is None
-    sample_service_safelist(notify_db, notify_db_session, mobile_number="6502532222")
+    create_sample_service_safelist(notify_db, notify_db_session, mobile_number="6502532222")
     assert service_can_send_to_recipient("6502532222", "team", sample_service) is None
 
 
@@ -307,7 +307,7 @@ def test_service_can_send_to_recipient_fails_when_ignoring_safelist(
     sample_service,
     recipient,
 ):
-    sample_service_safelist(notify_db, notify_db_session, **recipient)
+    create_sample_service_safelist(notify_db, notify_db_session, **recipient)
     with pytest.raises(BadRequestError) as exec_info:
         service_can_send_to_recipient(
             next(iter(recipient.values())),

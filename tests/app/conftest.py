@@ -1275,7 +1275,7 @@ def notify_service(notify_db, notify_db_session):
 
 
 @pytest.fixture(scope="function")
-def sample_service_safelist(notify_db, notify_db_session, service=None, email_address=None, mobile_number=None):
+def create_sample_service_safelist(notify_db, notify_db_session, service=None, email_address=None, mobile_number=None):
     if service is None:
         service = create_service(check_if_service_exists=True)
 
@@ -1289,6 +1289,11 @@ def sample_service_safelist(notify_db, notify_db_session, service=None, email_ad
     notify_db.session.add(safelisted_user)
     notify_db.session.commit()
     return safelisted_user
+
+
+@pytest.fixture(scope="function")
+def sample_service_safelist(notify_db, notify_db_session, service=None, email_address=None, mobile_number=None):
+    return create_sample_service_safelist(notify_db, notify_db_session, service, email_address, mobile_number)
 
 
 @pytest.fixture(scope="function")
