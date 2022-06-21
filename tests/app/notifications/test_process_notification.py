@@ -29,7 +29,7 @@ from app.notifications.process_notifications import (
     transform_notification,
 )
 from app.v2.errors import BadRequestError
-from tests.app.conftest import sample_api_key as create_api_key
+from tests.app.conftest import create_sample_api_key
 from tests.app.db import create_service, create_template
 
 
@@ -85,7 +85,7 @@ def test_persist_notification_throws_exception_when_missing_template(sample_api_
 def test_persist_notification_does_not_increment_cache_if_test_key(
     notify_db, notify_db_session, sample_template, sample_job, mocker
 ):
-    api_key = create_api_key(
+    api_key = create_sample_api_key(
         notify_db=notify_db,
         notify_db_session=notify_db_session,
         service=sample_template.service,
@@ -529,7 +529,7 @@ def test_persist_letter_notification_finds_correct_postage(
     expected_postage,
 ):
     service = create_service(service_permissions=[LETTER_TYPE])
-    api_key = create_api_key(notify_db, notify_db_session, service=service)
+    api_key = create_sample_api_key(notify_db, notify_db_session, service=service)
     template = create_template(service, template_type=LETTER_TYPE, postage=template_postage)
     mocker.patch("app.dao.templates_dao.dao_get_template_by_id", return_value=template)
     persist_notification(
@@ -1062,7 +1062,7 @@ class TestDBSaveAndSendNotification:
     def test_db_save_and_send_notification_does_not_increment_cache_if_test_key(
         self, notify_db, notify_db_session, sample_template, sample_job, mocker
     ):
-        api_key = create_api_key(
+        api_key = create_sample_api_key(
             notify_db=notify_db,
             notify_db_session=notify_db_session,
             service=sample_template.service,

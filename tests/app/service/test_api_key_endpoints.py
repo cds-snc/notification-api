@@ -5,8 +5,7 @@ from flask import url_for
 from app.dao.api_key_dao import expire_api_key
 from app.models import KEY_TYPE_NORMAL, ApiKey
 from tests import create_authorization_header
-from tests.app.conftest import sample_api_key as create_sample_api_key
-from tests.app.conftest import sample_service as create_sample_service
+from tests.app.conftest import create_sample_api_key, create_sample_service
 from tests.app.db import create_user
 
 

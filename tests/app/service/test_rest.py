@@ -41,10 +41,10 @@ from app.models import (
     User,
 )
 from tests import create_authorization_header
-from tests.app.conftest import sample_notification as create_sample_notification
-from tests.app.conftest import sample_notification_with_job
 from tests.app.conftest import (
-    sample_user_service_permission as create_user_service_permission,
+    create_sample_notification,
+    create_sample_notification_with_job,
+    create_sample_user_service_permission,
 )
 from tests.app.db import (
     create_annual_billing,
@@ -1452,7 +1452,7 @@ def test_add_unknown_user_to_service_returns404(notify_api, notify_db, notify_db
 def test_remove_user_from_service(notify_db, notify_db_session, client, sample_user_service_permission):
     second_user = create_user(email="new@digital.cabinet-office.gov.uk")
     # Simulates successfully adding a user to the service
-    second_permission = create_user_service_permission(notify_db, notify_db_session, user=second_user)
+    second_permission = create_sample_user_service_permission(notify_db, notify_db_session, user=second_user)
     endpoint = url_for(
         "service.remove_user_from_service",
         service_id=str(second_permission.service.id),
@@ -1493,7 +1493,7 @@ def test_cannot_remove_only_user_from_service(notify_api, notify_db, notify_db_s
 # This test is just here verify get_service_and_api_key_history that is a temp solution
 # until proper ui is sorted out on admin app
 def test_get_service_and_api_key_history(notify_api, notify_db, notify_db_session, sample_service):
-    from tests.app.conftest import sample_api_key as create_sample_api_key
+    from tests.app.conftest import create_sample_api_key
 
     api_key = create_sample_api_key(notify_db, notify_db_session, service=sample_service)
 
@@ -1637,7 +1637,7 @@ def test_get_all_notifications_for_service_including_ones_made_by_jobs(
     include_from_test_key,
     expected_count_of_notifications,
 ):
-    with_job = sample_notification_with_job(notify_db, notify_db_session, service=sample_service)
+    with_job = create_sample_notification_with_job(notify_db, notify_db_session, service=sample_service)
     without_job = create_sample_notification(notify_db, notify_db_session, service=sample_service)
     # from_test_api_key
     create_sample_notification(notify_db, notify_db_session, service=sample_service, key_type=KEY_TYPE_TEST)

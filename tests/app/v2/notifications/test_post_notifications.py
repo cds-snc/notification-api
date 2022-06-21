@@ -30,9 +30,9 @@ from app.v2.notifications.notification_schemas import (
 )
 from tests import create_authorization_header
 from tests.app.conftest import (
+    create_sample_template,
     document_download_response,
     random_sized_content,
-    sample_template,
 )
 from tests.app.db import (
     create_api_key,
@@ -1621,7 +1621,7 @@ def test_post_bulk_with_non_existing_template(client, fake_uuid, sample_email_te
 
 
 def test_post_bulk_with_archived_template(client, fake_uuid, notify_db, notify_db_session):
-    template = sample_template(notify_db, notify_db_session, archived=True)
+    template = create_sample_template(notify_db, notify_db_session, archived=True)
     data = {"name": "job_name", "template_id": template.id, "rows": [1, 2]}
 
     response = client.post(
@@ -1688,7 +1688,7 @@ def test_post_bulk_returns_400_if_not_allowed_to_send_notification_type(
 def test_post_bulk_flags_missing_column_headers(
     client, notify_db, notify_db_session, data_type, template_type, content, row_header, expected_error
 ):
-    template = sample_template(notify_db, notify_db_session, content=content, template_type=template_type)
+    template = create_sample_template(notify_db, notify_db_session, content=content, template_type=template_type)
     data = {"name": "job_name", "template_id": template.id}
     rows = [row_header, ["bar"]]
     if data_type == "csv":
@@ -1746,7 +1746,7 @@ def test_post_bulk_flags_duplicate_recipient_column_headers(
     row_header,
     expected_error,
 ):
-    template = sample_template(notify_db, notify_db_session, content=content, template_type=template_type)
+    template = create_sample_template(notify_db, notify_db_session, content=content, template_type=template_type)
     data = {"name": "job_name", "template_id": template.id, "rows": [row_header, ["bar"]]}
 
     response = client.post(
@@ -1815,7 +1815,7 @@ def test_post_bulk_flags_recipient_not_in_safelist_with_team_api_key(client, sam
 
 def test_post_bulk_flags_recipient_not_in_safelist_with_restricted_service(client, notify_db, notify_db_session):
     service = create_service(restricted=True)
-    template = sample_template(notify_db, notify_db_session, service=service, template_type="email")
+    template = create_sample_template(notify_db, notify_db_session, service=service, template_type="email")
     data = {
         "name": "job_name",
         "template_id": template.id,
@@ -1843,7 +1843,7 @@ def test_post_bulk_flags_recipient_not_in_safelist_with_restricted_service(clien
 
 def test_post_bulk_flags_not_enough_remaining_messages(client, notify_db, notify_db_session, mocker):
     service = create_service(message_limit=10)
-    template = sample_template(notify_db, notify_db_session, service=service, template_type="email")
+    template = create_sample_template(notify_db, notify_db_session, service=service, template_type="email")
     messages_count_mock = mocker.patch("app.v2.notifications.post_notifications.fetch_todays_total_message_count", return_value=9)
     data = {
         "name": "job_name",
@@ -1870,7 +1870,7 @@ def test_post_bulk_flags_not_enough_remaining_messages(client, notify_db, notify
 
 @pytest.mark.parametrize("data_type", ["rows", "csv"])
 def test_post_bulk_flags_rows_with_errors(client, notify_db, notify_db_session, data_type):
-    template = sample_template(notify_db, notify_db_session, template_type="email", content="Hello ((name))")
+    template = create_sample_template(notify_db, notify_db_session, template_type="email", content="Hello ((name))")
     data = {"name": "job_name", "template_id": template.id}
     rows = [
         ["email address", "name"],

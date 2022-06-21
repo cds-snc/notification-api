@@ -32,7 +32,7 @@ from app.models import (
     Notification,
     Service,
 )
-from tests.app.conftest import document_download_response, sample_email_template
+from tests.app.conftest import create_sample_email_template, document_download_response
 from tests.app.db import (
     create_notification,
     create_reply_to_email,
@@ -900,7 +900,7 @@ def test_notification_document_with_pdf_attachment(
     filename,
     expected_filename,
 ):
-    template = sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
+    template = create_sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
     personalisation = {
         "file": document_download_response(
             {
@@ -975,7 +975,7 @@ def test_notification_document_with_pdf_attachment(
     ],
 )
 def test_notification_with_bad_file_attachment_url(mocker, notify_db, notify_db_session, sending_method):
-    template = sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
+    template = create_sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
     personalisation = {
         "file": document_download_response(
             {

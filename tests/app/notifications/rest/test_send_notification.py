@@ -29,16 +29,15 @@ from app.models import (
 from app.utils import get_document_url
 from app.v2.errors import RateLimitError, TooManyRequestsError
 from tests import create_authorization_header
-from tests.app.conftest import sample_api_key as create_sample_api_key
-from tests.app.conftest import sample_email_template as create_sample_email_template
-from tests.app.conftest import sample_notification as create_sample_notification
-from tests.app.conftest import sample_service
-from tests.app.conftest import sample_service as create_sample_service
-from tests.app.conftest import sample_service_safelist as create_sample_service_safelist
-from tests.app.conftest import sample_template as create_sample_template
 from tests.app.conftest import (
-    sample_template_without_email_permission,
-    sample_template_without_sms_permission,
+    create_sample_api_key,
+    create_sample_email_template,
+    create_sample_notification,
+    create_sample_service,
+    create_sample_service_safelist,
+    create_sample_template,
+    create_sample_template_without_email_permission,
+    create_sample_template_without_sms_permission,
 )
 from tests.app.db import create_reply_to_email, create_service
 
@@ -1108,7 +1107,7 @@ def test_should_not_allow_international_number_on_sms_notification(client, sampl
 def test_should_allow_international_number_on_sms_notification(client, notify_db, notify_db_session, mocker):
     mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
-    service = sample_service(notify_db, notify_db_session, permissions=[INTERNATIONAL_SMS_TYPE, SMS_TYPE])
+    service = create_sample_service(notify_db, notify_db_session, permissions=[INTERNATIONAL_SMS_TYPE, SMS_TYPE])
     template = create_sample_template(notify_db, notify_db_session, service=service)
 
     data = {"to": "+20-12-1234-1234", "template": str(template.id)}
@@ -1128,12 +1127,12 @@ def test_should_allow_international_number_on_sms_notification(client, notify_db
     "template_factory, to, expected_error",
     [
         (
-            sample_template_without_sms_permission,
+            create_sample_template_without_sms_permission,
             "+16502532222",
             "Cannot send text messages",
         ),
         (
-            sample_template_without_email_permission,
+            create_sample_template_without_email_permission,
             "notify@digital.cabinet-office.gov.uk",
             "Cannot send emails",
         ),

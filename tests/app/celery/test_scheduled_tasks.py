@@ -39,7 +39,7 @@ from app.models import (
     NOTIFICATION_PENDING_VIRUS_CHECK,
 )
 from app.v2.errors import JobIncompleteError
-from tests.app.conftest import sample_job as create_sample_job
+from tests.app.conftest import create_sample_job
 from tests.app.db import (
     create_job,
     create_notification,

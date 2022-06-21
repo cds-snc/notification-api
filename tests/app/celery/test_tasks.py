@@ -54,7 +54,7 @@ from app.models import (
 from app.schemas import service_schema, template_schema
 from celery.exceptions import Retry
 from tests.app import load_example_csv
-from tests.app.conftest import sample_service, sample_template
+from tests.app.conftest import create_sample_service, create_sample_template
 from tests.app.db import (
     create_inbound_sms,
     create_job,
@@ -112,8 +112,8 @@ class TestChooseDatabaseQueue:
     def test_choose_database_queue_FF_PRIORITY_LANES_true(
         self, mocker, notify_db, notify_db_session, notify_api, research_mode, template_priority
     ):
-        service = sample_service(notify_db, notify_db_session, research_mode=research_mode)
-        template = sample_template(notify_db, notify_db_session, process_type=template_priority)
+        service = create_sample_service(notify_db, notify_db_session, research_mode=research_mode)
+        template = create_sample_template(notify_db, notify_db_session, process_type=template_priority)
 
         if research_mode:
             expected_queue = QueueNames.RESEARCH_MODE

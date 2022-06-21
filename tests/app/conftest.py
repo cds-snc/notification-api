@@ -144,8 +144,7 @@ def sample_sms_code(notify_db, notify_db_session, code=None, code_type="sms", us
     return code
 
 
-@pytest.fixture(scope="function")
-def sample_service(
+def create_sample_service(
     notify_db,
     notify_db_session,
     service_name="Sample service",
@@ -187,6 +186,31 @@ def sample_service(
     return service
 
 
+@pytest.fixture(scope="function")
+def sample_service(
+    notify_db,
+    notify_db_session,
+    service_name="Sample service",
+    user=None,
+    restricted=False,
+    limit=1000,
+    email_from=None,
+    permissions=None,
+    research_mode=None,
+):
+    return create_sample_service(
+        notify_db,
+        notify_db_session,
+        service_name="Sample service",
+        user=None,
+        restricted=False,
+        limit=1000,
+        email_from=None,
+        permissions=None,
+        research_mode=None,
+    )
+
+
 @pytest.fixture(scope="function", name="sample_service_full_permissions")
 def _sample_service_full_permissions(notify_db_session):
     service = create_service(
@@ -204,8 +228,7 @@ def _sample_service_custom_letter_contact_block(sample_service):
     return sample_service
 
 
-@pytest.fixture(scope="function")
-def sample_template(
+def create_sample_template(
     notify_db,
     notify_db_session,
     template_name="Template Name",
@@ -250,13 +273,44 @@ def sample_template(
 
 
 @pytest.fixture(scope="function")
-def sample_template_without_sms_permission(notify_db, notify_db_session):
-    return sample_template(notify_db, notify_db_session, permissions=[EMAIL_TYPE])
+def sample_template(
+    notify_db,
+    notify_db_session,
+    template_name="Template Name",
+    template_type="sms",
+    content="This is a template:\nwith a newline",
+    archived=False,
+    hidden=False,
+    subject_line="Subject",
+    user=None,
+    service=None,
+    created_by=None,
+    process_type="normal",
+    permissions=[EMAIL_TYPE, SMS_TYPE],
+):
+    return create_sample_template(
+        notify_db,
+        notify_db_session,
+        template_name="Template Name",
+        template_type="sms",
+        content="This is a template:\nwith a newline",
+        archived=False,
+        hidden=False,
+        subject_line="Subject",
+        user=None,
+        service=None,
+        created_by=None,
+        process_type="normal",
+        permissions=[EMAIL_TYPE, SMS_TYPE],
+    )
 
 
-@pytest.fixture(scope="function")
-def sample_template_without_letter_permission(notify_db, notify_db_session):
-    return sample_template(notify_db, notify_db_session, template_type="letter", permissions=[EMAIL_TYPE])
+def create_sample_template_without_sms_permission(notify_db, notify_db_session):
+    return create_sample_template(notify_db, notify_db_session, permissions=[EMAIL_TYPE])
+
+
+def create_sample_template_without_letter_permission(notify_db, notify_db_session):
+    return create_sample_template(notify_db, notify_db_session, template_type="letter", permissions=[EMAIL_TYPE])
 
 
 @pytest.fixture(scope="function")
@@ -271,8 +325,7 @@ def sample_sms_template_with_html(sample_service):
     return create_template(sample_service, content="Hello (( Name))\nHere is <em>some HTML</em> & entities")
 
 
-@pytest.fixture(scope="function")
-def sample_email_template(
+def create_sample_email_template(
     notify_db,
     notify_db_session,
     template_name="Email Template Name",
@@ -305,8 +358,32 @@ def sample_email_template(
 
 
 @pytest.fixture(scope="function")
-def sample_template_without_email_permission(notify_db, notify_db_session):
-    return sample_email_template(notify_db, notify_db_session, permissions=[SMS_TYPE])
+def sample_email_template(
+    notify_db,
+    notify_db_session,
+    template_name="Email Template Name",
+    template_type="email",
+    user=None,
+    content="This is a template",
+    subject_line="Email Subject",
+    service=None,
+    permissions=[EMAIL_TYPE, SMS_TYPE],
+):
+    return create_sample_email_template(
+        notify_db,
+        notify_db_session,
+        template_name,
+        template_type,
+        user,
+        content,
+        subject_line,
+        service=None,
+        permissions=[EMAIL_TYPE, SMS_TYPE],
+    )
+
+
+def create_sample_template_without_email_permission(notify_db, notify_db_session):
+    return create_sample_email_template(notify_db, notify_db_session, permissions=[SMS_TYPE])
 
 
 @pytest.fixture
@@ -322,7 +399,7 @@ def sample_trial_letter_template(sample_service_full_permissions):
 
 @pytest.fixture(scope="function")
 def sample_email_template_with_placeholders(notify_db, notify_db_session):
-    return sample_email_template(
+    return create_sample_email_template(
         notify_db,
         notify_db_session,
         content="Hello ((name))\nThis is an email from GOV.UK",
@@ -332,7 +409,7 @@ def sample_email_template_with_placeholders(notify_db, notify_db_session):
 
 @pytest.fixture(scope="function")
 def sample_email_template_with_html(notify_db, notify_db_session):
-    return sample_email_template(
+    return create_sample_email_template(
         notify_db,
         notify_db_session,
         content="Hello ((name))\nThis is an email from GOV.UK with <em>some HTML</em>",
@@ -342,7 +419,7 @@ def sample_email_template_with_html(notify_db, notify_db_session):
 
 @pytest.fixture(scope="function")
 def sample_email_template_with_advanced_html(notify_db, notify_db_session):
-    return sample_email_template(
+    return create_sample_email_template(
         notify_db,
         notify_db_session,
         content="<div style='color: pink' dir='rtl'>((name)) <em>some HTML</em> that should be right aligned</div>",
@@ -350,8 +427,7 @@ def sample_email_template_with_advanced_html(notify_db, notify_db_session):
     )
 
 
-@pytest.fixture(scope="function")
-def sample_api_key(notify_db, notify_db_session, service=None, key_type=KEY_TYPE_NORMAL, name=None):
+def create_sample_api_key(notify_db, notify_db_session, service=None, key_type=KEY_TYPE_NORMAL, name=None):
     if service is None:
         service = create_service(check_if_service_exists=True)
     data = {
@@ -366,17 +442,21 @@ def sample_api_key(notify_db, notify_db_session, service=None, key_type=KEY_TYPE
 
 
 @pytest.fixture(scope="function")
+def sample_api_key(notify_db, notify_db_session, service=None, key_type=KEY_TYPE_NORMAL):
+    return create_sample_api_key(notify_db, notify_db_session, service, key_type)
+
+
+@pytest.fixture(scope="function")
 def sample_test_api_key(notify_db, notify_db_session, service=None):
-    return sample_api_key(notify_db, notify_db_session, service, KEY_TYPE_TEST)
+    return create_sample_api_key(notify_db, notify_db_session, service, KEY_TYPE_TEST)
 
 
 @pytest.fixture(scope="function")
 def sample_team_api_key(notify_db, notify_db_session, service=None):
-    return sample_api_key(notify_db, notify_db_session, service, KEY_TYPE_TEAM)
+    return create_sample_api_key(notify_db, notify_db_session, service, KEY_TYPE_TEAM)
 
 
-@pytest.fixture(scope="function")
-def sample_job(
+def create_sample_job(
     notify_db,
     notify_db_session,
     service=None,
@@ -414,6 +494,35 @@ def sample_job(
 
 
 @pytest.fixture(scope="function")
+def sample_job(
+    notify_db,
+    notify_db_session,
+    service=None,
+    template=None,
+    notification_count=1,
+    created_at=None,
+    job_status="pending",
+    scheduled_for=None,
+    processing_started=None,
+    original_file_name="some.csv",
+    archived=False,
+):
+    return create_sample_job(
+        notify_db,
+        notify_db_session,
+        service=None,
+        template=None,
+        notification_count=1,
+        created_at=None,
+        job_status="pending",
+        scheduled_for=None,
+        processing_started=None,
+        original_file_name="some.csv",
+        archived=False,
+    )
+
+
+@pytest.fixture(scope="function")
 def sample_job_with_placeholdered_template(
     sample_job,
     sample_template_with_placeholders,
@@ -437,7 +546,7 @@ def sample_email_job(notify_db, notify_db_session, service=None, template=None):
     if service is None:
         service = create_service(check_if_service_exists=True)
     if template is None:
-        template = sample_email_template(notify_db, notify_db_session, service=service)
+        template = create_sample_email_template(notify_db, notify_db_session, service=service)
     job_id = uuid.uuid4()
     data = {
         "id": job_id,
@@ -473,8 +582,7 @@ def sample_letter_job(sample_letter_template):
     return job
 
 
-@pytest.fixture(scope="function")
-def sample_notification_with_job(
+def create_sample_notification_with_job(
     notify_db,
     notify_db_session,
     service=None,
@@ -516,7 +624,43 @@ def sample_notification_with_job(
 
 
 @pytest.fixture(scope="function")
-def sample_notification(
+def sample_notification_with_job(
+    notify_db,
+    notify_db_session,
+    service=None,
+    template=None,
+    job=None,
+    job_row_number=None,
+    to_field=None,
+    status="created",
+    reference=None,
+    created_at=None,
+    sent_at=None,
+    billable_units=1,
+    personalisation=None,
+    api_key=None,
+    key_type=KEY_TYPE_NORMAL,
+):
+    return create_sample_notification_with_job(
+        notify_db,
+        notify_db_session,
+        service,
+        template,
+        job,
+        job_row_number,
+        to_field,
+        status,
+        reference,
+        created_at,
+        sent_at,
+        billable_units,
+        personalisation,
+        api_key,
+        key_type,
+    )
+
+
+def create_sample_notification(
     notify_db,
     notify_db_session,
     service=None,
@@ -608,6 +752,61 @@ def sample_notification(
     return notification
 
 
+@pytest.fixture(scope="function")
+def sample_notification(
+    notify_db,
+    notify_db_session,
+    service=None,
+    template=None,
+    job=None,
+    job_row_number=None,
+    to_field=None,
+    status="created",
+    provider_response=None,
+    reference=None,
+    created_at=None,
+    sent_at=None,
+    billable_units=1,
+    personalisation=None,
+    api_key=None,
+    key_type=KEY_TYPE_NORMAL,
+    sent_by=None,
+    international=False,
+    client_reference=None,
+    rate_multiplier=1.0,
+    scheduled_for=None,
+    normalised_to=None,
+    postage=None,
+    queue_name=None,
+):
+    return create_sample_notification(
+        notify_db,
+        notify_db_session,
+        service=None,
+        template=None,
+        job=None,
+        job_row_number=None,
+        to_field=None,
+        status="created",
+        provider_response=None,
+        reference=None,
+        created_at=None,
+        sent_at=None,
+        billable_units=1,
+        personalisation=None,
+        api_key=None,
+        key_type=KEY_TYPE_NORMAL,
+        sent_by=None,
+        international=False,
+        client_reference=None,
+        rate_multiplier=1.0,
+        scheduled_for=None,
+        normalised_to=None,
+        postage=None,
+        queue_name=None,
+    )
+
+
 @pytest.fixture
 def sample_letter_notification(sample_letter_template):
     address = {
@@ -626,8 +825,8 @@ def sample_letter_notification(sample_letter_template):
 def sample_email_notification(notify_db, notify_db_session):
     created_at = datetime.utcnow()
     service = create_service(check_if_service_exists=True)
-    template = sample_email_template(notify_db, notify_db_session, service=service)
-    job = sample_job(notify_db, notify_db_session, service=service, template=template)
+    template = create_sample_email_template(notify_db, notify_db_session, service=service)
+    job = create_sample_job(notify_db, notify_db_session, service=service, template=template)
 
     notification_id = uuid.uuid4()
 
@@ -721,8 +920,7 @@ def mock_encryption(mocker):
     return mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
 
 
-@pytest.fixture(scope="function")
-def sample_invited_user(notify_db, notify_db_session, service=None, to_email_address=None):
+def create_sample_invited_user(notify_db, notify_db_session, service=None, to_email_address=None):
 
     if service is None:
         service = create_service(check_if_service_exists=True)
@@ -744,12 +942,16 @@ def sample_invited_user(notify_db, notify_db_session, service=None, to_email_add
 
 
 @pytest.fixture(scope="function")
+def sample_invited_user(notify_db, notify_db_session, service=None, to_email_address=None):
+    return create_sample_invited_user(notify_db, notify_db_session, service, to_email_address)
+
+
+@pytest.fixture(scope="function")
 def sample_invited_org_user(notify_db, notify_db_session, sample_user, sample_organisation):
     return create_invited_org_user(sample_organisation, sample_user)
 
 
-@pytest.fixture(scope="function")
-def sample_user_service_permission(notify_db, notify_db_session, service=None, user=None, permission="manage_settings"):
+def create_sample_user_service_permission(notify_db, notify_db_session, service=None, user=None, permission="manage_settings"):
     if user is None:
         user = create_user()
     if service is None:
@@ -765,6 +967,11 @@ def sample_user_service_permission(notify_db, notify_db_session, service=None, u
         db.session.add(p_model)
         db.session.commit()
     return p_model
+
+
+@pytest.fixture(scope="function")
+def sample_user_service_permission(notify_db, notify_db_session, service=None, user=None, permission="manage_settings"):
+    return create_sample_user_service_permission(notify_db, notify_db_session, service, user, permission)
 
 
 @pytest.fixture(scope="function")
@@ -1068,8 +1275,7 @@ def notify_service(notify_db, notify_db_session):
     return service, user
 
 
-@pytest.fixture(scope="function")
-def sample_service_safelist(notify_db, notify_db_session, service=None, email_address=None, mobile_number=None):
+def create_sample_service_safelist(notify_db, notify_db_session, service=None, email_address=None, mobile_number=None):
     if service is None:
         service = create_service(check_if_service_exists=True)
 
@@ -1083,6 +1289,11 @@ def sample_service_safelist(notify_db, notify_db_session, service=None, email_ad
     notify_db.session.add(safelisted_user)
     notify_db.session.commit()
     return safelisted_user
+
+
+@pytest.fixture(scope="function")
+def sample_service_safelist(notify_db, notify_db_session, service=None, email_address=None, mobile_number=None):
+    return create_sample_service_safelist(notify_db, notify_db_session, service, email_address, mobile_number)
 
 
 @pytest.fixture(scope="function")
