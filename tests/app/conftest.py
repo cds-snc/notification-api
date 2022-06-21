@@ -887,7 +887,6 @@ def mock_encryption(mocker):
     return mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
 
 
-@pytest.fixture(scope="function")
 def create_sample_invited_user(notify_db, notify_db_session, service=None, to_email_address=None):
 
     if service is None:
