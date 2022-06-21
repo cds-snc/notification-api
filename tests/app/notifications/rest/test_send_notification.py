@@ -38,8 +38,8 @@ from tests.app.conftest import (
 from tests.app.conftest import create_sample_service_safelist
 from tests.app.conftest import create_sample_template
 from tests.app.conftest import (
-    sample_template_without_email_permission,
-    sample_template_without_sms_permission,
+    create_sample_template_without_email_permission,
+    create_sample_template_without_sms_permission,
 )
 from tests.app.db import create_reply_to_email, create_service
 
@@ -1129,12 +1129,12 @@ def test_should_allow_international_number_on_sms_notification(client, notify_db
     "template_factory, to, expected_error",
     [
         (
-            sample_template_without_sms_permission,
+            create_sample_template_without_sms_permission,
             "+16502532222",
             "Cannot send text messages",
         ),
         (
-            sample_template_without_email_permission,
+            create_sample_template_without_email_permission,
             "notify@digital.cabinet-office.gov.uk",
             "Cannot send emails",
         ),

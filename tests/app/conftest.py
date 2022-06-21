@@ -305,14 +305,12 @@ def sample_template(
     )
 
 
-@pytest.fixture(scope="function")
-def sample_template_without_sms_permission(notify_db, notify_db_session):
-    return sample_template(notify_db, notify_db_session, permissions=[EMAIL_TYPE])
+def create_sample_template_without_sms_permission(notify_db, notify_db_session):
+    return create_sample_template(notify_db, notify_db_session, permissions=[EMAIL_TYPE])
 
 
-@pytest.fixture(scope="function")
-def sample_template_without_letter_permission(notify_db, notify_db_session):
-    return sample_template(notify_db, notify_db_session, template_type="letter", permissions=[EMAIL_TYPE])
+def create_sample_template_without_letter_permission(notify_db, notify_db_session):
+    return create_sample_template(notify_db, notify_db_session, template_type="letter", permissions=[EMAIL_TYPE])
 
 
 @pytest.fixture(scope="function")
@@ -384,8 +382,7 @@ def sample_email_template(
     )
 
 
-@pytest.fixture(scope="function")
-def sample_template_without_email_permission(notify_db, notify_db_session):
+def create_sample_template_without_email_permission(notify_db, notify_db_session):
     return create_sample_email_template(notify_db, notify_db_session, permissions=[SMS_TYPE])
 
 
@@ -954,8 +951,7 @@ def sample_invited_org_user(notify_db, notify_db_session, sample_user, sample_or
     return create_invited_org_user(sample_organisation, sample_user)
 
 
-@pytest.fixture(scope="function")
-def sample_user_service_permission(notify_db, notify_db_session, service=None, user=None, permission="manage_settings"):
+def create_sample_user_service_permission(notify_db, notify_db_session, service=None, user=None, permission="manage_settings"):
     if user is None:
         user = create_user()
     if service is None:
@@ -971,6 +967,11 @@ def sample_user_service_permission(notify_db, notify_db_session, service=None, u
         db.session.add(p_model)
         db.session.commit()
     return p_model
+
+
+@pytest.fixture(scope="function")
+def sample_user_service_permission(notify_db, notify_db_session, service=None, user=None, permission="manage_settings"):
+    return create_sample_user_service_permission(notify_db, notify_db_session, service, user, permission)
 
 
 @pytest.fixture(scope="function")
@@ -1274,7 +1275,6 @@ def notify_service(notify_db, notify_db_session):
     return service, user
 
 
-@pytest.fixture(scope="function")
 def create_sample_service_safelist(notify_db, notify_db_session, service=None, email_address=None, mobile_number=None):
     if service is None:
         service = create_service(check_if_service_exists=True)

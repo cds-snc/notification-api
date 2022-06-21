@@ -24,7 +24,7 @@ from app.notifications.validators import (
 from app.utils import get_document_url
 from app.v2.errors import BadRequestError, RateLimitError, TooManyRequestsError
 from tests.app.conftest import create_sample_api_key
-from tests.app.conftest import sample_notification as create_notification
+from tests.app.conftest import create_sample_notification
 from tests.app.conftest import create_sample_service
 from tests.app.conftest import create_sample_service_safelist
 from tests.app.db import (
@@ -75,7 +75,7 @@ def test_should_set_cache_value_as_value_from_database_if_cache_not_set(
 ):
     with freeze_time("2016-01-01 12:00:00.000000"):
         for x in range(5):
-            create_notification(notify_db, notify_db_session, service=sample_service)
+            create_sample_notification(notify_db, notify_db_session, service=sample_service)
         mocker.patch("app.notifications.validators.redis_store.get", return_value=None)
         mocker.patch("app.notifications.validators.redis_store.set")
         check_service_over_daily_message_limit(key_type, sample_service)
@@ -100,7 +100,7 @@ def test_check_service_message_limit_over_message_limit_fails(key_type, notify_d
 
         service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=4)
         for x in range(5):
-            create_notification(notify_db, notify_db_session, service=service)
+            create_sample_notification(notify_db, notify_db_session, service=service)
         with pytest.raises(TooManyRequestsError) as e:
             check_service_over_daily_message_limit(key_type, service)
         assert e.value.status_code == 429
@@ -133,7 +133,7 @@ def test_check_service_message_limit_records_nearing_daily_limit(notify_db, noti
 
         service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=5)
         for x in range(4):
-            create_notification(notify_db, notify_db_session, service=service)
+            create_sample_notification(notify_db, notify_db_session, service=service)
 
         check_service_over_daily_message_limit("normal", service)
 
