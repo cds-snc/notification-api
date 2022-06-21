@@ -585,8 +585,7 @@ def sample_letter_job(sample_letter_template):
     return job
 
 
-@pytest.fixture(scope="function")
-def sample_notification_with_job(
+def create_sample_notification_with_job(
     notify_db,
     notify_db_session,
     service=None,
@@ -624,6 +623,43 @@ def sample_notification_with_job(
             api_key=api_key,
             key_type=key_type,
         )
+    )
+
+
+@pytest.fixture(scope="function")
+def sample_notification_with_job(
+    notify_db,
+    notify_db_session,
+    service=None,
+    template=None,
+    job=None,
+    job_row_number=None,
+    to_field=None,
+    status="created",
+    reference=None,
+    created_at=None,
+    sent_at=None,
+    billable_units=1,
+    personalisation=None,
+    api_key=None,
+    key_type=KEY_TYPE_NORMAL,
+):
+    return create_sample_notification_with_job(
+        notify_db,
+        notify_db_session,
+        service,
+        template,
+        job,
+        job_row_number,
+        to_field,
+        status,
+        reference,
+        created_at,
+        sent_at,
+        billable_units,
+        personalisation,
+        api_key,
+        key_type,
     )
 
 

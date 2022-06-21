@@ -41,7 +41,7 @@ from app.models import (
     User,
 )
 from tests import create_authorization_header
-from tests.app.conftest import create_sample_notification, sample_notification_with_job
+from tests.app.conftest import create_sample_notification, create_sample_notification_with_job
 from tests.app.conftest import (
     sample_user_service_permission as create_user_service_permission,
 )
@@ -1636,7 +1636,7 @@ def test_get_all_notifications_for_service_including_ones_made_by_jobs(
     include_from_test_key,
     expected_count_of_notifications,
 ):
-    with_job = sample_notification_with_job(notify_db, notify_db_session, service=sample_service)
+    with_job = create_sample_notification_with_job(notify_db, notify_db_session, service=sample_service)
     without_job = create_sample_notification(notify_db, notify_db_session, service=sample_service)
     # from_test_api_key
     create_sample_notification(notify_db, notify_db_session, service=sample_service, key_type=KEY_TYPE_TEST)

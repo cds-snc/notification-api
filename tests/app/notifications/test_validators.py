@@ -25,7 +25,7 @@ from app.utils import get_document_url
 from app.v2.errors import BadRequestError, RateLimitError, TooManyRequestsError
 from tests.app.conftest import create_sample_api_key
 from tests.app.conftest import sample_notification as create_notification
-from tests.app.conftest import sample_service as create_service
+from tests.app.conftest import create_sample_service
 from tests.app.conftest import sample_service_safelist
 from tests.app.db import (
     create_letter_contact,
@@ -98,7 +98,7 @@ def test_check_service_message_limit_over_message_limit_fails(key_type, notify_d
         redis_set = mocker.patch("app.redis_store.set")
         send_notification = mocker.patch("app.notifications.validators.send_notification_to_service_users")
 
-        service = create_service(notify_db, notify_db_session, restricted=True, limit=4)
+        service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=4)
         for x in range(5):
             create_notification(notify_db, notify_db_session, service=service)
         with pytest.raises(TooManyRequestsError) as e:
@@ -131,7 +131,7 @@ def test_check_service_message_limit_records_nearing_daily_limit(notify_db, noti
         redis_set = mocker.patch("app.redis_store.set")
         send_notification = mocker.patch("app.notifications.validators.send_notification_to_service_users")
 
-        service = create_service(notify_db, notify_db_session, restricted=True, limit=5)
+        service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=5)
         for x in range(4):
             create_notification(notify_db, notify_db_session, service=service)
 
@@ -167,7 +167,7 @@ def test_check_service_message_limit_does_not_send_notifications_if_already_did(
         redis_set = mocker.patch("app.redis_store.set")
         send_notification = mocker.patch("app.notifications.validators.send_notification_to_service_users")
 
-        service = create_service(notify_db, notify_db_session, restricted=True, limit=5)
+        service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=5)
 
         with pytest.raises(TooManyRequestsError) as e:
             check_service_over_daily_message_limit("normal", service)
@@ -191,7 +191,7 @@ def test_check_service_message_limit_in_cache_over_message_limit_fails(notify_db
         mocker.patch("app.notifications.validators.redis_store.set")
         mocker.patch("app.notifications.validators.services_dao")
 
-        service = create_service(notify_db, notify_db_session, restricted=True, limit=4)
+        service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=4)
         with pytest.raises(TooManyRequestsError) as e:
             check_service_over_daily_message_limit(key_type, service)
         assert e.value.status_code == 429
@@ -220,7 +220,7 @@ def test_check_service_message_limit_sends_statsd_over_message_limit_fails(
     mocker.patch("app.redis_store.get", return_value=5)
     mocker.patch("app.notifications.validators.redis_store.set")
 
-    service = create_service(notify_db, notify_db_session, restricted=is_trial_service, limit=4)
+    service = create_sample_service(notify_db, notify_db_session, restricted=is_trial_service, limit=4)
     with pytest.raises(TooManyRequestsError):
         check_service_over_daily_message_limit("normal", service)
 
@@ -233,7 +233,7 @@ def test_check_service_message_limit_skip_statsd_over_message_no_limit_fails(app
     mocker.patch("app.notifications.validators.redis_store.set")
 
     # When
-    service = create_service(notify_db, notify_db_session, restricted=True, limit=4)
+    service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=4)
     check_service_over_daily_message_limit("normal", service)
 
     # Then
@@ -275,14 +275,14 @@ def test_check_template_is_active_fails(sample_template):
 
 @pytest.mark.parametrize("key_type", ["test", "normal"])
 def test_service_can_send_to_recipient_passes(key_type, notify_db, notify_db_session):
-    trial_mode_service = create_service(notify_db, notify_db_session, service_name="trial mode", restricted=True)
+    trial_mode_service = create_sample_service(notify_db, notify_db_session, service_name="trial mode", restricted=True)
     assert service_can_send_to_recipient(trial_mode_service.users[0].email_address, key_type, trial_mode_service) is None
     assert service_can_send_to_recipient(trial_mode_service.users[0].mobile_number, key_type, trial_mode_service) is None
 
 
 @pytest.mark.parametrize("key_type", ["test", "normal"])
 def test_service_can_send_to_recipient_passes_for_live_service_non_team_member(key_type, notify_db, notify_db_session):
-    live_service = create_service(notify_db, notify_db_session, service_name="live", restricted=False)
+    live_service = create_sample_service(notify_db, notify_db_session, service_name="live", restricted=False)
     assert service_can_send_to_recipient("some_other_email@test.com", key_type, live_service) is None
     assert service_can_send_to_recipient("07513332413", key_type, live_service) is None
 
@@ -338,7 +338,7 @@ def test_service_can_send_to_recipient_fails_when_recipient_is_not_on_team(
     notify_db: RoutingSQLAlchemy,
     notify_db_session: RoutingSQLAlchemy,
 ):
-    trial_mode_service = create_service(notify_db, notify_db_session, service_name="trial mode", restricted=True)
+    trial_mode_service = create_sample_service(notify_db, notify_db_session, service_name="trial mode", restricted=True)
     with pytest.raises(BadRequestError) as exec_info:
         service_can_send_to_recipient(recipient, key_type, trial_mode_service)
     assert exec_info.value.status_code == 400
@@ -347,7 +347,7 @@ def test_service_can_send_to_recipient_fails_when_recipient_is_not_on_team(
 
 
 def test_service_can_send_to_recipient_fails_when_mobile_number_is_not_on_team(notify_db, notify_db_session):
-    live_service = create_service(notify_db, notify_db_session, service_name="live mode", restricted=False)
+    live_service = create_sample_service(notify_db, notify_db_session, service_name="live mode", restricted=False)
     with pytest.raises(BadRequestError) as e:
         service_can_send_to_recipient("0758964221", "team", live_service)
     assert e.value.status_code == 400
@@ -386,7 +386,7 @@ def test_that_when_exceed_rate_limit_request_fails(notify_db, notify_db_session,
         mocker.patch("app.redis_store.exceeded_rate_limit", return_value=True)
         mocker.patch("app.notifications.validators.services_dao")
 
-        service = create_service(notify_db, notify_db_session, restricted=True)
+        service = create_sample_service(notify_db, notify_db_session, restricted=True)
         api_key = create_sample_api_key(notify_db, notify_db_session, service=service, key_type=api_key_type)
         with pytest.raises(RateLimitError) as e:
             check_service_over_api_rate_limit(service, api_key)
@@ -406,7 +406,7 @@ def test_that_when_not_exceeded_rate_limit_request_succeeds(notify_db, notify_db
         mocker.patch("app.redis_store.exceeded_rate_limit", return_value=False)
         mocker.patch("app.notifications.validators.services_dao")
 
-        service = create_service(notify_db, notify_db_session, restricted=True)
+        service = create_sample_service(notify_db, notify_db_session, restricted=True)
         api_key = create_sample_api_key(notify_db, notify_db_session, service=service, key_type="normal")
 
         check_service_over_api_rate_limit(service, api_key)
@@ -420,7 +420,7 @@ def test_should_not_rate_limit_if_limiting_is_disabled(notify_db, notify_db_sess
         mocker.patch("app.redis_store.exceeded_rate_limit", return_value=False)
         mocker.patch("app.notifications.validators.services_dao")
 
-        service = create_service(notify_db, notify_db_session, restricted=True)
+        service = create_sample_service(notify_db, notify_db_session, restricted=True)
         api_key = create_sample_api_key(notify_db, notify_db_session, service=service)
 
         check_service_over_api_rate_limit(service, api_key)
@@ -433,7 +433,7 @@ def test_rejects_api_calls_with_international_numbers_if_service_does_not_allow_
     notify_db,
     notify_db_session,
 ):
-    service = create_service(notify_db, notify_db_session, permissions=[SMS_TYPE])
+    service = create_sample_service(notify_db, notify_db_session, permissions=[SMS_TYPE])
     with pytest.raises(BadRequestError) as e:
         validate_and_format_recipient("+20-12-1234-1234", key_type, service, SMS_TYPE)
     assert e.value.status_code == 400
@@ -443,7 +443,7 @@ def test_rejects_api_calls_with_international_numbers_if_service_does_not_allow_
 
 @pytest.mark.parametrize("key_type", ["test", "normal"])
 def test_allows_api_calls_with_international_numbers_if_service_does_allow_int_sms(key_type, notify_db, notify_db_session):
-    service = create_service(notify_db, notify_db_session, permissions=[SMS_TYPE, INTERNATIONAL_SMS_TYPE])
+    service = create_sample_service(notify_db, notify_db_session, permissions=[SMS_TYPE, INTERNATIONAL_SMS_TYPE])
     result = validate_and_format_recipient("+20-12-1234-1234", key_type, service, SMS_TYPE)
     assert result == "+201212341234"
 
