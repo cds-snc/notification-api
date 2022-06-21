@@ -793,7 +793,7 @@ def sample_email_notification(notify_db, notify_db_session):
     created_at = datetime.utcnow()
     service = create_service(check_if_service_exists=True)
     template = create_sample_email_template(notify_db, notify_db_session, service=service)
-    job = sample_job(notify_db, notify_db_session, service=service, template=template)
+    job = create_sample_job(notify_db, notify_db_session, service=service, template=template)
 
     notification_id = uuid.uuid4()
 
