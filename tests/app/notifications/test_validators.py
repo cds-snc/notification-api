@@ -23,10 +23,12 @@ from app.notifications.validators import (
 )
 from app.utils import get_document_url
 from app.v2.errors import BadRequestError, RateLimitError, TooManyRequestsError
-from tests.app.conftest import create_sample_api_key
-from tests.app.conftest import create_sample_notification
-from tests.app.conftest import create_sample_service
-from tests.app.conftest import create_sample_service_safelist
+from tests.app.conftest import (
+    create_sample_api_key,
+    create_sample_notification,
+    create_sample_service,
+    create_sample_service_safelist,
+)
 from tests.app.db import (
     create_letter_contact,
     create_reply_to_email,

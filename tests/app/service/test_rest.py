@@ -41,8 +41,11 @@ from app.models import (
     User,
 )
 from tests import create_authorization_header
-from tests.app.conftest import create_sample_notification, create_sample_notification_with_job
-from tests.app.conftest import create_sample_user_service_permission
+from tests.app.conftest import (
+    create_sample_notification,
+    create_sample_notification_with_job,
+    create_sample_user_service_permission,
+)
 from tests.app.db import (
     create_annual_billing,
     create_domain,

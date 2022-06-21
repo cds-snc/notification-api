@@ -16,8 +16,8 @@ from app.dao.service_permissions_dao import dao_add_service_permission
 from app.dao.templates_dao import dao_get_template_by_id, dao_redact_template
 from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE, Template, TemplateHistory
 from tests import create_authorization_header
-from tests.app.conftest import create_sample_template
 from tests.app.conftest import (
+    create_sample_template,
     create_sample_template_without_email_permission,
     create_sample_template_without_letter_permission,
     create_sample_template_without_sms_permission,

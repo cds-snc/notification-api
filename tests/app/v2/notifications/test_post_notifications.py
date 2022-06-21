@@ -30,9 +30,9 @@ from app.v2.notifications.notification_schemas import (
 )
 from tests import create_authorization_header
 from tests.app.conftest import (
+    create_sample_template,
     document_download_response,
     random_sized_content,
-    create_sample_template,
 )
 from tests.app.db import (
     create_api_key,

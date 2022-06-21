@@ -34,10 +34,8 @@ from tests.app.conftest import (
     create_sample_email_template,
     create_sample_notification,
     create_sample_service,
-)
-from tests.app.conftest import create_sample_service_safelist
-from tests.app.conftest import create_sample_template
-from tests.app.conftest import (
+    create_sample_service_safelist,
+    create_sample_template,
     create_sample_template_without_email_permission,
     create_sample_template_without_sms_permission,
 )
