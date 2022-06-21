@@ -41,8 +41,7 @@ from app.models import (
     User,
 )
 from tests import create_authorization_header
-from tests.app.conftest import create_sample_notification
-from tests.app.conftest import sample_notification_with_job
+from tests.app.conftest import create_sample_notification, sample_notification_with_job
 from tests.app.conftest import (
     sample_user_service_permission as create_user_service_permission,
 )

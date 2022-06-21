@@ -3,8 +3,6 @@ from collections import namedtuple
 from datetime import datetime
 from unittest.mock import ANY, MagicMock, call
 
-from tests.app.conftest import create_sample_email_template
-
 import pytest
 from flask import current_app
 from notifications_utils.recipients import validate_and_format_phone_number
@@ -34,7 +32,7 @@ from app.models import (
     Notification,
     Service,
 )
-from tests.app.conftest import document_download_response, sample_email_template
+from tests.app.conftest import create_sample_email_template, document_download_response
 from tests.app.db import (
     create_notification,
     create_reply_to_email,

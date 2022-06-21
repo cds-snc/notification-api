@@ -271,6 +271,7 @@ def create_sample_template(
 
     return template
 
+
 @pytest.fixture(scope="function")
 def sample_template(
     notify_db,
@@ -302,6 +303,7 @@ def sample_template(
         process_type="normal",
         permissions=[EMAIL_TYPE, SMS_TYPE],
     )
+
 
 @pytest.fixture(scope="function")
 def sample_template_without_sms_permission(notify_db, notify_db_session):
@@ -886,7 +888,7 @@ def mock_encryption(mocker):
 
 
 @pytest.fixture(scope="function")
-def sample_invited_user(notify_db, notify_db_session, service=None, to_email_address=None):
+def create_sample_invited_user(notify_db, notify_db_session, service=None, to_email_address=None):
 
     if service is None:
         service = create_service(check_if_service_exists=True)
@@ -905,6 +907,11 @@ def sample_invited_user(notify_db, notify_db_session, service=None, to_email_add
     invited_user = InvitedUser(**data)
     save_invited_user(invited_user)
     return invited_user
+
+
+@pytest.fixture(scope="function")
+def sample_invited_user(notify_db, notify_db_session, service=None, to_email_address=None):
+    return create_sample_invited_user(notify_db, notify_db_session, service, to_email_address)
 
 
 @pytest.fixture(scope="function")
