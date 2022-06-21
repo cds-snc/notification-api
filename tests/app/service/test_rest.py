@@ -1449,7 +1449,7 @@ def test_add_unknown_user_to_service_returns404(notify_api, notify_db, notify_db
             assert result["message"] == expected_message
 
 
-def test_remove_user_from_service(notify_db, notify_db_session, client):
+def test_remove_user_from_service(notify_db, notify_db_session, client, sample_user_service_permission):
     second_user = create_user(email="new@digital.cabinet-office.gov.uk")
     # Simulates successfully adding a user to the service
     second_permission = create_sample_user_service_permission(notify_db, notify_db_session, user=second_user)
