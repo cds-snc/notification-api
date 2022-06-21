@@ -228,8 +228,7 @@ def _sample_service_custom_letter_contact_block(sample_service):
     return sample_service
 
 
-@pytest.fixture(scope="function")
-def sample_template(
+def create_sample_template(
     notify_db,
     notify_db_session,
     template_name="Template Name",
@@ -272,6 +271,37 @@ def sample_template(
 
     return template
 
+@pytest.fixture(scope="function")
+def sample_template(
+    notify_db,
+    notify_db_session,
+    template_name="Template Name",
+    template_type="sms",
+    content="This is a template:\nwith a newline",
+    archived=False,
+    hidden=False,
+    subject_line="Subject",
+    user=None,
+    service=None,
+    created_by=None,
+    process_type="normal",
+    permissions=[EMAIL_TYPE, SMS_TYPE],
+):
+    return create_sample_template(
+        notify_db,
+        notify_db_session,
+        template_name="Template Name",
+        template_type="sms",
+        content="This is a template:\nwith a newline",
+        archived=False,
+        hidden=False,
+        subject_line="Subject",
+        user=None,
+        service=None,
+        created_by=None,
+        process_type="normal",
+        permissions=[EMAIL_TYPE, SMS_TYPE],
+    )
 
 @pytest.fixture(scope="function")
 def sample_template_without_sms_permission(notify_db, notify_db_session):
