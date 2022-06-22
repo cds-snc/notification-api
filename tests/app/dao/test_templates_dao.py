@@ -18,7 +18,7 @@ from app.dao.templates_dao import (
     dao_update_template,
     dao_update_template_reply_to,
 )
-from app.models import Template, TemplateFolder, TemplateHistory, TemplateRedacted
+from app.models import Template, TemplateHistory, TemplateRedacted
 from app.schemas import template_schema
 from tests.app.db import create_letter_contact, create_template
 
