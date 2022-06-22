@@ -199,8 +199,6 @@ class ServiceUser(BaseModel):
 
     __table_args__ = (UniqueConstraint("user_id", "service_id", name="uix_user_to_service"),)
 
-    user = db.relationship("User")
-
 
 user_to_organisation = db.Table(
     "user_to_organisation",
@@ -748,7 +746,6 @@ class ServicePermission(BaseModel):
         primary_key=True,
         nullable=False,
     )
-    service = db.relationship("Service")
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
 
     service_permission_types = db.relationship(Service, backref=db.backref("permissions", cascade="all, delete-orphan"))
