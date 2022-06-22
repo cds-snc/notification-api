@@ -20,7 +20,7 @@ from sqlalchemy import asc, desc, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.sql import functions
+from sqlalchemy.sql import functions, text
 from sqlalchemy.sql.expression import case
 from werkzeug.datastructures import MultiDict
 
@@ -376,7 +376,7 @@ def _delete_for_query(subquery):
 
 
 def insert_update_notification_history(notification_type, date_to_delete_from, service_id):
-    notifications = db.session.query(*[x.name for x in NotificationHistory.__table__.c]).filter(
+    notifications = db.session.query(*[text(x.name) for x in NotificationHistory.__table__.c]).filter(
         Notification.notification_type == notification_type,
         Notification.service_id == service_id,
         Notification.created_at < date_to_delete_from,
