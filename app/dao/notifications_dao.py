@@ -319,13 +319,13 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
         days=7
     )
     services_with_data_retention = [x.service_id for x in flexible_data_retention]
-    service_ids_to_purge = db.session.query(Service.id).filter(Service.id.notin_(services_with_data_retention)).all()
+    service_ids_to_purge = Service.query.filter(Service.id.notin_(services_with_data_retention)).all()
 
-    for service_id in service_ids_to_purge:
+    for service in service_ids_to_purge:
         if notification_type == LETTER_TYPE:
-            _delete_letters_from_s3(notification_type, service_id, seven_days_ago, qry_limit)
-        insert_update_notification_history(notification_type, seven_days_ago, service_id)
-        deleted += _delete_notifications(notification_type, seven_days_ago, service_id, qry_limit)
+            _delete_letters_from_s3(notification_type, service.id, seven_days_ago, qry_limit)
+        insert_update_notification_history(notification_type, seven_days_ago, service.id)
+        deleted += _delete_notifications(notification_type, seven_days_ago, service.id, qry_limit)
 
     current_app.logger.info("Finished deleting {} notifications".format(notification_type))
 
