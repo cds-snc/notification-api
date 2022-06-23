@@ -67,9 +67,11 @@ OSX users can run `brew bundle` and then `pre-commit install` to register the gi
 
 ### Run the local Docker containers
 
-To run the app, and its ecosystem, locally, run: `docker-compose -f ci/docker-compose-local.yml up`.  This also applies all migrations to the database container, ci_db_1.
+To run the app, and its ecosystem, locally, run:
 
-To see useful flags that you might want to use with the `up` subcommand, run `docker-compose up --help`.  This docker-compose command creates the container ci_app_1, among others.
+```docker-compose -f ci/docker-compose-local.yml up```
+
+This also applies all migrations to the database container, ci_db_1.  To see useful flags that you might want to use with the `up` subcommand, run `docker-compose up --help`.  This docker-compose command creates the container ci_app_1, among others.
 
 If AWS SES is enabled as a provider, you may need to run the following command to give the (simulated) SES permission to (pretend to) send e-mails:
 
@@ -103,9 +105,7 @@ To run all unit tests:
 docker-compose -f ci/docker-compose-test.yml up --abort-on-container-exit
 ```
 
-The Github workflow also runs these tests when you push code.
-
-TODO - How to run individual tests?
+The Github workflow also runs these tests when you push code.  Instructions for running a subset of tests are located in tests/README.md.
 
 ### Building the production application container
 

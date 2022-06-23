@@ -1,3 +1,4 @@
+# https://flask-sqlalchemy.palletsprojects.com/en/2.x/api/#flask_sqlalchemy.SQLAlchemy
 from flask_sqlalchemy import SQLAlchemy as _SQLAlchemy
 
 
