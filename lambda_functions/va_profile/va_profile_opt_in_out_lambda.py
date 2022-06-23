@@ -1,61 +1,87 @@
-# Tutorial: Configuring a Lambda function to access Amazon RDS in an Amazon VPC
-#   https://docs.aws.amazon.com/lambda/latest/dg/services-rds-tutorial.html
-# https://www.psycopg.org/docs/usage.html
+"""
+Tutorial: Configuring a Lambda function to access Amazon RDS in an Amazon VPC
+   https://docs.aws.amazon.com/lambda/latest/dg/services-rds-tutorial.html
+
+https://www.psycopg.org/docs/usage.html
+
+This code makes use of module variables (db_connection & PEM) for runtime efficiency.
+"""
 
 import boto3
 import logging
 import os
 import psycopg2
 import sys
-from http.client import ConnectionError, HTTPSConnection
+from http.client import HTTPSConnection
 from json import dumps
 from ssl import SSLContext, SSLError
 
 
 OPT_IN_OUT_QUERY = """SELECT va_profile_opt_in_out(%s, %s, %s, %s, %s);"""
-NOTIFY_ENVIRONMENT = os.getenv("notify_environment")
-NOTIFICATION_API_DB_URI = os.getenv("notification_api_db_uri")
+NOTIFY_ENVIRONMENT = os.getenv("NOTIFY_ENVIRONMENT")
 PEM = None
-VA_PROFILE_DOMAIN = os.getenv("va_profile_domain")
+SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI")
+VA_PROFILE_DOMAIN = os.getenv("VA_PROFILE_DOMAIN")
 VA_PROFILE_PATH_BASE = "/communication-hub/communication/v1/status/changelog/"
 
 
-if NOTIFICATION_API_DB_URI is None:
+if SQLALCHEMY_DATABASE_URI is None:
     logging.error("The database URI is not set.")
     sys.exit("Couldn't connect to the database.")
 
-if NOTIFY_ENVIRONMENT is None:
-    logging.error("Couldn't get the Notify environment.  This is necessary to retrieve the .pem file.")
-else:
-    # Read a .pem file from AWS Parameter Store.
 
-    ssm_client = boto3.client("ssm")
+def get_pem():
+    """
+    Read a .pem file from AWS Parameter Store.
+
+    AWS_REGION is set during unit testing.  In a deployment environment,
+    region_name=None will result in boto using the "default session".
+      https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/boto3.html?highlight=boto3.client#boto3.client
+    """
+
+    ssm_client = boto3.client("ssm", region_name=os.getenv("AWS_REGION"))
 
     response = ssm_client.get_parameter(
         Name=f"/{NOTIFY_ENVIRONMENT}/notification-api/profile-integration-pem",
         WithDecryption=True
     )
 
-    PEM = response.get("Parameter", {}).get("Value", None)
+    pem = response.get("Parameter", {}).get("Value", None)
+
+    if pem is None:
+        logging.debug(response)
+
+    return pem
+
+
+PEM = None
+
+
+if NOTIFY_ENVIRONMENT is None:
+    logging.error("Couldn't get the Notify environment.  This is necessary to retrieve the .pem file.")
+elif NOTIFY_ENVIRONMENT != "test":
+    PEM = get_pem()
 
     if PEM is None:
-        logging.error("Couldn't get the .pem file from SSM.")
-        logging.debug(response)
+        logging.error("Couldn't get the .pem chain from SSM.")
+
 
 if VA_PROFILE_DOMAIN is None:
     logging.error("Could not get the domain for VA Profile.")
 
 
-def make_connection():
+def make_connection(worker_id):
     """
     Return a connection to the database, or return None.
+
+    https://www.psycopg.org/docs/module.html#psycopg2.connect
+    https://www.psycopg.org/docs/module.html#exceptions
     """
 
     connection = None
 
-    # https://www.psycopg.org/docs/module.html#exceptions
     try:
-        connection = psycopg2.connect(NOTIFICATION_API_DB_URI)
+        connection = psycopg2.connect(SQLALCHEMY_DATABASE_URI + ('' if worker_id is None else f"_{worker_id}"))
     except psycopg2.Warning as e:
         logging.warning(e)
     except psycopg2.Error as e:
@@ -68,7 +94,7 @@ def make_connection():
 db_connection = None
 
 
-def va_profile_opt_in_out_lambda_handler(event: dict, context) -> dict:
+def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -> dict:
     """
     Use the event data to process veterans' opt-in/out requests as relayed by VA Profile.  The data fields
     are as specified in the "VA Profile Syncronization" document.  It looks like this:
@@ -93,8 +119,13 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context) -> dict:
         https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway.html
         https://docs.aws.amazon.com/lambda/latest/dg/python-handler.html
         https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-concepts.html#gettingstarted-concepts-event
+
+    When this function is called from a unit test, the database URI will differ slightly from the environment
+    variable, SQLALCHEMY_DATABASE_URI.  The parameter worker_id is used to construct the modified name in the
+    same manner as in the tests/conftest.py::notify_db fixture.
     """
 
+    global db_connection, pem
     logging.debug(event)
 
     if "txAuditId" not in event or "bios" not in event or not isinstance(event["bios"], list):
@@ -124,23 +155,26 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context) -> dict:
 
         try:
             params = (                             # Stored function parameters:
-                record["VaProfileId"],             #     _va_profile_id
-                record["CommunicationItemId"],     #     _communication_item_id
-                record["CommunicationChannelId"],  #     _communication_channel_name
+                record["vaProfileId"],             #     _va_profile_id
+                record["communicationItemId"],     #     _communication_item_id
+                record["communicationChannelId"],  #     _communication_channel_name
                 record["allowed"],                 #     _allowed
                 record["sourceDate"],              #     _source_datetime
             )
 
             if db_connection is None or db_connection.status != 0:
                 # Attempt to (re-)establish a database connection
-                db_connection = make_connection()
+                db_connection = make_connection(worker_id)
 
             if db_connection is None:
                 raise RuntimeError("No database connection.")
 
             # Execute the stored function.
             with db_connection.cursor() as c:
-                put_record["status"] = "COMPLETED_SUCCESS" if c.execute(OPT_IN_OUT_QUERY, params) else "COMPLETED_NOOP"
+                # https://www.psycopg.org/docs/cursor.html#cursor.execute
+                c.execute(OPT_IN_OUT_QUERY, params)
+                put_record["status"] = "COMPLETED_SUCCESS" if c.fetchone()[0] else "COMPLETED_NOOP"
+                db_connection.commit()
         except KeyError as e:
             # Bad Request.  Required attributes are missing.
             response["statusCode"] = 400

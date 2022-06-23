@@ -1,13 +1,11 @@
-from contextlib import contextmanager
-import os
-
-from flask import Flask
-from alembic.command import upgrade
-from alembic.config import Config
 import pytest
 import sqlalchemy
-
+import os
+from alembic.command import upgrade
+from alembic.config import Config
 from app import create_app, db, schemas
+from contextlib import contextmanager
+from flask import Flask
 
 
 @pytest.fixture(scope='session')
@@ -46,7 +44,6 @@ def client(notify_api):
 
 
 def create_test_db(database_uri):
-    # get the
     db_uri_parts = database_uri.split('/')
     postgres_db_uri = '/'.join(db_uri_parts[:-1] + ['postgres'])
 
@@ -56,11 +53,12 @@ def create_test_db(database_uri):
         isolation_level='AUTOCOMMIT',
         client_encoding='utf8'
     )
+
     try:
         result = postgres_db.execute(sqlalchemy.sql.text('CREATE DATABASE {}'.format(db_uri_parts[-1])))
         result.close()
     except sqlalchemy.exc.ProgrammingError:
-        # database "test_notification_api_master" already exists
+        # The database "test_notification_api_master" already exists.
         pass
     finally:
         postgres_db.dispose()
@@ -68,11 +66,16 @@ def create_test_db(database_uri):
 
 @pytest.fixture(scope='session')
 def notify_db(notify_api, worker_id):
-    assert 'test_notification_api' in db.engine.url.database, 'dont run tests against main db'
+    """
+    Yield an instance of flask_sqlalchemy.SQLAlchemy.
+        https://flask-sqlalchemy.palletsprojects.com/en/2.x/api/#flask_sqlalchemy.SQLAlchemy
+    """
 
-    # create a database for this worker thread -
+    assert "test_notification_api" in db.engine.url.database, "Don't run tests against main db."
+
+    # Create a database for this worker thread.
     from flask import current_app
-    current_app.config['SQLALCHEMY_DATABASE_URI'] += '_{}'.format(worker_id)
+    current_app.config['SQLALCHEMY_DATABASE_URI'] += f"_{worker_id}"
     create_test_db(current_app.config['SQLALCHEMY_DATABASE_URI'])
 
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -117,17 +120,11 @@ def notify_db_session(notify_db):
 @pytest.fixture
 def os_environ():
     """
-    clear os.environ, and restore it after the test runs
+    Copy os.environ, and restore it after the test runs.  Use this
+    whenever you expect code to edit environment variables.
     """
-    # for use whenever you expect code to edit environment variables
+
     old_env = os.environ.copy()
-
-    class EnvironDict(dict):
-        def __setitem__(self, key, value):
-            assert type(value) == str
-            super().__setitem__(key, value)
-
-    os.environ = EnvironDict()
     yield
     os.environ = old_env
 
