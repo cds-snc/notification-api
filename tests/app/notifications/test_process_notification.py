@@ -235,6 +235,233 @@ class TestPersistNotification:
             str(sample_template.service_id) + "-2016-01-01-count",
         )
 
+    @pytest.mark.parametrize(
+        "recipient, expected_international, expected_prefix, expected_units",
+        [
+            ("6502532222", False, "1", 1),  # NA
+            ("+16502532222", False, "1", 1),  # NA
+            ("+79587714230", True, "7", 1),  # Russia
+            ("+360623400400", True, "36", 3),
+        ],  # Hungary
+    )
+    def test_persist_notifications_with_international_info_stores_correct_info(
+        self,
+        sample_job,
+        sample_api_key,
+        mocker,
+        recipient,
+        expected_international,
+        expected_prefix,
+        expected_units,
+    ):
+        persist_notifications(
+            [
+                dict(
+                    template_id=sample_job.template.id,
+                    template_version=sample_job.template.version,
+                    recipient=recipient,
+                    service=sample_job.service,
+                    personalisation=None,
+                    notification_type="sms",
+                    api_key_id=sample_api_key.id,
+                    key_type=sample_api_key.key_type,
+                    job_id=sample_job.id,
+                    job_row_number=10,
+                    client_reference="ref from client",
+                )
+            ]
+        )
+        persisted_notification = Notification.query.all()[0]
+
+        assert persisted_notification.international is expected_international
+        assert persisted_notification.phone_prefix == expected_prefix
+        assert persisted_notification.rate_multiplier == expected_units
+
+    def test_persist_notification_with_international_info_does_not_store_for_email(self, sample_job, sample_api_key, mocker):
+        persist_notifications(
+            [
+                dict(
+                    template_id=sample_job.template.id,
+                    template_version=sample_job.template.version,
+                    recipient="foo@bar.com",
+                    service=sample_job.service,
+                    personalisation=None,
+                    notification_type="email",
+                    api_key_id=sample_api_key.id,
+                    key_type=sample_api_key.key_type,
+                    job_id=sample_job.id,
+                    job_row_number=10,
+                    client_reference="ref from client",
+                )
+            ]
+        )
+        persisted_notification = Notification.query.all()[0]
+
+        assert persisted_notification.international is False
+        assert persisted_notification.phone_prefix is None
+        assert persisted_notification.rate_multiplier is None
+
+    @pytest.mark.parametrize(
+        "recipient, expected_recipient_normalised",
+        [
+            ("6502532222", "+16502532222"),
+            ("  6502532223", "+16502532223"),
+            ("6502532223", "+16502532223"),
+        ],
+    )
+    def test_persist_sms_notifications_stores_normalised_number(
+        self, sample_job, sample_api_key, mocker, recipient, expected_recipient_normalised
+    ):
+        persist_notifications(
+            [
+                dict(
+                    template_id=sample_job.template.id,
+                    template_version=sample_job.template.version,
+                    recipient=recipient,
+                    service=sample_job.service,
+                    personalisation=None,
+                    notification_type="sms",
+                    api_key_id=sample_api_key.id,
+                    key_type=sample_api_key.key_type,
+                    job_id=sample_job.id,
+                )
+            ]
+        )
+        persisted_notification = Notification.query.all()[0]
+
+        assert persisted_notification.to == recipient
+        assert persisted_notification.normalised_to == expected_recipient_normalised
+
+    @pytest.mark.parametrize(
+        "recipient, expected_recipient_normalised",
+        [("FOO@bar.com", "foo@bar.com"), ("BAR@foo.com", "bar@foo.com")],
+    )
+    def test_persist_email_notifications_stores_normalised_email(
+        self, sample_job, sample_api_key, mocker, recipient, expected_recipient_normalised
+    ):
+        persist_notifications(
+            [
+                dict(
+                    template_id=sample_job.template.id,
+                    template_version=sample_job.template.version,
+                    recipient=recipient,
+                    service=sample_job.service,
+                    personalisation=None,
+                    notification_type="email",
+                    api_key_id=sample_api_key.id,
+                    key_type=sample_api_key.key_type,
+                    job_id=sample_job.id,
+                )
+            ]
+        )
+        persisted_notification = Notification.query.all()[0]
+
+        assert persisted_notification.to == recipient
+        assert persisted_notification.normalised_to == expected_recipient_normalised
+
+    @pytest.mark.skip(reason="Deprecated: Letter code")
+    @pytest.mark.parametrize(
+        "postage_argument, template_postage, expected_postage",
+        [
+            ("second", "first", "second"),
+            ("first", "first", "first"),
+            ("first", "second", "first"),
+            (None, "second", "second"),
+        ],
+    )
+    def test_persist_letter_notification_finds_correct_postage(
+        mocker,
+        notify_db,
+        notify_db_session,
+        postage_argument,
+        template_postage,
+        expected_postage,
+    ):
+        service = create_service(service_permissions=[LETTER_TYPE])
+        api_key = create_sample_api_key(notify_db, notify_db_session, service=service)
+        template = create_template(service, template_type=LETTER_TYPE, postage=template_postage)
+        mocker.patch("app.dao.templates_dao.dao_get_template_by_id", return_value=template)
+        persist_notifications(
+            [
+                dict(
+                    template_id=template.id,
+                    template_version=template.version,
+                    template_postage=template.postage,
+                    recipient="Jane Doe, 10 Downing Street, London",
+                    service=service,
+                    personalisation=None,
+                    notification_type=LETTER_TYPE,
+                    api_key_id=api_key.id,
+                    key_type=api_key.key_type,
+                    postage=postage_argument,
+                )
+            ]
+        )
+        persisted_notification = Notification.query.all()[0]
+
+        assert persisted_notification.postage == expected_postage
+
+    def test_persist_notification_with_billable_units_stores_correct_info(self, mocker, notify_db_session):
+        service = create_service(service_permissions=[LETTER_TYPE])
+        template = create_template(service, template_type=LETTER_TYPE)
+        mocker.patch("app.dao.templates_dao.dao_get_template_by_id", return_value=template)
+        persist_notifications(
+            [
+                dict(
+                    template_id=template.id,
+                    template_version=template.version,
+                    recipient="123 Main Street",
+                    service=template.service,
+                    personalisation=None,
+                    notification_type=template.template_type,
+                    api_key_id=None,
+                    key_type="normal",
+                    billable_units=3,
+                    template_postage=template.postage,
+                )
+            ]
+        )
+        persisted_notification = Notification.query.all()[0]
+        assert persisted_notification.billable_units == 3
+
+    def test_persist_notifications_list(self, sample_job, sample_api_key, notify_db_session):
+        persist_notifications(
+            [
+                dict(
+                    template_id=sample_job.template.id,
+                    template_version=sample_job.template.version,
+                    recipient="foo@bar.com",
+                    service=sample_job.service,
+                    personalisation=None,
+                    notification_type="email",
+                    api_key_id=sample_api_key.id,
+                    key_type=sample_api_key.key_type,
+                    job_id=sample_job.id,
+                    job_row_number=10,
+                    client_reference="ref from client",
+                ),
+                dict(
+                    template_id=sample_job.template.id,
+                    template_version=sample_job.template.version,
+                    recipient="foo2@bar.com",
+                    service=sample_job.service,
+                    personalisation=None,
+                    notification_type="email",
+                    api_key_id=sample_api_key.id,
+                    key_type=sample_api_key.key_type,
+                    job_id=sample_job.id,
+                    job_row_number=10,
+                    client_reference="ref from client",
+                ),
+            ]
+        )
+        persisted_notification = Notification.query.all()
+
+        assert persisted_notification[0].to == "foo@bar.com"
+        assert persisted_notification[1].to == "foo2@bar.com"
+        assert persisted_notification[0].service == sample_job.service
+
+
 class TestSendNotificationQueue:
     @pytest.mark.parametrize(
         ("research_mode, requested_queue, notification_type, key_type, reply_to_text, expected_queue, expected_task"),
@@ -357,7 +584,6 @@ class TestSendNotificationQueue:
 
         mocked.assert_called_once_with([str(notification.id)], queue=expected_queue)
 
-
     def test_send_notification_to_queue_throws_exception_deletes_notification(self, sample_notification, mocker):
         mocked = mocker.patch(
             "app.celery.provider_tasks.deliver_sms.apply_async",
@@ -371,372 +597,168 @@ class TestSendNotificationQueue:
         assert NotificationHistory.query.count() == 0
 
 
-@pytest.mark.parametrize(
-    "to_address, notification_type, expected",
-    [
-        ("+16132532222", "sms", True),
-        ("+16132532223", "sms", True),
-        ("6132532222", "sms", True),
-        ("simulate-delivered@notification.canada.ca", "email", True),
-        ("simulate-delivered-2@notification.canada.ca", "email", True),
-        ("simulate-delivered-3@notification.canada.ca", "email", True),
-        ("6132532225", "sms", False),
-        ("valid_email@test.com", "email", False),
-    ],
-)
-def test_simulated_recipient(notify_api, to_address, notification_type, expected):
-    """
-    The values where the expected = 'research-mode' are listed in the config['SIMULATED_EMAIL_ADDRESSES']
-    and config['SIMULATED_SMS_NUMBERS']. These values should result in using the research mode queue.
-    SIMULATED_EMAIL_ADDRESSES = (
-        'simulate-delivered@notification.canada.ca',
-        'simulate-delivered-2@notification.canada.ca',
-        'simulate-delivered-2@notification.canada.ca'
+class TestSimulatedRecipient:
+    @pytest.mark.parametrize(
+        "to_address, notification_type, expected",
+        [
+            ("+16132532222", "sms", True),
+            ("+16132532223", "sms", True),
+            ("6132532222", "sms", True),
+            ("simulate-delivered@notification.canada.ca", "email", True),
+            ("simulate-delivered-2@notification.canada.ca", "email", True),
+            ("simulate-delivered-3@notification.canada.ca", "email", True),
+            ("6132532225", "sms", False),
+            ("valid_email@test.com", "email", False),
+        ],
     )
-    SIMULATED_SMS_NUMBERS = ('6132532222', '+16132532222', '+16132532223')
-    """
-    formatted_address = None
+    def test_simulated_recipient(self, notify_api, to_address, notification_type, expected):
+        """
+        The values where the expected = 'research-mode' are listed in the config['SIMULATED_EMAIL_ADDRESSES']
+        and config['SIMULATED_SMS_NUMBERS']. These values should result in using the research mode queue.
+        SIMULATED_EMAIL_ADDRESSES = (
+            'simulate-delivered@notification.canada.ca',
+            'simulate-delivered-2@notification.canada.ca',
+            'simulate-delivered-2@notification.canada.ca'
+        )
+        SIMULATED_SMS_NUMBERS = ('6132532222', '+16132532222', '+16132532223')
+        """
+        formatted_address = None
 
-    if notification_type == "email":
-        formatted_address = validate_and_format_email_address(to_address)
-    else:
-        formatted_address = validate_and_format_phone_number(to_address)
+        if notification_type == "email":
+            formatted_address = validate_and_format_email_address(to_address)
+        else:
+            formatted_address = validate_and_format_phone_number(to_address)
 
-    is_simulated_address = simulated_recipient(formatted_address, notification_type)
+        is_simulated_address = simulated_recipient(formatted_address, notification_type)
 
-    assert is_simulated_address == expected
-
-
-@pytest.mark.parametrize(
-    "recipient, expected_international, expected_prefix, expected_units",
-    [
-        ("6502532222", False, "1", 1),  # NA
-        ("+16502532222", False, "1", 1),  # NA
-        ("+79587714230", True, "7", 1),  # Russia
-        ("+360623400400", True, "36", 3),
-    ],  # Hungary
-)
-def test_persist_notification_with_international_info_stores_correct_info(
-    sample_job,
-    sample_api_key,
-    mocker,
-    recipient,
-    expected_international,
-    expected_prefix,
-    expected_units,
-):
-    persist_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
-        recipient=recipient,
-        service=sample_job.service,
-        personalisation=None,
-        notification_type="sms",
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
-        job_row_number=10,
-        client_reference="ref from client",
-    )
-    persisted_notification = Notification.query.all()[0]
-
-    assert persisted_notification.international is expected_international
-    assert persisted_notification.phone_prefix == expected_prefix
-    assert persisted_notification.rate_multiplier == expected_units
-
-
-def test_persist_notification_with_international_info_does_not_store_for_email(sample_job, sample_api_key, mocker):
-    persist_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
-        recipient="foo@bar.com",
-        service=sample_job.service,
-        personalisation=None,
-        notification_type="email",
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
-        job_row_number=10,
-        client_reference="ref from client",
-    )
-    persisted_notification = Notification.query.all()[0]
-
-    assert persisted_notification.international is False
-    assert persisted_notification.phone_prefix is None
-    assert persisted_notification.rate_multiplier is None
+        assert is_simulated_address == expected
 
 
 # This test assumes the local timezone is EST
-def test_persist_scheduled_notification(sample_notification):
-    persist_scheduled_notification(sample_notification.id, "2017-05-12 14:15")
-    scheduled_notification = ScheduledNotification.query.all()
-    assert len(scheduled_notification) == 1
-    assert scheduled_notification[0].notification_id == sample_notification.id
-    assert scheduled_notification[0].scheduled_for == datetime.datetime(2017, 5, 12, 18, 15)
+class TestScheduledNotification:
+    def test_persist_scheduled_notification(self, sample_notification):
+        persist_scheduled_notification(sample_notification.id, "2017-05-12 14:15")
+        scheduled_notification = ScheduledNotification.query.all()
+        assert len(scheduled_notification) == 1
+        assert scheduled_notification[0].notification_id == sample_notification.id
+        assert scheduled_notification[0].scheduled_for == datetime.datetime(2017, 5, 12, 18, 15)
 
 
-@pytest.mark.parametrize(
-    "recipient, expected_recipient_normalised",
-    [
-        ("6502532222", "+16502532222"),
-        ("  6502532223", "+16502532223"),
-        ("6502532223", "+16502532223"),
-    ],
-)
-def test_persist_sms_notification_stores_normalised_number(
-    sample_job, sample_api_key, mocker, recipient, expected_recipient_normalised
-):
-    persist_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
-        recipient=recipient,
-        service=sample_job.service,
-        personalisation=None,
-        notification_type="sms",
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
+class TestChooseQueue:
+    @pytest.mark.parametrize(
+        ("research_mode, requested_queue, notification_type, key_type, reply_to_text, expected_queue"),
+        [
+            (True, None, "sms", "normal", None, "research-mode-tasks"),
+            (True, None, "email", "normal", None, "research-mode-tasks"),
+            (True, None, "email", "team", None, "research-mode-tasks"),
+            (
+                True,
+                None,
+                "letter",
+                "normal",
+                None,
+                "research-mode-tasks",
+            ),
+            (
+                True,
+                None,
+                "sms",
+                "normal",
+                "+14383898585",
+                "send-throttled-sms-tasks",
+            ),
+            (False, None, "sms", "normal", None, "send-sms-tasks"),
+            (False, None, "email", "normal", None, "send-email-tasks"),
+            (False, None, "sms", "team", None, "send-sms-tasks"),
+            (
+                False,
+                None,
+                "letter",
+                "normal",
+                None,
+                "create-letters-pdf-tasks",
+            ),
+            (False, None, "sms", "test", None, "research-mode-tasks"),
+            (
+                False,
+                None,
+                "sms",
+                "normal",
+                "+14383898585",
+                "send-throttled-sms-tasks",
+            ),
+            (
+                True,
+                "notify-internal-tasks",
+                "email",
+                "normal",
+                None,
+                "research-mode-tasks",
+            ),
+            (
+                False,
+                "notify-internal-tasks",
+                "sms",
+                "normal",
+                None,
+                "notify-internal-tasks",
+            ),
+            (
+                False,
+                "notify-internal-tasks",
+                "email",
+                "normal",
+                None,
+                "notify-internal-tasks",
+            ),
+            (
+                False,
+                "notify-internal-tasks",
+                "sms",
+                "test",
+                None,
+                "research-mode-tasks",
+            ),
+            (
+                False,
+                "notify-internal-tasks",
+                "sms",
+                "normal",
+                "+14383898585",
+                "send-throttled-sms-tasks",
+            ),
+        ],
     )
-    persisted_notification = Notification.query.all()[0]
-
-    assert persisted_notification.to == recipient
-    assert persisted_notification.normalised_to == expected_recipient_normalised
-
-
-@pytest.mark.parametrize(
-    "recipient, expected_recipient_normalised",
-    [("FOO@bar.com", "foo@bar.com"), ("BAR@foo.com", "bar@foo.com")],
-)
-def test_persist_email_notification_stores_normalised_email(
-    sample_job, sample_api_key, mocker, recipient, expected_recipient_normalised
-):
-    persist_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
-        recipient=recipient,
-        service=sample_job.service,
-        personalisation=None,
-        notification_type="email",
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
-    )
-    persisted_notification = Notification.query.all()[0]
-
-    assert persisted_notification.to == recipient
-    assert persisted_notification.normalised_to == expected_recipient_normalised
-
-
-@pytest.mark.parametrize(
-    "postage_argument, template_postage, expected_postage",
-    [
-        ("second", "first", "second"),
-        ("first", "first", "first"),
-        ("first", "second", "first"),
-        (None, "second", "second"),
-    ],
-)
-def test_persist_letter_notification_finds_correct_postage(
-    mocker,
-    notify_db,
-    notify_db_session,
-    postage_argument,
-    template_postage,
-    expected_postage,
-):
-    service = create_service(service_permissions=[LETTER_TYPE])
-    api_key = create_sample_api_key(notify_db, notify_db_session, service=service)
-    template = create_template(service, template_type=LETTER_TYPE, postage=template_postage)
-    mocker.patch("app.dao.templates_dao.dao_get_template_by_id", return_value=template)
-    persist_notification(
-        template_id=template.id,
-        template_version=template.version,
-        template_postage=template.postage,
-        recipient="Jane Doe, 10 Downing Street, London",
-        service=service,
-        personalisation=None,
-        notification_type=LETTER_TYPE,
-        api_key_id=api_key.id,
-        key_type=api_key.key_type,
-        postage=postage_argument,
-    )
-    persisted_notification = Notification.query.all()[0]
-
-    assert persisted_notification.postage == expected_postage
-
-
-def test_persist_notification_with_billable_units_stores_correct_info(mocker, notify_db_session):
-    service = create_service(service_permissions=[LETTER_TYPE])
-    template = create_template(service, template_type=LETTER_TYPE)
-    mocker.patch("app.dao.templates_dao.dao_get_template_by_id", return_value=template)
-    persist_notification(
-        template_id=template.id,
-        template_version=template.version,
-        recipient="123 Main Street",
-        service=template.service,
-        personalisation=None,
-        notification_type=template.template_type,
-        api_key_id=None,
-        key_type="normal",
-        billable_units=3,
-        template_postage=template.postage,
-    )
-    persisted_notification = Notification.query.all()[0]
-    assert persisted_notification.billable_units == 3
-
-
-class TestPersistNotifications1:
-    def test_persist_notifications_list(self, sample_job, sample_api_key, notify_db_session):
-        persist_notifications(
-            [
-                dict(
-                    template_id=sample_job.template.id,
-                    template_version=sample_job.template.version,
-                    recipient="foo@bar.com",
-                    service=sample_job.service,
-                    personalisation=None,
-                    notification_type="email",
-                    api_key_id=sample_api_key.id,
-                    key_type=sample_api_key.key_type,
-                    job_id=sample_job.id,
-                    job_row_number=10,
-                    client_reference="ref from client",
-                ),
-                dict(
-                    template_id=sample_job.template.id,
-                    template_version=sample_job.template.version,
-                    recipient="foo2@bar.com",
-                    service=sample_job.service,
-                    personalisation=None,
-                    notification_type="email",
-                    api_key_id=sample_api_key.id,
-                    key_type=sample_api_key.key_type,
-                    job_id=sample_job.id,
-                    job_row_number=10,
-                    client_reference="ref from client",
-                ),
-            ]
+    def test_choose_queue(
+        self,
+        sample_template,
+        sample_api_key,
+        sample_job,
+        research_mode,
+        requested_queue,
+        notification_type,
+        key_type,
+        reply_to_text,
+        expected_queue,
+    ):
+        notification = Notification(
+            id=uuid.uuid4(),
+            template_id=sample_template.id,
+            template_version=sample_template.version,
+            service=sample_template.service,
+            personalisation={},
+            notification_type=notification_type,
+            api_key_id=sample_api_key.id,
+            key_type=key_type,
+            job_id=sample_job.id,
+            job_row_number=100,
+            reference="ref",
+            reply_to_text=reply_to_text,
+            to="+16502532222",
+            created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
         )
-        persisted_notification = Notification.query.all()
 
-        assert persisted_notification[0].to == "foo@bar.com"
-        assert persisted_notification[1].to == "foo2@bar.com"
-        assert persisted_notification[0].service == sample_job.service
-
-
-@pytest.mark.parametrize(
-    ("research_mode, requested_queue, notification_type, key_type, reply_to_text, expected_queue"),
-    [
-        (True, None, "sms", "normal", None, "research-mode-tasks"),
-        (True, None, "email", "normal", None, "research-mode-tasks"),
-        (True, None, "email", "team", None, "research-mode-tasks"),
-        (
-            True,
-            None,
-            "letter",
-            "normal",
-            None,
-            "research-mode-tasks",
-        ),
-        (
-            True,
-            None,
-            "sms",
-            "normal",
-            "+14383898585",
-            "send-throttled-sms-tasks",
-        ),
-        (False, None, "sms", "normal", None, "send-sms-tasks"),
-        (False, None, "email", "normal", None, "send-email-tasks"),
-        (False, None, "sms", "team", None, "send-sms-tasks"),
-        (
-            False,
-            None,
-            "letter",
-            "normal",
-            None,
-            "create-letters-pdf-tasks",
-        ),
-        (False, None, "sms", "test", None, "research-mode-tasks"),
-        (
-            False,
-            None,
-            "sms",
-            "normal",
-            "+14383898585",
-            "send-throttled-sms-tasks",
-        ),
-        (
-            True,
-            "notify-internal-tasks",
-            "email",
-            "normal",
-            None,
-            "research-mode-tasks",
-        ),
-        (
-            False,
-            "notify-internal-tasks",
-            "sms",
-            "normal",
-            None,
-            "notify-internal-tasks",
-        ),
-        (
-            False,
-            "notify-internal-tasks",
-            "email",
-            "normal",
-            None,
-            "notify-internal-tasks",
-        ),
-        (
-            False,
-            "notify-internal-tasks",
-            "sms",
-            "test",
-            None,
-            "research-mode-tasks",
-        ),
-        (
-            False,
-            "notify-internal-tasks",
-            "sms",
-            "normal",
-            "+14383898585",
-            "send-throttled-sms-tasks",
-        ),
-    ],
-)
-def test_choose_queue(
-    sample_template,
-    sample_api_key,
-    sample_job,
-    research_mode,
-    requested_queue,
-    notification_type,
-    key_type,
-    reply_to_text,
-    expected_queue,
-):
-    notification = Notification(
-        id=uuid.uuid4(),
-        template_id=sample_template.id,
-        template_version=sample_template.version,
-        service=sample_template.service,
-        personalisation={},
-        notification_type=notification_type,
-        api_key_id=sample_api_key.id,
-        key_type=key_type,
-        job_id=sample_job.id,
-        job_row_number=100,
-        reference="ref",
-        reply_to_text=reply_to_text,
-        to="+16502532222",
-        created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
-    )
-
-    assert choose_queue(notification, research_mode, requested_queue) == expected_queue
+        assert choose_queue(notification, research_mode, requested_queue) == expected_queue
 
 
 class TestTransformNotification:
