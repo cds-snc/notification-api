@@ -216,12 +216,16 @@
         {
           "name": "ECS_FARGATE",
           "value": "true"
+        },
+        {
+          "name": "DD_SITE",
+          "value": "ddog-gov.com"
         }
       ],
       "secrets": [
         {
           "name": "DD_API_KEY",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/datadog/apikey"
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/datadog-gov/apikey"
         }
       ]
     }
