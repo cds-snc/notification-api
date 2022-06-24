@@ -20,7 +20,7 @@ from sqlalchemy import asc, desc, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.sql import functions, text
+from sqlalchemy.sql import functions, literal_column
 from sqlalchemy.sql.expression import case
 from werkzeug.datastructures import MultiDict
 
@@ -319,8 +319,7 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
         days=7
     )
     services_with_data_retention = [x.service_id for x in flexible_data_retention]
-    # service_ids_to_purge = Service.query.filter(Service.id.notin_(services_with_data_retention)).all()
-    service_ids_to_purge = Service.query.filter(Service.id.notin_(services_with_data_retention)).all()
+    service_ids_to_purge = db.session.query(Service.id).filter(Service.id.notin_(services_with_data_retention)).all()
 
     for service_id in service_ids_to_purge:
         if notification_type == LETTER_TYPE:
@@ -377,7 +376,7 @@ def _delete_for_query(subquery):
 
 
 def insert_update_notification_history(notification_type, date_to_delete_from, service_id):
-    notifications = db.session.query(*[text(x.name) for x in NotificationHistory.__table__.c]).filter(
+    notifications = db.session.query(*[literal_column(x.name) for x in NotificationHistory.__table__.c]).filter(
         Notification.notification_type == notification_type,
         Notification.service_id == service_id,
         Notification.created_at < date_to_delete_from,
