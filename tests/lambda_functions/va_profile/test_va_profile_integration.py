@@ -9,6 +9,7 @@ created or updated; otherwise, False.
 """
 
 import os
+import pytest
 from lambda_functions.va_profile.va_profile_opt_in_out_lambda import va_profile_opt_in_out_lambda_handler
 from sqlalchemy import text
 
@@ -30,7 +31,7 @@ def verify_opt_in_status(identifier: int, opted_in: bool, connection):
 
     va_profile_test = VA_PROFILE_TEST.bindparams(
         va_profile_id=identifier,
-        communication_item_id=identifier,
+        communication_item_id=5,
         communication_channel_id=identifier
     )
 
@@ -56,7 +57,7 @@ def setup_db(connection):
 
     opt_in_out = OPT_IN_OUT.bindparams(
         va_profile_id=0,
-        communication_item_id=0,
+        communication_item_id=5,
         communication_channel_id=0,
         allowed=False,
         source_datetime="2022-03-07T19:37:59.320Z"
@@ -85,7 +86,7 @@ def test_va_profile_stored_function_older_date(notify_db_session):
 
         opt_in_out = OPT_IN_OUT.bindparams(
             va_profile_id=0,
-            communication_item_id=0,
+            communication_item_id=5,
             communication_channel_id=0,
             allowed=True,
             source_datetime="2022-02-07T19:37:59.320Z"  # Older date
@@ -110,7 +111,7 @@ def test_va_profile_stored_function_newer_date(notify_db_session):
 
         opt_in_out = OPT_IN_OUT.bindparams(
             va_profile_id=0,
-            communication_item_id=0,
+            communication_item_id=5,
             communication_channel_id=0,
             allowed=True,
             source_datetime="2022-04-07T19:37:59.320Z"  # Newer date
@@ -135,7 +136,7 @@ def test_va_profile_stored_function_new_row(notify_db_session):
 
         opt_in_out = OPT_IN_OUT.bindparams(
             va_profile_id=1,
-            communication_item_id=1,
+            communication_item_id=5,
             communication_channel_id=1,
             allowed=True,
             source_datetime="2022-02-07T19:37:59.320Z"
@@ -155,7 +156,7 @@ def test_va_profile_opt_in_out_lambda_handler_missing_attribute():
     Test the VA Profile integration lambda by sending a bad request (missing top level attribute).
     """
 
-    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 0, 0, True)
+    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 0, 5, True)
     del event["txAuditId"]
     response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
@@ -173,7 +174,7 @@ def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id):
         setup_db(connection)
 
     # Send a request that should result in a new row.
-    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 1, 1, 1, True)
+    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 1, 1, 5, True)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
@@ -194,7 +195,7 @@ def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id):
     with notify_db.engine.begin() as connection:
         setup_db(connection)
 
-    event = create_event("txAuditId", "txAuditId", "2022-02-07T19:37:59.320Z", 0, 0, 0, True)
+    event = create_event("txAuditId", "txAuditId", "2022-02-07T19:37:59.320Z", 0, 0, 5, True)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
@@ -215,7 +216,7 @@ def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id):
     with notify_db.engine.begin() as connection:
         setup_db(connection)
 
-    event = create_event("txAuditId", "txAuditId", "2022-04-07T19:37:59.320Z", 0, 0, 0, True)
+    event = create_event("txAuditId", "txAuditId", "2022-04-07T19:37:59.320Z", 0, 0, 5, True)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
@@ -259,3 +260,10 @@ def create_bios_element(tx_audit_id: str, source_date: str, va_profile_id: int, 
         "allowed": is_allowed,
     }
 
+
+@pytest.mark.skip(reason="need to test PUT response")
+def test_communication_channel_id_not_5():
+    event = create_event("tx_audit_id", "2022-04-27T16:57:16Z", 2, 3, 4, True)
+    response = va_profile_opt_in_out_lambda_handler(event)
+    assert isinstance(response, dict), "Response is not a dictionary."
+    assert response["statusCode"] == 200
