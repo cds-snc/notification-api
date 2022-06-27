@@ -109,8 +109,7 @@ def dao_get_template_by_id(
                 return TemplateHistory.from_json(template_cache_decoded), template_cache_decoded
             else:
                 return Template.from_json(template_cache_decoded), template_cache_decoded
-
-    elif version is not None:
+    if version is not None:
         return TemplateHistory.query.filter_by(id=template_id, version=version).one()
     return Template.query.filter_by(id=template_id).one()
 
