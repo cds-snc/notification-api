@@ -153,6 +153,11 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
             put_request_body["bios"].append(put_record)
             continue
 
+        if record.get("communicationItemId", -1) != 5:
+            put_record["status"] = "COMPLETED_NOOP"
+            put_request_body["bios"].append(put_record)
+            continue
+
         try:
             params = (                             # Stored function parameters:
                 record["vaProfileId"],             #     _va_profile_id
