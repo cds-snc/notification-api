@@ -32,13 +32,13 @@ def notification_url(environment) -> str:
 
 
 @pytest.fixture(scope="session")
-def admin_jwt_token(environment) -> bytes:
+def admin_jwt_token(environment) -> str:
     return encode_jwt('notify-admin', get_admin_client_secret(environment))
 
 
 @pytest.fixture(scope="session")
 def get_services_response(notification_url, admin_jwt_token) -> Response:
-    return get_authenticated_request(F"{notification_url}/service", admin_jwt_token)
+    return get_authenticated_request(f"{notification_url}/service", admin_jwt_token)
 
 
 @pytest.fixture(scope="session")
@@ -52,7 +52,7 @@ def service_id(get_services_response) -> str:
 
 @pytest.fixture(scope="session")
 def get_templates_response(notification_url, admin_jwt_token, service_id) -> Response:
-    return get_authenticated_request(F"{notification_url}/service/{service_id}/template", admin_jwt_token)
+    return get_authenticated_request(f"{notification_url}/service/{service_id}/template", admin_jwt_token)
 
 
 @pytest.fixture(scope="session")
@@ -75,7 +75,7 @@ def sms_template_id(get_templates_response) -> str:
 
 @pytest.fixture(scope="session")
 def get_users_response(notification_url, admin_jwt_token) -> Response:
-    return get_authenticated_request(F"{notification_url}/user", admin_jwt_token)
+    return get_authenticated_request(f"{notification_url}/user", admin_jwt_token)
 
 
 @pytest.fixture(scope="session")
@@ -105,7 +105,7 @@ def test_api_healthy(notification_url):
 
 
 def test_get_organizations(notification_url, admin_jwt_token):
-    organizations = get_authenticated_request(F"{notification_url}/organisations", admin_jwt_token)
+    organizations = get_authenticated_request(f"{notification_url}/organisations", admin_jwt_token)
     assert organizations.status_code == 200
 
 
