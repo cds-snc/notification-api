@@ -55,7 +55,7 @@ def rows_to_csv(rows):
 
 class TestPostNotificationsSms:
     @pytest.mark.parametrize("reference", [None, "reference_from_client"])
-    def test_publish_and_response(self, notify_api, client, sample_template_with_placeholders, mocker, reference):
+    def test_sms_publish_and_response(self, notify_api, client, sample_template_with_placeholders, mocker, reference):
         mock_publish = mocker.patch("app.sms_normal.publish")
         data = {
             "phone_number": "+16502532222",
@@ -332,50 +332,88 @@ class TestPostNotificationsErrors:
             "message": "Additional properties are not allowed (test_field was unexpected)",
         } in error_resp["errors"]
 
-
-@pytest.mark.parametrize("reference", [None, "reference_from_client"])
-def test_post_email_notification_returns_201(notify_api, client, sample_email_template_with_placeholders, mocker, reference):
-    mock_publish = mocker.patch("app.email_normal.publish")
-    data = {
-        "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
-        "template_id": sample_email_template_with_placeholders.id,
-        "personalisation": {"name": "Bob"},
-    }
-    if reference:
-        data.update({"reference": reference})
-    auth_header = create_authorization_header(service_id=sample_email_template_with_placeholders.service_id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
+    @pytest.mark.parametrize(
+        "notification_type, key_send_to, send_to",
+        [
+            ("sms", "phone_number", "6502532222"),
+            ("email", "email_address", "sample@email.com"),
+        ],
     )
-    assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert validate(resp_json, post_email_response) == resp_json
-
-    mock_publish_args = mock_publish.call_args.args[0]
-    mock_publish_args_unsigned = signer.verify(mock_publish_args)
-    assert mock_publish_args_unsigned["to"] == data["email_address"]
-    assert mock_publish_args_unsigned["id"] == resp_json["id"]
-
-    assert resp_json["reference"] == reference
-    assert resp_json["content"]["body"] == sample_email_template_with_placeholders.content.replace("((name))", "Bob")
-    assert resp_json["content"]["subject"] == sample_email_template_with_placeholders.subject.replace("((name))", "Bob")
-    assert resp_json["content"]["from_email"] == "{}@{}".format(
-        sample_email_template_with_placeholders.service.email_from,
-        current_app.config["NOTIFY_EMAIL_DOMAIN"],
-    )
-    assert "v2/notifications/{}".format(mock_publish_args_unsigned["id"]) in resp_json["uri"]
-    assert resp_json["template"]["id"] == str(sample_email_template_with_placeholders.id)
-    assert resp_json["template"]["version"] == sample_email_template_with_placeholders.version
-    assert (
-        "services/{}/templates/{}".format(
-            str(sample_email_template_with_placeholders.service_id),
-            str(sample_email_template_with_placeholders.id),
+    def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
+        self, notify_api, client, sample_service, mocker, notification_type, key_send_to, send_to
+    ):
+        sample = create_template(service=sample_service, template_type=notification_type)
+        save_mock = mocker.patch("app.v2.notifications.post_notifications.db_save_and_send_notification")
+        mocker.patch(
+            "app.v2.notifications.post_notifications.check_rate_limiting",
+            side_effect=RateLimitError("LIMIT", "INTERVAL", "TYPE"),
         )
-        in resp_json["template"]["uri"]
-    )
-    assert not resp_json["scheduled_for"]
+
+        data = {key_send_to: send_to, "template_id": str(sample.id)}
+
+        auth_header = create_authorization_header(service_id=sample.service_id)
+
+        response = client.post(
+            path="/v2/notifications/{}".format(notification_type),
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        error = json.loads(response.data)["errors"][0]["error"]
+        message = json.loads(response.data)["errors"][0]["message"]
+        status_code = json.loads(response.data)["status_code"]
+        assert response.status_code == 429
+        assert error == "RateLimitError"
+        assert message == "Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds"
+        assert status_code == 429
+
+        assert not save_mock.called
+
+
+class TestPostNotificationsEmail:
+    @pytest.mark.parametrize("reference", [None, "reference_from_client"])
+    def test_email_publish_and_response(notify_api, client, sample_email_template_with_placeholders, mocker, reference):
+        mock_publish = mocker.patch("app.email_normal.publish")
+        data = {
+            "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
+            "template_id": sample_email_template_with_placeholders.id,
+            "personalisation": {"name": "Bob"},
+        }
+        if reference:
+            data.update({"reference": reference})
+        auth_header = create_authorization_header(service_id=sample_email_template_with_placeholders.service_id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert validate(resp_json, post_email_response) == resp_json
+
+        mock_publish_args = mock_publish.call_args.args[0]
+        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        assert mock_publish_args_unsigned["to"] == data["email_address"]
+        assert mock_publish_args_unsigned["id"] == resp_json["id"]
+
+        assert resp_json["reference"] == reference
+        assert resp_json["content"]["body"] == sample_email_template_with_placeholders.content.replace("((name))", "Bob")
+        assert resp_json["content"]["subject"] == sample_email_template_with_placeholders.subject.replace("((name))", "Bob")
+        assert resp_json["content"]["from_email"] == "{}@{}".format(
+            sample_email_template_with_placeholders.service.email_from,
+            current_app.config["NOTIFY_EMAIL_DOMAIN"],
+        )
+        assert "v2/notifications/{}".format(mock_publish_args_unsigned["id"]) in resp_json["uri"]
+        assert resp_json["template"]["id"] == str(sample_email_template_with_placeholders.id)
+        assert resp_json["template"]["version"] == sample_email_template_with_placeholders.version
+        assert (
+            "services/{}/templates/{}".format(
+                str(sample_email_template_with_placeholders.service_id),
+                str(sample_email_template_with_placeholders.id),
+            )
+            in resp_json["template"]["uri"]
+        )
+        assert not resp_json["scheduled_for"]
 
 
 @pytest.mark.parametrize(
@@ -389,10 +427,10 @@ def test_post_email_notification_returns_201(notify_api, client, sample_email_te
         ("6132532224", "sms"),
     ],
 )
-def test_should_not_persist_or_send_notification_if_simulated_recipient(
+def test_should_not_publish_or_persist_if_simulated_recipient(
     client, recipient, notification_type, sample_email_template, sample_template, mocker
 ):
-    apply_async = mocker.patch("app.{}_normal.publish".format(notification_type))
+    mock_publish = mocker.patch("app.{}_normal.publish".format(notification_type))
 
     if notification_type == "sms":
         data = {"phone_number": recipient, "template_id": str(sample_template.id)}
@@ -408,8 +446,8 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
     )
 
     assert response.status_code == 201
-    apply_async.assert_not_called()
     assert json.loads(response.get_data(as_text=True))["id"]
+    mock_publish.assert_not_called()
     assert Notification.query.count() == 0
 
 
@@ -421,7 +459,7 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
     ],
 )
 @pytest.mark.parametrize("process_type", ["priority", "bulk"])
-def test_send_notification_uses_appropriate_queue_according_to_template_process_type(
+def test_uses_appropriate_queue_according_to_template_process_type(
     notify_api,
     client,
     sample_service,
@@ -452,44 +490,6 @@ def test_send_notification_uses_appropriate_queue_according_to_template_process_
     mock_publish_args = mock_publish.call_args.args[0]
     mock_publish_args_unsigned = signer.verify(mock_publish_args)
     assert mock_publish_args_unsigned["to"] == data[key_send_to]
-
-
-@pytest.mark.parametrize(
-    "notification_type, key_send_to, send_to",
-    [
-        ("sms", "phone_number", "6502532222"),
-        ("email", "email_address", "sample@email.com"),
-    ],
-)
-def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
-    notify_api, client, sample_service, mocker, notification_type, key_send_to, send_to
-):
-    sample = create_template(service=sample_service, template_type=notification_type)
-    save_mock = mocker.patch("app.v2.notifications.post_notifications.db_save_and_send_notification")
-    mocker.patch(
-        "app.v2.notifications.post_notifications.check_rate_limiting",
-        side_effect=RateLimitError("LIMIT", "INTERVAL", "TYPE"),
-    )
-
-    data = {key_send_to: send_to, "template_id": str(sample.id)}
-
-    auth_header = create_authorization_header(service_id=sample.service_id)
-
-    response = client.post(
-        path="/v2/notifications/{}".format(notification_type),
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    error = json.loads(response.data)["errors"][0]["error"]
-    message = json.loads(response.data)["errors"][0]["message"]
-    status_code = json.loads(response.data)["status_code"]
-    assert response.status_code == 429
-    assert error == "RateLimitError"
-    assert message == "Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds"
-    assert status_code == 429
-
-    assert not save_mock.called
 
 
 def test_post_sms_notification_returns_400_if_not_allowed_to_send_int_sms(
