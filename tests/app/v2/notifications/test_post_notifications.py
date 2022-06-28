@@ -149,6 +149,7 @@ class TestPostNotificationsSms:
 
 # Todo: we are sending an sms, then changing the sms_sender number. We need to test that the notification table has the correct number
 # TBH I think that if the notification hasn't been created in the database, the number will change. (and the changed number will be used when sending the sms)
+@pytest.mark.skip(reason="This should probably be moved")
 def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after_post_notification(
     notify_api, client, sample_template, mocker
 ):
@@ -184,65 +185,89 @@ def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after
     assert resp_json["content"]["from_number"] == "123456"
 
 
-@pytest.mark.parametrize(
-    "notification_type, key_send_to, send_to",
-    [
-        ("sms", "phone_number", "+16502532222"),
-        ("email", "email_address", "sample@email.com"),
-    ],
-)
-def test_post_notification_returns_400_and_missing_template(client, sample_service, notification_type, key_send_to, send_to):
-
-    data = {key_send_to: send_to, "template_id": str(uuid.uuid4())}
-    auth_header = create_authorization_header(service_id=sample_service.id)
-
-    response = client.post(
-        path="/v2/notifications/{}".format(notification_type),
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
+class TestPostNotificationsErrors:
+    @pytest.mark.parametrize(
+        "notification_type, key_send_to, send_to",
+        [
+            ("sms", "phone_number", "+16502532222"),
+            ("email", "email_address", "sample@email.com"),
+        ],
     )
+    def test_bad_template_id_returns_400(self, client, sample_service, notification_type, key_send_to, send_to):
 
-    assert response.status_code == 400
-    assert response.headers["Content-type"] == "application/json"
+        data = {key_send_to: send_to, "template_id": str(uuid.uuid4())}
+        auth_header = create_authorization_header(service_id=sample_service.id)
 
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["status_code"] == 400
-    assert error_json["errors"] == [{"error": "BadRequestError", "message": "Template not found"}]
+        response = client.post(
+            path="/v2/notifications/{}".format(notification_type),
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
 
+        assert response.status_code == 400
+        assert response.headers["Content-type"] == "application/json"
 
-@pytest.mark.parametrize(
-    "notification_type, key_send_to, send_to",
-    [
-        ("sms", "phone_number", "+16502532222"),
-        ("email", "email_address", "sample@email.com"),
-        (
-            "letter",
-            "personalisation",
-            {"address_line_1": "The queen", "postcode": "SW1 1AA"},
-        ),
-    ],
-)
-def test_post_notification_returns_401_and_well_formed_auth_error(
-    client, sample_template, notification_type, key_send_to, send_to
-):
-    data = {key_send_to: send_to, "template_id": str(sample_template.id)}
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["status_code"] == 400
+        assert error_json["errors"] == [{"error": "BadRequestError", "message": "Template not found"}]
 
-    response = client.post(
-        path="/v2/notifications/{}".format(notification_type),
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json")],
+    @pytest.mark.parametrize(
+        "notification_type, key_send_to, send_to",
+        [
+            ("sms", "phone_number", "+16502532222"),
+            ("email", "email_address", "sample@email.com"),
+            (
+                "letter",
+                "personalisation",
+                {"address_line_1": "The queen", "postcode": "SW1 1AA"},
+            ),
+        ],
     )
+    def test_no_auth_header_returns_401(self, client, sample_template, notification_type, key_send_to, send_to):
+        data = {key_send_to: send_to, "template_id": str(sample_template.id)}
 
-    assert response.status_code == 401
-    assert response.headers["Content-type"] == "application/json"
-    error_resp = json.loads(response.get_data(as_text=True))
-    assert error_resp["status_code"] == 401
-    assert error_resp["errors"] == [
-        {
-            "error": "AuthError",
-            "message": "Unauthorized, authentication token must be provided",
-        }
-    ]
+        response = client.post(
+            path="/v2/notifications/{}".format(notification_type),
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json")],
+        )
+
+        assert response.status_code == 401
+        assert response.headers["Content-type"] == "application/json"
+        error_resp = json.loads(response.get_data(as_text=True))
+        assert error_resp["status_code"] == 401
+        assert error_resp["errors"] == [
+            {
+                "error": "AuthError",
+                "message": "Unauthorized, authentication token must be provided",
+            }
+        ]
+
+    @pytest.mark.parametrize(
+        "notification_type, key_send_to, send_to",
+        [
+            ("sms", "phone_number", "+16502532222"),
+            ("email", "email_address", "sample@email.com"),
+        ],
+    )
+    def test_missing_template_id_returns_400(self, client, sample_template, notification_type, key_send_to, send_to):
+        data = {key_send_to: send_to}
+        auth_header = create_authorization_header(service_id=sample_template.service_id)
+
+        response = client.post(
+            path="/v2/notifications/{}".format(notification_type),
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 400
+        assert response.headers["Content-type"] == "application/json"
+        error_resp = json.loads(response.get_data(as_text=True))
+        assert error_resp["status_code"] == 400
+        assert {
+            "error": "ValidationError",
+            "message": "template_id is a required property",
+        } in error_resp["errors"]
 
 
 @pytest.mark.parametrize(
