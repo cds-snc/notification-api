@@ -534,6 +534,149 @@ class TestPostNotificationsErrors:
             }
         ]
 
+    def test_post_notification_raises_bad_request_if_not_valid_notification_type(self, client, sample_service):
+        auth_header = create_authorization_header(service_id=sample_service.id)
+        response = client.post(
+            "/v2/notifications/foo",
+            data="{}",
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 404
+        error_json = json.loads(response.get_data(as_text=True))
+        assert "The requested URL was not found on the server." in error_json["message"]
+
+    @pytest.mark.parametrize("notification_type", ["sms", "email"])
+    def test_post_notification_with_wrong_type_of_sender(
+        self, client, sample_template, sample_email_template, notification_type, fake_uuid
+    ):
+        if notification_type == EMAIL_TYPE:
+            template = sample_email_template
+            form_label = "sms_sender_id"
+            data = {
+                "email_address": "test@test.com",
+                "template_id": str(sample_email_template.id),
+                form_label: fake_uuid,
+            }
+        elif notification_type == SMS_TYPE:
+            template = sample_template
+            form_label = "email_reply_to_id"
+            data = {
+                "phone_number": "+16502532222",
+                "template_id": str(template.id),
+                form_label: fake_uuid,
+            }
+        auth_header = create_authorization_header(service_id=template.service_id)
+
+        response = client.post(
+            path="/v2/notifications/{}".format(notification_type),
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 400
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert "Additional properties are not allowed ({} was unexpected)".format(form_label) in resp_json["errors"][0]["message"]
+        assert "ValidationError" in resp_json["errors"][0]["error"]
+
+    def test_post_email_notification_with_invalid_reply_to_id_returns_400(self, client, sample_email_template, mocker, fake_uuid):
+        mocker.patch("app.email_normal.publish")
+        data = {
+            "email_address": sample_email_template.service.users[0].email_address,
+            "template_id": sample_email_template.id,
+            "email_reply_to_id": fake_uuid,
+        }
+        auth_header = create_authorization_header(service_id=sample_email_template.service_id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 400
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert (
+            "email_reply_to_id {} does not exist in database for service id {}".format(
+                fake_uuid, sample_email_template.service_id
+            )
+            in resp_json["errors"][0]["message"]
+        )
+        assert "BadRequestError" in resp_json["errors"][0]["error"]
+
+    def test_post_email_notification_with_archived_reply_to_id_returns_400(self, client, sample_email_template, mocker):
+        archived_reply_to = create_reply_to_email(
+            sample_email_template.service,
+            "reply_to@test.com",
+            is_default=False,
+            archived=True,
+        )
+        mocker.patch("app.email_normal.publish")
+        data = {
+            "email_address": "test@test.com",
+            "template_id": sample_email_template.id,
+            "email_reply_to_id": archived_reply_to.id,
+        }
+        auth_header = create_authorization_header(service_id=sample_email_template.service_id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 400
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert (
+            "email_reply_to_id {} does not exist in database for service id {}".format(
+                archived_reply_to.id, sample_email_template.service_id
+            )
+            in resp_json["errors"][0]["message"]
+        )
+        assert "BadRequestError" in resp_json["errors"][0]["error"]
+
+    @pytest.mark.parametrize(
+        "personalisation_size, expected_success",
+        [
+            (1024 * 50 + 100, False),
+            (1024 * 50 - 100, True),
+        ],
+    )
+    def test_post_email_notification_with_personalisation_too_large(
+        self, notify_api, client, sample_email_template_with_placeholders, mocker, personalisation_size, expected_success
+    ):
+        mocked = mocker.patch("app.email_normal.publish")
+
+        data = {
+            "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
+            "template_id": sample_email_template_with_placeholders.id,
+            "personalisation": {"name": random_sized_content(size=personalisation_size)},
+            "reference": "reference_from_client",
+        }
+
+        auth_header = create_authorization_header(service_id=sample_email_template_with_placeholders.service_id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        if expected_success:
+            assert mocked.called
+            assert response.status_code == 201
+        else:
+            resp_json = json.loads(response.get_data(as_text=True))
+            assert not mocked.called
+            assert response.status_code == 400
+            assert "ValidationError" in resp_json["errors"][0]["error"]
+            assert (
+                f"Personalisation variables size of {personalisation_size} bytes is greater than allowed limit of 51200 bytes"
+                in resp_json["errors"][0]["message"]
+            )
+
+    def test_post_notification_returns_400_when_get_json_throws_exception(self, client, sample_email_template):
+        auth_header = create_authorization_header(service_id=sample_email_template.service_id)
+        response = client.post(
+            path="v2/notifications/email",
+            data="[",
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 400
+
 
 class TestPostNotificationsEmail:
     @pytest.mark.parametrize("reference", [None, "reference_from_client"])
@@ -579,6 +722,28 @@ class TestPostNotificationsEmail:
             in resp_json["template"]["uri"]
         )
         assert not resp_json["scheduled_for"]
+
+    def test_post_email_notification_with_valid_reply_to_id_returns_201(self, notify_api, client, sample_email_template, mocker):
+        reply_to_email = create_reply_to_email(sample_email_template.service, "test@test.com")
+        mock_publish = mocker.patch("app.email_normal.publish")
+        data = {
+            "email_address": sample_email_template.service.users[0].email_address,
+            "template_id": sample_email_template.id,
+            "email_reply_to_id": reply_to_email.id,
+        }
+        auth_header = create_authorization_header(service_id=sample_email_template.service_id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert validate(resp_json, post_email_response) == resp_json
+        mock_publish_args = mock_publish.call_args.args[0]
+        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        assert mock_publish_args_unsigned["to"] == data["email_address"]
+        assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
 
 @pytest.mark.parametrize(
@@ -781,628 +946,459 @@ class TestSchedulingSends:
         ]
 
 
-def test_post_notification_raises_bad_request_if_not_valid_notification_type(client, sample_service):
-    auth_header = create_authorization_header(service_id=sample_service.id)
-    response = client.post(
-        "/v2/notifications/foo",
-        data="{}",
-        headers=[("Content-Type", "application/json"), auth_header],
+class TestPostNotificationsDocuments:
+    @pytest.mark.parametrize(
+        "filename, file_data, sending_method",
+        [
+            ("good name.txt", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
+            ("good name.txt", "VGV4dCBjb250ZW50IGhlcmU=", "link"),
+        ],
     )
-    assert response.status_code == 404
-    error_json = json.loads(response.get_data(as_text=True))
-    assert "The requested URL was not found on the server." in error_json["message"]
+    def test_post_notification_with_document_upload(
+        self, notify_api, client, notify_db_session, mocker, filename, file_data, sending_method
+    ):
+        service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
+        content = "See attached file."
+        if sending_method == "link":
+            content = "Document: ((document))"
+        template = create_template(service=service, template_type="email", content=content)
 
+        statsd_mock = mocker.patch("app.v2.notifications.post_notifications.statsd_client")
+        mock_publish = mocker.patch("app.email_normal.publish")
+        document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
+        document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
+        document_download_mock.return_value = document_response
+        decoded_file = base64.b64decode(file_data)
 
-@pytest.mark.parametrize("notification_type", ["sms", "email"])
-def test_post_notification_with_wrong_type_of_sender(
-    client, sample_template, sample_email_template, notification_type, fake_uuid
-):
-    if notification_type == EMAIL_TYPE:
-        template = sample_email_template
-        form_label = "sms_sender_id"
         data = {
-            "email_address": "test@test.com",
-            "template_id": str(sample_email_template.id),
-            form_label: fake_uuid,
+            "email_address": service.users[0].email_address,
+            "template_id": template.id,
+            "personalisation": {
+                "document": {
+                    "file": file_data,
+                    "filename": filename,
+                    "sending_method": sending_method,
+                }
+            },
         }
-    elif notification_type == SMS_TYPE:
-        template = sample_template
-        form_label = "email_reply_to_id"
-        data = {
-            "phone_number": "+16502532222",
-            "template_id": str(template.id),
-            form_label: fake_uuid,
-        }
-    auth_header = create_authorization_header(service_id=template.service_id)
 
-    response = client.post(
-        path="/v2/notifications/{}".format(notification_type),
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert response.status_code == 400
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert "Additional properties are not allowed ({} was unexpected)".format(form_label) in resp_json["errors"][0]["message"]
-    assert "ValidationError" in resp_json["errors"][0]["error"]
-
-
-def test_post_email_notification_with_valid_reply_to_id_returns_201(notify_api, client, sample_email_template, mocker):
-    reply_to_email = create_reply_to_email(sample_email_template.service, "test@test.com")
-    mock_publish = mocker.patch("app.email_normal.publish")
-    data = {
-        "email_address": sample_email_template.service.users[0].email_address,
-        "template_id": sample_email_template.id,
-        "email_reply_to_id": reply_to_email.id,
-    }
-    auth_header = create_authorization_header(service_id=sample_email_template.service_id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert validate(resp_json, post_email_response) == resp_json
-    mock_publish_args = mock_publish.call_args.args[0]
-    mock_publish_args_unsigned = signer.verify(mock_publish_args)
-    assert mock_publish_args_unsigned["to"] == data["email_address"]
-    assert mock_publish_args_unsigned["id"] == resp_json["id"]
-
-
-def test_post_email_notification_with_invalid_reply_to_id_returns_400(client, sample_email_template, mocker, fake_uuid):
-    mocker.patch("app.email_normal.publish")
-    data = {
-        "email_address": sample_email_template.service.users[0].email_address,
-        "template_id": sample_email_template.id,
-        "email_reply_to_id": fake_uuid,
-    }
-    auth_header = create_authorization_header(service_id=sample_email_template.service_id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert response.status_code == 400
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert (
-        "email_reply_to_id {} does not exist in database for service id {}".format(fake_uuid, sample_email_template.service_id)
-        in resp_json["errors"][0]["message"]
-    )
-    assert "BadRequestError" in resp_json["errors"][0]["error"]
-
-
-def test_post_email_notification_with_archived_reply_to_id_returns_400(client, sample_email_template, mocker):
-    archived_reply_to = create_reply_to_email(
-        sample_email_template.service,
-        "reply_to@test.com",
-        is_default=False,
-        archived=True,
-    )
-    mocker.patch("app.email_normal.publish")
-    data = {
-        "email_address": "test@test.com",
-        "template_id": sample_email_template.id,
-        "email_reply_to_id": archived_reply_to.id,
-    }
-    auth_header = create_authorization_header(service_id=sample_email_template.service_id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert response.status_code == 400
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert (
-        "email_reply_to_id {} does not exist in database for service id {}".format(
-            archived_reply_to.id, sample_email_template.service_id
+        auth_header = create_authorization_header(service_id=service.id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
         )
-        in resp_json["errors"][0]["message"]
-    )
-    assert "BadRequestError" in resp_json["errors"][0]["error"]
 
-
-@pytest.mark.parametrize(
-    "filename, file_data, sending_method",
-    [
-        ("good name.txt", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
-        ("good name.txt", "VGV4dCBjb250ZW50IGhlcmU=", "link"),
-    ],
-)
-def test_post_notification_with_document_upload(
-    notify_api, client, notify_db_session, mocker, filename, file_data, sending_method
-):
-    service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
-    content = "See attached file."
-    if sending_method == "link":
-        content = "Document: ((document))"
-    template = create_template(service=service, template_type="email", content=content)
-
-    statsd_mock = mocker.patch("app.v2.notifications.post_notifications.statsd_client")
-    mock_publish = mocker.patch("app.email_normal.publish")
-    document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
-    document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
-    document_download_mock.return_value = document_response
-    decoded_file = base64.b64decode(file_data)
-
-    data = {
-        "email_address": service.users[0].email_address,
-        "template_id": template.id,
-        "personalisation": {
-            "document": {
-                "file": file_data,
-                "filename": filename,
-                "sending_method": sending_method,
-            }
-        },
-    }
-
-    auth_header = create_authorization_header(service_id=service.id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    assert response.status_code == 201, response.get_data(as_text=True)
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert validate(resp_json, post_email_response) == resp_json
-    document_download_mock.assert_called_once_with(
-        service.id,
-        {"file": decoded_file, "filename": filename, "sending_method": sending_method},
-    )
-
-    mock_publish_args = mock_publish.call_args.args[0]
-    mock_publish_args_unsigned = signer.verify(mock_publish_args)
-    assert mock_publish_args_unsigned["to"] == data["email_address"]
-    assert mock_publish_args_unsigned["id"] == resp_json["id"]
-
-    if sending_method == "link":
-        assert resp_json["content"]["body"] == f"Document: {document_response}"
-    else:
-        assert resp_json["content"]["body"] == "See attached file."
-
-    assert statsd_mock.incr.call_args_list == [
-        call("attachments.nb-attachments.count-1"),
-        call("attachments.nb-attachments", count=1),
-        call(f"attachments.services.{service.id}", count=1),
-        call(f"attachments.templates.{template.id}", count=1),
-        call(f"attachments.sending-method.{sending_method}"),
-        call("attachments.file-type.text/plain"),
-        call("attachments.file-size.0-1mb"),
-    ]
-
-
-@pytest.mark.parametrize(
-    "filename, sending_method, attachment_size, expected_success",
-    [
-        ("attached_file.txt", "attach", 1024 * 1024 * 10 + 100, False),
-        ("linked_file.txt", "link", 1024 * 1024 * 10 + 100, False),
-        ("attached_file.txt", "attach", 1024 * 1024 * 10 - 100, True),
-        ("linked_file.txt", "link", 1024 * 1024 * 10 - 100, True),
-    ],
-)
-def test_post_notification_with_document_too_large(
-    notify_api, client, notify_db_session, mocker, filename, sending_method, attachment_size, expected_success
-):
-    mocked = mocker.patch("app.email_normal.publish")
-    service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
-    content = "See attached file."
-    if sending_method == "link":
-        content = "Document: ((document))"
-    template = create_template(service=service, template_type="email", content=content)
-
-    mocker.patch("app.v2.notifications.post_notifications.statsd_client")
-    document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
-    document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
-    document_download_mock.return_value = document_response
-
-    file_data = random_sized_content(size=attachment_size)
-    encoded_file = base64.b64encode(file_data.encode()).decode()
-
-    data = {
-        "email_address": service.users[0].email_address,
-        "template_id": template.id,
-        "personalisation": {
-            "document": {
-                "file": encoded_file,
-                "filename": filename,
-                "sending_method": sending_method,
-            }
-        },
-    }
-
-    auth_header = create_authorization_header(service_id=service.id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    if expected_success:
-        assert mocked.called
-        assert response.status_code == 201
-    else:
+        assert response.status_code == 201, response.get_data(as_text=True)
         resp_json = json.loads(response.get_data(as_text=True))
-        assert not mocked.called
+        assert validate(resp_json, post_email_response) == resp_json
+        document_download_mock.assert_called_once_with(
+            service.id,
+            {"file": decoded_file, "filename": filename, "sending_method": sending_method},
+        )
+
+        mock_publish_args = mock_publish.call_args.args[0]
+        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        assert mock_publish_args_unsigned["to"] == data["email_address"]
+        assert mock_publish_args_unsigned["id"] == resp_json["id"]
+
+        if sending_method == "link":
+            assert resp_json["content"]["body"] == f"Document: {document_response}"
+        else:
+            assert resp_json["content"]["body"] == "See attached file."
+
+        assert statsd_mock.incr.call_args_list == [
+            call("attachments.nb-attachments.count-1"),
+            call("attachments.nb-attachments", count=1),
+            call(f"attachments.services.{service.id}", count=1),
+            call(f"attachments.templates.{template.id}", count=1),
+            call(f"attachments.sending-method.{sending_method}"),
+            call("attachments.file-type.text/plain"),
+            call("attachments.file-size.0-1mb"),
+        ]
+
+    @pytest.mark.parametrize(
+        "filename, sending_method, attachment_size, expected_success",
+        [
+            ("attached_file.txt", "attach", 1024 * 1024 * 10 + 100, False),
+            ("linked_file.txt", "link", 1024 * 1024 * 10 + 100, False),
+            ("attached_file.txt", "attach", 1024 * 1024 * 10 - 100, True),
+            ("linked_file.txt", "link", 1024 * 1024 * 10 - 100, True),
+        ],
+    )
+    def test_post_notification_with_document_too_large(
+        self, notify_api, client, notify_db_session, mocker, filename, sending_method, attachment_size, expected_success
+    ):
+        mocked = mocker.patch("app.email_normal.publish")
+        service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
+        content = "See attached file."
+        if sending_method == "link":
+            content = "Document: ((document))"
+        template = create_template(service=service, template_type="email", content=content)
+
+        mocker.patch("app.v2.notifications.post_notifications.statsd_client")
+        document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
+        document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
+        document_download_mock.return_value = document_response
+
+        file_data = random_sized_content(size=attachment_size)
+        encoded_file = base64.b64encode(file_data.encode()).decode()
+
+        data = {
+            "email_address": service.users[0].email_address,
+            "template_id": template.id,
+            "personalisation": {
+                "document": {
+                    "file": encoded_file,
+                    "filename": filename,
+                    "sending_method": sending_method,
+                }
+            },
+        }
+
+        auth_header = create_authorization_header(service_id=service.id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        if expected_success:
+            assert mocked.called
+            assert response.status_code == 201
+        else:
+            resp_json = json.loads(response.get_data(as_text=True))
+            assert not mocked.called
+            assert response.status_code == 400
+            assert "ValidationError" in resp_json["errors"][0]["error"]
+            assert filename in resp_json["errors"][0]["message"]
+            assert "and greater than allowed limit of" in resp_json["errors"][0]["message"]
+
+    @pytest.mark.parametrize(
+        "sending_method, attachment_number, expected_success",
+        [
+            ("attach", 9, True),
+            ("link", 9, True),
+            ("attach", 10, True),
+            ("link", 10, True),
+            ("attach", 11, False),
+            ("link", 11, False),
+        ],
+    )
+    def test_post_notification_with_too_many_documents(
+        self, notify_api, client, notify_db_session, mocker, sending_method, attachment_number, expected_success
+    ):
+        mocked = mocker.patch("app.email_normal.publish")
+        service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
+        template_content = "See attached file.\n"
+        if sending_method == "link":
+            for i in range(0, attachment_number):
+                template_content = template_content + f"Document: ((doc-{i}))\n"
+        template = create_template(service=service, template_type="email", content=template_content)
+
+        mocker.patch("app.v2.notifications.post_notifications.statsd_client")
+        document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
+        document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
+        document_download_mock.return_value = document_response
+
+        documents = {}
+        for i in range(0, attachment_number):
+            file_data = random_sized_content()
+            encoded_file = base64.b64encode(file_data.encode()).decode()
+            documents[f"doc-{i}"] = {
+                "file": encoded_file,
+                "filename": f"doc-{i}",
+                "sending_method": sending_method,
+            }
+
+        data = {
+            "email_address": service.users[0].email_address,
+            "template_id": template.id,
+            "personalisation": documents,
+        }
+
+        auth_header = create_authorization_header(service_id=service.id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        if expected_success:
+            assert mocked.called
+            assert response.status_code == 201
+        else:
+            resp_json = json.loads(response.get_data(as_text=True))
+            assert not mocked.called
+            assert response.status_code == 400
+            assert "ValidationError" in resp_json["errors"][0]["error"]
+            assert (
+                f"File number exceed allowed limits of 10 with number of {attachment_number}."
+                in resp_json["errors"][0]["message"]
+            )
+
+    @pytest.mark.parametrize(
+        "filename, file_data, sending_method",
+        [
+            ("", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
+            ("1", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
+        ],
+    )
+    def test_post_notification_with_document_upload_bad_filename(
+        self, client, notify_db_session, filename, file_data, sending_method
+    ):
+        service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
+        content = "See attached file."
+        template = create_template(service=service, template_type="email", content=content)
+        data = {
+            "email_address": service.users[0].email_address,
+            "template_id": template.id,
+            "personalisation": {
+                "document": {
+                    "file": file_data,
+                    "filename": filename,
+                    "sending_method": sending_method,
+                }
+            },
+        }
+
+        auth_header = create_authorization_header(service_id=service.id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
         assert response.status_code == 400
+        resp_json = json.loads(response.get_data(as_text=True))
         assert "ValidationError" in resp_json["errors"][0]["error"]
         assert filename in resp_json["errors"][0]["message"]
-        assert "and greater than allowed limit of" in resp_json["errors"][0]["message"]
+        assert "too short" in resp_json["errors"][0]["message"]
 
+    def test_post_notification_with_document_upload_long_filename(
+        self,
+        client,
+        notify_db_session,
+    ):
+        service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
+        content = "See attached file."
+        template = create_template(service=service, template_type="email", content=content)
+        file_data = "VGV4dCBjb250ZW50IGhlcmU="
+        filename = "a" * 256
+        sending_method = "attach"
 
-@pytest.mark.parametrize(
-    "sending_method, attachment_number, expected_success",
-    [
-        ("attach", 9, True),
-        ("link", 9, True),
-        ("attach", 10, True),
-        ("link", 10, True),
-        ("attach", 11, False),
-        ("link", 11, False),
-    ],
-)
-def test_post_notification_with_too_many_documents(
-    notify_api, client, notify_db_session, mocker, sending_method, attachment_number, expected_success
-):
-    mocked = mocker.patch("app.email_normal.publish")
-    service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
-    template_content = "See attached file.\n"
-    if sending_method == "link":
-        for i in range(0, attachment_number):
-            template_content = template_content + f"Document: ((doc-{i}))\n"
-    template = create_template(service=service, template_type="email", content=template_content)
-
-    mocker.patch("app.v2.notifications.post_notifications.statsd_client")
-    document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
-    document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
-    document_download_mock.return_value = document_response
-
-    documents = {}
-    for i in range(0, attachment_number):
-        file_data = random_sized_content()
-        encoded_file = base64.b64encode(file_data.encode()).decode()
-        documents[f"doc-{i}"] = {
-            "file": encoded_file,
-            "filename": f"doc-{i}",
-            "sending_method": sending_method,
+        data = {
+            "email_address": service.users[0].email_address,
+            "template_id": template.id,
+            "personalisation": {
+                "document": {
+                    "file": file_data,
+                    "filename": filename,
+                    "sending_method": sending_method,
+                }
+            },
         }
 
-    data = {
-        "email_address": service.users[0].email_address,
-        "template_id": template.id,
-        "personalisation": documents,
-    }
-
-    auth_header = create_authorization_header(service_id=service.id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    if expected_success:
-        assert mocked.called
-        assert response.status_code == 201
-    else:
-        resp_json = json.loads(response.get_data(as_text=True))
-        assert not mocked.called
-        assert response.status_code == 400
-        assert "ValidationError" in resp_json["errors"][0]["error"]
-        assert f"File number exceed allowed limits of 10 with number of {attachment_number}." in resp_json["errors"][0]["message"]
-
-
-@pytest.mark.parametrize(
-    "personalisation_size, expected_success",
-    [
-        (1024 * 50 + 100, False),
-        (1024 * 50 - 100, True),
-    ],
-)
-def test_post_email_notification_with_personalisation_too_large(
-    notify_api, client, sample_email_template_with_placeholders, mocker, personalisation_size, expected_success
-):
-    mocked = mocker.patch("app.email_normal.publish")
-
-    data = {
-        "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
-        "template_id": sample_email_template_with_placeholders.id,
-        "personalisation": {"name": random_sized_content(size=personalisation_size)},
-        "reference": "reference_from_client",
-    }
-
-    auth_header = create_authorization_header(service_id=sample_email_template_with_placeholders.service_id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    if expected_success:
-        assert mocked.called
-        assert response.status_code == 201
-    else:
-        resp_json = json.loads(response.get_data(as_text=True))
-        assert not mocked.called
-        assert response.status_code == 400
-        assert "ValidationError" in resp_json["errors"][0]["error"]
-        assert (
-            f"Personalisation variables size of {personalisation_size} bytes is greater than allowed limit of 51200 bytes"
-            in resp_json["errors"][0]["message"]
+        auth_header = create_authorization_header(service_id=service.id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
         )
 
+        assert response.status_code == 400
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert "ValidationError" in resp_json["errors"][0]["error"]
+        assert filename in resp_json["errors"][0]["message"]
+        assert "too long" in resp_json["errors"][0]["message"]
 
-@pytest.mark.parametrize(
-    "filename, file_data, sending_method",
-    [
-        ("", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
-        ("1", "VGV4dCBjb250ZW50IGhlcmU=", "attach"),
-    ],
-)
-def test_post_notification_with_document_upload_bad_filename(client, notify_db_session, filename, file_data, sending_method):
-    service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
-    content = "See attached file."
-    template = create_template(service=service, template_type="email", content=content)
-    data = {
-        "email_address": service.users[0].email_address,
-        "template_id": template.id,
-        "personalisation": {
-            "document": {
-                "file": file_data,
-                "filename": filename,
-                "sending_method": sending_method,
-            }
-        },
-    }
-
-    auth_header = create_authorization_header(service_id=service.id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
+    @pytest.mark.parametrize(
+        "file_data, sending_method",
+        [
+            ("VGV4dCBjb250ZW50IGhlcmU=", "attach"),
+        ],
     )
+    def test_post_notification_with_document_upload_filename_required_check(
+        self, client, notify_db_session, file_data, sending_method
+    ):
+        service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
+        content = "See attached file."
+        template = create_template(service=service, template_type="email", content=content)
+        data = {
+            "email_address": service.users[0].email_address,
+            "template_id": template.id,
+            "personalisation": {"document": {"file": file_data, "sending_method": sending_method}},
+        }
 
-    assert response.status_code == 400
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert "ValidationError" in resp_json["errors"][0]["error"]
-    assert filename in resp_json["errors"][0]["message"]
-    assert "too short" in resp_json["errors"][0]["message"]
+        auth_header = create_authorization_header(service_id=service.id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
 
+        assert response.status_code == 400
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert "ValidationError" in resp_json["errors"][0]["error"]
+        assert "filename is a required property" in resp_json["errors"][0]["message"]
 
-def test_post_notification_with_document_upload_long_filename(
-    client,
-    notify_db_session,
-):
-    service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
-    content = "See attached file."
-    template = create_template(service=service, template_type="email", content=content)
-    file_data = "VGV4dCBjb250ZW50IGhlcmU="
-    filename = "a" * 256
-    sending_method = "attach"
-
-    data = {
-        "email_address": service.users[0].email_address,
-        "template_id": template.id,
-        "personalisation": {
-            "document": {
-                "file": file_data,
-                "filename": filename,
-                "sending_method": sending_method,
-            }
-        },
-    }
-
-    auth_header = create_authorization_header(service_id=service.id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
+    @pytest.mark.parametrize(
+        "file_data",
+        [
+            ("VGV4dCBjb250ZW50IGhlcmU="),
+        ],
     )
+    def test_post_notification_with_document_upload_missing_sending_method(
+        self,
+        client,
+        notify_db_session,
+        file_data,
+    ):
+        service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
+        content = "See attached file."
+        template = create_template(service=service, template_type="email", content=content)
+        data = {
+            "email_address": service.users[0].email_address,
+            "template_id": template.id,
+            "personalisation": {"document": {"file": file_data}},
+        }
 
-    assert response.status_code == 400
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert "ValidationError" in resp_json["errors"][0]["error"]
-    assert filename in resp_json["errors"][0]["message"]
-    assert "too long" in resp_json["errors"][0]["message"]
+        auth_header = create_authorization_header(service_id=service.id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
 
+        assert response.status_code == 400
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert "ValidationError" in resp_json["errors"][0]["error"]
+        assert "sending_method is a required property" in resp_json["errors"][0]["message"]
 
-@pytest.mark.parametrize(
-    "file_data, sending_method",
-    [
-        ("VGV4dCBjb250ZW50IGhlcmU=", "attach"),
-    ],
-)
-def test_post_notification_with_document_upload_filename_required_check(client, notify_db_session, file_data, sending_method):
-    service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
-    content = "See attached file."
-    template = create_template(service=service, template_type="email", content=content)
-    data = {
-        "email_address": service.users[0].email_address,
-        "template_id": template.id,
-        "personalisation": {"document": {"file": file_data, "sending_method": sending_method}},
-    }
-
-    auth_header = create_authorization_header(service_id=service.id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
+    @pytest.mark.parametrize(
+        "file_data, sending_method, filename",
+        [
+            ("VGV4dCBjb250ZW50IGhlcmU=", "attch", "1.txt"),
+        ],
     )
+    def test_post_notification_with_document_upload_bad_sending_method(
+        self, client, notify_db_session, file_data, sending_method, filename
+    ):
+        service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
+        content = "See attached file."
+        template = create_template(service=service, template_type="email", content=content)
+        data = {
+            "email_address": service.users[0].email_address,
+            "template_id": template.id,
+            "personalisation": {
+                "document": {
+                    "file": file_data,
+                    "filename": filename,
+                    "sending_method": sending_method,
+                }
+            },
+        }
 
-    assert response.status_code == 400
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert "ValidationError" in resp_json["errors"][0]["error"]
-    assert "filename is a required property" in resp_json["errors"][0]["message"]
+        auth_header = create_authorization_header(service_id=service.id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
 
+        assert response.status_code == 400
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert f"personalisation {sending_method} is not one of [attach, link]" in resp_json["errors"][0]["message"]
 
-@pytest.mark.parametrize(
-    "file_data",
-    [
-        ("VGV4dCBjb250ZW50IGhlcmU="),
-    ],
-)
-def test_post_notification_with_document_upload_missing_sending_method(
-    client,
-    notify_db_session,
-    file_data,
-):
-    service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
-    content = "See attached file."
-    template = create_template(service=service, template_type="email", content=content)
-    data = {
-        "email_address": service.users[0].email_address,
-        "template_id": template.id,
-        "personalisation": {"document": {"file": file_data}},
-    }
-
-    auth_header = create_authorization_header(service_id=service.id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
+    @pytest.mark.parametrize(
+        "file_data, message",
+        [
+            ("abc", "Incorrect padding"),
+            ("🤡", "string argument should contain only ASCII characters"),
+        ],
     )
+    def test_post_notification_with_document_upload_not_base64_file(
+        self,
+        client,
+        notify_db_session,
+        file_data,
+        message,
+    ):
+        service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
+        content = "See attached file."
+        template = create_template(service=service, template_type="email", content=content)
+        data = {
+            "email_address": service.users[0].email_address,
+            "template_id": template.id,
+            "personalisation": {
+                "document": {
+                    "file": file_data,
+                    "sending_method": "attach",
+                    "filename": "1.txt",
+                }
+            },
+        }
 
-    assert response.status_code == 400
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert "ValidationError" in resp_json["errors"][0]["error"]
-    assert "sending_method is a required property" in resp_json["errors"][0]["message"]
+        auth_header = create_authorization_header(service_id=service.id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
 
+        assert response.status_code == 400
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert f"{message} : Error decoding base64 field" in resp_json["errors"][0]["message"]
 
-@pytest.mark.parametrize(
-    "file_data, sending_method, filename",
-    [
-        ("VGV4dCBjb250ZW50IGhlcmU=", "attch", "1.txt"),
-    ],
-)
-def test_post_notification_with_document_upload_bad_sending_method(
-    client, notify_db_session, file_data, sending_method, filename
-):
-    service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
-    content = "See attached file."
-    template = create_template(service=service, template_type="email", content=content)
-    data = {
-        "email_address": service.users[0].email_address,
-        "template_id": template.id,
-        "personalisation": {
-            "document": {
-                "file": file_data,
-                "filename": filename,
-                "sending_method": sending_method,
-            }
-        },
-    }
+    def test_post_notification_with_document_upload_simulated(self, client, notify_db_session, mocker):
+        service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
+        template = create_template(service=service, template_type="email", content="Document: ((document))")
 
-    auth_header = create_authorization_header(service_id=service.id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
+        mocker.patch("app.email_normal.publish")
+        document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client")
+        document_download_mock.get_upload_url.return_value = "https://document-url"
 
-    assert response.status_code == 400
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert f"personalisation {sending_method} is not one of [attach, link]" in resp_json["errors"][0]["message"]
+        data = {
+            "email_address": "simulate-delivered@notification.canada.ca",
+            "template_id": template.id,
+            "personalisation": {"document": {"file": "abababab", "sending_method": "link"}},
+        }
 
+        auth_header = create_authorization_header(service_id=service.id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
 
-@pytest.mark.parametrize(
-    "file_data, message",
-    [
-        ("abc", "Incorrect padding"),
-        ("🤡", "string argument should contain only ASCII characters"),
-    ],
-)
-def test_post_notification_with_document_upload_not_base64_file(
-    client,
-    notify_db_session,
-    file_data,
-    message,
-):
-    service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
-    content = "See attached file."
-    template = create_template(service=service, template_type="email", content=content)
-    data = {
-        "email_address": service.users[0].email_address,
-        "template_id": template.id,
-        "personalisation": {
-            "document": {
-                "file": file_data,
-                "sending_method": "attach",
-                "filename": "1.txt",
-            }
-        },
-    }
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert validate(resp_json, post_email_response) == resp_json
 
-    auth_header = create_authorization_header(service_id=service.id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
+        assert resp_json["content"]["body"] == "Document: https://document-url/test-document"
 
-    assert response.status_code == 400
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert f"{message} : Error decoding base64 field" in resp_json["errors"][0]["message"]
+    def test_post_notification_without_document_upload_permission(self, client, notify_db_session, mocker):
+        service = create_service(service_permissions=[EMAIL_TYPE])
+        template = create_template(service=service, template_type="email", content="Document: ((document))")
 
+        mocker.patch("app.email_normal.publish")
+        document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client")
+        document_download_mock.upload_document.return_value = document_download_response()
 
-def test_post_notification_with_document_upload_simulated(client, notify_db_session, mocker):
-    service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
-    template = create_template(service=service, template_type="email", content="Document: ((document))")
+        data = {
+            "email_address": service.users[0].email_address,
+            "template_id": template.id,
+            "personalisation": {"document": {"file": "abababab"}},
+        }
 
-    mocker.patch("app.email_normal.publish")
-    document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client")
-    document_download_mock.get_upload_url.return_value = "https://document-url"
+        auth_header = create_authorization_header(service_id=service.id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
 
-    data = {
-        "email_address": "simulate-delivered@notification.canada.ca",
-        "template_id": template.id,
-        "personalisation": {"document": {"file": "abababab", "sending_method": "link"}},
-    }
-
-    auth_header = create_authorization_header(service_id=service.id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert validate(resp_json, post_email_response) == resp_json
-
-    assert resp_json["content"]["body"] == "Document: https://document-url/test-document"
-
-
-def test_post_notification_without_document_upload_permission(client, notify_db_session, mocker):
-    service = create_service(service_permissions=[EMAIL_TYPE])
-    template = create_template(service=service, template_type="email", content="Document: ((document))")
-
-    mocker.patch("app.email_normal.publish")
-    document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client")
-    document_download_mock.upload_document.return_value = document_download_response()
-
-    data = {
-        "email_address": service.users[0].email_address,
-        "template_id": template.id,
-        "personalisation": {"document": {"file": "abababab"}},
-    }
-
-    auth_header = create_authorization_header(service_id=service.id)
-    response = client.post(
-        path="v2/notifications/email",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    assert response.status_code == 400
-
-
-def test_post_notification_returns_400_when_get_json_throws_exception(client, sample_email_template):
-    auth_header = create_authorization_header(service_id=sample_email_template.service_id)
-    response = client.post(
-        path="v2/notifications/email",
-        data="[",
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert response.status_code == 400
+        assert response.status_code == 400
 
 
 @pytest.mark.parametrize("args", [{}, {"rows": [1, 2], "csv": "foo"}], ids=["no args", "both args"])
