@@ -223,8 +223,13 @@ class TestPostNotificationsErrors:
             ),
         ],
     )
-    def test_no_auth_header_returns_401(self, client, sample_template, notification_type, key_send_to, send_to):
-        data = {key_send_to: send_to, "template_id": str(sample_template.id)}
+    def test_no_auth_header_returns_401(
+        self, client, sample_template, sample_email_template, notification_type, key_send_to, send_to
+    ):
+        data = {
+            key_send_to: send_to,
+            "template_id": str(sample_template.id) if notification_type == "sms" else str(sample_email_template.id),
+        }
 
         response = client.post(
             path="/v2/notifications/{}".format(notification_type),
@@ -269,36 +274,63 @@ class TestPostNotificationsErrors:
             "message": "template_id is a required property",
         } in error_resp["errors"]
 
-
-@pytest.mark.parametrize(
-    "notification_type, key_send_to, send_to",
-    [
-        ("sms", "phone_number", "+16502532222"),
-        ("email", "email_address", "sample@email.com"),
-    ],
-)
-def test_notification_returns_400_and_for_schema_problems(client, sample_template, notification_type, key_send_to, send_to):
-    data = {key_send_to: send_to, "template": str(sample_template.id)}
-    auth_header = create_authorization_header(service_id=sample_template.service_id)
-
-    response = client.post(
-        path="/v2/notifications/{}".format(notification_type),
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
+    @pytest.mark.parametrize(
+        "notification_type, missing_key",
+        [
+            ("sms", "phone_number"),
+            ("email", "email_address"),
+        ],
     )
+    def test_missing_recipient_returns_400(self, client, sample_template, sample_email_template, notification_type, missing_key):
+        data = {"template_id": str(sample_template.id) if notification_type == "sms" else str(sample_email_template.id)}
+        auth_header = create_authorization_header(service_id=sample_template.service_id)
 
-    assert response.status_code == 400
-    assert response.headers["Content-type"] == "application/json"
-    error_resp = json.loads(response.get_data(as_text=True))
-    assert error_resp["status_code"] == 400
-    assert {
-        "error": "ValidationError",
-        "message": "template_id is a required property",
-    } in error_resp["errors"]
-    assert {
-        "error": "ValidationError",
-        "message": "Additional properties are not allowed (template was unexpected)",
-    } in error_resp["errors"]
+        response = client.post(
+            path="/v2/notifications/{}".format(notification_type),
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 400
+        assert response.headers["Content-type"] == "application/json"
+        error_resp = json.loads(response.get_data(as_text=True))
+        assert error_resp["status_code"] == 400
+        assert {
+            "error": "ValidationError",
+            "message": f"{missing_key} is a required property",
+        } in error_resp["errors"]
+
+    @pytest.mark.parametrize(
+        "notification_type, key_send_to, send_to",
+        [
+            ("sms", "phone_number", "+16502532222"),
+            ("email", "email_address", "sample@email.com"),
+        ],
+    )
+    def test_extra_field_returns_400(
+        self, client, sample_template, sample_email_template, notification_type, key_send_to, send_to
+    ):
+        data = {
+            key_send_to: send_to,
+            "template_id": str(sample_template.id) if notification_type == "sms" else str(sample_email_template.id),
+            "test_field": "not wanted",
+        }
+        auth_header = create_authorization_header(service_id=sample_template.service_id)
+
+        response = client.post(
+            path="/v2/notifications/{}".format(notification_type),
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 400
+        assert response.headers["Content-type"] == "application/json"
+        error_resp = json.loads(response.get_data(as_text=True))
+        assert error_resp["status_code"] == 400
+        assert {
+            "error": "ValidationError",
+            "message": "Additional properties are not allowed (test_field was unexpected)",
+        } in error_resp["errors"]
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
