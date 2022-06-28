@@ -146,6 +146,52 @@ class TestPostNotificationsSms:
         assert mock_publish_args_unsigned["to"] == data["phone_number"]
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
+    def test_returns_201_if_allowed_to_send_int_sms(
+        self,
+        notify_api,
+        sample_service,
+        sample_template,
+        client,
+        mocker,
+    ):
+        mocker.patch("app.sms_normal.publish")
+
+        data = {"phone_number": "+20-12-1234-1234", "template_id": sample_template.id}
+        auth_header = create_authorization_header(service_id=sample_service.id)
+
+        response = client.post(
+            path="/v2/notifications/sms",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 201
+        assert response.headers["Content-type"] == "application/json"
+
+    def test_post_sms_should_publish_supplied_sms_number(self, notify_api, client, sample_template_with_placeholders, mocker):
+        mock_publish = mocker.patch("app.sms_normal.publish")
+
+        data = {
+            "phone_number": "+16502532222",
+            "template_id": str(sample_template_with_placeholders.id),
+            "personalisation": {" Name": "Jo"},
+        }
+
+        auth_header = create_authorization_header(service_id=sample_template_with_placeholders.service_id)
+        response = client.post(
+            path="/v2/notifications/sms",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+
+        mock_publish_args = mock_publish.call_args.args[0]
+        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        assert mock_publish_args_unsigned["to"] == data["phone_number"]
+        assert mock_publish_args_unsigned["id"] == resp_json["id"]
+
 
 # Todo: we are sending an sms, then changing the sms_sender number. We need to test that the notification table has the correct number
 # TBH I think that if the notification hasn't been created in the database, the number will change. (and the changed number will be used when sending the sms)
@@ -369,6 +415,125 @@ class TestPostNotificationsErrors:
 
         assert not save_mock.called
 
+    def test_post_sms_notification_returns_400_if_not_allowed_to_send_int_sms(
+        self,
+        client,
+        notify_db_session,
+    ):
+        service = create_service(service_permissions=[SMS_TYPE])
+        template = create_template(service=service)
+
+        data = {"phone_number": "+20-12-1234-1234", "template_id": template.id}
+        auth_header = create_authorization_header(service_id=service.id)
+
+        response = client.post(
+            path="/v2/notifications/sms",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 400
+        assert response.headers["Content-type"] == "application/json"
+
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["status_code"] == 400
+        assert error_json["errors"] == [
+            {
+                "error": "BadRequestError",
+                "message": "Cannot send to international mobile numbers",
+            }
+        ]
+
+    def test_post_sms_notification_with_archived_reply_to_id_returns_400(self, client, sample_template):
+        archived_sender = create_service_sms_sender(sample_template.service, "12345", is_default=False, archived=True)
+        data = {
+            "phone_number": "+16502532222",
+            "template_id": sample_template.id,
+            "sms_sender_id": archived_sender.id,
+        }
+        auth_header = create_authorization_header(service_id=sample_template.service_id)
+        response = client.post(
+            path="v2/notifications/sms",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 400
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert (
+            "sms_sender_id {} does not exist in database for service id {}".format(archived_sender.id, sample_template.service_id)
+            in resp_json["errors"][0]["message"]
+        )
+        assert "BadRequestError" in resp_json["errors"][0]["error"]
+
+    @pytest.mark.parametrize(
+        "recipient,label,permission_type, notification_type,expected_error",
+        [
+            ("6502532222", "phone_number", "email", "sms", "text messages"),
+            ("someone@test.com", "email_address", "sms", "email", "emails"),
+        ],
+    )
+    def test_post_sms_notification_returns_400_if_not_allowed_to_send_notification(
+        self,
+        notify_db_session,
+        client,
+        recipient,
+        label,
+        permission_type,
+        notification_type,
+        expected_error,
+    ):
+        service = create_service(service_permissions=[permission_type])
+        sample_template_without_permission = create_template(service=service, template_type=notification_type)
+        data = {label: recipient, "template_id": sample_template_without_permission.id}
+        auth_header = create_authorization_header(service_id=sample_template_without_permission.service.id)
+
+        response = client.post(
+            path="/v2/notifications/{}".format(sample_template_without_permission.template_type),
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 400
+        assert response.headers["Content-type"] == "application/json"
+
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["status_code"] == 400
+        assert error_json["errors"] == [
+            {
+                "error": "BadRequestError",
+                "message": "Service is not allowed to send {}".format(expected_error),
+            }
+        ]
+
+    @pytest.mark.parametrize("restricted", [True, False])
+    def test_post_sms_notification_returns_400_if_number_not_safelisted(self, notify_db_session, client, restricted):
+        service = create_service(restricted=restricted, service_permissions=[SMS_TYPE, INTERNATIONAL_SMS_TYPE])
+        template = create_template(service=service)
+        create_api_key(service=service, key_type="team")
+
+        data = {
+            "phone_number": "+16132532235",
+            "template_id": template.id,
+        }
+        auth_header = create_authorization_header(service_id=service.id, key_type="team")
+
+        response = client.post(
+            path="/v2/notifications/sms",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["status_code"] == 400
+        assert error_json["errors"] == [
+            {
+                "error": "BadRequestError",
+                "message": "Can’t send to this recipient using a team-only API key "
+                f'- see {get_document_url("en", "keys.html#team-and-safelist")}',
+            }
+        ]
+
 
 class TestPostNotificationsEmail:
     @pytest.mark.parametrize("reference", [None, "reference_from_client"])
@@ -492,127 +657,6 @@ def test_uses_appropriate_queue_according_to_template_process_type(
     assert mock_publish_args_unsigned["to"] == data[key_send_to]
 
 
-def test_post_sms_notification_returns_400_if_not_allowed_to_send_int_sms(
-    client,
-    notify_db_session,
-):
-    service = create_service(service_permissions=[SMS_TYPE])
-    template = create_template(service=service)
-
-    data = {"phone_number": "+20-12-1234-1234", "template_id": template.id}
-    auth_header = create_authorization_header(service_id=service.id)
-
-    response = client.post(
-        path="/v2/notifications/sms",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    assert response.status_code == 400
-    assert response.headers["Content-type"] == "application/json"
-
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["status_code"] == 400
-    assert error_json["errors"] == [
-        {
-            "error": "BadRequestError",
-            "message": "Cannot send to international mobile numbers",
-        }
-    ]
-
-
-def test_post_sms_notification_with_archived_reply_to_id_returns_400(client, sample_template):
-    archived_sender = create_service_sms_sender(sample_template.service, "12345", is_default=False, archived=True)
-    data = {
-        "phone_number": "+16502532222",
-        "template_id": sample_template.id,
-        "sms_sender_id": archived_sender.id,
-    }
-    auth_header = create_authorization_header(service_id=sample_template.service_id)
-    response = client.post(
-        path="v2/notifications/sms",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert response.status_code == 400
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert (
-        "sms_sender_id {} does not exist in database for service id {}".format(archived_sender.id, sample_template.service_id)
-        in resp_json["errors"][0]["message"]
-    )
-    assert "BadRequestError" in resp_json["errors"][0]["error"]
-
-
-@pytest.mark.parametrize(
-    "recipient,label,permission_type, notification_type,expected_error",
-    [
-        ("6502532222", "phone_number", "email", "sms", "text messages"),
-        ("someone@test.com", "email_address", "sms", "email", "emails"),
-    ],
-)
-def test_post_sms_notification_returns_400_if_not_allowed_to_send_notification(
-    notify_db_session,
-    client,
-    recipient,
-    label,
-    permission_type,
-    notification_type,
-    expected_error,
-):
-    service = create_service(service_permissions=[permission_type])
-    sample_template_without_permission = create_template(service=service, template_type=notification_type)
-    data = {label: recipient, "template_id": sample_template_without_permission.id}
-    auth_header = create_authorization_header(service_id=sample_template_without_permission.service.id)
-
-    response = client.post(
-        path="/v2/notifications/{}".format(sample_template_without_permission.template_type),
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    assert response.status_code == 400
-    assert response.headers["Content-type"] == "application/json"
-
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["status_code"] == 400
-    assert error_json["errors"] == [
-        {
-            "error": "BadRequestError",
-            "message": "Service is not allowed to send {}".format(expected_error),
-        }
-    ]
-
-
-@pytest.mark.parametrize("restricted", [True, False])
-def test_post_sms_notification_returns_400_if_number_not_safelisted(notify_db_session, client, restricted):
-    service = create_service(restricted=restricted, service_permissions=[SMS_TYPE, INTERNATIONAL_SMS_TYPE])
-    template = create_template(service=service)
-    create_api_key(service=service, key_type="team")
-
-    data = {
-        "phone_number": "+16132532235",
-        "template_id": template.id,
-    }
-    auth_header = create_authorization_header(service_id=service.id, key_type="team")
-
-    response = client.post(
-        path="/v2/notifications/sms",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["status_code"] == 400
-    assert error_json["errors"] == [
-        {
-            "error": "BadRequestError",
-            "message": "Can’t send to this recipient using a team-only API key "
-            f'- see {get_document_url("en", "keys.html#team-and-safelist")}',
-        }
-    ]
-
-
 class TestRestrictedServices:
     @pytest.mark.parametrize("restricted", [True])
     def test_post_sms_notification_returns_201_if_number_safelisted_and_teamkey(
@@ -664,147 +708,77 @@ class TestRestrictedServices:
         assert json.loads(response.get_data(as_text=True))
 
 
-# TODO: duplicate
-def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms(
-    notify_api,
-    sample_service,
-    sample_template,
-    client,
-    mocker,
-):
-    mocker.patch("app.sms_normal.publish")
-
-    data = {"phone_number": "+20-12-1234-1234", "template_id": sample_template.id}
-    auth_header = create_authorization_header(service_id=sample_service.id)
-
-    response = client.post(
-        path="/v2/notifications/sms",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
+class TestSchedulingSends:
+    @pytest.mark.parametrize(
+        "notification_type, key_send_to, send_to",
+        [
+            ("sms", "phone_number", "6502532222"),
+            ("email", "email_address", "sample@email.com"),
+        ],
     )
-
-    assert response.status_code == 201
-    assert response.headers["Content-type"] == "application/json"
-
-
-# TODO: duplicate
-def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms_with_celery_persistence(
-    notify_api,
-    sample_service,
-    sample_template,
-    client,
-    mocker,
-):
-    mocker.patch("app.sms_normal.publish")
-
-    data = {"phone_number": "+20-12-1234-1234", "template_id": sample_template.id}
-    auth_header = create_authorization_header(service_id=sample_service.id)
-
-    response = client.post(
-        path="/v2/notifications/sms",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    assert response.status_code == 201
-    assert response.headers["Content-type"] == "application/json"
-
-
-def test_post_sms_should_publish_supplied_sms_number(notify_api, client, sample_template_with_placeholders, mocker):
-    mock_publish = mocker.patch("app.sms_normal.publish")
-
-    data = {
-        "phone_number": "+16502532222",
-        "template_id": str(sample_template_with_placeholders.id),
-        "personalisation": {" Name": "Jo"},
-    }
-
-    auth_header = create_authorization_header(service_id=sample_template_with_placeholders.service_id)
-    response = client.post(
-        path="/v2/notifications/sms",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
-
-    mock_publish_args = mock_publish.call_args.args[0]
-    mock_publish_args_unsigned = signer.verify(mock_publish_args)
-    assert mock_publish_args_unsigned["to"] == data["phone_number"]
-    assert mock_publish_args_unsigned["id"] == resp_json["id"]
-
-
-@pytest.mark.parametrize(
-    "notification_type, key_send_to, send_to",
-    [
-        ("sms", "phone_number", "6502532222"),
-        ("email", "email_address", "sample@email.com"),
-    ],
-)
-@freeze_time("2017-05-14 14:00:00")
-def test_post_notification_with_scheduled_for(client, notify_db_session, notification_type, key_send_to, send_to):
-    service = create_service(
-        service_name=str(uuid.uuid4()),
-        service_permissions=[EMAIL_TYPE, SMS_TYPE, SCHEDULE_NOTIFICATIONS],
-    )
-    template = create_template(service=service, template_type=notification_type)
-    data = {
-        key_send_to: send_to,
-        "template_id": str(template.id) if notification_type == EMAIL_TYPE else str(template.id),
-        "scheduled_for": "2017-05-14 14:15",
-    }
-    auth_header = create_authorization_header(service_id=service.id)
-
-    response = client.post(
-        "/v2/notifications/{}".format(notification_type),
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
-    scheduled_notification = ScheduledNotification.query.filter_by(notification_id=resp_json["id"]).all()
-    assert len(scheduled_notification) == 1
-    assert resp_json["id"] == str(scheduled_notification[0].notification_id)
-    assert resp_json["scheduled_for"] == "2017-05-14 14:15"
-
-
-@pytest.mark.parametrize(
-    "notification_type, key_send_to, send_to",
-    [
-        ("sms", "phone_number", "6502532222"),
-        ("email", "email_address", "sample@email.com"),
-    ],
-)
-@freeze_time("2017-05-14 14:00:00")
-def test_post_notification_raises_bad_request_if_service_not_invited_to_schedule(
-    client,
-    sample_template,
-    sample_email_template,
-    notification_type,
-    key_send_to,
-    send_to,
-):
-    data = {
-        key_send_to: send_to,
-        "template_id": str(sample_email_template.id) if notification_type == EMAIL_TYPE else str(sample_template.id),
-        "scheduled_for": "2017-05-14 14:15",
-    }
-    auth_header = create_authorization_header(service_id=sample_template.service_id)
-
-    response = client.post(
-        "/v2/notifications/{}".format(notification_type),
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [
-        {
-            "error": "BadRequestError",
-            "message": "Cannot schedule notifications (this feature is invite-only)",
+    @freeze_time("2017-05-14 14:00:00")
+    def test_scheduling_works_if_permitted(self, client, notify_db_session, notification_type, key_send_to, send_to):
+        service = create_service(
+            service_name=str(uuid.uuid4()),
+            service_permissions=[EMAIL_TYPE, SMS_TYPE, SCHEDULE_NOTIFICATIONS],
+        )
+        template = create_template(service=service, template_type=notification_type)
+        data = {
+            key_send_to: send_to,
+            "template_id": str(template.id) if notification_type == EMAIL_TYPE else str(template.id),
+            "scheduled_for": "2017-05-14 14:15",
         }
-    ]
+        auth_header = create_authorization_header(service_id=service.id)
+
+        response = client.post(
+            "/v2/notifications/{}".format(notification_type),
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+        scheduled_notification = ScheduledNotification.query.filter_by(notification_id=resp_json["id"]).all()
+        assert len(scheduled_notification) == 1
+        assert resp_json["id"] == str(scheduled_notification[0].notification_id)
+        assert resp_json["scheduled_for"] == "2017-05-14 14:15"
+
+    @pytest.mark.parametrize(
+        "notification_type, key_send_to, send_to",
+        [
+            ("sms", "phone_number", "6502532222"),
+            ("email", "email_address", "sample@email.com"),
+        ],
+    )
+    @freeze_time("2017-05-14 14:00:00")
+    def test_raises_bad_request_if_service_not_invited_to_schedule(
+        self,
+        client,
+        sample_template,
+        sample_email_template,
+        notification_type,
+        key_send_to,
+        send_to,
+    ):
+        data = {
+            key_send_to: send_to,
+            "template_id": str(sample_email_template.id) if notification_type == EMAIL_TYPE else str(sample_template.id),
+            "scheduled_for": "2017-05-14 14:15",
+        }
+        auth_header = create_authorization_header(service_id=sample_template.service_id)
+
+        response = client.post(
+            "/v2/notifications/{}".format(notification_type),
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [
+            {
+                "error": "BadRequestError",
+                "message": "Cannot schedule notifications (this feature is invite-only)",
+            }
+        ]
 
 
 def test_post_notification_raises_bad_request_if_not_valid_notification_type(client, sample_service):
