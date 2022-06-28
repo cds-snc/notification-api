@@ -53,56 +53,10 @@ def rows_to_csv(rows):
     return output.getvalue()
 
 
-@pytest.mark.parametrize("reference", [None, "reference_from_client"])
-def test_post_sms_notification_returns_201(notify_api, client, sample_template_with_placeholders, mocker, reference):
-    mock_publish = mocker.patch("app.sms_normal.publish")
-    data = {
-        "phone_number": "+16502532222",
-        "template_id": str(sample_template_with_placeholders.id),
-        "personalisation": {" Name": "Jo"},
-    }
-    if reference:
-        data.update({"reference": reference})
-    auth_header = create_authorization_header(service_id=sample_template_with_placeholders.service_id)
-
-    response = client.post(
-        path="/v2/notifications/sms",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert validate(resp_json, post_sms_response) == resp_json
-
-    mock_publish_args = mock_publish.call_args.args[0]
-    mock_publish_args_unsigned = signer.verify(mock_publish_args)
-    assert mock_publish_args_unsigned["to"] == data["phone_number"]
-    assert mock_publish_args_unsigned["id"] == resp_json["id"]
-
-    assert resp_json["id"] == str(mock_publish_args_unsigned["id"])
-    assert resp_json["reference"] == reference
-    assert resp_json["content"]["body"] == sample_template_with_placeholders.content.replace("(( Name))", "Jo")
-    assert resp_json["content"]["from_number"] == current_app.config["FROM_NUMBER"]
-    assert "v2/notifications/{}".format(mock_publish_args_unsigned["id"]) in resp_json["uri"]
-    assert resp_json["template"]["id"] == str(sample_template_with_placeholders.id)
-    assert resp_json["template"]["version"] == sample_template_with_placeholders.version
-    assert (
-        "services/{}/templates/{}".format(
-            sample_template_with_placeholders.service_id,
-            sample_template_with_placeholders.id,
-        )
-        in resp_json["template"]["uri"]
-    )
-    assert not resp_json["scheduled_for"]
-
-
-class TestRedisBatchSaving:
+class TestPostNotificationsSms:
     @pytest.mark.parametrize("reference", [None, "reference_from_client"])
-    def test_post_notification_with_redis_batch_saving_returns_201(
-        self, notify_api, client, sample_template_with_placeholders, mocker, reference
-    ):
-        mocked_redis_publish = mocker.patch("app.queue.RedisQueue.publish")
-
+    def test_publish_and_response(self, notify_api, client, sample_template_with_placeholders, mocker, reference):
+        mock_publish = mocker.patch("app.sms_normal.publish")
         data = {
             "phone_number": "+16502532222",
             "template_id": str(sample_template_with_placeholders.id),
@@ -120,10 +74,17 @@ class TestRedisBatchSaving:
         assert response.status_code == 201
         resp_json = json.loads(response.get_data(as_text=True))
         assert validate(resp_json, post_sms_response) == resp_json
+
+        mock_publish_args = mock_publish.call_args.args[0]
+        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        assert mock_publish_args_unsigned["to"] == data["phone_number"]
+        assert mock_publish_args_unsigned["id"] == resp_json["id"]
+
+        assert resp_json["id"] == str(mock_publish_args_unsigned["id"])
         assert resp_json["reference"] == reference
         assert resp_json["content"]["body"] == sample_template_with_placeholders.content.replace("(( Name))", "Jo")
         assert resp_json["content"]["from_number"] == current_app.config["FROM_NUMBER"]
-        assert "v2/notifications/{}".format(resp_json["id"]) in resp_json["uri"]
+        assert "v2/notifications/{}".format(mock_publish_args_unsigned["id"]) in resp_json["uri"]
         assert resp_json["template"]["id"] == str(sample_template_with_placeholders.id)
         assert resp_json["template"]["version"] == sample_template_with_placeholders.version
         assert (
@@ -134,114 +95,60 @@ class TestRedisBatchSaving:
             in resp_json["template"]["uri"]
         )
         assert not resp_json["scheduled_for"]
-        assert mocked_redis_publish.called
+
+    def test_uses_inbound_number_as_from_number(self, notify_api, client, notify_db_session, mocker):
+        service = create_service_with_inbound_number(inbound_number="1")
+        template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
+        mock_publish = mocker.patch("app.sms_normal.publish")
+        data = {
+            "phone_number": "+16502532222",
+            "template_id": str(template.id),
+            "personalisation": {" Name": "Jo"},
+        }
+        auth_header = create_authorization_header(service_id=service.id)
+
+        response = client.post(
+            path="/v2/notifications/sms",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert validate(resp_json, post_sms_response) == resp_json
+        mock_publish_args = mock_publish.call_args.args[0]
+        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        assert mock_publish_args_unsigned["to"] == data["phone_number"]
+        assert mock_publish_args_unsigned["id"] == resp_json["id"]
+        assert resp_json["content"]["from_number"] == "1"
+
+    def test_uses_sms_sender_as_from_number(self, notify_api, client, sample_template_with_placeholders, mocker):
+        sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="123456")
+        mock_publish = mocker.patch("app.sms_normal.publish")
+        data = {
+            "phone_number": "+16502532222",
+            "template_id": str(sample_template_with_placeholders.id),
+            "personalisation": {" Name": "Jo"},
+            "sms_sender_id": str(sms_sender.id),
+        }
+        auth_header = create_authorization_header(service_id=sample_template_with_placeholders.service_id)
+
+        response = client.post(
+            path="/v2/notifications/sms",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert validate(resp_json, post_sms_response) == resp_json
+        assert resp_json["content"]["from_number"] == "123456"
+        mock_publish_args = mock_publish.call_args.args[0]
+        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        assert mock_publish_args_unsigned["to"] == data["phone_number"]
+        assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
 
-def test_post_sms_notification_uses_inbound_number_as_sender(notify_api, client, notify_db_session, mocker):
-    service = create_service_with_inbound_number(inbound_number="1")
-    template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
-    mock_publish = mocker.patch("app.sms_normal.publish")
-    data = {
-        "phone_number": "+16502532222",
-        "template_id": str(template.id),
-        "personalisation": {" Name": "Jo"},
-    }
-    auth_header = create_authorization_header(service_id=service.id)
-
-    response = client.post(
-        path="/v2/notifications/sms",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert validate(resp_json, post_sms_response) == resp_json
-    mock_publish_args = mock_publish.call_args.args[0]
-    mock_publish_args_unsigned = signer.verify(mock_publish_args)
-    assert mock_publish_args_unsigned["to"] == data["phone_number"]
-    assert mock_publish_args_unsigned["id"] == resp_json["id"]
-    assert resp_json["content"]["from_number"] == "1"
-    assert mock_publish.called
-
-
-def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(notify_api, client, notify_db_session, mocker):
-    service = create_service_with_inbound_number(inbound_number="6502532222")
-    template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
-    mock_publish = mocker.patch("app.sms_normal.publish")
-    data = {
-        "phone_number": "+16502532222",
-        "template_id": str(template.id),
-        "personalisation": {" Name": "Jo"},
-    }
-    auth_header = create_authorization_header(service_id=service.id)
-
-    response = client.post(
-        path="/v2/notifications/sms",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert validate(resp_json, post_sms_response) == resp_json
-    mock_publish_args = mock_publish.call_args.args[0]
-    mock_publish_args_unsigned = signer.verify(mock_publish_args)
-    assert mock_publish_args_unsigned["to"] == data["phone_number"]
-    assert mock_publish_args_unsigned["id"] == resp_json["id"]
-    assert resp_json["content"]["from_number"] == "+16502532222"
-
-
-def test_post_sms_notification_returns_201_with_sms_sender_id(notify_api, client, sample_template_with_placeholders, mocker):
-    sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="123456")
-    mock_publish = mocker.patch("app.sms_normal.publish")
-    data = {
-        "phone_number": "+16502532222",
-        "template_id": str(sample_template_with_placeholders.id),
-        "personalisation": {" Name": "Jo"},
-        "sms_sender_id": str(sms_sender.id),
-    }
-    auth_header = create_authorization_header(service_id=sample_template_with_placeholders.service_id)
-
-    response = client.post(
-        path="/v2/notifications/sms",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert validate(resp_json, post_sms_response) == resp_json
-    assert resp_json["content"]["from_number"] == sms_sender.sms_sender
-    mock_publish_args = mock_publish.call_args.args[0]
-    mock_publish_args_unsigned = signer.verify(mock_publish_args)
-    assert mock_publish_args_unsigned["to"] == data["phone_number"]
-    assert mock_publish_args_unsigned["id"] == resp_json["id"]
-
-
-def test_post_sms_notification_uses_sms_sender_id_reply_to(notify_api, client, sample_template_with_placeholders, mocker):
-    sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="6502532222")
-    mock_publish = mocker.patch("app.sms_normal.publish")
-    data = {
-        "phone_number": "+16502532222",
-        "template_id": str(sample_template_with_placeholders.id),
-        "personalisation": {" Name": "Jo"},
-        "sms_sender_id": str(sms_sender.id),
-    }
-    auth_header = create_authorization_header(service_id=sample_template_with_placeholders.service_id)
-
-    response = client.post(
-        path="/v2/notifications/sms",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert validate(resp_json, post_sms_response) == resp_json
-    assert resp_json["content"]["from_number"] == "+16502532222"
-    mock_publish_args = mock_publish.call_args.args[0]
-    mock_publish_args_unsigned = signer.verify(mock_publish_args)
-    assert mock_publish_args_unsigned["to"] == data["phone_number"]
-    assert mock_publish_args_unsigned["id"] == resp_json["id"]
-
-
+# Todo: we are sending an sms, then changing the sms_sender number. We need to test that the notification table has the correct number
+# TBH I think that if the notification hasn't been created in the database, the number will change. (and the changed number will be used when sending the sms)
 def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after_post_notification(
     notify_api, client, sample_template, mocker
 ):
