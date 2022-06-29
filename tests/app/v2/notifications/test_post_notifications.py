@@ -299,7 +299,7 @@ class TestPostNotificationsErrors:
             ),
         ],
     )
-    def test_no_auth_header_returns_401(
+    def test_post_notification_returns_401_and_well_formed_auth_error(
         self, client, sample_template, sample_email_template, notification_type, key_send_to, send_to
     ):
         data = {
@@ -719,7 +719,7 @@ class TestPostNotificationsErrors:
         ("6132532224", "sms"),
     ],
 )
-def test_should_not_publish_or_persist_if_simulated_recipient(
+def test_should_not_persist_or_send_notification_if_simulated_recipient(
     client, recipient, notification_type, sample_email_template, sample_template, mocker
 ):
     mock_publish = mocker.patch("app.{}_normal.publish".format(notification_type))
@@ -751,7 +751,7 @@ def test_should_not_publish_or_persist_if_simulated_recipient(
     ],
 )
 @pytest.mark.parametrize("process_type", ["priority", "bulk"])
-def test_uses_appropriate_queue_according_to_template_process_type(
+def test_send_notification_uses_appropriate_queue_according_to_template_process_type(
     notify_api,
     client,
     sample_service,
@@ -844,7 +844,7 @@ class TestSchedulingSends:
         ],
     )
     @freeze_time("2017-05-14 14:00:00")
-    def test_scheduling_works_if_permitted(self, client, notify_db_session, notification_type, key_send_to, send_to):
+    def test_post_notification_with_scheduled_for(self, client, notify_db_session, notification_type, key_send_to, send_to):
         service = create_service(
             service_name=str(uuid.uuid4()),
             service_permissions=[EMAIL_TYPE, SMS_TYPE, SCHEDULE_NOTIFICATIONS],
@@ -877,7 +877,7 @@ class TestSchedulingSends:
         ],
     )
     @freeze_time("2017-05-14 14:00:00")
-    def test_raises_bad_request_if_service_not_invited_to_schedule(
+    def test_post_notification_raises_bad_request_if_service_not_invited_to_schedule(
         self,
         client,
         sample_template,
