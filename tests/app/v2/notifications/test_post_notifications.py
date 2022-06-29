@@ -11,7 +11,6 @@ from freezegun import freeze_time
 
 from app import signer
 from app.dao.jobs_dao import dao_get_job_by_id
-from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
@@ -95,6 +94,33 @@ class TestSingleEndpointSucceeds:
             in resp_json["template"]["uri"]
         )
         assert not resp_json["scheduled_for"]
+
+    def test_post_sms_notification_uses_sms_sender_id_reply_to(
+        self, notify_api, client, sample_template_with_placeholders, mocker
+    ):
+        sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="6502532222")
+        mock_publish = mocker.patch("app.sms_normal.publish")
+        data = {
+            "phone_number": "+16502532222",
+            "template_id": str(sample_template_with_placeholders.id),
+            "personalisation": {" Name": "Jo"},
+            "sms_sender_id": str(sms_sender.id),
+        }
+        auth_header = create_authorization_header(service_id=sample_template_with_placeholders.service_id)
+
+        response = client.post(
+            path="/v2/notifications/sms",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert validate(resp_json, post_sms_response) == resp_json
+        assert resp_json["content"]["from_number"] == "+16502532222"
+        mock_publish_args = mock_publish.call_args.args[0]
+        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        assert mock_publish_args_unsigned["to"] == data["phone_number"]
+        assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
     def test_post_sms_notification_uses_inbound_number_as_sender(self, notify_api, client, notify_db_session, mocker):
         service = create_service_with_inbound_number(inbound_number="1")
