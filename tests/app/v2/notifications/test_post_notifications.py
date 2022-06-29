@@ -121,7 +121,7 @@ class TestSingleEndpointSucceeds:
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
         assert resp_json["content"]["from_number"] == "1"
 
-    def test_post_sms_notification_uses_sms_sender_id_reply_to(
+    def test_post_sms_notification_returns_201_with_sms_sender_id(
         self, notify_api, client, sample_template_with_placeholders, mocker
     ):
         sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="123456")
@@ -142,7 +142,7 @@ class TestSingleEndpointSucceeds:
         assert response.status_code == 201
         resp_json = json.loads(response.get_data(as_text=True))
         assert validate(resp_json, post_sms_response) == resp_json
-        assert resp_json["content"]["from_number"] == "123456"
+        assert resp_json["content"]["from_number"] == sms_sender.sms_sender
         mock_publish_args = mock_publish.call_args.args[0]
         mock_publish_args_unsigned = signer.verify(mock_publish_args)
         assert mock_publish_args_unsigned["to"] == data["phone_number"]
