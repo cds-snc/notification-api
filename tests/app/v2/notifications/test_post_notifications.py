@@ -53,9 +53,9 @@ def rows_to_csv(rows):
     return output.getvalue()
 
 
-class TestPostNotificationsSms:
+class TestSingleEndpointSucceeds:
     @pytest.mark.parametrize("reference", [None, "reference_from_client"])
-    def test_sms_publish_and_response(self, notify_api, client, sample_template_with_placeholders, mocker, reference):
+    def test_post_sms_notification_returns_201(self, notify_api, client, sample_template_with_placeholders, mocker, reference):
         mock_publish = mocker.patch("app.sms_normal.publish")
         data = {
             "phone_number": "+16502532222",
@@ -96,7 +96,7 @@ class TestPostNotificationsSms:
         )
         assert not resp_json["scheduled_for"]
 
-    def test_uses_inbound_number_as_from_number(self, notify_api, client, notify_db_session, mocker):
+    def test_post_sms_notification_uses_inbound_number_as_sender(self, notify_api, client, notify_db_session, mocker):
         service = create_service_with_inbound_number(inbound_number="1")
         template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
         mock_publish = mocker.patch("app.sms_normal.publish")
@@ -121,7 +121,9 @@ class TestPostNotificationsSms:
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
         assert resp_json["content"]["from_number"] == "1"
 
-    def test_uses_sms_sender_as_from_number(self, notify_api, client, sample_template_with_placeholders, mocker):
+    def test_post_sms_notification_uses_sms_sender_id_reply_to(
+        self, notify_api, client, sample_template_with_placeholders, mocker
+    ):
         sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="123456")
         mock_publish = mocker.patch("app.sms_normal.publish")
         data = {
@@ -146,7 +148,7 @@ class TestPostNotificationsSms:
         assert mock_publish_args_unsigned["to"] == data["phone_number"]
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
-    def test_returns_201_if_allowed_to_send_int_sms(
+    def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms(
         self,
         notify_api,
         sample_service,
@@ -192,43 +194,71 @@ class TestPostNotificationsSms:
         assert mock_publish_args_unsigned["to"] == data["phone_number"]
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
+    @pytest.mark.parametrize("reference", [None, "reference_from_client"])
+    def test_post_email_notification_returns_201(notify_api, client, sample_email_template_with_placeholders, mocker, reference):
+        mock_publish = mocker.patch("app.email_normal.publish")
+        data = {
+            "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
+            "template_id": sample_email_template_with_placeholders.id,
+            "personalisation": {"name": "Bob"},
+        }
+        if reference:
+            data.update({"reference": reference})
+        auth_header = create_authorization_header(service_id=sample_email_template_with_placeholders.service_id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert validate(resp_json, post_email_response) == resp_json
 
-# Todo: we are sending an sms, then changing the sms_sender number. We need to test that the notification table has the correct number
-# TBH I think that if the notification hasn't been created in the database, the number will change. (and the changed number will be used when sending the sms)
-@pytest.mark.skip(reason="This should probably be moved")
-def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after_post_notification(
-    notify_api, client, sample_template, mocker
-):
-    sms_sender = create_service_sms_sender(service=sample_template.service, sms_sender="123456", is_default=False)
-    mock_publish = mocker.patch("app.sms_normal.publish")
-    data = {
-        "phone_number": "+16502532222",
-        "template_id": str(sample_template.id),
-        "sms_sender_id": str(sms_sender.id),
-    }
-    auth_header = create_authorization_header(service_id=sample_template.service_id)
+        mock_publish_args = mock_publish.call_args.args[0]
+        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        assert mock_publish_args_unsigned["to"] == data["email_address"]
+        assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
-    response = client.post(
-        path="/v2/notifications/sms",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
+        assert resp_json["reference"] == reference
+        assert resp_json["content"]["body"] == sample_email_template_with_placeholders.content.replace("((name))", "Bob")
+        assert resp_json["content"]["subject"] == sample_email_template_with_placeholders.subject.replace("((name))", "Bob")
+        assert resp_json["content"]["from_email"] == "{}@{}".format(
+            sample_email_template_with_placeholders.service.email_from,
+            current_app.config["NOTIFY_EMAIL_DOMAIN"],
+        )
+        assert "v2/notifications/{}".format(mock_publish_args_unsigned["id"]) in resp_json["uri"]
+        assert resp_json["template"]["id"] == str(sample_email_template_with_placeholders.id)
+        assert resp_json["template"]["version"] == sample_email_template_with_placeholders.version
+        assert (
+            "services/{}/templates/{}".format(
+                str(sample_email_template_with_placeholders.service_id),
+                str(sample_email_template_with_placeholders.id),
+            )
+            in resp_json["template"]["uri"]
+        )
+        assert not resp_json["scheduled_for"]
 
-    dao_update_service_sms_sender(
-        service_id=sample_template.service_id,
-        service_sms_sender_id=sms_sender.id,
-        is_default=sms_sender.is_default,
-        sms_sender="updated",
-    )
-
-    assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert validate(resp_json, post_sms_response) == resp_json
-    mock_publish_args = mock_publish.call_args.args[0]
-    mock_publish_args_unsigned = signer.verify(mock_publish_args)
-    assert mock_publish_args_unsigned["to"] == data["phone_number"]
-    assert mock_publish_args_unsigned["id"] == resp_json["id"]
-    assert resp_json["content"]["from_number"] == "123456"
+    def test_post_email_notification_with_valid_reply_to_id_returns_201(self, notify_api, client, sample_email_template, mocker):
+        reply_to_email = create_reply_to_email(sample_email_template.service, "test@test.com")
+        mock_publish = mocker.patch("app.email_normal.publish")
+        data = {
+            "email_address": sample_email_template.service.users[0].email_address,
+            "template_id": sample_email_template.id,
+            "email_reply_to_id": reply_to_email.id,
+        }
+        auth_header = create_authorization_header(service_id=sample_email_template.service_id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert validate(resp_json, post_email_response) == resp_json
+        mock_publish_args = mock_publish.call_args.args[0]
+        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        assert mock_publish_args_unsigned["to"] == data["email_address"]
+        assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
 
 class TestPostNotificationsErrors:
@@ -678,74 +708,6 @@ class TestPostNotificationsErrors:
         assert response.status_code == 400
 
 
-class TestPostNotificationsEmail:
-    @pytest.mark.parametrize("reference", [None, "reference_from_client"])
-    def test_email_publish_and_response(notify_api, client, sample_email_template_with_placeholders, mocker, reference):
-        mock_publish = mocker.patch("app.email_normal.publish")
-        data = {
-            "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
-            "template_id": sample_email_template_with_placeholders.id,
-            "personalisation": {"name": "Bob"},
-        }
-        if reference:
-            data.update({"reference": reference})
-        auth_header = create_authorization_header(service_id=sample_email_template_with_placeholders.service_id)
-        response = client.post(
-            path="v2/notifications/email",
-            data=json.dumps(data),
-            headers=[("Content-Type", "application/json"), auth_header],
-        )
-        assert response.status_code == 201
-        resp_json = json.loads(response.get_data(as_text=True))
-        assert validate(resp_json, post_email_response) == resp_json
-
-        mock_publish_args = mock_publish.call_args.args[0]
-        mock_publish_args_unsigned = signer.verify(mock_publish_args)
-        assert mock_publish_args_unsigned["to"] == data["email_address"]
-        assert mock_publish_args_unsigned["id"] == resp_json["id"]
-
-        assert resp_json["reference"] == reference
-        assert resp_json["content"]["body"] == sample_email_template_with_placeholders.content.replace("((name))", "Bob")
-        assert resp_json["content"]["subject"] == sample_email_template_with_placeholders.subject.replace("((name))", "Bob")
-        assert resp_json["content"]["from_email"] == "{}@{}".format(
-            sample_email_template_with_placeholders.service.email_from,
-            current_app.config["NOTIFY_EMAIL_DOMAIN"],
-        )
-        assert "v2/notifications/{}".format(mock_publish_args_unsigned["id"]) in resp_json["uri"]
-        assert resp_json["template"]["id"] == str(sample_email_template_with_placeholders.id)
-        assert resp_json["template"]["version"] == sample_email_template_with_placeholders.version
-        assert (
-            "services/{}/templates/{}".format(
-                str(sample_email_template_with_placeholders.service_id),
-                str(sample_email_template_with_placeholders.id),
-            )
-            in resp_json["template"]["uri"]
-        )
-        assert not resp_json["scheduled_for"]
-
-    def test_post_email_notification_with_valid_reply_to_id_returns_201(self, notify_api, client, sample_email_template, mocker):
-        reply_to_email = create_reply_to_email(sample_email_template.service, "test@test.com")
-        mock_publish = mocker.patch("app.email_normal.publish")
-        data = {
-            "email_address": sample_email_template.service.users[0].email_address,
-            "template_id": sample_email_template.id,
-            "email_reply_to_id": reply_to_email.id,
-        }
-        auth_header = create_authorization_header(service_id=sample_email_template.service_id)
-        response = client.post(
-            path="v2/notifications/email",
-            data=json.dumps(data),
-            headers=[("Content-Type", "application/json"), auth_header],
-        )
-        assert response.status_code == 201
-        resp_json = json.loads(response.get_data(as_text=True))
-        assert validate(resp_json, post_email_response) == resp_json
-        mock_publish_args = mock_publish.call_args.args[0]
-        mock_publish_args_unsigned = signer.verify(mock_publish_args)
-        assert mock_publish_args_unsigned["to"] == data["email_address"]
-        assert mock_publish_args_unsigned["id"] == resp_json["id"]
-
-
 @pytest.mark.parametrize(
     "recipient, notification_type",
     [
@@ -946,7 +908,7 @@ class TestSchedulingSends:
         ]
 
 
-class TestPostNotificationsDocuments:
+class TestSendingDocuments:
     @pytest.mark.parametrize(
         "filename, file_data, sending_method",
         [
@@ -1401,7 +1363,7 @@ class TestPostNotificationsDocuments:
         assert response.status_code == 400
 
 
-class TestPostNotificationBulk:
+class TestBulkSend:
     @pytest.mark.parametrize("args", [{}, {"rows": [1, 2], "csv": "foo"}], ids=["no args", "both args"])
     def test_post_bulk_with_invalid_data_arguments(
         self,
