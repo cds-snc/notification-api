@@ -1,60 +1,58 @@
-import requests
 import json
 import jwt
-import time
 import os
+import requests
+import time
 
-notification_url = os.getenv("NOTIFICATION_URL")
-api_secret = os.getenv("NOTIFICATION_SECRET")
+NOTIFICATION_URL = os.getenv("NOTIFICATION_URL")
+API_SECRET = os.getenv("NOTIFICATION_SECRET")
 
-if(not api_secret):
-    raise ValueError("Missing secret environment variable")
+if API_SECRET is None:
+    raise RuntimeError("Missing secret environment variable.")
 
-if(not notification_url):
-    raise ValueError("Missing url")
+if NOTIFICATION_URL is None:
+    raise RuntimeError("Missing Notification url.")
 
 
-def get_jwt():
-    jwtSecret = api_secret
-    header = {'typ': 'JWT', 'alg': 'HS256'}
-    combo = {}
+def get_jwt() -> str:
+    """ Return a JWT. """
+
     currentTimestamp = int(time.time())
-    data = {
-        'iss': "notify-admin",
-        'iat': currentTimestamp,
-        'exp': currentTimestamp + 30,
-        'jti': 'jwt_nonce'
+
+    combo = {
+        "alg": "HS256",
+        "exp": currentTimestamp + 30,
+        "iat": currentTimestamp,
+        "iss": "notify-admin",
+        "jti": "jwt_nonce",
+        "typ": "JWT",
     }
-    combo.update(data)
-    combo.update(header)
-    encoded_jwt = jwt.encode(combo, jwtSecret, algorithm='HS256')
-    return encoded_jwt
+
+    return jwt.encode(combo, API_SECRET, algorithm="HS256")
 
 
-def get_service_jwt(api_key_secret, service_id):
-    jwtSecret = api_key_secret
-    header = {'typ': 'JWT', 'alg': 'HS256'}
-    combo = {}
-    currentTimestamp = int(time.time())
-    data = {
-        'iss': service_id,
-        'iat': currentTimestamp,
+def get_service_jwt(api_key_secret, service_id) -> str:
+    """ Return a JWT for a specific service. """
+
+    combo = {
+        "alg": "HS256",
+        "iat": int(time.time()),
+        "iss": service_id,
+        "typ": "JWT",
     }
-    combo.update(data)
-    combo.update(header)
-    encoded_jwt = jwt.encode(combo, jwtSecret, algorithm='HS256')
-    return encoded_jwt
+
+    return jwt.encode(combo, api_key_secret, algorithm="HS256")
 
 
 def get_authenticated_request(endpoint):
-    jwt = get_jwt()
-    header = {"Authorization": "Bearer " + jwt.decode("utf-8")}
-    r = requests.get(notification_url + endpoint, headers=header)
-    return r
+    return requests.get(
+        NOTIFICATION_URL + endpoint,
+        headers={"Authorization": "Bearer " + get_jwt()}
+    )
 
 
 def get_status():
-    r = requests.get(notification_url + "/_status")
+    r = requests.get(NOTIFICATION_URL + "/_status")
     return r
 
 
@@ -111,11 +109,22 @@ def test_status():
 
 
 def create_api_key(service_id, user_id):
-    jwt = get_jwt()
-    header = {"Authorization": "Bearer " + jwt.decode("utf-8"), 'Content-Type': 'application/json'}
-    payload = json.dumps({"created_by": user_id, "key_type": "normal", "name": "userflows"})
-    r = requests.post(notification_url + "/service/" + service_id + "/api-key", headers=header, data=payload)
-    return r
+    headers = {
+        "Authorization": "Bearer " + get_jwt(),
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "created_by": user_id,
+        "key_type": "normal",
+        "name": "userflows",
+    }
+
+    return requests.post(
+        NOTIFICATION_URL + "/service/" + service_id + "/api-key",
+        headers=headers,
+        data=json.dumps(payload)
+    )
 
 
 def get_api_key(service_id):
@@ -131,33 +140,44 @@ def get_right_api_key(get_key_response):
 
 
 def revoke_key(old_key_id, service_id):
-    jwt = get_jwt()
-    header = {"Authorization": "Bearer " + jwt.decode("utf-8"), 'Content-Type': 'application/json'}
-    url = notification_url + "/service/" + service_id + "/api-key/revoke/" + old_key_id
-    r = requests.post(url, headers=header, data={})
-    return r
+    headers = {
+        "Authorization": "Bearer " + get_jwt(),
+        "Content-Type": "application/json",
+    }
+
+    url = NOTIFICATION_URL + "/service/" + service_id + "/api-key/revoke/" + old_key_id
+    return requests.post(url, headers=headers, data={})
 
 
-def send_email(jwt, template_id):
-    header = {"Authorization": "Bearer " + jwt.decode("utf-8"), 'Content-Type': 'application/json'}
-    payload = json.dumps({
+def send_email(the_jwt, template_id):
+    headers = {
+        "Authorization": "Bearer " + the_jwt,
+        "Content-Type": "application/json",
+    }
+
+    payload = {
         "template_id": template_id,
         "email_address": "test@sink.govdelivery.com",
         "personalisation": {
             "claim_id": "600191990",
             "date_submitted": "October 30, 2020",
-            "full_name": "Test Subject"
-        }
-    })
-    r = requests.post(notification_url + "/v2/notifications/email", headers=header, data=payload)
-    return r
+            "full_name": "Test Subject",
+        },
+    }
+
+    url = NOTIFICATION_URL + "/v2/notifications/email"
+    return requests.post(url, headers=headers, data=json.dumps(payload))
 
 
 def get_notification_id(notification_response):
     return notification_response.json()['id']
 
 
-def get_notification_status(jwt, notification_id):
-    header = {"Authorization": "Bearer " + jwt.decode("utf-8"), 'Content-Type': 'application/json'}
-    r = requests.get(notification_url + "/v2/notifications/" + notification_id, headers=header)
-    return r
+def get_notification_status(the_jwt, notification_id):
+    headers = {
+        "Authorization": "Bearer " + the_jwt,
+        "Content-Type": "application/json"
+    }
+
+    url = NOTIFICATION_URL + "/v2/notifications/" + notification_id
+    return requests.get(url, headers=headers)
