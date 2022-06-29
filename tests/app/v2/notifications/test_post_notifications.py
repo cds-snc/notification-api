@@ -1401,307 +1401,16 @@ class TestPostNotificationsDocuments:
         assert response.status_code == 400
 
 
-@pytest.mark.parametrize("args", [{}, {"rows": [1, 2], "csv": "foo"}], ids=["no args", "both args"])
-def test_post_bulk_with_invalid_data_arguments(
-    client,
-    sample_email_template,
-    args,
-):
-    data = {"name": "job_name", "template_id": str(sample_email_template.id)} | args
+class TestPostNotificationBulk:
+    @pytest.mark.parametrize("args", [{}, {"rows": [1, 2], "csv": "foo"}], ids=["no args", "both args"])
+    def test_post_bulk_with_invalid_data_arguments(
+        self,
+        client,
+        sample_email_template,
+        args,
+    ):
+        data = {"name": "job_name", "template_id": str(sample_email_template.id)} | args
 
-    response = client.post(
-        "/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_email_template.service_id)],
-    )
-
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [
-        {
-            "error": "BadRequestError",
-            "message": "You should specify either rows or csv",
-        }
-    ]
-
-
-def test_post_bulk_with_invalid_reply_to_id(client, sample_email_template):
-    data = {
-        "name": "job_name",
-        "template_id": str(sample_email_template.id),
-        "rows": [["email address"], ["bob@example.com"]],
-        "reply_to_id": "foo",
-    }
-
-    response = client.post(
-        "/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_email_template.service_id)],
-    )
-
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [
-        {
-            "error": "ValidationError",
-            "message": "reply_to_id is not a valid UUID",
-        }
-    ]
-
-
-def test_post_bulk_with_non_existing_reply_to_id_for_email(client, sample_email_template, fake_uuid):
-    data = {
-        "name": "job_name",
-        "template_id": str(sample_email_template.id),
-        "rows": [["email address"], ["bob@example.com"]],
-        "reply_to_id": fake_uuid,
-    }
-
-    response = client.post(
-        "/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_email_template.service_id)],
-    )
-
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [
-        {
-            "error": "BadRequestError",
-            "message": f"email_reply_to_id {fake_uuid} does not exist in database for service id {sample_email_template.service_id}",
-        }
-    ]
-
-
-def test_post_bulk_with_non_existing_reply_to_id_for_sms(client, sms_code_template, fake_uuid):
-    data = {
-        "name": "job_name",
-        "template_id": str(sms_code_template.id),
-        "rows": [["phone number", "verify_code"], ["bob@example.com", "123"]],
-        "reply_to_id": fake_uuid,
-    }
-
-    response = client.post(
-        "/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sms_code_template.service_id)],
-    )
-
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [
-        {
-            "error": "BadRequestError",
-            "message": f"sms_sender_id {fake_uuid} does not exist in database for service id {sms_code_template.service_id}",
-        }
-    ]
-
-
-def test_post_bulk_flags_if_name_is_missing(client, sample_email_template):
-    data = {"template_id": str(sample_email_template.id), "csv": "foo"}
-
-    response = client.post(
-        "/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_email_template.service_id)],
-    )
-
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [{"error": "ValidationError", "message": "name is a required property"}]
-
-
-@pytest.mark.parametrize(
-    "scheduled_for, expected_message",
-    [
-        (42, "scheduled_for 42 is not of type string, null"),
-        (
-            "foo",
-            "scheduled_for datetime format is invalid. It must be a valid "
-            "ISO8601 date time format, "
-            "https://en.wikipedia.org/wiki/ISO_8601",
-        ),
-        ("2016-01-01T10:04:00", "scheduled_for datetime cannot be in the past"),
-        ("2016-01-05T10:06:00", "scheduled_for datetime can only be up to 96 hours in the future"),
-    ],
-)
-@freeze_time("2016-01-01 10:05:00")
-def test_post_bulk_with_invalid_scheduled_for(client, sample_email_template, scheduled_for, expected_message):
-    data = {"name": "job_name", "template_id": str(sample_email_template.id), "scheduled_for": scheduled_for, "rows": [1, 2]}
-
-    response = client.post(
-        "/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_email_template.service_id)],
-    )
-
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [{"error": "ValidationError", "message": expected_message}]
-
-
-def test_post_bulk_with_non_existing_template(client, fake_uuid, sample_email_template):
-    data = {"name": "job_name", "template_id": fake_uuid, "rows": [1, 2]}
-
-    response = client.post(
-        "/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_email_template.service_id)],
-    )
-
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [{"error": "BadRequestError", "message": "Template not found"}]
-
-
-def test_post_bulk_with_archived_template(client, fake_uuid, notify_db, notify_db_session):
-    template = create_sample_template(notify_db, notify_db_session, archived=True)
-    data = {"name": "job_name", "template_id": template.id, "rows": [1, 2]}
-
-    response = client.post(
-        "/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
-    )
-
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [{"error": "BadRequestError", "message": f"Template {template.id} has been deleted"}]
-
-
-@pytest.mark.parametrize(
-    "permission_type, notification_type, expected_error",
-    [
-        ("email", "sms", "text messages"),
-        ("sms", "email", "emails"),
-    ],
-)
-def test_post_bulk_returns_400_if_not_allowed_to_send_notification_type(
-    notify_db_session,
-    client,
-    permission_type,
-    notification_type,
-    expected_error,
-):
-    service = create_service(service_permissions=[permission_type])
-    sample_template_without_permission = create_template(service=service, template_type=notification_type)
-    data = {"name": "job_name", "template_id": sample_template_without_permission.id, "rows": [1, 2]}
-    auth_header = create_authorization_header(service_id=sample_template_without_permission.service.id)
-
-    response = client.post(
-        path="/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    assert response.status_code == 400
-    assert response.headers["Content-type"] == "application/json"
-
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["status_code"] == 400
-    assert error_json["errors"] == [
-        {
-            "error": "BadRequestError",
-            "message": f"Service is not allowed to send {expected_error}",
-        }
-    ]
-
-
-@pytest.mark.parametrize("data_type", ["rows", "csv"])
-@pytest.mark.parametrize(
-    "template_type, content, row_header, expected_error",
-    [
-        ("email", "Hello!", ["foo"], "email address"),
-        ("email", "Hello ((name))!", ["foo"], "email address, name"),
-        ("sms", "Hello ((name))!", ["foo"], "name, phone number"),
-        ("sms", "Hello ((name))!", ["foo"], "name, phone number"),
-        ("sms", "Hello ((name))!", ["name"], "phone number"),
-        ("sms", "Hello ((name))!", ["NAME"], "phone number"),
-    ],
-)
-def test_post_bulk_flags_missing_column_headers(
-    client, notify_db, notify_db_session, data_type, template_type, content, row_header, expected_error
-):
-    template = create_sample_template(notify_db, notify_db_session, content=content, template_type=template_type)
-    data = {"name": "job_name", "template_id": template.id}
-    rows = [row_header, ["bar"]]
-    if data_type == "csv":
-        data["csv"] = rows_to_csv(rows)
-    else:
-        data["rows"] = rows
-
-    response = client.post(
-        "/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
-    )
-
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [{"error": "BadRequestError", "message": f"Missing column headers: {expected_error}"}]
-
-
-@pytest.mark.parametrize(
-    "template_type, content, row_header, expected_error",
-    [
-        (
-            "email",
-            "Hello!",
-            ["email address", "email address"],
-            "email address",
-        ),
-        (
-            "email",
-            "Hello ((name))!",
-            ["email address", "email_address", "name"],
-            "email address, email_address",
-        ),
-        ("sms", "Hello!", ["phone number", "phone number"], "phone number"),
-        (
-            "sms",
-            "Hello!",
-            ["phone number", "phone_number"],
-            "phone number, phone_number",
-        ),
-        (
-            "sms",
-            "Hello ((name))!",
-            ["phone number", "phone_number", "name"],
-            "phone number, phone_number",
-        ),
-    ],
-)
-def test_post_bulk_flags_duplicate_recipient_column_headers(
-    client,
-    notify_db,
-    notify_db_session,
-    template_type,
-    content,
-    row_header,
-    expected_error,
-):
-    template = create_sample_template(notify_db, notify_db_session, content=content, template_type=template_type)
-    data = {"name": "job_name", "template_id": template.id, "rows": [row_header, ["bar"]]}
-
-    response = client.post(
-        "/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
-    )
-
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [{"error": "BadRequestError", "message": f"Duplicate column headers: {expected_error}"}]
-
-
-def test_post_bulk_flags_too_many_rows(client, sample_email_template, notify_api):
-    data = {
-        "name": "job_name",
-        "template_id": sample_email_template.id,
-        "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
-    }
-
-    with set_config(notify_api, "CSV_MAX_ROWS", 1):
         response = client.post(
             "/v2/notifications/bulk",
             data=json.dumps(data),
@@ -1711,215 +1420,526 @@ def test_post_bulk_flags_too_many_rows(client, sample_email_template, notify_api
             ],
         )
 
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [
-        {
-            "error": "BadRequestError",
-            "message": "Too many rows. Maximum number of rows allowed is 1",
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [
+            {
+                "error": "BadRequestError",
+                "message": "You should specify either rows or csv",
+            }
+        ]
+
+    def test_post_bulk_with_invalid_reply_to_id(self, client, sample_email_template):
+        data = {
+            "name": "job_name",
+            "template_id": str(sample_email_template.id),
+            "rows": [["email address"], ["bob@example.com"]],
+            "reply_to_id": "foo",
         }
-    ]
 
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[
+                ("Content-Type", "application/json"),
+                create_authorization_header(service_id=sample_email_template.service_id),
+            ],
+        )
 
-def test_post_bulk_flags_recipient_not_in_safelist_with_team_api_key(client, sample_email_template):
-    data = {
-        "name": "job_name",
-        "template_id": sample_email_template.id,
-        "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
-    }
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [
+            {
+                "error": "ValidationError",
+                "message": "reply_to_id is not a valid UUID",
+            }
+        ]
 
-    response = client.post(
-        "/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[
-            ("Content-Type", "application/json"),
-            create_authorization_header(service_id=sample_email_template.service_id, key_type="team"),
+    def test_post_bulk_with_non_existing_reply_to_id_for_email(self, client, sample_email_template, fake_uuid):
+        data = {
+            "name": "job_name",
+            "template_id": str(sample_email_template.id),
+            "rows": [["email address"], ["bob@example.com"]],
+            "reply_to_id": fake_uuid,
+        }
+
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[
+                ("Content-Type", "application/json"),
+                create_authorization_header(service_id=sample_email_template.service_id),
+            ],
+        )
+
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [
+            {
+                "error": "BadRequestError",
+                "message": f"email_reply_to_id {fake_uuid} does not exist in database for service id {sample_email_template.service_id}",
+            }
+        ]
+
+    def test_post_bulk_with_non_existing_reply_to_id_for_sms(self, client, sms_code_template, fake_uuid):
+        data = {
+            "name": "job_name",
+            "template_id": str(sms_code_template.id),
+            "rows": [["phone number", "verify_code"], ["bob@example.com", "123"]],
+            "reply_to_id": fake_uuid,
+        }
+
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sms_code_template.service_id)],
+        )
+
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [
+            {
+                "error": "BadRequestError",
+                "message": f"sms_sender_id {fake_uuid} does not exist in database for service id {sms_code_template.service_id}",
+            }
+        ]
+
+    def test_post_bulk_flags_if_name_is_missing(self, client, sample_email_template):
+        data = {"template_id": str(sample_email_template.id), "csv": "foo"}
+
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[
+                ("Content-Type", "application/json"),
+                create_authorization_header(service_id=sample_email_template.service_id),
+            ],
+        )
+
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [{"error": "ValidationError", "message": "name is a required property"}]
+
+    @pytest.mark.parametrize(
+        "scheduled_for, expected_message",
+        [
+            (42, "scheduled_for 42 is not of type string, null"),
+            (
+                "foo",
+                "scheduled_for datetime format is invalid. It must be a valid "
+                "ISO8601 date time format, "
+                "https://en.wikipedia.org/wiki/ISO_8601",
+            ),
+            ("2016-01-01T10:04:00", "scheduled_for datetime cannot be in the past"),
+            ("2016-01-05T10:06:00", "scheduled_for datetime can only be up to 96 hours in the future"),
         ],
     )
+    @freeze_time("2016-01-01 10:05:00")
+    def test_post_bulk_with_invalid_scheduled_for(self, client, sample_email_template, scheduled_for, expected_message):
+        data = {"name": "job_name", "template_id": str(sample_email_template.id), "scheduled_for": scheduled_for, "rows": [1, 2]}
 
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [
-        {
-            "error": "BadRequestError",
-            "message": "You cannot send to these recipients because you used a team and safelist API key.",
-        }
-    ]
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[
+                ("Content-Type", "application/json"),
+                create_authorization_header(service_id=sample_email_template.service_id),
+            ],
+        )
 
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [{"error": "ValidationError", "message": expected_message}]
 
-def test_post_bulk_flags_recipient_not_in_safelist_with_restricted_service(client, notify_db, notify_db_session):
-    service = create_service(restricted=True)
-    template = create_sample_template(notify_db, notify_db_session, service=service, template_type="email")
-    data = {
-        "name": "job_name",
-        "template_id": template.id,
-        "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
-    }
+    def test_post_bulk_with_non_existing_template(self, client, fake_uuid, sample_email_template):
+        data = {"name": "job_name", "template_id": fake_uuid, "rows": [1, 2]}
 
-    response = client.post(
-        "/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[
-            ("Content-Type", "application/json"),
-            create_authorization_header(service_id=template.service_id, key_type="team"),
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[
+                ("Content-Type", "application/json"),
+                create_authorization_header(service_id=sample_email_template.service_id),
+            ],
+        )
+
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [{"error": "BadRequestError", "message": "Template not found"}]
+
+    def test_post_bulk_with_archived_template(self, client, fake_uuid, notify_db, notify_db_session):
+        template = create_sample_template(notify_db, notify_db_session, archived=True)
+        data = {"name": "job_name", "template_id": template.id, "rows": [1, 2]}
+
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+        )
+
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [{"error": "BadRequestError", "message": f"Template {template.id} has been deleted"}]
+
+    @pytest.mark.parametrize(
+        "permission_type, notification_type, expected_error",
+        [
+            ("email", "sms", "text messages"),
+            ("sms", "email", "emails"),
         ],
     )
+    def test_post_bulk_returns_400_if_not_allowed_to_send_notification_type(
+        self,
+        notify_db_session,
+        client,
+        permission_type,
+        notification_type,
+        expected_error,
+    ):
+        service = create_service(service_permissions=[permission_type])
+        sample_template_without_permission = create_template(service=service, template_type=notification_type)
+        data = {"name": "job_name", "template_id": sample_template_without_permission.id, "rows": [1, 2]}
+        auth_header = create_authorization_header(service_id=sample_template_without_permission.service.id)
 
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [
-        {
-            "error": "BadRequestError",
-            "message": "You cannot send to these recipients because your service is in trial mode. You can only send to members of your team and your safelist.",
-        }
-    ]
+        response = client.post(
+            path="/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
 
+        assert response.status_code == 400
+        assert response.headers["Content-type"] == "application/json"
 
-def test_post_bulk_flags_not_enough_remaining_messages(client, notify_db, notify_db_session, mocker):
-    service = create_service(message_limit=10)
-    template = create_sample_template(notify_db, notify_db_session, service=service, template_type="email")
-    messages_count_mock = mocker.patch("app.v2.notifications.post_notifications.fetch_todays_total_message_count", return_value=9)
-    data = {
-        "name": "job_name",
-        "template_id": template.id,
-        "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
-    }
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["status_code"] == 400
+        assert error_json["errors"] == [
+            {
+                "error": "BadRequestError",
+                "message": f"Service is not allowed to send {expected_error}",
+            }
+        ]
 
-    response = client.post(
-        "/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+    @pytest.mark.parametrize("data_type", ["rows", "csv"])
+    @pytest.mark.parametrize(
+        "template_type, content, row_header, expected_error",
+        [
+            ("email", "Hello!", ["foo"], "email address"),
+            ("email", "Hello ((name))!", ["foo"], "email address, name"),
+            ("sms", "Hello ((name))!", ["foo"], "name, phone number"),
+            ("sms", "Hello ((name))!", ["foo"], "name, phone number"),
+            ("sms", "Hello ((name))!", ["name"], "phone number"),
+            ("sms", "Hello ((name))!", ["NAME"], "phone number"),
+        ],
     )
+    def test_post_bulk_flags_missing_column_headers(
+        self, client, notify_db, notify_db_session, data_type, template_type, content, row_header, expected_error
+    ):
+        template = create_sample_template(notify_db, notify_db_session, content=content, template_type=template_type)
+        data = {"name": "job_name", "template_id": template.id}
+        rows = [row_header, ["bar"]]
+        if data_type == "csv":
+            data["csv"] = rows_to_csv(rows)
+        else:
+            data["rows"] = rows
 
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [
-        {
-            "error": "BadRequestError",
-            "message": "You only have 1 remaining messages before you reach your daily limit. You've tried to send 2 messages.",
-        }
-    ]
-    messages_count_mock.assert_called_once()
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+        )
 
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [{"error": "BadRequestError", "message": f"Missing column headers: {expected_error}"}]
 
-@pytest.mark.parametrize("data_type", ["rows", "csv"])
-def test_post_bulk_flags_rows_with_errors(client, notify_db, notify_db_session, data_type):
-    template = create_sample_template(notify_db, notify_db_session, template_type="email", content="Hello ((name))")
-    data = {"name": "job_name", "template_id": template.id}
-    rows = [
-        ["email address", "name"],
-        ["foo@example.com", "Foo"],
-        ["bar@example.com"],
-        ["nope", "nope"],
-        ["baz@example.com", ""],
-        ["baz@example.com", " "],
-    ]
-    if data_type == "csv":
-        data["csv"] = rows_to_csv(rows)
-    else:
-        data["rows"] = rows
-
-    response = client.post(
-        "/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+    @pytest.mark.parametrize(
+        "template_type, content, row_header, expected_error",
+        [
+            (
+                "email",
+                "Hello!",
+                ["email address", "email address"],
+                "email address",
+            ),
+            (
+                "email",
+                "Hello ((name))!",
+                ["email address", "email_address", "name"],
+                "email address, email_address",
+            ),
+            ("sms", "Hello!", ["phone number", "phone number"], "phone number"),
+            (
+                "sms",
+                "Hello!",
+                ["phone number", "phone_number"],
+                "phone number, phone_number",
+            ),
+            (
+                "sms",
+                "Hello ((name))!",
+                ["phone number", "phone_number", "name"],
+                "phone number, phone_number",
+            ),
+        ],
     )
+    def test_post_bulk_flags_duplicate_recipient_column_headers(
+        self,
+        client,
+        notify_db,
+        notify_db_session,
+        template_type,
+        content,
+        row_header,
+        expected_error,
+    ):
+        template = create_sample_template(notify_db, notify_db_session, content=content, template_type=template_type)
+        data = {"name": "job_name", "template_id": template.id, "rows": [row_header, ["bar"]]}
 
-    assert response.status_code == 400
-    error_json = json.loads(response.get_data(as_text=True))
-    assert error_json["errors"] == [
-        {
-            "error": "BadRequestError",
-            "message": "Some rows have errors. Row 1 - `name`: Missing. Row 2 - `email address`: invalid recipient. Row 3 - `name`: Missing. Row 4 - `name`: Missing.",
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+        )
+
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [{"error": "BadRequestError", "message": f"Duplicate column headers: {expected_error}"}]
+
+    def test_post_bulk_flags_too_many_rows(self, client, sample_email_template, notify_api):
+        data = {
+            "name": "job_name",
+            "template_id": sample_email_template.id,
+            "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
         }
-    ]
 
+        with set_config(notify_api, "CSV_MAX_ROWS", 1):
+            response = client.post(
+                "/v2/notifications/bulk",
+                data=json.dumps(data),
+                headers=[
+                    ("Content-Type", "application/json"),
+                    create_authorization_header(service_id=sample_email_template.service_id),
+                ],
+            )
 
-@pytest.mark.parametrize("data_type", ["rows", "csv"])
-@pytest.mark.parametrize("is_scheduled", [True, False])
-@pytest.mark.parametrize("use_sender_id", [True, False])
-@pytest.mark.parametrize("has_default_reply_to", [True, False])
-def test_post_bulk_creates_job_and_dispatches_celery_task(
-    client, sample_email_template, mocker, notify_user, notify_api, data_type, is_scheduled, use_sender_id, has_default_reply_to
-):
-    data = {"name": "job_name", "template_id": sample_email_template.id}
-    rows = [["email address"], ["foo@example.com"]]
-    if data_type == "csv":
-        data["csv"] = rows_to_csv(rows)
-    else:
-        data["rows"] = rows
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [
+            {
+                "error": "BadRequestError",
+                "message": "Too many rows. Maximum number of rows allowed is 1",
+            }
+        ]
 
-    if is_scheduled:
-        scheduled_for = datetime.utcnow() + timedelta(days=1)
-        data["scheduled_for"] = scheduled_for.isoformat()
-    if has_default_reply_to:
-        create_reply_to_email(sample_email_template.service, "test@test.com")
-    if use_sender_id:
-        reply_to_email = create_reply_to_email(sample_email_template.service, "custom@test.com", is_default=False)
-        data["reply_to_id"] = reply_to_email.id
-
-    api_key = create_api_key(service=sample_email_template.service)
-    job_id = str(uuid.uuid4())
-    upload_to_s3 = mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
-    process_job = mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
-
-    response = client.post(
-        "/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_email_template.service_id)],
-    )
-
-    upload_to_s3.assert_called_once_with(sample_email_template.service_id, "email address\r\nfoo@example.com")
-    if not is_scheduled:
-        process_job.assert_called_once_with([str(job_id)], queue="job-tasks")
-    else:
-        process_job.assert_not_called()
-
-    job = dao_get_job_by_id(job_id)
-    assert str(job.id) == job_id
-    assert job.service_id == sample_email_template.service_id
-    assert job.template_id == sample_email_template.id
-    assert job.notification_count == 1
-    assert job.template_version == sample_email_template.version
-    assert job.job_status == "scheduled" if is_scheduled else "pending"
-    assert job.original_file_name == "job_name"
-    if is_scheduled:
-        assert job.scheduled_for == scheduled_for
-    else:
-        assert job.scheduled_for is None
-    assert job.api_key_id == api_key.id
-    if use_sender_id:
-        assert job.sender_id == reply_to_email.id
-    else:
-        assert job.sender_id is None
-
-    assert response.status_code == 201
-
-    assert json.loads(response.get_data(as_text=True)) == {
-        "data": {
-            "api_key": {
-                "id": str(api_key.id),
-                "key_type": "normal",
-                "name": api_key.name,
-            },
-            "archived": False,
-            "created_at": f"{job.created_at.isoformat()}+00:00",
-            "created_by": {"id": str(notify_user.id), "name": notify_user.name},
-            "id": job_id,
-            "job_status": "scheduled" if is_scheduled else "pending",
-            "notification_count": 1,
-            "original_file_name": "job_name",
-            "processing_finished": None,
-            "processing_started": None,
-            "scheduled_for": f"{scheduled_for.isoformat()}+00:00" if is_scheduled else None,
-            "service": str(sample_email_template.service_id),
-            "service_name": {"name": sample_email_template.service.name},
-            "template": str(sample_email_template.id),
-            "template_version": sample_email_template.version,
-            "updated_at": None,
-            "sender_id": str(reply_to_email.id) if use_sender_id else None,
+    def test_post_bulk_flags_recipient_not_in_safelist_with_team_api_key(self, client, sample_email_template):
+        data = {
+            "name": "job_name",
+            "template_id": sample_email_template.id,
+            "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
         }
-    }
+
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[
+                ("Content-Type", "application/json"),
+                create_authorization_header(service_id=sample_email_template.service_id, key_type="team"),
+            ],
+        )
+
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [
+            {
+                "error": "BadRequestError",
+                "message": "You cannot send to these recipients because you used a team and safelist API key.",
+            }
+        ]
+
+    def test_post_bulk_flags_recipient_not_in_safelist_with_restricted_service(self, client, notify_db, notify_db_session):
+        service = create_service(restricted=True)
+        template = create_sample_template(notify_db, notify_db_session, service=service, template_type="email")
+        data = {
+            "name": "job_name",
+            "template_id": template.id,
+            "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
+        }
+
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[
+                ("Content-Type", "application/json"),
+                create_authorization_header(service_id=template.service_id, key_type="team"),
+            ],
+        )
+
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [
+            {
+                "error": "BadRequestError",
+                "message": "You cannot send to these recipients because your service is in trial mode. You can only send to members of your team and your safelist.",
+            }
+        ]
+
+    def test_post_bulk_flags_not_enough_remaining_messages(self, client, notify_db, notify_db_session, mocker):
+        service = create_service(message_limit=10)
+        template = create_sample_template(notify_db, notify_db_session, service=service, template_type="email")
+        messages_count_mock = mocker.patch(
+            "app.v2.notifications.post_notifications.fetch_todays_total_message_count", return_value=9
+        )
+        data = {
+            "name": "job_name",
+            "template_id": template.id,
+            "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
+        }
+
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+        )
+
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [
+            {
+                "error": "BadRequestError",
+                "message": "You only have 1 remaining messages before you reach your daily limit. You've tried to send 2 messages.",
+            }
+        ]
+        messages_count_mock.assert_called_once()
+
+    @pytest.mark.parametrize("data_type", ["rows", "csv"])
+    def test_post_bulk_flags_rows_with_errors(self, client, notify_db, notify_db_session, data_type):
+        template = create_sample_template(notify_db, notify_db_session, template_type="email", content="Hello ((name))")
+        data = {"name": "job_name", "template_id": template.id}
+        rows = [
+            ["email address", "name"],
+            ["foo@example.com", "Foo"],
+            ["bar@example.com"],
+            ["nope", "nope"],
+            ["baz@example.com", ""],
+            ["baz@example.com", " "],
+        ]
+        if data_type == "csv":
+            data["csv"] = rows_to_csv(rows)
+        else:
+            data["rows"] = rows
+
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+        )
+
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [
+            {
+                "error": "BadRequestError",
+                "message": "Some rows have errors. Row 1 - `name`: Missing. Row 2 - `email address`: invalid recipient. Row 3 - `name`: Missing. Row 4 - `name`: Missing.",
+            }
+        ]
+
+    @pytest.mark.parametrize("data_type", ["rows", "csv"])
+    @pytest.mark.parametrize("is_scheduled", [True, False])
+    @pytest.mark.parametrize("use_sender_id", [True, False])
+    @pytest.mark.parametrize("has_default_reply_to", [True, False])
+    def test_post_bulk_creates_job_and_dispatches_celery_task(
+        self,
+        client,
+        sample_email_template,
+        mocker,
+        notify_user,
+        notify_api,
+        data_type,
+        is_scheduled,
+        use_sender_id,
+        has_default_reply_to,
+    ):
+        data = {"name": "job_name", "template_id": sample_email_template.id}
+        rows = [["email address"], ["foo@example.com"]]
+        if data_type == "csv":
+            data["csv"] = rows_to_csv(rows)
+        else:
+            data["rows"] = rows
+
+        if is_scheduled:
+            scheduled_for = datetime.utcnow() + timedelta(days=1)
+            data["scheduled_for"] = scheduled_for.isoformat()
+        if has_default_reply_to:
+            create_reply_to_email(sample_email_template.service, "test@test.com")
+        if use_sender_id:
+            reply_to_email = create_reply_to_email(sample_email_template.service, "custom@test.com", is_default=False)
+            data["reply_to_id"] = reply_to_email.id
+
+        api_key = create_api_key(service=sample_email_template.service)
+        job_id = str(uuid.uuid4())
+        upload_to_s3 = mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
+        process_job = mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
+
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[
+                ("Content-Type", "application/json"),
+                create_authorization_header(service_id=sample_email_template.service_id),
+            ],
+        )
+
+        upload_to_s3.assert_called_once_with(sample_email_template.service_id, "email address\r\nfoo@example.com")
+        if not is_scheduled:
+            process_job.assert_called_once_with([str(job_id)], queue="job-tasks")
+        else:
+            process_job.assert_not_called()
+
+        job = dao_get_job_by_id(job_id)
+        assert str(job.id) == job_id
+        assert job.service_id == sample_email_template.service_id
+        assert job.template_id == sample_email_template.id
+        assert job.notification_count == 1
+        assert job.template_version == sample_email_template.version
+        assert job.job_status == "scheduled" if is_scheduled else "pending"
+        assert job.original_file_name == "job_name"
+        if is_scheduled:
+            assert job.scheduled_for == scheduled_for
+        else:
+            assert job.scheduled_for is None
+        assert job.api_key_id == api_key.id
+        if use_sender_id:
+            assert job.sender_id == reply_to_email.id
+        else:
+            assert job.sender_id is None
+
+        assert response.status_code == 201
+
+        assert json.loads(response.get_data(as_text=True)) == {
+            "data": {
+                "api_key": {
+                    "id": str(api_key.id),
+                    "key_type": "normal",
+                    "name": api_key.name,
+                },
+                "archived": False,
+                "created_at": f"{job.created_at.isoformat()}+00:00",
+                "created_by": {"id": str(notify_user.id), "name": notify_user.name},
+                "id": job_id,
+                "job_status": "scheduled" if is_scheduled else "pending",
+                "notification_count": 1,
+                "original_file_name": "job_name",
+                "processing_finished": None,
+                "processing_started": None,
+                "scheduled_for": f"{scheduled_for.isoformat()}+00:00" if is_scheduled else None,
+                "service": str(sample_email_template.service_id),
+                "service_name": {"name": sample_email_template.service.name},
+                "template": str(sample_email_template.id),
+                "template_version": sample_email_template.version,
+                "updated_at": None,
+                "sender_id": str(reply_to_email.id) if use_sender_id else None,
+            }
+        }
 
 
 class TestBatchPriorityLanes:
