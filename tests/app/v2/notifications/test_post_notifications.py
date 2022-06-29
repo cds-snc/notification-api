@@ -269,7 +269,9 @@ class TestPostNotificationsErrors:
             ("email", "email_address", "sample@email.com"),
         ],
     )
-    def test_bad_template_id_returns_400(self, client, sample_service, notification_type, key_send_to, send_to):
+    def test_post_notification_returns_400_and_missing_template(
+        self, client, sample_service, notification_type, key_send_to, send_to
+    ):
 
         data = {key_send_to: send_to, "template_id": str(uuid.uuid4())}
         auth_header = create_authorization_header(service_id=sample_service.id)
