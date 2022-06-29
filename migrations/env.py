@@ -55,7 +55,26 @@ LANGUAGE plpgsql
 """
 )
 
-register_entities([va_profile_opt_in_out])
+#######################################################################
+# Define and register the stored procedures for VA Profile integration.
+#######################################################################
+
+va_profile_remove_old_opt_outs = PGFunction(
+  schema="public",
+  signature="va_profile_remove_old_opt_outs()",
+  definition="""\
+RETURNS void AS
+  $$
+DELETE
+FROM va_profile_local_cache
+WHERE allowed = False 
+AND age(NOW(), source_datetime) > INTERVAL '24 hours';
+$$
+LANGUAGE sql
+"""
+)
+
+register_entities([va_profile_opt_in_out, va_profile_remove_old_opt_outs])
 
 #######################################################################
 
