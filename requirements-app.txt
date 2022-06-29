@@ -2,9 +2,9 @@
 alembic_utils>=0.7.7
 
 Authlib>=1.0.1
-boto3>=1.24.6
-botocore>=1.27.6
-cachelib>=0.7.0
+boto3>=1.24.18
+botocore>=1.27.18
+cachelib>=0.9.0
 
 # 5 May 2022: Ignoring security vulnerabilities 42498 and 43738 in Makefile.
 # One is fixed in version 5.2.0; the other, 5.2.2.
@@ -58,7 +58,8 @@ psycopg2-binary>=2.9.3
 pwnedpasswords>=2.0.0
 PyJWT>=2.4.0
 
-# 2 June 2022: notification-utils raises ImportError with newer versions.
+# 27 June 2022: Flask raises ImportError with newer versions.  notification-utils version 1.0.66 also raises
+# import errors with newer versions, but that package can be updated to version 1.1.0 if we upgrade Flask.
 PyPDF2 < 2.0.0
 
 python-dotenv>=0.20.0
@@ -69,8 +70,8 @@ python-magic>=0.4.27
 # https://python-jsonschema.readthedocs.io/en/latest/validate/?highlight=date-time#validating-formats
 rfc3339-validator>=0.1.4
 
-sentry-sdk[flask]>=1.5.12
+sentry-sdk[flask]>=1.6.0
 SQLAlchemy < 1.4
-twilio>=7.9.2
+twilio>=7.9.3
 Unidecode>=1.3.4
 validatesns>=0.1.1
