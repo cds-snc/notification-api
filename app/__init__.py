@@ -6,7 +6,7 @@ import uuid
 from time import monotonic
 
 from dotenv import load_dotenv
-from flask import _request_ctx_stack, g, jsonify, make_response, request  # type: ignore
+from flask import g, jsonify, make_response, request  # type: ignore
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
 from flask_redis import FlaskRedis
@@ -55,8 +55,8 @@ document_download_client = DocumentDownloadClient()
 
 clients = Clients()
 
-api_user = LocalProxy(lambda: _request_ctx_stack.top.api_user)
-authenticated_service = LocalProxy(lambda: _request_ctx_stack.top.authenticated_service)
+api_user = LocalProxy(lambda: g.api_user)
+authenticated_service = LocalProxy(lambda: g.authenticated_service)
 
 sms_bulk = RedisQueue("sms", process_type="bulk")
 sms_normal = RedisQueue("sms", process_type="normal")

@@ -155,8 +155,8 @@ def _auth_with_api_key(api_key, service):
             api_key_id=api_key.id,
         )
     g.service_id = api_key.service_id
-    _request_ctx_stack.top.authenticated_service = service
-    _request_ctx_stack.top.api_user = api_key
+    g.authenticated_service = service
+    g.api_user = api_key
     current_app.logger.info(
         "API authorised for service {} with api key {}, using client {}".format(
             service.id, api_key.id, request.headers.get("User-Agent")
