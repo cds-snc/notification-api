@@ -69,7 +69,9 @@ OSX users can run `brew bundle` and then `pre-commit install` to register the gi
 
 To run the app, and its ecosystem, locally, run:
 
-```docker-compose -f ci/docker-compose-local.yml up```
+```
+docker-compose -f ci/docker-compose-local.yml up
+```
 
 This also applies all migrations to the database container, ci_db_1.  To see useful flags that you might want to use with the `up` subcommand, run `docker-compose up --help`.  This docker-compose command creates the container ci_app_1, among others.
 
