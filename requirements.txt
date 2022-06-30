@@ -46,14 +46,14 @@ awscli-cwlogs>=1.4.6,<1.5
 aws-embedded-metrics==1.0.7
 
 # Putting upgrade on hold due to new version introducing breaking changes
-Werkzeug==1.0.1
+Werkzeug==2.0.2
 MarkupSafe==2.0.1
 
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
 itsdangerous==0.24  # pyup: <1.0.0
 
-git+https://github.com/cds-snc/notifier-utils.git@46.5.0#egg=notifications-utils
-
+#git+https://github.com/cds-snc/notifier-utils.git@46.5.0#egg=notifications-utils
+git+https://github.com/cds-snc/notifier-utils.git@81e2fcdcb7c4d2ce3814af6db2ceb0ccd8f258f1
 # MLWR
 socketio-client==0.5.6
 requests
@@ -67,31 +67,31 @@ rsa>=4.1 # not directly required, pinned by Snyk to avoid a vulnerability
 ## The following requirements were added by pip freeze:
 aiohttp==3.8.1
 aiosignal==1.2.0
-alembic==1.7.7
-amqp==5.0.9
+alembic==1.8.0
+amqp==5.1.1
 async-timeout==4.0.2
 attrs==21.4.0
 awscli==1.19.58
-bcrypt==3.2.0
+bcrypt==3.2.2
 billiard==3.6.4.0
 bleach==3.3.0
 blinker==1.4
 boto3==1.17.58
 botocore==1.20.58
 cachetools==4.2.1
-certifi==2021.10.8
+certifi==2022.6.15
 chardet==4.0.0
-charset-normalizer==2.0.12
+charset-normalizer==2.1.0
 click==7.1.2
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
 colorama==0.4.3
-cryptography==36.0.1
+cryptography==37.0.2
 Deprecated==1.2.13
 dnspython==1.16.0
 docutils==0.15.2
-filelock==3.6.0
+filelock==3.7.1
 flask-redis==0.4.0
 frozenlist==1.3.0
 future==0.18.2
@@ -99,24 +99,24 @@ greenlet==1.1.2
 Jinja2==2.11.3
 jmespath==0.10.0
 kombu==5.2.4
-Mako==1.1.6
+Mako==1.2.0
 mistune==0.8.4
 multidict==6.0.2
 orderedset==2.0.3
 packaging==21.3
 phonenumbers==8.12.21
-prompt-toolkit==3.0.29
+prompt-toolkit==3.0.30
 py-w3c==0.3.1
 pyasn1==0.4.8
 pycparser==2.21
 pycurl==7.43.0.5
 pyOpenSSL==22.0.0
-pyparsing==3.0.8
+pyparsing==3.0.9
 PyPDF2==1.26.0
 pyrsistent==0.18.1
 python-dateutil==2.8.2
 python-json-logger==2.0.1
-redis==4.1.4
+redis==4.3.4
 requests-file==1.5.1
 s3transfer==0.4.2
 six==1.16.0
@@ -126,6 +126,6 @@ urllib3==1.26.9
 vine==5.0.0
 wcwidth==0.2.5
 webencodings==0.5.1
-websocket-client==1.2.3
-wrapt==1.13.3
+websocket-client==1.3.3
+wrapt==1.14.1
 yarl==1.7.2
