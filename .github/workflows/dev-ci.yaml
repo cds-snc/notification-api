@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Set up Python 3.8
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: "3.8"
 
@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: "3.8"
       - run: make check-vulnerabilities
@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: "3.8"
       - run: make check-dependencies
@@ -69,7 +69,7 @@ jobs:
       IMAGE_TAG: ${{ github.sha }}
     steps:
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1.7.0
+        uses: docker/setup-buildx-action@v2
 
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -86,7 +86,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Build and push
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v3
         with:
           file: ci/Dockerfile
           push: true
