@@ -1,4 +1,4 @@
-from flask import _request_ctx_stack, current_app, g, request  # type: ignore
+from flask import current_app, g, request  # type: ignore
 from jwt import PyJWTError
 from notifications_python_client.authentication import (
     decode_jwt_token,

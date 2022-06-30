@@ -8,7 +8,6 @@ from flask import current_app, g, json, request
 from freezegun import freeze_time
 from notifications_python_client.authentication import create_jwt_token
 
-from app import api_user
 from app.authentication.auth import (
     AUTH_TYPES,
     AuthError,
