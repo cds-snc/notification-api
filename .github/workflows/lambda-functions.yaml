@@ -14,7 +14,7 @@ on:
       - "user_flows/**.py"
       - "lambda_functions/*"
       - ".github/workflows/lambda-functions.yaml"
-    
+
 env:
   tf_version: 0.12.29
   AWS_ACCESS_KEY_ID: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
@@ -40,7 +40,7 @@ jobs:
           role-duration-seconds: 900
 
       - name: Set Python version
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: "3.8"
 
@@ -78,7 +78,7 @@ jobs:
           role-duration-seconds: 900
 
       - name: Set Python version
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: "3.8"
 
@@ -109,7 +109,7 @@ jobs:
           role-duration-seconds: 1800
 
       - name: Set Python version
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: "3.8"
 
