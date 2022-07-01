@@ -18,8 +18,8 @@ class NotifyJSONEncoder(JSONEncoder):
     def default(self, o):
         # Support for sqlalchemy.engine.row.Row
         if isinstance(o, Row):
-            row = o
-            m = row._asdict()
+            row: Row = o
+            m: dict = row._asdict()
             return m
         # Redirect to default JSON encoder support.
         return JSONEncoder.default(self, o)
