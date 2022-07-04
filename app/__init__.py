@@ -28,6 +28,7 @@ from app.clients.performance_platform.performance_platform_client import (
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy
 from app.encryption import CryptoSigner
+from app.json_encoder import NotifyJSONEncoder
 from app.queue import RedisQueue
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -37,7 +38,7 @@ load_dotenv()
 
 db = RoutingSQLAlchemy()
 migrate = Migrate()
-ma = Marshmallow()
+marshmallow = Marshmallow()
 notify_celery = NotifyCelery()
 aws_ses_client = AwsSesClient()
 aws_sns_client = AwsSnsClient()
@@ -78,10 +79,11 @@ def create_app(application, config=None):
 
     application.config["NOTIFY_APP_NAME"] = application.name
     init_app(application)
+    application.json_encoder = NotifyJSONEncoder
     request_helper.init_app(application)
     db.init_app(application)
     migrate.init_app(application, db=db)
-    ma.init_app(application)
+    marshmallow.init_app(application)
     zendesk_client.init_app(application)
     statsd_client.init_app(application)
     logging.init_app(application, statsd_client)

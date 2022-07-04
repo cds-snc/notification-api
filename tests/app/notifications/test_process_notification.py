@@ -10,6 +10,7 @@ from notifications_utils.recipients import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
     LETTER_TYPE,
     Notification,
@@ -30,7 +31,7 @@ from app.notifications.process_notifications import (
 )
 from app.v2.errors import BadRequestError
 from tests.app.conftest import create_sample_api_key
-from tests.app.db import create_service, create_template
+from tests.app.db import create_service, create_service_sms_sender, create_template
 
 
 class TestContentCreation:
@@ -460,6 +461,48 @@ class TestPersistNotification:
         assert persisted_notification[0].to == "foo@bar.com"
         assert persisted_notification[1].to == "foo2@bar.com"
         assert persisted_notification[0].service == sample_job.service
+
+    def test_persist_notifications_reply_to_text_is_original_value_if_sender_is_changed_later(
+        self, sample_template, sample_api_key, mocker
+    ):
+        mocker.patch("app.notifications.process_notifications.redis_store.incr")
+        mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=1)
+        mocker.patch(
+            "app.notifications.process_notifications.redis_store.get_all_from_hash",
+            return_value={sample_template.id, 1},
+        )
+        mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
+        mocker.patch("app.notifications.process_notifications.dao_fetch_service_by_id", return_value=sample_template.service)
+        mocker.patch("app.notifications.process_notifications.choose_queue", return_value="sms_normal_queue")
+
+        sms_sender = create_service_sms_sender(service=sample_template.service, sms_sender="123456", is_default=False)
+        persist_notifications(
+            [
+                dict(
+                    template_id=sample_template.id,
+                    template_version=sample_template.version,
+                    recipient="+16502532222",
+                    service=sample_template.service,
+                    personalisation={},
+                    notification_type="sms",
+                    api_key_id=sample_api_key.id,
+                    key_type=sample_api_key.key_type,
+                    reference="ref2",
+                    reply_to_text=sms_sender.sms_sender,
+                )
+            ]
+        )
+        persisted_notification = Notification.query.all()[0]
+        assert persisted_notification.reply_to_text == "123456"
+
+        dao_update_service_sms_sender(
+            service_id=sample_template.service_id,
+            service_sms_sender_id=sms_sender.id,
+            is_default=sms_sender.is_default,
+            sms_sender="updated",
+        )
+        persisted_notification = Notification.query.all()[0]
+        assert persisted_notification.reply_to_text == "123456"
 
 
 class TestSendNotificationQueue:
