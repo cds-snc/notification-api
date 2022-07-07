@@ -139,8 +139,7 @@ def persist_notification(
     return notification
 
 
-def send_notification_to_queue(notification, research_mode, queue=None, recipient_id_type: str = None,
-                               onsite_enabled: bool = False):
+def send_notification_to_queue(notification, research_mode, queue=None, recipient_id_type: str = None):
     deliver_task, queue = _get_delivery_task(notification, research_mode, queue)
 
     template = notification.template
@@ -162,8 +161,6 @@ def send_notification_to_queue(notification, research_mode, queue=None, recipien
 
             if recipient_id_type != IdentifierType.VA_PROFILE_ID.value:
                 tasks.insert(0, lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID))
-                tasks.insert(1, send_va_onsite_notification_task.si(notification.template.id, onsite_enabled)
-                                                                .set(queue=QueueNames.SEND_ONSITE_NOTIFICATION))
 
         chain(*tasks).apply_async()
 
@@ -211,7 +208,7 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
     deliver_task, deliver_queue = _get_delivery_task(notification)
     if id_type == IdentifierType.VA_PROFILE_ID.value:
         tasks = [
-            send_va_onsite_notification_task.si(id_value, notification.template.id, onsite_enabled)
+            send_va_onsite_notification_task.s(id_value, notification.template.id, onsite_enabled)
                                             .set(queue=QueueNames.SEND_ONSITE_NOTIFICATION),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
             deliver_task.si(notification.id).set(queue=deliver_queue)
@@ -227,7 +224,7 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
     else:
         tasks = [
             lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID),
-            send_va_onsite_notification_task.si(notification.template.id, onsite_enabled)
+            send_va_onsite_notification_task.s(notification.template.id, onsite_enabled)
                                             .set(queue=QueueNames.SEND_ONSITE_NOTIFICATION),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
             deliver_task.si(notification.id).set(queue=deliver_queue)

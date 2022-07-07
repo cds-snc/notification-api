@@ -152,7 +152,6 @@ def post_notification(notification_type):
                 template=template,
                 service=authenticated_service,
                 reply_to_text=reply_to,
-                onsite_enabled=onsite_enabled
             )
         else:
             if accept_recipient_identifiers_enabled():
@@ -163,7 +162,7 @@ def post_notification(notification_type):
                     template=template,
                     service=authenticated_service,
                     reply_to_text=reply_to,
-                    onsite_enabled=onsite_enabled
+                    onsite_enabled=onsite_enabled,
                 )
             else:
                 current_app.logger.debug("Sending a notification without contact information is not implemented.")
@@ -197,8 +196,7 @@ def post_notification(notification_type):
     return jsonify(resp), 201
 
 
-def process_sms_or_email_notification(*, form, notification_type, api_key, template, service, reply_to_text=None,
-                                      onsite_enabled: bool = False):
+def process_sms_or_email_notification(*, form, notification_type, api_key, template, service, reply_to_text=None):
     form_send_to = form['email_address'] if notification_type == EMAIL_TYPE else form['phone_number']
     send_to = validate_and_format_recipient(send_to=form_send_to,
                                             key_type=api_key.key_type,
@@ -241,7 +239,6 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
                 research_mode=service.research_mode,
                 queue=queue_name,
                 recipient_id_type=recipient_id_type,
-                onsite_enabled=onsite_enabled
             )
 
     return notification

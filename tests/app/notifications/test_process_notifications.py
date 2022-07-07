@@ -355,7 +355,6 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         'some pid',
         [
             lookup_va_profile_id,
-            send_va_onsite_notification_task,
             lookup_recipient_communication_permissions,
             deliver_email
         ]
@@ -370,7 +369,6 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         'some icn',
         [
             lookup_va_profile_id,
-            send_va_onsite_notification_task,
             lookup_recipient_communication_permissions,
             deliver_email
         ]
@@ -395,7 +393,6 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         'some pid',
         [
             lookup_va_profile_id,
-            send_va_onsite_notification_task,
             lookup_recipient_communication_permissions,
             deliver_sms
         ]
@@ -410,7 +407,6 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         'some icn',
         [
             lookup_va_profile_id,
-            send_va_onsite_notification_task,
             lookup_recipient_communication_permissions,
             deliver_email
         ]
@@ -435,7 +431,6 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         'some pid',
         [
             lookup_va_profile_id,
-            send_va_onsite_notification_task,
             lookup_recipient_communication_permissions,
             deliver_sms
         ]
@@ -450,7 +445,6 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         'some icn',
         [
             lookup_va_profile_id,
-            send_va_onsite_notification_task,
             lookup_recipient_communication_permissions,
             deliver_sms
         ]
@@ -475,7 +469,6 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         'some pid',
         [
             lookup_va_profile_id,
-            send_va_onsite_notification_task,
             lookup_recipient_communication_permissions,
             deliver_sms
         ]
