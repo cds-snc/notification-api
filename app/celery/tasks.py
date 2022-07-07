@@ -526,6 +526,7 @@ def update_letter_notifications_to_error(self, notification_references):
     raise NotificationTechnicalFailureException(message)
 
 
+# TODO: Deprecated: Old handler Code
 def handle_save_error(task, notification, notification_id, exception):
     # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
     # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
@@ -581,15 +582,16 @@ def handle_batch_error_and_forward(
             # in the form of a dict
             if isinstance(template, tuple):
                 template = template[0]
-            retry_msg = "{task} notification for job {job} row number {row} and notification id {notif}".format(
+            retry_msg = "{task} notification for job {job} row number {row} and notification id {notif} and max_retries are {max_retry}".format(
                 task=task.__name__,
                 job=notification.get("job", None),
                 row=notification.get("row_number", None),
                 notif=notification_id,
+                max_retry=task.max_retries,
             )
-            current_app.logger.exception("Retry" + retry_msg)
+            current_app.logger.info("Retry" + retry_msg)
             try:
-                if task.max_retries == 5:
+                if task.max_retries == 5 and len(signed_and_verified) != 1:
                     save_fn.apply_async(
                         (service.id, [signed], None),
                         queue=choose_database_queue(template, service),
