@@ -4,11 +4,10 @@ from datetime import datetime
 
 import jwt
 import pytest
-from flask import current_app, json, request
+from flask import current_app, g, json, request
 from freezegun import freeze_time
 from notifications_python_client.authentication import create_jwt_token
 
-from app import api_user
 from app.authentication.auth import (
     AUTH_TYPES,
     AuthError,
@@ -336,7 +335,7 @@ def test_should_attach_the_current_api_key_to_current_app(notify_api, sample_ser
         token = __create_token(sample_api_key.service_id)
         response = client.get("/notifications", headers={"Authorization": "Bearer {}".format(token)})
         assert response.status_code == 200
-        assert api_user == sample_api_key
+        assert g.api_user == sample_api_key
 
 
 def test_should_return_403_when_token_is_expired(

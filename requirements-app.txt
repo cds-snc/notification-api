@@ -44,13 +44,13 @@ awscli-cwlogs>=1.4.6,<1.5
 aws-embedded-metrics==1.0.7
 
 # Putting upgrade on hold due to new version introducing breaking changes
-Werkzeug==1.0.1
+Werkzeug==2.0.2
 MarkupSafe==2.0.1
 
 # Putting upgrade on hold due to v1.0.0 using sha512 instead of sha1 by default
 itsdangerous==0.24  # pyup: <1.0.0
 
-git+https://github.com/cds-snc/notifier-utils.git@46.5.0#egg=notifications-utils
+git+https://github.com/cds-snc/notifier-utils.git@47.0.0#egg=notifications-utils
 
 # MLWR
 socketio-client==0.5.6
