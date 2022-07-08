@@ -1,3 +1,6 @@
+# How to package Python dependencies:
+#   https://docs.aws.amazon.com/lambda/latest/dg/python-package.html
+
 name: Build and Deploy Lambda Functions
 
 on:
@@ -8,7 +11,7 @@ on:
         required: false
         default: dev
       branch_name:
-        description: "Brand to deploy from"
+        description: "Branch to deploy from"
         required: true
     paths:
       - "user_flows/**.py"
@@ -135,8 +138,29 @@ jobs:
 
       - name: Package and deploy VA Profile opt-in/out lambda function
         run: |
-          zip -j va_profile_opt_in_out_lambda va_profile/va_profile_opt_in_out_lambda.py
+          cd va_profile/
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install -r requirements-lambda.txt
+          deactivate
+          cd venv/lib/python3.8/site-packages
+          zip -r9 ../../../../va_profile_opt_in_out_lambda.zip .
+          cd ../../../../
+          zip -ugj va_profile_opt_in_out_lambda va_profile_opt_in_out_lambda.py
           aws lambda update-function-code --function-name project-${{ github.event.inputs.environment }}-va-profile-opt-in-out-lambda --zip-file fileb://va_profile_opt_in_out_lambda.zip
+
+      - name: Package and deploy VA Profile remove old opt-outs lambda function
+        run: |
+          cd va_profile_remove_old_opt_outs/
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install -r requirements-lambda.txt
+          deactivate
+          cd venv/lib/python3.8/site-packages
+          zip -r9 ../../../../va_profile_remove_old_opt_outs_lambda.zip .
+          cd ../../../../
+          zip -ugj va_profile_remove_old_opt_outs_lambda va_profile_remove_old_opt_outs_lambda.py
+          aws lambda update-function-code --function-name project-${{ github.event.inputs.environment }}-va-profile-remove-old-opt-outs-lambda --zip-file fileb://va_profile_remove_old_opt_outs_lambda.zip
 
       - name: Package and deploy nightly stats bigquery upload lambda function
         run: |

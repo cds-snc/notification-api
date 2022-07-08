@@ -1,6 +1,6 @@
 from sqlalchemy import text
 from datetime import datetime, timedelta
-from lambda_functions.va_profile_remove_old_opt_outs.va_profile_remove_old_opt_outs import va_profile_remove_old_opt_outs_handler
+from lambda_functions.va_profile_remove_old_opt_outs.va_profile_remove_old_opt_outs_lambda import va_profile_remove_old_opt_outs_handler
 
 INSERT_OPT_IN_OUT_RECORD = text(
     """INSERT INTO va_profile_local_cache(va_profile_id, communication_item_id,
