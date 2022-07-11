@@ -52,8 +52,7 @@ MarkupSafe==2.0.1
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous==2.0.1
 
-#git+https://github.com/cds-snc/notifier-utils.git@47.0.0#egg=notifications-utils
-git+https://github.com/cds-snc/notifier-utils.git@be1a983ee91f8b3a0ea426d46e91fb5293159e42
+git+https://github.com/cds-snc/notifier-utils.git@48.0.0#egg=notifications-utils
 
 # MLWR
 socketio-client==0.5.6
@@ -103,7 +102,6 @@ kombu==5.2.4
 Mako==1.2.1
 mistune==0.8.4
 multidict==6.0.2
-notifications-utils @ git+https://github.com/cds-snc/notifier-utils.git@be1a983ee91f8b3a0ea426d46e91fb5293159e42
 orderedset==2.0.3
 packaging==21.3
 phonenumbers==8.12.21
