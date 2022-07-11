@@ -1,4 +1,5 @@
 import json
+
 import pytest
 from flask import url_for
 from sqlalchemy.exc import DataError
@@ -170,4 +171,3 @@ def test_bad_method(app_for_test):
             assert response.status_code == 405
 
             assert json.loads(response.data) == {"message": "The method is not allowed for the requested URL.", "result": "error"}
-            
