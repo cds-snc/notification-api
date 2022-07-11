@@ -51,7 +51,8 @@ MarkupSafe==2.0.1
 itsdangerous==2.0.1
 
 #git+https://github.com/cds-snc/notifier-utils.git@47.0.0#egg=notifications-utils
-/libs
+git+https://github.com/cds-snc/notifier-utils.git@be1a983ee91f8b3a0ea426d46e91fb5293159e42
+
 # MLWR
 socketio-client==0.5.6
 requests
