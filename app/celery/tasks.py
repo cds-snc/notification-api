@@ -589,14 +589,16 @@ def handle_batch_error_and_forward(
                 notif=notification_id,
                 max_retry=task.max_retries,
             )
-            current_app.logger.info("Retry" + retry_msg)
+            current_app.logger.warning("Retry " + retry_msg)
             try:
                 if task.max_retries == 5 and len(signed_and_verified) != 1:
                     save_fn.apply_async(
                         (service.id, [signed], None),
                         queue=choose_database_queue(template, service),
                     )
+                    current_app.logger.warning("Made a new task to retry")
                 else:
+                    current_app.logger.warning("Retrying the current task")
                     task.retry(queue=QueueNames.RETRY, exc=exception)
             except task.MaxRetriesExceededError:
                 current_app.logger.error("Max retry failed" + retry_msg)
