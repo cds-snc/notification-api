@@ -800,7 +800,7 @@ class TestProcessRows:
             (EMAIL_TYPE, True, "save_emails", "research-mode-tasks", None, None, None),
         ],
     )
-    def test_process_row_sends_save_task(
+    def test_process_rows_sends_save_task(
         self,
         notify_api,
         template_type,
