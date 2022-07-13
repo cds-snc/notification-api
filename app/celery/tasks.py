@@ -814,7 +814,7 @@ def process_incomplete_job(job_id):
     template.process_type = db_template.process_type
 
     csv = get_recipient_csv(job, template)
-    rows = csv.get_rows() # This returns an iterator
+    rows = csv.get_rows()  # This returns an iterator
     first_row = []
     for row in rows:
         if row.index > resume_from_row:
