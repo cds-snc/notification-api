@@ -2059,4 +2059,3 @@ class TestSendNotifyNoReply:
             )
 
         tasks.send_notify_no_reply.retry.assert_called_with(queue=QueueNames.RETRY)
-
