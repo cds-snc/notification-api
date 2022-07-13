@@ -1200,7 +1200,7 @@ class TestSaveSmss:
         assert persisted_notification.reply_to_text == "new-sender"
 
 
-class TestHandler:
+class TestSaveErrorHandling:
     def test_handler_send_1notification(self, sample_template, mocker):
         n1 = _notification_json(sample_template, "+1 650 253 2222")
         n1["notification_id"] = str(uuid.uuid4())
