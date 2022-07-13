@@ -593,7 +593,7 @@ def handle_batch_error_and_forward(
             try:
                 # If >1 notification has failed, we want to make individual
                 # tasks to retry those notifications.
-                if len(signed_and_verified) != 1:
+                if len(signed_and_verified) > 1:
                     save_fn.apply_async(
                         (service.id, [signed], None),
                         queue=choose_database_queue(template, service),
