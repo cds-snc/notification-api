@@ -195,6 +195,10 @@ class Config(object):
 
     NOTIFY_ENVIRONMENT = os.getenv("NOTIFY_ENVIRONMENT", "development")
     ADMIN_CLIENT_USER_NAME = "notify-admin"
+    ATTACHMENT_NUM_LIMIT = env.int("ATTACHMENT_NUM_LIMIT", 10)  # Limit of 10 attachments per notification.
+    ATTACHMENT_SIZE_LIMIT = env.int(
+        "ATTACHMENT_SIZE_LIMIT", 1024 * 1024 * 10
+    )  # 10 megabytes limit by default per single attachment
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
     AWS_ROUTE53_ZONE = os.getenv("AWS_ROUTE53_ZONE", "Z2OW036USASMAK")
     AWS_SES_REGION = os.getenv("AWS_SES_REGION", "us-east-1")
@@ -213,6 +217,9 @@ class Config(object):
     SQLALCHEMY_POOL_RECYCLE = 300
     SQLALCHEMY_ECHO = env.bool("SQLALCHEMY_ECHO", False)
     PAGE_SIZE = 50
+    PERSONALISATION_SIZE_LIMIT = env.int(
+        "PERSONALISATION_SIZE_LIMIT", 1024 * 50
+    )  # 50k bytes limit by default for personalisation data per notification
     API_PAGE_SIZE = 250
     TEST_MESSAGE_FILENAME = "Test message"
     ONE_OFF_MESSAGE_FILENAME = "Report"
@@ -225,6 +232,7 @@ class Config(object):
 
     CHECK_PROXY_HEADER = False
 
+    # Notify's notifications templates
     NOTIFY_SERVICE_ID = "d6aa2c68-a2d9-4437-ab19-3ae8eb202553"
     NOTIFY_USER_ID = "6af522d0-2915-4e52-83a3-3690455a5fe6"
     INVITATION_EMAIL_TEMPLATE_ID = "4f46df42-f795-4cc4-83bb-65ca312f49cc"
@@ -252,8 +260,7 @@ class Config(object):
     REACHED_DAILY_LIMIT_TEMPLATE_ID = "fd29f796-fcdc-471b-a0d4-0093880d9173"
     DAILY_LIMIT_UPDATED_TEMPLATE_ID = "b3c766e6-be32-4edf-b8db-0f04ef404edc"
 
-    # List of allowed service IDs that are allowed to send HTML through their
-    # templates.
+    # Allowed service IDs able to send HTML through their templates.
     ALLOW_HTML_SERVICE_IDS: List[str] = [id.strip() for id in os.getenv("ALLOW_HTML_SERVICE_IDS", "").split(",")]
 
     BATCH_INSERTION_CHUNK_SIZE = int(os.getenv("BATCH_INSERTION_CHUNK_SIZE", 500))
@@ -305,16 +312,6 @@ class Config(object):
         "in-flight-to-inbox": {
             "task": "in-flight-to-inbox",
             "schedule": 60,
-            "options": {"queue": QueueNames.PERIODIC},
-        },
-        "beat-inbox-sms": {
-            "task": "beat-inbox-sms",
-            "schedule": 10,
-            "options": {"queue": QueueNames.PERIODIC},
-        },
-        "beat-inbox-email": {
-            "task": "beat-inbox-email",
-            "schedule": 10,
             "options": {"queue": QueueNames.PERIODIC},
         },
         "beat-inbox-sms-normal": {
@@ -490,12 +487,6 @@ class Config(object):
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
     CLOUDWATCH_AGENT_EMF_PORT = 25888
     CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"tcp://{STATSD_HOST}:{CLOUDWATCH_AGENT_EMF_PORT}")
-
-    # feature flag to toggle persistance of notification in celery instead of the API
-    FF_NOTIFICATION_CELERY_PERSISTENCE = env.bool("FF_NOTIFICATION_CELERY_PERSISTENCE", False)
-    FF_BATCH_INSERTION = env.bool("FF_BATCH_INSERTION", False)
-    FF_REDIS_BATCH_SAVING = env.bool("FF_REDIS_BATCH_SAVING", False)
-    FF_PRIORITY_LANES = env.bool("FF_PRIORITY_LANES", False)
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:

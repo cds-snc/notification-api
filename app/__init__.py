@@ -6,7 +6,7 @@ import uuid
 from time import monotonic
 
 from dotenv import load_dotenv
-from flask import _request_ctx_stack, g, jsonify, make_response, request  # type: ignore
+from flask import g, jsonify, make_response, request  # type: ignore
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
 from flask_redis import FlaskRedis
@@ -28,6 +28,7 @@ from app.clients.performance_platform.performance_platform_client import (
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy
 from app.encryption import CryptoSigner
+from app.json_encoder import NotifyJSONEncoder
 from app.queue import RedisQueue
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -37,7 +38,7 @@ load_dotenv()
 
 db = RoutingSQLAlchemy()
 migrate = Migrate()
-ma = Marshmallow()
+marshmallow = Marshmallow()
 notify_celery = NotifyCelery()
 aws_ses_client = AwsSesClient()
 aws_sns_client = AwsSnsClient()
@@ -55,11 +56,9 @@ document_download_client = DocumentDownloadClient()
 
 clients = Clients()
 
-api_user = LocalProxy(lambda: _request_ctx_stack.top.api_user)
-authenticated_service = LocalProxy(lambda: _request_ctx_stack.top.authenticated_service)
+api_user = LocalProxy(lambda: g.api_user)
+authenticated_service = LocalProxy(lambda: g.authenticated_service)
 
-
-# Priority lanes feature (FF_PRIORITY_LANES)
 sms_bulk = RedisQueue("sms", process_type="bulk")
 sms_normal = RedisQueue("sms", process_type="normal")
 sms_priority = RedisQueue("sms", process_type="priority")
@@ -80,10 +79,11 @@ def create_app(application, config=None):
 
     application.config["NOTIFY_APP_NAME"] = application.name
     init_app(application)
+    application.json_encoder = NotifyJSONEncoder
     request_helper.init_app(application)
     db.init_app(application)
     migrate.init_app(application, db=db)
-    ma.init_app(application)
+    marshmallow.init_app(application)
     zendesk_client.init_app(application)
     statsd_client.init_app(application)
     logging.init_app(application, statsd_client)
@@ -98,19 +98,12 @@ def create_app(application, config=None):
     flask_redis.init_app(application)
     redis_store.init_app(application)
 
-    # Priority lanes feature (FF_PRIORITY_LANES)
-    # initialize redis queues
-    if application.config["FF_PRIORITY_LANES"]:
-        sms_bulk.init_app(flask_redis, metrics_logger)
-        sms_normal.init_app(flask_redis, metrics_logger)
-        sms_priority.init_app(flask_redis, metrics_logger)
-        email_bulk.init_app(flask_redis, metrics_logger)
-        email_normal.init_app(flask_redis, metrics_logger)
-        email_priority.init_app(flask_redis, metrics_logger)
-    else:
-        sms_queue.init_app(flask_redis, metrics_logger)
-        email_queue.init_app(flask_redis, metrics_logger)
-    # END FF_PRIORITY_LANES
+    sms_bulk.init_app(flask_redis, metrics_logger)
+    sms_normal.init_app(flask_redis, metrics_logger)
+    sms_priority.init_app(flask_redis, metrics_logger)
+    email_bulk.init_app(flask_redis, metrics_logger)
+    email_normal.init_app(flask_redis, metrics_logger)
+    email_priority.init_app(flask_redis, metrics_logger)
 
     register_blueprint(application)
     register_v2_blueprints(application)

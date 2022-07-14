@@ -16,11 +16,11 @@ from app.dao.service_permissions_dao import dao_add_service_permission
 from app.dao.templates_dao import dao_get_template_by_id, dao_redact_template
 from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE, Template, TemplateHistory
 from tests import create_authorization_header
-from tests.app.conftest import sample_template as create_sample_template
 from tests.app.conftest import (
-    sample_template_without_email_permission,
-    sample_template_without_letter_permission,
-    sample_template_without_sms_permission,
+    create_sample_template,
+    create_sample_template_without_email_permission,
+    create_sample_template_without_letter_permission,
+    create_sample_template_without_sms_permission,
 )
 from tests.app.db import (
     create_letter_contact,
@@ -263,15 +263,15 @@ def test_should_raise_error_on_create_if_no_permission(client, sample_user, perm
     "template_factory, expected_error",
     [
         (
-            sample_template_without_sms_permission,
+            create_sample_template_without_sms_permission,
             {"template_type": ["Updating text message templates is not allowed"]},
         ),
         (
-            sample_template_without_email_permission,
+            create_sample_template_without_email_permission,
             {"template_type": ["Updating email templates is not allowed"]},
         ),
         (
-            sample_template_without_letter_permission,
+            create_sample_template_without_letter_permission,
             {"template_type": ["Updating letter templates is not allowed"]},
         ),
     ],
@@ -405,6 +405,25 @@ def test_should_be_able_to_archive_template(client, sample_template):
 
     assert resp.status_code == 200
     assert Template.query.first().archived
+
+
+def test_should_be_able_to_archive_template_should_remove_template_folders(client, sample_service):
+    template_folder = create_template_folder(service=sample_service)
+    template = create_template(service=sample_service, folder=template_folder)
+
+    data = {
+        "archived": True,
+    }
+
+    client.post(
+        f"/service/{sample_service.id}/template/{template.id}",
+        headers=[("Content-Type", "application/json"), create_authorization_header()],
+        data=json.dumps(data),
+    )
+
+    updated_template = Template.query.get(template.id)
+    assert updated_template.archived
+    assert not updated_template.folder
 
 
 def test_get_precompiled_template_for_service(

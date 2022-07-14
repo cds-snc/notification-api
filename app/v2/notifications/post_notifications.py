@@ -19,19 +19,17 @@ from app import (
     email_bulk,
     email_normal,
     email_priority,
-    email_queue,
     notify_celery,
     signer,
     sms_bulk,
     sms_normal,
     sms_priority,
-    sms_queue,
     statsd_client,
 )
 from app.aws.s3 import upload_job_to_s3
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
-from app.celery.tasks import process_job, save_email, save_sms
+from app.celery.tasks import process_job
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.jobs_dao import dao_create_job
@@ -330,35 +328,12 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             reply_to_text=reply_to_text,
         )
         persist_scheduled_notification(notification.id, form["scheduled_for"])
-    # Priority lanes feature (FF_PRIORITY_LANES)
-    elif current_app.config["FF_REDIS_BATCH_SAVING"] and current_app.config["FF_PRIORITY_LANES"] and not simulated:
+    elif not simulated:
         triage_notification_to_queues(notification_type, signed_notification_data, template)
 
         current_app.logger.info(
             f"Batch saving: {notification_type}/{template.process_type} {notification['id']} sent to buffer queue."
         )
-    # END FF_PRIORITY_LANES
-    elif current_app.config["FF_REDIS_BATCH_SAVING"] and not simulated:
-        if notification_type == SMS_TYPE:
-            sms_queue.publish(signed_notification_data)
-        else:
-            email_queue.publish(signed_notification_data)
-        current_app.logger.info(f"Batch saving: {notification_type} {notification['id']} sent to buffer queue.")
-
-    elif current_app.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] and not simulated:
-        # depending on the type route to the appropriate save task
-        if notification_type == EMAIL_TYPE:
-            current_app.logger.info("calling save email task")
-            save_email.apply_async(
-                (authenticated_service.id, create_uuid(), signed_notification_data, None),
-                queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
-            )
-        elif notification_type == SMS_TYPE:
-            save_sms.apply_async(
-                (authenticated_service.id, create_uuid(), signed_notification_data, None),
-                queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
-            )
-
     else:
         notification = transform_notification(
             template_id=template.id,

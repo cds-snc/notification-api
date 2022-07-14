@@ -123,6 +123,7 @@ def check_file_url(file_info: Dict[str, str], notification_id: UUID):
 
 
 def send_email_to_provider(notification: Notification):
+    current_app.logger.info(f"Sending email to provider for notification id {notification.id}")
     service = notification.service
     if not service.active:
         inactive_service_failure(notification=notification)
@@ -205,6 +206,9 @@ def send_email_to_provider(notification: Notification):
         if current_app.config["SCAN_FOR_PII"]:
             contains_pii(notification, str(plain_text_email))
 
+        current_app.logger.info(
+            f"Trying to update notification id {notification.id} with service research {service.research_mode} or key type {notification.key_type}"
+        )
         if service.research_mode or notification.key_type == KEY_TYPE_TEST:
             notification.reference = send_email_response(notification.to)
             update_notification_to_sending(notification, provider)
@@ -229,6 +233,7 @@ def send_email_to_provider(notification: Notification):
             )
             notification.reference = reference
             update_notification_to_sending(notification, provider)
+        current_app.logger.info(f"Notification id {notification.id} status in sending")
 
         # Record StatsD stats to compute SLOs
         statsd_client.timing_with_dates("email.total-time", notification.sent_at, notification.created_at)

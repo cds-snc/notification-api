@@ -32,7 +32,7 @@ from app.celery.tasks import (
     send_inbound_sms_to_service,
     send_notify_no_reply,
 )
-from app.config import Config, QueueNames
+from app.config import QueueNames
 from app.dao import jobs_dao, service_email_reply_to_dao, service_sms_sender_dao
 from app.models import (
     BULK,
@@ -54,7 +54,7 @@ from app.models import (
 from app.schemas import service_schema, template_schema
 from celery.exceptions import Retry
 from tests.app import load_example_csv
-from tests.app.conftest import sample_service, sample_template
+from tests.app.conftest import create_sample_service, create_sample_template
 from tests.app.db import (
     create_inbound_sms,
     create_job,
@@ -109,28 +109,11 @@ class TestChooseDatabaseQueue:
         "research_mode,template_priority",
         [(True, PRIORITY), (True, NORMAL), (True, BULK), (False, PRIORITY), (False, NORMAL), (False, BULK)],
     )
-    def test_choose_database_queue_FF_PRIORITY_LANES_false(
-        self, mocker, notify_db, notify_db_session, notify_api, research_mode, template_priority
-    ):
-        mocker.patch.object(Config, "FF_PRIORITY_LANES", False)
-        service = sample_service(notify_db, notify_db_session, research_mode=research_mode)
-        template = sample_template(notify_db, notify_db_session, process_type=template_priority)
-
-        expected_queue = QueueNames.RESEARCH_MODE if research_mode else QueueNames.DATABASE
-        actual_queue = choose_database_queue(template, service)
-
-        assert expected_queue == actual_queue
-
-    @pytest.mark.parametrize(
-        "research_mode,template_priority",
-        [(True, PRIORITY), (True, NORMAL), (True, BULK), (False, PRIORITY), (False, NORMAL), (False, BULK)],
-    )
     def test_choose_database_queue_FF_PRIORITY_LANES_true(
         self, mocker, notify_db, notify_db_session, notify_api, research_mode, template_priority
     ):
-        mocker.patch.object(Config, "FF_PRIORITY_LANES", True)
-        service = sample_service(notify_db, notify_db_session, research_mode=research_mode)
-        template = sample_template(notify_db, notify_db_session, process_type=template_priority)
+        service = create_sample_service(notify_db, notify_db_session, research_mode=research_mode)
+        template = create_sample_template(notify_db, notify_db_session, process_type=template_priority)
 
         if research_mode:
             expected_queue = QueueNames.RESEARCH_MODE
@@ -194,7 +177,7 @@ class TestBatchSaving:
         )
 
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-        acknowldege_mock = mocker.patch("app.sms_queue.acknowledge")
+        acknowldege_mock = mocker.patch("app.sms_normal.acknowledge")
 
         receipt = uuid.uuid4()
         save_smss(
@@ -237,8 +220,6 @@ class TestBatchSaving:
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         acknowldege_mock = mocker.patch("app.sms_normal.acknowledge")
 
-        mocker.patch.object(Config, "FF_PRIORITY_LANES", True)
-
         receipt = uuid.uuid4()
         save_smss(
             str(sample_template_with_placeholders.service.id),
@@ -278,7 +259,7 @@ class TestBatchSaving:
         )
 
         mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
-        acknowldege_mock = mocker.patch("app.email_queue.acknowledge")
+        acknowldege_mock = mocker.patch("app.email_normal.acknowledge")
 
         receipt = uuid.uuid4()
 
@@ -316,7 +297,7 @@ class TestBatchSaving:
             "app.celery.tasks.persist_notifications", side_effect=IntegrityError(None, None, None)
         )
         mock_save_sms = mocker.patch("app.celery.tasks.save_sms.apply_async")
-        mock_acknowldege = mocker.patch("app.sms_queue.acknowledge")
+        mock_acknowldege = mocker.patch("app.sms_normal.acknowledge")
 
         receipt = uuid.uuid4()
         notifications = [signer.sign(notification1)]
@@ -331,7 +312,7 @@ class TestBatchSaving:
         mock_persist_notifications.assert_called_once()
         mock_save_sms.assert_called_once_with(
             (sample_template_with_placeholders.service.id, notification1["id"], signer.sign(notification1), None),
-            queue=QueueNames.DATABASE,
+            queue=QueueNames.NORMAL_DATABASE,
         )
         mock_acknowldege.assert_called_once_with(receipt)
 
@@ -349,7 +330,7 @@ class TestBatchSaving:
             "app.celery.tasks.persist_notifications", side_effect=IntegrityError(None, None, None)
         )
         mock_save_email = mocker.patch("app.celery.tasks.save_email.apply_async")
-        mock_acknowldege = mocker.patch("app.email_queue.acknowledge")
+        mock_acknowldege = mocker.patch("app.email_normal.acknowledge")
 
         receipt = uuid.uuid4()
         notifications = [signer.sign(notification1)]
@@ -364,7 +345,7 @@ class TestBatchSaving:
         mock_persist_notifications.assert_called_once()
         mock_save_email.assert_called_once_with(
             (sample_email_template_with_placeholders.service.id, notification1["id"], signer.sign(notification1), None),
-            queue=QueueNames.DATABASE,
+            queue=QueueNames.NORMAL_DATABASE,
         )
         mock_acknowldege.assert_called_once_with(receipt)
 
@@ -383,7 +364,7 @@ class TestBatchSaving:
         )
         mock_get_notification = mocker.patch("app.celery.tasks.get_notification_by_id", return_value=notification1)
         mock_save_sms = mocker.patch("app.celery.tasks.save_sms.apply_async")
-        mock_acknowldege = mocker.patch("app.sms_queue.acknowledge")
+        mock_acknowldege = mocker.patch("app.sms_normal.acknowledge")
 
         receipt = uuid.uuid4()
         notifications = [signer.sign(notification1)]
@@ -415,7 +396,7 @@ class TestBatchSaving:
         )
         mock_get_notification = mocker.patch("app.celery.tasks.get_notification_by_id", return_value=notification1)
         mock_save_email = mocker.patch("app.celery.tasks.save_email.apply_async")
-        mock_acknowldege = mocker.patch("app.email_queue.acknowledge")
+        mock_acknowldege = mocker.patch("app.email_normal.acknowledge")
 
         receipt = uuid.uuid4()
         notifications = [signer.sign(notification1)]
@@ -444,7 +425,6 @@ class TestBatchSaving:
         mocker.patch("app.celery.tasks.save_smss.apply_async")
         mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
-        mocker.patch.object(Config, "FF_BATCH_INSERTION", True)
 
         process_job(job.id)
 
@@ -473,7 +453,7 @@ class TestBatchSaving:
                 ],
                 None,
             ),
-            queue="database-tasks",
+            queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(job.id)
         assert job.job_status == "finished"
@@ -519,14 +499,13 @@ class TestBatchSaving:
         assert persisted_notification[0].personalisation == {"name": "Jo"}
         assert persisted_notification[0]._personalisation == signer.sign({"name": "Jo"})
         assert persisted_notification[0].notification_type == SMS_TYPE
-        assert pbsbp_mock.assert_called_with(mock.ANY, 1) is None
+        assert pbsbp_mock.assert_called_with(mock.ANY, 1, notification_type="sms", priority="normal") is None
 
 
 class TestProcessJob:
     def test_should_process_sms_job_FF_PRIORITY_LANES_true(self, sample_job, mocker):
-        mocker.patch.object(Config, "FF_PRIORITY_LANES", True)
         mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
-        mocker.patch("app.celery.tasks.save_sms.apply_async")
+        mocker.patch("app.celery.tasks.save_smss.apply_async")
         mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
@@ -539,35 +518,8 @@ class TestProcessJob:
         assert signer.sign.call_args[0][0]["template_version"] == sample_job.template.version
         assert signer.sign.call_args[0][0]["personalisation"] == {"phonenumber": "+441234123123"}
         assert signer.sign.call_args[0][0]["row_number"] == 0
-        tasks.save_sms.apply_async.assert_called_once_with(
-            (str(sample_job.service_id), "uuid", "something_encrypted"), {}, queue=QueueNames.NORMAL_DATABASE
-        )
-        job = jobs_dao.dao_get_job_by_id(sample_job.id)
-        assert job.job_status == "finished"
-        assert job.processing_started is not None
-        assert job.created_at is not None
-        redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
-
-    def test_should_process_sms_job_FF_PRIORITY_LANES_false(self, sample_job, mocker):
-        mocker.patch.object(Config, "FF_PRIORITY_LANES", False)
-        mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
-        mocker.patch("app.celery.tasks.save_sms.apply_async")
-        mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
-        mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
-
-        redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
-
-        process_job(sample_job.id)
-        s3.get_job_from_s3.assert_called_once_with(str(sample_job.service.id), str(sample_job.id))
-        assert signer.sign.call_args[0][0]["to"] == "+441234123123"
-        assert signer.sign.call_args[0][0]["template"] == str(sample_job.template.id)
-        assert signer.sign.call_args[0][0]["template_version"] == sample_job.template.version
-        assert signer.sign.call_args[0][0]["personalisation"] == {"phonenumber": "+441234123123"}
-        assert signer.sign.call_args[0][0]["row_number"] == 0
-        tasks.save_sms.apply_async.assert_called_once_with(
-            (str(sample_job.service_id), "uuid", "something_encrypted"),
-            {},
-            queue="database-tasks",
+        tasks.save_smss.apply_async.assert_called_once_with(
+            (str(sample_job.service_id), ["something_encrypted"], None), queue=QueueNames.NORMAL_DATABASE
         )
         job = jobs_dao.dao_get_job_by_id(sample_job.id)
         assert job.job_status == "finished"
@@ -578,16 +530,15 @@ class TestProcessJob:
     def test_should_process_sms_job_with_sender_id(self, sample_template, mocker, fake_uuid):
         job = create_job(template=sample_template, sender_id=fake_uuid)
         mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
-        mocker.patch("app.celery.tasks.save_sms.apply_async")
+        mocker.patch("app.celery.tasks.save_smss.apply_async")
         mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
         process_job(job.id)
 
-        tasks.save_sms.apply_async.assert_called_once_with(
-            (str(job.service_id), "uuid", "something_encrypted"),
-            {"sender_id": fake_uuid},
-            queue="database-tasks",
+        tasks.save_smss.apply_async.assert_called_once_with(
+            (str(job.service_id), ["something_encrypted"], None),
+            queue="-normal-database-tasks",
         )
 
     @freeze_time("2016-01-01 11:09:00.061258")
@@ -599,14 +550,14 @@ class TestProcessJob:
             "app.celery.tasks.s3.get_job_from_s3",
             return_value=load_example_csv("multiple_sms"),
         )
-        mocker.patch("app.celery.tasks.process_row")
+        mocker.patch("app.celery.tasks.process_rows")
 
         process_job(job.id)
 
         job = jobs_dao.dao_get_job_by_id(job.id)
         assert job.job_status == "sending limits exceeded"
         assert s3.get_job_from_s3.called is False
-        assert tasks.process_row.called is False
+        assert tasks.process_rows.called is False
 
     def test_should_not_process_sms_job_if_would_exceed_send_limits_inc_today(self, notify_db_session, mocker):
         service = create_service(message_limit=1)
@@ -663,7 +614,7 @@ class TestProcessJob:
             "app.celery.tasks.s3.get_job_from_s3",
             return_value=load_example_csv("multiple_email"),
         )
-        mocker.patch("app.celery.tasks.save_email.apply_async")
+        mocker.patch("app.celery.tasks.save_emails.apply_async")
         mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
@@ -672,14 +623,24 @@ class TestProcessJob:
         s3.get_job_from_s3.assert_called_once_with(str(job.service.id), str(job.id))
         job = jobs_dao.dao_get_job_by_id(job.id)
         assert job.job_status == "finished"
-        tasks.save_email.apply_async.assert_called_with(
+        tasks.save_emails.apply_async.assert_called_with(
             (
                 str(job.service_id),
-                "uuid",
-                "something_encrypted",
+                [
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                ],
+                None,
             ),
-            {},
-            queue="database-tasks",
+            queue="-normal-database-tasks",
         )
 
     def test_should_process_smss_job(self, notify_db_session, mocker):
@@ -693,7 +654,6 @@ class TestProcessJob:
         mocker.patch("app.celery.tasks.save_smss.apply_async")
         mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
-        mocker.patch.object(Config, "FF_BATCH_INSERTION", True)
 
         process_job(job.id)
 
@@ -722,7 +682,7 @@ class TestProcessJob:
                 ],
                 None,
             ),
-            queue="database-tasks",
+            queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(job.id)
         assert job.job_status == "finished"
@@ -746,7 +706,7 @@ class TestProcessJob:
         test@test.com,foo
         """
         mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=email_csv)
-        mocker.patch("app.celery.tasks.save_email.apply_async")
+        mocker.patch("app.celery.tasks.save_emails.apply_async")
         mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
@@ -763,14 +723,9 @@ class TestProcessJob:
             "emailaddress": "test@test.com",
             "name": "foo",
         }
-        tasks.save_email.apply_async.assert_called_once_with(
-            (
-                str(email_job_with_placeholders.service_id),
-                "uuid",
-                "something_encrypted",
-            ),
-            {},
-            queue="database-tasks",
+        tasks.save_emails.apply_async.assert_called_once_with(
+            (str(email_job_with_placeholders.service_id), ["something_encrypted"], None),
+            queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(email_job_with_placeholders.id)
         assert job.job_status == "finished"
@@ -789,7 +744,6 @@ class TestProcessJob:
         mocker.patch("app.celery.tasks.save_emails.apply_async")
         mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
-        mocker.patch.object(Config, "FF_BATCH_INSERTION", True)
 
         process_job(email_job_with_placeholders.id)
 
@@ -810,7 +764,7 @@ class TestProcessJob:
                 ["something_encrypted", "something_encrypted", "something_encrypted", "something_encrypted"],
                 None,
             ),
-            queue="database-tasks",
+            queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(email_job_with_placeholders.id)
         assert job.job_status == "finished"
@@ -824,18 +778,17 @@ class TestProcessJob:
         """
         job = create_job(template=sample_email_template, sender_id=fake_uuid)
         mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=email_csv)
-        mocker.patch("app.celery.tasks.save_email.apply_async")
+        mocker.patch("app.celery.tasks.save_emails.apply_async")
         mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
         process_job(job.id)
 
-        tasks.save_email.apply_async.assert_called_once_with(
-            (str(job.service_id), "uuid", "something_encrypted"),
-            {"sender_id": fake_uuid},
-            queue="database-tasks",
+        tasks.save_emails.apply_async.assert_called_once_with(
+            (str(job.service_id), ["something_encrypted"], None), queue="-normal-database-tasks"
         )
 
+    @pytest.mark.skip(reason="the code paths don't exist for letter implementation")
     @freeze_time("2016-01-01 11:09:00.061258")
     def test_should_process_letter_job(self, sample_letter_job, mocker):
         csv = """address_line_1,address_line_2,address_line_3,address_line_4,postcode,name
@@ -871,7 +824,7 @@ class TestProcessJob:
             "app.celery.tasks.s3.get_job_from_s3",
             return_value=load_example_csv("multiple_sms"),
         )
-        mocker.patch("app.celery.tasks.save_sms.apply_async")
+        mocker.patch("app.celery.tasks.save_smss.apply_async")
         mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
@@ -888,7 +841,7 @@ class TestProcessJob:
             "phonenumber": "+441234123120",
             "name": "chris",
         }
-        assert tasks.save_sms.apply_async.call_count == 10
+        assert tasks.save_smss.apply_async.call_count == 1
         job = jobs_dao.dao_get_job_by_id(sample_job_with_placeholdered_template.id)
         assert job.job_status == "finished"
 
@@ -910,11 +863,11 @@ class TestProcessRow:
     @pytest.mark.parametrize(
         "template_type, research_mode, expected_function, expected_queue, api_key_id, sender_id, reference",
         [
-            (SMS_TYPE, False, "save_sms", "database-tasks", None, None, None),
+            (SMS_TYPE, False, "save_sms", "-normal-database-tasks", None, None, None),
             (SMS_TYPE, True, "save_sms", "research-mode-tasks", uuid.uuid4(), uuid.uuid4(), "ref1"),
-            (EMAIL_TYPE, False, "save_email", "database-tasks", uuid.uuid4(), uuid.uuid4(), "ref2"),
+            (EMAIL_TYPE, False, "save_email", "-normal-database-tasks", uuid.uuid4(), uuid.uuid4(), "ref2"),
             (EMAIL_TYPE, True, "save_email", "research-mode-tasks", None, None, None),
-            (LETTER_TYPE, False, "save_letter", "database-tasks", None, None, None),
+            (LETTER_TYPE, False, "save_letter", "-normal-database-tasks", None, None, None),
             (LETTER_TYPE, True, "save_letter", "research-mode-tasks", uuid.uuid4(), uuid.uuid4(), "ref3"),
         ],
     )
@@ -1119,6 +1072,7 @@ class TestSaveSms:
         assert persisted_notification.notification_type == "sms"
         mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
 
+    @pytest.mark.skip(reason="Deprecated: This test needs to use save_smss path")
     @pytest.mark.parametrize("sender_id", [None, "996958a8-0c06-43be-a40e-56e4a2d1655c"])
     def test_save_sms_should_use_redis_cache_to_retrieve_service_and_template_when_possible(
         self, sample_template_with_placeholders, mocker, sender_id
@@ -1900,37 +1854,6 @@ class TestSendInboundSmsToService:
 
 class TestProcessIncompleteJob:
     def test_process_incomplete_job_sms_FF_PRIORITY_LANES_true(self, mocker, sample_template):
-        mocker.patch.object(Config, "FF_PRIORITY_LANES", True)
-        mocker.patch(
-            "app.celery.tasks.s3.get_job_from_s3",
-            return_value=load_example_csv("multiple_sms"),
-        )
-        save_sms = mocker.patch("app.celery.tasks.save_sms.apply_async")
-
-        job = create_job(
-            template=sample_template,
-            notification_count=10,
-            created_at=datetime.utcnow() - timedelta(hours=2),
-            scheduled_for=datetime.utcnow() - timedelta(minutes=31),
-            processing_started=datetime.utcnow() - timedelta(minutes=31),
-            job_status=JOB_STATUS_ERROR,
-        )
-
-        save_notification(create_notification(sample_template, job, 0))
-        save_notification(create_notification(sample_template, job, 1))
-
-        assert Notification.query.filter(Notification.job_id == job.id).count() == 2
-
-        process_incomplete_job(str(job.id))
-
-        completed_job = Job.query.filter(Job.id == job.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
-
-        assert save_sms.call_count == 8  # There are 10 in the file and we've added two already
-
-    def test_process_incomplete_job_sms_FF_PRIORITY_LANES_false(self, mocker, sample_template):
-        mocker.patch.object(Config, "FF_PRIORITY_LANES", False)
         mocker.patch(
             "app.celery.tasks.s3.get_job_from_s3",
             return_value=load_example_csv("multiple_sms"),

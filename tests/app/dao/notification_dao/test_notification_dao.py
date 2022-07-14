@@ -439,10 +439,10 @@ def test_save_notification_and_increment_job(sample_template, sample_job):
 
 
 def test_save_notification_and_increment_correct_job(notify_db, notify_db_session, sample_template):
-    from tests.app.conftest import sample_job
+    from tests.app.conftest import create_sample_job
 
-    job_1 = sample_job(notify_db, notify_db_session, sample_template.service)
-    job_2 = sample_job(notify_db, notify_db_session, sample_template.service)
+    job_1 = create_sample_job(notify_db, notify_db_session, sample_template.service)
+    job_2 = create_sample_job(notify_db, notify_db_session, sample_template.service)
 
     assert Notification.query.count() == 0
     data = _notification_json(sample_template, job_id=job_1.id)

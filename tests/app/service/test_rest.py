@@ -41,10 +41,10 @@ from app.models import (
     User,
 )
 from tests import create_authorization_header
-from tests.app.conftest import sample_notification as create_sample_notification
-from tests.app.conftest import sample_notification_with_job
 from tests.app.conftest import (
-    sample_user_service_permission as create_user_service_permission,
+    create_sample_notification,
+    create_sample_notification_with_job,
+    create_sample_user_service_permission,
 )
 from tests.app.db import (
     create_annual_billing,
@@ -228,6 +228,26 @@ def test_get_live_services_data(sample_user, admin_request):
             "free_sms_fragment_limit": 2,
         },
     ]
+
+
+def test_get_delivered_notification_stats_by_month_data(admin_request, sample_service):
+    email_template = create_template(service=sample_service, template_type="email", template_name="b")
+
+    create_ft_notification_status(
+        utc_date=date(2019, 12, 10),
+        service=sample_service,
+        template=email_template,
+        count=3,
+    )
+
+    response = admin_request.get("service.get_delivered_notification_stats_by_month_data")["data"]
+
+    assert len(response) == 1
+    assert list(response[0]) == ["count", "month", "notification_type"]
+    first = response[0]
+    assert first["month"].startswith("2019-12-01")
+    assert first["notification_type"] == "email"
+    assert first["count"] == 3
 
 
 def test_get_service_by_id(admin_request, sample_service):
@@ -1452,7 +1472,7 @@ def test_add_unknown_user_to_service_returns404(notify_api, notify_db, notify_db
 def test_remove_user_from_service(notify_db, notify_db_session, client, sample_user_service_permission):
     second_user = create_user(email="new@digital.cabinet-office.gov.uk")
     # Simulates successfully adding a user to the service
-    second_permission = create_user_service_permission(notify_db, notify_db_session, user=second_user)
+    second_permission = create_sample_user_service_permission(notify_db, notify_db_session, user=second_user)
     endpoint = url_for(
         "service.remove_user_from_service",
         service_id=str(second_permission.service.id),
@@ -1493,7 +1513,7 @@ def test_cannot_remove_only_user_from_service(notify_api, notify_db, notify_db_s
 # This test is just here verify get_service_and_api_key_history that is a temp solution
 # until proper ui is sorted out on admin app
 def test_get_service_and_api_key_history(notify_api, notify_db, notify_db_session, sample_service):
-    from tests.app.conftest import sample_api_key as create_sample_api_key
+    from tests.app.conftest import create_sample_api_key
 
     api_key = create_sample_api_key(notify_db, notify_db_session, service=sample_service)
 
@@ -1637,7 +1657,7 @@ def test_get_all_notifications_for_service_including_ones_made_by_jobs(
     include_from_test_key,
     expected_count_of_notifications,
 ):
-    with_job = sample_notification_with_job(notify_db, notify_db_session, service=sample_service)
+    with_job = create_sample_notification_with_job(notify_db, notify_db_session, service=sample_service)
     without_job = create_sample_notification(notify_db, notify_db_session, service=sample_service)
     # from_test_api_key
     create_sample_notification(notify_db, notify_db_session, service=sample_service, key_type=KEY_TYPE_TEST)
@@ -2101,7 +2121,7 @@ def test_update_service_calls_send_notification_as_service_becomes_live(
         get_user_by_id_mock.assert_not_called()
         fetch_service_creator_mock.assert_called_once_with(restricted_service.id)
 
-    assert resp.status_code == 200
+    assert resp.status_code == 200  # type: ignore
     send_notification_mock.assert_called_once_with(
         service_id=restricted_service.id,
         template_id="618185c6-3636-49cd-b7d2-6f6f5eb3bdde",

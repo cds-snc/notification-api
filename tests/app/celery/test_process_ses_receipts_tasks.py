@@ -19,7 +19,7 @@ from app.notifications.notifications_ses_callback import (
     remove_emails_from_bounce,
     remove_emails_from_complaint,
 )
-from tests.app.conftest import sample_notification as create_sample_notification
+from tests.app.conftest import create_sample_notification
 from tests.app.db import (
     create_notification,
     create_service_callback_api,
@@ -253,12 +253,7 @@ def test_ses_callback_should_set_status_to_temporary_failure(
     ],
 )
 def test_ses_callback_should_set_status_to_permanent_failure(
-    notify_db,
-    notify_db_session,
-    sample_email_template,
-    mocker,
-    bounce_subtype,
-    provider_response,
+    notify_db, notify_db_session, sample_email_template, mocker, bounce_subtype, provider_response
 ):
     send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
     notification = create_sample_notification(

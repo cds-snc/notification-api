@@ -52,6 +52,7 @@ clean:
 format:
 	isort .
 	black --config pyproject.toml .
+	flake8 .
 
 .PHONY: smoke-test
 smoke-test:
