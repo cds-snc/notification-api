@@ -813,16 +813,15 @@ def test_send_notification_uses_appropriate_queue_according_to_template_process_
 
 
 class TestRestrictedServices:
-    @pytest.mark.parametrize("restricted", [True])
     def test_post_sms_notification_returns_201_if_number_safelisted_and_teamkey(
-        self, notify_db_session, client, restricted, mocker, notify_api
+        self, notify_db_session, client, mocker, notify_api
     ):
-        service = create_service(restricted=restricted, service_permissions=[SMS_TYPE, INTERNATIONAL_SMS_TYPE])
+        service = create_service(restricted=True, service_permissions=[SMS_TYPE, INTERNATIONAL_SMS_TYPE])
         user = create_user(mobile_number="+16132532235")
         service.users = [user]
         template = create_template(service=service)
         create_api_key(service=service, key_type="team")
-        mocker.patch("app.sms_normal.publish")
+        redis_publish = mocker.patch("app.sms_normal.publish")
         data = {
             "phone_number": "+16132532235",
             "template_id": template.id,
@@ -835,6 +834,33 @@ class TestRestrictedServices:
             headers=[("Content-Type", "application/json"), auth_header],
         )
         assert response.status_code == 201
+        assert json.loads(response.get_data(as_text=True))
+        assert redis_publish.called
+
+    @pytest.mark.parametrize(
+        "redis_queue,to_key,to",
+        [("app.sms_normal", "phone_number", "+15555555555"), ("app.email_normal", "email_address", "test@example.com")],
+    )
+    def test_should_not_save_if_team_key_and_recipient_not_in_team(
+        self, notify_db_session, client, mocker, notify_api, redis_queue, to_key, to
+    ):
+        service = create_service(restricted=True, service_permissions=[SMS_TYPE, INTERNATIONAL_SMS_TYPE])
+        template = create_template(service=service)
+        create_api_key(service=service, key_type="team")
+        redis_publish = mocker.patch(redis_queue + ".publish")
+        data = {
+            to_key: to,
+            "template_id": template.id,
+        }
+        auth_header = create_authorization_header(service_id=service.id, key_type="team")
+
+        response = client.post(
+            path="/v2/notifications/sms",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 400
+        assert redis_publish.called is False
         assert json.loads(response.get_data(as_text=True))
 
     def test_post_bulk_notification_returns_201_if_number_safelisted_and_teamkey(self, notify_db_session, client, mocker):
