@@ -39,6 +39,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
                 'statusCode': 400
             }
 
+        logger.info("Successfully processed event to event_bodies")
         logger.debug(event_bodies)
 
         responses = []
@@ -46,6 +47,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
         for event_body in event_bodies:       
             try:      
                 logger.info("Making call to VeText")
+                logger.debug(f"Processing event_body: {event_body}")
                 response = make_vetext_request(event_body)
 
                 if response.status != 200:
@@ -110,14 +112,17 @@ def process_body_from_alb_invocation(event):
     # parse_qsl converts url-encoded strings to array of tuple objects
     # event_body takes the array of tuples and creates a dictionary
     event_body_decoded = parse_qsl(b64decode(event["body"]).decode('utf-8'))
+    logger.info(f"Decoded event_body {event_body_decoded}")
     event_body = dict(event_body_decoded)
     # AddOns are a Twilio feature that are in the dictionary as a 
     # string that contains escaped json.  To make it accessible for 
     # processing, we are converting the string to json and re-attaching
     # it to the dict
     if 'AddOns' in event_body:
+        logger.info("AddOns key exists on Twilio message. Converting to json")
         addons = json.loads(event_body.pop('AddOns'))
         event_body['AddOns'] = addons
+        logger.info("Successfully converted AddOns to json and re-attached to event_body")
 
     event_bodies.append(event_body)
 
@@ -131,19 +136,17 @@ def read_from_ssm(key: str) -> str:
         WithDecryption=True
     )
 
-    logger.info("Successfully retrieved SSM Parameter")
-
     return response.get("Parameter", {}).get("Value", '')
 
 def make_vetext_request(request_body):    
     # We have been directed by the VeText team to ignore SSL validation
     #   that is why we use the ssl._create_unverified_context method
     connection = http.client.HTTPSConnection(os.environ.get('vetext_api_endpoint_domain'),  context = ssl._create_unverified_context())
+    logger.info("generated connection to VeText")
 
     # Authorization is basic token authentication that is stored in environment.
     auth_token = read_from_ssm(os.environ.get('vetext_api_auth_ssm_path'))
-
-    logger.info("Successfully retrieved Auth Token")
+    logger.info("Retrieved AuthToken from SSM")
     
     headers = {
         'Content-type': 'application/json',
@@ -163,7 +166,7 @@ def make_vetext_request(request_body):
     json_data = json.dumps(body)
 
     logger.info("Making POST Request to VeText using: " + os.environ.get('vetext_api_endpoint_domain') + os.environ.get('vetext_api_endpoint_path'))
-    logger.debug("POST body: " + json_data)
+    logger.debug(f"POST body: {json_data}")
     
     connection.request(
         'POST',
@@ -173,15 +176,18 @@ def make_vetext_request(request_body):
     
     response = connection.getresponse()
     
-    logger.info("VeText call complete, with response: " + str(response.status))
+    logger.info(f"VeText call complete, with response: {str(response.status)}")
     logger.debug(response.read().decode())
 
     return response    
 
 def push_to_sqs(event_body):
     """Places event body dictionary on queue to be retried at a later time"""
+    logger.info("Placing event_body on retry queue")
+
     sqs = boto3.client('sqs')
     queue_url = os.environ.get('vetext_request_drop_sqs_url')
+    logger.debug(f"Retrieved queue_url: {queue_url}")
 
     queue_msg = json.dumps(event_body)
     queue_msg_attrs = {
@@ -194,4 +200,6 @@ def push_to_sqs(event_body):
     sqs.send_message(QueueUrl=queue_url,
                     MessageAttributes=queue_msg_attrs,
                     MessageBody=queue_msg)
+    
+    logger.info("Completed enqueue of message to retry queue")
     
