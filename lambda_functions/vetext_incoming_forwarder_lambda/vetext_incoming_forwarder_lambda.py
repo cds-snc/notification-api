@@ -114,6 +114,9 @@ def process_body_from_alb_invocation(event):
     event_body_decoded = parse_qsl(b64decode(event["body"]).decode('utf-8'))
     logger.info(f"Decoded event_body {event_body_decoded}")
     event_body = dict(event_body_decoded)
+    
+    if 'AddOns' in event_body:
+        event_body.pop('AddOns')
    
     event_bodies.append(event_body)
 
