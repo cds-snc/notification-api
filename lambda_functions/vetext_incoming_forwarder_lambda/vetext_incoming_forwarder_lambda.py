@@ -56,13 +56,11 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
                 responses.append(response)
             except http.client.HTTPException as e:
                 logger.info("HttpException With Call To VeText")                
-                logger.exception(e)                             
-                logger.debug(event_body)   
+                logger.exception(e)                                             
                 push_to_sqs(event_body)
             except Exception as e:
                 logger.info("General Exception With Call to VeText")                
-                logger.exception(e)                        
-                logger.debug(event_body)
+                logger.exception(e)                                        
                 push_to_sqs(event_body)
 
         logger.debug(responses)
@@ -127,10 +125,10 @@ def process_body_from_alb_invocation(event):
         logger.debug(event)        
 
     event_body_decoded = parse_qsl(b64decode(event_body_encoded).decode('utf-8'))
-    logger.info(f"Decoded event body {event_body_decoded}")
+    logger.debug(f"Decoded event body {event_body_decoded}")
 
     event_body = dict(event_body_decoded)
-    logger.info(f"Converted body to dictionary: {event_body}")
+    logger.debug(f"Converted body to dictionary: {event_body}")
 
     if 'AddOns' in event_body:        
         logger.info(f"AddOns present in event_body: {event_body['AddOns']}")
@@ -192,9 +190,10 @@ def make_vetext_request(request_body):
 
     return response    
 
-def push_to_sqs(event_body) -> bool:
+def push_to_sqs(event_body):
     """Places event body dictionary on queue to be retried at a later time"""
     logger.info("Placing event_body on retry queue")
+    logger.debug(f"Preparing for SQS: {event_body}")
 
     try:
         sqs = boto3.client('sqs')
@@ -214,12 +213,8 @@ def push_to_sqs(event_body) -> bool:
                         MessageBody=queue_msg)
         
         logger.info("Completed enqueue of message to retry queue")
-
-        return True
     except Exception as e:
         logger.info("Push to SQS Exception")
         logger.info(event_body)
         logger.exception(e)        
-        
-        return False
     
