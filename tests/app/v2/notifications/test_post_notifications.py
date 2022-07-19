@@ -816,10 +816,10 @@ class TestRestrictedServices:
     @pytest.mark.parametrize(
         "notification_type,to_key,to,response_code",
         [
-            (SMS_TYPE, "phone_number", "+16132532235", 201),
-            (EMAIL_TYPE, "email_address", "test@example.com", 201),
-            (SMS_TYPE, "phone_number", "+16132532230", 400),
-            (EMAIL_TYPE, "email_address", "bad@example.com", 400),
+            ("sms", "phone_number", "+16132532235", 201),
+            ("email", "email_address", "test@example.com", 201),
+            ("sms", "phone_number", "+16132532230", 400),
+            ("email", "email_address", "bad@example.com", 400),
         ],
     )
     def test_team_keys_only_send_to_team_members(
@@ -853,10 +853,10 @@ class TestRestrictedServices:
     @pytest.mark.parametrize(
         "notification_type,to_key,to_a, to_b,response_code",
         [
-            (EMAIL_TYPE, "email_address", "foo@example.com", "bar@example.com", 201),
-            (SMS_TYPE, "phone_number", "+16132532231", "+16132532232", 201),
-            (EMAIL_TYPE, "email_address", "foo@example.com", "error@example.com", 400),
-            (SMS_TYPE, "phone_number", "+16132532231", "+16132532233", 400),
+            ("email", "email_address", "foo@example.com", "bar@example.com", 201),
+            ("sms", "phone_number", "+16132532231", "+16132532232", 201),
+            ("email", "email_address", "foo@example.com", "error@example.com", 400),
+            ("sms", "phone_number", "+16132532231", "+16132532233", 400),
         ],
     )
     def test_team_keys_only_send_to_team_members_bulk_endpoint(
@@ -864,7 +864,7 @@ class TestRestrictedServices:
     ):
         service = create_service(
             restricted=True,
-            service_permissions=[EMAIL_TYPE, SMS_TYPE, SCHEDULE_NOTIFICATIONS],
+            service_permissions=[EMAIL_TYPE, SMS_TYPE],
         )
         user_1 = create_user(mobile_number="+16132532231", email="foo@example.com")
         user_2 = create_user(mobile_number="+16132532232", email="bar@example.com")
