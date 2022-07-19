@@ -100,6 +100,7 @@ def process_body_from_sqs_invocation(event):
         # event_body takes the array of tuples and creates a dictionary
         logger.debug(f"Processing record body from SQS: {record['body']}")
         event_body = json.loads(record["body"])
+        logger.info("Successfully converted record body from sqs to json")
         event_bodies.append(event_body)
     
     return event_bodies
