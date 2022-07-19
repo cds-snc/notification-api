@@ -98,7 +98,8 @@ def process_body_from_sqs_invocation(event):
         # event["body"] is a base 64 encoded string
         # parse_qsl converts url-encoded strings to array of tuple objects
         # event_body takes the array of tuples and creates a dictionary
-        event_body = dict(record["body"])
+        logger.debug(f"Processing record body from SQS: {record['body']}")
+        event_body = json.loads(record["body"])
         event_bodies.append(event_body)
     
     return event_bodies
@@ -113,10 +114,14 @@ def process_body_from_alb_invocation(event):
     # event_body takes the array of tuples and creates a dictionary
     event_body_decoded = parse_qsl(b64decode(event["body"]).decode('utf-8'))
     logger.info(f"Decoded event_body {event_body_decoded}")
+
     event_body = dict(event_body_decoded)
-    
-    if 'AddOns' in event_body:
+    logger.info("Converted body to dictionary")
+
+    if 'AddOns' in event_body:        
+        logger.info(f"AddOns present in event_body: {event_body['AddOns']}")
         event_body.pop('AddOns')
+        logger.info("Removed AddOns from event_body")
    
     event_bodies.append(event_body)
 
