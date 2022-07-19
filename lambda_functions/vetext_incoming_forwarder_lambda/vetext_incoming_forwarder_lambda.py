@@ -95,17 +95,22 @@ def process_body_from_sqs_invocation(event):
         # event["body"] is a base 64 encoded string
         # parse_qsl converts url-encoded strings to array of tuple objects
         # event_body takes the array of tuples and creates a dictionary
-        event_body = record.get("body", "")
+        try: 
+            event_body = record.get("body", "")
 
-        if (event_body == ""):
-            logger.info("event_body from sqs record was not present")
-            logger.debug(record)
-            continue
+            if (event_body == ""):
+                logger.info("event_body from sqs record was not present")
+                logger.debug(record)
+                continue
 
-        logger.debug("Processing record body from SQS: %s", event_body)
-        event_body = json.loads(event_body)
-        logger.info("Successfully converted record body from sqs to json")
-        event_bodies.append(event_body)
+            logger.debug("Processing record body from SQS: %s", event_body)
+            event_body = json.loads(event_body)
+            logger.info("Successfully converted record body from sqs to json")
+            event_bodies.append(event_body)
+        except Exception as e:
+            logger.exception(e)        
+            logger.info("Failed to load event from sqs")
+            push_to_sqs(event_body)
     
     return event_bodies
 
