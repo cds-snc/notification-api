@@ -33,7 +33,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
             event_bodies = process_body_from_sqs_invocation(event)
         else:
             logger.error("Invalid Event. Expecting the source of an invocation to be from alb or sqs")
-            logger.error(json.dumps(event))
+            logger.debug(event)
 
             return{
                 'statusCode': 400
@@ -45,9 +45,8 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
         responses = []
 
         for event_body in event_bodies:       
-            try:      
-                logger.info("Making call to VeText")
-                logger.debug(f"Processing event_body: {event_body}")
+            logger.debug(f"Processing event_body: {event_body}")
+            try:                      
                 response = make_vetext_request(event_body)
 
                 if response.status != 200:
@@ -56,14 +55,14 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
                 
                 responses.append(response)
             except http.client.HTTPException as e:
-                logger.info("HttpException With Call To VeText")
-                logger.info(json.dumps(event_body))
-                logger.exception(e)                                
+                logger.info("HttpException With Call To VeText")                
+                logger.exception(e)                             
+                logger.debug(event_body)   
                 push_to_sqs(event_body)
             except Exception as e:
-                logger.info("General Exception With Call to VeText")
-                logger.info(json.dumps(event_body))
+                logger.info("General Exception With Call to VeText")                
                 logger.exception(e)                        
+                logger.debug(event_body)
                 push_to_sqs(event_body)
 
         logger.debug(responses)
@@ -71,18 +70,16 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
         return {
             'statusCode': 200
         }
-    except KeyError as e:
-        logger.info("Key Error")
-        logger.info(json.dumps(event))
+    except KeyError as e:        
         logger.exception(e)
+        logger.info(event)
         
         return {
             'statusCode': 424
         }   
-    except Exception as e:
-        logger.info("General Exception")
-        logger.info(json.dumps(event))
+    except Exception as e:        
         logger.exception(e)        
+        logger.info(event)
         
         return{
             'statusCode':500
@@ -98,7 +95,14 @@ def process_body_from_sqs_invocation(event):
         # event["body"] is a base 64 encoded string
         # parse_qsl converts url-encoded strings to array of tuple objects
         # event_body takes the array of tuples and creates a dictionary
-        logger.debug(f"Processing record body from SQS: {record['body']}")
+        event_body = record.get("body", "")
+
+        if (event_body == ""):
+            logger.info("event_body from sqs record was not present")
+            logger.debug(record)
+            continue
+
+        logger.debug("Processing record body from SQS: %s", event_body)
         event_body = json.loads(record["body"])
         logger.info("Successfully converted record body from sqs to json")
         event_bodies.append(event_body)
@@ -106,8 +110,6 @@ def process_body_from_sqs_invocation(event):
     return event_bodies
 
 def process_body_from_alb_invocation(event):
-    event_bodies = []
-
     # event is a json document with a body attribute that contains
     #   the payload of the twilio webhook
     # event["body"] is a base 64 encoded string
@@ -121,12 +123,10 @@ def process_body_from_alb_invocation(event):
 
     if 'AddOns' in event_body:        
         logger.info(f"AddOns present in event_body: {event_body['AddOns']}")
-        event_body.pop('AddOns')
+        del event_body['AddOns']
         logger.info("Removed AddOns from event_body")
    
-    event_bodies.append(event_body)
-
-    return event_bodies    
+    return [event_body]
 
 def read_from_ssm(key: str) -> str:
     ssm_client = boto3.client('ssm')
@@ -141,11 +141,11 @@ def read_from_ssm(key: str) -> str:
 def make_vetext_request(request_body):    
     # We have been directed by the VeText team to ignore SSL validation
     #   that is why we use the ssl._create_unverified_context method
-    connection = http.client.HTTPSConnection(os.environ.get('vetext_api_endpoint_domain'),  context = ssl._create_unverified_context())
+    connection = http.client.HTTPSConnection(os.getenv('vetext_api_endpoint_domain'),  context = ssl._create_unverified_context())
     logger.info("generated connection to VeText")
 
     # Authorization is basic token authentication that is stored in environment.
-    auth_token = read_from_ssm(os.environ.get('vetext_api_auth_ssm_path'))
+    auth_token = read_from_ssm(os.getenv('vetext_api_auth_ssm_path'))
     logger.info("Retrieved AuthToken from SSM")
     
     headers = {
@@ -165,7 +165,7 @@ def make_vetext_request(request_body):
 
     json_data = json.dumps(body)
 
-    logger.info("Making POST Request to VeText using: " + os.environ.get('vetext_api_endpoint_domain') + os.environ.get('vetext_api_endpoint_path'))
+    logger.info("Making POST Request to VeText using: " + os.getenv('vetext_api_endpoint_domain') + os.getenv('vetext_api_endpoint_path'))
     logger.debug(f"POST body: {json_data}")
     
     connection.request(
@@ -176,30 +176,39 @@ def make_vetext_request(request_body):
     
     response = connection.getresponse()
     
-    logger.info(f"VeText call complete, with response: {str(response.status)}")
+    logger.info("VeText call complete with response: %d", response.status)
     logger.debug(response.read().decode())
 
     return response    
 
-def push_to_sqs(event_body):
+def push_to_sqs(event_body) -> bool:
     """Places event body dictionary on queue to be retried at a later time"""
     logger.info("Placing event_body on retry queue")
 
-    sqs = boto3.client('sqs')
-    queue_url = os.environ.get('vetext_request_drop_sqs_url')
-    logger.debug(f"Retrieved queue_url: {queue_url}")
+    try:
+        sqs = boto3.client('sqs')
+        queue_url = os.getenv('vetext_request_drop_sqs_url')
+        logger.debug("Retrieved queue_url: %s", queue_url)
 
-    queue_msg = json.dumps(event_body)
-    queue_msg_attrs = {
-        'source': {
-            'DataType': 'String',
-            'StringValue': 'twilio'
+        queue_msg = json.dumps(event_body)
+        queue_msg_attrs = {
+            'source': {
+                'DataType': 'String',
+                'StringValue': 'twilio'
+            }
         }
-    }
 
-    sqs.send_message(QueueUrl=queue_url,
-                    MessageAttributes=queue_msg_attrs,
-                    MessageBody=queue_msg)
-    
-    logger.info("Completed enqueue of message to retry queue")
+        sqs.send_message(QueueUrl=queue_url,
+                        MessageAttributes=queue_msg_attrs,
+                        MessageBody=queue_msg)
+        
+        logger.info("Completed enqueue of message to retry queue")
+
+        return True
+    except Exception as e:
+        logger.info("Push to SQS Exception")
+        logger.info(event_body)
+        logger.exception(e)        
+        
+        return False
     
