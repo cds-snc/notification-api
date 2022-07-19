@@ -114,16 +114,7 @@ def process_body_from_alb_invocation(event):
     event_body_decoded = parse_qsl(b64decode(event["body"]).decode('utf-8'))
     logger.info(f"Decoded event_body {event_body_decoded}")
     event_body = dict(event_body_decoded)
-    # AddOns are a Twilio feature that are in the dictionary as a 
-    # string that contains escaped json.  To make it accessible for 
-    # processing, we are converting the string to json and re-attaching
-    # it to the dict
-    if 'AddOns' in event_body:
-        logger.info("AddOns key exists on Twilio message. Converting to json")
-        addons = json.loads(event_body.pop('AddOns'))
-        event_body['AddOns'] = addons
-        logger.info("Successfully converted AddOns to json and re-attached to event_body")
-
+   
     event_bodies.append(event_body)
 
     return event_bodies    
