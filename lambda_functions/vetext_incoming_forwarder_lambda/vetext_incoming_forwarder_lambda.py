@@ -103,7 +103,7 @@ def process_body_from_sqs_invocation(event):
                 logger.debug(record)
                 continue
 
-            logger.debug("Processing record body from SQS: %s", event_body)
+            logger.debug(f"Processing record body from SQS: {event_body}")
             event_body = json.loads(event_body)
             logger.info("Successfully converted record body from sqs to json")
             event_bodies.append(event_body)
@@ -127,10 +127,10 @@ def process_body_from_alb_invocation(event):
         logger.debug(event)        
 
     event_body_decoded = parse_qsl(b64decode(event_body_encoded).decode('utf-8'))
-    logger.info(f"Decoded event_body {event_body_decoded}")
+    logger.info(f"Decoded event body {event_body_decoded}")
 
     event_body = dict(event_body_decoded)
-    logger.info("Converted body to dictionary")
+    logger.info(f"Converted body to dictionary: {event_body}")
 
     if 'AddOns' in event_body:        
         logger.info(f"AddOns present in event_body: {event_body['AddOns']}")
@@ -177,7 +177,7 @@ def make_vetext_request(request_body):
     json_data = json.dumps(body)
 
     logger.info("Making POST Request to VeText using: " + os.getenv('vetext_api_endpoint_domain') + os.getenv('vetext_api_endpoint_path'))
-    logger.debug(json_data)
+    logger.debug(f"json dumps: {json_data}")
     
     connection.request(
         'POST',
@@ -187,8 +187,8 @@ def make_vetext_request(request_body):
     
     response = connection.getresponse()
     
-    logger.info("VeText call complete with response: %d", response.status)
-    logger.debug(response.read().decode())
+    logger.info(f"VeText call complete with response: {response.status}")
+    logger.debug(f"VeText response: {response}")
 
     return response    
 
@@ -199,7 +199,7 @@ def push_to_sqs(event_body) -> bool:
     try:
         sqs = boto3.client('sqs')
         queue_url = os.getenv('vetext_request_drop_sqs_url')
-        logger.debug("Retrieved queue_url: %s", queue_url)
+        logger.debug(f"Retrieved queue_url: {queue_url}")
 
         queue_msg = json.dumps(event_body)
         queue_msg_attrs = {
