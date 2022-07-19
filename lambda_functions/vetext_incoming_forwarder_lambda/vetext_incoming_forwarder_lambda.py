@@ -103,7 +103,7 @@ def process_body_from_sqs_invocation(event):
             continue
 
         logger.debug("Processing record body from SQS: %s", event_body)
-        event_body = json.loads(record["body"])
+        event_body = json.loads(event_body)
         logger.info("Successfully converted record body from sqs to json")
         event_bodies.append(event_body)
     
@@ -115,7 +115,13 @@ def process_body_from_alb_invocation(event):
     # event["body"] is a base 64 encoded string
     # parse_qsl converts url-encoded strings to array of tuple objects
     # event_body takes the array of tuples and creates a dictionary
-    event_body_decoded = parse_qsl(b64decode(event["body"]).decode('utf-8'))
+    event_body_encoded = event.get("body", "")
+
+    if (event_body_encoded == ""):
+        logger.info("event_body from alb record was not present")
+        logger.debug(event)        
+
+    event_body_decoded = parse_qsl(b64decode(event_body_encoded).decode('utf-8'))
     logger.info(f"Decoded event_body {event_body_decoded}")
 
     event_body = dict(event_body_decoded)
@@ -166,11 +172,11 @@ def make_vetext_request(request_body):
     json_data = json.dumps(body)
 
     logger.info("Making POST Request to VeText using: " + os.getenv('vetext_api_endpoint_domain') + os.getenv('vetext_api_endpoint_path'))
-    logger.debug(f"POST body: {json_data}")
+    logger.debug(json_data)
     
     connection.request(
         'POST',
-        os.environ.get('vetext_api_endpoint_path'),
+        os.getenv('vetext_api_endpoint_path'),
         json_data,
         headers)
     
