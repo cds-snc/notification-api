@@ -850,12 +850,26 @@ class TestRestrictedServices:
         else:
             assert redis_publish.called is False
 
-    def test_post_bulk_notification_returns_201_if_number_safelisted_and_teamkey(self, notify_db_session, client, mocker):
-        service = create_service(restricted=True, service_permissions=[EMAIL_TYPE])
-        user_1 = create_user(email="foo@example.com")
-        user_2 = create_user(email="bar@example.com")
+    @pytest.mark.parametrize(
+        "notification_type,to_key,to_a, to_b,response_code",
+        [
+            (EMAIL_TYPE, "email_address", "foo@example.com", "bar@example.com", 201),
+            (SMS_TYPE, "phone_number", "+16132532231", "+16132532232", 201),
+            (EMAIL_TYPE, "email_address", "foo@example.com", "error@example.com", 400),
+            (SMS_TYPE, "phone_number", "+16132532231", "+16132532233", 400),
+        ],
+    )
+    def test_team_keys_only_send_to_team_members_bulk_endpoint(
+        self, notify_db_session, client, mocker, notification_type, to_key, to_a, to_b, response_code
+    ):
+        service = create_service(
+            restricted=True,
+            service_permissions=[EMAIL_TYPE, SMS_TYPE, SCHEDULE_NOTIFICATIONS],
+        )
+        user_1 = create_user(mobile_number="+16132532231", email="foo@example.com")
+        user_2 = create_user(mobile_number="+16132532232", email="bar@example.com")
         service.users = [user_1, user_2]
-        template = create_template(service=service, template_type="email")
+        template = create_template(service=service, template_type=notification_type)
         create_api_key(service=service, key_type="team")
         job_id = str(uuid.uuid4())
         mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=job_id)
@@ -863,7 +877,7 @@ class TestRestrictedServices:
         data = {
             "name": "job_name",
             "template_id": template.id,
-            "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
+            "csv": rows_to_csv([[to_key], [to_a], [to_b]]),
         }
         auth_header = create_authorization_header(service_id=service.id, key_type="team")
         response = client.post(
@@ -871,8 +885,7 @@ class TestRestrictedServices:
             data=json.dumps(data),
             headers=[("Content-Type", "application/json"), auth_header],
         )
-
-        assert response.status_code == 201
+        assert response.status_code == response_code
         assert json.loads(response.get_data(as_text=True))
 
 
