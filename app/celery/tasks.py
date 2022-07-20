@@ -889,7 +889,6 @@ def send_notify_no_reply(self, data):
             send_notification_to_queue(saved_notifications[0], False, queue=QueueNames.NOTIFY)
     except Exception as e:
         try:
-            current_app.logger.warning("We are going to retry send_no_reply")
             current_app.logger.warning(f"The exception is {repr(e)}")
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
