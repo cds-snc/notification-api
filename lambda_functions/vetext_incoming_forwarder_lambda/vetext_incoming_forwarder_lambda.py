@@ -68,7 +68,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
         return {
             'statusCode': 200
         }
-    except KeyError as e:        
+    except KeyError as e:
         logger.exception(e)
         logger.info(event)
         
@@ -96,7 +96,7 @@ def process_body_from_sqs_invocation(event):
         try: 
             event_body = record.get("body", "")
 
-            if (event_body == ""):
+            if not event_body:
                 logger.info("event_body from sqs record was not present")
                 logger.debug(record)
                 continue
@@ -120,7 +120,7 @@ def process_body_from_alb_invocation(event):
     # event_body takes the array of tuples and creates a dictionary
     event_body_encoded = event.get("body", "")
 
-    if (event_body_encoded == ""):
+    if not event_body_encoded:
         logger.info("event_body from alb record was not present")
         logger.debug(event)        
 
@@ -182,7 +182,7 @@ def make_vetext_request(request_body):
         os.getenv('vetext_api_endpoint_path'),
         json_data,
         headers)
-    
+
     response = connection.getresponse()
     
     logger.info(f"VeText call complete with response: {response.status}")
