@@ -2074,6 +2074,7 @@ class TestSendNotifyNoReply:
 
         assert queue_call["queue"] == QueueNames.NOTIFY
 
+    @pytest.mark.skip(reason="To test on staging - MUST REMOVE")
     def test_send_notify_no_reply_retry(self, mocker, no_reply_template):
         mocker.patch("app.celery.tasks.send_notify_no_reply.retry", side_effect=Retry)
         mocker.patch("app.celery.tasks.send_notification_to_queue", side_effect=Exception())
