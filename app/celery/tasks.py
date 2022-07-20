@@ -868,25 +868,25 @@ def send_notify_no_reply(self, data):
     template = dao_get_template_by_id(current_app.config["NO_REPLY_TEMPLATE_ID"])
 
     try:
-        saved_notification = persist_notifications(
-            [
-                dict(
-                    template_id=template.id,
-                    template_version=template.version,
-                    recipient=payload["sender"],
-                    service=service,
-                    personalisation={"sending_email_address": payload["recipients"][0]},
-                    notification_type=template.template_type,
-                    api_key_id=None,
-                    key_type=KEY_TYPE_NORMAL,
-                    # Ensure that the reply to is not set, if people reply
-                    # to these emails, they will go to the GC Notify service
-                    # email address, and we handle those on the SES inbound
-                    # Lambda
-                    reply_to_text=None,
-                )
-            ]
-        )
+        data_to_send = [
+            dict(
+                template_id=template.id,
+                template_version=template.version,
+                recipient=payload["sender"],
+                service=service,
+                personalisation={"sending_email_address": payload["recipients"][0]},
+                notification_type=template.template_type,
+                api_key_id=None,
+                key_type=KEY_TYPE_NORMAL,
+                # Ensure that the reply to is not set, if people reply
+                # to these emails, they will go to the GC Notify service
+                # email address, and we handle those on the SES inbound
+                # Lambda
+                reply_to_text=None,
+            )
+        ]
+        current_app.logger.info(f"Data we are sending to persist_notifications is {data_to_send}")
+        saved_notification = persist_notifications(data_to_send)
         send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
     except Exception as e:
         try:
