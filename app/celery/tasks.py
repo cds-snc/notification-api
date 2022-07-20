@@ -885,8 +885,7 @@ def send_notify_no_reply(self, data):
         ]
         current_app.logger.info(f"Data we are sending to persist_notifications is {data_to_send}")
         saved_notifications = persist_notifications(data_to_send)
-        if saved_notifications and len(saved_notifications) == 1:
-            send_notification_to_queue(saved_notifications[0], False, queue=QueueNames.NOTIFY)
+        send_notification_to_queue(saved_notifications[0], False, queue=QueueNames.NOTIFY)
     except Exception as e:
         try:
             current_app.logger.warning(f"The exception is {repr(e)}")
