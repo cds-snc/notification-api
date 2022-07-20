@@ -860,6 +860,8 @@ def process_returned_letters_list(notification_references):
 @notify_celery.task(bind=True, name="send-notify-no-reply", max_retries=5)
 @statsd(namespace="tasks")
 def send_notify_no_reply(self, data):
+    current_app.logger.info(f"send_notify_no_reply data is : {data}")
+    current_app.logger.info(f"The self data is {self}")
     payload = json.loads(data)
 
     service = dao_fetch_service_by_id(current_app.config["NOTIFY_SERVICE_ID"])
@@ -885,10 +887,11 @@ def send_notify_no_reply(self, data):
                 )
             ]
         )
-
         send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
-    except Exception:
+    except Exception as e:
         try:
+            current_app.logger.warning("We are going to retry send_no_reply")
+            current_app.logger.warning(f"The exception is {e}")
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
             current_app.logger.error(
