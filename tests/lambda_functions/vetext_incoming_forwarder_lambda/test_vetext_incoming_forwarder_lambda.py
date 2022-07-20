@@ -32,7 +32,7 @@ lambda_module = "lambda_functions.vetext_incoming_forwarder_lambda.vetext_incomi
 def test_verify_parsing_of_twilio_message(event):
     response = process_body_from_alb_invocation(event)
 
-    assert len(response) > 0
+    assert response, "The dictionary should not be empty"
     assert 'AddOns' not in response
 
 
