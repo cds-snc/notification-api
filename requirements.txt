@@ -55,7 +55,7 @@ marshmallow-sqlalchemy==0.22.2
 mistune==0.8.4
 monotonic==1.6
 nanoid==2.0.0
-notification-utils @ git+https://github.com/department-of-veterans-affairs/notification-utils.git@6c9f00d7a893c513f58854e8ddbc65a955af5127
+notification-utils @ git+https://github.com/department-of-veterans-affairs/notification-utils.git@37903a40a9cf32558019570b76dda9c701b42b8c
 notifications-python-client==6.3.0
 orderedset==2.0.3
 oscrypto==1.3.0
