@@ -8,20 +8,75 @@ with VA Profile integration calls this stored function.  The stored function sho
 created or updated; otherwise, False.
 """
 
-import os
+import jwt
 import pytest
-from lambda_functions.va_profile.va_profile_opt_in_out_lambda import va_profile_opt_in_out_lambda_handler
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.backends import default_backend
+from datetime import datetime, timedelta
+from lambda_functions.va_profile.va_profile_opt_in_out_lambda import jwt_is_valid, va_profile_opt_in_out_lambda_handler
 from sqlalchemy import text
 
 
-OPT_IN_OUT = text("""SELECT va_profile_opt_in_out(:va_profile_id, :communication_item_id, :communication_channel_id, :allowed, :source_datetime);""")
+OPT_IN_OUT = text("""\
+SELECT va_profile_opt_in_out(:va_profile_id, :communication_item_id, \
+:communication_channel_id, :allowed, :source_datetime);""")
 
 COUNT = r"""SELECT COUNT(*) FROM va_profile_local_cache;"""
 
 VA_PROFILE_TEST = text("""\
 SELECT allowed
 FROM va_profile_local_cache
-WHERE va_profile_id=:va_profile_id AND communication_item_id=:communication_item_id AND communication_channel_id=:communication_channel_id;""")
+WHERE va_profile_id=:va_profile_id \
+AND communication_item_id=:communication_item_id \
+AND communication_channel_id=:communication_channel_id;""")
+
+
+@pytest.fixture(scope="module")
+def private_key():
+    # This assumes tests are run from the project root directory.
+    with open("tests/lambda_functions/va_profile/key.pem", "rb") as f:
+        private_key_bytes = f.read()
+
+    return serialization.load_pem_private_key(private_key_bytes, password=b"test", backend=default_backend())
+
+
+@pytest.fixture(scope="module")
+def jwt_encoded(private_key):
+    """ This is a valid JWT encoding. """
+
+    iat = datetime.now()
+    exp = iat + timedelta(minutes=15)
+    return jwt.encode({"some": "payload", "exp": exp, "iat": iat}, private_key, algorithm="RS256")
+
+
+@pytest.fixture()
+def jwt_encoded_missing_exp(private_key):
+    return jwt.encode({"some": "payload", "iat": datetime.now()}, private_key, algorithm="RS256")
+
+
+@pytest.fixture()
+def jwt_encoded_missing_iat(private_key):
+    return jwt.encode({"some": "payload", "exp": datetime.now()}, private_key, algorithm="RS256")
+
+
+@pytest.fixture()
+def jwt_encoded_expired(private_key):
+    """ This is an invalid JWT encoding because it is expired. """
+
+    iat = datetime.now() - timedelta(minutes=20)
+    exp = iat + timedelta(minutes=15)
+    return jwt.encode({"some": "payload", "exp": exp, "iat": iat}, private_key, algorithm="RS256")
+
+
+@pytest.fixture()
+def jwt_encoded_reversed(private_key):
+    """
+    This JWT encoding has an issue time later than the expiration time.  Both times are in the future.
+    """
+
+    exp = datetime.now() + timedelta(days=1)
+    iat = exp + timedelta(minutes=15)
+    return jwt.encode({"some": "payload", "exp": exp, "iat": iat}, private_key, algorithm="RS256")
 
 
 def verify_opt_in_status(identifier: int, opted_in: bool, connection):
@@ -37,16 +92,17 @@ def verify_opt_in_status(identifier: int, opted_in: bool, connection):
 
     profile_test_queryset = connection.execute(va_profile_test)
     stored_preference = profile_test_queryset.fetchone()[0]
-    assert stored_preference == opted_in, "The user opted {}.  (allowed={})".format("in" if opted_in else "out", opted_in)
+    assert stored_preference == opted_in, \
+        "The user opted {}.  (allowed={})".format("in" if opted_in else "out", opted_in)
 
 
 def setup_db(connection):
     """
-    Using the given connection, truncate the VA Profile local cache, and call the stored procedure to add a specific row.
-    This establishes a known state for testing.
+    Using the given connection, truncate the VA Profile local cache, and call the stored procedure to add a specific
+    row.  This establishes a known state for testing.
 
-    Truncating is necessary because the database side effects of executing the VA Profile lambda function are not rolled
-    back at the conclusion of a test.
+    Truncating is necessary because the database side effects of executing the VA Profile lambda function are not
+    rolled back at the conclusion of a test.
     """
 
     connection.execute("truncate va_profile_local_cache;")
@@ -151,20 +207,73 @@ def test_va_profile_stored_function_new_row(notify_db_session):
         verify_opt_in_status(1, True, connection)
 
 
-def test_va_profile_opt_in_out_lambda_handler_missing_attribute():
+def test_jwt_is_valid(jwt_encoded):
+    """
+    Test the helper function used to determine if the JWT has a valid signature.
+    """
+
+    assert jwt_is_valid(f"Bearer {jwt_encoded}")
+
+
+@pytest.mark.parametrize("invalid_jwt", [jwt_encoded_missing_exp, jwt_encoded_missing_iat, jwt_encoded_expired, jwt_encoded_reversed])
+def test_jwt_invalid(invalid_jwt):
+    """
+    Any JWT that does not meet this criteria should be invalid:
+        - Contains exp claim
+        - Contains iat claim
+        - exp is not expired
+        - exp is after iat
+    """
+
+    assert not jwt_is_valid(f"Bearer {invalid_jwt}")
+
+
+def test_jwt_is_valid_malformed_authorization_header_value(jwt_encoded):
+    """
+    Test the helper function used to determine if the JWT has a valid signature.
+    """
+
+    assert not jwt_is_valid(f"noBearer {jwt_encoded}")
+
+
+def test_va_profile_opt_in_out_lambda_handler_invalid_jwt():
+    """
+    Test the VA Profile integration lambda by sending a request with an invalid jwt encoding.
+    """
+
+    # https://www.youtube.com/watch?v=a6iW-8xPw3k
+    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 0, 5, True, "12345")
+    response = va_profile_opt_in_out_lambda_handler(event, None)
+    assert isinstance(response, dict)
+    assert response["statusCode"] == 401, "12345 should not be a valid JWT encoding."
+
+
+def test_va_profile_opt_in_out_lambda_handler_no_authorization_header():
+    """
+    Test the VA Profile integration lambda by sending a request without an authorization header.
+    """
+
+    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 0, 5, True, '')
+    del event["headers"]["Authorization"]
+    response = va_profile_opt_in_out_lambda_handler(event, None)
+    assert isinstance(response, dict)
+    assert response["statusCode"] == 401, "Requests without an Authorization header should be invalid."
+
+
+def test_va_profile_opt_in_out_lambda_handler_missing_attribute(jwt_encoded):
     """
     Test the VA Profile integration lambda by sending a bad request (missing top level attribute).
     """
 
-    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 0, 5, True)
-    del event["txAuditId"]
+    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 0, 5, True, jwt_encoded)
+    del event["body"]["txAuditId"]
     response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
     assert response["statusCode"] == 400
-    assert response["body"] == "A required top level attribute is missing from the request or has the wrong type."
+    assert response["body"] == "A required top level attribute is missing from the request body or has the wrong type."
 
 
-def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id):
+def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id, jwt_encoded):
     """
     Test the VA Profile integration lambda by sending a valid request that should create
     a new row in the database.
@@ -174,7 +283,7 @@ def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id):
         setup_db(connection)
 
     # Send a request that should result in a new row.
-    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 1, 1, 5, True)
+    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 1, 1, 5, True, jwt_encoded)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
@@ -186,7 +295,7 @@ def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id):
         verify_opt_in_status(1, True, connection)
 
 
-def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id):
+def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id, jwt_encoded):
     """
     Test the VA Profile integration lambda by sending a valid request with an older date.
     No database update should occur.
@@ -195,7 +304,7 @@ def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id):
     with notify_db.engine.begin() as connection:
         setup_db(connection)
 
-    event = create_event("txAuditId", "txAuditId", "2022-02-07T19:37:59.320Z", 0, 0, 5, True)
+    event = create_event("txAuditId", "txAuditId", "2022-02-07T19:37:59.320Z", 0, 0, 5, True, jwt_encoded)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
@@ -207,7 +316,7 @@ def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id):
         verify_opt_in_status(0, False, connection)
 
 
-def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id):
+def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id, jwt_encoded):
     """
     Test the VA Profile integration lambda by sending a valid request with a newer date.
     A database update should occur.
@@ -216,7 +325,7 @@ def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id):
     with notify_db.engine.begin() as connection:
         setup_db(connection)
 
-    event = create_event("txAuditId", "txAuditId", "2022-04-07T19:37:59.320Z", 0, 0, 5, True)
+    event = create_event("txAuditId", "txAuditId", "2022-04-07T19:37:59.320Z", 0, 0, 5, True, jwt_encoded)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
@@ -228,29 +337,70 @@ def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id):
         verify_opt_in_status(0, True, connection)
 
 
+@pytest.mark.skip(reason="need to test PUT response")
 def test_va_profile_opt_in_out_lambda_handler_PUT():
     """
     Test the VA Profile integration lambda by inspecting the PUT request is initiates to
     VA Profile in response to a request.
     """
 
-    pass  # TODO
+    raise NotImplementedError
 
 
-def create_event(master_tx_audit_id: str, tx_audit_id: str, source_date: str, va_profile_id: int, communication_channel_id: int, communication_item_id: int, is_allowed: bool) -> dict:
+@pytest.mark.skip(reason="need to test PUT response")
+def test_va_profile_opt_in_out_lambda_handler_wrong_communication_channel_id(worker_id, jwt_encoded):
     """
-    Return a dictionary in the format of the payload the lambda function expects to receive from VA Profile.
+    The lambda should ignore records in which communicationChannelId is not 5.
+    """
+
+    event = create_event("tx_audit_id", "2022-04-27T16:57:16Z", 2, 3, 4, True, jwt_encoded)
+    response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
+    assert isinstance(response, dict)
+    assert response["statusCode"] == 200
+    # TODO - More testing.
+
+
+def create_event(
+        master_tx_audit_id: str,
+        tx_audit_id: str,
+        source_date: str,
+        va_profile_id: int,
+        communication_channel_id: int,
+        communication_item_id: int,
+        is_allowed: bool,
+        jwt_value) -> dict:
+    """
+    Return a dictionary in the format of the payload the lambda function expects to
+    receive from VA Profile via AWS API Gateway v2.
     """
 
     return {
-        "txAuditId": master_tx_audit_id,
-        "bios": [
-            create_bios_element(tx_audit_id, source_date, va_profile_id, communication_channel_id, communication_item_id, is_allowed)
-        ]
+        "headers": {
+            "Authorization": f"Bearer {jwt_value}",
+        },
+        "body": {
+            "txAuditId": master_tx_audit_id,
+            "bios": [
+                create_bios_element(
+                    tx_audit_id,
+                    source_date,
+                    va_profile_id,
+                    communication_channel_id,
+                    communication_item_id, is_allowed
+                )
+            ],
+        },
     }
 
 
-def create_bios_element(tx_audit_id: str, source_date: str, va_profile_id: int, communication_channel_id: int, communication_item_id: int, is_allowed: bool) -> dict:
+def create_bios_element(
+        tx_audit_id: str,
+        source_date: str,
+        va_profile_id: int,
+        communication_channel_id: int,
+        communication_item_id: int,
+        is_allowed: bool) -> dict:
+
     return {
         "txAuditId": tx_audit_id,
         "sourceDate": source_date,
@@ -259,11 +409,3 @@ def create_bios_element(tx_audit_id: str, source_date: str, va_profile_id: int, 
         "communicationItemId": communication_item_id,
         "allowed": is_allowed,
     }
-
-
-@pytest.mark.skip(reason="need to test PUT response")
-def test_communication_channel_id_not_5():
-    event = create_event("tx_audit_id", "2022-04-27T16:57:16Z", 2, 3, 4, True)
-    response = va_profile_opt_in_out_lambda_handler(event)
-    assert isinstance(response, dict), "Response is not a dictionary."
-    assert response["statusCode"] == 200
