@@ -12,11 +12,11 @@ The docker-compose command used to run the full test suite sets environment vari
 2. Start the Postgres (ci_db_1) container, and any other containers required by the functionality under test: `docker start ci_db_1`.  All migrations should already be applied.
 3. Start a test container shell by running `docker run --rm -it -v "<absolute path to notification-api>:/app" --env-file tests/env_vars ci_test bash`.
 4. Add the test container started in the previous step to the default network: `docker network connect ci_default <test container name or ID>`.
-5. Run `py.test -h` to see the syntax for running tests.  Without flags, you can run `py.test [file or directory]...`.
+5. In the test container shell, run `py.test -h` to see the syntax for running tests.  Without flags, you can run `py.test [file or directory]...`.
 
 ## Running Individual Tests
 
-This is an example of running a specific test in a test file:
+This is an example of running a specific test in a test file from within a test container shell:
 
 ```$ py.test tests/lambda_functions/va_profile/test_va_profile_integration.py::test_va_profile_cache_exists```
 
