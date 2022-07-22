@@ -32,7 +32,7 @@ jobs:
       - name: Start VAEC deployment
         uses: actions/github-script@v6
         with:
-          github-token: ${{secrets.GH_ACCESS_TOKEN}}
+          github-token: ${{secrets.GH_TOKEN_JESSE}}
           script: |
             github.rest.repos.createDeployment({
               owner: context.repo.owner,

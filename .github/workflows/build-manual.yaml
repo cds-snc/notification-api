@@ -79,7 +79,7 @@ jobs:
     steps:
       - uses: actions/github-script@v6
         with:
-          github-token: ${{secrets.GH_ACCESS_TOKEN}}
+          github-token: ${{secrets.GH_TOKEN_JESSE}}
           script: |
             const payload = {"imageRepository": "notification_api"}
             github.rest.repos.createDeployment({

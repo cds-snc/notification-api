@@ -62,7 +62,7 @@ jobs:
     steps:
       - uses: actions/github-script@v6
         with:
-          github-token: ${{secrets.GH_ACCESS_TOKEN}}
+          github-token: ${{secrets.GH_TOKEN_JESSE}}
           script: |
             github.repos.createDeployment({
               owner: context.repo.owner,
