@@ -46,22 +46,8 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
 
         for event_body in event_bodies:       
             logger.debug(f"Processing event_body: {event_body}")
-            try:                      
-                response = make_vetext_request(event_body)
-
-                if response.status != 200:
-                    logger.info("VeText call failed. Moving event body to failover queue")
-                    push_to_sqs(event_body)
-                
-                responses.append(response)
-            except http.client.HTTPException as e:
-                logger.info("HttpException With Call To VeText")                
-                logger.exception(e)                                             
-                push_to_sqs(event_body)
-            except Exception as e:
-                logger.info("General Exception With Call to VeText")                
-                logger.exception(e)                                        
-                push_to_sqs(event_body)
+            response = make_vetext_request(event_body)                
+            responses.append(response)          
 
         logger.debug(responses)
         
@@ -150,43 +136,59 @@ def read_from_ssm(key: str) -> str:
 def make_vetext_request(request_body):    
     # We have been directed by the VeText team to ignore SSL validation
     #   that is why we use the ssl._create_unverified_context method
-    connection = http.client.HTTPSConnection(os.getenv('vetext_api_endpoint_domain'),  context = ssl._create_unverified_context())
-    logger.info("generated connection to VeText")
 
-    # Authorization is basic token authentication that is stored in environment.
-    auth_token = read_from_ssm(os.getenv('vetext_api_auth_ssm_path'))
-    logger.info("Retrieved AuthToken from SSM")
-    
-    headers = {
-        'Content-type': 'application/json',
-        'Authorization': 'Basic ' + auth_token
-    }
+    try:
+        connection = http.client.HTTPSConnection(os.getenv('vetext_api_endpoint_domain'),  context = ssl._create_unverified_context())
+        logger.info("generated connection to VeText")
 
-    body = {
-            "accountSid": request_body.get("AccountSid", ""),
-            "messageSid": request_body.get("MessageSid", ""),
-            "messagingServiceSid": request_body.get("MessagingServiceSid", ""),
-            "to": request_body.get("To", ""),
-            "from": request_body.get("From", ""),
-            "messageStatus": request_body.get("SmsStatus", ""),
-            "body": request_body.get("Body", "")
+        # Authorization is basic token authentication that is stored in environment.
+        auth_token = read_from_ssm(os.getenv('vetext_api_auth_ssm_path'))
+        logger.info("Retrieved AuthToken from SSM")
+        
+        headers = {
+            'Content-type': 'application/json',
+            'Authorization': 'Basic ' + auth_token
         }
 
-    json_data = json.dumps(body)
+        body = {
+                "accountSid": request_body.get("AccountSid", ""),
+                "messageSid": request_body.get("MessageSid", ""),
+                "messagingServiceSid": request_body.get("MessagingServiceSid", ""),
+                "to": request_body.get("To", ""),
+                "from": request_body.get("From", ""),
+                "messageStatus": request_body.get("SmsStatus", ""),
+                "body": request_body.get("Body", "")
+            }
 
-    logger.info("Making POST Request to VeText using: " + os.getenv('vetext_api_endpoint_domain') + os.getenv('vetext_api_endpoint_path'))
-    logger.debug(f"json dumps: {json_data}")
-    
-    connection.request(
-        'POST',
-        os.getenv('vetext_api_endpoint_path'),
-        json_data,
-        headers)
+        json_data = json.dumps(body)
 
-    response = connection.getresponse()
-    
-    logger.info(f"VeText call complete with response: {response.status}")
-    logger.debug(f"VeText response: {response}")
+        logger.info("Making POST Request to VeText using: " + os.getenv('vetext_api_endpoint_domain') + os.getenv('vetext_api_endpoint_path'))
+        logger.debug(f"json dumps: {json_data}")
+        
+        connection.request(
+            'POST',
+            os.getenv('vetext_api_endpoint_path'),
+            json_data,
+            headers)
+
+        response = connection.getresponse()
+        
+        logger.info(f"VeText call complete with response: {response.status}")
+        logger.debug(f"VeText response: {response}")
+
+        if response.status != 200:
+            logger.info("VeText call failed. Moving event body to failover queue")
+            push_to_sqs(request_body)
+    except http.client.HTTPException as e:
+        logger.info("HttpException With Call To VeText")                
+        logger.exception(e)                                             
+        push_to_sqs(request_body)
+    except Exception as e:
+        logger.info("General Exception With Call to VeText")                
+        logger.exception(e)                                        
+        push_to_sqs(request_body)
+    finally:
+        connection.close()
 
     return response    
 
