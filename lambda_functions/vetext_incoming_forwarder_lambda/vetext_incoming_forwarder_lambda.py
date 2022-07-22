@@ -29,7 +29,7 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
             logger.info("alb invocation")
             event_bodies = process_body_from_alb_invocation(event)            
         elif "Records" in event:
-            logger.info("sqs invoication")
+            logger.info("sqs invocation")
             event_bodies = process_body_from_sqs_invocation(event)
         else:
             logger.error("Invalid Event. Expecting the source of an invocation to be from alb or sqs")
@@ -46,7 +46,12 @@ def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
 
         for event_body in event_bodies:       
             logger.debug(f"Processing event_body: {event_body}")
+            
             response = make_vetext_request(event_body)                
+            
+            if response is None:
+                push_to_sqs(event_body)
+            
             responses.append(response)          
 
         logger.debug(responses)
@@ -176,21 +181,20 @@ def make_vetext_request(request_body):
         logger.info(f"VeText call complete with response: {response.status}")
         logger.debug(f"VeText response: {response}")
 
-        if response.status != 200:
-            logger.info("VeText call failed. Moving event body to failover queue")
-            push_to_sqs(request_body)
+        if response.status == 200:
+            return response        
+
+        logger.info("VeText call failed.")
     except http.client.HTTPException as e:
         logger.info("HttpException With Call To VeText")                
-        logger.exception(e)                                             
-        push_to_sqs(request_body)
+        logger.exception(e)                                                     
     except Exception as e:
         logger.info("General Exception With Call to VeText")                
-        logger.exception(e)                                        
-        push_to_sqs(request_body)
+        logger.exception(e)                                                
     finally:
         connection.close()
 
-    return response    
+    return None
 
 def push_to_sqs(event_body):
     """Places event body dictionary on queue to be retried at a later time"""
