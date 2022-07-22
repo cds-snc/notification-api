@@ -1,7 +1,9 @@
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
+
 
 class Config:
     API_HOST_NAME = os.environ.get("API_HOST_NAME")
@@ -16,6 +18,6 @@ class Config:
     def validate(cls):
         for x in ["API_KEY", "API_HOST_NAME", "EMAIL_TO", "JOB_SIZE"]:
             assert getattr(cls, x), f"Need {x}"
-        
-       
+
+
 Config.validate()
