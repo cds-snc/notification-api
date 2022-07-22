@@ -10,7 +10,7 @@ from base64 import b64decode
 import boto3
 
 logging.getLogger().setLevel(logging.DEBUG)
-logger = logging.getLogger()
+logger = logging.getLogger("va-notify-vetext-forwarding-lambda")
 logger.setLevel(logging.DEBUG)
 
 def vetext_incoming_forwarder_lambda_handler(event: any, context: any):
