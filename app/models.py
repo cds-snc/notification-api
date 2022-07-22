@@ -530,10 +530,17 @@ class InboundNumber(db.Model):
 
 
 class ServiceSmsSender(db.Model):
+    """
+    Define the service_sms_senders table
+
+    sms_sender_specifics - this field is a placeholder for any service provider we might want to use. Since different
+    services will have different formats and information, we are using the json type.
+    """
     __tablename__ = "service_sms_senders"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     sms_sender = db.Column(db.String(12), nullable=False)
+    sms_sender_specifics = db.Column(db.JSON())
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), index=True, nullable=False, unique=False)
     service = db.relationship(Service, backref=db.backref("service_sms_senders", uselist=True))
     is_default = db.Column(db.Boolean, nullable=False, default=True)

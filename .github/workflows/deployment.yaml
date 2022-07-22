@@ -254,7 +254,7 @@ jobs:
     steps:
       - uses: actions/github-script@v6
         with:
-          github-token: ${{secrets.GH_ACCESS_TOKEN}}
+          github-token: ${{secrets.GH_TOKEN_JESSE}}
           previews: "flash-preview,ant-man-preview"
           script: |
             const needs = ${{ toJson(needs) }};
