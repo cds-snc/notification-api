@@ -2048,8 +2048,8 @@ class TestProcessReturnedLettersList:
 
 
 class TestSendNotifyNoReply:
-    def test_send_notify_no_reply(self, mocker, no_reply_template):
-        persist_mock = mocker.patch("app.celery.tasks.persist_notifications")
+    def test_send_notify_no_reply(self, mocker, sample_notification, no_reply_template):
+        persist_mock = mocker.patch("app.celery.tasks.persist_notifications", return_value=[sample_notification])
         queue_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
 
         data = json.dumps(
@@ -2068,7 +2068,6 @@ class TestSendNotifyNoReply:
             "sending_email_address": "service@notify.ca",
         }
         assert persist_call["reply_to_text"] is None
-
         assert len(queue_mock.call_args_list) == 1
         queue_call = queue_mock.call_args_list[0][1]
 

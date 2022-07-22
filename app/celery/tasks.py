@@ -860,38 +860,35 @@ def process_returned_letters_list(notification_references):
 @notify_celery.task(bind=True, name="send-notify-no-reply", max_retries=5)
 @statsd(namespace="tasks")
 def send_notify_no_reply(self, data):
-    current_app.logger.info(f"send_notify_no_reply data is : {data}")
-    current_app.logger.info(f"The self data is {self}")
     payload = json.loads(data)
 
     service = dao_fetch_service_by_id(current_app.config["NOTIFY_SERVICE_ID"])
     template = dao_get_template_by_id(current_app.config["NO_REPLY_TEMPLATE_ID"])
 
     try:
-        saved_notification = persist_notifications(
-            [
-                dict(
-                    template_id=template.id,
-                    template_version=template.version,
-                    recipient=payload["sender"],
-                    service=service,
-                    personalisation={"sending_email_address": payload["recipients"][0]},
-                    notification_type=template.template_type,
-                    api_key_id=None,
-                    key_type=KEY_TYPE_NORMAL,
-                    # Ensure that the reply to is not set, if people reply
-                    # to these emails, they will go to the GC Notify service
-                    # email address, and we handle those on the SES inbound
-                    # Lambda
-                    reply_to_text=None,
-                )
-            ]
-        )
-        send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+        data_to_send = [
+            dict(
+                template_id=template.id,
+                template_version=template.version,
+                recipient=payload["sender"],
+                service=service,
+                personalisation={"sending_email_address": payload["recipients"][0]},
+                notification_type=template.template_type,
+                api_key_id=None,
+                key_type=KEY_TYPE_NORMAL,
+                # Ensure that the reply to is not set, if people reply
+                # to these emails, they will go to the GC Notify service
+                # email address, and we handle those on the SES inbound
+                # Lambda
+                reply_to_text=None,
+            )
+        ]
+        current_app.logger.info(f"Data we are sending to persist_notifications is {data_to_send}")
+        saved_notifications = persist_notifications(data_to_send)
+        send_notification_to_queue(saved_notifications[0], False, queue=QueueNames.NOTIFY)
     except Exception as e:
         try:
-            current_app.logger.warning("We are going to retry send_no_reply")
-            current_app.logger.warning(f"The exception is {e}")
+            current_app.logger.warning(f"The exception is {repr(e)}")
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
             current_app.logger.error(
