@@ -22,7 +22,8 @@ def http_success_response():
 def http_failure_response():
     return HttpResponse(500)
 
-class MockConnection():
+class MockConnection:
+    """Mock http connection to use to simulate request/response cycle"""
     def __init__(self, response):        
         self.response = response
         
@@ -38,7 +39,7 @@ class MockConnection():
     def close(self):
         print("close MockConnection")
 
-lambda_module = "lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda"
+LAMBDA_MODULE = "lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda"
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn)])
 def test_verify_parsing_of_twilio_message(event):
@@ -49,9 +50,9 @@ def test_verify_parsing_of_twilio_message(event):
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
 def test_request_makes_vetext_call(mocker, http_success_response, event):
-    sqs_mock = mocker.patch(f'{lambda_module}.push_to_sqs')
-    mocker.patch(f'{lambda_module}.read_from_ssm', return_value="ssm")
-    mocker.patch.dict(os.environ, {"vetext_api_endpoint_domain": "some.domain", "vetext_api_endpoint_path": "/some/path"})
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")
+    mocker.patch.dict(os.environ, {"vetext_api_endpoint_domain": "some.domain", "vetext_api_endpoint_path": "/some/path", "vetext_api_auth_ssm_path": "ssm"})
     mocker.patch("http.client.HTTPSConnection", return_value=MockConnection(http_success_response))    
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
@@ -60,8 +61,8 @@ def test_request_makes_vetext_call(mocker, http_success_response, event):
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
 def test_failed_vetext_call_goes_to_sqs(mocker, http_failure_response, event):
-    sqs_mock = mocker.patch(f'{lambda_module}.push_to_sqs')
-    mocker.patch(f'{lambda_module}.read_from_ssm', return_value="")
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")
     mocker.patch("http.client.HTTPSConnection", return_value=MockConnection(http_failure_response))
     
     response = vetext_incoming_forwarder_lambda_handler(event, None)
@@ -71,8 +72,8 @@ def test_failed_vetext_call_goes_to_sqs(mocker, http_failure_response, event):
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
 def test_failed_vetext_call_throws_http_exception(mocker, event):
-    sqs_mock = mocker.patch(f'{lambda_module}.push_to_sqs')
-    mocker.patch(f'{lambda_module}.read_from_ssm', return_value="")
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")
     mocker.patch("http.client.HTTPSConnection")
     mocker.patch("http.client.HTTPResponse", side_effect=http.client.HTTPException)
     response = vetext_incoming_forwarder_lambda_handler(event, None)
@@ -82,8 +83,8 @@ def test_failed_vetext_call_throws_http_exception(mocker, event):
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
 def test_failed_vetext_call_throws_general_exception(mocker,  event):
-    sqs_mock = mocker.patch(f'{lambda_module}.push_to_sqs')
-    mocker.patch(f'{lambda_module}.read_from_ssm', return_value="")
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")
     mocker.patch("http.client.HTTPSConnection")
     mocker.patch("http.client.HTTPResponse", side_effect=Exception)
     response = vetext_incoming_forwarder_lambda_handler(event, None)
@@ -93,8 +94,8 @@ def test_failed_vetext_call_throws_general_exception(mocker,  event):
 
 @pytest.mark.parametrize('event', [(sqsInvokedWithAddOn)])
 def test_failed_sqs_invocation_call_throws_general_exception(mocker, event):
-    sqs_mock = mocker.patch(f'{lambda_module}.push_to_sqs')
-    mocker.patch(f'{lambda_module}.process_body_from_sqs_invocation', side_effect=Exception)
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    mocker.patch(f'{LAMBDA_MODULE}.process_body_from_sqs_invocation', side_effect=Exception)
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
     assert response['statusCode'] == 500
@@ -102,8 +103,8 @@ def test_failed_sqs_invocation_call_throws_general_exception(mocker, event):
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn)])
 def test_failed_alb_invocation_call_throws_general_exception(mocker, event):
-    sqs_mock = mocker.patch(f'{lambda_module}.push_to_sqs')
-    mocker.patch(f'{lambda_module}.process_body_from_alb_invocation', side_effect=Exception)
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    mocker.patch(f'{LAMBDA_MODULE}.process_body_from_alb_invocation', side_effect=Exception)
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
     assert response['statusCode'] == 500
@@ -111,9 +112,49 @@ def test_failed_alb_invocation_call_throws_general_exception(mocker, event):
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn)])
 def test_failed_alb_invocation_call_throws_key_error_exception(mocker, event):
-    sqs_mock = mocker.patch(f'{lambda_module}.push_to_sqs')
-    mocker.patch(f'{lambda_module}.process_body_from_alb_invocation', side_effect=KeyError)
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    mocker.patch(f'{LAMBDA_MODULE}.process_body_from_alb_invocation', side_effect=KeyError)
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
     assert response['statusCode'] == 424
     sqs_mock.assert_not_called()
+
+@pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
+def test_failed_ssm_paramter_retrieval_throws_general_exception(mocker,  event):
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="")
+    response = vetext_incoming_forwarder_lambda_handler(event, None)
+
+    assert response['statusCode'] == 200
+    sqs_mock.assert_called_once()
+
+# GetEnv checks should go on queue
+@pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
+def test_failed_getenv_vetext_api_endpoint_domain_property(mocker, event):
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")
+    mocker.patch.dict(os.environ, {"vetext_api_endpoint_path": "/some/path", "vetext_api_auth_ssm_path": "ssm"})    
+    response = vetext_incoming_forwarder_lambda_handler(event, None)
+
+    assert response['statusCode'] == 200
+    sqs_mock.assert_called_once()
+
+@pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
+def test_failed_getenv_vetext_api_endpoint_path(mocker, event):
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")
+    mocker.patch.dict(os.environ, {"vetext_api_endpoint_domain": "some.domain", "vetext_api_auth_ssm_path": "ssm"})
+    response = vetext_incoming_forwarder_lambda_handler(event, None)
+
+    assert response['statusCode'] == 200
+    sqs_mock.assert_called_once()
+
+@pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
+def test_failed_getenv_vetext_api_auth_ssm_path(mocker, event):
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")
+    mocker.patch.dict(os.environ, {"vetext_api_endpoint_domain": "some.domain", "vetext_api_endpoint_path": "/some/path"})
+    response = vetext_incoming_forwarder_lambda_handler(event, None)
+
+    assert response['statusCode'] == 200
+    sqs_mock.assert_called_once()
