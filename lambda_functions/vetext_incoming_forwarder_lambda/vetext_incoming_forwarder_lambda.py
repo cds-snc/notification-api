@@ -9,8 +9,7 @@ from urllib.parse import parse_qsl
 from base64 import b64decode
 import boto3
 
-logging.getLogger().setLevel(logging.DEBUG)
-logger = logging.getLogger("va-notify-vetext-forwarding-lambda")
+logger = logging.getLogger("vetext_incoming_forwarder_lambda")
 logger.setLevel(logging.DEBUG)
 
 def vetext_incoming_forwarder_lambda_handler(event: dict, context: any):
