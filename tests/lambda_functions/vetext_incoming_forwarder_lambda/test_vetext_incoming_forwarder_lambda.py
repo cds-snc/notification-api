@@ -39,6 +39,21 @@ class MockConnection:
     def close(self):
         print("close MockConnection")
 
+@pytest.fixture
+def missing_domain_env_param(monkeypatch):    
+    monkeypatch.setenv('vetext_api_endpoint_path', "/some/path")
+    monkeypatch.setenv('vetext_api_auth_ssm_path', 'ssm')
+
+@pytest.fixture
+def missing_api_endpoint_path_env_param(monkeypatch):    
+    monkeypatch.setenv('vetext_api_endpoint_domain', "some.domain")
+    monkeypatch.setenv('vetext_api_auth_ssm_path', 'ssm')
+
+@pytest.fixture
+def missing_ssm_path_env_param(monkeypatch):    
+    monkeypatch.setenv('vetext_api_endpoint_domain', "some.domain")
+    monkeypatch.setenv('vetext_api_endpoint_path', "/some/path")
+
 LAMBDA_MODULE = "lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda"
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn)])
@@ -120,7 +135,7 @@ def test_failed_alb_invocation_call_throws_key_error_exception(mocker, event):
     sqs_mock.assert_not_called()
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
-def test_failed_ssm_paramter_retrieval_throws_general_exception(mocker,  event):
+def test_failed_ssm_paramter_retrieval_returns_empty_string(mocker,  event):
     sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
     mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="")
     response = vetext_incoming_forwarder_lambda_handler(event, None)
@@ -130,30 +145,30 @@ def test_failed_ssm_paramter_retrieval_throws_general_exception(mocker,  event):
 
 # GetEnv checks should go on queue
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
+@pytest.mark.usefixtures('os_environ', 'missing_domain_env_param')
 def test_failed_getenv_vetext_api_endpoint_domain_property(mocker, event):
     sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
     mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")
-    mocker.patch.dict(os.environ, {"vetext_api_endpoint_path": "/some/path", "vetext_api_auth_ssm_path": "ssm"})    
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
     assert response['statusCode'] == 200
     sqs_mock.assert_called_once()
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
+@pytest.mark.usefixtures('os_environ', 'missing_api_endpoint_path_env_param')
 def test_failed_getenv_vetext_api_endpoint_path(mocker, event):
     sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
-    mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")
-    mocker.patch.dict(os.environ, {"vetext_api_endpoint_domain": "some.domain", "vetext_api_auth_ssm_path": "ssm"})
+    mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")    
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
     assert response['statusCode'] == 200
     sqs_mock.assert_called_once()
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
+@pytest.mark.usefixtures('os_environ', 'missing_ssm_path_env_param')
 def test_failed_getenv_vetext_api_auth_ssm_path(mocker, event):
     sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
-    mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")
-    mocker.patch.dict(os.environ, {"vetext_api_endpoint_domain": "some.domain", "vetext_api_endpoint_path": "/some/path"})
+    mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")    
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
     assert response['statusCode'] == 200
