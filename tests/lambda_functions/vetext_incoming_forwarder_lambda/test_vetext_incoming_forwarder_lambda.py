@@ -1,4 +1,4 @@
-from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import vetext_incoming_forwarder_lambda_handler, process_body_from_alb_invocation
+from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import vetext_incoming_forwarder_lambda_handler, process_body_from_alb_invocation, push_to_retry_sqs
 import pytest
 import http
 import os
@@ -204,4 +204,12 @@ def test_loading_message_from_alb_fails(mocker, event):
     assert response['statusCode'] == 200
     sqs_dead_letter_mock.assert_called_once()
 
-## failure to put on retry queue
+@pytest.mark.parametrize('event', [(albInvokedWithoutAddOn)])
+@pytest.mark.usefixtures('os_environ', 'all_path_env_param_set')
+def test_loading_message_from_alb_fails(mocker, event):
+    sqs_dead_letter_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_dead_letter_sqs')   
+
+    mocker.patch("json.dumps", side_effect=Exception)
+    push_to_retry_sqs(event)
+    
+    sqs_dead_letter_mock.assert_called_once()
