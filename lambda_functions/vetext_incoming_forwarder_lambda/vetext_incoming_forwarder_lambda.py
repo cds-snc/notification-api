@@ -61,7 +61,7 @@ def vetext_incoming_forwarder_lambda_handler(event: dict, context: any):
     except KeyError as e:
         logger.error(event)
         logger.exception(e)
-        push_to_dead_letter_sqs(event)
+        push_to_dead_letter_sqs(event, "vetext_incoming_forwarder_lambda_handler")
 
         return {
             'statusCode': 424
@@ -69,8 +69,8 @@ def vetext_incoming_forwarder_lambda_handler(event: dict, context: any):
     except Exception as e:        
         logger.error(event)
         logger.exception(e)
-        push_to_dead_letter_sqs(event)
-        
+        push_to_dead_letter_sqs(event, "vetext_incoming_forwarder_lambda_handler")
+
         return{
             'statusCode':500
         }
@@ -249,9 +249,11 @@ def push_to_retry_sqs(event_body):
         logger.error("Push to Retry SQS Exception")
         logger.error(event_body)
         logger.exception(e)        
+        push_to_dead_letter_sqs(event_body, "push_to_retry_sqs")
 
-def push_to_dead_letter_sqs(event):
-    """Places event body dictionary on queue to be retried at a later time"""
+def push_to_dead_letter_sqs(event, source):
+    """Places unaccounted for event on dead-letter queue to be inspected"""
+
     logger.info("Placing event on dead-letter queue")
     logger.debug(f"Preparing for DeadLetter SQS: {event}")
 
@@ -264,7 +266,7 @@ def push_to_dead_letter_sqs(event):
         queue_msg_attrs = {
             'source': {
                 'DataType': 'String',
-                'StringValue': 'unknown'
+                'StringValue': source
             }
         }
 
@@ -277,4 +279,3 @@ def push_to_dead_letter_sqs(event):
         logger.error("Push to Dead Letter SQS Exception")
         logger.error(event)
         logger.exception(e)        
-    
