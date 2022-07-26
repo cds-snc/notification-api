@@ -33,6 +33,7 @@ def vetext_incoming_forwarder_lambda_handler(event: dict, context: any):
         else:
             logger.error("Invalid Event. Expecting the source of an invocation to be from alb or sqs")
             logger.debug(event)
+            push_to_dead_letter_sqs(event, "vetext_incoming_forwarder_lambda_handler")
 
             return{
                 'statusCode': 400
