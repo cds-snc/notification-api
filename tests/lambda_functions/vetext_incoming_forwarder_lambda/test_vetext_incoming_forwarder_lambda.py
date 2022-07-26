@@ -72,7 +72,7 @@ def test_verify_parsing_of_twilio_message(event):
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
 @pytest.mark.usefixtures('os_environ', 'all_path_env_param_set')
 def test_request_makes_vetext_call(mocker, http_success_response, event):
-    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_retry_sqs')
     mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")    
     mocker.patch("http.client.HTTPSConnection", return_value=MockConnection(http_success_response))    
     response = vetext_incoming_forwarder_lambda_handler(event, None)
@@ -82,7 +82,7 @@ def test_request_makes_vetext_call(mocker, http_success_response, event):
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
 def test_failed_vetext_call_goes_to_sqs(mocker, http_failure_response, event):
-    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_retry_sqs')
     mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")
     mocker.patch("http.client.HTTPSConnection", return_value=MockConnection(http_failure_response))
     
@@ -93,7 +93,7 @@ def test_failed_vetext_call_goes_to_sqs(mocker, http_failure_response, event):
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
 def test_failed_vetext_call_throws_http_exception(mocker, event):
-    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_retry_sqs')
     mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")
     mocker.patch("http.client.HTTPSConnection")
     mocker.patch("http.client.HTTPResponse", side_effect=http.client.HTTPException)
@@ -104,7 +104,7 @@ def test_failed_vetext_call_throws_http_exception(mocker, event):
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
 def test_failed_vetext_call_throws_general_exception(mocker,  event):
-    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_retry_sqs')
     mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")
     mocker.patch("http.client.HTTPSConnection")
     mocker.patch("http.client.HTTPResponse", side_effect=Exception)
@@ -115,7 +115,7 @@ def test_failed_vetext_call_throws_general_exception(mocker,  event):
 
 @pytest.mark.parametrize('event', [(sqsInvokedWithAddOn)])
 def test_failed_sqs_invocation_call_throws_general_exception(mocker, event):
-    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_retry_sqs')
     mocker.patch(f'{LAMBDA_MODULE}.process_body_from_sqs_invocation', side_effect=Exception)
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
@@ -124,7 +124,7 @@ def test_failed_sqs_invocation_call_throws_general_exception(mocker, event):
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn)])
 def test_failed_alb_invocation_call_throws_general_exception(mocker, event):
-    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_retry_sqs')
     mocker.patch(f'{LAMBDA_MODULE}.process_body_from_alb_invocation', side_effect=Exception)
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
@@ -133,7 +133,7 @@ def test_failed_alb_invocation_call_throws_general_exception(mocker, event):
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn)])
 def test_failed_alb_invocation_call_throws_key_error_exception(mocker, event):
-    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_retry_sqs')
     mocker.patch(f'{LAMBDA_MODULE}.process_body_from_alb_invocation', side_effect=KeyError)
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
@@ -142,7 +142,7 @@ def test_failed_alb_invocation_call_throws_key_error_exception(mocker, event):
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
 def test_failed_ssm_paramter_retrieval_returns_empty_string(mocker,  event):
-    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_retry_sqs')
     mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="")
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
@@ -153,7 +153,7 @@ def test_failed_ssm_paramter_retrieval_returns_empty_string(mocker,  event):
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
 @pytest.mark.usefixtures('os_environ', 'missing_domain_env_param')
 def test_failed_getenv_vetext_api_endpoint_domain_property(mocker, event):
-    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_retry_sqs')
     mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
@@ -163,7 +163,7 @@ def test_failed_getenv_vetext_api_endpoint_domain_property(mocker, event):
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
 @pytest.mark.usefixtures('os_environ', 'missing_api_endpoint_path_env_param')
 def test_failed_getenv_vetext_api_endpoint_path(mocker, event):
-    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_retry_sqs')
     mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")    
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
@@ -173,7 +173,7 @@ def test_failed_getenv_vetext_api_endpoint_path(mocker, event):
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
 @pytest.mark.usefixtures('os_environ', 'missing_ssm_path_env_param')
 def test_failed_getenv_vetext_api_auth_ssm_path(mocker, event):
-    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_sqs')
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_retry_sqs')
     mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value="ssm")    
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
