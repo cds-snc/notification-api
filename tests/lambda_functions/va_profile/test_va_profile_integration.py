@@ -17,6 +17,9 @@ from lambda_functions.va_profile.va_profile_opt_in_out_lambda import jwt_is_vali
 from sqlalchemy import text
 
 
+# Base path for mocks
+LAMBDA_MODULE = "lambda_functions.va_profile.va_profile_opt_in_out_lambda"
+
 OPT_IN_OUT = text("""\
 SELECT va_profile_opt_in_out(:va_profile_id, :communication_item_id, \
 :communication_channel_id, :allowed, :source_datetime);""")
@@ -29,6 +32,16 @@ FROM va_profile_local_cache
 WHERE va_profile_id=:va_profile_id \
 AND communication_item_id=:communication_item_id \
 AND communication_channel_id=:communication_channel_id;""")
+
+
+@pytest.fixture()
+def put_mock(mocker):
+    """
+    Patch the function that makes a PUT request to VA Profile.  This facilitates inspecting
+    the body of the request.
+    """
+
+    return mocker.patch(f"{LAMBDA_MODULE}.make_PUT_request")
 
 
 @pytest.fixture(scope="module")
@@ -87,7 +100,7 @@ def verify_opt_in_status(identifier: int, opted_in: bool, connection):
     va_profile_test = VA_PROFILE_TEST.bindparams(
         va_profile_id=identifier,
         communication_item_id=5,
-        communication_channel_id=identifier
+        communication_channel_id=2
     )
 
     profile_test_queryset = connection.execute(va_profile_test)
@@ -114,7 +127,7 @@ def setup_db(connection):
     opt_in_out = OPT_IN_OUT.bindparams(
         va_profile_id=0,
         communication_item_id=5,
-        communication_channel_id=0,
+        communication_channel_id=2,
         allowed=False,
         source_datetime="2022-03-07T19:37:59.320Z"
     )
@@ -143,7 +156,7 @@ def test_va_profile_stored_function_older_date(notify_db_session):
         opt_in_out = OPT_IN_OUT.bindparams(
             va_profile_id=0,
             communication_item_id=5,
-            communication_channel_id=0,
+            communication_channel_id=2,
             allowed=True,
             source_datetime="2022-02-07T19:37:59.320Z"  # Older date
         )
@@ -168,7 +181,7 @@ def test_va_profile_stored_function_newer_date(notify_db_session):
         opt_in_out = OPT_IN_OUT.bindparams(
             va_profile_id=0,
             communication_item_id=5,
-            communication_channel_id=0,
+            communication_channel_id=2,
             allowed=True,
             source_datetime="2022-04-07T19:37:59.320Z"  # Newer date
         )
@@ -193,7 +206,7 @@ def test_va_profile_stored_function_new_row(notify_db_session):
         opt_in_out = OPT_IN_OUT.bindparams(
             va_profile_id=1,
             communication_item_id=5,
-            communication_channel_id=1,
+            communication_channel_id=2,
             allowed=True,
             source_datetime="2022-02-07T19:37:59.320Z"
         )
@@ -236,16 +249,18 @@ def test_jwt_is_valid_malformed_authorization_header_value(jwt_encoded):
     assert not jwt_is_valid(f"noBearer {jwt_encoded}")
 
 
-def test_va_profile_opt_in_out_lambda_handler_invalid_jwt():
+def test_va_profile_opt_in_out_lambda_handler_invalid_jwt(put_mock):
     """
     Test the VA Profile integration lambda by sending a request with an invalid jwt encoding.
     """
 
     # https://www.youtube.com/watch?v=a6iW-8xPw3k
-    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 0, 5, True, "12345")
+    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 2, 5, True, "12345")
     response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
     assert response["statusCode"] == 401, "12345 should not be a valid JWT encoding."
+
+    put_mock.assert_not_called()
 
 
 def test_va_profile_opt_in_out_lambda_handler_no_authorization_header():
@@ -253,7 +268,7 @@ def test_va_profile_opt_in_out_lambda_handler_no_authorization_header():
     Test the VA Profile integration lambda by sending a request without an authorization header.
     """
 
-    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 0, 5, True, '')
+    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 2, 5, True, '')
     del event["headers"]["Authorization"]
     response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
@@ -265,7 +280,7 @@ def test_va_profile_opt_in_out_lambda_handler_missing_attribute(jwt_encoded):
     Test the VA Profile integration lambda by sending a bad request (missing top level attribute).
     """
 
-    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 0, 5, True, jwt_encoded)
+    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 2, 5, True, jwt_encoded)
     del event["body"]["txAuditId"]
     response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
@@ -273,7 +288,7 @@ def test_va_profile_opt_in_out_lambda_handler_missing_attribute(jwt_encoded):
     assert response["body"] == "A required top level attribute is missing from the request body or has the wrong type."
 
 
-def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id, jwt_encoded):
+def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id, jwt_encoded, put_mock):
     """
     Test the VA Profile integration lambda by sending a valid request that should create
     a new row in the database.
@@ -283,7 +298,7 @@ def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id, jwt_
         setup_db(connection)
 
     # Send a request that should result in a new row.
-    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 1, 1, 5, True, jwt_encoded)
+    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 1, 2, 5, True, jwt_encoded)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
@@ -294,8 +309,15 @@ def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id, jwt_
 
         verify_opt_in_status(1, True, connection)
 
+    expected_put_body = {
+        "dateTime": "2022-03-07T19:37:59.320Z",
+        "status": "COMPLETED_SUCCESS",
+    }
 
-def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id, jwt_encoded):
+    put_mock.assert_called_once_with("txAuditId", expected_put_body)
+
+
+def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id, jwt_encoded, put_mock):
     """
     Test the VA Profile integration lambda by sending a valid request with an older date.
     No database update should occur.
@@ -304,7 +326,7 @@ def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id, j
     with notify_db.engine.begin() as connection:
         setup_db(connection)
 
-    event = create_event("txAuditId", "txAuditId", "2022-02-07T19:37:59.320Z", 0, 0, 5, True, jwt_encoded)
+    event = create_event("txAuditId", "txAuditId", "2022-02-07T19:37:59.320Z", 0, 2, 5, True, jwt_encoded)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
@@ -315,8 +337,15 @@ def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id, j
 
         verify_opt_in_status(0, False, connection)
 
+    expected_put_body = {
+        "dateTime": "2022-02-07T19:37:59.320Z",
+        "status": "COMPLETED_NOOP",
+    }
 
-def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id, jwt_encoded):
+    put_mock.assert_called_once_with("txAuditId", expected_put_body)
+
+
+def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id, jwt_encoded, put_mock):
     """
     Test the VA Profile integration lambda by sending a valid request with a newer date.
     A database update should occur.
@@ -325,7 +354,7 @@ def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id, j
     with notify_db.engine.begin() as connection:
         setup_db(connection)
 
-    event = create_event("txAuditId", "txAuditId", "2022-04-07T19:37:59.320Z", 0, 0, 5, True, jwt_encoded)
+    event = create_event("txAuditId", "txAuditId", "2022-04-07T19:37:59.320Z", 0, 2, 5, True, jwt_encoded)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
@@ -336,28 +365,92 @@ def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id, j
 
         verify_opt_in_status(0, True, connection)
 
+    expected_put_body = {
+        "dateTime": "2022-04-07T19:37:59.320Z",
+        "status": "COMPLETED_SUCCESS",
+    }
 
-@pytest.mark.skip(reason="need to test PUT response")
-def test_va_profile_opt_in_out_lambda_handler_PUT():
+    put_mock.assert_called_once_with("txAuditId", expected_put_body)
+
+
+def test_va_profile_opt_in_out_lambda_handler_KeyError(jwt_encoded, worker_id, put_mock):
     """
     Test the VA Profile integration lambda by inspecting the PUT request is initiates to
-    VA Profile in response to a request.
+    VA Profile in response to a request.  This test should generate a KeyError in the handler
+    that should be caught.
     """
 
-    raise NotImplementedError
+    event = create_event("txAuditId", "txAuditId", "2022-04-07T19:37:59.320Z", 0, 2, 5, True, jwt_encoded)
+    del event["body"]["bios"][0]["allowed"]
+    response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
+    assert isinstance(response, dict)
+    assert response["statusCode"] == 400
+
+    expected_put_body = {
+        "dateTime": "2022-04-07T19:37:59.320Z",
+        "status": "COMPLETED_FAILURE",
+    }
+
+    put_mock.assert_called_once_with("txAuditId", expected_put_body)
 
 
-@pytest.mark.skip(reason="need to test PUT response")
-def test_va_profile_opt_in_out_lambda_handler_wrong_communication_channel_id(worker_id, jwt_encoded):
+def test_va_profile_opt_in_out_lambda_handler_wrong_communication_item_id(worker_id, jwt_encoded, put_mock):
     """
-    The lambda should ignore records in which communicationChannelId is not 5.
+    The lambda should ignore records in which communicationItemId is not 5.
     """
 
-    event = create_event("tx_audit_id", "2022-04-27T16:57:16Z", 2, 3, 4, True, jwt_encoded)
+    event = create_event("txAuditId", "txAuditId", "2022-04-27T16:57:16Z", 2, 2, 4, True, jwt_encoded)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
-    # TODO - More testing.
+
+    expected_put_body = {
+        "dateTime": "2022-04-27T16:57:16Z",
+        "status": "COMPLETED_NOOP",
+    }
+
+    put_mock.assert_called_once_with("txAuditId", expected_put_body)
+
+
+def test_va_profile_opt_in_out_lambda_handler_wrong_communication_channel_id(worker_id, jwt_encoded, put_mock):
+    """
+    The lambda should ignore records in which communicationChannelId is not 2.
+    """
+
+    event = create_event("txAuditId", "txAuditId", "2022-04-27T16:57:16Z", 2, 1, 5, True, jwt_encoded)
+    response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
+    assert isinstance(response, dict)
+    assert response["statusCode"] == 200
+
+    expected_put_body = {
+        "dateTime": "2022-04-27T16:57:16Z",
+        "status": "COMPLETED_NOOP",
+    }
+
+    put_mock.assert_called_once_with("txAuditId", expected_put_body)
+
+
+def test_va_profile_opt_in_out_lambda_handler_audit_id_mismatch(worker_id, jwt_encoded, put_mock):
+    """
+    The request txAuditId should match a bios's txAuditId.
+    """
+
+    event = create_event("txAuditId", "not_txAuditId", "2022-04-27T16:57:16Z", 0, 2, 5, True, jwt_encoded)
+    response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
+    assert isinstance(response, dict)
+    assert response["statusCode"] == 200
+
+    expected_put_body = {
+        "dateTime": "2022-04-27T16:57:16Z",
+        "status": "COMPLETED_FAILURE",
+        "messages": [{
+            "text": "The record's txAuditId, not_txAuditId, does not match the event's txAuditId, txAuditId.",
+            "severity": "ERROR",
+            "potentiallySelfCorrectingOnRetry": False,
+        }],
+    }
+
+    put_mock.assert_called_once_with("txAuditId", expected_put_body)
 
 
 def create_event(
@@ -380,32 +473,13 @@ def create_event(
         },
         "body": {
             "txAuditId": master_tx_audit_id,
-            "bios": [
-                create_bios_element(
-                    tx_audit_id,
-                    source_date,
-                    va_profile_id,
-                    communication_channel_id,
-                    communication_item_id, is_allowed
-                )
-            ],
+            "bios": [{
+                "txAuditId": tx_audit_id,
+                "sourceDate": source_date,
+                "vaProfileId": va_profile_id,
+                "communicationChannelId": communication_channel_id,
+                "communicationItemId": communication_item_id,
+                "allowed": is_allowed,
+            }],
         },
-    }
-
-
-def create_bios_element(
-        tx_audit_id: str,
-        source_date: str,
-        va_profile_id: int,
-        communication_channel_id: int,
-        communication_item_id: int,
-        is_allowed: bool) -> dict:
-
-    return {
-        "txAuditId": tx_audit_id,
-        "sourceDate": source_date,
-        "vaProfileId": va_profile_id,
-        "communicationChannelId": communication_channel_id,
-        "communicationItemId": communication_item_id,
-        "allowed": is_allowed,
     }
