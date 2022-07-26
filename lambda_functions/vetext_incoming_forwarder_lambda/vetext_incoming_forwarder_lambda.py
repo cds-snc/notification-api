@@ -58,15 +58,7 @@ def vetext_incoming_forwarder_lambda_handler(event: dict, context: any):
         
         return {
             'statusCode': 200
-        }
-    except KeyError as e:
-        logger.error(event)
-        logger.exception(e)
-        push_to_dead_letter_sqs(event, "vetext_incoming_forwarder_lambda_handler")
-
-        return {
-            'statusCode': 424
-        }   
+        }    
     except Exception as e:        
         logger.error(event)
         logger.exception(e)
