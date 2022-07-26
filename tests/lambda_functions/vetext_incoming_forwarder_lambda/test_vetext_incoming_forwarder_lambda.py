@@ -131,15 +131,6 @@ def test_failed_alb_invocation_call_throws_general_exception(mocker, event):
     assert response['statusCode'] == 500
     sqs_mock.assert_not_called()
 
-@pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn)])
-def test_failed_alb_invocation_call_throws_key_error_exception(mocker, event):
-    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_retry_sqs')
-    mocker.patch(f'{LAMBDA_MODULE}.process_body_from_alb_invocation', side_effect=KeyError)
-    response = vetext_incoming_forwarder_lambda_handler(event, None)
-
-    assert response['statusCode'] == 424
-    sqs_mock.assert_not_called()
-
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
 def test_failed_ssm_paramter_retrieval_returns_empty_string(mocker,  event):
     sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_retry_sqs')
@@ -180,7 +171,15 @@ def test_failed_getenv_vetext_api_auth_ssm_path(mocker, event):
     assert response['statusCode'] == 200
     sqs_mock.assert_called_once()
 
-## unexpected event being passed in
+@pytest.mark.usefixtures('os_environ', 'all_path_env_param_set')
+def test_unexpected_event_received(mocker):
+    sqs_dead_letter_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_dead_letter_sqs')   
+    event = {}
+    response = vetext_incoming_forwarder_lambda_handler(event, None)
+
+    assert response['statusCode'] == 400
+    sqs_dead_letter_mock.assert_called_once()
+    
 ## error in json.loads of process from sqs
 ## process from alb throws exception
 ## failure to put on retry queue
