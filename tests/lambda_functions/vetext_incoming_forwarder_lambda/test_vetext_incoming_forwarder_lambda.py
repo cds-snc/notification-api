@@ -59,6 +59,8 @@ def all_path_env_param_set(monkeypatch):
     monkeypatch.setenv('vetext_api_endpoint_domain', "some.domain")
     monkeypatch.setenv('vetext_api_endpoint_path', "/some/path")
     monkeypatch.setenv('vetext_api_auth_ssm_path', 'ssm')
+    monkeypatch.setenv('vetext_request_drop_sqs_url', "someurl")
+    monkeypatch.setenv('vetext_request_dead_letter_sqs_url', "someurl")
 
 LAMBDA_MODULE = "lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda"
 
@@ -179,7 +181,27 @@ def test_unexpected_event_received(mocker):
 
     assert response['statusCode'] == 400
     sqs_dead_letter_mock.assert_called_once()
-    
-## error in json.loads of process from sqs
-## process from alb throws exception
+
+@pytest.mark.parametrize('event', [(sqsInvokedWithAddOn)])
+@pytest.mark.usefixtures('os_environ', 'all_path_env_param_set')
+def test_failed_getenv_vetext_api_auth_ssm_path(mocker, event):
+    sqs_dead_letter_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_dead_letter_sqs')   
+
+    mocker.patch("json.loads", side_effect=Exception)
+    response = vetext_incoming_forwarder_lambda_handler(event, None)
+
+    assert response['statusCode'] == 200
+    sqs_dead_letter_mock.assert_called_once()
+
+@pytest.mark.parametrize('event', [(albInvokedWithoutAddOn)])
+@pytest.mark.usefixtures('os_environ', 'all_path_env_param_set')
+def test_loading_message_from_alb_fails(mocker, event):
+    sqs_dead_letter_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_dead_letter_sqs')   
+
+    mocker.patch("base64.b64decode", side_effect=Exception)
+    response = vetext_incoming_forwarder_lambda_handler(event, None)
+
+    assert response['statusCode'] == 200
+    sqs_dead_letter_mock.assert_called_once()
+
 ## failure to put on retry queue
