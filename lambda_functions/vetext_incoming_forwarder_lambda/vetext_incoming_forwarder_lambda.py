@@ -49,7 +49,7 @@ def vetext_incoming_forwarder_lambda_handler(event: dict, context: any):
             response = make_vetext_request(event_body)                
             
             if response is None:
-                push_to_sqs(event_body)
+                push_to_retry_sqs(event_body)
             
             responses.append(response)          
 
@@ -98,7 +98,7 @@ def process_body_from_sqs_invocation(event):
         except Exception as e:
             logger.error("Failed to load event from sqs")
             logger.exception(e)        
-            push_to_sqs(event_body)
+            push_to_retry_sqs(event_body)
     
     return event_bodies
 
@@ -220,7 +220,7 @@ def make_vetext_request(request_body):
 
     return None
 
-def push_to_sqs(event_body):
+def push_to_retry_sqs(event_body):
     """Places event body dictionary on queue to be retried at a later time"""
     logger.info("Placing event_body on retry queue")
     logger.debug(f"Preparing for SQS: {event_body}")
