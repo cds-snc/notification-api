@@ -100,7 +100,7 @@ def process_body_from_sqs_invocation(event):
         except Exception as e:
             logger.error("Failed to load event from sqs")
             logger.exception(e)        
-            push_to_retry_sqs(event_body)
+            push_to_dead_letter_sqs(event_body, "process_body_from_sqs_invocation")
     
     return event_bodies
 
