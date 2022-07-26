@@ -223,7 +223,7 @@ def make_vetext_request(request_body):
 def push_to_retry_sqs(event_body):
     """Places event body dictionary on queue to be retried at a later time"""
     logger.info("Placing event_body on retry queue")
-    logger.debug(f"Preparing for SQS: {event_body}")
+    logger.debug(f"Preparing for Retry SQS: {event_body}")
 
     try:
         sqs = boto3.client('sqs')
@@ -244,7 +244,35 @@ def push_to_retry_sqs(event_body):
         
         logger.info("Completed enqueue of message to retry queue")
     except Exception as e:
-        logger.error("Push to SQS Exception")
+        logger.error("Push to Retry SQS Exception")
         logger.error(event_body)
+        logger.exception(e)        
+
+def push_to_dead_letter_sqs(event):
+    """Places event body dictionary on queue to be retried at a later time"""
+    logger.info("Placing event on dead-letter queue")
+    logger.debug(f"Preparing for DeadLetter SQS: {event}")
+
+    try:
+        sqs = boto3.client('sqs')
+        queue_url = os.getenv('vetext_request_dead_letter_sqs_url')
+        logger.debug(f"Retrieved queue_url: {queue_url}")
+
+        queue_msg = json.dumps(event)
+        queue_msg_attrs = {
+            'source': {
+                'DataType': 'String',
+                'StringValue': 'unknown'
+            }
+        }
+
+        sqs.send_message(QueueUrl=queue_url,
+                        MessageAttributes=queue_msg_attrs,
+                        MessageBody=queue_msg)
+        
+        logger.info("Completed enqueue of message to dead letter queue")
+    except Exception as e:
+        logger.error("Push to Dead Letter SQS Exception")
+        logger.error(event)
         logger.exception(e)        
     
