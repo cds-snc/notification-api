@@ -88,8 +88,7 @@ jobs:
       - name: Package and deploy lambda function
         run: |
           zip -ug vetext_incoming_forwarder_lambda.zip vetext_incoming_forwarder_lambda.py
-          aws lambda update-function-code --function-name project-dev-vetext-incoming-forwarder-lambda --zip-file fileb://vetext_incoming_forwarder_lambda.zip
-          aws lambda update-function-code --function-name project-staging-vetext-incoming-forwarder-lambda --zip-file fileb://vetext_incoming_forwarder_lambda.zip
+          aws lambda update-function-code --function-name project-${{ github.event.inputs.environment }}-vetext-incoming-forwarder-lambda --zip-file fileb://vetext_incoming_forwarder_lambda.zip
 
   deploy-other-lambdas:
     runs-on: ubuntu-latest
