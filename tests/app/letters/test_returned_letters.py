@@ -1,6 +1,7 @@
 import pytest
 
 
+@pytest.mark.skip(reason="Deprecated: LETTER CODE")
 @pytest.mark.parametrize(
     "status, references",
     [
