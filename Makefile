@@ -53,6 +53,7 @@ format:
 	isort .
 	black --config pyproject.toml .
 	flake8 .
+	mypy .
 
 .PHONY: smoke-test
 smoke-test:
