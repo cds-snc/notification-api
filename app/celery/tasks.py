@@ -1,5 +1,5 @@
 import json
-from collections import defaultdict, namedtuple
+from collections import namedtuple
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
@@ -16,7 +16,6 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app import (
     DATETIME_FORMAT,
-    create_random_identifier,
     create_uuid,
     email_bulk,
     email_normal,
@@ -34,24 +33,14 @@ from app.aws.metrics import (
     put_batch_saving_bulk_created,
     put_batch_saving_bulk_processed,
 )
-from app.celery import (  # noqa: F401
-    letters_pdf_tasks,
-    process_sns_receipts_tasks,
-    provider_tasks,
-    research_mode_tasks,
-)
 from app.config import Config, QueueNames
-from app.dao.daily_sorted_letter_dao import dao_create_or_update_daily_sorted_letter
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
 from app.dao.jobs_dao import dao_get_job_by_id, dao_update_job
 from app.dao.notifications_dao import (
     dao_get_last_notification_added_for_job_id,
     dao_get_notification_history_by_reference,
-    dao_update_notifications_by_reference,
     get_notification_by_id,
-    update_notification_status_by_reference,
 )
-from app.dao.provider_details_dao import get_current_provider
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_inbound_api_dao import get_service_inbound_api_for_service
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
@@ -60,10 +49,9 @@ from app.dao.services_dao import (
     fetch_todays_total_message_count,
 )
 from app.dao.templates_dao import dao_get_template_by_id
-from app.exceptions import DVLAException, NotificationTechnicalFailureException
+from app.exceptions import DVLAException
 from app.models import (
     BULK,
-    DVLA_RESPONSE_STATUS_SENT,
     EMAIL_TYPE,
     JOB_STATUS_CANCELLED,
     JOB_STATUS_FINISHED,
@@ -73,21 +61,13 @@ from app.models import (
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
     NORMAL,
-    NOTIFICATION_CREATED,
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_RETURNED_LETTER,
-    NOTIFICATION_SENDING,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_TEMPORARY_FAILURE,
     PRIORITY,
     SMS_TYPE,
-    DailySortedLetter,
     Job,
     Service,
     Template,
 )
 from app.notifications.process_notifications import (
-    persist_notification,
     persist_notifications,
     send_notification_to_queue,
 )
@@ -497,23 +477,6 @@ def get_template_class(template_type):
         # since we don't need rendering capabilities (we only need to extract placeholders) both email and letter can
         # use the same base template
         return WithSubjectTemplate
-
-
-@notify_celery.task(bind=True, name="record-daily-sorted-counts")
-@statsd(namespace="tasks")
-def record_daily_sorted_counts(self, filename):
-    sorted_letter_counts = defaultdict(int)
-    notification_updates = parse_dvla_file(filename)
-    for update in notification_updates:
-        sorted_letter_counts[update.cost_threshold.lower()] += 1
-
-    unknown_status = sorted_letter_counts.keys() - {"unsorted", "sorted"}
-    if unknown_status:
-        message = "DVLA response file: {} contains unknown Sorted status {}".format(filename, unknown_status.__repr__())
-        raise DVLAException(message)
-
-    billing_date = get_billing_date_in_est_from_filename(filename)
-    persist_daily_sorted_letter_counts(day=billing_date, file_name=filename, sorted_letter_counts=sorted_letter_counts)
 
 
 def parse_dvla_file(filename):
