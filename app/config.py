@@ -136,7 +136,7 @@ class Config(object):
 
     # API key prefix
     API_KEY_PREFIX = "gcntfy-"
-    
+
     # DB conection string
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI")
     SQLALCHEMY_DATABASE_READER_URI = os.getenv("SQLALCHEMY_DATABASE_READER_URI")
