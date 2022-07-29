@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
 
-from flask import current_app
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 
@@ -16,7 +15,7 @@ def save_model_api_key(api_key):
     if not api_key.id:
         api_key.id = uuid.uuid4()  # must be set now so version history model can use same id
     api_key.secret = uuid.uuid4()
-    
+
     db.session.add(api_key)
 
 
