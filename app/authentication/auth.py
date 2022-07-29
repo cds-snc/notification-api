@@ -138,8 +138,8 @@ def requires_auth():
 
 def _auth_by_api_key(auth_token):
     try:
-        # take last 36 chars of string so that it works even if the full key is provided.
-        auth_token = auth_token[-36:]
+        # take last 36 chars (UUID) + X chars (length of prefix) of string so that it works even if the full key is provided.
+        auth_token = auth_token[-36 - len(current_app.config["API_KEY_PREFIX"]):]
         api_key = get_api_key_by_secret(auth_token)
     except NoResultFound:
         raise AuthError("Invalid token: API key not found", 403)
@@ -154,6 +154,12 @@ def _auth_with_api_key(api_key, service):
             service_id=service.id,
             api_key_id=api_key.id,
         )
+    
+    # TODO: uncomment this when the grace period for the token prefix is over
+    # check for token prefix
+    # if current_app.config["API_KEY_PREFIX"] not in api_key.secret:
+    #     raise AuthError("Invalid token: you must re-generate your API key to continue using GC Notify", 403, service_id=service.id, api_key_id=api_key.id)
+    
     g.service_id = api_key.service_id
     g.authenticated_service = service
     g.api_user = api_key
