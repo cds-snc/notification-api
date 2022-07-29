@@ -16,10 +16,7 @@ def save_model_api_key(api_key):
     if not api_key.id:
         api_key.id = uuid.uuid4()  # must be set now so version history model can use same id
     api_key.secret = uuid.uuid4()
-
-    # prefix the API key so they keys can be easily identified for security scanning
-    api_key.secret = current_app.config["API_KEY_PREFIX"] + api_key.secret
-
+    
     db.session.add(api_key)
 
 
