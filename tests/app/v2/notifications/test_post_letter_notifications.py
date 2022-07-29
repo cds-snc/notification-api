@@ -58,6 +58,7 @@ def letter_request(
     return json_resp
 
 
+@pytest.mark.skip(reason="Deprecated: LETTER CODE")
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
 def test_post_letter_notification_returns_201(client, sample_letter_template, mocker, reference):
     mock = mocker.patch("app.celery.tasks.letters_pdf_tasks.create_letters_pdf.apply_async")
@@ -97,6 +98,7 @@ def test_post_letter_notification_returns_201(client, sample_letter_template, mo
     mock.assert_called_once_with([str(notification.id)], queue=QueueNames.CREATE_LETTERS_PDF)
 
 
+@pytest.mark.skip(reason="Deprecated: LETTER CODE")
 def test_post_letter_notification_sets_postage(client, notify_db_session, mocker):
     service = create_service(service_permissions=[LETTER_TYPE])
     template = create_template(service, template_type="letter", postage="first")

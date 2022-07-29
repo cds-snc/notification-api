@@ -360,48 +360,6 @@ class TestPersistNotification:
         assert persisted_notification.to == recipient
         assert persisted_notification.normalised_to == expected_recipient_normalised
 
-    @pytest.mark.skip(reason="Deprecated: Letter code")
-    @pytest.mark.parametrize(
-        "postage_argument, template_postage, expected_postage",
-        [
-            ("second", "first", "second"),
-            ("first", "first", "first"),
-            ("first", "second", "first"),
-            (None, "second", "second"),
-        ],
-    )
-    def test_persist_letter_notification_finds_correct_postage(
-        mocker,
-        notify_db,
-        notify_db_session,
-        postage_argument,
-        template_postage,
-        expected_postage,
-    ):
-        service = create_service(service_permissions=[LETTER_TYPE])
-        api_key = create_sample_api_key(notify_db, notify_db_session, service=service)
-        template = create_template(service, template_type=LETTER_TYPE, postage=template_postage)
-        mocker.patch("app.dao.templates_dao.dao_get_template_by_id", return_value=template)
-        persist_notifications(
-            [
-                dict(
-                    template_id=template.id,
-                    template_version=template.version,
-                    template_postage=template.postage,
-                    recipient="Jane Doe, 10 Downing Street, London",
-                    service=service,
-                    personalisation=None,
-                    notification_type=LETTER_TYPE,
-                    api_key_id=api_key.id,
-                    key_type=api_key.key_type,
-                    postage=postage_argument,
-                )
-            ]
-        )
-        persisted_notification = Notification.query.all()[0]
-
-        assert persisted_notification.postage == expected_postage
-
     def test_persist_notification_with_billable_units_stores_correct_info(self, mocker, notify_db_session):
         service = create_service(service_permissions=[LETTER_TYPE])
         template = create_template(service, template_type=LETTER_TYPE)
