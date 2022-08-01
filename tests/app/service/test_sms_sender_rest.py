@@ -1,21 +1,25 @@
 import uuid
-from datetime import datetime
-
-from flask import current_app
-from sqlalchemy.orm.exc import NoResultFound
-
 from app.models import ServiceSmsSender, Service
-from tests.app.db import create_service, create_service_sms_sender, create_inbound_number, \
-    create_service_with_inbound_number
+from datetime import datetime
+from flask import current_app
+from json import dumps
+from sqlalchemy.orm.exc import NoResultFound
+from tests.app.db import (
+    create_inbound_number,
+    create_service,
+    create_service_sms_sender,
+    create_service_with_inbound_number,
+)
 
 
 def test_add_service_sms_sender_calls_dao_method(admin_request, mocker):
+    service_id = uuid.uuid4()
     added_service_sms_sender = ServiceSmsSender(created_at=datetime.utcnow())
+
     dao_add_sms_sender_for_service = mocker.patch(
         'app.service.sms_sender_rest.dao_add_sms_sender_for_service',
         return_value=added_service_sms_sender
     )
-    service_id = uuid.uuid4()
 
     mocker.patch(
         'app.service.sms_sender_rest.dao_fetch_service_by_id',
@@ -33,7 +37,6 @@ def test_add_service_sms_sender_calls_dao_method(admin_request, mocker):
     )
 
     dao_add_sms_sender_for_service.assert_called_with(service_id=service_id, sms_sender='second', is_default=False)
-
     assert response_json == added_service_sms_sender.serialize()
 
 
@@ -78,7 +81,17 @@ def test_add_service_sms_sender_return_404_when_rate_limit_too_small(admin_reque
 
 def test_update_service_sms_sender(admin_request, notify_db_session):
     service = create_service()
-    service_sms_sender = create_service_sms_sender(service=service, sms_sender='1235', is_default=False)
+    sender_specifics = {"data": "This is something specific."}
+
+    service_sms_sender = create_service_sms_sender(
+        service=service,
+        sms_sender="1235",
+        is_default=False,
+        sms_sender_specifics=sender_specifics
+    )
+
+    assert service_sms_sender.sms_sender_specifics == sender_specifics
+    sender_specifics = {"new_data": "This is something else.", "some_int": 42}
 
     response_json = admin_request.post(
         'service_sms_sender.update_service_sms_sender',
@@ -87,6 +100,7 @@ def test_update_service_sms_sender(admin_request, notify_db_session):
         _data={
             "sms_sender": 'second',
             "is_default": False,
+            "sms_sender_specifics": sender_specifics,
         },
         _expected_status=200
     )
@@ -94,6 +108,7 @@ def test_update_service_sms_sender(admin_request, notify_db_session):
     assert response_json['sms_sender'] == 'second'
     assert not response_json['inbound_number_id']
     assert not response_json['is_default']
+    assert response_json["sms_sender_specifics"] == dumps(sender_specifics)
 
 
 def test_update_service_sms_sender_does_not_allow_sender_update_for_inbound_number(admin_request, notify_db_session):
@@ -144,13 +159,15 @@ def test_delete_service_sms_sender_can_archive_sms_sender(admin_request, notify_
         is_default=False
     )
 
+    assert not service_sms_sender.archived, "This should be False by default."
+
     admin_request.post(
         'service_sms_sender.delete_service_sms_sender',
         service_id=service.id,
         sms_sender_id=service_sms_sender.id,
     )
 
-    assert service_sms_sender.archived is True
+    assert service_sms_sender.archived
 
 
 def test_delete_service_sms_sender_returns_400_if_archiving_inbound_number(admin_request, notify_db_session):
@@ -163,8 +180,9 @@ def test_delete_service_sms_sender_returns_400_if_archiving_inbound_number(admin
         sms_sender_id=service.service_sms_senders[0].id,
         _expected_status=400
     )
-    assert response == {'message': 'You cannot delete an inbound number', 'result': 'error'}
-    assert inbound_number.archived is False
+
+    assert response == {"message": "You cannot delete an inbound number.", "result": "error"}
+    assert not inbound_number.archived
 
 
 def test_get_service_sms_sender_by_id(admin_request, notify_db_session):
@@ -196,10 +214,13 @@ def test_get_service_sms_sender_by_id_returns_404_when_service_sms_sender_does_n
 
 
 def test_get_service_sms_senders_for_service(admin_request, notify_db_session):
+    sender_specifics = {"data": "This is something specific."}
+
     service_sms_sender = create_service_sms_sender(
         service=create_service(),
         sms_sender='second',
-        is_default=False
+        is_default=False,
+        sms_sender_specifics=sender_specifics
     )
 
     response_json = admin_request.get(
@@ -213,6 +234,7 @@ def test_get_service_sms_senders_for_service(admin_request, notify_db_session):
     assert response_json[0]['sms_sender'] == current_app.config['FROM_NUMBER']
     assert not response_json[1]['is_default']
     assert response_json[1]['sms_sender'] == 'second'
+    assert response_json[1]['sms_sender_specifics'] == dumps(sender_specifics)
 
 
 def test_get_service_sms_senders_for_service_returns_404_when_service_does_not_exist(admin_request, mocker):

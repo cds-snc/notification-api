@@ -1,19 +1,21 @@
-from typing import Optional
-
-from sqlalchemy import desc
-
 from app import db
 from app.dao.dao_utils import transactional
 from app.exceptions import ArchiveValidationError
 from app.models import ServiceSmsSender, InboundNumber
-from app.service.exceptions import SmsSenderDefaultValidationException, SmsSenderInboundNumberIntegrityException, \
-    SmsSenderRateLimitIntegrityException
+from app.service.exceptions import (
+    SmsSenderDefaultValidationException,
+    SmsSenderInboundNumberIntegrityException,
+    SmsSenderRateLimitIntegrityException,
+)
+from sqlalchemy import desc
+from typing import Optional
 
 
 def insert_service_sms_sender(service, sms_sender):
     """
-    This method is called from create_service which is wrapped in a transaction.
+    This method is called from create_service, which is wrapped in a transaction.
     """
+
     new_sms_sender = ServiceSmsSender(sms_sender=sms_sender,
                                       service=service,
                                       is_default=True
@@ -46,7 +48,7 @@ def dao_get_sms_sender_by_service_id_and_number(service_id: str, number: str) ->
 
 @transactional
 def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_number_id=None, rate_limit=None,
-                                   rate_limit_interval=None):
+                                   rate_limit_interval=None, sms_sender_specifics={}):
     default_sms_sender = _get_default_sms_sender_for_service(service_id=service_id)
 
     if not default_sms_sender and not is_default:
@@ -56,27 +58,23 @@ def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_n
         _set_default_sms_sender_to_not_default(default_sms_sender)
 
     if rate_limit is not None and rate_limit < 1:
-        raise SmsSenderRateLimitIntegrityException(
-            'Rate limit value cannot be below 1'
-        )
+        raise SmsSenderRateLimitIntegrityException("rate_limit cannot be less than 1.")
+
     if rate_limit_interval is not None and rate_limit_interval < 1:
-        raise SmsSenderRateLimitIntegrityException(
-            'Rate limit interval cannot be below 1'
-        )
+        raise SmsSenderRateLimitIntegrityException("rate_limit_interval cannot be less than 1.")
 
-    # TO DO: Refactor validation after merging inbound number & sms_sender
-    if (rate_limit and not rate_limit_interval) or (rate_limit_interval and not rate_limit):
-        raise SmsSenderRateLimitIntegrityException(
-            'Must provide both rate limit value and interval'
-        )
+    # TODO - Refactor validation after merging inbound number & sms_sender
+    if (rate_limit is not None and rate_limit_interval is None) or \
+            (rate_limit_interval is not None and rate_limit is None):
+        raise SmsSenderRateLimitIntegrityException("Provide both rate_limit and rate_limit_interval.")
 
-    if inbound_number_id:
+    if inbound_number_id is not None:
         inbound_number = _allocate_inbound_number_for_service(service_id, inbound_number_id)
 
         if inbound_number.number != sms_sender:
             raise SmsSenderInboundNumberIntegrityException(
                 f"You cannot create an SMS sender with the number '{sms_sender}' "
-                f"and the Inbound Number '{inbound_number.id}' ('{inbound_number.number}')"
+                f"and the Inbound Number '{inbound_number.id}' ('{inbound_number.number}')."
             )
 
     new_sms_sender = ServiceSmsSender(
@@ -85,7 +83,8 @@ def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_n
         is_default=is_default,
         inbound_number_id=inbound_number_id,
         rate_limit=rate_limit,
-        rate_limit_interval=rate_limit_interval
+        rate_limit_interval=rate_limit_interval,
+        sms_sender_specifics=sms_sender_specifics
     )
 
     db.session.add(new_sms_sender)
@@ -99,7 +98,7 @@ def dao_update_service_sms_sender(service_id, service_sms_sender_id, **kwargs):
         is_default = kwargs['is_default']
 
         if service_sms_sender_id == default_sms_sender.id and not is_default:
-            raise SmsSenderDefaultValidationException('You must have at least one SMS sender as the default')
+            raise SmsSenderDefaultValidationException("You must have at least one SMS sender as the default.")
 
         if is_default:
             _set_default_sms_sender_to_not_default(default_sms_sender)
@@ -111,30 +110,30 @@ def dao_update_service_sms_sender(service_id, service_sms_sender_id, **kwargs):
 
     if 'rate_limit' in kwargs and kwargs['rate_limit'] is not None and kwargs['rate_limit'] < 1:
         raise SmsSenderRateLimitIntegrityException(
-            'Rate limit value cannot be below 1'
+            "rate_limit cannot be less than 1."
         )
     if 'rate_limit' in kwargs and kwargs['rate_limit_interval'] is not None and kwargs['rate_limit_interval'] < 1:
         raise SmsSenderRateLimitIntegrityException(
-            'Rate limit interval cannot be below 1'
+            "rate_limit_interval cannot be less than 1."
         )
 
     if 'rate_limit' in kwargs and kwargs['rate_limit'] \
             and ('rate_limit_interval' not in kwargs or not kwargs['rate_limit_interval']):
         if not sms_sender_to_update.rate_limit_interval:
             raise SmsSenderRateLimitIntegrityException(
-                'Cannot update sender to have only one of rate limit value and interval'
+                "Cannot update sender to have only one of rate limit value and interval."
             )
 
     if 'rate_limit_interval' in kwargs and kwargs['rate_limit_interval'] \
             and ('rate_limit' not in kwargs or not kwargs['rate_limit']):
         if not sms_sender_to_update.rate_limit:
             raise SmsSenderRateLimitIntegrityException(
-                'Cannot update sender to have only one of rate limit value and interval'
+                "Cannot update sender to have only one of rate limit value and interval."
             )
 
     if 'sms_sender' in kwargs and sms_sender_to_update.inbound_number_id:
         raise SmsSenderInboundNumberIntegrityException(
-            'You cannot update the number for this SMS sender as it has an associated Inbound Number'
+            "You cannot update the number for this SMS sender because it has an associated Inbound Number."
         )
 
     for key, value in kwargs.items():
@@ -152,9 +151,9 @@ def archive_sms_sender(service_id, sms_sender_id):
     ).one()
 
     if sms_sender_to_archive.inbound_number_id:
-        raise ArchiveValidationError("You cannot delete an inbound number")
+        raise ArchiveValidationError("You cannot delete an inbound number.")
     if sms_sender_to_archive.is_default:
-        raise ArchiveValidationError("You cannot delete a default sms sender")
+        raise ArchiveValidationError("You cannot delete a default sms sender.")
 
     sms_sender_to_archive.archived = True
 
@@ -171,7 +170,7 @@ def _get_default_sms_sender_for_service(service_id) -> Optional[ServiceSmsSender
         else:
             raise SmsSenderDefaultValidationException(
                 f"There should only be one default sms sender for each service. "
-                f"Service {service_id} has {len(old_default)}"
+                f"Service {service_id} has {len(old_default)}."
             )
     return None
 
@@ -191,5 +190,5 @@ def _allocate_inbound_number_for_service(service_id, inbound_number_id) -> Inbou
         {"service_id": service_id}
     )
     if not updated:
-        raise SmsSenderInboundNumberIntegrityException(f"Inbound number: {inbound_number_id} is not available")
+        raise SmsSenderInboundNumberIntegrityException(f"Inbound number: {inbound_number_id} is not available.")
     return InboundNumber.query.get(inbound_number_id)

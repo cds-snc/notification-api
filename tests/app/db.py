@@ -605,7 +605,8 @@ def create_service_sms_sender(
         sms_sender,
         is_default=True,
         inbound_number_id=None,
-        archived=False
+        archived=False,
+        sms_sender_specifics={}
 ):
     data = {
         'service_id': service.id,
@@ -613,6 +614,7 @@ def create_service_sms_sender(
         'is_default': is_default,
         'inbound_number_id': inbound_number_id,
         'archived': archived,
+        'sms_sender_specifics': sms_sender_specifics,
     }
     service_sms_sender = ServiceSmsSender(**data)
 

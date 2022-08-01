@@ -1,11 +1,14 @@
 import itertools
-from functools import wraps
-
 from app import db
 from app.history_meta import create_history
+from functools import wraps
 
 
 def transactional(func):
+    """
+    This is a decorator for creating a transactional database operation.
+    """
+
     @wraps(func)
     def commit_or_rollback(*args, **kwargs):
         from flask import current_app
@@ -17,6 +20,7 @@ def transactional(func):
             current_app.logger.error(e)
             db.session.rollback()
             raise
+
     return commit_or_rollback
 
 

@@ -1,37 +1,79 @@
-import uuid
+"""
+A bunch of these tests use the notify_db_session fixture but don't reference it.  It
+seems that using the fixture has side-effects that ensure a test database is used.
+Without passing notify_db_session, tests fail.
+"""
 
 import pytest
-from sqlalchemy.exc import SQLAlchemyError
-
+import uuid
 from app.dao.service_sms_sender_dao import (
     archive_sms_sender,
     dao_add_sms_sender_for_service,
-    dao_update_service_sms_sender,
     dao_get_service_sms_sender_by_id,
     dao_get_sms_senders_by_service_id,
-    dao_get_sms_sender_by_service_id_and_number
+    dao_get_sms_sender_by_service_id_and_number,
+    dao_update_service_sms_sender,
 )
-from app.service.exceptions import SmsSenderDefaultValidationException, SmsSenderInboundNumberIntegrityException, \
-    SmsSenderRateLimitIntegrityException
 from app.exceptions import ArchiveValidationError
-from app.models import ServiceSmsSender, InboundNumber
+from app.models import InboundNumber, ServiceSmsSender
+from app.service.exceptions import (
+    SmsSenderDefaultValidationException,
+    SmsSenderInboundNumberIntegrityException,
+    SmsSenderRateLimitIntegrityException,
+)
+from sqlalchemy.exc import SQLAlchemyError
 from tests.app.db import (
     create_inbound_number,
     create_service,
     create_service_sms_sender,
-    create_service_with_inbound_number)
+    create_service_with_inbound_number,
+)
 
 
 def test_dao_get_service_sms_sender_by_id(notify_db_session):
     service = create_service()
-    second_sender = dao_add_sms_sender_for_service(service_id=service.id,
-                                                   sms_sender='second',
-                                                   is_default=False,
-                                                   inbound_number_id=None)
-    result = dao_get_service_sms_sender_by_id(service_id=service.id,
-                                              service_sms_sender_id=second_sender.id)
-    assert result.sms_sender == "second"
-    assert not result.is_default
+    second_sender = dao_add_sms_sender_for_service(
+        service_id=service.id,
+        sms_sender="second",
+        is_default=False,
+        inbound_number_id=None
+    )
+
+    service_sms_sender = dao_get_service_sms_sender_by_id(
+        service_id=service.id,
+        service_sms_sender_id=second_sender.id
+    )
+
+    assert service_sms_sender.sms_sender == "second"
+    assert not service_sms_sender.is_default
+    assert isinstance(service_sms_sender.sms_sender_specifics, dict) \
+        and not service_sms_sender.sms_sender_specifics, "This should be an empty dictionary by default."
+
+
+def test_dao_get_service_sms_sender_by_id_with_sender_specifics(notify_db_session):
+    sender_specifics = {
+        "provider": "Twilio",
+        "misc": "This is some text.",
+        "some_value": 42,
+    }
+
+    service = create_service()
+    second_sender = dao_add_sms_sender_for_service(
+        service_id=service.id,
+        sms_sender="second",
+        is_default=False,
+        inbound_number_id=None,
+        sms_sender_specifics=sender_specifics
+    )
+
+    service_sms_sender = dao_get_service_sms_sender_by_id(
+        service_id=service.id,
+        service_sms_sender_id=second_sender.id
+    )
+
+    assert service_sms_sender.sms_sender == "second"
+    assert not service_sms_sender.is_default
+    assert service_sms_sender.sms_sender_specifics == sender_specifics
 
 
 def test_dao_get_service_sms_sender_by_id_raise_exception_when_not_found(notify_db_session):
@@ -55,17 +97,21 @@ def test_dao_get_service_sms_senders_id_raises_exception_with_archived_sms_sende
 
 def test_dao_get_sms_senders_by_service_id(notify_db_session):
     service = create_service()
+
     second_sender = dao_add_sms_sender_for_service(service_id=service.id,
                                                    sms_sender='second',
                                                    is_default=False,
                                                    inbound_number_id=None)
-    results = dao_get_sms_senders_by_service_id(service_id=service.id)
-    assert len(results) == 2
-    for x in results:
-        if x.is_default:
-            assert x.sms_sender == 'testing'
+
+    sms_senders = dao_get_sms_senders_by_service_id(service_id=service.id)
+
+    assert len(sms_senders) == 2
+
+    for sms_sender in sms_senders:
+        if sms_sender.is_default:
+            assert sms_sender.sms_sender == "testing"
         else:
-            assert x == second_sender
+            assert sms_sender == second_sender
 
 
 def test_dao_get_sms_senders_by_service_id_does_not_return_archived_senders(notify_db_session):
@@ -74,11 +120,13 @@ def test_dao_get_sms_senders_by_service_id_does_not_return_archived_senders(noti
         service=service,
         sms_sender="second",
         is_default=False,
-        archived=True)
-    results = dao_get_sms_senders_by_service_id(service_id=service.id)
+        archived=True
+    )
 
-    assert len(results) == 1
-    assert archived_sms_sender not in results
+    sms_senders = dao_get_sms_senders_by_service_id(service_id=service.id)
+
+    assert len(sms_senders) == 1
+    assert archived_sms_sender not in sms_senders
 
 
 class TestDaoAddSmsSenderForService:
@@ -136,7 +184,7 @@ class TestDaoAddSmsSenderForService:
                 rate_limit_interval=rate_limit_interval
             )
 
-        assert 'Must provide both rate limit value and interval' in str(e.value)
+        assert "Provide both rate_limit and rate_limit_interval." in str(e.value)
 
     def test_raises_exception_if_adding_number_to_use_already_allocated_inbound_number(self, notify_db_session):
         service_with_inbound_number = create_service_with_inbound_number()
@@ -183,7 +231,7 @@ class TestDaoAddSmsSenderForService:
                 rate_limit_interval=1
             )
 
-        assert "Rate limit value cannot be below 1" in str(e.value)
+        assert "rate_limit cannot be less than 1." in str(e.value)
 
     def test_raises_exception_for_zero_rate_limit_interval(self, notify_db_session):
         service = create_service()
@@ -201,7 +249,7 @@ class TestDaoAddSmsSenderForService:
                 rate_limit_interval=0
             )
 
-        assert "Rate limit interval cannot be below 1" in str(e.value)
+        assert "rate_limit_interval cannot be less than 1." in str(e.value)
 
 
 class TestDaoUpdateServiceUpdateSmsSender:
@@ -209,19 +257,22 @@ class TestDaoUpdateServiceUpdateSmsSender:
     def test_dao_update_service_sms_sender(self, notify_db_session):
         service = create_service()
         existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
+        sender_specifics = {"data": "This is something specific.", "some_int": 42}
+        inbound_number = create_inbound_number("+5551234567")
 
-        inbound_number = create_inbound_number('+5551234567')
         dao_update_service_sms_sender(
             service_id=service.id,
             service_sms_sender_id=existing_sms_sender.id,
-            sms_sender='updated',
-            inbound_number_id=inbound_number.id
+            sms_sender="updated",
+            inbound_number_id=inbound_number.id,
+            sms_sender_specifics=sender_specifics
         )
 
         existing_sms_sender_after_updates = ServiceSmsSender.query.filter_by(service_id=service.id).one()
         assert existing_sms_sender_after_updates.is_default
-        assert existing_sms_sender_after_updates.sms_sender == 'updated'
+        assert existing_sms_sender_after_updates.sms_sender == "updated"
         assert existing_sms_sender_after_updates.inbound_number_id == inbound_number.id
+        assert existing_sms_sender_after_updates.sms_sender_specifics == sender_specifics
 
     def test_switches_default(self, notify_db_session):
         service = create_service()
@@ -260,7 +311,7 @@ class TestDaoUpdateServiceUpdateSmsSender:
                 rate_limit_interval=rate_limit_interval
             )
 
-        assert 'Cannot update sender to have only one of rate limit value and interval' in str(e.value)
+        assert "Cannot update sender to have only one of rate limit value and interval." in str(e.value)
 
     def test_raises_exception_for_zero_rate_limit(self, notify_db_session):
         service = create_service()
@@ -274,7 +325,7 @@ class TestDaoUpdateServiceUpdateSmsSender:
                 rate_limit_interval=1
             )
 
-        assert 'Rate limit value cannot be below 1' in str(e.value)
+        assert "rate_limit cannot be less than 1." in str(e.value)
 
     def test_raises_exception_for_zero_rate_limit_interval(self, notify_db_session):
         service = create_service()
@@ -288,7 +339,7 @@ class TestDaoUpdateServiceUpdateSmsSender:
                 rate_limit_interval=0
             )
 
-        assert 'Rate limit interval cannot be below 1' in str(e.value)
+        assert "rate_limit_interval cannot be less than 1." in str(e.value)
 
     def test_raises_exception_if_update_would_result_in_no_default_sms_sender(self, notify_db_session):
         service = create_service()
@@ -302,7 +353,7 @@ class TestDaoUpdateServiceUpdateSmsSender:
                 sms_sender="updated"
             )
 
-        assert 'You must have at least one SMS sender as the default' in str(e.value)
+        assert "You must have at least one SMS sender as the default." in str(e.value)
 
     def test_raises_exception_if_updating_number_with_inbound_number_already_set(self, notify_db_session):
         service = create_service()
@@ -322,7 +373,7 @@ class TestDaoUpdateServiceUpdateSmsSender:
                 sms_sender='new-number'
             )
 
-        expected_msg = 'You cannot update the number for this SMS sender as it has an associated Inbound Number'
+        expected_msg = "You cannot update the number for this SMS sender because it has an associated Inbound Number."
         assert expected_msg in str(e.value)
 
     def test_raises_exception_if_updating_number_to_use_already_allocated_inbound_number(self, notify_db_session):
@@ -339,7 +390,7 @@ class TestDaoUpdateServiceUpdateSmsSender:
                 inbound_number_id=inbound_number.id
             )
 
-        expected_msg = f'Inbound number: {inbound_number.id} is not available'
+        expected_msg = f"Inbound number: {inbound_number.id} is not available."
         assert expected_msg in str(e.value)
 
 
@@ -351,7 +402,7 @@ def test_archive_sms_sender(notify_db_session):
 
     archive_sms_sender(service_id=service.id, sms_sender_id=second_sms_sender.id)
 
-    assert second_sms_sender.archived is True
+    assert second_sms_sender.archived
     assert second_sms_sender.updated_at is not None
 
 
@@ -374,7 +425,7 @@ def test_archive_sms_sender_raises_an_error_if_attempting_to_archive_a_default(n
     with pytest.raises(ArchiveValidationError) as e:
         archive_sms_sender(service_id=service.id, sms_sender_id=sms_sender.id)
 
-    assert 'You cannot delete a default sms sender' in str(e.value)
+    assert "You cannot delete a default sms sender." in str(e.value)
 
 
 @pytest.mark.parametrize('is_default', [True, False])
@@ -393,7 +444,7 @@ def test_archive_sms_sender_raises_an_error_if_attempting_to_archive_an_inbound_
             sms_sender_id=inbound_number.id
         )
 
-    assert 'You cannot delete an inbound number' in str(e.value)
+    assert "You cannot delete an inbound number." in str(e.value)
     assert not inbound_number.archived
 
 
