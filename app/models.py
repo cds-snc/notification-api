@@ -1,47 +1,42 @@
-import itertools
-import uuid
 import datetime
-
-from flask import url_for, current_app
-
-from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.dialects.postgresql import (
-    UUID,
-    JSON,
-    JSONB,
-)
-from sqlalchemy import and_, CheckConstraint, Index, UniqueConstraint
-from notifications_utils.columns import Columns
-from notifications_utils.recipients import (
-    validate_email_address,
-    validate_phone_number,
-    try_validate_and_format_phone_number,
-    InvalidPhoneError,
-    InvalidEmailError
-)
-from notifications_utils.letter_timings import get_letter_timings
-from notifications_utils.template import (
-    PlainTextEmailTemplate,
-    SMSMessageTemplate,
-    LetterPrintTemplate,
-)
-from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
-from sqlalchemy.orm.collections import attribute_mapped_collection
-
-from app.encryption import (
-    hashpw,
-    check_hash
-)
+import uuid
+import itertools
 from app import (
+    DATETIME_FORMAT,
     encryption,
-    DATETIME_FORMAT
 )
 from app.db import db
+from app.encryption import (
+    check_hash,
+    hashpw,
+)
 from app.history_meta import Versioned
-from app.va.identifier import IdentifierType
 from app.model import User, EMAIL_AUTH_TYPE
+from app.va.identifier import IdentifierType
+from flask import url_for, current_app
+from json import dumps
+from notifications_utils.columns import Columns
+from notifications_utils.letter_timings import get_letter_timings
+from notifications_utils.recipients import (
+    InvalidEmailError,
+    InvalidPhoneError,
+    try_validate_and_format_phone_number,
+    validate_email_address,
+    validate_phone_number,
+)
+from notifications_utils.template import (
+    LetterPrintTemplate,
+    PlainTextEmailTemplate,
+    SMSMessageTemplate,
+)
+from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
+from sqlalchemy import and_, CheckConstraint, Index, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
+from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm.collections import attribute_mapped_collection
+
 
 SMS_TYPE = 'sms'
 EMAIL_TYPE = 'email'
@@ -50,7 +45,7 @@ PUSH_TYPE = 'push'
 
 VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES = {
     EMAIL_TYPE: 'Email',
-    SMS_TYPE: 'Text'
+    SMS_TYPE: 'Text',
 }
 
 TEMPLATE_TYPES = [SMS_TYPE, EMAIL_TYPE, LETTER_TYPE]
@@ -514,33 +509,28 @@ class InboundNumber(db.Model):
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
     def serialize(self):
-        def serialize_service():
-            return {
-                "id": str(self.service_id),
-                "name": self.service.name
-            }
-
         return {
             "id": str(self.id),
             "number": self.number,
             "provider": self.provider,
-            "service": serialize_service() if self.service else None,
-            "active": self.active
+            "service": {
+                "id": str(self.service_id),
+                "name": self.service.name,
+            } if self.service else None,
+            "active": self.active,
         }
 
 
 class ServiceSmsSender(db.Model):
-    """
-    Define the service_sms_senders table
+    """ Define the service_sms_senders table. """
 
-    sms_sender_specifics - this field is a placeholder for any service provider we might want to use. Since different
-    services will have different formats and information, we are using the json type.
-    """
     __tablename__ = "service_sms_senders"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # This is the sender's phone number.
     sms_sender = db.Column(db.String(12), nullable=False)
-    sms_sender_specifics = db.Column(db.JSON())
+
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), index=True, nullable=False, unique=False)
     service = db.relationship(Service, backref=db.backref("service_sms_senders", uselist=True))
     is_default = db.Column(db.Boolean, nullable=False, default=True)
@@ -552,6 +542,11 @@ class ServiceSmsSender(db.Model):
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
     rate_limit = db.Column(db.Integer, nullable=True)
     rate_limit_interval = db.Column(db.Integer, nullable=True)
+
+    # This field is a placeholder for any service provider we might want to use. Since different
+    # services have different formats and information, use the JSON type, which is backend dependent.
+    #   https://docs.sqlalchemy.org/en/13/core/type_basics.html#sql-standard-and-multiple-vendor-types
+    sms_sender_specifics = db.Column(db.JSON())
 
     def get_reply_to_text(self):
         return try_validate_and_format_phone_number(self.sms_sender)
@@ -567,7 +562,8 @@ class ServiceSmsSender(db.Model):
             "created_at": self.created_at.strftime(DATETIME_FORMAT),
             "updated_at": self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None,
             "rate_limit": self.rate_limit if self.rate_limit else None,
-            "rate_limit_interval": self.rate_limit_interval if self.rate_limit_interval else None
+            "rate_limit_interval": self.rate_limit_interval if self.rate_limit_interval else None,
+            "sms_sender_specifics": dumps(self.sms_sender_specifics),
         }
 
 

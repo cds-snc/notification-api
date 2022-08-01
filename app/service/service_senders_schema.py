@@ -49,9 +49,10 @@ update_service_sms_sender_request = {
     "title": "Update SMS sender for service",
     "properties": {
         "sms_sender": {"type": "string"},
+        "sms_sender_specifics": {"type": ["object", "null"]},
         "is_default": {"type": "boolean"},
         "rate_limit": {"type": ["integer", "null"], "minimum": 1},
         "rate_limit_interval": {"type": ["integer", "null"], "minimum": 1},
-        "inbound_number_id": uuid
+        "inbound_number_id": uuid,
     }
 }

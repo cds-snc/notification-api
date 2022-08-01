@@ -1,21 +1,24 @@
-from flask import request, jsonify, Blueprint, current_app
-
 from app.authentication.auth import validate_admin_auth
-from app.dao.service_sms_sender_dao import (
-    dao_add_sms_sender_for_service,
-    dao_update_service_sms_sender,
-    archive_sms_sender,
-    dao_get_service_sms_sender_by_id,
-    dao_get_sms_senders_by_service_id
-)
-from app.service.exceptions import \
-    SmsSenderDefaultValidationException, \
-    SmsSenderInboundNumberIntegrityException, \
-    SmsSenderRateLimitIntegrityException
 from app.dao.services_dao import dao_fetch_service_by_id
+from app.dao.service_sms_sender_dao import (
+    archive_sms_sender,
+    dao_add_sms_sender_for_service,
+    dao_get_service_sms_sender_by_id,
+    dao_get_sms_senders_by_service_id,
+    dao_update_service_sms_sender,
+)
 from app.errors import register_errors
 from app.schema_validation import validate
-from app.service.service_senders_schema import add_service_sms_sender_request, update_service_sms_sender_request
+from app.service.exceptions import (
+    SmsSenderDefaultValidationException,
+    SmsSenderInboundNumberIntegrityException,
+    SmsSenderRateLimitIntegrityException,
+)
+from app.service.service_senders_schema import (
+    add_service_sms_sender_request,
+    update_service_sms_sender_request,
+)
+from flask import Blueprint, current_app, jsonify, request
 
 
 def _validate_service_exists():
@@ -78,5 +81,4 @@ def update_service_sms_sender(service_id, sms_sender_id):
 @service_sms_sender_blueprint.route('/<uuid:sms_sender_id>/archive', methods=['POST'])
 def delete_service_sms_sender(service_id, sms_sender_id):
     sms_sender = archive_sms_sender(service_id, sms_sender_id)
-
     return jsonify(data=sms_sender.serialize()), 200

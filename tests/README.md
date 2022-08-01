@@ -1,6 +1,6 @@
 # Running a Subset of Tests Using Containers
 
-You can run specific test directories or files rather than the entire suite as follows.  These instructions assume that you have previously run the docker-compose command to start the local ecosystem and, therefore, that all migrations have been applied to the database and the default container network, ci_default, exists.
+You can run specific test directories, files, or individual tests rather than the entire suite as follows.  These instructions assume that you have previously run the docker-compose command to start the local ecosystem and, therefore, that all migrations have been applied to the database and the default container network, ci_default, exists.
 
 ## Setting Environment Variables
 
@@ -16,9 +16,11 @@ The docker-compose command used to run the full test suite sets environment vari
 
 ## Running Individual Tests
 
-This is an example of running a specific test in a test file from within a test container shell:
+This is an example of running a specific test in a test file from *within a test container shell*:
 
-```$ py.test tests/lambda_functions/va_profile/test_va_profile_integration.py::test_va_profile_cache_exists```
+```
+$ py.test tests/lambda_functions/va_profile/test_va_profile_integration.py::test_va_profile_cache_exists
+```
 
 ## A Note About .bash_history
 
