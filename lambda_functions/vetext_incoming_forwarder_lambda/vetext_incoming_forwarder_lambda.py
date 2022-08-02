@@ -33,6 +33,7 @@ def vetext_incoming_forwarder_lambda_handler(event: dict, context: any):
         else:
             logger.error("Invalid Event. Expecting the source of an invocation to be from alb or sqs")
             logger.debug(event)
+            push_to_dead_letter_sqs(event, "vetext_incoming_forwarder_lambda_handler")
 
             return{
                 'statusCode': 400
@@ -49,7 +50,7 @@ def vetext_incoming_forwarder_lambda_handler(event: dict, context: any):
             response = make_vetext_request(event_body)                
             
             if response is None:
-                push_to_sqs(event_body)
+                push_to_retry_sqs(event_body)
             
             responses.append(response)          
 
@@ -57,18 +58,12 @@ def vetext_incoming_forwarder_lambda_handler(event: dict, context: any):
         
         return {
             'statusCode': 200
-        }
-    except KeyError as e:
-        logger.error(event)
-        logger.exception(e)
-        
-        return {
-            'statusCode': 424
-        }   
+        }    
     except Exception as e:        
         logger.error(event)
         logger.exception(e)
-        
+        push_to_dead_letter_sqs(event, "vetext_incoming_forwarder_lambda_handler")
+
         return{
             'statusCode':500
         }
@@ -95,10 +90,14 @@ def process_body_from_sqs_invocation(event):
             event_body = json.loads(event_body)
             logger.info("Successfully converted record body from sqs to json")
             event_bodies.append(event_body)
+        except json.decoder.JSONDecodeError as je:
+            logger.error("Failed to load json event_body")
+            logger.exception(je)        
+            push_to_dead_letter_sqs(event_body, "process_body_from_sqs_invocation")
         except Exception as e:
             logger.error("Failed to load event from sqs")
             logger.exception(e)        
-            push_to_sqs(event_body)
+            push_to_dead_letter_sqs(event_body, "process_body_from_sqs_invocation")
     
     return event_bodies
 
@@ -190,6 +189,8 @@ def make_vetext_request(request_body):
     logger.info(f"Making POST Request to VeText using: ${domain}${path}")
     logger.debug(f"json dumps: {json_data}")
 
+    connection = None
+
     try:
         connection = http.client.HTTPSConnection(domain,  context = ssl._create_unverified_context())
         logger.info("generated connection to VeText")
@@ -216,19 +217,27 @@ def make_vetext_request(request_body):
         logger.error("General Exception With Call to VeText")                
         logger.exception(e)                                                
     finally:
-        connection.close()
+        if connection: 
+            connection.close()
 
     return None
 
-def push_to_sqs(event_body):
+def push_to_retry_sqs(event_body):
     """Places event body dictionary on queue to be retried at a later time"""
     logger.info("Placing event_body on retry queue")
-    logger.debug(f"Preparing for SQS: {event_body}")
+    logger.debug(f"Preparing for Retry SQS: {event_body}")
+
+    queue_url = os.getenv('vetext_request_drop_sqs_url')
+
+    if queue_url is None:
+        logger.error("Unable to retrieve vetext_request_drop_sqs_url from env variables")
+        logger.error(event_body)
+        return None    
+
+    logger.debug(f"Retrieved queue_url: {queue_url}")
 
     try:
-        sqs = boto3.client('sqs')
-        queue_url = os.getenv('vetext_request_drop_sqs_url')
-        logger.debug(f"Retrieved queue_url: {queue_url}")
+        sqs = boto3.client('sqs')        
 
         queue_msg = json.dumps(event_body)
         queue_msg_attrs = {
@@ -244,7 +253,43 @@ def push_to_sqs(event_body):
         
         logger.info("Completed enqueue of message to retry queue")
     except Exception as e:
-        logger.error("Push to SQS Exception")
+        logger.error("Push to Retry SQS Exception")
         logger.error(event_body)
         logger.exception(e)        
-    
+        push_to_dead_letter_sqs(event_body, "push_to_retry_sqs")
+
+def push_to_dead_letter_sqs(event, source):
+    """Places unaccounted for event on dead-letter queue to be inspected"""
+
+    logger.info("Placing event on dead-letter queue")
+    logger.debug(f"Preparing for DeadLetter SQS: {event}")
+
+    queue_url = os.getenv('vetext_request_dead_letter_sqs_url')
+
+    if queue_url is None:
+        logger.error("Unable to retrieve vetext_request_dead_letter_sqs_url from env variables")
+        logger.error(event)
+        return None
+
+    logger.debug(f"Retrieved queue_url: {queue_url}")
+
+    try:
+        sqs = boto3.client('sqs')        
+
+        queue_msg = json.dumps(event)
+        queue_msg_attrs = {
+            'source': {
+                'DataType': 'String',
+                'StringValue': source
+            }
+        }
+
+        sqs.send_message(QueueUrl=queue_url,
+                        MessageAttributes=queue_msg_attrs,
+                        MessageBody=queue_msg)
+        
+        logger.info("Completed enqueue of message to dead letter queue")
+    except Exception as e:
+        logger.error("Push to Dead Letter SQS Exception")
+        logger.error(event)
+        logger.exception(e)        
