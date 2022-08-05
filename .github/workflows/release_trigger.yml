@@ -16,10 +16,10 @@ jobs:
         with: 
           script: | 
             if ('${{ github.event.action }}' === 'prereleased') {
-              core.setOutput('environment', 'perf')
+              core.setOutput('environment', 'staging')
             }
             if ('${{ github.event.action }}' === 'released') {
-              core.setOutput('environment', 'perf')
+              core.setOutput('environment', 'prod')
             }
       
       - name: Get the version
