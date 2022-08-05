@@ -45,7 +45,7 @@ jobs:
       - name: Register migration task definition
         id: register
         run: |
-          echo "::set-output name=arn::$(aws ecs register-task-definition --cli-inputs-json file://${{ steps.render.outputs.task-definition}} | jq -r '.taskDefinition.taskDefinitionArn')"
+          echo "::set-output name=arn::$(aws ecs register-task-definition --cli-input-json file://${{ steps.render.outputs.task-definition}} | jq -r '.taskDefinition.taskDefinitionArn')"
 
       - name: Run migration task
         run: |
