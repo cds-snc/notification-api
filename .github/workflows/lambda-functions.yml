@@ -11,7 +11,7 @@ on:
         required: false
         default: dev
         type: string
-      branch_name:
+      ref:
         description: "Branch to deploy from"
         required: true
         default: master
@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ inputs.branch_name }}
+          ref: ${{ inputs.ref }}
 
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -72,7 +72,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ inputs.branch_name }}
+          ref: ${{ inputs.ref }}
 
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -100,7 +100,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ inputs.branch_name }}
+          ref: ${{ inputs.ref }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
