@@ -1,0 +1,31 @@
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+    authors:
+      - dependabot
+  categories:
+    - title: Breaking Changes 🛠
+      labels:
+        - breaking-change
+    - title: Exciting New Features 🎉
+      labels:
+        - enhancement
+    - title: Lambda Functions
+      labels:
+        - lambda
+    - title: Bug Fixes 🐜
+      labels:
+        - bug
+        - hotfix
+    - title: Security Fixes 🔐
+      labels:
+        - cve
+        - security
+    - title: DevOps
+      labels:
+        - actions
+        - devops
+    - title: Other Changes 🧑‍💻
+      labels:
+        - "*"

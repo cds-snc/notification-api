@@ -1,0 +1,32 @@
+name: User Flows
+on: 
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+jobs: 
+  run-user-flows:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.environment }} == "dev" || ${{ github.event.inputs.environment }} == "perf"
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-gov-west-1
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-skip-session-tagging: true
+          role-duration-seconds: 1800
+
+      - name: Invoke user flows lambda function
+        shell: bash {0}
+        run: |
+          RESULT=$(aws --cli-read-timeout 300 lambda invoke --invocation-type RequestResponse --function-name project-user-flows-lambda --cli-binary-format raw-in-base64-out --payload '{"environment": "${{inputs.environment}}"}' --log-type Tail user_flows_exit_code.txt)
+          echo $RESULT | jq '.LogResult' -r | base64 --decode
+          if [ `jq '.StatusCode' <<< $RESULT` -ne 200 ]; then echo -e "Handler Response: $RESULT" && exit 1; fi
+          EXIT_CODE=$(cat user_flows_exit_code.txt)
+          echo -e "User Flows Tests Exit Code: $EXIT_CODE"
+          if [ $EXIT_CODE -ne 0 ]; then exit 1; else exit $EXIT_CODE; fi

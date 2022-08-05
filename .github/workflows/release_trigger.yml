@@ -1,0 +1,57 @@
+name: Release Trigger
+on:
+  release:
+    types: [prereleased, released]
+
+jobs:
+  setup-release:
+    runs-on: ubuntu-latest
+    outputs:
+      git-tag: ${{ steps.tag.outputs.version }}
+      env: ${{ steps.setup.outputs.environment }}
+    steps:
+      - name: Setup Environment
+        id: setup
+        uses: actions/github-script@v6
+        with: 
+          script: | 
+            if ('${{ github.event.action }}' === 'prereleased') {
+              core.setOutput('environment', 'staging')
+            }
+            if ('${{ github.event.action }}' === 'released') {
+              core.setOutput('environment', 'prod')
+            }
+      
+      - name: Get the version
+        id: tag
+        run: |
+          echo "::set-output name=version::"${GITHUB_REF/refs\/tags\//}""
+
+      - name: Env Values
+        run: |
+          echo "The environment is ${{ steps.setup.outputs.environment }}"
+          echo "The commit branch/hash/tag is ${{ steps.tag.outputs.version }}"
+  
+  run-build:
+    needs: [setup-release]
+    uses: ./.github/workflows/build.yml
+    with:
+      environment: "${{ needs.setup-release.outputs.env }}"
+      ref: "${{ needs.setup-release.outputs.git-tag }}"
+    secrets: inherit
+
+  run-lambda-deploy:
+    needs: [setup-release]
+    uses: ./.github/workflows/lambda-functions.yml
+    with:
+      environment: "${{ needs.setup-release.outputs.env }}"
+      ref: "${{ needs.setup-release.outputs.git-tag }}"
+    secrets: inherit
+
+  run-deployment:
+    needs: [run-build]
+    uses: ./.github/workflows/deployment.yml
+    with:
+      environment: "${{ needs.setup-release.outputs.env }}"
+      ref: "${{ needs.setup-release.outputs.git-tag }}"
+    secrets: inherit

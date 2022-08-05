@@ -1,0 +1,166 @@
+name: api deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        default: "dev"
+        type: string
+      ref:
+        required: true
+        default: "master"
+        type: string
+
+jobs:
+  run-migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-gov-west-1
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-skip-session-tagging: true
+          role-duration-seconds: 1800
+
+      - name: Login to VAEC ECR
+        id: login-ecr-vaec
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Render migration task definition
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ./cd/application-deployment/${{ inputs.environment }}/vaec-db-migrations-task-definition.json
+          container-name: ${{ inputs.environment }}-notification-api-db-migrations
+          image: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}_${{ inputs.environment}}
+
+      - name: Register migration task definition
+        id: register
+        run: |
+          echo "::set-output name=arn::$(aws ecs register-task-definition --cli-inputs-json file://${{ steps.render.outputs.task-definition}} | jq -r '.taskDefinition.taskDefinitionArn')"
+
+      - name: Run migration task
+        run: |
+          bash ./scripts/run_ci_migrations.sh -c ${{ inputs.environment }}-notification-cluster -e ${{ inputs.environment }} -t ${{ steps.register.outputs.arn }}
+
+  deploy-api:
+    runs-on: ubuntu-latest
+    needs: [run-migrations]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-gov-west-1
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-skip-session-tagging: true
+          role-duration-seconds: 1800
+      
+      - name: Login to VAEC ECR
+        id: login-ecr-vaec
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Render API task definition
+        id: render-api-container
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ./cd/application-deployment/${{ inputs.environment }}/vaec-api-task-definition.json
+          container-name: notification-api
+          image: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}_${{ inputs.environment}}
+
+      - name: Deploy API task definition to Fargate
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-api-container.outputs.task-definition }}
+          service: ${{ inputs.environment }}-notification-api-service
+          cluster: ${{ inputs.environment }}-notification-cluster
+          wait-for-service-stability: true
+
+  deploy-celery:
+    runs-on: ubuntu-latest
+    needs: [run-migrations]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-gov-west-1
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-skip-session-tagging: true
+          role-duration-seconds: 1800
+      
+      - name: Login to VAEC ECR
+        id: login-ecr-vaec
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Render celery task definition
+        id: render-celery-container
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ./cd/application-deployment/${{ inputs.environment }}/vaec-celery-task-definition.json
+          container-name: notification-celery
+          image: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}_${{ inputs.environment}}
+
+      - name: Deploy celery task definition to Fargate
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-celery-container.outputs.task-definition }}
+          service: ${{ inputs.environment }}-notification-celery-service
+          cluster: ${{ inputs.environment }}-notification-cluster
+          wait-for-service-stability: true
+
+  deploy-celery-beat:
+    runs-on: ubuntu-latest
+    needs: [run-migrations]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-gov-west-1
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-skip-session-tagging: true
+          role-duration-seconds: 1800
+
+      - name: Login to VAEC ECR
+        id: login-ecr-vaec
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Render celery beat task definition
+        id: render-celery-beat-container
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ./cd/application-deployment/${{ inputs.environment }}/vaec-celery-beat-task-definition.json
+          container-name: notification-celery-beat
+          image: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}_${{ inputs.environment}}
+
+      - name: Deploy celery beat task definition to Fargate
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-celery-beat-container.outputs.task-definition }}
+          service: ${{ inputs.environment }}-notification-celery-beat-service
+          cluster: ${{ inputs.environment }}-notification-cluster
+          wait-for-service-stability: true

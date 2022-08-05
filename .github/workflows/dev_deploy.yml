@@ -1,0 +1,73 @@
+name: Deploy to Dev
+on: 
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deploy to dev"
+        default: dev
+        required: true
+      ref:
+        description: "Branch or Commit"
+        default: master
+        required: true
+  
+jobs:
+  setup-environment:
+    runs-on: ubuntu-latest
+    outputs:
+      git-hash: ${{ steps.set-hash.outputs.commit-hash }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.ref }}
+
+      - name: Set Hash
+        id: set-hash
+        run: |
+          echo "::set-output name=commit-hash::"$(git rev-parse HEAD)""
+
+      - name: Env Values
+        run: |
+          echo "The environment is ${{ github.event.inputs.environment }}"
+          echo "The commit branch/hash/tag is ${{ steps.set-hash.outputs.commit-hash }}"
+  
+  run-build:
+    needs: [setup-environment]
+    uses: ./.github/workflows/build.yml
+    with:
+      environment: "${{ github.event.inputs.environment }}"
+      ref: "${{ needs.setup-environment.git-hash }}"
+    secrets: inherit
+
+  run-lambda-deploy:
+    needs: [setup-environment]
+    uses: ./.github/workflows/lambda-functions.yml
+    with:
+      environment: "${{ github.event.inputs.environment }}"
+      ref: "${{ needs.setup-environment.git-hash }}"
+    secrets: inherit
+  
+  run-twistlock:
+    needs: [run-build]
+    if: ${{ github.event.inputs.environment }} == "dev" || ${{ github.event.inputs.environment }} == "perf"
+    uses: ./.github/workflows/twistlock.yml
+    with:
+      ref: "${{ needs.setup-environment.git-hash }}"
+    secrets: inherit
+
+  run-deployment:
+    needs: [run-twistlock]
+    uses: ./.github/workflows/deployment.yml
+    with:
+      environment: "${{ github.event.inputs.environment }}"
+      ref: "${{ needs.setup-environment.git-hash }}"
+    secrets: inherit
+
+  run-user-flows:
+    needs: [run-deployment, run-lambda-deploy]
+    if: ${{ github.event.inputs.environment }} == "dev" || ${{ github.event.inputs.environment }} == "perf"
+    uses: ./.github/workflows/user_flows.yml
+    with:
+      environment: "${{ github.event.inputs.environment }}"
+    secrets: inherit
