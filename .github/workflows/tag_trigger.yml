@@ -21,7 +21,7 @@ jobs:
           echo "The commit branch/hash/tag is ${{ steps.tag.outputs.version }}"
   
   run-build:
-    needs: [setup-environment]
+    needs: [setup-env]
     uses: ./.github/workflows/build.yml
     with:
       environment: "perf"
@@ -29,7 +29,7 @@ jobs:
     secrets: inherit
 
   run-lambda-deploy:
-    needs: [setup-environment]
+    needs: [setup-env]
     uses: ./.github/workflows/lambda-functions.yml
     with:
       environment: "perf"
@@ -37,14 +37,15 @@ jobs:
     secrets: inherit
   
   run-twistlock:
-    needs: [run-build]
+    needs: [setup-env, run-build]
     uses: ./.github/workflows/twistlock.yml
     with:
+      environment: "perf"
       ref: "${{ needs.setup-env.outputs.git-tag }}"
     secrets: inherit
 
   run-deployment:
-    needs: [run-twistlock]
+    needs: [setup-env, run-twistlock]
     uses: ./.github/workflows/deployment.yml
     with:
       environment: "perf"
@@ -55,5 +56,5 @@ jobs:
     needs: [run-deployment, run-lambda-deploy]
     uses: ./.github/workflows/user_flows.yml
     with:
-      environment: "${{ github.event.inputs.environment }}"
+      environment: "perf"
     secrets: inherit

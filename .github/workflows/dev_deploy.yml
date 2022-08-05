@@ -58,7 +58,7 @@ jobs:
     secrets: inherit
 
   run-deployment:
-    needs: [run-twistlock]
+    needs: [setup-environment, run-twistlock]
     uses: ./.github/workflows/deployment.yml
     with:
       environment: "${{ github.event.inputs.environment }}"
