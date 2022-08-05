@@ -53,6 +53,7 @@ jobs:
     if: ${{ github.event.inputs.environment }} == "dev" || ${{ github.event.inputs.environment }} == "perf"
     uses: ./.github/workflows/twistlock.yml
     with:
+      environment: "${{ github.event.inputs.environment }}"
       ref: "${{ needs.setup-environment.outputs.git-hash }}"
     secrets: inherit
 
