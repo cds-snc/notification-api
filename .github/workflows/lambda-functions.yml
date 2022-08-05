@@ -16,10 +16,6 @@ on:
         required: true
         default: master
         type: string
-    paths:
-      - "user_flows/**.py"
-      - "lambda_functions/*"
-      - ".github/workflows/lambda-functions.yaml"
 
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
