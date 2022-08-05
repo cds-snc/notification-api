@@ -37,7 +37,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-vaec.outputs.registry }}
           IMAGE_REPOSITORY: "notification_api"
-          IMAGE_TAG: ${{ inputs.ref }}_${{ inputs.environment }}
+          IMAGE_TAG: "${{ inputs.ref }}_${{ inputs.environment }}"
         uses: ./.github/actions/run-commands-on-ec2
         with:
           instance-id-ssm-parameter-path: /utility/twistlock/instance
