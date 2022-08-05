@@ -49,7 +49,7 @@ jobs:
     secrets: inherit
   
   run-twistlock:
-    needs: [run-build]
+    needs: [setup-environment, run-build]
     if: ${{ github.event.inputs.environment }} == "dev" || ${{ github.event.inputs.environment }} == "perf"
     uses: ./.github/workflows/twistlock.yml
     with:
