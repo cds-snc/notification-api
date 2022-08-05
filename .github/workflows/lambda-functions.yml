@@ -4,22 +4,24 @@
 name: Build and Deploy Lambda Functions
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       environment:
         description: "Environment to provision (dev|staging|perf|prod}"
         required: false
         default: dev
+        type: string
       branch_name:
         description: "Branch to deploy from"
         required: true
+        default: master
+        type: string
     paths:
       - "user_flows/**.py"
       - "lambda_functions/*"
       - ".github/workflows/lambda-functions.yaml"
 
 env:
-  tf_version: 0.12.29
   AWS_ACCESS_KEY_ID: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
 
@@ -32,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.deployment.ref }}
+          ref: ${{ inputs.branch_name }}
 
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -70,7 +72,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.deployment.ref }}
+          ref: ${{ inputs.branch_name }}
 
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -88,7 +90,7 @@ jobs:
       - name: Package and deploy lambda function
         run: |
           zip -ug vetext_incoming_forwarder_lambda.zip vetext_incoming_forwarder_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.inputs.environment }}-vetext-incoming-forwarder-lambda --zip-file fileb://vetext_incoming_forwarder_lambda.zip
+          aws lambda update-function-code --function-name project-${{ inputs.environment }}-vetext-incoming-forwarder-lambda --zip-file fileb://vetext_incoming_forwarder_lambda.zip
 
   deploy-other-lambdas:
     runs-on: ubuntu-latest
@@ -98,7 +100,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.inputs.branch_name }}
+          ref: ${{ inputs.branch_name }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -118,22 +120,22 @@ jobs:
       - name: Package and deploy SES Callback lambda function
         run: |
           zip -j ses_callback_lambda ses_callback/ses_callback_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.inputs.environment }}-ses-callback-lambda --zip-file fileb://ses_callback_lambda.zip
+          aws lambda update-function-code --function-name project-${{ inputs.environment }}-ses-callback-lambda --zip-file fileb://ses_callback_lambda.zip
 
       - name: Package and deploy Two Way SMS lambda function
         run: |
           zip -j two_way_sms_lambda two_way_sms/two_way_sms_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.inputs.environment }}-two-way-sms-lambda --zip-file fileb://two_way_sms_lambda.zip
+          aws lambda update-function-code --function-name project-${{ inputs.environment }}-two-way-sms-lambda --zip-file fileb://two_way_sms_lambda.zip
 
       - name: Package and deploy pinpoint callback lambda function
         run: |
           zip -j pinpoint_callback_lambda pinpoint_callback/pinpoint_callback_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.inputs.environment }}-pinpoint-callback-lambda --zip-file fileb://pinpoint_callback_lambda.zip
+          aws lambda update-function-code --function-name project-${{ inputs.environment }}-pinpoint-callback-lambda --zip-file fileb://pinpoint_callback_lambda.zip
 
       - name: Package and deploy pinpoint inbound sms lambda function
         run: |
           zip -j pinpoint_inbound_sms_lambda pinpoint_inbound_sms/pinpoint_inbound_sms_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.inputs.environment }}-pinpoint-inbound-sms-lambda --zip-file fileb://pinpoint_inbound_sms_lambda.zip
+          aws lambda update-function-code --function-name project-${{ inputs.environment }}-pinpoint-inbound-sms-lambda --zip-file fileb://pinpoint_inbound_sms_lambda.zip
 
       - name: Package and deploy VA Profile opt-in/out lambda function
         run: |
@@ -146,7 +148,7 @@ jobs:
           zip -r9 ../../../../va_profile_opt_in_out_lambda.zip .
           cd ../../../../
           zip -ugj va_profile_opt_in_out_lambda va_profile_opt_in_out_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.inputs.environment }}-va-profile-opt-in-out-lambda --zip-file fileb://va_profile_opt_in_out_lambda.zip
+          aws lambda update-function-code --function-name project-${{ inputs.environment }}-va-profile-opt-in-out-lambda --zip-file fileb://va_profile_opt_in_out_lambda.zip
 
       - name: Package and deploy VA Profile remove old opt-outs lambda function
         run: |
@@ -159,7 +161,7 @@ jobs:
           zip -r9 ../../../../va_profile_remove_old_opt_outs_lambda.zip .
           cd ../../../../
           zip -ugj va_profile_remove_old_opt_outs_lambda va_profile_remove_old_opt_outs_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.inputs.environment }}-va-profile-remove-old-opt-outs-lambda --zip-file fileb://va_profile_remove_old_opt_outs_lambda.zip
+          aws lambda update-function-code --function-name project-${{ inputs.environment }}-va-profile-remove-old-opt-outs-lambda --zip-file fileb://va_profile_remove_old_opt_outs_lambda.zip
 
       - name: Package and deploy nightly stats bigquery upload lambda function
         run: |
@@ -172,4 +174,4 @@ jobs:
           zip -r9 ../../../../nightly_stats_bigquery_upload_lambda.zip .
           cd ../../../../
           zip -ugj nightly_stats_bigquery_upload_lambda nightly_stats_bigquery_upload_lambda.py
-          aws lambda update-function-code --function-name project-${{ github.event.inputs.environment }}-nightly-stats-bigquery-upload-lambda --zip-file fileb://nightly_stats_bigquery_upload_lambda.zip
+          aws lambda update-function-code --function-name project-${{ inputs.environment }}-nightly-stats-bigquery-upload-lambda --zip-file fileb://nightly_stats_bigquery_upload_lambda.zip

@@ -1,18 +1,17 @@
 name: Twistlock
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      imageTag:
+      ref:
         description: "Docker image tag to scan"
         required: true
+        type: string
 
 jobs:
   twistlock-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -31,7 +30,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-vaec.outputs.registry }}
           IMAGE_REPOSITORY: "notification_api"
-          IMAGE_TAG: ${{ github.event.inputs.imageTag }}
+          IMAGE_TAG: ${{ inputs.ref }}
         uses: ./.github/actions/run-commands-on-ec2
         with:
           instance-id-ssm-parameter-path: /utility/twistlock/instance
