@@ -37,7 +37,7 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       environment: "${{ github.event.inputs.environment }}"
-      ref: "${{ needs.setup-environment.git-hash }}"
+      ref: "${{ needs.setup-environment.outputs.git-hash }}"
     secrets: inherit
 
   run-lambda-deploy:
@@ -45,7 +45,7 @@ jobs:
     uses: ./.github/workflows/lambda-functions.yml
     with:
       environment: "${{ github.event.inputs.environment }}"
-      ref: "${{ needs.setup-environment.git-hash }}"
+      ref: "${{ needs.setup-environment.outputs.git-hash }}"
     secrets: inherit
   
   run-twistlock:
@@ -53,7 +53,7 @@ jobs:
     if: ${{ github.event.inputs.environment }} == "dev" || ${{ github.event.inputs.environment }} == "perf"
     uses: ./.github/workflows/twistlock.yml
     with:
-      ref: "${{ needs.setup-environment.git-hash }}"
+      ref: "${{ needs.setup-environment.outputs.git-hash }}"
     secrets: inherit
 
   run-deployment:
@@ -61,7 +61,7 @@ jobs:
     uses: ./.github/workflows/deployment.yml
     with:
       environment: "${{ github.event.inputs.environment }}"
-      ref: "${{ needs.setup-environment.git-hash }}"
+      ref: "${{ needs.setup-environment.outputs.git-hash }}"
     secrets: inherit
 
   run-user-flows:
