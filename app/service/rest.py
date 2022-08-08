@@ -347,7 +347,7 @@ def create_api_key(service_id=None):
     unsigned_api_key = get_unsigned_secret(valid_api_key.id)
 
     # prefix the API key so they keys can be easily identified for security scanning
-    keydata = {"data": unsigned_api_key, "key_name": current_app.config["API_KEY_PREFIX"] + valid_api_key.name}
+    keydata = {"key": unsigned_api_key, "key_name": current_app.config["API_KEY_PREFIX"] + valid_api_key.name}
 
     return jsonify(data=keydata), 201
 
