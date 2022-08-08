@@ -1,6 +1,6 @@
 import json
 
-from flask import url_for
+from flask import current_app, url_for
 
 from app.dao.api_key_dao import expire_api_key
 from app.models import KEY_TYPE_NORMAL, ApiKey
@@ -157,3 +157,48 @@ def test_get_api_keys_should_return_one_key_for_service(notify_api, sample_api_k
             assert response.status_code == 200
             json_resp = json.loads(response.get_data(as_text=True))
             assert len(json_resp["apiKeys"]) == 1
+
+
+def test_create_api_key_expected_format_by_admin(notify_api, sample_service):
+
+    with notify_api.test_request_context():
+        with notify_api.test_client() as client:
+            assert ApiKey.query.count() == 0
+            data = {
+                "name": "new prefixed key",
+                "created_by": str(sample_service.created_by.id),
+                "key_type": KEY_TYPE_NORMAL,
+            }
+            auth_header = create_authorization_header()
+            response = client.post(
+                url_for("service.create_api_key", service_id=sample_service.id),
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+            assert response.status_code == 201
+
+            response_data = json.loads(response.get_data(as_text=True))
+            assert "data" in response_data
+            assert "key" in response_data["data"]
+            assert "key_name" in response_data["data"]
+            
+def test_create_api_key_ensure_key_is_prefixed(notify_api, sample_service):
+
+    with notify_api.test_request_context():
+        with notify_api.test_client() as client:
+            assert ApiKey.query.count() == 0
+            data = {
+                "name": "new prefixed key",
+                "created_by": str(sample_service.created_by.id),
+                "key_type": KEY_TYPE_NORMAL,
+            }
+            auth_header = create_authorization_header()
+            response = client.post(
+                url_for("service.create_api_key", service_id=sample_service.id),
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+            assert response.status_code == 201
+
+            response_data = json.loads(response.get_data(as_text=True))
+            assert current_app.config["API_KEY_PREFIX"] in response_data["data"]["key_name"]
