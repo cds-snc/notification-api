@@ -1,7 +1,7 @@
 name: DB Downgrade
 on:
   workflow_dispatch:
-    iputs:
+    inputs:
       environment:
         description: Deployment environment in which to downgrade the database.
         required: true
