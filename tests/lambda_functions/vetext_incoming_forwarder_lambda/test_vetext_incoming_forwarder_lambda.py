@@ -85,6 +85,7 @@ def test_request_makes_vetext_call(mocker, all_path_env_param_set, http_success_
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
     assert response['statusCode'] == 200
+    assert response['body'] == '<?xml version="1.0" encoding="UTF-8"?><Response></Response>'
     sqs_mock.assert_not_called()
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
@@ -136,6 +137,7 @@ def test_failed_alb_invocation_call_throws_general_exception_goes_to_retry_sqs(m
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
     assert response['statusCode'] == 500
+    assert response['body'] == '<?xml version="1.0" encoding="UTF-8"?><Response></Response>'
     sqs_mock.assert_not_called()
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)])
@@ -181,6 +183,7 @@ def test_unexpected_event_received(mocker, all_path_env_param_set):
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
     assert response['statusCode'] == 400
+    assert response['body'] == '<?xml version="1.0" encoding="UTF-8"?><Response></Response>'
     sqs_dead_letter_mock.assert_called_once()
 
 def test_failed_getenv_vetext_api_auth_ssm_path(mocker, all_path_env_param_set):
