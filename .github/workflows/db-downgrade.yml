@@ -1,0 +1,48 @@
+name: DB Downgrade
+on:
+  workflow_dispatch:
+    iputs:
+      environment:
+        description: Deployment environment in which to downgrade the database.
+        required: true
+        default: dev
+      ref:
+        description: Tag of container to run downgrade from
+        required: true
+        default: container_tag
+jobs:
+  run-downgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-gov-west-1
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-skip-session-tagging: true
+          role-duration-seconds: 1800
+
+      - name: Login to VAEC ECR
+        id: login-ecr-vaec
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Render migration task definition
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ./cd/application-deployment/${{ github.event.inputs.environment }}/vaec-db-downgrade-task-definition.json
+          container-name: ${{ github.event.inputs.environment }}-notification-api-db-migrations
+          image: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ github.event.inputs.ref }}
+
+      - name: Register migration task definition
+        id: register
+        run: |
+          echo "::set-output name=arn::$(aws ecs register-task-definition --cli-input-json file://${{ steps.render.outputs.task-definition}} | jq -r '.taskDefinition.taskDefinitionArn')"
+
+      - name: Run migration task
+        run: |
+          bash ./scripts/run_ci_migrations.sh -c ${{ github.event.inputs.environment }}-notification-cluster -e ${{ github.event.inputs.environment }} -t ${{ steps.register.outputs.arn }}

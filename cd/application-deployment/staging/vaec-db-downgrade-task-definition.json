@@ -1,0 +1,90 @@
+{
+    "family": "staging-notification-api-db-migrations-task",
+    "executionRoleArn": "arn:aws-us-gov:iam::171875617347:role/project/project-staging-notification-api-task-execution-role",
+    "taskRoleArn": "arn:aws-us-gov:iam::171875617347:role/project/project-staging-notification-api-task-role",
+    "networkMode": "awsvpc",
+    "containerDefinitions": [
+        {
+            "name": "staging-notification-api-db-migrations",
+            "image": "{will-be-replaced-by-ci}",
+            "cpu": 512,
+            "memory": 1024,
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "staging-notification-api-log-group",
+                    "awslogs-region": "us-gov-west-1",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "command": [
+                "sh",
+                "-c",
+                "flask db downgrade"
+            ],
+            "environment": [
+                {
+                    "name": "NOTIFY_ENVIRONMENT",
+                    "value": "staging"
+                },
+                {
+                    "name": "FLASK_APP",
+                    "value": "application.py"
+                },
+                {
+                    "name": "TWILIO_ACCOUNT_SID",
+                    "value": "fake"
+                },
+                {
+                    "name": "TWILIO_AUTH_TOKEN",
+                    "value": "fake"
+                },
+                {
+                    "name": "TWILIO_FROM_NUMBER",
+                    "value": "fake"
+                }
+            ],
+            "secrets": [
+                {
+                    "name": "SQLALCHEMY_DATABASE_URI",
+                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/database/uri"
+                }
+            ]
+        }
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "512",
+    "memory": "1024",
+    "tags": [
+        {
+            "key": "Stack",
+            "value": "application-deployment"
+        },
+        {
+            "key": "Environment",
+            "value": "staging"
+        },
+        {
+            "key": "Team",
+            "value": "vanotify"
+        },
+        {
+            "key": "ManagedBy",
+            "value": "CI"
+        },
+        {
+            "key": "VAECID",
+            "value": "AWG20200714002"
+        },
+        {
+            "key": "ProjectName",
+            "value": "VA Notify"
+        },
+        {
+            "key": "ProjectShort",
+            "value": "NOTIFY"
+        }
+    ]
+}
