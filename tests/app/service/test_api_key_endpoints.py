@@ -181,7 +181,8 @@ def test_create_api_key_expected_format_by_admin(notify_api, sample_service):
             assert "data" in response_data
             assert "key" in response_data["data"]
             assert "key_name" in response_data["data"]
-            
+
+
 def test_create_api_key_ensure_key_is_prefixed(notify_api, sample_service):
 
     with notify_api.test_request_context():
