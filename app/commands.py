@@ -21,7 +21,6 @@ from app.celery.nightly_tasks import (
     send_total_sent_notifications_to_performance_platform,
 )
 from app.celery.service_callback_tasks import send_delivery_status_to_service
-from app.celery.tasks import record_daily_sorted_counts
 from app.config import QueueNames
 from app.dao.annual_billing_dao import dao_create_or_update_annual_billing_for_year
 from app.dao.fact_billing_dao import (
@@ -841,7 +840,6 @@ def replay_daily_sorted_count_files(file_extension):
         suffix=file_extension or ".rs.txt",
     ):
         print("Create task to record daily sorted counts for file: ", filename)
-        record_daily_sorted_counts.apply_async([filename], queue=QueueNames.NOTIFY)
 
 
 @notify_command(name="populate-organisations-from-file")
