@@ -35,7 +35,7 @@ def service_allowed_to_send_to(recipient, service, key_type, allow_safelisted_re
 
 def safelisted_members(service, key_type, allow_safelisted_recipients=True):
     if key_type == KEY_TYPE_TEST:
-        return None
+        return []
 
     if key_type == KEY_TYPE_NORMAL and not service.restricted:
         return None
