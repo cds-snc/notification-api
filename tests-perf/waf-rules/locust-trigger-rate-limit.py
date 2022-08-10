@@ -25,18 +25,18 @@ class NotifyAdminUser(HttpUser):
         super(NotifyAdminUser, self).__init__(*args, **kwargs)
         self.headers = {}
 
-    @task()
+    @task(1)
     def trigger_signin_block(self):
         self.client.get("/sign-in", headers=self.headers)
 
-    @task()
+    @task(1)
     def trigger_register_block(self):
         self.client.get("/register", headers=self.headers)
 
-    @task()
+    @task(1)
     def trigger_forgot_pw_block(self):
         self.client.get("/forgot-password", headers=self.headers)
 
-    @task()
+    @task(1)
     def trigger_forced_pw_reset_block(self):
         self.client.get("/forced-password-reset", headers=self.headers)
