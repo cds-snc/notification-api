@@ -905,6 +905,7 @@ class TestProcessRows:
         )
 
         assert not save_sms_mock.called
+
     @pytest.mark.parametrize(
         "template_type, research_mode, expected_function, expected_queue, api_key_id, sender_id, reference",
         [
@@ -930,8 +931,15 @@ class TestProcessRows:
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
         signer_mock = mocker.patch("app.celery.tasks.signer.sign")
         template = Mock(id="template_id", template_type=template_type)
-        api_key = { }
-        job = Mock(id="job_id", template_version="temp_vers", notification_count=1, api_key_id=api_key_id, sender_id=sender_id, api_key = api_key)
+        api_key = {}
+        job = Mock(
+            id="job_id",
+            template_version="temp_vers",
+            notification_count=1,
+            api_key_id=api_key_id,
+            sender_id=sender_id,
+            api_key=api_key,
+        )
         service = Mock(id="service_id", research_mode=research_mode)
 
         process_rows(
@@ -964,7 +972,8 @@ class TestProcessRows:
                 "sender_id": str(sender_id) if sender_id else None,
             }
         )
-        
+        task_mock.apply_async.assert_called_once()
+
 
 class TestSaveSmss:
     def test_should_send_template_to_correct_sms_task_and_persist(self, sample_template_with_placeholders, mocker):
