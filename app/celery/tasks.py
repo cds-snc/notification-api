@@ -159,6 +159,7 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
         signed_row = signer.sign(
             {
                 "api_key": job.api_key_id and str(job.api_key_id),
+                "key_type": job.api_key.key_type if job.api_key else KEY_TYPE_NORMAL,
                 "template": str(template.id),
                 "template_version": job.template_version,
                 "job": str(job.id),

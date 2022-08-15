@@ -832,6 +832,7 @@ class TestProcessRows:
         signer_mock.assert_called_once_with(
             {
                 "api_key": None if api_key_id is None else str(api_key_id),
+                "key_type": job.api_key.key_type,
                 "template": "template_id",
                 "template_version": "temp_vers",
                 "job": "job_id",
@@ -858,7 +859,8 @@ class TestProcessRows:
         mock_save_email = mocker.patch("app.celery.tasks.save_emails")
 
         template = Mock(id=1, template_type=EMAIL_TYPE)
-        job = Mock(id=1, template_version="temp_vers", notification_count=1)
+        api_key = Mock(id=1, key_type=KEY_TYPE_NORMAL)
+        job = Mock(id=1, template_version="temp_vers", notification_count=1, api_key=api_key)
         service = Mock(id=1, research_mode=False)
 
         row = next(
@@ -903,6 +905,74 @@ class TestProcessRows:
         )
 
         assert not save_sms_mock.called
+
+    @pytest.mark.parametrize(
+        "template_type, research_mode, expected_function, expected_queue, api_key_id, sender_id, reference",
+        [
+            (SMS_TYPE, False, "save_smss", "-normal-database-tasks", None, None, None),
+            (SMS_TYPE, True, "save_smss", "research-mode-tasks", uuid.uuid4(), uuid.uuid4(), "ref1"),
+            (EMAIL_TYPE, False, "save_emails", "-normal-database-tasks", uuid.uuid4(), uuid.uuid4(), "ref2"),
+            (EMAIL_TYPE, True, "save_emails", "research-mode-tasks", None, None, None),
+        ],
+    )
+    def test_process_rows_works_without_key_type(
+        self,
+        notify_api,
+        template_type,
+        research_mode,
+        expected_function,
+        expected_queue,
+        api_key_id,
+        sender_id,
+        reference,
+        mocker,
+    ):
+        mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
+        task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
+        signer_mock = mocker.patch("app.celery.tasks.signer.sign")
+        template = Mock(id="template_id", template_type=template_type)
+        api_key = {}
+        job = Mock(
+            id="job_id",
+            template_version="temp_vers",
+            notification_count=1,
+            api_key_id=api_key_id,
+            sender_id=sender_id,
+            api_key=api_key,
+        )
+        service = Mock(id="service_id", research_mode=research_mode)
+
+        process_rows(
+            [
+                Row(
+                    {"foo": "bar", "to": "recip", "reference": reference} if reference else {"foo": "bar", "to": "recip"},
+                    index="row_num",
+                    error_fn=lambda k, v: None,
+                    recipient_column_headers=["to"],
+                    placeholders={"foo"},
+                    template=template,
+                )
+            ],
+            template,
+            job,
+            service,
+        )
+        signer_mock.assert_called_once_with(
+            {
+                "api_key": None if api_key_id is None else str(api_key_id),
+                "key_type": KEY_TYPE_NORMAL,
+                "template": "template_id",
+                "template_version": "temp_vers",
+                "job": "job_id",
+                "to": "recip",
+                "row_number": "row_num",
+                "personalisation": {"foo": "bar"},
+                "queue": None,
+                "client_reference": reference,
+                "sender_id": str(sender_id) if sender_id else None,
+            }
+        )
+        task_mock.apply_async.assert_called_once()
 
 
 class TestSaveSmss:
