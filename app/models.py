@@ -2141,3 +2141,24 @@ class VAProfileLocalCache(db.Model):
     __table_args__ = (
         UniqueConstraint('va_profile_id', 'communication_item_id', 'communication_channel_id', name='uix_veteran_id'),
     )
+
+
+class UserServiceRoles(db.Model):
+    __tablename__ = "user_service_roles"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), unique=False, index=True, nullable=False)
+    role = db.Column(db.String(255), nullable=False, index=False, unique=False)
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), unique=False, index=True, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
+
+    def serialize(self):
+        return {
+            'id': str(self.id),
+            'user_id': str(self.user_id),
+            'role': self.role,
+            'service_id': str(self.service_id),
+            'created_at': self.created_at.strftime(DATETIME_FORMAT),
+            'updated_at': self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None
+        }

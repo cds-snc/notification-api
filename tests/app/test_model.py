@@ -19,7 +19,11 @@ from app.models import (
     NOTIFICATION_STATUS_LETTER_RECEIVED,
     NOTIFICATION_STATUS_TYPES_FAILED,
     NOTIFICATION_TECHNICAL_FAILURE,
-    PRECOMPILED_TEMPLATE_NAME, ServiceCallback, COMPLAINT_CALLBACK_TYPE, QUEUE_CHANNEL_TYPE, WEBHOOK_CHANNEL_TYPE
+    PRECOMPILED_TEMPLATE_NAME,
+    ServiceCallback,
+    COMPLAINT_CALLBACK_TYPE,
+    QUEUE_CHANNEL_TYPE,
+    WEBHOOK_CHANNEL_TYPE
 )
 from app.va.identifier import IdentifierType
 
@@ -225,6 +229,24 @@ def test_email_notification_serializes_with_subject(client, sample_email_templat
 def test_letter_notification_serializes_with_subject(client, sample_letter_template):
     res = sample_letter_template.serialize()
     assert res['subject'] == 'Template subject'
+
+
+def test_user_service_role_serializes_without_updated(client, sample_user_service_role, sample_user, sample_service):
+    res = sample_user_service_role.serialize()
+    assert res['id'] is not None
+    assert res['role'] == "admin"
+    assert res['user_id'] == str(sample_user.id)
+    assert res['service_id'] == str(sample_service.id)
+    assert res['updated_at'] is None
+
+
+def test_user_service_role_serializes_with_updated(client, sample_service_role_udpated, sample_user, sample_service):
+    res = sample_service_role_udpated.serialize()
+    assert res['id'] is not None
+    assert res['role'] == "admin"
+    assert res['user_id'] == str(sample_user.id)
+    assert res['service_id'] == str(sample_service.id)
+    assert res['updated_at'] == sample_service_role_udpated.updated_at.isoformat() + 'Z'
 
 
 def test_notification_references_template_history(client, sample_template):
