@@ -30,7 +30,7 @@ jobs:
       - name: Env Values
         run: |
           echo "The environment is ${{ steps.setup.outputs.environment }}"
-          echo "The commit branch/hash/tag is ${{ steps.tag.outputs.version }}"
+          echo "The tag is ${{ steps.tag.outputs.version }}"
   
   run-build:
     needs: [setup-release]

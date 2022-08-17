@@ -30,7 +30,8 @@ jobs:
       - name: Env Values
         run: |
           echo "The environment is ${{ github.event.inputs.environment }}"
-          echo "The commit branch/hash/tag is ${{ steps.set-hash.outputs.commit-hash }}"
+          echo "The branch/tag is ${{ github.event.inputs.ref }}"
+          echo "The commit hash is ${{ steps.set-hash.outputs.commit-hash }}"
   
   run-build:
     needs: [setup-environment]
