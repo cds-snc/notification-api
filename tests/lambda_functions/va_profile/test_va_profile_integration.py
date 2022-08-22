@@ -12,6 +12,7 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
+from cryptography.x509 import Certificate, load_pem_x509_certificate
 from datetime import datetime, timedelta
 from lambda_functions.va_profile.va_profile_opt_in_out_lambda import jwt_is_valid, va_profile_opt_in_out_lambda_handler
 from sqlalchemy import text
@@ -51,6 +52,30 @@ def private_key():
         private_key_bytes = f.read()
 
     return serialization.load_pem_private_key(private_key_bytes, password=b"test", backend=default_backend())
+
+
+@pytest.fixture(scope="module")
+def public_key() -> Certificate:
+    # This assumes tests are run from the project root directory.
+    with open("tests/lambda_functions/va_profile/cert.pem", "rb") as f:
+        public_key_bytes = f.read()
+
+    return load_pem_x509_certificate(public_key_bytes).public_key()
+
+
+@pytest.fixture()
+def get_va_profile_public_cert_mock(mocker, public_key):
+    """
+    Patch the function that gets the VA Profile public certificate from
+    SSM Parameter Store.
+
+    Calling assert_called_xxx on this fixture is not helpful because it is called, or not, in
+    the lambda handler only if a module level variable is false.  When running a batch of tests
+    from this file, the first will behave as expected, and subsequent tests for assert_called_once
+    will fail.
+    """
+
+    return mocker.patch(f"{LAMBDA_MODULE}.get_va_profile_public_cert", return_value=public_key)
 
 
 @pytest.fixture(scope="module")
@@ -220,16 +245,18 @@ def test_va_profile_stored_function_new_row(notify_db_session):
         verify_opt_in_status(1, True, connection)
 
 
-def test_jwt_is_valid(jwt_encoded):
+def test_jwt_is_valid(jwt_encoded, public_key):
     """
     Test the helper function used to determine if the JWT has a valid signature.
     """
 
-    assert jwt_is_valid(f"Bearer {jwt_encoded}")
+    assert jwt_is_valid(f"Bearer {jwt_encoded}", public_key)
 
 
-@pytest.mark.parametrize("invalid_jwt", [jwt_encoded_missing_exp, jwt_encoded_missing_iat, jwt_encoded_expired, jwt_encoded_reversed])
-def test_jwt_invalid(invalid_jwt):
+@pytest.mark.parametrize("invalid_jwt", [
+    jwt_encoded_missing_exp, jwt_encoded_missing_iat, jwt_encoded_expired, jwt_encoded_reversed
+])
+def test_jwt_invalid(invalid_jwt, public_key):
     """
     Any JWT that does not meet this criteria should be invalid:
         - Contains exp claim
@@ -238,18 +265,18 @@ def test_jwt_invalid(invalid_jwt):
         - exp is after iat
     """
 
-    assert not jwt_is_valid(f"Bearer {invalid_jwt}")
+    assert not jwt_is_valid(f"Bearer {invalid_jwt}", public_key)
 
 
-def test_jwt_is_valid_malformed_authorization_header_value(jwt_encoded):
+def test_jwt_is_valid_malformed_authorization_header_value(jwt_encoded, public_key):
     """
     Test the helper function used to determine if the JWT has a valid signature.
     """
 
-    assert not jwt_is_valid(f"noBearer {jwt_encoded}")
+    assert not jwt_is_valid(f"noBearer {jwt_encoded}", public_key)
 
 
-def test_va_profile_opt_in_out_lambda_handler_invalid_jwt(put_mock):
+def test_va_profile_opt_in_out_lambda_handler_invalid_jwt(put_mock, get_va_profile_public_cert_mock):
     """
     Test the VA Profile integration lambda by sending a request with an invalid jwt encoding.
     """
@@ -259,11 +286,10 @@ def test_va_profile_opt_in_out_lambda_handler_invalid_jwt(put_mock):
     response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
     assert response["statusCode"] == 401, "12345 should not be a valid JWT encoding."
-
     put_mock.assert_not_called()
 
 
-def test_va_profile_opt_in_out_lambda_handler_no_authorization_header():
+def test_va_profile_opt_in_out_lambda_handler_no_authorization_header(get_va_profile_public_cert_mock):
     """
     Test the VA Profile integration lambda by sending a request without an authorization header.
     """
@@ -275,7 +301,7 @@ def test_va_profile_opt_in_out_lambda_handler_no_authorization_header():
     assert response["statusCode"] == 401, "Requests without an Authorization header should be invalid."
 
 
-def test_va_profile_opt_in_out_lambda_handler_missing_attribute(jwt_encoded):
+def test_va_profile_opt_in_out_lambda_handler_missing_attribute(jwt_encoded, get_va_profile_public_cert_mock):
     """
     Test the VA Profile integration lambda by sending a bad request (missing top level attribute).
     """
@@ -288,7 +314,8 @@ def test_va_profile_opt_in_out_lambda_handler_missing_attribute(jwt_encoded):
     assert response["body"] == "A required top level attribute is missing from the request body or has the wrong type."
 
 
-def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id, jwt_encoded, put_mock):
+def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id, jwt_encoded, put_mock,
+                                                      get_va_profile_public_cert_mock):
     """
     Test the VA Profile integration lambda by sending a valid request that should create
     a new row in the database.
@@ -317,7 +344,8 @@ def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id, jwt_
     put_mock.assert_called_once_with("txAuditId", expected_put_body)
 
 
-def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id, jwt_encoded, put_mock):
+def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id, jwt_encoded, put_mock,
+                                                         get_va_profile_public_cert_mock):
     """
     Test the VA Profile integration lambda by sending a valid request with an older date.
     No database update should occur.
@@ -345,7 +373,8 @@ def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id, j
     put_mock.assert_called_once_with("txAuditId", expected_put_body)
 
 
-def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id, jwt_encoded, put_mock):
+def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id, jwt_encoded,
+                                                         put_mock, get_va_profile_public_cert_mock):
     """
     Test the VA Profile integration lambda by sending a valid request with a newer date.
     A database update should occur.
@@ -373,7 +402,8 @@ def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id, j
     put_mock.assert_called_once_with("txAuditId", expected_put_body)
 
 
-def test_va_profile_opt_in_out_lambda_handler_KeyError(jwt_encoded, worker_id, put_mock):
+def test_va_profile_opt_in_out_lambda_handler_KeyError(jwt_encoded, worker_id, put_mock,
+                                                       get_va_profile_public_cert_mock):
     """
     Test the VA Profile integration lambda by inspecting the PUT request is initiates to
     VA Profile in response to a request.  This test should generate a KeyError in the handler
@@ -394,7 +424,8 @@ def test_va_profile_opt_in_out_lambda_handler_KeyError(jwt_encoded, worker_id, p
     put_mock.assert_called_once_with("txAuditId", expected_put_body)
 
 
-def test_va_profile_opt_in_out_lambda_handler_wrong_communication_item_id(worker_id, jwt_encoded, put_mock):
+def test_va_profile_opt_in_out_lambda_handler_wrong_communication_item_id(worker_id, jwt_encoded, put_mock,
+                                                                          get_va_profile_public_cert_mock):
     """
     The lambda should ignore records in which communicationItemId is not 5.
     """
@@ -412,7 +443,8 @@ def test_va_profile_opt_in_out_lambda_handler_wrong_communication_item_id(worker
     put_mock.assert_called_once_with("txAuditId", expected_put_body)
 
 
-def test_va_profile_opt_in_out_lambda_handler_wrong_communication_channel_id(worker_id, jwt_encoded, put_mock):
+def test_va_profile_opt_in_out_lambda_handler_wrong_communication_channel_id(worker_id, jwt_encoded, put_mock,
+                                                                             get_va_profile_public_cert_mock):
     """
     The lambda should ignore records in which communicationChannelId is not 2.
     """
@@ -430,7 +462,8 @@ def test_va_profile_opt_in_out_lambda_handler_wrong_communication_channel_id(wor
     put_mock.assert_called_once_with("txAuditId", expected_put_body)
 
 
-def test_va_profile_opt_in_out_lambda_handler_audit_id_mismatch(worker_id, jwt_encoded, put_mock):
+def test_va_profile_opt_in_out_lambda_handler_audit_id_mismatch(worker_id, jwt_encoded, put_mock,
+                                                                get_va_profile_public_cert_mock):
     """
     The request txAuditId should match a bios's txAuditId.
     """

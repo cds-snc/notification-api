@@ -9,6 +9,12 @@ Other useful documentation:
     https://docs.aws.amazon.com/lambda/latest/dg/python-logging.html
     https://www.psycopg.org/docs/usage.html
     https://pyjwt.readthedocs.io/en/stable/usage.html
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm.html
+    https://boto3.amazonaws.com/v1/documentation/api/latest/guide/error-handling.html
+
+The execution role that imports the module is not the same execution role that executes
+the handler.  Make calls to SSM Parameter Store from within the handler to avoid a
+hard-to-identify permissions problem that results in the lambda call timing-out.
 """
 
 import boto3
@@ -18,20 +24,27 @@ import os
 import psycopg2
 import ssl
 import sys
-from cryptography.x509 import load_pem_x509_certificate
+from botocore.exceptions import ClientError
+from cryptography.x509 import Certificate, load_pem_x509_certificate
 from http.client import HTTPSConnection
 from json import dumps
+from typing import Optional
 
 logger = logging.getLogger("VAProfileOptInOut")
 logger.setLevel(logging.DEBUG)
 
 OPT_IN_OUT_QUERY = """SELECT va_profile_opt_in_out(%s, %s, %s, %s, %s);"""
 NOTIFY_ENVIRONMENT = os.getenv("NOTIFY_ENVIRONMENT")
-# TODO - Make this an SSM call.
+# TODO - Make this an SSM call.  Consolidate all parameter calls.
 SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI")
 VA_PROFILE_DOMAIN = os.getenv("VA_PROFILE_DOMAIN")
 VA_PROFILE_PATH_BASE = "/communication-hub/communication/v1/status/changelog/"
-VA_PROFILE_PUBLIC_KEY = os.getenv("VA_PROFILE_PUBLIC_KEY")
+
+
+if NOTIFY_ENVIRONMENT is None:
+    # Without this value, this code cannot know the path to the required
+    # SSM Parameter Store values.
+    sys.exit("NOTIFY_ENVIRONMENT is not set.  Cannot authenticate requests.")
 
 
 # TODO - Make this an SSM call.
@@ -40,19 +53,50 @@ if SQLALCHEMY_DATABASE_URI is None:
     sys.exit("Couldn't connect to the database.")
 
 
-if VA_PROFILE_PUBLIC_KEY is None:
-    logger.error("VA_PROFILE_PUBLIC_KEY is not set.")
-    sys.exit("Unable to verify JWTs in POST requests.")
+# This is a public certificate in .pem format.  Use it to verify the signature
+# of the JWT contained in POST requests from VA Profile.
+va_profile_public_cert = None
+requested_va_profile_public_cert = False
 
 
-try:
-    # This is a public certificate in .pem format.  Use it to verify the signature
-    # of the JWT contained in POST requests from VA Profile.
-    va_profile_public_cert = load_pem_x509_certificate(VA_PROFILE_PUBLIC_KEY.encode()).public_key()
-except ValueError as e:
-    logger.exception(e)
-    logger.debug("VA_PROFILE_PUBLIC_KEY =\n%s", VA_PROFILE_PUBLIC_KEY)
-    sys.exit("Unable to verify JWTs in POST requests.")
+def get_va_profile_public_cert() -> Certificate:
+    """
+    Get the VA Profile public certificate pem from AWS SSM Parameter Store.
+    """
+
+    assert not requested_va_profile_public_cert, "Don't call this function more than once."
+    assert VA_PROFILE_DOMAIN is not None, "There's no point getting a value that won't be used."
+    the_pem = None
+
+    logger.debug("Getting the VA Profile public pem from SSM . . .")
+    ssm_client = boto3.client("ssm")
+
+    try:
+        response = ssm_client.get_parameter(
+            Name=f"/{NOTIFY_ENVIRONMENT}/notification-api/va-profile/va-profile-public-pem",
+            WithDecryption=True
+        )
+    except ClientError as e:
+        logger.exception(e)
+        return None
+
+    the_pem = response.get("Parameter", {}).get("Value")
+
+    if the_pem is None:
+        logger.error("Couldn't get the VA Profile public pem.  Unable to authenticate POST requests.")
+        logger.debug(response)
+        sys.exit("Unable to verify JWTs in POST requests.")
+    else:
+        logger.debug("Retrieved the VA Profile public pem.")
+
+        try:
+            va_profile_public_cert = load_pem_x509_certificate(the_pem.encode()).public_key()
+        except ValueError as e:
+            logger.exception(e)
+            logger.debug("the_pem =\n%s", the_pem)
+            sys.exit("Unable to verify JWTs in POST requests.")
+
+    return va_profile_public_cert
 
 
 # This is the VA root chain used to verify the certiicate VA Profile uses for 2-way TLS when
@@ -61,44 +105,34 @@ va_root_pem = None
 requested_va_root_pem = False
 
 
-def get_va_root_pem() -> str:
+def get_va_root_pem() -> Optional[str]:
     """
     Get the VA root certificate pem chain from AWS SSM Parameter Store.
-
-    The execution role that imports the module is not the same execution role that executes
-    the handler.  Call this function from within the handler to avoid a hard-to-identify
-    permissions problem that results in the lambda call timing-out.
-
-    This function sets a module variable.  Don't call it more than once.
     """
 
     assert not requested_va_root_pem, "Don't call this function more than once."
+    assert NOTIFY_ENVIRONMENT != "test"
     the_pem = None
 
-    if NOTIFY_ENVIRONMENT is None:
-        logger.error("NOTIFY_ENVIRONMENT is not set.  Unable to make PUT requests.")
-    elif VA_PROFILE_DOMAIN is None:
-        logger.error("Could not get the domain for VA Profile.  Unable to make PUT requests.")
-    elif NOTIFY_ENVIRONMENT != "test":
-        logger.debug("Getting the VA root pem from SSM . . .")
-        ssm_client = boto3.client("ssm")
+    logger.debug("Getting the VA root pem from SSM . . .")
+    ssm_client = boto3.client("ssm")
 
-        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm.html?highlight=get_parameter#SSM.Client.get_parameter
-        # TODO - "get_parameters" could be used to get the VA root pem and the db URI
-        # in one call.
+    try:
         response = ssm_client.get_parameter(
             Name=f"/{NOTIFY_ENVIRONMENT}/notification-api/va-profile/va-root-pem",
             WithDecryption=True
         )
+    except ClientError as e:
+        logger.exception(e)
+        return None
 
-        the_pem = response.get("Parameter", {}).get("Value")
+    the_pem = response.get("Parameter", {}).get("Value")
 
-        if the_pem is None:
-            logger.error("Couldn't get the VA root chain.  Unable to make PUT requests.")
-            logger.debug(response)
-        else:
-            logger.debug("Retrieved the VA root pem.")
-    # Else: Do not make requests to AWS for unit tests.
+    if the_pem is None:
+        logger.error("Couldn't get the VA root chain.  Unable to make PUT requests.")
+        logger.debug(response)
+    else:
+        logger.debug("Retrieved the VA root pem.")
 
     return the_pem
 
@@ -159,9 +193,14 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
     """
 
     logger.debug(event)
+    global requested_va_profile_public_cert, va_profile_public_cert, requested_va_root_pem, va_root_pem
+
+    if not requested_va_profile_public_cert:
+        va_profile_public_cert = get_va_profile_public_cert()
+        requested_va_profile_public_cert = True
 
     headers = event.get("headers", {})
-    if not jwt_is_valid(headers.get("Authorization", headers.get("authorization", ''))):
+    if not jwt_is_valid(headers.get("Authorization", headers.get("authorization", '')), va_profile_public_cert):
         return { "statusCode": 401 }
 
     post_body = event["body"]
@@ -230,16 +269,24 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
         put_body["status"] = "COMPLETED_FAILURE"
         logger.exception(e)
     finally:
-        make_PUT_request(post_body["txAuditId"], put_body)
+        # Make a PUT request to VA Profile if appropriate and possible.
+        if VA_PROFILE_DOMAIN is not None:
+            if not requested_va_root_pem and NOTIFY_ENVIRONMENT != "test":
+                va_root_pem = get_va_root_pem()
+                requested_va_root_pem = True
+
+            if va_root_pem is not None or NOTIFY_ENVIRONMENT == "test":
+                make_PUT_request(post_body["txAuditId"], put_body)
 
     return post_response
 
 
-def jwt_is_valid(auth_header_value: str) -> bool:
+def jwt_is_valid(auth_header_value: str, public_key: Certificate) -> bool:
     """
     VA Profile should have sent an asymmetrically signed JWT with their POST request.
     """
 
+    assert public_key is not None
     if not auth_header_value:
         return False
 
@@ -264,28 +311,19 @@ def jwt_is_valid(auth_header_value: str) -> bool:
         # This returns the claims as a dictionary, but we aren't using them.  Require the
         # Issued at Time (iat) claim to ensure the JWT varies with each request.  Otherwise,
         # an attacker could replay the static Bearer value.
-        jwt.decode(token, va_profile_public_cert, algorithms=["RS256"], options=options)
+        jwt.decode(token, public_key, algorithms=["RS256"], options=options)
         return True
-    except jwt.exceptions.InvalidTokenError as e:
+    except (jwt.exceptions.InvalidTokenError, TypeError) as e:
         logger.exception(e)
-        logger.debug(auth_header_value)
 
     return False
 
 
 def make_PUT_request(tx_audit_id: str, body: dict):
-    if NOTIFY_ENVIRONMENT == "test":
-        # Don't make PUT requests during unit testing.
-        return
-
-    global requested_va_root_pem, ssl_context, va_root_pem
-
-    if not requested_va_root_pem:
-        va_root_pem = get_va_root_pem()
-        requested_va_root_pem = True
-
-    if va_root_pem is None:
-        return
+    global ssl_context, va_root_pem
+    assert NOTIFY_ENVIRONMENT != "test", "Don't make PUT requests during unit testing."
+    assert VA_PROFILE_DOMAIN is not None, "What is the domain of the PUT request?"
+    assert va_root_pem is not None
 
     try:
         if ssl_context is None:
