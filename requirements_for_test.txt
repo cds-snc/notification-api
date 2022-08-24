@@ -6,7 +6,7 @@ flake8==3.7.7
 freezegun==1.2.0
 moto==3.0.7
 
-# https://pyjwt.readthedocs.io/en/stable/installation.html#installation-cryptography
+# https://pyjwt.readthedocs.io/en/stable/installation.html#cryptographic-dependencies-optional
 # When this is upgraded, also upgrade the version in lambda_functions/va_profile/requirements-lambda.txt.
 PyJWT[crypto]==2.4.0
 
