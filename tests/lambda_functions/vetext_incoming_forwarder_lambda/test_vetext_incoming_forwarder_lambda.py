@@ -127,7 +127,7 @@ def test_failed_sqs_invocation_call_throws_general_exception_goes_to_retry_sqs(m
     mocker.patch(f'{LAMBDA_MODULE}.process_body_from_sqs_invocation', side_effect=Exception)
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
-    assert response['statusCode'] == 500
+    assert response['statusCode'] == 200
     sqs_mock.assert_not_called()
 
 @pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn)])
@@ -136,7 +136,7 @@ def test_failed_alb_invocation_call_throws_general_exception_goes_to_retry_sqs(m
     mocker.patch(f'{LAMBDA_MODULE}.process_body_from_alb_invocation', side_effect=Exception)
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
-    assert response['statusCode'] == 500
+    assert response['statusCode'] == 200
     assert response['body'] == '<?xml version="1.0" encoding="UTF-8"?><Response></Response>'
     sqs_mock.assert_not_called()
 
@@ -182,7 +182,7 @@ def test_unexpected_event_received(mocker, all_path_env_param_set):
     event = {}
     response = vetext_incoming_forwarder_lambda_handler(event, None)
 
-    assert response['statusCode'] == 400
+    assert response['statusCode'] == 200
     assert response['body'] == '<?xml version="1.0" encoding="UTF-8"?><Response></Response>'
     sqs_dead_letter_mock.assert_called_once()
 
