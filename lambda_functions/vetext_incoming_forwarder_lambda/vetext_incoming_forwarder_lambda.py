@@ -36,7 +36,7 @@ def vetext_incoming_forwarder_lambda_handler(event: dict, context: any):
             logger.debug(event)
             push_to_dead_letter_sqs(event, "vetext_incoming_forwarder_lambda_handler")
 
-            return create_twilio_response(400)
+            return create_twilio_response()
 
         logger.info("Successfully processed event to event_bodies")
         logger.debug(event_bodies)
@@ -61,10 +61,10 @@ def vetext_incoming_forwarder_lambda_handler(event: dict, context: any):
         logger.exception(e)
         push_to_dead_letter_sqs(event, "vetext_incoming_forwarder_lambda_handler")
 
-        return create_twilio_response(500)
+        return create_twilio_response()
 
 
-def create_twilio_response(status_code):
+def create_twilio_response(status_code: int = 200):
     twiml_response = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>'
 
     response = {
@@ -143,10 +143,14 @@ def read_from_ssm(key: str) -> str:
     try:
         ssm_client = boto3.client('ssm')
 
+        logger.info("Generated ssm_client")
+
         response = ssm_client.get_parameter(
             Name=key,
             WithDecryption=True
         )
+
+        logger.info("received ssm parameter")
 
         return response.get("Parameter", {}).get("Value", '')
     except Exception as e:
@@ -206,7 +210,7 @@ def make_vetext_request(request_body):
     connection = None
 
     try:
-        connection = http.client.HTTPSConnection(domain, context=ssl._create_unverified_context())
+        connection = http.client.HTTPSConnection(domain, timeout=6, context=ssl._create_unverified_context())
         logger.info("generated connection to VeText")
 
         connection.request(
