@@ -14,6 +14,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import Certificate, load_pem_x509_certificate
 from datetime import datetime, timedelta
+from json import dumps
 from lambda_functions.va_profile.va_profile_opt_in_out_lambda import jwt_is_valid, va_profile_opt_in_out_lambda_handler
 from sqlalchemy import text
 
@@ -64,10 +65,9 @@ def public_key() -> Certificate:
 
 
 @pytest.fixture()
-def get_va_profile_public_cert_mock(mocker, public_key):
+def get_certificates_from_ssm_mock(mocker, public_key):
     """
-    Patch the function that gets the VA Profile public certificate from
-    SSM Parameter Store.
+    Patch the function that gets the certificate from SSM Parameter Store.
 
     Calling assert_called_xxx on this fixture is not helpful because it is called, or not, in
     the lambda handler only if a module level variable is false.  When running a batch of tests
@@ -75,7 +75,7 @@ def get_va_profile_public_cert_mock(mocker, public_key):
     will fail.
     """
 
-    return mocker.patch(f"{LAMBDA_MODULE}.get_va_profile_public_cert", return_value=public_key)
+    return mocker.patch(f"{LAMBDA_MODULE}.get_certificates_from_ssm", return_value=(public_key, None))
 
 
 @pytest.fixture(scope="module")
@@ -117,6 +117,31 @@ def jwt_encoded_reversed(private_key):
     return jwt.encode({"some": "payload", "exp": exp, "iat": iat}, private_key, algorithm="RS256")
 
 
+@pytest.fixture(scope="module")
+def event_dict(jwt_encoded) -> dict:
+    """ This is a valid event as a Python dictionary. """
+
+    return create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 1, 1, 5, True, jwt_encoded)
+
+
+@pytest.fixture(scope="module")
+def event_str(event_dict) -> dict:
+    """ This is a valid event with a JSON string for the body data. """
+
+    event = event_dict.copy()
+    event["body"] = dumps(event["body"])
+    return event
+
+
+@pytest.fixture(scope="module")
+def event_bytes(event_str) -> dict:
+    """ This is a valid event with JSON bytes for the body data. """
+
+    event = event_str.copy()
+    event["body"] = event["body"].encode()
+    return event
+
+
 def verify_opt_in_status(identifier: int, opted_in: bool, connection):
     """
     Use this helper function to verify that a row's opt-in/out value has been set as expected.
@@ -125,7 +150,7 @@ def verify_opt_in_status(identifier: int, opted_in: bool, connection):
     va_profile_test = VA_PROFILE_TEST.bindparams(
         va_profile_id=identifier,
         communication_item_id=5,
-        communication_channel_id=2
+        communication_channel_id=1
     )
 
     profile_test_queryset = connection.execute(va_profile_test)
@@ -152,7 +177,7 @@ def setup_db(connection):
     opt_in_out = OPT_IN_OUT.bindparams(
         va_profile_id=0,
         communication_item_id=5,
-        communication_channel_id=2,
+        communication_channel_id=1,
         allowed=False,
         source_datetime="2022-03-07T19:37:59.320Z"
     )
@@ -181,7 +206,7 @@ def test_va_profile_stored_function_older_date(notify_db_session):
         opt_in_out = OPT_IN_OUT.bindparams(
             va_profile_id=0,
             communication_item_id=5,
-            communication_channel_id=2,
+            communication_channel_id=1,
             allowed=True,
             source_datetime="2022-02-07T19:37:59.320Z"  # Older date
         )
@@ -206,7 +231,7 @@ def test_va_profile_stored_function_newer_date(notify_db_session):
         opt_in_out = OPT_IN_OUT.bindparams(
             va_profile_id=0,
             communication_item_id=5,
-            communication_channel_id=2,
+            communication_channel_id=1,
             allowed=True,
             source_datetime="2022-04-07T19:37:59.320Z"  # Newer date
         )
@@ -231,7 +256,7 @@ def test_va_profile_stored_function_new_row(notify_db_session):
         opt_in_out = OPT_IN_OUT.bindparams(
             va_profile_id=1,
             communication_item_id=5,
-            communication_channel_id=2,
+            communication_channel_id=1,
             allowed=True,
             source_datetime="2022-02-07T19:37:59.320Z"
         )
@@ -276,37 +301,37 @@ def test_jwt_is_valid_malformed_authorization_header_value(jwt_encoded, public_k
     assert not jwt_is_valid(f"noBearer {jwt_encoded}", public_key)
 
 
-def test_va_profile_opt_in_out_lambda_handler_invalid_jwt(put_mock, get_va_profile_public_cert_mock):
+def test_va_profile_opt_in_out_lambda_handler_invalid_jwt(put_mock, get_certificates_from_ssm_mock):
     """
     Test the VA Profile integration lambda by sending a request with an invalid jwt encoding.
     """
 
     # https://www.youtube.com/watch?v=a6iW-8xPw3k
-    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 2, 5, True, "12345")
+    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 1, 5, True, "12345")
     response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
     assert response["statusCode"] == 401, "12345 should not be a valid JWT encoding."
     put_mock.assert_not_called()
 
 
-def test_va_profile_opt_in_out_lambda_handler_no_authorization_header(get_va_profile_public_cert_mock):
+def test_va_profile_opt_in_out_lambda_handler_no_authorization_header(get_certificates_from_ssm_mock):
     """
     Test the VA Profile integration lambda by sending a request without an authorization header.
     """
 
-    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 2, 5, True, '')
+    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 1, 5, True, '')
     del event["headers"]["Authorization"]
     response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
     assert response["statusCode"] == 401, "Requests without an Authorization header should be invalid."
 
 
-def test_va_profile_opt_in_out_lambda_handler_missing_attribute(jwt_encoded, get_va_profile_public_cert_mock):
+def test_va_profile_opt_in_out_lambda_handler_missing_attribute(jwt_encoded, get_certificates_from_ssm_mock):
     """
     Test the VA Profile integration lambda by sending a bad request (missing top level attribute).
     """
 
-    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 2, 5, True, jwt_encoded)
+    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 0, 1, 5, True, jwt_encoded)
     del event["body"]["txAuditId"]
     response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
@@ -314,8 +339,116 @@ def test_va_profile_opt_in_out_lambda_handler_missing_attribute(jwt_encoded, get
     assert response["body"] == "A required top level attribute is missing from the request body or has the wrong type."
 
 
+@pytest.mark.parametrize("event_body", [
+    "This is not JSON.",
+    '["element1", "element2"]',  # This is valid JSON, but it converts to a list rather than dictionary.
+])
+def test_va_profile_opt_in_out_lambda_handler_malformed_json(get_certificates_from_ssm_mock, jwt_encoded, event_body):
+    """
+    Test the VA Profile integration lambda by sending a request with a body that is not a JSON object.
+    """
+
+    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 1, 1, 5, True, jwt_encoded)
+    event["body"] = event_body
+    response = va_profile_opt_in_out_lambda_handler(event, None)
+    assert isinstance(response, dict)
+    assert response["statusCode"] == 400, "The request body must be a JSON object convertible to a Python dictionary."
+
+
+# TODO - The next 3 test functions are highly repetitive.  Is there a way to parametrize them?
+
+def test_va_profile_opt_in_out_lambda_handler_valid_dict(notify_db, event_dict, worker_id, put_mock,
+                                                         get_certificates_from_ssm_mock):
+    """
+    Test the VA Profile integration lambda by sending a valid request that should create
+    a new row in the database.  The AWS lambda function should be able to handle and event
+    body that is a Python dictionary.
+    """
+
+    with notify_db.engine.begin() as connection:
+        setup_db(connection)
+
+    # Send a request that should result in a new row.
+    response = va_profile_opt_in_out_lambda_handler(event_dict, None, worker_id)
+    assert isinstance(response, dict)
+    assert response["statusCode"] == 200
+
+    with notify_db.engine.begin() as connection:
+        count_queryset = connection.execute(COUNT)
+        assert count_queryset.fetchone()[0] == 2, "A new row should have been created."
+
+        verify_opt_in_status(1, True, connection)
+
+    expected_put_body = {
+        "dateTime": "2022-03-07T19:37:59.320Z",
+        "status": "COMPLETED_SUCCESS",
+    }
+
+    put_mock.assert_called_once_with("txAuditId", expected_put_body)
+
+
+def test_va_profile_opt_in_out_lambda_handler_valid_str(notify_db, event_str, worker_id, put_mock,
+                                                        get_certificates_from_ssm_mock):
+    """
+    Test the VA Profile integration lambda by sending a valid request that should create
+    a new row in the database.  The AWS lambda function should be able to handle and event
+    body that is a JSON string.
+    """
+
+    with notify_db.engine.begin() as connection:
+        setup_db(connection)
+
+    # Send a request that should result in a new row.
+    response = va_profile_opt_in_out_lambda_handler(event_str, None, worker_id)
+    assert isinstance(response, dict)
+    assert response["statusCode"] == 200
+
+    with notify_db.engine.begin() as connection:
+        count_queryset = connection.execute(COUNT)
+        assert count_queryset.fetchone()[0] == 2, "A new row should have been created."
+
+        verify_opt_in_status(1, True, connection)
+
+    expected_put_body = {
+        "dateTime": "2022-03-07T19:37:59.320Z",
+        "status": "COMPLETED_SUCCESS",
+    }
+
+    put_mock.assert_called_once_with("txAuditId", expected_put_body)
+
+
+def test_va_profile_opt_in_out_lambda_handler_valid_bytes(notify_db, event_bytes, worker_id, put_mock,
+                                                          get_certificates_from_ssm_mock):
+    """
+    Test the VA Profile integration lambda by sending a valid request that should create
+    a new row in the database.  The AWS lambda function should be able to handle and event
+    body that is JSON bytes.
+    """
+
+    with notify_db.engine.begin() as connection:
+        setup_db(connection)
+
+    # Send a request that should result in a new row.
+    response = va_profile_opt_in_out_lambda_handler(event_bytes, None, worker_id)
+    assert isinstance(response, dict)
+    assert response["statusCode"] == 200
+
+    with notify_db.engine.begin() as connection:
+        count_queryset = connection.execute(COUNT)
+        assert count_queryset.fetchone()[0] == 2, "A new row should have been created."
+
+        verify_opt_in_status(1, True, connection)
+
+    expected_put_body = {
+        "dateTime": "2022-03-07T19:37:59.320Z",
+        "status": "COMPLETED_SUCCESS",
+    }
+
+    put_mock.assert_called_once_with("txAuditId", expected_put_body)
+
+
 def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id, jwt_encoded, put_mock,
-                                                      get_va_profile_public_cert_mock):
+                                                      get_certificates_from_ssm_mock):
     """
     Test the VA Profile integration lambda by sending a valid request that should create
     a new row in the database.
@@ -325,7 +458,7 @@ def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id, jwt_
         setup_db(connection)
 
     # Send a request that should result in a new row.
-    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 1, 2, 5, True, jwt_encoded)
+    event = create_event("txAuditId", "txAuditId", "2022-03-07T19:37:59.320Z", 1, 1, 5, True, jwt_encoded)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
@@ -345,7 +478,7 @@ def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id, jwt_
 
 
 def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id, jwt_encoded, put_mock,
-                                                         get_va_profile_public_cert_mock):
+                                                         get_certificates_from_ssm_mock):
     """
     Test the VA Profile integration lambda by sending a valid request with an older date.
     No database update should occur.
@@ -354,7 +487,7 @@ def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id, j
     with notify_db.engine.begin() as connection:
         setup_db(connection)
 
-    event = create_event("txAuditId", "txAuditId", "2022-02-07T19:37:59.320Z", 0, 2, 5, True, jwt_encoded)
+    event = create_event("txAuditId", "txAuditId", "2022-02-07T19:37:59.320Z", 0, 1, 5, True, jwt_encoded)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
@@ -374,7 +507,7 @@ def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id, j
 
 
 def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id, jwt_encoded,
-                                                         put_mock, get_va_profile_public_cert_mock):
+                                                         put_mock, get_certificates_from_ssm_mock):
     """
     Test the VA Profile integration lambda by sending a valid request with a newer date.
     A database update should occur.
@@ -383,7 +516,7 @@ def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id, j
     with notify_db.engine.begin() as connection:
         setup_db(connection)
 
-    event = create_event("txAuditId", "txAuditId", "2022-04-07T19:37:59.320Z", 0, 2, 5, True, jwt_encoded)
+    event = create_event("txAuditId", "txAuditId", "2022-04-07T19:37:59.320Z", 0, 1, 5, True, jwt_encoded)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
@@ -403,14 +536,14 @@ def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id, j
 
 
 def test_va_profile_opt_in_out_lambda_handler_KeyError(jwt_encoded, worker_id, put_mock,
-                                                       get_va_profile_public_cert_mock):
+                                                       get_certificates_from_ssm_mock):
     """
     Test the VA Profile integration lambda by inspecting the PUT request is initiates to
     VA Profile in response to a request.  This test should generate a KeyError in the handler
     that should be caught.
     """
 
-    event = create_event("txAuditId", "txAuditId", "2022-04-07T19:37:59.320Z", 0, 2, 5, True, jwt_encoded)
+    event = create_event("txAuditId", "txAuditId", "2022-04-07T19:37:59.320Z", 0, 1, 5, True, jwt_encoded)
     del event["body"]["bios"][0]["allowed"]
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
@@ -425,12 +558,12 @@ def test_va_profile_opt_in_out_lambda_handler_KeyError(jwt_encoded, worker_id, p
 
 
 def test_va_profile_opt_in_out_lambda_handler_wrong_communication_item_id(worker_id, jwt_encoded, put_mock,
-                                                                          get_va_profile_public_cert_mock):
+                                                                          get_certificates_from_ssm_mock):
     """
     The lambda should ignore records in which communicationItemId is not 5.
     """
 
-    event = create_event("txAuditId", "txAuditId", "2022-04-27T16:57:16Z", 2, 2, 4, True, jwt_encoded)
+    event = create_event("txAuditId", "txAuditId", "2022-04-27T16:57:16Z", 2, 1, 4, True, jwt_encoded)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
@@ -444,12 +577,12 @@ def test_va_profile_opt_in_out_lambda_handler_wrong_communication_item_id(worker
 
 
 def test_va_profile_opt_in_out_lambda_handler_wrong_communication_channel_id(worker_id, jwt_encoded, put_mock,
-                                                                             get_va_profile_public_cert_mock):
+                                                                             get_certificates_from_ssm_mock):
     """
-    The lambda should ignore records in which communicationChannelId is not 2.
+    The lambda should ignore records in which communicationChannelId is not 1.
     """
 
-    event = create_event("txAuditId", "txAuditId", "2022-04-27T16:57:16Z", 2, 1, 5, True, jwt_encoded)
+    event = create_event("txAuditId", "txAuditId", "2022-04-27T16:57:16Z", 2, 2, 5, True, jwt_encoded)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
@@ -463,12 +596,12 @@ def test_va_profile_opt_in_out_lambda_handler_wrong_communication_channel_id(wor
 
 
 def test_va_profile_opt_in_out_lambda_handler_audit_id_mismatch(worker_id, jwt_encoded, put_mock,
-                                                                get_va_profile_public_cert_mock):
+                                                                get_certificates_from_ssm_mock):
     """
     The request txAuditId should match a bios's txAuditId.
     """
 
-    event = create_event("txAuditId", "not_txAuditId", "2022-04-27T16:57:16Z", 0, 2, 5, True, jwt_encoded)
+    event = create_event("txAuditId", "not_txAuditId", "2022-04-27T16:57:16Z", 0, 1, 5, True, jwt_encoded)
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
