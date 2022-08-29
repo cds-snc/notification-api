@@ -345,7 +345,11 @@ def create_api_key(service_id=None):
     valid_api_key.service = fetched_service
     save_model_api_key(valid_api_key)
     unsigned_api_key = get_unsigned_secret(valid_api_key.id)
-    return jsonify(data=unsigned_api_key), 201
+
+    # prefix the API key so they keys can be easily identified for security scanning
+    keydata = {"key": unsigned_api_key, "key_name": current_app.config["API_KEY_PREFIX"] + valid_api_key.name}
+
+    return jsonify(data=keydata), 201
 
 
 @service_blueprint.route("/<uuid:service_id>/api-key/revoke/<uuid:api_key_id>", methods=["POST"])
