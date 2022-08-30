@@ -71,3 +71,9 @@ jobs:
             --function-name ${{ matrix.image }} \
             --name latest \
             --function-version "$VERSION" > /dev/null 2>&1
+
+      - name: Notify Slack channel if this job failed
+        if: ${{ failure() }}
+        run: |
+          json="{'text':'<!here> CI is failing in <https://github.com/cds-snc/notification-api/|notification-api> !'}"
+          curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
