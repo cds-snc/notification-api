@@ -31,3 +31,9 @@ jobs:
     - name: Upload to S3 bucket
       run: |
         aws s3 sync . s3://${{ secrets.AWS_S3_BACKUP_BUCKET }} --exclude='*' --include='${{ github.repository }}/*'
+
+    - name: Notify Slack channel if this job failed
+      if: ${{ failure() }}
+      run: |
+        json="{'text':'<!here> S3 backup failed in <https://github.com/cds-snc/notification-api/|notification-api> !'}"
+        curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
