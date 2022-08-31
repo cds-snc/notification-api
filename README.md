@@ -34,7 +34,11 @@ We currently do not:
 - [Maintaining Docker Images](#maintaining-docker-images)
 - [Deployment Workflow](#deployment-workflow)
     - [Update requirements.txt](#update-requirementstxt)
-    - [Deploy using Github Actions](#deploy-using-github-actions)
+    - [Creating a PR](#creating-a-pr)
+    - [Release Process](#release-process)
+      - [Perf Release](#create-a-release-for-perf)
+      - [Staging Release](#create-a-release-for-staging)
+      - [Production Release](#promote-a-release-for-production)
 - [To Run the Queues](#to-run-the-queues)
 - [AWS Lambda Functions](#aws-lambda-functions)
 - [Running Code Scans](#running-code-scans)
@@ -157,16 +161,132 @@ The Docker image used in production, ci/Dockerfile, builds with the Python packa
 3. Open requirements.txt, and manually remove any warning messages at the start of the file.
 4. Assuming all unit tests are passing, note any top level dependency updates.  Update requirements-app.txt to make their minimum version equal to the version actually installed according to requirements.txt.
 
-### Deploy using Github Actions
+## Creating a PR
 
-Deployment to AWS beyond the "development" environment is a manual process initiated in Github Actions.  Follow these steps:
+When a ticket has been worked and is ready to be reviewed and merged in, we will create a new pull request (PR).
 
-1. Ensure that the development and staging environments passed. If that is the case, you should see a workflow called __Create Git and Docker Tags__ associated with your commit.
-2. Click the __Create Git and Docker Tags__ workflow. You should see a commit hash next to _va-tw-bot_, which should correspond to your commit.
-3. Click the __create-production-tags__ workflow, and open up the step titled __Tag Docker Image in VAEC__. The first line should resemble "Run bash ./scripts/tag_docker_image.sh staging-v0.0.349 v0.0.349 us-gov-west-1". The tag starting with "v" (e.g. v0.0.349) is the tag attached to your commit and the docker image, and you'll use it to deploy.
-4. Back in Github Actions, navigate to [Trigger Workflow](https://github.com/department-of-veterans-affairs/notification-api/actions/workflows/deployment-trigger.yaml).
-5. Click the __Run workflow__ button. You can keep _Use workflow from branch selection_ as "master", but feel free to change it for your specific use case. For _Environment to provision_, enter the target environment.  For _Git and docker tag_, enter the tag you obtained during step 3.
-6. Click the __Run workflow__ button.
+To open a PR:
+
+- Make sure your branch is pushed up to the main repository
+
+- The title of the PR should be formated to contain the ticket number of the issue being worked with a title
+
+- The body should be filled out per the template that is provided
+
+- Add in the correct tags that represent the PR
+
+```markdown
+Title: #443 Issue Title
+
+
+# Description
+
+Please include a summary of the change and which issue is fixed. Please also include relevant motivation and context. List any dependencies that are required for this change.
+
+Fixes #443
+
+## Type of change
+
+Please delete options that are not relevant.
+
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] This change requires a documentation update
+
+## How Has This Been Tested?
+
+Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration
+
+- [ ] Test A
+- [ ] Test B
+
+## Checklist
+
+- [ ] My code follows the style guidelines of this project
+- [ ] I have performed a self-review of my own code
+- [ ] I have commented my code, particularly in hard-to-understand areas
+- [ ] I have made corresponding changes to the documentation
+- [ ] My changes generate no new warnings
+- [ ] I have added tests that prove my fix is effective or that my feature works
+- [ ] New and existing unit tests pass locally with my changes
+- [ ] Any dependent changes have been merged and published in downstream modules
+```
+
+For tags, please make sure to add in additional tags to the PR based on the following categories:
+
+```yaml
+  categories:
+    - title: Breaking Changes 🛠
+      labels:
+        - breaking-change
+    - title: Exciting New Features 🎉
+      labels:
+        - enhancement
+    - title: Bug Fixes 🐜
+      labels:
+        - bug
+        - hotfix
+    - title: Security Fixes 🔐
+      labels:
+        - cve
+        - security
+```
+
+If the PR requires additional manual validation/testing then make sure to add in the `test` tag to the PR as well.
+
+If the PR does not fit into these categories, then don't add a tag.
+
+## Release Process
+
+The API releases are managed by tags in the GitHub repo.
+
+### Create a release for Perf
+
+To create a new release, the user will create a new version tag in the git repository. This can be for the current `HEAD` or for a specific commit from a PR. The tag format will be `v(Major).(Minor).(Hotfix)` format. The Portal uses a similar method, so for version one of the Portal we created `v1.0.0` and with a single hotfix a new tag was created for `v1.0.1`.
+
+
+Example commands for tagging:
+```cli
+git tag v2.0.0
+git push origin v2.0.0
+```
+
+When a new tag is created with a `v` prefix and pushed to the repository, the tagging action will start. This action will checkout the tag, create testing notes based on PR's with the `test` tag applied to them, and then build and deploy to our performance (perf) environment.
+
+### Create a release for Staging
+
+After a tag has been deployed and the code is validated in perf, we create a `pre-release` for our staging environment.
+
+- Login to GitHub and go to the notification-api repo. On the right side click on `Releases`
+
+- Click on `Draft a new release`
+
+- Select the tag to release from the `Choose a tag` dropdown
+
+- Click on `Generate release notes` to generate the title and release notes for this release
+
+- **Important**: Check the box `This is a pre-release`
+
+- Click `Publish release` in order to push this pre-release
+
+When a pre-release is created, the release action will trigger and this will pull the code from that tag, build a container, and deploy this to the staging environment. The pre-release will now be listed with the `pre-release` tag on the Releases page.
+
+### Promote a release for Production
+
+When a tag is ready to be moved to prodution, complete the following steps.
+
+- Login to GitHub and go to the notification-api repo. On the right side click on `Releases`
+
+- Select the pre-release tag to be updated and click on the penciel ✏️ icon in the upper right of the pre-release to edit
+
+- Scroll to the bottom of the pre-release and find the checkbox for `This is a pre-release`
+
+- Uncheck the box
+
+- Click `Publish release` to push the release to production
+
+When a release is generated it will trigger the release action which will checkout that tag, build and push the code to prodcution and deploy the new container.
 
 ---
 
