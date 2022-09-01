@@ -12,7 +12,7 @@ logger = logging.getLogger("vetext_incoming_forwarder_lambda")
 logger.setLevel(logging.DEBUG)
 
 # http timeout for calling vetext endpoint
-HTTPTIMEOUT = 6
+HTTPTIMEOUT = (3.05, 1)
 
 
 def vetext_incoming_forwarder_lambda_handler(event: dict, context: any):
