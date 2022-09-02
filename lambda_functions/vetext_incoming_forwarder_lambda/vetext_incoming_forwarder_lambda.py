@@ -208,10 +208,12 @@ def make_vetext_request(request_body):
             timeout=HTTPTIMEOUT,
             headers=headers
         )
+        logger.info('VeText POST complete')
         response.raise_for_status()
         
         logger.info(f'VeText call complete with response: { response.status_code }')
         logger.debug(f"VeText response: {response.content}")
+        return response.content
     except requests.HTTPError as e:
         logger.error("HTTPError With Call To VeText")
         logger.exception(e)
@@ -221,8 +223,8 @@ def make_vetext_request(request_body):
     except Exception as e:
         logger.error("General Exception With Call to VeText")
         logger.exception(e)
-
-    return response.content if response.ok else None
+    
+    return None
 
 
 def push_to_retry_sqs(event_body):
