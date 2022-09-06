@@ -17,7 +17,7 @@ default = 1000
 
 
 def upgrade():
-    op.add_column("services", sa.Column("sms_daily_limit", sa.BigInteger(), nullable=True))    
+    op.add_column("services", sa.Column("sms_daily_limit", sa.BigInteger(), nullable=True))
     op.execute(f"UPDATE services SET sms_daily_limit = {default}")
     op.alter_column("services", "sms_daily_limit", nullable=False)
 
