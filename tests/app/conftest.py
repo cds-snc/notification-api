@@ -151,6 +151,7 @@ def create_sample_service(
     user=None,
     restricted=False,
     limit=1000,
+    sms_limit=1000,
     email_from=None,
     permissions=None,
     research_mode=None,
@@ -163,6 +164,7 @@ def create_sample_service(
     data = {
         "name": service_name,
         "message_limit": limit,
+        "sms_daily_limit": sms_limit,
         "restricted": restricted,
         "email_from": email_from,
         "created_by": user,
