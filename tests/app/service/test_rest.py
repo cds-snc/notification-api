@@ -357,6 +357,7 @@ def test_create_service(admin_request, sample_user, platform_admin, expected_cou
         "name": "created service",
         "user_id": str(sample_user.id),
         "message_limit": 1000,
+        "sms_daily_limit": 1000,
         "restricted": False,
         "active": False,
         "email_from": "created.service",
@@ -424,6 +425,7 @@ def test_create_service_with_domain_sets_organisation(admin_request, sample_user
         "name": "created service",
         "user_id": str(sample_user.id),
         "message_limit": 1000,
+        "sms_daily_limit": 1000,
         "restricted": False,
         "active": False,
         "email_from": "created.service",
@@ -457,6 +459,7 @@ def test_create_service_inherits_branding_from_organisation(admin_request, sampl
             "name": "created service",
             "user_id": str(sample_user.id),
             "message_limit": 1000,
+            "sms_daily_limit": 1000,
             "restricted": False,
             "active": False,
             "email_from": "created.service",
@@ -477,6 +480,7 @@ def test_should_not_create_service_with_missing_user_id_field(notify_api, fake_u
                 "email_from": "service",
                 "name": "created service",
                 "message_limit": 1000,
+                "sms_daily_limit": 1000,
                 "restricted": False,
                 "active": False,
                 "created_by": str(fake_uuid),
@@ -497,6 +501,7 @@ def test_should_error_if_created_by_missing(notify_api, sample_user):
                 "email_from": "service",
                 "name": "created service",
                 "message_limit": 1000,
+                "sms_daily_limit": 1000,
                 "restricted": False,
                 "active": False,
                 "user_id": str(sample_user.id),
@@ -523,6 +528,7 @@ def test_should_not_create_service_with_missing_if_user_id_is_not_in_database(
                 "user_id": fake_uuid,
                 "name": "created service",
                 "message_limit": 1000,
+                "sms_daily_limit": 1000,
                 "restricted": False,
                 "active": False,
                 "created_by": str(fake_uuid),
@@ -548,6 +554,7 @@ def test_should_not_create_service_if_missing_data(notify_api, sample_user):
             assert json_resp["result"] == "error"
             assert "Missing data for required field." in json_resp["message"]["name"]
             assert "Missing data for required field." in json_resp["message"]["message_limit"]
+            assert "Missing data for required field." in json_resp["message"]["sms_daily_limit"]
             assert "Missing data for required field." in json_resp["message"]["restricted"]
 
 
@@ -558,6 +565,7 @@ def test_should_not_create_service_with_duplicate_name(notify_api, sample_user, 
                 "name": sample_service.name,
                 "user_id": str(sample_service.users[0].id),
                 "message_limit": 1000,
+                "sms_daily_limit": 1000,
                 "restricted": False,
                 "active": False,
                 "email_from": "sample.service2",
@@ -580,6 +588,7 @@ def test_create_service_should_throw_duplicate_key_constraint_for_existing_email
                 "name": service_name,
                 "user_id": str(first_service.users[0].id),
                 "message_limit": 1000,
+                "sms_daily_limit": 1000,
                 "restricted": False,
                 "active": False,
                 "email_from": "first.service",
@@ -1096,6 +1105,7 @@ def test_default_permissions_are_added_for_user_service(
                 "name": "created service",
                 "user_id": str(sample_user.id),
                 "message_limit": 1000,
+                "sms_daily_limit": 1000,
                 "restricted": False,
                 "active": False,
                 "email_from": "created.service",
