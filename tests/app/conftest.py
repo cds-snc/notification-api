@@ -1253,6 +1253,7 @@ def notify_service(notify_db, notify_db_session):
         service = Service(
             name="Notify Service",
             message_limit=1000,
+            sms_daily_limit=1000,
             restricted=False,
             email_from="notify.service",
             created_by=user,
