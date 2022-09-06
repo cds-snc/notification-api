@@ -585,6 +585,7 @@ class Service(BaseModel, Versioned):
         fields.pop("letter_logo_filename", None)
         fields.pop("letter_contact_block", None)
         fields.pop("email_branding", None)
+        fields["sms_daily_limit"] = fields.get("sms_daily_limit", 100)
 
         return cls(**fields)
 
