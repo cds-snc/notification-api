@@ -236,6 +236,9 @@ def get_service_notification_statistics(service_id):
 @service_blueprint.route("", methods=["POST"])
 def create_service():
     data = request.get_json()
+    data["sms_daily_limit"] = data.get(
+        "sms_daily_limit", 1000
+    )  # TODO this is to support current admin. can remove after admin sends an sms_daily_limit
 
     if not data.get("user_id"):
         errors = {"user_id": ["Missing data for required field."]}
