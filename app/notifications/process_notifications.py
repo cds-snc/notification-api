@@ -42,6 +42,10 @@ def create_content_for_notification(template, personalisation):
     return template_object
 
 
+def number_of_sms_fragments(template, personalisation):
+    return create_content_for_notification(template, personalisation).fragment_count
+
+
 def check_placeholders(template_object):
     if template_object.missing_data:
         message = "Missing personalisation for template ID {}: {}".format(
@@ -126,8 +130,9 @@ def persist_notification(
             if redis_store.get(redis.daily_limit_cache_key(service.id)):
                 redis_store.incr(redis.daily_limit_cache_key(service.id))
             if notification_type == SMS_TYPE and redis_store.get(redis.sms_daily_count_cache_key(service.id)):
-                num_message_parts = create_content_for_notification(template, personalisation).fragment_count
-                redis_store.incrby(redis.sms_daily_count_cache_key(service.id), num_message_parts)
+                redis_store.incrby(
+                    redis.sms_daily_count_cache_key(service.id), number_of_sms_fragments(template, personalisation)
+                )
 
         current_app.logger.info("{} {} created at {}".format(notification_type, notification_id, notification_created_at))
     return notification
@@ -203,10 +208,10 @@ def db_save_and_send_notification(notification: Notification):
         if redis_store.get(redis.daily_limit_cache_key(service_id)):
             redis_store.incr(redis.daily_limit_cache_key(service_id))
         if notification.notification_type == SMS_TYPE and redis_store.get(redis.sms_daily_count_cache_key(service_id)):
-            num_message_parts = create_content_for_notification(
-                notification.template, notification.personalisation
-            ).fragment_count
-            redis_store.incrby(redis.sms_daily_count_cache_key(service_id), num_message_parts)
+            redis_store.incrby(
+                redis.sms_daily_count_cache_key(service_id),
+                number_of_sms_fragments(notification.template, notification.personalisation),
+            )
 
     current_app.logger.info(f"{notification.notification_type} {notification.id} created at {notification.created_at}")
 
@@ -352,8 +357,10 @@ def persist_notifications(notifications):
             if redis_store.get(redis.daily_limit_cache_key(service_id)):
                 redis_store.incr(redis.daily_limit_cache_key(service_id))
             if notification.get("notification_type") == SMS_TYPE and redis_store.get(redis.sms_daily_count_cache_key(service_id)):
-                num_message_parts = create_content_for_notification(template, notification_obj.personalisation).fragment_count
-                redis_store.incrby(redis.sms_daily_count_cache_key(service_id), num_message_parts)
+                redis_store.incrby(
+                    redis.sms_daily_count_cache_key(service_id),
+                    number_of_sms_fragments(template, notification_obj.personalisation),
+                )
 
         current_app.logger.info(
             "{} {} created at {}".format(
