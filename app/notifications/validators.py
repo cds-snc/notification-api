@@ -96,7 +96,7 @@ def check_service_over_daily_sms_limit(key_type, service):
         cache_key = sms_daily_count_cache_key(service.id)
         messages_sent = redis_store.get(cache_key)
         if not messages_sent:
-            messages_sent = services_dao.fetch_todays_total_sms_count(service.id)  # TODO must fix this for SMS parts
+            messages_sent = services_dao.fetch_todays_total_sms_count(service.id)
             redis_store.set(cache_key, messages_sent, ex=int(timedelta(hours=2).total_seconds()))
 
         warn_about_daily_sms_limit(service, int(messages_sent))
