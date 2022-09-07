@@ -298,6 +298,7 @@ class DetailedServiceSchema(BaseSchema):
             "reply_to_email_addresses",
             "letter_contact_block",
             "message_limit",
+            "sms_daily_limit",
             "email_from",
             "inbound_api",
             "safelist",
@@ -690,6 +691,7 @@ class ServiceHistorySchema(Schema):
     updated_at = fields.DateTime()
     active = fields.Boolean()
     message_limit = fields.Integer()
+    sms_daily_limit = fields.Integer()
     restricted = fields.Boolean()
     email_from = fields.String()
     created_by_id = fields.UUID()

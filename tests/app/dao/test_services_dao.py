@@ -103,6 +103,7 @@ def test_create_service(notify_db_session):
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         organisation_type="central",
         created_by=user,
@@ -135,6 +136,7 @@ def test_create_service_with_organisation(notify_db_session):
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         organisation_type="central",
         created_by=user,
@@ -195,6 +197,7 @@ def test_create_nhs_service_get_default_branding_based_on_email_address(
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         organisation_type=organisation_type,
         created_by=user,
@@ -217,6 +220,7 @@ def test_cannot_create_two_services_with_same_name(notify_db_session):
         name="service_name",
         email_from="email_from1",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -225,6 +229,7 @@ def test_cannot_create_two_services_with_same_name(notify_db_session):
         name="service_name",
         email_from="email_from2",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -241,6 +246,7 @@ def test_cannot_create_two_services_with_same_email_from(notify_db_session):
         name="service_name1",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -248,6 +254,7 @@ def test_cannot_create_two_services_with_same_email_from(notify_db_session):
         name="service_name2",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -264,6 +271,7 @@ def test_cannot_create_service_with_no_user(notify_db_session):
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -278,6 +286,7 @@ def test_should_add_user_to_service(notify_db_session):
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -348,6 +357,7 @@ def test_should_remove_user_from_service(notify_db_session):
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -701,6 +711,7 @@ def test_create_service_creates_a_history_record_with_current_data(notify_db_ses
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -727,6 +738,7 @@ def test_update_service_creates_a_history_record_with_current_data(notify_db_ses
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -760,6 +772,7 @@ def test_update_service_permission_creates_a_history_record_with_current_data(
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -808,6 +821,7 @@ def test_create_service_and_history_is_transactional(notify_db_session):
         name=None,
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -864,6 +878,7 @@ def test_add_existing_user_to_another_service_doesnot_change_old_permissions(
         name="service_one",
         email_from="service_one",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -884,6 +899,7 @@ def test_add_existing_user_to_another_service_doesnot_change_old_permissions(
         name="service_two",
         email_from="service_two",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=other_user,
     )
@@ -920,6 +936,7 @@ def test_fetch_stats_filters_on_service(notify_db_session):
         email_from="hello",
         restricted=False,
         message_limit=1000,
+        sms_daily_limit=1000,
     )
     dao_create_service(service_two, service_one.created_by)
 
@@ -1331,6 +1348,7 @@ def test_dao_fetch_service_creator(notify_db_session):
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=active_user_1,
     )
