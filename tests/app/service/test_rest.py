@@ -554,7 +554,7 @@ def test_should_not_create_service_if_missing_data(notify_api, sample_user):
             assert json_resp["result"] == "error"
             assert "Missing data for required field." in json_resp["message"]["name"]
             assert "Missing data for required field." in json_resp["message"]["message_limit"]
-            assert "Missing data for required field." in json_resp["message"]["sms_daily_limit"]
+            # assert "Missing data for required field." in json_resp["message"]["sms_daily_limit"] # TODO: put this back in once we add sms_daily_limit to admin
             assert "Missing data for required field." in json_resp["message"]["restricted"]
 
 
