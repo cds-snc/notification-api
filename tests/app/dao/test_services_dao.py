@@ -38,6 +38,7 @@ from app.dao.services_dao import (
     dao_update_service,
     delete_service_and_all_associated_db_objects,
     fetch_todays_total_message_count,
+    fetch_todays_total_sms_count,
     get_services_by_partial_name,
 )
 from app.dao.users_dao import create_user_code, save_model_user
@@ -1051,6 +1052,43 @@ class TestFetchTotalMessageCount:
             create_notification(created_at=yesterday, template=create_template(service=create_service()))
         )
         assert fetch_todays_total_message_count(notification.service.id) == 0
+
+
+@pytest.mark.usefixtures("notify_db_session")
+class TestFetchTodaysTotalSmsCount:
+    def test_returns_count_for_today(self):
+        service = create_service()
+        sms_template = create_template(service=service, template_type=SMS_TYPE)
+        save_notification(create_notification(template=sms_template))
+        save_notification(create_notification(template=sms_template))
+        assert fetch_todays_total_sms_count(service.id) == 2
+
+    def test_only_counts_sms(self):
+        service = create_service()
+        sms_template = create_template(service=service, template_type=SMS_TYPE)
+        email_template = create_template(service=service, template_type=EMAIL_TYPE)
+        save_notification(create_notification(template=sms_template))
+        save_notification(create_notification(template=sms_template))
+        save_notification(create_notification(template=email_template))
+        assert fetch_todays_total_sms_count(service.id) == 2
+
+    def test_sums_billable_units(self):
+        service = create_service()
+        sms_template = create_template(service=service, template_type=SMS_TYPE)
+        save_notification(create_notification(template=sms_template, billable_units=3))
+        save_notification(create_notification(template=sms_template, billable_units=10))
+        assert fetch_todays_total_sms_count(service.id) == 13
+
+    def test_returns_0_when_no_messages_for_today(self):
+        assert fetch_todays_total_sms_count(uuid.uuid4()) == 0
+
+    def test_returns_0_with_yesterday_messages(self):
+        service = create_service()
+        sms_template = create_template(service=service, template_type=SMS_TYPE)
+        today = datetime.utcnow().date()
+        yesterday = today - timedelta(days=1)
+        save_notification(create_notification(created_at=yesterday, template=sms_template))
+        assert fetch_todays_total_sms_count(service.id) == 0
 
 
 def test_dao_fetch_todays_stats_for_all_services_includes_all_services(

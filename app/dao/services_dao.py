@@ -429,11 +429,6 @@ def fetch_todays_total_message_count(service_id):
         )
         .first()
     )
-    print("-------------------")
-    print(service_id)
-    print(result)
-    print("-------------------")
-
     return 0 if result is None else result.count
 
 
@@ -447,13 +442,9 @@ def fetch_todays_total_sms_count(service_id):
             Notification.created_at > midnight,
             Notification.notification_type == "sms",
         )
-        .group_by(
-            Notification.notification_type,
-            Notification.status,
-        )
         .first()
     )
-    return 0 if result is None else result.count
+    return 0 if result is None or result.sum_billable_units is None else result.sum_billable_units
 
 
 def _stats_for_service_query(service_id):
