@@ -14,6 +14,7 @@ from app.notifications.validators import (
     check_service_letter_contact_id,
     check_service_over_api_rate_limit,
     check_service_over_daily_message_limit,
+    check_service_over_daily_sms_limit,
     check_service_sms_sender_id,
     check_sms_content_char_count,
     check_template_is_active,
@@ -44,44 +45,74 @@ def enable_redis(notify_api):
         yield
 
 
-@pytest.mark.parametrize("key_type", ["test", "team", "normal"])
-def test_check_service_message_limit_in_cache_with_unrestricted_service_is_allowed(key_type, sample_service, mocker):
-    mocker.patch("app.notifications.validators.redis_store.get", return_value=1)
-    mocker.patch("app.notifications.validators.redis_store.set")
-    mocker.patch("app.notifications.validators.services_dao")
-
-    check_service_over_daily_message_limit(key_type, sample_service)
-    app.notifications.validators.redis_store.set.assert_not_called()
-    assert not app.notifications.validators.services_dao.mock_calls
-
-
-@pytest.mark.parametrize("key_type", ["test", "team", "normal"])
-def test_check_service_message_limit_in_cache_under_message_limit_passes(key_type, sample_service, mocker):
-    mocker.patch("app.notifications.validators.redis_store.get", return_value=1)
-    mocker.patch("app.notifications.validators.redis_store.set")
-    mocker.patch("app.notifications.validators.services_dao")
-    check_service_over_daily_message_limit(key_type, sample_service)
-    app.notifications.validators.redis_store.set.assert_not_called()
-    assert not app.notifications.validators.services_dao.mock_calls
-
-
-def test_should_not_interact_with_cache_for_test_key(sample_service, mocker):
-    mocker.patch("app.notifications.validators.redis_store")
-    check_service_over_daily_message_limit("test", sample_service)
-    assert not app.notifications.validators.redis_store.mock_calls
-
-
-@pytest.mark.parametrize("key_type", ["team", "normal"])
-def test_should_set_cache_value_as_value_from_database_if_cache_not_set(
-    key_type, notify_db, notify_db_session, sample_service, mocker
-):
-    with freeze_time("2016-01-01 12:00:00.000000"):
-        for x in range(5):
-            create_sample_notification(notify_db, notify_db_session, service=sample_service)
-        mocker.patch("app.notifications.validators.redis_store.get", return_value=None)
+class TestCheckDailyLimits:
+    @pytest.mark.parametrize(
+        "limit_type, key_type",
+        [("all", "test"), ("all", "team"), ("all", "normal"), ("sms", "test"), ("sms", "team"), ("sms", "normal")],
+    )
+    def test_check_service_message_limit_in_cache_with_unrestricted_service_is_allowed(
+        self, limit_type, key_type, sample_service, mocker
+    ):
+        mocker.patch("app.notifications.validators.redis_store.get", return_value=1)
         mocker.patch("app.notifications.validators.redis_store.set")
-        check_service_over_daily_message_limit(key_type, sample_service)
-        app.notifications.validators.redis_store.set.assert_called_with(str(sample_service.id) + "-2016-01-01-count", 5, ex=7200)
+        mocker.patch("app.notifications.validators.services_dao")
+
+        if limit_type == "sms":
+            check_service_over_daily_sms_limit(key_type, sample_service)
+        else:
+            check_service_over_daily_message_limit(key_type, sample_service)
+        app.notifications.validators.redis_store.set.assert_not_called()
+        assert not app.notifications.validators.services_dao.mock_calls
+
+    @pytest.mark.parametrize(
+        "limit_type, key_type",
+        [("all", "test"), ("all", "team"), ("all", "normal"), ("sms", "test"), ("sms", "team"), ("sms", "normal")],
+    )
+    def test_check_service_message_limit_in_cache_under_message_limit_passes(self, limit_type, key_type, sample_service, mocker):
+        mocker.patch("app.notifications.validators.redis_store.get", return_value=1)
+        mocker.patch("app.notifications.validators.redis_store.set")
+        mocker.patch("app.notifications.validators.services_dao")
+        if limit_type == "sms":
+            check_service_over_daily_sms_limit(key_type, sample_service)
+        else:
+            check_service_over_daily_message_limit(key_type, sample_service)
+            app.notifications.validators.redis_store.set.assert_not_called()
+        assert not app.notifications.validators.services_dao.mock_calls
+
+    @pytest.mark.parametrize("limit_type", ["all", "sms"])
+    def test_should_not_interact_with_cache_for_test_key(self, limit_type, sample_service, mocker):
+        mocker.patch("app.notifications.validators.redis_store")
+
+        if limit_type == "sms":
+            check_service_over_daily_sms_limit("test", sample_service)
+        else:
+            check_service_over_daily_message_limit("test", sample_service)
+        assert not app.notifications.validators.redis_store.mock_calls
+
+    @pytest.mark.parametrize(
+        "limit_type, key_type",
+        [("all", "team"), ("all", "normal"), ("sms", "team"), ("sms", "normal")],
+    )
+    def test_should_set_cache_value_as_value_from_database_if_cache_not_set(
+        self, limit_type, key_type, notify_db, notify_db_session, sample_service, mocker
+    ):
+        with freeze_time("2016-01-01 12:00:00.000000"):
+            for x in range(5):
+                create_sample_notification(notify_db, notify_db_session, service=sample_service)
+            mocker.patch("app.notifications.validators.redis_store.get", return_value=None)
+            mocker.patch("app.notifications.validators.redis_store.set")
+
+            if limit_type == "sms":
+                check_service_over_daily_sms_limit(key_type, sample_service)
+                app.notifications.validators.redis_store.set.assert_called_with(
+                    "sms-" + str(sample_service.id) + "-2016-01-01-count", 5, ex=7200
+                )
+
+            else:
+                check_service_over_daily_message_limit(key_type, sample_service)
+                app.notifications.validators.redis_store.set.assert_called_with(
+                    str(sample_service.id) + "-2016-01-01-count", 5, ex=7200
+                )
 
 
 def test_should_not_access_database_if_redis_disabled(notify_api, sample_service, mocker):
