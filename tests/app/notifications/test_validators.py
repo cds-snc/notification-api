@@ -119,7 +119,7 @@ class TestCheckDailyLimits:
     ):
         with freeze_time("2016-01-01 12:00:00.000000"):
             for x in range(5):
-                create_sample_notification(notify_db, notify_db_session, service=sample_service)
+                create_sample_notification(notify_db, notify_db_session, service=sample_service, billable_units=2)
             mocker.patch("app.notifications.validators.redis_store.get", return_value=None)
             mocker.patch("app.notifications.validators.redis_store.set")
 
@@ -127,7 +127,10 @@ class TestCheckDailyLimits:
                 check_service_over_daily_sms_limit(key_type, sample_service)
             else:
                 check_service_over_daily_message_limit(key_type, sample_service)
-            app.notifications.validators.redis_store.set.assert_called_with(count_key(limit_type, sample_service.id), 5, ex=7200)
+
+            app.notifications.validators.redis_store.set.assert_called_with(
+                count_key(limit_type, sample_service.id), 10 if limit_type == "sms" else 5, ex=7200
+            )
 
     def test_should_not_access_database_if_redis_disabled(self, notify_api, sample_service, mocker):
         with set_config(notify_api, "REDIS_ENABLED", False):
