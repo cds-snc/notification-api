@@ -104,7 +104,8 @@ def check_service_over_daily_sms_limit(key_type, service):
 def check_rate_limiting(service, api_key):
     check_service_over_api_rate_limit(service, api_key)
     check_service_over_daily_message_limit(api_key.key_type, service)
-    check_service_over_daily_sms_limit(api_key.key_type, service)
+    if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
+        check_service_over_daily_sms_limit(api_key.key_type, service)
 
 
 def warn_about_daily_message_limit(service, messages_sent):
