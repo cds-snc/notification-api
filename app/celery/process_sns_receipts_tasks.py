@@ -58,7 +58,7 @@ def process_sns_results(self, response):
         notifications_dao._update_notification_status(
             notification=notification,
             status=notification_status,
-            provider_response=provider_response if notification_status == NOTIFICATION_TECHNICAL_FAILURE else None,
+            provider_response=provider_response if notification_status else None,
         )
 
         if notification_status != NOTIFICATION_DELIVERED:
@@ -109,4 +109,11 @@ def determine_status(sns_status, provider_response):
         "Unknown error attempting to reach phone": NOTIFICATION_TECHNICAL_FAILURE,
     }
 
-    return reasons[provider_response]
+    status = reasons[provider_response]
+
+    if not status:
+        # TODO: Pattern matching in Python 3.10 should simplify this overall function logic.
+        if "is opted out" in provider_response:
+            return NOTIFICATION_PERMANENT_FAILURE
+    else:
+        return status
