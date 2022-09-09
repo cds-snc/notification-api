@@ -737,6 +737,7 @@ def create_ft_notification_status(
     key_type="normal",
     notification_status="delivered",
     count=1,
+    billable_units=1,
 ):
     if job:
         template = job.template
@@ -757,6 +758,7 @@ def create_ft_notification_status(
         key_type=key_type,
         notification_status=notification_status,
         notification_count=count,
+        billable_units=billable_units,
     )
     db.session.add(data)
     db.session.commit()

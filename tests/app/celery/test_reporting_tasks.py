@@ -479,12 +479,13 @@ def test_create_nightly_notification_status_for_day(notify_db_session):
         )
     )
 
-    save_notification(create_notification(template=third_template, status="created"))
+    save_notification(create_notification(template=third_template, status="created", billable_units=100))
     save_notification(
         create_notification(
             template=third_template,
             status="created",
             created_at=datetime(2019, 1, 1, 12, 0),
+            billable_units=100,
         )
     )
 
@@ -498,6 +499,43 @@ def test_create_nightly_notification_status_for_day(notify_db_session):
     assert new_data[0].bst_date == date(2019, 1, 1)
     assert new_data[1].bst_date == date(2019, 1, 1)
     assert new_data[2].bst_date == date(2019, 1, 1)
+    assert new_data[2].billable_units == 100
+
+
+@freeze_time("2019-01-05")
+def test_ensure_create_nightly_notification_status_for_day_copies_billable_units(notify_db_session):
+    first_service = create_service(service_name="First Service")
+    first_template = create_template(service=first_service)
+    second_service = create_service(service_name="second Service")
+    second_template = create_template(service=second_service, template_type="email")
+
+    save_notification(
+        create_notification(
+            template=first_template,
+            status="delivered",
+            created_at=datetime(2019, 1, 1, 12, 0),
+            billable_units=5,
+        )
+    )
+    
+    save_notification(
+        create_notification(
+            template=second_template,
+            status="temporary-failure",
+            created_at=datetime(2019, 1, 1, 12, 0),
+            billable_units=10,
+        )
+    )
+
+    assert len(FactNotificationStatus.query.all()) == 0
+
+    create_nightly_notification_status_for_day("2019-01-01")
+
+    new_data = FactNotificationStatus.query.all()
+
+    assert len(new_data) == 2
+    assert new_data[0].billable_units == 5
+    assert new_data[1].billable_units == 10    
 
 
 # the job runs at 12:30am London time. 04/01 is in BST.
