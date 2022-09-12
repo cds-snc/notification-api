@@ -23,6 +23,7 @@ from app.models import (
 from tests.app.db import (
     create_letter_rate,
     create_notification,
+    create_notification_history,
     create_rate,
     create_service,
     create_template,
@@ -530,6 +531,28 @@ def test_ensure_create_nightly_notification_status_for_day_copies_billable_units
     assert len(FactNotificationStatus.query.all()) == 0
 
     create_nightly_notification_status_for_day("2019-01-01")
+
+    new_data = FactNotificationStatus.query.all()
+
+    assert len(new_data) == 2
+    assert new_data[0].billable_units == 5
+    assert new_data[1].billable_units == 10    
+
+
+@freeze_time("2019-01-05T06:00:00")
+def test_ensure_create_nightly_notification_status_for_day_copies_billable_units_from_notificationsHistory(notify_db_session):
+    first_service = create_service(service_name="First Service")
+    first_template = create_template(service=first_service)
+    second_service = create_service(service_name="second Service")
+    second_template = create_template(service=second_service, template_type="email")
+
+    create_notification_history(template=first_template, billable_units=5)
+    create_notification_history(template=second_template, billable_units=10)
+
+    
+    assert len(FactNotificationStatus.query.all()) == 0
+
+    create_nightly_notification_status_for_day("2019-01-05")
 
     new_data = FactNotificationStatus.query.all()
 
