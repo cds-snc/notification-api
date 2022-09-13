@@ -53,6 +53,33 @@ def test_send_message_successful_returns_response_body(sqs_stub, sqs_client, mes
     assert response['MessageId'] == message_id
 
 
+@pytest.mark.parametrize(['message_attributes', 'expected_attributes'],
+                         [({"CallbackType": {"DataType": "String", "StringValue": "foo"}},
+                           {"CallbackType": {"DataType": "String", "StringValue": "foo"},
+                            "ContentType": {"StringValue": "application/json", "DataType": "String"}}),
+                             (None, {"ContentType": {"StringValue": "application/json", "DataType": "String"}})])
+def test_send_message_successful_with_fifo_returns_response_body(
+        sqs_stub, sqs_client, message_attributes, expected_attributes
+):
+    url = 'http://some_url/sample_notification_url.fifo'
+    body = {"message": "hello"}
+    message_attributes = message_attributes
+    message_id = "some-id"
+    sqs_stub.add_response(
+        'send_message',
+        expected_params={
+            'QueueUrl': url,
+            'MessageBody': json.dumps(body),
+            'MessageAttributes': expected_attributes,
+            'MessageGroupId': url
+        },
+        service_response={'MessageId': message_id}
+    )
+
+    response = sqs_client.send_message(url, body, message_attributes)
+    assert response['MessageId'] == message_id
+
+
 def test_send_message_raises_client_error_on_client_exception(sqs_stub, sqs_client):
     url = 'http://some_url'
     body = {"message": "hello"}

@@ -22,9 +22,20 @@ class SQSClient:
             message_attributes = {}
         message_attributes["ContentType"] = {"StringValue": "application/json", "DataType": "String"}
         try:
-            response = self._client.send_message(
-                QueueUrl=url, MessageBody=json.dumps(message_body), MessageAttributes=message_attributes
-            )
+            # if SQS is fifo then
+            if 'fifo' in url:
+                response = self._client.send_message(
+                    QueueUrl=url,
+                    MessageBody=json.dumps(message_body),
+                    MessageAttributes=message_attributes,
+                    MessageGroupId=url
+                )
+            else:
+                response = self._client.send_message(
+                    QueueUrl=url,
+                    MessageBody=json.dumps(message_body),
+                    MessageAttributes=message_attributes,
+                )
         except ClientError as e:
             self.logger.error("SQS client failed to send message: %s", message_body)
             raise e
