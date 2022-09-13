@@ -35,7 +35,6 @@ def process_sns_results(self, response):
         except KeyError:
             current_app.logger.warning(f"unhandled provider response for reference {reference}, received '{provider_response}'")
             notification_status = NOTIFICATION_TECHNICAL_FAILURE
-            provider_response = None
 
         try:
             notification = notifications_dao.dao_get_notification_by_reference(reference)
@@ -104,7 +103,7 @@ def determine_status(sns_status, provider_response):
         "Phone has blocked SMS": NOTIFICATION_TECHNICAL_FAILURE,
         "Phone is on a blocked list": NOTIFICATION_TECHNICAL_FAILURE,
         "Phone is currently unreachable/unavailable": NOTIFICATION_PERMANENT_FAILURE,
-        "Phone number is opted out": NOTIFICATION_TECHNICAL_FAILURE,
+        "Phone number is opted out": NOTIFICATION_PERMANENT_FAILURE,
         "This delivery would exceed max price": NOTIFICATION_TECHNICAL_FAILURE,
         "Unknown error attempting to reach phone": NOTIFICATION_TECHNICAL_FAILURE,
     }
