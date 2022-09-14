@@ -331,9 +331,27 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
     elif not simulated:
         triage_notification_to_queues(notification_type, signed_notification_data, template)
 
-        current_app.logger.info(
-            f"Batch saving: {notification_type}/{template.process_type} {notification['id']} sent to buffer queue."
-        )
+    elif current_app.config["FF_REDIS_BATCH_SAVING"] and not simulated:
+        if notification_type == SMS_TYPE:
+            sms_queue.publish(signed_notification_data)
+        else:
+            email_queue.publish(signed_notification_data)
+        current_app.logger.info(f"Batch saving: {notification_type} {notification['id']} sent to buffer queue.")
+
+    elif current_app.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] and not simulated:
+        # depending on the type route to the appropriate save task
+        if notification_type == EMAIL_TYPE:
+            current_app.logger.info("calling save email task")
+            save_email.apply_async(
+                (authenticated_service.id, create_uuid(), signed_notification_data, None),
+                queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
+            )
+        elif notification_type == SMS_TYPE:
+            save_sms.apply_async(
+                (authenticated_service.id, create_uuid(), signed_notification_data, None),
+                queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
+            )
+
     else:
         notification = transform_notification(
             template_id=template.id,
