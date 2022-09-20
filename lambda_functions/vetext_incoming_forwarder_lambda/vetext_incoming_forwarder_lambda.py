@@ -9,7 +9,7 @@ from base64 import b64decode
 import boto3
 
 logger = logging.getLogger("vetext_incoming_forwarder_lambda")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 # http timeout for calling vetext endpoint
 HTTPTIMEOUT = (3.05, 1)
