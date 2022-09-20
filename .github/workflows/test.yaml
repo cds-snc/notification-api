@@ -67,7 +67,7 @@ jobs:
         app-libs: '/github/workspace/env/site-packages'
         flask-mod: 'application'
         flask-prop: 'application'
-        base-url: 'https://staging.notification.cdssandbox.xyz'
+        base-url: 'https://api.staging.notification.cdssandbox.xyz'
     - name: Notify Slack channel if this job fails
       if: ${{ failure() && github.ref == 'refs/heads/main' }}
       run: |

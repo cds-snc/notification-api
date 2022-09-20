@@ -880,8 +880,7 @@ def test_send_contact_request_demo(client, sample_user, mocker):
     )
     assert resp.status_code == 204
 
-    mocked_freshdesk.assert_not_called()
-
+    mocked_freshdesk.assert_called_once_with()
     contact = ContactRequest(**data)
     contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
     mocked_zendesk.assert_called_once_with(contact)
