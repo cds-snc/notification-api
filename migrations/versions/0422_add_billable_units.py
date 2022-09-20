@@ -17,7 +17,10 @@ default = 1
 
 
 def upgrade():
-    op.add_column("ft_notification_status", sa.Column("billable_units", sa.Integer(), nullable=True),)
+    op.add_column(
+        "ft_notification_status",
+        sa.Column("billable_units", sa.Integer(), nullable=True),
+    )
     op.execute(f"UPDATE ft_notification_status SET billable_units = notification_count")
     op.alter_column("ft_notification_status", "billable_units", nullable=False)
 

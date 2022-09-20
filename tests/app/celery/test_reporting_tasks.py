@@ -518,7 +518,7 @@ def test_ensure_create_nightly_notification_status_for_day_copies_billable_units
             billable_units=5,
         )
     )
-    
+
     save_notification(
         create_notification(
             template=second_template,
@@ -536,7 +536,7 @@ def test_ensure_create_nightly_notification_status_for_day_copies_billable_units
 
     assert len(new_data) == 2
     assert new_data[0].billable_units == 5
-    assert new_data[1].billable_units == 10    
+    assert new_data[1].billable_units == 10
 
 
 @freeze_time("2019-01-05T06:00:00")
@@ -549,7 +549,6 @@ def test_ensure_create_nightly_notification_status_for_day_copies_billable_units
     create_notification_history(template=first_template, billable_units=5)
     create_notification_history(template=second_template, billable_units=10)
 
-    
     assert len(FactNotificationStatus.query.all()) == 0
 
     create_nightly_notification_status_for_day("2019-01-05")
@@ -558,7 +557,7 @@ def test_ensure_create_nightly_notification_status_for_day_copies_billable_units
 
     assert len(new_data) == 2
     assert new_data[0].billable_units == 5
-    assert new_data[1].billable_units == 10    
+    assert new_data[1].billable_units == 10
 
 
 # the job runs at 12:30am London time. 04/01 is in BST.
