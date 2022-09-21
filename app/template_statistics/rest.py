@@ -37,6 +37,7 @@ def get_template_statistics_for_service_by_day(service_id):
         data=[
             {
                 "count": row.count,
+                "parts": row.billable_units,
                 "template_id": str(row.template_id),
                 "template_name": row.template_name,
                 "template_type": row.notification_type,

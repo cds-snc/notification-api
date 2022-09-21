@@ -133,6 +133,7 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
             FactNotificationStatus.notification_type,
             FactNotificationStatus.notification_status,
             func.sum(FactNotificationStatus.notification_count).label("count"),
+            func.sum(FactNotificationStatus.billable_units).label("billable_units"),
         )
         .filter(
             FactNotificationStatus.service_id == service_id,
@@ -156,6 +157,7 @@ def fetch_delivered_notification_stats_by_month():
             func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
             FactNotificationStatus.notification_type,
             func.sum(FactNotificationStatus.notification_count).label("count"),
+            func.sum(FactNotificationStatus.billable_units).label("billable_units"),
         )
         .filter(
             FactNotificationStatus.key_type != KEY_TYPE_TEST,
@@ -186,6 +188,7 @@ def fetch_notification_stats_for_trial_services():
             User.email_address.label("user_email"),
             FactNotificationStatus.notification_type.label("notification_type"),
             func.sum(FactNotificationStatus.notification_count).label("notification_sum"),
+            func.sum(FactNotificationStatus.billable_units).label("billable_units"),
         )
         .join(
             Service,
@@ -227,6 +230,8 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
             Notification.notification_type,
             Notification.status.label("notification_status"),
             func.count().label("count"),
+            func.sum(Notification.billable_units).label("billable_units"),
+            
         )
         .filter(
             Notification.created_at >= get_local_timezone_midnight_in_utc(bst_day),
@@ -247,6 +252,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
         FactNotificationStatus.notification_status.label("status"),
         *([FactNotificationStatus.template_id.label("template_id")] if by_template else []),
         FactNotificationStatus.notification_count.label("count"),
+        FactNotificationStatus.billable_units.label("billable_units"),
     ).filter(
         FactNotificationStatus.service_id == service_id,
         FactNotificationStatus.bst_date >= start_date,
@@ -259,6 +265,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
             Notification.status,
             *([Notification.template_id] if by_template else []),
             func.count().label("count"),
+            func.sum(Notification.billable_units).label("billable_units"),
         )
         .filter(
             Notification.created_at >= get_local_timezone_midnight(now),
@@ -287,12 +294,13 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
         all_stats_table.c.notification_type,
         all_stats_table.c.status,
         func.cast(func.sum(all_stats_table.c.count), Integer).label("count"),
+        func.cast(func.sum(all_stats_table.c.billable_units), Integer).label("billable_units"),
     )
 
     if by_template:
         query = query.filter(all_stats_table.c.template_id == Template.id)
 
-    return query.group_by(
+    data =  query.group_by(
         *(
             [
                 Template.name,
@@ -305,6 +313,8 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
         all_stats_table.c.notification_type,
         all_stats_table.c.status,
     ).all()
+    
+    return data
 
 
 def get_total_notifications_sent_for_api_key(api_key_id):
@@ -319,6 +329,7 @@ def get_total_notifications_sent_for_api_key(api_key_id):
         db.session.query(
             Notification.notification_type.label("notification_type"),
             func.count(Notification.id).label("total_send_attempts"),
+            func.sum(Notification.billable_units).label("billable_units"),
         )
         .filter(
             Notification.api_key_id == api_key_id,
@@ -455,6 +466,7 @@ def fetch_notification_status_totals_for_all_services(start_date, end_date):
             FactNotificationStatus.notification_status.label("status"),
             FactNotificationStatus.key_type.label("key_type"),
             func.sum(FactNotificationStatus.notification_count).label("count"),
+            func.sum(FactNotificationStatus.billable_units).label("billable_units"),
         )
         .filter(
             FactNotificationStatus.bst_date >= start_date,
@@ -474,6 +486,7 @@ def fetch_notification_status_totals_for_all_services(start_date, end_date):
                 Notification.status,
                 Notification.key_type,
                 func.count().label("count"),
+                func.sum(Notification.billable_units).label("billable_units"),
             )
             .filter(Notification.created_at >= today)
             .group_by(
@@ -489,6 +502,7 @@ def fetch_notification_status_totals_for_all_services(start_date, end_date):
                 all_stats_table.c.status,
                 all_stats_table.c.key_type,
                 func.cast(func.sum(all_stats_table.c.count), Integer).label("count"),
+                func.cast(func.sum(all_stats_table.c.billable_units), Integer).label("billable_units"),
             )
             .group_by(
                 all_stats_table.c.notification_type,
@@ -507,6 +521,7 @@ def fetch_notification_statuses_for_job(job_id):
         db.session.query(
             FactNotificationStatus.notification_status.label("status"),
             func.sum(FactNotificationStatus.notification_count).label("count"),
+            func.sum(FactNotificationStatus.billable_units).label("billable_units"),
         )
         .filter(
             FactNotificationStatus.job_id == job_id,
@@ -528,6 +543,7 @@ def fetch_stats_for_all_services_by_date_range(start_date, end_date, include_fro
             FactNotificationStatus.notification_type.label("notification_type"),
             FactNotificationStatus.notification_status.label("status"),
             func.sum(FactNotificationStatus.notification_count).label("count"),
+            func.sum(FactNotificationStatus.billable_units).label("billable_units"),
         )
         .filter(
             FactNotificationStatus.bst_date >= start_date,
@@ -557,6 +573,7 @@ def fetch_stats_for_all_services_by_date_range(start_date, end_date, include_fro
                 Notification.status.label("status"),
                 Notification.service_id.label("service_id"),
                 func.count(Notification.id).label("count"),
+                func.sum(Notification.billable_units).label("billable_units"),
             )
             .filter(Notification.created_at >= today)
             .group_by(
@@ -579,6 +596,7 @@ def fetch_stats_for_all_services_by_date_range(start_date, end_date, include_fro
             subquery.c.notification_type.label("notification_type"),
             subquery.c.status.label("status"),
             subquery.c.count.label("count"),
+            subquery.c.billable_units.label("billable_units"),
         ).outerjoin(subquery, subquery.c.service_id == Service.id)
 
         all_stats_table = stats.union_all(stats_for_today).subquery()
@@ -593,6 +611,7 @@ def fetch_stats_for_all_services_by_date_range(start_date, end_date, include_fro
                 all_stats_table.c.notification_type,
                 all_stats_table.c.status,
                 func.cast(func.sum(all_stats_table.c.count), Integer).label("count"),
+                func.cast(func.sum(all_stats_table.c.billable_units), Integer).label("billable_units"),
             )
             .group_by(
                 all_stats_table.c.service_id,
@@ -626,6 +645,7 @@ def fetch_monthly_template_usage_for_service(start_date, end_date, service_id):
             extract("month", FactNotificationStatus.bst_date).label("month"),
             extract("year", FactNotificationStatus.bst_date).label("year"),
             func.sum(FactNotificationStatus.notification_count).label("count"),
+            func.sum(FactNotificationStatus.billable_units).label("billable_units"),
         )
         .join(Template, FactNotificationStatus.template_id == Template.id)
         .filter(
@@ -664,6 +684,7 @@ def fetch_monthly_template_usage_for_service(start_date, end_date, service_id):
                 extract("month", month).label("month"),
                 extract("year", month).label("year"),
                 func.count().label("count"),
+                func.sum(Notification.billable_units).label("billable_units")
             )
             .join(
                 Template,
@@ -694,6 +715,7 @@ def fetch_monthly_template_usage_for_service(start_date, end_date, service_id):
                 func.cast(all_stats_table.c.month, Integer).label("month"),
                 func.cast(all_stats_table.c.year, Integer).label("year"),
                 func.cast(func.sum(all_stats_table.c.count), Integer).label("count"),
+                func.cast(func.sum(all_stats_table.c.billable_units), Integer).label("billable_units"),
             )
             .group_by(
                 all_stats_table.c.template_id,
@@ -712,7 +734,10 @@ def fetch_monthly_template_usage_for_service(start_date, end_date, service_id):
 
 def get_total_sent_notifications_for_day_and_type(day, notification_type):
     result = (
-        db.session.query(func.sum(FactNotificationStatus.notification_count).label("count"))
+        db.session.query(
+            func.sum(FactNotificationStatus.notification_count).label("count"),
+            func.sum(FactNotificationStatus.billable_units).label("billable_units"),
+        )
         .filter(
             FactNotificationStatus.notification_type == notification_type,
             FactNotificationStatus.key_type != KEY_TYPE_TEST,
