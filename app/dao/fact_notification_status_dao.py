@@ -85,6 +85,7 @@ def query_for_fact_status_data(table, start_date, end_date, notification_type, s
             table.key_type,
             table.status,
             func.count().label("notification_count"),
+            func.sum(table.billable_units).label("billable_units"),
         )
         .filter(
             table.created_at >= start_date,
@@ -119,6 +120,7 @@ def update_fact_notification_status(data, process_day):
             key_type=row.key_type,
             notification_status=row.status,
             notification_count=row.notification_count,
+            billable_units=row.billable_units,
         )
         db.session.connection().execute(stmt)
         db.session.commit()

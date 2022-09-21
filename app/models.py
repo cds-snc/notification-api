@@ -2281,6 +2281,7 @@ class FactNotificationStatus(BaseModel):
     key_type = db.Column(db.Text, primary_key=True, nullable=False)
     notification_status = db.Column(db.Text, primary_key=True, nullable=False)
     notification_count = db.Column(db.Integer(), nullable=False)
+    billable_units = db.Column(db.Integer(), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
