@@ -38,7 +38,7 @@ def test_process_sns_results_delivered(sample_template, notify_db, notify_db_ses
     assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
     assert process_sns_results(sns_success_callback(reference="ref"))
     assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
-    assert get_notification_by_id(notification.id).provider_response is None
+    assert get_notification_by_id(notification.id).provider_response == "Message has been accepted by phone carrier"
 
     mock_logger.assert_called_once_with(f"SNS callback return status of delivered for notification: {notification.id}")
 
@@ -56,15 +56,15 @@ def test_process_sns_results_delivered(sample_template, notify_db, notify_db_ses
             "Phone carrier is currently unreachable/unavailable",
             NOTIFICATION_TEMPORARY_FAILURE,
             False,
-            False,
+            True,
         ),
         (
             "Phone is currently unreachable/unavailable",
             NOTIFICATION_PERMANENT_FAILURE,
             False,
-            False,
+            True,
         ),
-        ("This is not a real response", NOTIFICATION_TECHNICAL_FAILURE, True, False),
+        ("This is not a real response", NOTIFICATION_TECHNICAL_FAILURE, True, True),
     ],
 )
 def test_process_sns_results_failed(
@@ -195,7 +195,7 @@ def test_process_sns_results_calls_service_callback(sample_template, notify_db_s
 
         assert process_sns_results(sns_success_callback(reference="ref"))
         assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
-        assert get_notification_by_id(notification.id).provider_response is None
+        assert get_notification_by_id(notification.id).provider_response == "Message has been accepted by phone carrier"
         statsd_client.timing_with_dates.assert_any_call("callback.sns.elapsed-time", datetime.utcnow(), notification.sent_at)
         statsd_client.incr.assert_any_call("callback.sns.delivered")
         updated_notification = get_notification_by_id(notification.id)
