@@ -30,12 +30,10 @@ def process_sns_results(self, response):
         sns_status = sns_message["status"]
         provider_response = sns_message["delivery"]["providerResponse"]
 
-        try:
-            notification_status = determine_status(sns_status, provider_response)
-        except KeyError:
+        notification_status = determine_status(sns_status, provider_response)
+        if not notification_status:
             current_app.logger.warning(f"unhandled provider response for reference {reference}, received '{provider_response}'")
-            notification_status = NOTIFICATION_TECHNICAL_FAILURE
-            provider_response = None
+            notification_status = NOTIFICATION_TECHNICAL_FAILURE  # revert to tech failure by default
 
         try:
             notification = notifications_dao.dao_get_notification_by_reference(reference)
@@ -58,7 +56,7 @@ def process_sns_results(self, response):
         notifications_dao._update_notification_status(
             notification=notification,
             status=notification_status,
-            provider_response=provider_response if notification_status == NOTIFICATION_TECHNICAL_FAILURE else None,
+            provider_response=provider_response,
         )
 
         if notification_status != NOTIFICATION_DELIVERED:
@@ -104,9 +102,15 @@ def determine_status(sns_status, provider_response):
         "Phone has blocked SMS": NOTIFICATION_TECHNICAL_FAILURE,
         "Phone is on a blocked list": NOTIFICATION_TECHNICAL_FAILURE,
         "Phone is currently unreachable/unavailable": NOTIFICATION_PERMANENT_FAILURE,
-        "Phone number is opted out": NOTIFICATION_TECHNICAL_FAILURE,
+        "Phone number is opted out": NOTIFICATION_PERMANENT_FAILURE,
         "This delivery would exceed max price": NOTIFICATION_TECHNICAL_FAILURE,
         "Unknown error attempting to reach phone": NOTIFICATION_TECHNICAL_FAILURE,
     }
 
-    return reasons[provider_response]
+    status = reasons.get(provider_response)  # could be None
+    if not status:
+        # TODO: Pattern matching in Python 3.10 should simplify this overall function logic.
+        if "is opted out" in provider_response:
+            return NOTIFICATION_PERMANENT_FAILURE
+
+    return status
