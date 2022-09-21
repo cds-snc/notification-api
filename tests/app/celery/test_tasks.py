@@ -1037,6 +1037,7 @@ class TestSaveSmss:
             bytes(json.dumps(json_service_data, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
             False,
             False,
+            False,
         ]
         mocker.patch("app.notifications.process_notifications.choose_queue", return_value="sms_queue")
         save_smss(sample_template_with_placeholders.service_id, [signer.sign(notification)], uuid.uuid4())

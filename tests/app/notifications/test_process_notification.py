@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from unittest.mock import call
 
 import pytest
 from boto3.exceptions import Boto3Error
@@ -168,7 +169,6 @@ class TestPersistNotification:
         persisted_notification.job_id == sample_job.id
         assert persisted_notification.job_row_number == 10
         assert persisted_notification.created_at == created_at
-        mocked_redis.assert_called_once_with(str(sample_job.service_id) + "-2016-01-01-count")
         assert persisted_notification.client_reference == "ref from client"
         assert persisted_notification.reference is None
         assert persisted_notification.international is False
@@ -176,6 +176,11 @@ class TestPersistNotification:
         assert persisted_notification.rate_multiplier == 1
         assert persisted_notification.created_by_id == sample_job.created_by_id
         assert not persisted_notification.reply_to_text
+        assert mocked_redis.call_count == 2
+        assert mocked_redis.call_args_list == [
+            call(str(sample_job.service_id) + "-2016-01-01-count"),
+            call("sms-" + str(sample_job.service_id) + "-2016-01-01-count"),
+        ]
 
     @freeze_time("2016-01-01 11:09:00.061258")
     def test_persist_notifications_doesnt_touch_cache_for_old_keys_that_dont_exist(self, sample_template, sample_api_key, mocker):
@@ -947,8 +952,11 @@ class TestDBSaveAndSendNotification:
         assert notification_from_db.client_reference == notification.client_reference
         assert notification_from_db.created_by_id == notification.created_by_id
         assert notification_from_db.reply_to_text == sample_template.service.get_default_sms_sender()
-
-        mocked_redis.assert_called_once_with(str(sample_template.service_id) + "-2016-01-01-count")
+        assert mocked_redis.call_count == 2
+        assert mocked_redis.call_args_list == [
+            call(str(sample_template.service_id) + "-2016-01-01-count"),
+            call("sms-" + str(sample_template.service_id) + "-2016-01-01-count"),
+        ]
 
     @pytest.mark.parametrize(
         ("notification_type, key_type, reply_to_text, expected_queue, expected_task"),
