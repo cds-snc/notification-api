@@ -11,10 +11,17 @@ Other useful documentation:
     https://pyjwt.readthedocs.io/en/stable/usage.html
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm.html
     https://boto3.amazonaws.com/v1/documentation/api/latest/guide/error-handling.html
+    https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/acm.html#ACM.Client.export_certificate
 
 The execution role that imports the module is not the same execution role that executes
-the handler.  Make calls to SSM Parameter Store from within the handler to avoid a
-hard-to-identify permissions problem that results in the lambda call timing-out.
+the handler.  Make boto3 calls from within the handler to avoid a hard-to-identify
+permissions problem that results in the lambda call timing-out.
+
+The execution environment varies according to how this code is run.  During testing (local or via Github Action),
+the environment is a container with the full contents of the notification-api repository.  In an AWS deployment
+envronment, it is the Lambda execution environment, which should make certain files available in the /opt directory
+via lambda layers.
 """
 
 import boto3
@@ -25,17 +32,20 @@ import os
 import psycopg2
 import ssl
 import sys
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, ValidationError
 from cryptography.x509 import Certificate, load_pem_x509_certificate
 from http.client import HTTPSConnection
-from typing import Optional, Tuple
+from tempfile import NamedTemporaryFile
+
 
 logger = logging.getLogger("VAProfileOptInOut")
 logger.setLevel(logging.DEBUG)
 
+CERTIFICATE_ARN = os.getenv("CERTIFICATE_ARN")
 OPT_IN_OUT_QUERY = """SELECT va_profile_opt_in_out(%s, %s, %s, %s, %s);"""
 NOTIFY_ENVIRONMENT = os.getenv("NOTIFY_ENVIRONMENT")
-# TODO - Make this an SSM call.  Consolidate all parameter calls.
+PRIVATE_KEY_PATH = os.getenv("PRIVATE_KEY_PATH")
+# TODO - Make this an SSM call.
 SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI")
 VA_PROFILE_DOMAIN = os.getenv("VA_PROFILE_DOMAIN")
 VA_PROFILE_PATH_BASE = "/communication-hub/communication/v1/status/changelog/"
@@ -43,91 +53,81 @@ VA_PROFILE_PATH_BASE = "/communication-hub/communication/v1/status/changelog/"
 
 if NOTIFY_ENVIRONMENT is None:
     # Without this value, this code cannot know the path to the required
-    # SSM Parameter Store values.
-    sys.exit("NOTIFY_ENVIRONMENT is not set.  Cannot authenticate requests.")
+    # SSM Parameter Store values and other resources.
+    sys.exit("NOTIFY_ENVIRONMENT is not set.")
 
 
-# TODO - Make this an SSM call.
+if NOTIFY_ENVIRONMENT == "test":
+    jwt_certificate_path = "tests/lambda_functions/va_profile/cert.pem"
+elif NOTIFY_ENVIRONMENT == "prod":
+    jwt_certificate_path = "/opt/prod_jwt.pem"
+else:
+    jwt_certificate_path = "/opt/nonprod_jwt.pem"
+
+# Load the public certificate used to verify JWT signatures for POST requests.
+# In deployment environments, the certificate should be available via a lambda layer.
+try:
+    with open(jwt_certificate_path, "rb") as f:
+        va_profile_public_cert = load_pem_x509_certificate(f.read()).public_key()
+except (OSError, ValueError) as e:
+    logger.exception(e)
+    sys.exit("The JWT public certificate is missing or invalid.  Cannot authenticate POST requests.")
+
+
+# TODO - make SSM call; delete this block
 if SQLALCHEMY_DATABASE_URI is None:
     logger.error("SQLALCHEMY_DATABASE_URI is not set.")
     sys.exit("Couldn't connect to the database.")
 
 
-# This is a public certificate in .pem format.  Use it to verify the signature
-# on the JWT contained in POST requests from VA Profile.
-va_profile_public_cert = None
+# Making PUT requests requires presenting client certificates for mTLS.  These are used programmatically via ssl.SSLContext.
+# The certificates are not necessary for testing, wherein the PUT request is mocked.
+ssl_context = None
 
-# This is the VA root chain used to verify the certiicate VA Profile uses for 2-way TLS when
-# this code makes a PUT request to a VA Profile endpoint.
-va_root_pem = None
-
-# Only make one request to SSM Parameter Store.  The above two variables are module-level
-# so a new request doesn't need to be made for each HTTP request received during the
-# life of the execution environment.
-requested_certificates = False
-
-
-def get_certificates_from_ssm() -> Tuple[Optional[Certificate], Optional[Certificate]]:
-    """
-    Query AWS SSM Parameter Store to get the VA Profile public certificate and the VA root
-    certificate chain.
-    """
-
-    assert not requested_certificates, "Don't call this function more than once."
-
-    PROFILE_CERT_NAME = f"/{NOTIFY_ENVIRONMENT}/notification-api/va-profile/va-profile-public-pem"
-    VA_CERT_NAME = f"/{NOTIFY_ENVIRONMENT}/notification-api/va-profile/va-root-pem"
-
-    ssm_client = boto3.client("ssm")
-    logger.debug("Getting certificates from SSM Parameter Store . . .")
-
+if CERTIFICATE_ARN is None:
+    logger.error("CERTIFICATE_ARN is not set.")
+elif PRIVATE_KEY_PATH is None:
+    logger.error("PRIVATE_KEY_PATH is not set.")
+elif NOTIFY_ENVIRONMENT != "test":
     try:
-        response = ssm_client.get_parameters(
-            Names=[
-                PROFILE_CERT_NAME,
-                VA_CERT_NAME,
-            ],
+        # Get the client certificates from AWS ACM.
+        logger.debug("Making a request to ACM . . .")
+        acm_client = boto3.client("acm")
+        acm_response: dict = acm_client.get_certificate(CertificateArn=CERTIFICATE_ARN)
+        logger.debug(". . . Finished the request to ACM.")
+
+        # Get the private key from SSM Parameter Store.
+        # TODO - Get the database URI too.
+        logger.debug("Making a request to SSM Parameter Store . . .")
+        ssm_client = boto3.client("ssm")
+        ssm_response: dict = ssm_client.get_parameter(
+            Name=PRIVATE_KEY_PATH,
             WithDecryption=True
         )
-    except ClientError as e:
+        logger.debug(". . . Finished the request to SSM Parameter Store.")
+
+        with NamedTemporaryFile() as f:
+            f.write(acm_response["Certificate"].encode())
+            f.write(acm_response["CertificateChain"].encode())
+            f.write(ssm_response["Parameter"]["Value"].encode())
+            f.seek(0)
+
+            ssl_context = ssl.create_default_context(cadata=acm_response["CertificateChain"])
+            ssl_context.load_cert_chain(f.name)
+    except (OSError, ClientError, ssl.SSLError, ValidationError) as e:
         logger.exception(e)
-        return (None, None)
+        if isinstance(e, ssl.SSLError):
+            logger.error("The reason is: %s", e.reason)
+        ssl_context = None
 
-    logger.debug(". . . Retrieved certificates from SSM Parameter Store.")
-
-    invalid_parameters =  response.get("InvalidParameters", [])
-    if invalid_parameters:
-        logger.error("Couldn't get these parameters from SSM Parameter Store: %s", invalid_parameters)
-
-    profile_cert = None
-    va_cert = None
-
-    for parameter in response.get("Parameters", []):
-        name = parameter.get("Name", '')
-
-        if name == PROFILE_CERT_NAME:
-            if profile_cert is not None:
-                logger.warning("Parameter Store returned multiple values for %s.", name)
-
-            try:
-                # The call to str.encode converts the string to a bytes object.
-                profile_cert = load_pem_x509_certificate(parameter.get("Value", '').encode()).public_key()
-            except ValueError as e:
-                logger.exception(e)
-                logger.debug("Cannot get the Profile public certificate from:\n%s", parameter.get("Value", "the empty string"))
-        elif name == VA_CERT_NAME:
-            if va_cert is not None:
-                logger.warning("Parameter Store returned multiple values for %s.", name)
-            va_cert = parameter.get("Value")
-        elif not name:
-            logger.debug("Parameter Store returned a parameter without a name.")
-        else:
-            logger.debug("Parameter Store returned an unsolicited parameter: %s", name)
-
-    return (profile_cert, va_cert)
+should_make_put_request = NOTIFY_ENVIRONMENT == "test" or (VA_PROFILE_DOMAIN is not None and ssl_context is not None)
+if not should_make_put_request:
+    logger.error("Cannot make PUT requests.")
 
 
-def make_connection(worker_id):
+db_connection = None
+
+def make_database_connection(worker_id):
     """
     Return a connection to the database, or return None.
 
@@ -135,10 +135,10 @@ def make_connection(worker_id):
     https://www.psycopg.org/docs/module.html#exceptions
     """
 
-    logger.debug("Connecting to the database . . .")
     connection = None
 
     try:
+        logger.debug("Connecting to the database . . .")
         connection = psycopg2.connect(SQLALCHEMY_DATABASE_URI + ('' if worker_id is None else f"_{worker_id}"))
         logger.debug(". . . Connected to the database.")
     except psycopg2.Warning as e:
@@ -148,10 +148,6 @@ def make_connection(worker_id):
         logger.error(e.pgcode)
 
     return connection
-
-
-db_connection = None
-ssl_context = None
 
 
 def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -> dict:
@@ -185,22 +181,14 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
     """
 
     logger.debug("POST event: %s", event)
-    global requested_certificates, va_profile_public_cert, va_root_pem
-
-    if not requested_certificates:
-        va_profile_public_cert, va_root_pem = get_certificates_from_ssm()
-
-        if va_profile_public_cert is None:
-            sys.exit("Cannot verify JWT signatures on POST requests from VA Profile.")
-
-        requested_certificates = True
+    global va_profile_public_cert
 
     # Authenticate the request from VA Profile.
     headers = event.get("headers", {})
     if not jwt_is_valid(headers.get("Authorization", headers.get("authorization", '')), va_profile_public_cert):
         return { "statusCode": 401 }
 
-    post_body = event["body"]
+    post_body = event.get("body")
 
     if isinstance(post_body, (bytes, str)):
         try:
@@ -221,11 +209,10 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
         logger.warning("The POST request contains more than one update.  Only the first will be processed.")
 
     bio = post_body["bios"][0]
-
     put_body = {"dateTime": bio["sourceDate"]}
 
     if bio.get("txAuditId", '') != post_body["txAuditId"]:
-        if (va_root_pem is not None or NOTIFY_ENVIRONMENT == "test") and VA_PROFILE_DOMAIN is not None:
+        if should_make_put_request:
             put_body["status"] = "COMPLETED_FAILURE"
             put_body["messages"] = [{
                 "text": "The record's txAuditId, {}, does not match the event's txAuditId, {}.".format(bio.get("txAuditId", "<unknown>"), post_body["txAuditId"]),
@@ -238,7 +225,7 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
     # VA Profile filters on their end and should only sent us records that match a criteria.
     # communicationChannelId 1 signifies SMS; 2, e-mail.
     if bio.get("communicationItemId", -1) != 5 or bio.get("communicationChannelId", -1) != 1:
-        if (va_root_pem is not None or NOTIFY_ENVIRONMENT == "test") and VA_PROFILE_DOMAIN is not None:
+        if should_make_put_request:
             put_body["status"] = "COMPLETED_NOOP"
             make_PUT_request(post_body["txAuditId"], put_body)
         return post_response
@@ -256,7 +243,7 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
 
         if db_connection is None or db_connection.status != 0:
             # Attempt to (re-)establish a database connection.
-            db_connection = make_connection(worker_id)
+            db_connection = make_database_connection(worker_id)
 
         if db_connection is None:
             raise RuntimeError("No database connection.")
@@ -280,7 +267,7 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
         put_body["status"] = "COMPLETED_FAILURE"
         logger.exception(e)
     finally:
-        if (va_root_pem is not None or NOTIFY_ENVIRONMENT == "test") and VA_PROFILE_DOMAIN is not None:
+        if should_make_put_request:
             assert bool(put_body.get("status"))
             make_PUT_request(post_body["txAuditId"], put_body)
 
@@ -327,42 +314,33 @@ def jwt_is_valid(auth_header_value: str, public_key: Certificate) -> bool:
 
 
 def make_PUT_request(tx_audit_id: str, body: dict):
-    global ssl_context, va_root_pem
-    assert NOTIFY_ENVIRONMENT != "test", "Don't make PUT requests during unit testing."
+    global ssl_context
     assert isinstance(VA_PROFILE_DOMAIN, str), "What is the domain of the PUT request?"
-    assert va_root_pem is not None, "Can't verify the authenticity of the server."
     assert isinstance(tx_audit_id, str)
     logger.debug("PUT request body: %s", body)
 
     try:
-        if ssl_context is None:
-            # Use the VA root .pem to authenticate VA Profile's server.
-            ssl_context = ssl.create_default_context(cadata=va_root_pem)
+        # Make a PUT request to VA Profile.
+        https_connection = HTTPSConnection(VA_PROFILE_DOMAIN, context=ssl_context)
 
-        try:
-            # Make a PUT request to VA Profile.
-            https_connection = HTTPSConnection(VA_PROFILE_DOMAIN, context=ssl_context)
+        https_connection.request(
+            "PUT",
+            VA_PROFILE_PATH_BASE + tx_audit_id,
+            json.dumps(body),
+            { "Content-Type": "application/json" }
+        )
 
-            https_connection.request(
-                "PUT",
-                VA_PROFILE_PATH_BASE + tx_audit_id,
-                json.dumps(body),
-                { "Content-Type": "application/json" }
-            )
+        put_response = https_connection.getresponse()
 
-            put_response = https_connection.getresponse()
-
-            logger.info("VA Profile responded to the PUT request with HTTP status %d.", put_response.status)
-            if put_response.status != 200:
-                logger.debug(put_response)
-        except ConnectionError as e:
-            logger.error("The PUT request to VA Profile failed.")
-            logger.exception(e)
-        except Exception as e:
-            # TODO - Make this more specific.  Is it a timeout?
-            logger.error("The PUT request to VA Profile failed.")
-            logger.exception(e)
-        finally:
-            https_connection.close()
-    except ssl.SSLError as e:
+        logger.info("VA Profile responded to the PUT request with HTTP status %d.", put_response.status)
+        if put_response.status != 200:
+            logger.debug(put_response)
+    except ConnectionError as e:
+        logger.error("The PUT request to VA Profile failed.")
         logger.exception(e)
+    except Exception as e:
+        # TODO - Make this more specific.  Is it a timeout?
+        logger.error("The PUT request to VA Profile failed.")
+        logger.exception(e)
+    finally:
+        https_connection.close()
