@@ -198,18 +198,12 @@ def test_fetch_notification_status_for_service_for_day(notify_db_session):
     save_notification(create_notification(service_1.templates[0], created_at=datetime(2018, 6, 1, 22, 59, 0)))
     save_notification(
         create_notification(
-            service_1.templates[0],
-            created_at=datetime(2018, 6, 1, 12, 0, 0),
-            key_type=KEY_TYPE_TEAM,
-            billable_units=30
+            service_1.templates[0], created_at=datetime(2018, 6, 1, 12, 0, 0), key_type=KEY_TYPE_TEAM, billable_units=30
         )
     )
     save_notification(
         create_notification(
-            service_1.templates[0],
-            created_at=datetime(2018, 6, 1, 12, 0, 0),
-            status="delivered",
-            billable_units=10
+            service_1.templates[0], created_at=datetime(2018, 6, 1, 12, 0, 0), status="delivered", billable_units=10
         )
     )
 
@@ -372,7 +366,7 @@ def test_get_total_notifications_sent_for_api_key(notify_db_session):
         save_notification(create_notification(template=template_sms, api_key=api_key, billable_units=2))
 
     api_key_stats_3 = get_total_notifications_sent_for_api_key(str(api_key.id))
-    assert api_key_stats_3 == [(EMAIL_TYPE, total_sends, total_sends), (SMS_TYPE, total_sends, (total_sends*2))]
+    assert api_key_stats_3 == [(EMAIL_TYPE, total_sends, total_sends), (SMS_TYPE, total_sends, (total_sends * 2))]
 
 
 def test_get_last_send_for_api_key(notify_db_session):
@@ -492,9 +486,15 @@ def test_fetch_notification_status_totals_for_all_services_works_in_bst(
     sms_template = create_template(service=service_1, template_type=SMS_TYPE)
     email_template = create_template(service=service_1, template_type=EMAIL_TYPE)
 
-    save_notification(create_notification(sms_template, created_at=datetime(2018, 4, 20, 12, 0, 0), status="delivered", billable_units=10))
-    save_notification(create_notification(sms_template, created_at=datetime(2018, 4, 21, 11, 0, 0), status="created", billable_units=10))
-    save_notification(create_notification(sms_template, created_at=datetime(2018, 4, 21, 12, 0, 0), status="delivered", billable_units=10))
+    save_notification(
+        create_notification(sms_template, created_at=datetime(2018, 4, 20, 12, 0, 0), status="delivered", billable_units=10)
+    )
+    save_notification(
+        create_notification(sms_template, created_at=datetime(2018, 4, 21, 11, 0, 0), status="created", billable_units=10)
+    )
+    save_notification(
+        create_notification(sms_template, created_at=datetime(2018, 4, 21, 12, 0, 0), status="delivered", billable_units=10)
+    )
     save_notification(create_notification(email_template, created_at=datetime(2018, 4, 21, 13, 0, 0), status="delivered"))
     save_notification(create_notification(email_template, created_at=datetime(2018, 4, 21, 14, 0, 0), status="delivered"))
 
@@ -541,7 +541,9 @@ def set_up_data():
         )
     )
     save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 11, 0, 0)))
-    save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 12, 0, 0), status="delivered", billable_units=10))
+    save_notification(
+        create_notification(sms_template, created_at=datetime(2018, 10, 31, 12, 0, 0), status="delivered", billable_units=10)
+    )
     save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status="delivered"))
     return service_1, service_2
 
@@ -684,14 +686,14 @@ def test_fetch_delivered_notification_stats_by_month(sample_service):
         template=email_template,
         count=3,
     )
-   
+
     create_ft_notification_status(
         utc_date=date(2019, 12, 5),
         service=sample_service,
         template=sms_template,
         notification_status=NOTIFICATION_DELIVERED,
         count=6,
-        billable_units=12
+        billable_units=12,
     )
 
     create_ft_notification_status(

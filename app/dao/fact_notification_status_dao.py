@@ -231,7 +231,6 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
             Notification.status.label("notification_status"),
             func.count().label("count"),
             func.sum(Notification.billable_units).label("billable_units"),
-            
         )
         .filter(
             Notification.created_at >= get_local_timezone_midnight_in_utc(bst_day),
@@ -300,7 +299,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
     if by_template:
         query = query.filter(all_stats_table.c.template_id == Template.id)
 
-    data =  query.group_by(
+    data = query.group_by(
         *(
             [
                 Template.name,
@@ -313,7 +312,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
         all_stats_table.c.notification_type,
         all_stats_table.c.status,
     ).all()
-    
+
     return data
 
 
@@ -684,7 +683,7 @@ def fetch_monthly_template_usage_for_service(start_date, end_date, service_id):
                 extract("month", month).label("month"),
                 extract("year", month).label("year"),
                 func.count().label("count"),
-                func.sum(Notification.billable_units).label("billable_units")
+                func.sum(Notification.billable_units).label("billable_units"),
             )
             .join(
                 Template,
