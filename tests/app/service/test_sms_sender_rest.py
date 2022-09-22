@@ -2,7 +2,6 @@ import uuid
 from app.models import ServiceSmsSender, Service
 from datetime import datetime
 from flask import current_app
-from json import dumps
 from sqlalchemy.orm.exc import NoResultFound
 from tests.app.db import (
     create_inbound_number,
@@ -108,7 +107,7 @@ def test_update_service_sms_sender(admin_request, notify_db_session):
     assert response_json['sms_sender'] == 'second'
     assert not response_json['inbound_number_id']
     assert not response_json['is_default']
-    assert response_json["sms_sender_specifics"] == dumps(sender_specifics)
+    assert response_json["sms_sender_specifics"] == sender_specifics
 
 
 def test_update_service_sms_sender_does_not_allow_sender_update_for_inbound_number(admin_request, notify_db_session):
@@ -234,7 +233,7 @@ def test_get_service_sms_senders_for_service(admin_request, notify_db_session):
     assert response_json[0]['sms_sender'] == current_app.config['FROM_NUMBER']
     assert not response_json[1]['is_default']
     assert response_json[1]['sms_sender'] == 'second'
-    assert response_json[1]['sms_sender_specifics'] == dumps(sender_specifics)
+    assert response_json[1]['sms_sender_specifics'] == sender_specifics
 
 
 def test_get_service_sms_senders_for_service_returns_404_when_service_does_not_exist(admin_request, mocker):

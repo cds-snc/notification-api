@@ -12,18 +12,19 @@ class AwsSnsClient(SmsClient):
     '''
     AwsSns sms client
     '''
+    def __init__(self) -> None:
+        self.name = 'sns'
 
     def init_app(self, aws_region, statsd_client, logger, *args, **kwargs):
         self._client = boto3.client('sns', region_name=aws_region)
-        super(SmsClient, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.logger = logger
-        self.name = 'sns'
         self.statsd_client = statsd_client
 
     def get_name(self):
         return self.name
 
-    def send_sms(self, to, content, reference, multi=True, sender=None):
+    def send_sms(self, to, content, reference, multi=True, sender=None, **kwargs):
         try:
             start_time = monotonic()
             response = self._client.publish(

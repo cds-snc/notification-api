@@ -25,9 +25,9 @@ valid_get_with_optionals_json = {
 }
 
 
-@pytest.mark.parametrize("input", [valid_get_json, valid_get_with_optionals_json])
-def test_get_notifications_valid_json(input):
-    assert validate(input, get_notifications_request) == input
+@pytest.mark.parametrize("data", [valid_get_json, valid_get_with_optionals_json])
+def test_get_notifications_valid_json(data):
+    assert validate(data, get_notifications_request) == data
 
 
 @pytest.mark.parametrize('invalid_statuses, valid_statuses', [
@@ -109,6 +109,7 @@ valid_phone_number_json = {
     "phone_number": "6502532222",
     "template_id": str(uuid.uuid4())
 }
+
 valid_recipient_identifier_json = {
     "recipient_identifier": {
         "id_type": IdentifierType.VA_PROFILE_ID.value,
@@ -116,6 +117,7 @@ valid_recipient_identifier_json = {
     },
     "template_id": str(uuid.uuid4())
 }
+
 valid_phone_number_and_recipient_identifier_json = {
     "phone_number": "6502532222",
     "recipient_identifier": {
@@ -124,6 +126,7 @@ valid_phone_number_and_recipient_identifier_json = {
     },
     "template_id": str(uuid.uuid4())
 }
+
 valid_json_with_optionals = {
     "phone_number": "6502532222",
     "template_id": str(uuid.uuid4()),
@@ -133,21 +136,26 @@ valid_json_with_optionals = {
 }
 
 
-@pytest.mark.parametrize("input", [valid_phone_number_json, valid_recipient_identifier_json,
-                                   valid_phone_number_and_recipient_identifier_json, valid_json_with_optionals])
-def test_post_sms_schema_is_valid(input):
-    assert validate(input, post_sms_request_schema) == input
+@pytest.mark.parametrize("data", [
+    valid_phone_number_json,
+    valid_recipient_identifier_json,
+    valid_phone_number_and_recipient_identifier_json,
+    valid_json_with_optionals,
+])
+def test_post_sms_schema_is_valid(data):
+    assert validate(data, post_sms_request_schema) == data
 
 
-@pytest.mark.parametrize("template_id",
-                         ['2ebe4da8-17be-49fe-b02f-dff2760261a0' + "\n",
-                          '2ebe4da8-17be-49fe-b02f-dff2760261a0' + " ",
-                          '2ebe4da8-17be-49fe-b02f-dff2760261a0' + "\r",
-                          "\t" + '2ebe4da8-17be-49fe-b02f-dff2760261a0',
-                          '2ebe4da8-17be-49fe-b02f-dff2760261a0'[4:],
-                          "bad_uuid"
-                          ]
-                         )
+@pytest.mark.parametrize("template_id", [
+    "2ebe4da8-17be-49fe-b02f-dff2760261a0\n",
+    "2ebe4da8-17be-49fe-b02f-dff2760261a0 ",
+    "2ebe4da8-17be-49fe-b02f-dff2760261a0\r",
+    "\t2ebe4da8-17be-49fe-b02f-dff2760261a0",
+    "4da8-17be-49fe-b02f-dff2760261a0",
+    "bad_uuid",
+],
+    ids=["new line", "trailing space", "return", "tab indent", "too few chars", "string not uuid"]
+)
 def test_post_sms_json_schema_bad_uuid(template_id):
     j = {
         "template_id": template_id,
@@ -220,7 +228,7 @@ def test_post_sms_json_schema_bad_uuid_and_missing_phone_number_and_recipient_id
     assert error.get('status_code') == 400
     assert len(error.get('errors')) == 2
     assert {'error': 'ValidationError',
-            'message': "Please provide either a phone number or a recipient identifier"} in error['errors']
+            'message': "Please provide either a phone number or recipient identifier."} in error.get('errors')
     assert {'error': 'ValidationError',
             'message': "template_id is not a valid UUID"} in error['errors']
 
@@ -299,12 +307,14 @@ valid_post_email_json_with_optionals = {
 }
 
 
-@pytest.mark.parametrize("input", [valid_post_email_json,
-                                   valid_recipient_identifier_json,
-                                   valid_email_and_recipient_identifier_json,
-                                   valid_post_email_json_with_optionals])
-def test_post_email_schema_is_valid(input):
-    assert validate(input, post_email_request_schema) == input
+@pytest.mark.parametrize("data", [
+    valid_post_email_json,
+    valid_recipient_identifier_json,
+    valid_email_and_recipient_identifier_json,
+    valid_post_email_json_with_optionals,
+])
+def test_post_email_schema_is_valid(data):
+    assert validate(data, post_email_request_schema) == data
 
 
 def test_post_email_schema_bad_uuid_and_missing_email_address():

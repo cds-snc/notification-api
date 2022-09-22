@@ -82,34 +82,42 @@ def mock_deliver_sms(mocker):
 
 
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
-def test_post_sms_notification_returns_201(client, sample_template_with_placeholders, mock_deliver_sms, reference):
-    data = {
-        'phone_number': '+16502532222',
+@pytest.mark.parametrize("data", [
+    {"phone_number": "+16502532222"},
+    # TODO - Testing recipient_identifier requires an active feature flag that is not
+    # active in the testing environment.
+    # {"recipient_identifier": {"id_type": IdentifierType.VA_PROFILE_ID.value, "id_value": "bar"}},
+])
+def test_post_sms_notification_returns_201(client, sample_template_with_placeholders,
+                                           mock_deliver_sms, reference, data):
+    data.update({
         'template_id': str(sample_template_with_placeholders.id),
         'personalisation': {' Name': 'Jo'}
-    }
-    if reference:
-        data.update({"reference": reference})
+    })
+    if reference is not None:
+        data["reference"] = reference
 
     response = post_send_notification(client, sample_template_with_placeholders.service, 'sms', data)
+
     assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
+    resp_json = response.get_json()
     assert validate(resp_json, post_sms_response) == resp_json
+
     notifications = Notification.query.all()
     assert len(notifications) == 1
     assert notifications[0].status == NOTIFICATION_CREATED
-    notification_id = notifications[0].id
     assert notifications[0].postage is None
-    assert resp_json['id'] == str(notification_id)
+    assert resp_json['id'] == str(notifications[0].id)
     assert resp_json['reference'] == reference
     assert resp_json['content']['body'] == sample_template_with_placeholders.content.replace("(( Name))", "Jo")
     assert resp_json['content']['from_number'] == current_app.config['FROM_NUMBER']
-    assert 'v2/notifications/{}'.format(notification_id) in resp_json['uri']
+    assert f"v2/notifications/{notifications[0].id}" in resp_json["uri"]
     assert resp_json['template']['id'] == str(sample_template_with_placeholders.id)
     assert resp_json['template']['version'] == sample_template_with_placeholders.version
-    assert 'services/{}/templates/{}'.format(sample_template_with_placeholders.service_id,
-                                             sample_template_with_placeholders.id) \
-           in resp_json['template']['uri']
+    assert 'services/{}/templates/{}'.format(
+        sample_template_with_placeholders.service_id,
+        sample_template_with_placeholders.id
+    ) in resp_json['template']['uri']
     assert not resp_json["scheduled_for"]
     assert mock_deliver_sms.called
 
@@ -205,7 +213,7 @@ def test_post_sms_notification_uses_sms_sender_id_reply_to(
 ):
     sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender='6502532222')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
-    mocker.patch('app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number')
+    mocker.patch('app.notifications.process_notifications.dao_get_service_sms_sender_by_service_id_and_number')
     data = {
         'phone_number': '+16502532222',
         'template_id': str(sample_template_with_placeholders.id),
@@ -612,11 +620,19 @@ def test_post_sms_notification_returns_400_if_number_not_whitelisted(
     ]
 
 
-def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms(
+def test_post_sms_notification_returns_201_if_allowed_to_send_international_sms(
         sample_service,
         sample_template,
         client
 ):
+    """
+    Ensure that SMS messages can be sent to phones outside the United States.
+
+    This is only testing that this application's code doesn't reject a foreign
+    number.  Actual delivery depends on the capabilities of the 3rd party SMS
+    backend (i.e. Twilio, etc.).
+    """
+
     data = {
         'phone_number': '+20-12-1234-1234',
         'template_id': sample_template.id

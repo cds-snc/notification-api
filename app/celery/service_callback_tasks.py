@@ -16,7 +16,7 @@ from app.dao.service_callback_api_dao import (
     get_service_complaint_callback_api_for_service,
     get_service_inbound_sms_callback_api_for_service, get_service_callback
 )
-from app.dao.service_sms_sender_dao import dao_get_sms_sender_by_service_id_and_number
+from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_service_id_and_number
 from app.models import Complaint, Notification
 
 
@@ -148,7 +148,10 @@ def send_inbound_sms_to_service(self, inbound_sms_id, service_id):
         return
 
     inbound_sms = dao_get_inbound_sms_by_id(service_id=service_id, inbound_id=inbound_sms_id)
-    sms_sender = dao_get_sms_sender_by_service_id_and_number(service_id=service_id, number=inbound_sms.notify_number)
+    sms_sender = dao_get_service_sms_sender_by_service_id_and_number(
+        service_id=service_id,
+        number=inbound_sms.notify_number
+    )
 
     payload = {
         "id": str(inbound_sms.id),

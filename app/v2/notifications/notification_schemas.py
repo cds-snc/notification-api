@@ -127,25 +127,29 @@ get_notifications_response = {
 
 }
 
-recipient_identifier = {"type": "object", "properties": {
-    "id_type": {
-        "type": "string",
-        "enum": IdentifierType.values()
+recipient_identifier = {
+    "type": "object",
+    "properties": {
+        "id_type": {
+            "type": "string",
+            "enum": IdentifierType.values()
+        },
+        "id_value": {"type": "string"},
     },
-    "id_value": {
-        "type": "string"
-    }
-}, "required": ["id_type", "id_value"]}
+    "required": ["id_type", "id_value"],
+}
 
-ICN_recipient_identifier = {"type": "object", "properties": {
-    "id_type": {
-        "type": "string",
-        "enum": [IdentifierType.ICN.value]
+ICN_recipient_identifier = {
+    "type": "object",
+    "properties": {
+        "id_type": {
+            "type": "string",
+            "enum": [IdentifierType.ICN.value]
+        },
+        "id_value": {"type": "string"},
     },
-    "id_value": {
-        "type": "string"
-    }
-}, "required": ["id_type", "id_value"]}
+    "required": ["id_type", "id_value"],
+}
 
 post_sms_request = {
     "$schema": "http://json-schema.org/draft-04/schema#",
@@ -154,22 +158,27 @@ post_sms_request = {
     "title": "POST v2/notifications/sms",
     "properties": {
         "reference": {"type": "string"},
+        # This is the recipient's phone number.
         "phone_number": {"type": "string", "format": "phone_number"},
+        # This can be used to look up the recipient's phone number.
         "recipient_identifier": recipient_identifier,
+        # The template contains the sender's phone number.
         "template_id": uuid,
         "personalisation": personalisation,
         "scheduled_for": {"type": ["string", "null"], "format": "datetime_within_next_day"},
         "sms_sender_id": uuid,
         "billing_code": {"type": ["string", "null"], "maxLength": 256},
     },
+    # This is necessary to get the content of the message and who it's from.
     "required": ["template_id"],
+    # These attributes define who will receive the message.
     "anyOf": [
         {"required": ["phone_number"]},
         {"required": ["recipient_identifier"]}
     ],
     "additionalProperties": False,
     "validationMessage": {
-        "anyOf": "Please provide either a phone number or a recipient identifier"
+        "anyOf": "Please provide either a phone number or recipient identifier."
     }
 }
 

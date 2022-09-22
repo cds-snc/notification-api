@@ -38,10 +38,6 @@
         {
           "name": "TWILIO_AUTH_TOKEN",
           "value": "fake"
-        },
-        {
-          "name": "TWILIO_FROM_NUMBER",
-          "value": "fake"
         }
       ],
       "secrets": [

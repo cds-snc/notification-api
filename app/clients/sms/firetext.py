@@ -40,13 +40,14 @@ class FiretextClient(SmsClient):
     '''
     FireText sms client.
     '''
+    def __init__(self) -> None:
+        self.name = 'firetext'
 
     def init_app(self, current_app, statsd_client, *args, **kwargs):
-        super(SmsClient, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.current_app = current_app
         self.api_key = current_app.config.get('FIRETEXT_API_KEY')
         self.from_number = current_app.config.get('FROM_NUMBER')
-        self.name = 'firetext'
         self.url = current_app.config.get('FIRETEXT_URL')
         self.statsd_client = statsd_client
 
@@ -70,7 +71,7 @@ class FiretextClient(SmsClient):
             self.statsd_client.incr("clients.firetext.error")
             self.current_app.logger.error(log_message)
 
-    def send_sms(self, to, content, reference, sender=None):
+    def send_sms(self, to, content, reference, sender=None, **kwargs):
 
         data = {
             "apiKey": self.api_key,

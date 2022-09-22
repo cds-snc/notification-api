@@ -9,7 +9,6 @@ services:
     environment:
       - TWILIO_ACCOUNT_SID=
       - TWILIO_AUTH_TOKEN=
-      - TWILIO_FROM_NUMBER=0123456789
       - SQLALCHEMY_DATABASE_URI=postgresql://postgres:LocalPassword@db:5432/notification_api
       - NOTIFY_ENVIRONMENT=development
       - FLASK_APP=application.py
@@ -30,7 +29,6 @@ services:
     environment:
       - TWILIO_ACCOUNT_SID=
       - TWILIO_AUTH_TOKEN=
-      - TWILIO_FROM_NUMBER=0123456789
       - SQLALCHEMY_DATABASE_URI=postgresql://postgres:LocalPassword@db:5432/notification_api
       - NOTIFY_ENVIRONMENT=development
       - FLASK_APP=application.py

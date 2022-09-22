@@ -209,10 +209,6 @@
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/twilio/auth-token"
         },
         {
-          "name": "TWILIO_FROM_NUMBER",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/twilio/from-number"
-        },
-        {
           "name": "GRANICUS_TOKEN",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/granicus/token"
         },

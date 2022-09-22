@@ -38,7 +38,9 @@ def dao_get_sms_senders_by_service_id(service_id):
     ).order_by(desc(ServiceSmsSender.is_default)).all()
 
 
-def dao_get_sms_sender_by_service_id_and_number(service_id: str, number: str) -> Optional[ServiceSmsSender]:
+def dao_get_service_sms_sender_by_service_id_and_number(service_id: str, number: str) -> Optional[ServiceSmsSender]:
+    """ Return an instance of ServiceSmsSender, if available. """
+
     return ServiceSmsSender.query.filter_by(
         service_id=service_id,
         sms_sender=number,

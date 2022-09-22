@@ -14,7 +14,6 @@ from app.history_meta import Versioned
 from app.model import User, EMAIL_AUTH_TYPE
 from app.va.identifier import IdentifierType
 from flask import url_for, current_app
-from json import dumps
 from notifications_utils.columns import Columns
 from notifications_utils.letter_timings import get_letter_timings
 from notifications_utils.recipients import (
@@ -563,7 +562,7 @@ class ServiceSmsSender(db.Model):
             "updated_at": self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None,
             "rate_limit": self.rate_limit if self.rate_limit else None,
             "rate_limit_interval": self.rate_limit_interval if self.rate_limit_interval else None,
-            "sms_sender_specifics": dumps(self.sms_sender_specifics),
+            "sms_sender_specifics": self.sms_sender_specifics,
         }
 
 

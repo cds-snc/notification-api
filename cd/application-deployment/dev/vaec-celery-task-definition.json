@@ -227,10 +227,6 @@
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/twilio/auth-token"
         },
         {
-          "name": "TWILIO_FROM_NUMBER",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/twilio/from-number"
-        },
-        {
           "name": "VANOTIFY_SSL_CERT",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/cert/vanotify-va-cert"
         },

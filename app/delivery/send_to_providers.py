@@ -43,51 +43,64 @@ from app.models import (
 from app.service.utils import compute_source_email_address
 
 
-def send_sms_to_provider(notification):
+def send_sms_to_provider(notification, sms_sender_id=None):
+    """
+    Send an HTTP request to an SMS backend provider to initiate an SMS message to a veteran.
+
+    When the backend provider has sms_sender_specifics, use messaging_service_sid, if available, for the sender's
+    identity instead of the sender's phone number.
+    """
+
     service = notification.service
 
     if not service.active:
+        # always raises NotificationTechnicalFailureException
         technical_failure(notification=notification)
+
+    if notification.status != "created":
         return
 
-    if notification.status == 'created':
-        provider = provider_to_use(notification)
+    # This is an instance of one of the classes defined in app/clients/.
+    provider = provider_to_use(notification)
 
-        template_model = dao_get_template_by_id(notification.template_id, notification.template_version)
+    template_model = dao_get_template_by_id(notification.template_id, notification.template_version)
 
-        template = SMSMessageTemplate(
-            template_model.__dict__,
-            values=notification.personalisation,
-            prefix=service.name,
-            show_prefix=service.prefix_sms,
-        )
+    template = SMSMessageTemplate(
+        template_model.__dict__,
+        values=notification.personalisation,
+        prefix=service.name,
+        show_prefix=service.prefix_sms,
+    )
 
-        if service.research_mode or notification.key_type == KEY_TYPE_TEST:
-            notification.reference = create_uuid()
-            update_notification_to_sending(notification, provider)
-            send_sms_response(provider.get_name(), str(notification.id), notification.to, notification.reference)
+    if service.research_mode or notification.key_type == KEY_TYPE_TEST:
+        notification.reference = create_uuid()
+        update_notification_to_sending(notification, provider)
+        send_sms_response(provider.get_name(), str(notification.id), notification.to, notification.reference)
 
-        else:
-            try:
-                reference = provider.send_sms(
-                    to=validate_and_format_phone_number(notification.to, international=notification.international),
-                    content=str(template),
-                    reference=str(notification.id),
-                    sender=notification.reply_to_text
-                )
-            except Exception as e:
-                notification.billable_units = template.fragment_count
-                dao_update_notification(notification)
-                dao_toggle_sms_provider(provider.name)
-                raise e
-            else:
-                notification.billable_units = template.fragment_count
-                notification.reference = reference
-                update_notification_to_sending(notification, provider)
-                current_app.logger.info(f"Saved provider reference: {reference} for notification id: {notification.id}")
+    else:
+        try:
+            # Send a SMS message using the "to" attribute to specify the recipient.
+            reference = provider.send_sms(
+                to=validate_and_format_phone_number(notification.to, international=notification.international),
+                content=str(template),
+                reference=str(notification.id),
+                sender=notification.reply_to_text,
+                service_id=notification.service_id,
+                sms_sender_id=sms_sender_id,
+            )
+        except Exception as e:
+            notification.billable_units = template.fragment_count
+            dao_update_notification(notification)
+            dao_toggle_sms_provider(provider.name)
+            raise e
 
-        delta_milliseconds = (datetime.utcnow() - notification.created_at).total_seconds() * 1000
-        statsd_client.timing("sms.total-time", delta_milliseconds)
+        notification.billable_units = template.fragment_count
+        notification.reference = reference
+        update_notification_to_sending(notification, provider)
+        current_app.logger.info(f"Saved provider reference: {reference} for notification id: {notification.id}")
+
+    delta_milliseconds = (datetime.utcnow() - notification.created_at).total_seconds() * 1000
+    statsd_client.timing("sms.total-time", delta_milliseconds)
 
 
 def send_email_to_provider(notification):
@@ -203,6 +216,7 @@ def provider_to_use(notification: Notification):
                 notification.notification_type
             )
 
+    # This is a list of ProviderDetails instances sorted by their "priority" attribute.
     active_providers_in_order = [
         p for p in get_provider_details_by_notification_type(notification.notification_type, notification.international)
         if should_use_provider(p)
@@ -210,10 +224,11 @@ def provider_to_use(notification: Notification):
 
     if not active_providers_in_order:
         current_app.logger.error(
-            "{} {} failed as no active providers".format(notification.notification_type, notification.id)
+            f"{notification.notification_type} {notification.id} failed as no active providers"
         )
-        raise Exception("No active {} providers".format(notification.notification_type))
+        raise Exception(f"No active {notification.notification_type} providers")
 
+    # This returns an instance of one of the classes defined in app/clients/.
     return clients.get_client_by_name_and_type(active_providers_in_order[0].identifier, notification.notification_type)
 
 

@@ -43,6 +43,4 @@ def is_gapixel_enabled(current_app):
 
 
 def is_feature_enabled(feature_flag):
-    if isinstance(feature_flag, FeatureFlag):
-        return os.getenv(feature_flag.value, 'False') == 'True'
-    return False
+    return isinstance(feature_flag, FeatureFlag) and os.getenv(feature_flag.value, 'False') == 'True'

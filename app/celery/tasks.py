@@ -36,7 +36,10 @@ from app.dao.notifications_dao import (
 )
 from app.dao.provider_details_dao import get_current_provider
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
-from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id, dao_get_sms_sender_by_service_id_and_number
+from app.dao.service_sms_sender_dao import (
+    dao_get_service_sms_sender_by_id,
+    dao_get_service_sms_sender_by_service_id_and_number,
+)
 from app.dao.services_dao import dao_fetch_service_by_id, fetch_todays_total_message_count
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import DVLAException, NotificationTechnicalFailureException
@@ -210,8 +213,8 @@ def save_sms(self,
             reply_to_text=reply_to_text
         )
 
-        sms_sender = dao_get_sms_sender_by_service_id_and_number(notification.get(service_id),
-                                                                 notification.get(reply_to_text))
+        sms_sender = dao_get_service_sms_sender_by_service_id_and_number(notification.get(service_id),
+                                                                         notification.get(reply_to_text))
 
         if is_feature_enabled(FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED) and sms_sender and sms_sender.rate_limit:
             provider_tasks.deliver_sms_with_rate_limiting.apply_async(

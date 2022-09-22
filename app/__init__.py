@@ -55,8 +55,7 @@ govdelivery_client = GovdeliveryClient()
 aws_sns_client = AwsSnsClient()
 twilio_sms_client = TwilioSMSClient(
     account_sid=os.getenv('TWILIO_ACCOUNT_SID'),
-    auth_token=os.getenv('TWILIO_AUTH_TOKEN'),
-    from_number=os.getenv('TWILIO_FROM_NUMBER'),
+    auth_token=os.getenv('TWILIO_AUTH_TOKEN')
 )
 aws_pinpoint_client = AwsPinpointClient()
 sqs_client = SQSClient()

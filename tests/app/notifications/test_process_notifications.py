@@ -252,23 +252,24 @@ def test_persist_notification_increments_cache_if_key_exists(sample_template, sa
     mock_incr.assert_called_once_with(str(sample_template.service_id) + "-2016-01-01-count", )
 
 
-@pytest.mark.parametrize((
-    'research_mode, requested_queue, notification_type, key_type, expected_queue, expected_tasks'
-), [
-    (True, None, 'sms', 'normal', 'research-mode-tasks', [deliver_sms]),
-    (True, None, 'email', 'normal', 'research-mode-tasks', [deliver_email]),
-    (True, None, 'email', 'team', 'research-mode-tasks', [deliver_email]),
-    (True, None, 'letter', 'normal', 'research-mode-tasks', [letters_pdf_tasks.create_letters_pdf]),
-    (False, None, 'sms', 'normal', 'send-sms-tasks', [deliver_sms]),
-    (False, None, 'email', 'normal', 'send-email-tasks', [deliver_email]),
-    (False, None, 'sms', 'team', 'send-sms-tasks', [deliver_sms]),
-    (False, None, 'letter', 'normal', 'create-letters-pdf-tasks', [letters_pdf_tasks.create_letters_pdf]),
-    (False, None, 'sms', 'test', 'research-mode-tasks', [deliver_sms]),
-    (True, 'notify-internal-tasks', 'email', 'normal', 'research-mode-tasks', [deliver_email]),
-    (False, 'notify-internal-tasks', 'sms', 'normal', 'notify-internal-tasks', [deliver_sms]),
-    (False, 'notify-internal-tasks', 'email', 'normal', 'notify-internal-tasks', [deliver_email]),
-    (False, 'notify-internal-tasks', 'sms', 'test', 'research-mode-tasks', [deliver_sms]),
-])
+@pytest.mark.parametrize(
+    "research_mode, requested_queue, notification_type, key_type, expected_queue, expected_tasks",
+    [
+        (True, None, 'sms', 'normal', 'research-mode-tasks', [deliver_sms]),
+        (True, None, 'email', 'normal', 'research-mode-tasks', [deliver_email]),
+        (True, None, 'email', 'team', 'research-mode-tasks', [deliver_email]),
+        (True, None, 'letter', 'normal', 'research-mode-tasks', [letters_pdf_tasks.create_letters_pdf]),
+        (False, None, 'sms', 'normal', 'send-sms-tasks', [deliver_sms]),
+        (False, None, 'email', 'normal', 'send-email-tasks', [deliver_email]),
+        (False, None, 'sms', 'team', 'send-sms-tasks', [deliver_sms]),
+        (False, None, 'letter', 'normal', 'create-letters-pdf-tasks', [letters_pdf_tasks.create_letters_pdf]),
+        (False, None, 'sms', 'test', 'research-mode-tasks', [deliver_sms]),
+        (True, 'notify-internal-tasks', 'email', 'normal', 'research-mode-tasks', [deliver_email]),
+        (False, 'notify-internal-tasks', 'sms', 'normal', 'notify-internal-tasks', [deliver_sms]),
+        (False, 'notify-internal-tasks', 'email', 'normal', 'notify-internal-tasks', [deliver_email]),
+        (False, 'notify-internal-tasks', 'sms', 'test', 'research-mode-tasks', [deliver_sms]),
+    ]
+)
 def test_send_notification_to_queue_with_no_recipient_identifiers(
     notify_db,
     notify_db_session,
@@ -295,7 +296,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
     ])
 
     mocker.patch(
-        'app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number',
+        'app.notifications.process_notifications.dao_get_service_sms_sender_by_service_id_and_number',
         return_value=None
     )
 
@@ -500,7 +501,7 @@ def test_send_notification_to_queue_with_recipient_identifiers(
     MockSmsSender = namedtuple('ServiceSmsSender', ['service_id', 'sms_sender', 'rate_limit'])
     sms_sender = MockSmsSender(service_id=service.id, sms_sender='+18888888888', rate_limit=None)
 
-    mocker.patch('app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number',
+    mocker.patch('app.notifications.process_notifications.dao_get_service_sms_sender_by_service_id_and_number',
                  return_value=sms_sender)
 
     TestNotification = namedtuple(
@@ -550,7 +551,7 @@ def test_send_notification_to_queue_throws_exception_deletes_notification(sample
         return_value=False
     )
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain', side_effect=Boto3Error("EXPECTED"))
-    mocker.patch('app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number')
+    mocker.patch('app.notifications.process_notifications.dao_get_service_sms_sender_by_service_id_and_number')
     with pytest.raises(Boto3Error):
         send_notification_to_queue(sample_notification, False)
     args, _ = mocked_chain.call_args
@@ -959,7 +960,7 @@ def test_send_notification_with_sms_sender_rate_limit_uses_rate_limit_delivery_t
     template = MockTemplate(communication_item_id=1)
 
     mocker.patch(
-        'app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number',
+        'app.notifications.process_notifications.dao_get_service_sms_sender_by_service_id_and_number',
         return_value=sms_sender
     )
 
@@ -995,7 +996,7 @@ def test_send_notification_without_sms_sender_rate_limit_uses_regular_delivery_t
     sms_sender = MockSmsSender(service_id=service.id, sms_sender='+18888888888', rate_limit=None)
 
     mocker.patch(
-        'app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number',
+        'app.notifications.process_notifications.dao_get_service_sms_sender_by_service_id_and_number',
         return_value=sms_sender
     )
 

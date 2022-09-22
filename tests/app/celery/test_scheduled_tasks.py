@@ -170,7 +170,7 @@ def test_switch_providers_on_slow_delivery_does_nothing_if_toggle_is_off(
 def test_should_send_all_scheduled_notifications_to_deliver_queue(sample_template, mocker):
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     mock_sms_sender = mocker.patch('app.notifications.process_notifications.'
-                                   'dao_get_sms_sender_by_service_id_and_number')
+                                   'dao_get_service_sms_sender_by_service_id_and_number')
     mock_sms_sender.rate_limit = mocker.Mock()
     message_to_deliver = create_notification(template=sample_template, scheduled_for="2017-05-01 13:15")
     create_notification(template=sample_template, scheduled_for="2017-05-01 10:15", status='delivered')
@@ -339,7 +339,7 @@ def test_replay_created_notifications(
     mock_sms_sender = mocker.Mock()
     mock_sms_sender.rate_limit = 1
 
-    mocker.patch('app.notifications.process_notifications.dao_get_sms_sender_by_service_id_and_number',
+    mocker.patch('app.notifications.process_notifications.dao_get_service_sms_sender_by_service_id_and_number',
                  return_value=mock_sms_sender)
 
     replay_created_notifications()

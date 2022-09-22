@@ -36,7 +36,8 @@ from app.notifications.process_notifications import (
     persist_notification,
     persist_scheduled_notification,
     send_notification_to_queue,
-    simulated_recipient, send_to_queue_for_recipient_info_based_on_recipient_identifier
+    simulated_recipient,
+    send_to_queue_for_recipient_info_based_on_recipient_identifier,
 )
 from app.notifications.validators import (
     validate_and_format_recipient,
@@ -63,6 +64,9 @@ from app.v2.notifications.notification_schemas import (
 )
 
 
+# FIXME: POST requests to /v2/notifications/letter match this route and the
+# route hooked to the post_notification function below.  Proper execution
+# seems to depend on the order of the code (top-to-bottom route matching).
 @v2_notification_blueprint.route('/{}'.format(LETTER_TYPE), methods=['POST'])
 def post_precompiled_letter_notification():
     if 'content' not in (request.get_json() or {}):
@@ -105,8 +109,7 @@ def post_notification(notification_type):
     try:
         request_json = request.get_json()
     except werkzeug.exceptions.BadRequest as e:
-        raise BadRequestError(message="Error decoding arguments: {}".format(e.description),
-                              status_code=400)
+        raise BadRequestError(message=f"Error decoding arguments: {e.description}", status_code=400)
 
     if notification_type == EMAIL_TYPE:
         form = validate(request_json, post_email_request)
@@ -119,7 +122,7 @@ def post_notification(notification_type):
 
     check_service_has_permission(notification_type, authenticated_service.permissions)
 
-    scheduled_for = form.get("scheduled_for", None)
+    scheduled_for = form.get("scheduled_for")
 
     check_service_can_schedule_notification(authenticated_service.permissions, scheduled_for)
 
@@ -144,14 +147,14 @@ def post_notification(notification_type):
             reply_to_text=reply_to
         )
     else:
-        if 'email_address' in form or 'phone_number' in form:
+        if "email_address" in form or "phone_number" in form:
             notification = process_sms_or_email_notification(
                 form=form,
                 notification_type=notification_type,
                 api_key=api_user,
                 template=template,
                 service=authenticated_service,
-                reply_to_text=reply_to,
+                reply_to_text=reply_to
             )
         else:
             if accept_recipient_identifiers_enabled():
@@ -162,7 +165,7 @@ def post_notification(notification_type):
                     template=template,
                     service=authenticated_service,
                     reply_to_text=reply_to,
-                    onsite_enabled=onsite_enabled,
+                    onsite_enabled=onsite_enabled
                 )
             else:
                 current_app.logger.debug("Sending a notification without contact information is not implemented.")
@@ -197,17 +200,25 @@ def post_notification(notification_type):
 
 
 def process_sms_or_email_notification(*, form, notification_type, api_key, template, service, reply_to_text=None):
-    form_send_to = form['email_address'] if notification_type == EMAIL_TYPE else form['phone_number']
-    send_to = validate_and_format_recipient(send_to=form_send_to,
-                                            key_type=api_key.key_type,
-                                            service=service,
-                                            notification_type=notification_type)
-    # Do not persist or send notification to the queue if it is a simulated recipient
-    simulated = simulated_recipient(send_to, notification_type)
+    form_send_to = form["email_address" if (notification_type == EMAIL_TYPE) else "phone_number"]
+
+    send_to = validate_and_format_recipient(
+        send_to=form_send_to,
+        key_type=api_key.key_type,
+        service=service,
+        notification_type=notification_type
+    )
+
+    # Do not persist or send notification to the queue if it is a simulated recipient.
+    #
+    # TODO (tech debt) - This value is computed using a predetermined list of e-mail addresses defined
+    # to be for simulation.  A better approach might be to pass "simulated" as a parameter to
+    # process_sms_or_email_notification or to mock the undesired side-effects in test code.
+    simulated: bool = simulated_recipient(send_to, notification_type)
 
     personalisation = process_document_uploads(form.get('personalisation'), service, simulated=simulated)
 
-    recipient_identifier = form.get('recipient_identifier', None)
+    recipient_identifier = form.get("recipient_identifier")
 
     notification = persist_notification(
         template_id=template.id,
@@ -218,15 +229,14 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         notification_type=notification_type,
         api_key_id=api_key.id,
         key_type=api_key.key_type,
-        client_reference=form.get('reference', None),
+        client_reference=form.get("reference"),
         simulated=simulated,
         reply_to_text=reply_to_text,
         recipient_identifier=recipient_identifier,
-        billing_code=form.get('billing_code', None)
+        billing_code=form.get("billing_code")
     )
 
-    scheduled_for = form.get("scheduled_for", None)
-    if scheduled_for:
+    if "scheduled_for" in form:
         persist_scheduled_notification(notification.id, form["scheduled_for"])
     else:
         if simulated:
@@ -239,6 +249,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
                 research_mode=service.research_mode,
                 queue=queue_name,
                 recipient_id_type=recipient_id_type,
+                sms_sender_id=form.get("sms_sender_id")
             )
 
     return notification
@@ -256,10 +267,10 @@ def process_notification_with_recipient_identifier(*, form, notification_type, a
         notification_type=notification_type,
         api_key_id=api_key.id,
         key_type=api_key.key_type,
-        client_reference=form.get('reference', None),
+        client_reference=form.get("reference"),
         reply_to_text=reply_to_text,
-        recipient_identifier=form.get('recipient_identifier', None),
-        billing_code=form.get('billing_code', None)
+        recipient_identifier=form.get("recipient_identifier"),
+        billing_code=form.get("billing_code")
     )
 
     send_to_queue_for_recipient_info_based_on_recipient_identifier(
@@ -401,18 +412,16 @@ def get_reply_to_text(notification_type, form, template):
         if template.reply_to_email is not None:
             reply_to = template.reply_to_email
         else:
-            service_email_reply_to_id = form.get("email_reply_to_id", None)
-            if service_email_reply_to_id is not None:
+            if "email_reply_to_id" in form:
                 reply_to = check_service_email_reply_to_id(
-                    str(authenticated_service.id), service_email_reply_to_id, notification_type
+                    str(authenticated_service.id), form["email_reply_to_id"], notification_type
                 )
             if reply_to is None:
                 template.get_reply_to_text()
 
     elif notification_type == SMS_TYPE:
-        service_sms_sender_id = form.get("sms_sender_id", None)
         sms_sender_id = check_service_sms_sender_id(
-            str(authenticated_service.id), service_sms_sender_id, notification_type
+            str(authenticated_service.id), form.get("sms_sender_id"), notification_type
         )
         if sms_sender_id:
             reply_to = try_validate_and_format_phone_number(sms_sender_id)

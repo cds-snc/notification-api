@@ -32,13 +32,14 @@ class MMGClient(SmsClient):
     '''
     MMG sms client
     '''
+    def __init__(self) -> None:
+        self.name = 'mmg'
 
     def init_app(self, current_app, statsd_client, *args, **kwargs):
-        super(SmsClient, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.current_app = current_app
         self.api_key = current_app.config.get('MMG_API_KEY')
         self.from_number = current_app.config.get('FROM_NUMBER')
-        self.name = 'mmg'
         self.statsd_client = statsd_client
         self.mmg_url = current_app.config.get('MMG_URL')
 
@@ -61,7 +62,7 @@ class MMGClient(SmsClient):
     def get_name(self):
         return self.name
 
-    def send_sms(self, to, content, reference, multi=True, sender=None):
+    def send_sms(self, to, content, reference, multi=True, sender=None, **kwargs):
         data = {
             "reqType": "BULK",
             "MSISDN": to,

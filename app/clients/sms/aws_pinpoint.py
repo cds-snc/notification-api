@@ -28,7 +28,7 @@ class AwsPinpointClient(SmsClient):
     def get_name(self):
         return self.name
 
-    def send_sms(self, to: str, content, reference, multi=True, sender=None):
+    def send_sms(self, to: str, content, reference, multi=True, sender=None, **kwargs):
         sender_id = self.origination_number if sender is None else sender
         recipient_number = str(to)
 

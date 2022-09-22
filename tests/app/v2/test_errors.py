@@ -99,7 +99,7 @@ def test_validation_error(app_for_test):
             assert error['status_code'] == 400
             assert len(error['errors']) == 2
             assert {'error': 'ValidationError',
-                    'message': "Please provide either a phone number or a recipient identifier"} in error['errors']
+                    'message': "Please provide either a phone number or recipient identifier."} in error['errors']
             assert {'error': 'ValidationError',
                     'message': "template_id is not a valid UUID"} in error['errors']
 

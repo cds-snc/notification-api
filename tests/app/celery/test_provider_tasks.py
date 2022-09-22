@@ -29,7 +29,7 @@ def test_should_call_send_sms_to_provider_from_deliver_sms_task(
     mocker.patch('app.delivery.send_to_providers.send_sms_to_provider')
 
     deliver_sms(sample_notification.id)
-    app.delivery.send_to_providers.send_sms_to_provider.assert_called_with(sample_notification)
+    app.delivery.send_to_providers.send_sms_to_provider.assert_called_with(sample_notification, None)
 
 
 def test_should_add_to_retry_queue_if_notification_not_found_in_deliver_sms_task(
@@ -184,11 +184,14 @@ def test_deliver_sms_with_rate_limiting_should_deliver_if_rate_limit_not_exceede
         'app.notifications.validators.check_sms_sender_over_rate_limit'
     )
     send_to_provider = mocker.patch('app.delivery.send_to_providers.send_sms_to_provider')
-    mocker.patch('app.celery.provider_tasks.dao_get_sms_sender_by_service_id_and_number', return_value=sms_sender)
+    mocker.patch(
+        'app.celery.provider_tasks.dao_get_service_sms_sender_by_service_id_and_number',
+        return_value=sms_sender
+    )
 
     deliver_sms_with_rate_limiting(sample_notification.id)
 
-    send_to_provider.assert_called_once_with(sample_notification)
+    send_to_provider.assert_called_once_with(sample_notification, None)
 
 
 def test_deliver_sms_with_rate_limiting_should_retry_if_rate_limit_exceeded(sample_notification, mocker):
@@ -201,7 +204,10 @@ def test_deliver_sms_with_rate_limiting_should_retry_if_rate_limit_exceeded(samp
     )
 
     mocker.patch('app.delivery.send_to_providers.send_sms_to_provider')
-    mocker.patch('app.celery.provider_tasks.dao_get_sms_sender_by_service_id_and_number', return_value=sms_sender)
+    mocker.patch(
+        'app.celery.provider_tasks.dao_get_service_sms_sender_by_service_id_and_number',
+        return_value=sms_sender
+    )
 
     retry = mocker.patch('app.celery.provider_tasks.deliver_sms_with_rate_limiting.retry')
 

@@ -40,10 +40,6 @@
           "value": "fake"
         },
         {
-          "name": "TWILIO_FROM_NUMBER",
-          "value": "fake"
-        },
-         {
           "name": "GITHUB_LOGIN_ENABLED",
           "value": "True"
         }

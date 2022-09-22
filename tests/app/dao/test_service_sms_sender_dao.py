@@ -11,7 +11,7 @@ from app.dao.service_sms_sender_dao import (
     dao_add_sms_sender_for_service,
     dao_get_service_sms_sender_by_id,
     dao_get_sms_senders_by_service_id,
-    dao_get_sms_sender_by_service_id_and_number,
+    dao_get_service_sms_sender_by_service_id_and_number,
     dao_update_service_sms_sender,
 )
 from app.exceptions import ArchiveValidationError
@@ -457,7 +457,7 @@ class TestGetSmsSenderByServiceIdAndNumber:
         db_session.commit()
 
         service_without_sms_sender = create_service(service_name="Service two")
-        found_sms_sender = dao_get_sms_sender_by_service_id_and_number(
+        found_sms_sender = dao_get_service_sms_sender_by_service_id_and_number(
             service_id=service_without_sms_sender.id,
             number='+15551234567'
         )
@@ -470,7 +470,10 @@ class TestGetSmsSenderByServiceIdAndNumber:
         db_session.add(sms_sender)
         db_session.commit()
 
-        found_sms_sender = dao_get_sms_sender_by_service_id_and_number(service_id=service.id, number='+15557654321')
+        found_sms_sender = dao_get_service_sms_sender_by_service_id_and_number(
+            service_id=service.id,
+            number='+15557654321'
+        )
 
         assert found_sms_sender is None
 
@@ -480,6 +483,9 @@ class TestGetSmsSenderByServiceIdAndNumber:
         db_session.add(sms_sender)
         db_session.commit()
 
-        found_sms_sender = dao_get_sms_sender_by_service_id_and_number(service_id=service.id, number='+15551234567')
+        found_sms_sender = dao_get_service_sms_sender_by_service_id_and_number(
+            service_id=service.id,
+            number='+15551234567'
+        )
 
         assert found_sms_sender is sms_sender

@@ -546,7 +546,7 @@ def test_save_sms_should_call_deliver_sms_with_rate_limiting_if_sender_id_provid
     sms_sender.sms_sender = '+11111111111'
     mocker.patch('app.celery.tasks.dao_get_service_sms_sender_by_id',
                  return_value=sms_sender)
-    mocker.patch('app.celery.tasks.dao_get_sms_sender_by_service_id_and_number', return_value=sms_sender)
+    mocker.patch('app.celery.tasks.dao_get_service_sms_sender_by_service_id_and_number', return_value=sms_sender)
 
     user = create_user(mobile_number="6502532222")
     service = create_service(user=user, restricted=True)
@@ -1157,7 +1157,7 @@ def test_save_sms_uses_non_default_sms_sender_reply_to_text_if_provided(mocker, 
     sms_sender = mocker.Mock()
     sms_sender.rate_limit = 1
     sms_sender.sms_sender = 'new-sender'
-    mocker.patch('app.celery.tasks.dao_get_sms_sender_by_service_id_and_number', return_value=sms_sender)
+    mocker.patch('app.celery.tasks.dao_get_service_sms_sender_by_service_id_and_number', return_value=sms_sender)
 
     notification = _notification_json(template, to="6502532222")
     mocker.patch('app.celery.provider_tasks.deliver_sms_with_rate_limiting.apply_async')
