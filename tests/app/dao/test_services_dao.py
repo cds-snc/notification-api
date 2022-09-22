@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime, timedelta
 
 import pytest
+from flask import current_app
 from freezegun import freeze_time
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
@@ -962,7 +963,7 @@ def test_fetch_stats_counts_correctly(notify_db_session):
     save_notification(create_notification(template=email_template, status="created"))
     save_notification(create_notification(template=email_template, status="created"))
     save_notification(create_notification(template=email_template, status="technical-failure"))
-    save_notification(create_notification(template=sms_template, status="created"))
+    save_notification(create_notification(template=sms_template, status="created", billable_units=10))
 
     stats = dao_fetch_stats_for_service(sms_template.service_id, 7)
     stats = sorted(stats, key=lambda x: (x.notification_type, x.status))
@@ -971,6 +972,9 @@ def test_fetch_stats_counts_correctly(notify_db_session):
     assert stats[0].notification_type == "email"
     assert stats[0].status == "created"
     assert stats[0].count == 2
+    
+    if (current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]):
+        assert stats[0].billable_units == 2
 
     assert stats[1].notification_type == "email"
     assert stats[1].status == "technical-failure"
@@ -979,6 +983,9 @@ def test_fetch_stats_counts_correctly(notify_db_session):
     assert stats[2].notification_type == "sms"
     assert stats[2].status == "created"
     assert stats[2].count == 1
+    
+    if (current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]):
+        assert stats[2].billable_units == 10
 
 
 def test_fetch_stats_counts_should_ignore_team_key(notify_db_session):
