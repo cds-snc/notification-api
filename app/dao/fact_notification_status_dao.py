@@ -247,6 +247,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
         FactNotificationStatus.notification_status.label("status"),
         *([FactNotificationStatus.template_id.label("template_id")] if by_template else []),
         FactNotificationStatus.notification_count.label("count"),
+        *([FactNotificationStatus.billable_units.label("billable_units")] if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] else []),
     ).filter(
         FactNotificationStatus.service_id == service_id,
         FactNotificationStatus.bst_date >= start_date,
@@ -259,6 +260,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
             Notification.status,
             *([Notification.template_id] if by_template else []),
             func.count().label("count"),
+            *([func.sum(Notification.billable_units).label("billable_units")] if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] else []),
         )
         .filter(
             Notification.created_at >= get_local_timezone_midnight(now),
@@ -287,6 +289,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
         all_stats_table.c.notification_type,
         all_stats_table.c.status,
         func.cast(func.sum(all_stats_table.c.count), Integer).label("count"),
+        *([func.cast(func.sum(all_stats_table.c.billable_units), Integer).label("billable_units")] if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] else []),
     )
 
     if by_template:
