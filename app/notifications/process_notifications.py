@@ -43,11 +43,7 @@ def create_content_for_notification(template, personalisation):
 
 
 def number_of_sms_fragments(template, personalisation):
-
-    current_app.logger.info(f"template 1 {template.__dict__}")
-
     if template.template_type == "sms":
-        current_app.logger.info(f"template 2 {template.__dict__}")
         return create_content_for_notification(template, personalisation).fragment_count
     else:
         return 0
