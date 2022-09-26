@@ -13,15 +13,15 @@ jobs:
       - name: Setup Environment
         id: setup
         uses: actions/github-script@v6
-        with: 
-          script: | 
+        with:
+          script: |
             if ('${{ github.event.action }}' === 'prereleased') {
               core.setOutput('environment', 'staging')
             }
             if ('${{ github.event.action }}' === 'released') {
               core.setOutput('environment', 'prod')
             }
-      
+
       - name: Get the version
         id: tag
         run: |
@@ -31,7 +31,7 @@ jobs:
         run: |
           echo "The environment is ${{ steps.setup.outputs.environment }}"
           echo "The tag is ${{ steps.tag.outputs.version }}"
-  
+
   run-build:
     needs: [setup-release]
     uses: ./.github/workflows/build.yml
@@ -46,6 +46,7 @@ jobs:
     with:
       environment: "${{ needs.setup-release.outputs.env }}"
       ref: "${{ needs.setup-release.outputs.git-tag }}"
+      lambdaName: "All"
     secrets: inherit
 
   run-deployment:

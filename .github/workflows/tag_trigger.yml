@@ -1,13 +1,13 @@
 name: Tag push to Perf
-on: 
+on:
   push:
     tags:
-      - 'v*'
-  
+      - "v*"
+
 jobs:
   setup-env:
     runs-on: ubuntu-latest
-    outputs: 
+    outputs:
       git-tag: ${{ steps.tag.outputs.version }}
     steps:
       - name: Get the version
@@ -19,7 +19,7 @@ jobs:
         run: |
           echo "The environment is Perf"
           echo "The commit tag is ${{ steps.tag.outputs.version }}"
-  
+
   run-build:
     needs: [setup-env]
     uses: ./.github/workflows/build.yml
@@ -34,8 +34,9 @@ jobs:
     with:
       environment: "perf"
       ref: "${{ needs.setup-env.outputs.git-tag }}"
+      lambdaName: "All"
     secrets: inherit
-  
+
   run-twistlock:
     needs: [setup-env, run-build]
     uses: ./.github/workflows/twistlock.yml
@@ -50,11 +51,4 @@ jobs:
     with:
       environment: "perf"
       ref: "${{ needs.setup-env.outputs.git-tag }}"
-    secrets: inherit
-
-  run-user-flows:
-    needs: [run-deployment, run-lambda-deploy]
-    uses: ./.github/workflows/user_flows.yml
-    with:
-      environment: "perf"
     secrets: inherit

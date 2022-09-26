@@ -6,6 +6,21 @@ on:
         description: Branch to deploy
         required: true
         default: master
+      choice:
+        type: choice
+        description: Make a choice
+        required: true
+        options:
+          - All
+          - UserFlows
+          - VetTextIncomingForwarder
+          - SESCallback
+          - TwoWaySMS
+          - PinPointCallback
+          - PinPointInboundSMS
+          - ProfileOptInOut
+          - ProfileRemoveOldOptOuts
+          - NightBigQueryUpload
 
 jobs:
   setup_job:
@@ -16,10 +31,16 @@ jobs:
         with:
           ref: ${{ github.event.inputs.ref }}
 
+      - name: Env Values
+        run: |
+          echo "The branch/tag is ${{ github.event.inputs.ref }}"
+          echo "The Lambda Deployment is ${{ github.event.inputs.choice }}"
+
   build_deploy_lambda:
     needs: [setup_job]
     uses: ./.github/workflows/lambda-functions.yml
     with:
       environment: "dev"
       ref: ${{ github.event.inputs.ref }}
+      lambdaName: ${{ github.event.inputs.choice }}
     secrets: inherit
