@@ -170,9 +170,11 @@ def post_bulk():
         )
 
         # Check if the bulk messages sent for an sms template will cause the service to go above its daily limit
-        # We should move this into check_for_csv_errors() once RecipientCSV() comutes errors for sms
+        # TODO: We should move this into check_for_csv_errors() once RecipientCSV() comutes errors for sms. We need to fix len(recipient_csv) here
         if template.template_type == "sms" and check_sms_limit and recipient_csv.more_rows_than_can_send:
-            raise BadRequestError(message="Service is over its daily SMS limit")
+            raise BadRequestError(
+                message=f"You only have {remaining_messages} remaining messages before you reach your sms daily limit. You've tried to send {len(recipient_csv)} messages."
+            )
 
     except csv.Error as e:
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
