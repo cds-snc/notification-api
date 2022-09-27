@@ -494,6 +494,9 @@ class Config(object):
     CLOUDWATCH_AGENT_EMF_PORT = 25888
     CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"tcp://{STATSD_HOST}:{CLOUDWATCH_AGENT_EMF_PORT}")
 
+    # add and use sms_daily_limit
+    FF_SPIKE_SMS_DAILY_LIMIT = os.environ.get("FF_SPIKE_SMS_DAILY_LIMIT", False)
+
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
         "List of config keys that contain sensitive information"

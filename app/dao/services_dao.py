@@ -432,6 +432,21 @@ def fetch_todays_total_message_count(service_id):
     return 0 if result is None else result.count
 
 
+def fetch_todays_total_sms_count(service_id):
+    midnight = get_midnight(datetime.now(tz=pytz.utc))
+    result = (
+        db.session.query(func.sum(Notification.billable_units).label("sum_billable_units"))
+        .filter(
+            Notification.service_id == service_id,
+            Notification.key_type != KEY_TYPE_TEST,
+            Notification.created_at > midnight,
+            Notification.notification_type == "sms",
+        )
+        .first()
+    )
+    return 0 if result is None or result.sum_billable_units is None else result.sum_billable_units
+
+
 def _stats_for_service_query(service_id):
     return (
         db.session.query(

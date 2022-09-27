@@ -43,7 +43,10 @@ def create_content_for_notification(template, personalisation):
 
 
 def number_of_sms_fragments(template, personalisation):
-    return create_content_for_notification(template, personalisation).fragment_count
+    if template.template_type == "sms":
+        return create_content_for_notification(template, personalisation).fragment_count
+    else:
+        return 0
 
 
 def check_placeholders(template_object):
