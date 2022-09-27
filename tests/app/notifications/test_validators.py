@@ -72,14 +72,15 @@ class TestCheckDailyLimits:
         [("all", "test"), ("all", "team"), ("all", "normal"), ("sms", "test"), ("sms", "team"), ("sms", "normal")],
     )
     def test_check_service_message_limit_in_cache_with_unrestricted_service_is_allowed(
-        self, limit_type, key_type, sample_service, mocker
+        self, notify_api, limit_type, key_type, sample_service, mocker
     ):
         mocker.patch("app.notifications.validators.redis_store.get", return_value=1)
         mocker.patch("app.notifications.validators.redis_store.set")
         mocker.patch("app.notifications.validators.services_dao")
 
         if limit_type == "sms":
-            check_service_over_daily_sms_limit(key_type, sample_service)
+            with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
+                check_service_over_daily_sms_limit(key_type, sample_service)
         else:
             check_service_over_daily_message_limit(key_type, sample_service)
         app.notifications.validators.redis_store.set.assert_not_called()
@@ -224,7 +225,7 @@ class TestCheckDailyLimits:
 
     @pytest.mark.parametrize("limit_type", ["all", "sms"])
     def test_check_service_message_limit_does_not_send_notifications_if_already_did(
-        self, limit_type, notify_db, notify_db_session, mocker
+        self, notify_api, limit_type, notify_db, notify_db_session, mocker
     ):
         with freeze_time("2016-01-01 12:00:00.000000"):
             redis_get = mocker.patch("app.redis_store.get", side_effect=[5, True, True])
@@ -235,7 +236,8 @@ class TestCheckDailyLimits:
 
             with pytest.raises(TooManyRequestsError) as e:
                 if limit_type == "sms":
-                    check_service_over_daily_sms_limit("normal", service)
+                    with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
+                        check_service_over_daily_sms_limit("normal", service)
                 else:
                     check_service_over_daily_message_limit("normal", service)
             assert e.value.status_code == 429
