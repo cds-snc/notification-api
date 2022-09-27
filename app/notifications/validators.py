@@ -174,7 +174,7 @@ def warn_about_daily_sms_limit(service, messages_sent):
             redis_store.set(cache_key, current_time, ex=cache_expiration)
             send_notification_to_service_users(
                 service_id=service.id,
-                template_id=current_app.config["NEAR_DAILY_LIMIT_TEMPLATE_ID"],  # TODO have a template for sms too
+                template_id=current_app.config["NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID"],  # TODO have a template for sms too
                 personalisation={
                     "service_name": service.name,
                     "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
@@ -194,7 +194,7 @@ def warn_about_daily_sms_limit(service, messages_sent):
             redis_store.set(cache_key, current_time, ex=cache_expiration)
             send_notification_to_service_users(
                 service_id=service.id,
-                template_id=current_app.config["REACHED_DAILY_LIMIT_TEMPLATE_ID"],  # TODO have a template for sms too
+                template_id=current_app.config["REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"],  # TODO have a template for sms too
                 personalisation={
                     "service_name": service.name,
                     "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
