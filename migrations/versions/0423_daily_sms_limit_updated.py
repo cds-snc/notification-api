@@ -75,7 +75,7 @@ def upgrade():
             "L’équipe GC Notification",
         ]
     )
-    
+
     daily_sms_limit_updated_content = "\n".join(
         [
             "Hello ((name)),",
