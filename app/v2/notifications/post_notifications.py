@@ -136,6 +136,7 @@ def post_bulk():
         raise BadRequestError(message=f"Error decoding arguments: {e.description}", status_code=400)
 
     max_rows = current_app.config["CSV_MAX_ROWS"]
+    check_sms_limit = current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
     form = validate(request_json, post_bulk_request(max_rows))
 
     if len([source for source in [form.get("rows"), form.get("csv")] if source]) != 1:
@@ -164,6 +165,11 @@ def post_bulk():
             safelist=safelisted_members(authenticated_service, api_user.key_type),
             remaining_messages=remaining_messages,
         )
+
+        # Check if the bulk messages sent for an sms template will cause the service to go above its daily limit
+        if template.template_type == "sms" and check_sms_limit and recipient_csv.more_rows_than_can_send:
+            raise BadRequestError(message="Service is over its daily SMS limit")
+
     except csv.Error as e:
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
