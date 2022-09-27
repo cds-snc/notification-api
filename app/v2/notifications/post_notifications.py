@@ -34,7 +34,7 @@ from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
-from app.dao.services_dao import fetch_todays_total_message_count
+from app.dao.services_dao import fetch_todays_total_message_count, fetch_todays_total_sms_count
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.letters.utils import upload_letter_pdf
 from app.models import (
@@ -144,7 +144,10 @@ def post_bulk():
     template = validate_template_exists(form["template_id"], authenticated_service)
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 
-    remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
+    if template.template_type == "sms" and check_sms_limit:
+        remaining_messages = authenticated_service.sms_daily_limit - fetch_todays_total_sms_count(authenticated_service.id)
+    else:
+        remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
 
     form["validated_sender_id"] = validate_sender_id(template, form.get("reply_to_id"))
 
@@ -167,6 +170,7 @@ def post_bulk():
         )
 
         # Check if the bulk messages sent for an sms template will cause the service to go above its daily limit
+        # We should move this into check_for_csv_errors() once RecipientCSV() comutes errors for sms
         if template.template_type == "sms" and check_sms_limit and recipient_csv.more_rows_than_can_send:
             raise BadRequestError(message="Service is over its daily SMS limit")
 
