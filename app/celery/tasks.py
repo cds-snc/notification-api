@@ -393,7 +393,6 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
     if saved_notifications:
         current_app.logger.info(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
         check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
-
         research_mode = service.research_mode  # type: ignore
         for notification in saved_notifications:
             queue = notification_id_queue.get(notification.id) or template.queue_to_use()  # type: ignore
