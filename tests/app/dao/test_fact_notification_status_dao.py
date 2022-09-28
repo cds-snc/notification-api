@@ -332,15 +332,15 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
 
     if (current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]):
         assert [
-            ("email Template Name", False, mock.ANY, "email", "delivered", 1, 1),
-            ("email Template Name", False, mock.ANY, "email", "delivered", 3, 3),
-            ("letter Template Name", False, mock.ANY, "letter", "delivered", 5, 5),
-            ("sms Template 1", False, mock.ANY, "sms", "created", 1, 1),
-            ("sms Template Name", False, mock.ANY, "sms", "created", 1, 1),
-            ("sms Template 1", False, mock.ANY, "sms", "delivered", 1, 1),
-            ("sms Template 2", False, mock.ANY, "sms", "delivered", 1, 1),
-            ("sms Template Name", False, mock.ANY, "sms", "delivered", 10, 20),
-            ("sms Template Name", False, mock.ANY, "sms", "delivered", 11, 11),
+            ("email Template Name", False, mock.ANY, "email", "delivered", 1),
+            ("email Template Name", False, mock.ANY, "email", "delivered", 3),
+            ("letter Template Name", False, mock.ANY, "letter", "delivered", 5),
+            ("sms Template 1", False, mock.ANY, "sms", "created", 1),
+            ("sms Template Name", False, mock.ANY, "sms", "created", 1),
+            ("sms Template 1", False, mock.ANY, "sms", "delivered", 1),
+            ("sms Template 2", False, mock.ANY, "sms", "delivered", 1),
+            ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
+            ("sms Template Name", False, mock.ANY, "sms", "delivered", 20),
         ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
     else:
         assert [
