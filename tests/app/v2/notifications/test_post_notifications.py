@@ -1834,7 +1834,8 @@ class TestBulkSend:
         data = {
             "name": "job_name",
             "template_id": template.id,
-            "csv": rows_to_csv([["email address"], ["6135551234"], ["6135551234"]]),
+            "csv": rows_to_csv([["phone number"], ["6135551234"], ["6135551234"]]),
+            "template": template,
         }
 
         with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
