@@ -3,7 +3,6 @@ from uuid import UUID
 
 import mock
 import pytest
-
 from flask import current_app
 from freezegun import freeze_time
 from notifications_utils.timezones import convert_utc_to_local_timezone
@@ -330,7 +329,7 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
 
     results = fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, by_template=True)
 
-    if (current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]):
+    if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
         assert [
             ("email Template Name", False, mock.ANY, "email", "delivered", 1),
             ("email Template Name", False, mock.ANY, "email", "delivered", 3),
@@ -354,6 +353,7 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
             ("sms Template Name", False, mock.ANY, "sms", "delivered", 10),
             ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
         ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
+
 
 def test_get_total_notifications_sent_for_api_key(notify_db_session):
     service = create_service(service_name="First Service")

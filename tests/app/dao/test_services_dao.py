@@ -979,8 +979,8 @@ def test_fetch_stats_counts_correctly(notify_db_session):
 
     assert stats[2].notification_type == "sms"
     assert stats[2].status == "created"
-    
-    if (current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]):
+
+    if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
         assert stats[2].count == 10
     else:
         assert stats[2].count == 1

@@ -246,12 +246,18 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
         FactNotificationStatus.notification_type.label("notification_type"),
         FactNotificationStatus.notification_status.label("status"),
         *([FactNotificationStatus.template_id.label("template_id")] if by_template else []),
-        *([case(
-                [
-                    (FactNotificationStatus.notification_type == 'email', FactNotificationStatus.notification_count),
-                ],
-                else_=FactNotificationStatus.billable_units,
-        ).label("count")] if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] else [FactNotificationStatus.notification_count.label("count")]),
+        *(
+            [
+                case(
+                    [
+                        (FactNotificationStatus.notification_type == "email", FactNotificationStatus.notification_count),
+                    ],
+                    else_=FactNotificationStatus.billable_units,
+                ).label("count")
+            ]
+            if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
+            else [FactNotificationStatus.notification_count.label("count")]
+        ),
     ).filter(
         FactNotificationStatus.service_id == service_id,
         FactNotificationStatus.bst_date >= start_date,
@@ -263,12 +269,18 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
             Notification.notification_type.cast(db.Text),
             Notification.status,
             *([Notification.template_id] if by_template else []),
-            *([case(
+            *(
                 [
-                    (Notification.notification_type == 'email', func.count()),
-                ],
-                else_=func.sum(Notification.billable_units),
-            ).label("count")] if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] else [func.count(Notification.id).label("count")]),
+                    case(
+                        [
+                            (Notification.notification_type == "email", func.count()),
+                        ],
+                        else_=func.sum(Notification.billable_units),
+                    ).label("count")
+                ]
+                if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
+                else [func.count(Notification.id).label("count")]
+            ),
         )
         .filter(
             Notification.created_at >= get_local_timezone_midnight(now),
