@@ -262,9 +262,6 @@ class Config(object):
     NEAR_DAILY_LIMIT_TEMPLATE_ID = "5d3e4322-4ee6-457a-a710-c48755f6b643"
     REACHED_DAILY_LIMIT_TEMPLATE_ID = "fd29f796-fcdc-471b-a0d4-0093880d9173"
     DAILY_LIMIT_UPDATED_TEMPLATE_ID = "b3c766e6-be32-4edf-b8db-0f04ef404edc"
-    NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID = "a796568f-a89b-468e-b635-8105554301b9"
-    REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID = "a646e614-c527-4f94-a955-ed7185d577f4"
-    DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID = "6ec12dd0-680a-4073-8d58-91d17cc8442f"
 
     # Allowed service IDs able to send HTML through their templates.
     ALLOW_HTML_SERVICE_IDS: List[str] = [id.strip() for id in os.getenv("ALLOW_HTML_SERVICE_IDS", "").split(",")]
@@ -496,6 +493,17 @@ class Config(object):
 
     # add and use sms_daily_limit
     FF_SPIKE_SMS_DAILY_LIMIT = env.bool("FF_SPIKE_SMS_DAILY_LIMIT", False)
+
+    # use the existing email templates if the feature flag is not set
+    NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID = (
+        "a796568f-a89b-468e-b635-8105554301b9" if FF_SPIKE_SMS_DAILY_LIMIT else NEAR_DAILY_LIMIT_TEMPLATE_ID
+    )
+    REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID = (
+        "a646e614-c527-4f94-a955-ed7185d577f4" if FF_SPIKE_SMS_DAILY_LIMIT else REACHED_DAILY_LIMIT_TEMPLATE_ID
+    )
+    DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID = (
+        "6ec12dd0-680a-4073-8d58-91d17cc8442f" if FF_SPIKE_SMS_DAILY_LIMIT else DAILY_LIMIT_UPDATED_TEMPLATE_ID
+    )
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
