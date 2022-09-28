@@ -10,6 +10,7 @@ from notifications_utils.recipients import (
     RecipientCSV,
     try_validate_and_format_phone_number,
 )
+from notifications_utils.template import Template
 
 from app import (
     api_user,
@@ -170,6 +171,7 @@ def post_bulk():
             max_rows=max_rows,
             safelist=safelisted_members(authenticated_service, api_user.key_type),
             remaining_messages=remaining_messages,
+            template=Template(template.__dict__),
         )
 
         # Check if the bulk messages sent for an sms template will cause the service to go above its daily limit
@@ -579,11 +581,6 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"Duplicate column headers: {', '.join(sorted(recipient_csv.duplicate_recipient_column_headers))}",
                 status_code=400,
             )
-        if recipient_csv.more_rows_than_can_send:
-            raise BadRequestError(
-                message=f"You only have {remaining_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
-                status_code=400,
-            )
 
         if (
             current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
@@ -593,6 +590,12 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
         ):
             raise BadRequestError(
                 message=f"You only have {remaining_messages} remaining sms message parts before you reach your daily limit. You've tried to send {recipient_csv.sms_fragment_count} message parts.",
+                status_code=400,
+            )
+
+        if recipient_csv.more_rows_than_can_send:
+            raise BadRequestError(
+                message=f"You only have {remaining_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
                 status_code=400,
             )
 

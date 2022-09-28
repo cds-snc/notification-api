@@ -1828,14 +1828,16 @@ class TestBulkSend:
         messages_count_mock.assert_called_once()
 
     def test_post_bulk_flags_not_enough_remaining_sms_messages(self, notify_api, client, notify_db, notify_db_session, mocker):
-        service = create_service(sms_daily_limit=10)
+        service = create_service(sms_daily_limit=10, message_limit=100)
         template = create_sample_template(notify_db, notify_db_session, service=service, template_type="sms")
+        messages_count_mock = mocker.patch(
+            "app.v2.notifications.post_notifications.fetch_todays_total_message_count", return_value=9
+        )
         messages_count_mock = mocker.patch("app.v2.notifications.post_notifications.fetch_todays_total_sms_count", return_value=9)
         data = {
             "name": "job_name",
             "template_id": template.id,
             "csv": rows_to_csv([["phone number"], ["6135551234"], ["6135551234"]]),
-            "template": template,
         }
 
         with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
@@ -1850,10 +1852,39 @@ class TestBulkSend:
         assert error_json["errors"] == [
             {
                 "error": "BadRequestError",
-                "message": "You only have 1 remaining messages before you reach your sms daily limit. You've tried to send 2 messages.",
+                "message": "You only have 1 remaining sms message parts before you reach your daily limit. You've tried to send 2 message parts.",
             }
         ]
         messages_count_mock.assert_called_once()
+
+    def test_post_bulk_flags_not_enough_remaining_sms_message_parts(
+        self, notify_api, client, notify_db, notify_db_session, mocker
+    ):
+        service = create_service(sms_daily_limit=10, message_limit=100)
+        template = create_sample_template(notify_db, notify_db_session, content=500 * "a", service=service, template_type="sms")
+        mocker.patch("app.v2.notifications.post_notifications.fetch_todays_total_message_count", return_value=9)
+        mocker.patch("app.v2.notifications.post_notifications.fetch_todays_total_sms_count", return_value=9)
+        data = {
+            "name": "job_name",
+            "template_id": template.id,
+            "csv": rows_to_csv([["phone number"], ["6135551234"]]),
+        }
+
+        with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
+            response = client.post(
+                "/v2/notifications/bulk",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+            )
+
+        assert response.status_code == 400
+        error_json = json.loads(response.get_data(as_text=True))
+        assert error_json["errors"] == [
+            {
+                "error": "BadRequestError",
+                "message": "You only have 1 remaining sms message parts before you reach your daily limit. You've tried to send 4 message parts.",
+            }
+        ]
 
     @pytest.mark.parametrize("data_type", ["rows", "csv"])
     def test_post_bulk_flags_rows_with_errors(self, client, notify_db, notify_db_session, data_type):
