@@ -176,8 +176,6 @@ def post_bulk():
     except csv.Error as e:
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
-    if not check_sms_limit:
-        recipient_csv.more_sms_rows_than_can_send = False
     check_for_csv_errors(recipient_csv, max_rows, remaining_messages)
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
@@ -618,8 +616,13 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"Some rows have errors. {errors}.",
                 status_code=400,
             )
-        else:
-            raise NotImplementedError("Got errors but code did not handle")
+        # TODO: 
+        # - right now there are no other errors in RecipientCSV so this else is not needed
+        # - if FF_SPIKE_SMS_DAILY_LIMIT is false we do not want to throw this error if only more_sms_rows_than_can_send is set
+        # - after the FF is turned on / removed, we will restore this else
+        #
+        # else:
+        #     raise NotImplementedError("Got errors but code did not handle")
 
 
 def create_bulk_job(service, api_key, template, form, recipient_csv):
