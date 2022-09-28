@@ -452,8 +452,12 @@ def _stats_for_service_query(service_id):
         db.session.query(
             Notification.notification_type,
             Notification.status,
-            func.count(Notification.id).label("count"),
-            *([func.sum(Notification.billable_units).label("billable_units")] if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] else []),
+            *([case(
+                [
+                    (Notification.notification_type == 'email', func.count(Notification.id)),
+                ],
+                else_=func.sum(Notification.billable_units),
+            ).label("count")] if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] else [func.count(Notification.id).label("count")]),
         )
         .filter(
             Notification.service_id == service_id,
