@@ -582,12 +582,7 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 status_code=400,
             )
 
-        if (
-            current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
-            and hasattr(recipient_csv, "more_sms_rows_than_can_send")
-            and hasattr(recipient_csv, "sms_fragment_count")
-            and recipient_csv.more_sms_rows_than_can_send
-        ):
+        if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and recipient_csv.more_sms_rows_than_can_send:
             raise BadRequestError(
                 message=f"You only have {remaining_messages} remaining sms message parts before you reach your daily limit. You've tried to send {recipient_csv.sms_fragment_count} message parts.",
                 status_code=400,
@@ -631,7 +626,7 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"Some rows have errors. {errors}.",
                 status_code=400,
             )
-        else:
+        elif not recipient_csv.more_sms_rows_than_can_send:
             raise NotImplementedError("Got errors but code did not handle")
 
 
