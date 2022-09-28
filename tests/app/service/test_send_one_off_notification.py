@@ -264,6 +264,24 @@ def test_send_one_off_notification_raises_if_over_limit(notify_db_session, mocke
         send_one_off_notification(service.id, post_data)
 
 
+def test_send_one_off_notification_raises_if_over_sms_daily_limit(notify_db_session, mocker):
+    service = create_service(message_limit=0)
+    template = create_template(service=service)
+    mocker.patch(
+        "app.service.send_notification.check_service_over_daily_sms_limit",
+        side_effect=TooManyRequestsError(1),
+    )
+
+    post_data = {
+        "template_id": str(template.id),
+        "to": "6502532222",
+        "created_by": str(service.created_by_id),
+    }
+
+    with pytest.raises(TooManyRequestsError):
+        send_one_off_notification(service.id, post_data)
+
+
 def test_send_one_off_notification_raises_if_message_too_long(persist_mock, notify_db_session):
     service = create_service()
     template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")

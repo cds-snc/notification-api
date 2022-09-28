@@ -107,7 +107,7 @@ def post_precompiled_letter_notification():
     # Check permission to send letters
     check_service_has_permission(LETTER_TYPE, authenticated_service.permissions)
 
-    check_rate_limiting(authenticated_service, api_user)
+    check_rate_limiting(authenticated_service, api_user, LETTER_TYPE)
 
     template = get_precompiled_letter_template(authenticated_service.id)
 
@@ -206,7 +206,7 @@ def post_notification(notification_type):
 
     check_service_can_schedule_notification(authenticated_service.permissions, scheduled_for)
 
-    check_rate_limiting(authenticated_service, api_user)
+    check_rate_limiting(authenticated_service, api_user, notification_type)
 
     template, template_with_content = validate_template(
         form["template_id"],
