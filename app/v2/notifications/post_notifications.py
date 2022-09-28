@@ -184,7 +184,10 @@ def post_bulk():
     except csv.Error as e:
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
+    if not check_sms_limit:
+        recipient_csv.more_sms_rows_than_can_send = False
     check_for_csv_errors(recipient_csv, max_rows, remaining_messages)
+
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
     return jsonify(data=job_schema.dump(job).data), 201
@@ -582,7 +585,7 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 status_code=400,
             )
 
-        if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and recipient_csv.more_sms_rows_than_can_send:
+        if recipient_csv.more_sms_rows_than_can_send:
             raise BadRequestError(
                 message=f"You only have {remaining_messages} remaining sms message parts before you reach your daily limit. You've tried to send {recipient_csv.sms_fragment_count} message parts.",
                 status_code=400,
@@ -626,8 +629,7 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"Some rows have errors. {errors}.",
                 status_code=400,
             )
-        elif not recipient_csv.more_sms_rows_than_can_send:
-            raise NotImplementedError("Got errors but code did not handle")
+        raise NotImplementedError("Got errors but code did not handle")
 
 
 def create_bulk_job(service, api_key, template, form, recipient_csv):
