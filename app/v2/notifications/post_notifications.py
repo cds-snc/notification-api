@@ -616,7 +616,7 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"Some rows have errors. {errors}.",
                 status_code=400,
             )
-        # TODO: 
+        # TODO:
         # - right now there are no other errors in RecipientCSV so this else is not needed
         # - if FF_SPIKE_SMS_DAILY_LIMIT is false we do not want to throw this error if only more_sms_rows_than_can_send is set
         # - after the FF is turned on / removed, we will restore this else
