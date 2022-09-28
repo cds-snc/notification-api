@@ -6,6 +6,7 @@ import os
 import logging
 from urllib.parse import parse_qsl
 from base64 import b64decode
+from functools import lru_cache
 import boto3
 
 logger = logging.getLogger("vetext_incoming_forwarder_lambda")
@@ -38,7 +39,7 @@ def vetext_incoming_forwarder_lambda_handler(event: dict, context: any):
             logger.debug(event)
             push_to_dead_letter_sqs(event, "vetext_incoming_forwarder_lambda_handler")
 
-            return create_twilio_response()
+            return create_twilio_response(500)
 
         logger.info("Successfully processed event to event_bodies")
         logger.debug(event_bodies)
@@ -57,7 +58,7 @@ def vetext_incoming_forwarder_lambda_handler(event: dict, context: any):
         logger.exception(e)
         push_to_dead_letter_sqs(event, "vetext_incoming_forwarder_lambda_handler")
 
-        return create_twilio_response()
+        return create_twilio_response(500)
 
 
 def create_twilio_response(status_code: int = 200):
@@ -134,7 +135,7 @@ def process_body_from_alb_invocation(event):
 
     return [event_body]
 
-
+@lru_cache(maxsize=None)
 def read_from_ssm(key: str) -> str:
     try:
         ssm_client = boto3.client('ssm')
