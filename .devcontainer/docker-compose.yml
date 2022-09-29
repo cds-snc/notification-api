@@ -20,7 +20,7 @@ services:
       - db
 
   db:
-    image: postgres:13.4
+    image: postgres:13.4@sha256:1adb50e5c24f550a9e68457a2ce60e9e4103dfc43c3b36e98310168165b443a1
     volumes:
     - ./initdb:/docker-entrypoint-initdb.d
     restart: always
@@ -38,7 +38,7 @@ services:
       - "5432:5432"
 
   redis:
-    image: redis:6.2
+    image: redis:6.2@sha256:45a37e30dd2b3eb803b71296dd962bab827558ff017c1baad4d957a030415acf
     restart: always
     command: redis-server --port 6380
     ports:
