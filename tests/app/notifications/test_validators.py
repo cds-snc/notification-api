@@ -23,7 +23,12 @@ from app.notifications.validators import (
     validate_and_format_recipient,
 )
 from app.utils import get_document_url
-from app.v2.errors import BadRequestError, RateLimitError, TooManyRequestsError, TooManySMSRequestsError
+from app.v2.errors import (
+    BadRequestError,
+    RateLimitError,
+    TooManyRequestsError,
+    TooManySMSRequestsError,
+)
 from tests.app.conftest import (
     create_sample_api_key,
     create_sample_notification,
