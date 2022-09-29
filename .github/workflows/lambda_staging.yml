@@ -19,11 +19,11 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@7884fcad6b5d53d10323aee724dc68d8b9096a2e # tag=v2
 
       - name: Configure AWS credentials
         id: aws-creds
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # tag=v1
         with:
           aws-access-key-id: ${{ secrets.STAGING_ECR_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.STAGING_ECR_SECRET_ACCESS_KEY }}
@@ -47,7 +47,7 @@ jobs:
 
       - name: Login to ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@9149ade017c57f86dea2f76a01f8b2d5bd06b10f # tag=v1
 
       - name: Push containers to ECR
         run: |
