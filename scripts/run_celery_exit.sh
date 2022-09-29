@@ -10,7 +10,7 @@ function get_celery_pids {
   # and keep only these PIDs
 
   set +o pipefail # so grep returning no matches does not premature fail pipe
-  APP_PIDS=$(ps auxww | awk '/[c]elery worker/ {print $2}')
+  APP_PIDS=$(ps auxww | awk '/[c]elery worker/ {print $1}')
   set -o pipefail # pipefail should be set everywhere else
 }
 
@@ -23,6 +23,7 @@ function send_signal_to_celery_processes {
   for value in ${APP_PIDS}
   do
     echo kill -s ${1} $value
+    kill -s ${1} $value
   done
   #echo ${APP_PIDS} | xargs kill -s ${1}
 }
