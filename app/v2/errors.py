@@ -30,11 +30,27 @@ class TooManyRequestsError(InvalidRequest):
         self.message = self.message_template.format(sending_limit)
 
 
+class TooManySMSRequestsError(InvalidRequest):
+    status_code = 429
+    message_template = "Exceeded sms send limits ({}) for today"
+
+    def __init__(self, sending_limit):
+        self.message = self.message_template.format(sending_limit)
+
+
 class LiveServiceTooManyRequestsError(TooManyRequestsError):
     pass
 
 
+class LiveServiceTooManySMSRequestsError(TooManySMSRequestsError):
+    pass
+
+
 class TrialServiceTooManyRequestsError(TooManyRequestsError):
+    pass
+
+
+class TrialServiceTooManySMSRequestsError(TooManySMSRequestsError):
     pass
 
 
