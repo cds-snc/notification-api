@@ -11,6 +11,7 @@ from app.va.identifier import IdentifierType, UnsupportedIdentifierException
 from app.va.mpi import MpiRetryableException, BeneficiaryDeceasedException, \
     IdentifierNotFound, MultipleActiveVaProfileIdsException, IncorrectNumberOfIdentifiersException, \
     NoSuchIdentifierException
+from app.celery.service_callback_tasks import check_and_queue_callback_task
 
 
 @notify_celery.task(bind=True, name="lookup-va-profile-id-tasks", max_retries=48, default_retry_delay=300)
@@ -58,6 +59,7 @@ def lookup_va_profile_id(self, notification_id):
         notifications_dao.update_notification_status_by_id(
             notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.failure_reason
         )
+        check_and_queue_callback_task(notification)
         raise NotificationPermanentFailureException(message) from e
 
     except Exception as e:
