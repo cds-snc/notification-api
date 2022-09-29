@@ -5,7 +5,10 @@ from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.clients.redis import (
     daily_limit_cache_key,
     near_daily_limit_cache_key,
+    near_sms_daily_limit_cache_key,
     over_daily_limit_cache_key,
+    over_sms_daily_limit_cache_key,
+    sms_daily_count_cache_key,
 )
 from notifications_utils.letter_timings import letter_can_be_cancelled
 from notifications_utils.timezones import convert_utc_to_local_timezone
@@ -271,6 +274,7 @@ def update_service(service_id):
     # Capture the status change here as Marshmallow changes this later
     service_going_live = fetched_service.restricted and not req_json.get("restricted", True)
     message_limit_changed = fetched_service.message_limit != req_json.get("message_limit", fetched_service.message_limit)
+    sms_limit_changed = fetched_service.sms_daily_limit != req_json.get("sms_daily_limit", fetched_service.sms_daily_limit)
     current_data = dict(service_schema.dump(fetched_service).data.items())
 
     current_data.update(request.get_json())
@@ -292,6 +296,12 @@ def update_service(service_id):
         redis_store.delete(over_daily_limit_cache_key(service_id))
         if not fetched_service.restricted:
             _warn_service_users_about_message_limit_changed(service_id, current_data)
+    if sms_limit_changed:
+        redis_store.delete(sms_daily_count_cache_key(service_id))
+        redis_store.delete(near_sms_daily_limit_cache_key(service_id))
+        redis_store.delete(over_sms_daily_limit_cache_key(service_id))
+        if not fetched_service.restricted:
+            _warn_service_users_about_sms_limit_changed(service_id, current_data)
 
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
@@ -321,6 +331,21 @@ def _warn_service_users_about_message_limit_changed(service_id, data):
             "service_name": data["name"],
             "message_limit_en": "{:,}".format(data["message_limit"]),
             "message_limit_fr": "{:,}".format(data["message_limit"]).replace(",", " "),
+        },
+        include_user_fields=["name"],
+    )
+
+
+def _warn_service_users_about_sms_limit_changed(service_id, data):
+    send_notification_to_service_users(
+        service_id=service_id,
+        template_id=current_app.config["DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID"]
+        if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
+        else current_app.config["DAILY_LIMIT_UPDATED_TEMPLATE_ID"],
+        personalisation={
+            "service_name": data["name"],
+            "message_limit_en": "{:,}".format(data["sms_daily_limit"]),
+            "message_limit_fr": "{:,}".format(data["sms_daily_limit"]).replace(",", " "),
         },
         include_user_fields=["name"],
     )

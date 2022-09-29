@@ -148,11 +148,16 @@ class TestCheckDailyLimits:
             assert db_mock.method_calls == []
 
     @pytest.mark.parametrize(
-        "limit_type, key_type",
-        [("all", "team"), ("all", "normal"), ("sms", "team"), ("sms", "normal")],
+        "limit_type, key_type, email_template",
+        [
+            ("all", "team", "REACHED_DAILY_LIMIT_TEMPLATE_ID"),
+            ("all", "normal", "REACHED_DAILY_LIMIT_TEMPLATE_ID"),
+            ("sms", "team", "REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"),
+            ("sms", "normal", "REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"),
+        ],
     )
     def test_check_service_message_limit_over_message_limit_fails(
-        self, notify_api, limit_type, key_type, notify_db, notify_db_session, mocker
+        self, notify_api, limit_type, key_type, email_template, notify_db, notify_db_session, mocker
     ):
         with freeze_time("2016-01-01 12:00:00.000000"):
             redis_get = mocker.patch("app.redis_store.get", side_effect=["5", True, None])
@@ -181,7 +186,7 @@ class TestCheckDailyLimits:
             assert redis_set.call_args_list == [call(over_key(limit_type, service.id), "2016-01-01T12:00:00", ex=86400)]
             send_notification.assert_called_once_with(
                 service_id=service.id,
-                template_id=current_app.config["REACHED_DAILY_LIMIT_TEMPLATE_ID"],
+                template_id=current_app.config[email_template],
                 personalisation={
                     "service_name": service.name,
                     "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
@@ -191,9 +196,11 @@ class TestCheckDailyLimits:
                 include_user_fields=["name"],
             )
 
-    @pytest.mark.parametrize("limit_type", ["all", "sms"])
+    @pytest.mark.parametrize(
+        "limit_type, email_template", [("all", "NEAR_DAILY_LIMIT_TEMPLATE_ID"), ("sms", "NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID")]
+    )
     def test_check_service_message_limit_records_nearing_daily_limit(
-        self, notify_api, limit_type, notify_db, notify_db_session, mocker
+        self, notify_api, limit_type, email_template, notify_db, notify_db_session, mocker
     ):
         with freeze_time("2016-01-01 12:00:00.000000"):
             redis_get = mocker.patch("app.redis_store.get", side_effect=[4, None])
@@ -223,7 +230,7 @@ class TestCheckDailyLimits:
             ]
             send_notification.assert_called_once_with(
                 service_id=service.id,
-                template_id=current_app.config["NEAR_DAILY_LIMIT_TEMPLATE_ID"],
+                template_id=current_app.config[email_template],
                 personalisation={
                     "service_name": service.name,
                     "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
