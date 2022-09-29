@@ -1,13 +1,14 @@
-"""locust-trigger-rate-limit.py
+"""locust-trigger-rate-limit-admin.py
 
-Trigger rate limit on our WAF rules on the following endpoints:
+Trigger rate limit on our WAF rules for the admin website
+on the following endpoints:
 
 * Sign-in
 * Register
 * forgot password
 * forced password reset
 
-Once the necessary rate limit has been attained within a 5 minutes period, the
+Once the necessary rate limit has been attained, the
 tests will start to fail as expected.
 """
 # flake8: noqa
