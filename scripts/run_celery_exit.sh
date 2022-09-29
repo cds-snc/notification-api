@@ -61,11 +61,11 @@ function on_exit {
     sleep 1
   done
 
-  echo "sending signal to celery to kill process"
+  echo "sending signal to celery to kill process as TERM signal has not timed out"
   send_signal_to_celery_processes KILL
 }
 
 
 echo "Run script pid: $$"
 
-trap "on_exit" EXIT TERM
+on_exit
