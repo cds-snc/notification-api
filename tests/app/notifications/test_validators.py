@@ -23,7 +23,12 @@ from app.notifications.validators import (
     validate_and_format_recipient,
 )
 from app.utils import get_document_url
-from app.v2.errors import BadRequestError, RateLimitError, TooManyRequestsError
+from app.v2.errors import (
+    BadRequestError,
+    RateLimitError,
+    TooManyRequestsError,
+    TooManySMSRequestsError,
+)
 from tests.app.conftest import (
     create_sample_api_key,
     create_sample_notification,
@@ -169,14 +174,15 @@ class TestCheckDailyLimits:
                 create_sample_notification(notify_db, notify_db_session, service=service)
 
             if limit_type == "sms":
-                with pytest.raises(TooManyRequestsError) as e:
+                with pytest.raises(TooManySMSRequestsError) as e:
                     with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
                         check_service_over_daily_sms_limit(key_type, service)
+                assert e.value.message == "Exceeded sms send limits (4) for today"
             else:
                 with pytest.raises(TooManyRequestsError) as e:
                     check_service_over_daily_message_limit(key_type, service)
+                assert e.value.message == "Exceeded send limits (4) for today"
             assert e.value.status_code == 429
-            assert e.value.message == "Exceeded send limits (4) for today"
             assert e.value.fields == []
             assert redis_get.call_args_list == [
                 call(count_key(limit_type, service.id)),
@@ -251,14 +257,16 @@ class TestCheckDailyLimits:
 
             service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=5, sms_limit=5)
 
-            with pytest.raises(TooManyRequestsError) as e:
-                if limit_type == "sms":
+            if limit_type == "sms":
+                with pytest.raises(TooManySMSRequestsError) as e:
                     with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
                         check_service_over_daily_sms_limit("normal", service)
-                else:
+                    assert e.value.message == "Exceeded sms send limits (5) for today"
+            else:
+                with pytest.raises(TooManyRequestsError) as e:
                     check_service_over_daily_message_limit("normal", service)
+                assert e.value.message == "Exceeded send limits (5) for today"
             assert e.value.status_code == 429
-            assert e.value.message == "Exceeded send limits (5) for today"
             assert e.value.fields == []
 
             assert redis_get.call_args_list == [
@@ -285,11 +293,11 @@ class TestCheckDailyLimits:
             assert e.value.message == "Exceeded send limits (4) for today"
             assert e.value.fields == []
 
-            with pytest.raises(TooManyRequestsError) as e:
+            with pytest.raises(TooManySMSRequestsError) as e:
                 with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
                     check_service_over_daily_sms_limit(key_type, service)
             assert e.value.status_code == 429
-            assert e.value.message == "Exceeded send limits (4) for today"
+            assert e.value.message == "Exceeded sms send limits (4) for today"
             assert e.value.fields == []
 
             app.notifications.validators.redis_store.set.assert_not_called()
@@ -320,11 +328,12 @@ class TestCheckDailyLimits:
         mocker.patch("app.notifications.validators.redis_store.set")
 
         service = create_sample_service(notify_db, notify_db_session, restricted=is_trial_service, limit=4, sms_limit=4)
-        with pytest.raises(TooManyRequestsError):
-            if limit_type == "sms":
+        if limit_type == "sms":
+            with pytest.raises(TooManySMSRequestsError):
                 with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
                     check_service_over_daily_sms_limit("normal", service)
-            else:
+        else:
+            with pytest.raises(TooManyRequestsError):
                 check_service_over_daily_message_limit("normal", service)
 
         app_statsd.statsd_client.incr.assert_called_once_with(expected_counter)
