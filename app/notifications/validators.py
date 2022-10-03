@@ -91,7 +91,7 @@ def check_service_over_daily_message_limit(key_type, service):
     exception=LiveServiceTooManyRequestsError,
 )
 def check_service_over_daily_sms_limit(key_type, service):
-    if key_type != KEY_TYPE_TEST and current_app.config["REDIS_ENABLED"]:
+    if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and key_type != KEY_TYPE_TEST and current_app.config["REDIS_ENABLED"]:
         cache_key = sms_daily_count_cache_key(service.id)
         messages_sent = redis_store.get(cache_key)
         if not messages_sent:
@@ -101,10 +101,10 @@ def check_service_over_daily_sms_limit(key_type, service):
         warn_about_daily_sms_limit(service, int(messages_sent))
 
 
-def check_rate_limiting(service, api_key):
+def check_rate_limiting(service, api_key, template_type):
     check_service_over_api_rate_limit(service, api_key)
     check_service_over_daily_message_limit(api_key.key_type, service)
-    if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
+    if template_type == "sms":
         check_service_over_daily_sms_limit(api_key.key_type, service)
 
 
@@ -174,7 +174,9 @@ def warn_about_daily_sms_limit(service, messages_sent):
             redis_store.set(cache_key, current_time, ex=cache_expiration)
             send_notification_to_service_users(
                 service_id=service.id,
-                template_id=current_app.config["NEAR_DAILY_LIMIT_TEMPLATE_ID"],  # TODO have a template for sms too
+                template_id=current_app.config["NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID"]
+                if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
+                else current_app.config["NEAR_DAILY_LIMIT_TEMPLATE_ID"],
                 personalisation={
                     "service_name": service.name,
                     "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
@@ -194,7 +196,9 @@ def warn_about_daily_sms_limit(service, messages_sent):
             redis_store.set(cache_key, current_time, ex=cache_expiration)
             send_notification_to_service_users(
                 service_id=service.id,
-                template_id=current_app.config["REACHED_DAILY_LIMIT_TEMPLATE_ID"],  # TODO have a template for sms too
+                template_id=current_app.config["REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"]
+                if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
+                else current_app.config["REACHED_DAILY_LIMIT_TEMPLATE_ID"],
                 personalisation={
                     "service_name": service.name,
                     "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
