@@ -52,6 +52,7 @@ from tests.app.db import (
     create_template,
     save_notification,
 )
+from tests.conftest import set_config
 
 
 def test_update_fact_notification_status(notify_db_session):
@@ -295,9 +296,7 @@ def test_fetch_notification_status_for_service_for_today_and_7_previous_days(
 
 @freeze_time("2018-10-31T18:00:00")
 # This test assumes the local timezone is EST
-def test_fetch_notification_status_by_template_for_service_for_today_and_7_previous_days(
-    notify_db_session,
-):
+def test_fetch_notification_status_by_template_for_service_for_today_and_7_previous_days(notify_db_session, notify_api):
     service_1 = create_service(service_name="service_1")
     sms_template = create_template(template_name="sms Template 1", service=service_1, template_type=SMS_TYPE)
     sms_template_2 = create_template(template_name="sms Template 2", service=service_1, template_type=SMS_TYPE)
@@ -327,21 +326,8 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
         )
     )
 
-    results = fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, by_template=True)
-
-    if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
-        assert [
-            ("email Template Name", False, mock.ANY, "email", "delivered", 1),
-            ("email Template Name", False, mock.ANY, "email", "delivered", 3),
-            ("letter Template Name", False, mock.ANY, "letter", "delivered", 5),
-            ("sms Template 1", False, mock.ANY, "sms", "created", 1),
-            ("sms Template Name", False, mock.ANY, "sms", "created", 1),
-            ("sms Template 1", False, mock.ANY, "sms", "delivered", 1),
-            ("sms Template 2", False, mock.ANY, "sms", "delivered", 1),
-            ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
-            ("sms Template Name", False, mock.ANY, "sms", "delivered", 20),
-        ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
-    else:
+    with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", False):
+        results = fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, by_template=True)
         assert [
             ("email Template Name", False, mock.ANY, "email", "delivered", 1),
             ("email Template Name", False, mock.ANY, "email", "delivered", 3),
@@ -352,6 +338,20 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
             ("sms Template 2", False, mock.ANY, "sms", "delivered", 1),
             ("sms Template Name", False, mock.ANY, "sms", "delivered", 10),
             ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
+        ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
+
+    with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
+        results = fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, by_template=True)
+        assert [
+            ("email Template Name", False, mock.ANY, "email", "delivered", 1),
+            ("email Template Name", False, mock.ANY, "email", "delivered", 3),
+            ("letter Template Name", False, mock.ANY, "letter", "delivered", 5),
+            ("sms Template 1", False, mock.ANY, "sms", "created", 1),
+            ("sms Template Name", False, mock.ANY, "sms", "created", 1),
+            ("sms Template 1", False, mock.ANY, "sms", "delivered", 1),
+            ("sms Template 2", False, mock.ANY, "sms", "delivered", 1),
+            ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
+            ("sms Template Name", False, mock.ANY, "sms", "delivered", 20),
         ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
 
 
