@@ -3,7 +3,6 @@ import uuid
 from datetime import datetime, timedelta
 
 import pytest
-from flask import current_app
 from freezegun import freeze_time
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound

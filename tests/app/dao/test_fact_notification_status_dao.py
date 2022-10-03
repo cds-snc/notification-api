@@ -3,7 +3,6 @@ from uuid import UUID
 
 import mock
 import pytest
-from flask import current_app
 from freezegun import freeze_time
 from notifications_utils.timezones import convert_utc_to_local_timezone
 
