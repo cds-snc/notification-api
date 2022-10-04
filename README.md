@@ -1,6 +1,7 @@
 # Notification API
 
 This repository implements:
+
 - the public-facing REST API for Notification built on the GOV.UK Notify platform, which teams can integrate with using [their clients](https://www.notifications.service.gov.uk/documentation)
 - an internal-only REST API built using Flask to manage services, users, templates, etc (this is what the [admin app](http://github.com/cds-snc/notification-admin) talks to)
 - asynchronous workers built using Celery to put things on queues and read them off to be processed, sent to providers, updated, etc
@@ -16,6 +17,7 @@ Information about service callback setup is available [here](/app/callback/READM
 ## Functional Constraints
 
 We currently do not:
+
 - support sending of letters
 - receive a response if text messages were delivered or not
 - receive status updates from our email provider (Granicus) while waiting for ESECC process to be completed
@@ -24,21 +26,22 @@ We currently do not:
 
 ## Table of Contents
 
-- [Local Development](#local-development)
-    - [Pre-commit hooks](#pre-commit-hooks)
-    - [Run the local Docker containers](#run-the-local-docker-containers)
-    - [Creating database migrations](#creating-database-migrations)
-    - [Unit testing](#unit-testing)
-    - [Building the production application container](#building-the-production-application-container)
-    - [Using Localstack](#using-localstack)
+- [Local Development Using Docker](#local-development)
+  - [Pre-commit hooks](#pre-commit-hooks)
+  - [Run the local Docker containers](#run-the-local-docker-containers)
+  - [Creating database migrations](#creating-database-migrations)
+  - [Unit testing](#unit-testing)
+  - [Building the production application container](#building-the-production-application-container)
+  - [Using Localstack](#using-localstack)
+- [Local development without docker](#local-development-without-docker)
 - [Maintaining Docker Images](#maintaining-docker-images)
 - [Deployment Workflow](#deployment-workflow)
-    - [Update requirements.txt](#update-requirementstxt)
-    - [Creating a PR](#creating-a-pr)
-    - [Release Process](#release-process)
-      - [Perf Release](#create-a-release-for-perf)
-      - [Staging Release](#create-a-release-for-staging)
-      - [Production Release](#promote-a-release-for-production)
+  - [Update requirements.txt](#update-requirementstxt)
+  - [Creating a PR](#creating-a-pr)
+  - [Release Process](#release-process)
+    - [Perf Release](#create-a-release-for-perf)
+    - [Staging Release](#create-a-release-for-staging)
+    - [Production Release](#promote-a-release-for-production)
 - [To Run the Queues](#to-run-the-queues)
 - [AWS Lambda Functions](#aws-lambda-functions)
 - [Running Code Scans](#running-code-scans)
@@ -49,13 +52,13 @@ We currently do not:
 
 ---
 
-## Local Development
+## Local Development Using Docker
 
 [Docker](https://www.docker.com/) is the prefered development environment.  Ensure you have Docker Engine installed or otherwise can run containers.
 
 First, open `ci/.docker-env.example`, fill in values as desired, and save as `ci/.docker-env`.  Then build the "notification_api" Docker image by running this command:
 
-```
+```bash
 docker-compose -f ci/docker-compose-local.yml build app
 ```
 
@@ -63,17 +66,11 @@ docker-compose -f ci/docker-compose-local.yml build app
 
 The associated container will have your local notification-api/ directory mounted in read-only mode, and Flask will run in development mode.  Changes you make to the code should trigger Flask to restart on the container.
 
-### Pre-commit hooks
-
-This repository uses [pre-commit](https://pre-commit.com/) and [talisman](https://github.com/thoughtworks/talisman) to scan changes for keys and secrets.  To set it up, install the required dependencies `pre-commit` and `go`.
-
-OSX users can run `brew bundle` and then `pre-commit install` to register the git hooks.  The configuration is stored in .pre-commit-config.yaml.
-
 ### Run the local Docker containers
 
 To run the app, and its ecosystem, locally, run:
 
-```
+```bash
 docker-compose -f ci/docker-compose-local.yml up
 ```
 
@@ -81,7 +78,7 @@ This also applies all migrations to the database container, ci_db_1.  To see use
 
 If AWS SES is enabled as a provider, you may need to run the following command to give the (simulated) SES permission to (pretend to) send e-mails:
 
-```
+```bash
 aws ses verify-email-identity --email-address stage-notifications@notifications.va.gov --endpoint-url=http://localhost:4566
 ```
 
@@ -99,7 +96,7 @@ Running `flask db migrate` on the container ci_app_1 errors because the files in
 
 Build the "ci_test" Docker image by running this command:
 
-```
+```bash
 docker-compose -f ci/docker-compose-test.yml build test
 ```
 
@@ -107,29 +104,137 @@ docker-compose -f ci/docker-compose-test.yml build test
 
 To run all unit tests:
 
-```
+```bash
 docker-compose -f ci/docker-compose-test.yml up --abort-on-container-exit
 ```
 
 The Github workflow also runs these tests when you push code.  Instructions for running a subset of tests are located in tests/README.md.
 
+### Pre-commit hooks
+
+This repository uses [pre-commit](https://pre-commit.com/) and [talisman](https://github.com/thoughtworks/talisman) to scan changes for keys and secrets.  To set it up, install the required dependencies `pre-commit` and `go`.
+
+OSX users can run `brew bundle` and then `pre-commit install` to register the git hooks.  The configuration is stored in .pre-commit-config.yaml.
+
 ### Building the production application container
 
 To verify that the production application container build should succeed during deployment, run:
 
-```
+```bash
 docker-compose -f ci/docker-compose.yml up --build --abort-on-container-exit
 ```
 
 Note that the production infrastructure does not use docker-compose.yml.
 
-###
-
-Using Localstack
+### Using Localstack
 
 TODO
 
 ---
+
+
+## Local Development without docker
+
+### Prerequisite installation
+
+ On OS X:
+
+ 1. Install PyEnv with Homebrew. This will preserve your sanity.
+
+  `brew install pyenv`
+
+ 2. Install Python 3.8.13 (or whatever version is specified in .python-version)
+ Then follow from instructions for rest of pyenv setup, [see step 3 here](https://github.com/pyenv/pyenv#basic-github-checkout)
+
+ Note: For MacOS devs who are using Big Sur, Monterey, standard pyenv python installation will be failed in most case. I found [this solution](https://github.com/pyenv/pyenv/issues/2143#issuecomment-1070640288) so only 3.7.13, 3.8.13, 3.9.11 and 3.10.3 works fine.
+
+ `pyenv install 3.8.13`
+
+ 3. If you expect no conflicts, set `3.8.13` as your default
+
+ `pyenv global 3.8.13`
+
+Upgrade the versions of `pip` and `virtualenvwrapper`
+
+ ```bash
+ pip install --upgrade pip
+ pip install --upgrade virtualenvwrapper
+ ```
+
+- to check Python version currently being used, run `pyenv version`
+
+- to check list of Python versions installed, run `pyenv versions`
+
+ 4. Ensure it installed by running
+
+ `python --version`
+
+ if it did not, take a look here: <https://github.com/pyenv/pyenv/issues/660>
+
+ 5. Install `virtualenv`:
+
+ `pip install virtualenvwrapper`
+
+ Note:
+
+- if you update to a later Python version, you will need to repeat steps 5~7 with reference to the new version.
+
+ 6. Add the following to your shell rc file. ex: `.bashrc` or `.zshrc`
+
+ ```bash
+ export WORKON_HOME=$HOME/.virtualenvs
+ export PROJECT_HOME=$HOME/Devel
+ source  ~/.pyenv/versions/3.8.13/bin/virtualenvwrapper.sh
+ ```
+
+ 7. Restart your terminal and make your virtual environtment:
+
+ `mkvirtualenv -p ~/.pyenv/versions/3.8.13/bin/python notification-api`
+
+ 8. You can now return to your environment any time by entering
+
+ `workon notification-api`
+
+  Exit the virtual environment by running `deactivate`
+
+ 9. Install [Postgres.app](http://postgresapp.com/).
+
+  > Note:
+     >
+     > - check version of Postgres used in `ci/docker-compose.yml` to install correct `db:image` version.
+     > - If you do not have PostgresSQL installed, run `brew install postgresql`
+     >
+ 10. Create the database for the application
+
+ `createdb --user=postgres notification_api`
+
+ 11. Install all dependencies
+
+ `pip3 install -r requirements.txt`
+
+ 12. Generate the version file ?!?
+
+ `make generate-version-file`
+
+ 12. Create .env file
+
+ `cp .env.example .env`
+
+ > Note:
+     >
+     > - You will need to get a team member to help you get appropriate values
+     >
+ 13. Run all DB migrations
+
+ `flask db upgrade`
+
+ Note:
+
+- For list of flask migration cli commands, see `/migrations/README.md`
+
+ 14. Run the service
+
+ `flask run -p 6011 --host=0.0.0.0`
 
 ## Maintaining Docker Images
 
@@ -245,8 +350,8 @@ The API releases are managed by tags in the GitHub repo.
 
 To create a new release, the user will create a new version tag in the git repository. This can be for the current `HEAD` or for a specific commit from a PR. The tag format will be `v(Major).(Minor).(Hotfix)` format. The Portal uses a similar method, so for version one of the Portal we created `v1.0.0` and with a single hotfix a new tag was created for `v1.0.1`.
 
-
 Example commands for tagging:
+
 ```cli
 git tag v2.0.0
 git push origin v2.0.0
@@ -290,7 +395,7 @@ When a release is generated it will trigger the release action which will checko
 
 ---
 
-##  To Run the Queues
+## To Run the Queues
 
 VA Notify uses [Celery](https://docs.celeryq.dev/en/stable/) to run batches of processes.
 
@@ -313,13 +418,13 @@ The instructions below are for running locally.  The scans also are implemented 
 
 [Bandit](https://pypi.org/project/bandit/) scans for common security issues in Python code.
 
-```
+```bash
 make check-vulnerabiltiies
 ```
 
 [Safety](https://pyup.io/safety/) checks python dependencies for known security vulnerabilities.
 
-```
+```bash
 make check-dependencies
 ```
 
@@ -331,8 +436,9 @@ If you are trying to hit our endpoints while running the app locally, make sure 
 For all other environments, use `https` instead of `http`. If you get some sort of seemingly random error, double check
 those first!
 
-You will need to set several environment variables in order to get the endpoints to work properly. They are as 
+You will need to set several environment variables in order to get the endpoints to work properly. They are as
 follows:
+
 - notification-api-url (either `127.0.0.1:6011` for local or our endpoints for everything else)
 - notification-client-secret (the values for dev through prod should be in param store or 1Password)
 - notification-admin-id: should be notify-admin for all environments
@@ -371,14 +477,15 @@ Jinja templates are pulled in from the [notification-utils](https://github.com/d
     ```commandline
     pip install file:///path/to/notification-utils
     ```
-   
-4. See the changes locally! 
-    - Be sure the local server for notification-api is running to send an email. 
-    - Refer to section [Installation for Local Development](###installation-for-local-development) for local setup or [Running in Docker](##running-in-Docker) for Docker command to local startup.
+
+4. See the changes locally!
+    - Be sure the local server for notification-api is running to send an email.
+    - Refer to section [Installation for Local Development](###local-installation-instruction) for local setup or [Running in Docker](###running-the-local-docker-containers) for Docker command to local startup.
 
 5. Repeat steps 1, 2 and 3 until satisfied.
 
 6. When finished run:
+
     ```commandline
     pip install -r requirements.txt
     ```
@@ -393,7 +500,7 @@ hit these, start up the app locally with Docker and make sure the mountebank con
 To hit the MPI endpoints, make a POST request to send a notification with the following information instead of the
 email/phone number in the payload:
 
-```
+```json
 "recipient_identifier": {
         "id_type": "PID",
         "id_value": <id value in stub url>
@@ -406,7 +513,7 @@ The ID value in the stub url is the number after `Patient/` and before the % sig
 For the VA Profile endpoints, make the same POST request to send a notification but use the following information
 instead of an email/phone number in the payload:
 
-```
+```json
 "recipient_identifier": {
         "id_type": "VAPROFILEID",
         "id_value": <id value in stub url>
@@ -427,7 +534,7 @@ you will first need to log into AWS using the CLI, and ensure that you have the 
 the script for the command line given that you provide the task name, prefix and routing key for the queue, and any
 required arguments to the task. For example, running the command
 
-```
+```bash
 python scripts/trigger_task.py --task-name generate-daily-notification-status-report --queue-prefix dev-notification- --routing-key delivery-receipts --task-args 2022-01-28
 ```
 
@@ -439,25 +546,25 @@ a date string of `2022-01-28` passed to the task.
 When adding environment variables to any `<filename>-task-definition.json` file, make sure you add them to the corresponding
 `celery`and `celery-beat` files as well. We want to try and keep these consistent with each other.
 
-___
+---
 
 ## Frequent problems
 
-__Problem__: `assert 'test_notification_api' in db.engine.url.database, 'dont run tests against main db`
+**Problem**: `assert 'test_notification_api' in db.engine.url.database, 'dont run tests against main db`
 
-__Solution__: Do not specify a database in your `.env`
-
----
-
-__Problem__: Messages are in the queue but not sending
-
-__Solution__: Check that `celery` is running. 
+**Solution**: Do not specify a database in your `.env`
 
 ---
 
-__Problem__: Github Actions is failing when running the 'Perform twistlock scan' step of the 'build-and-push' job
+**Problem**: Messages are in the queue but not sending
 
-__Solution__:
+**Solution**: Check that `celery` is running.
+
+---
+
+**Problem**: Github Actions is failing when running the 'Perform twistlock scan' step of the 'build-and-push' job
+
+**Solution**:
 
 1. Navigate to [Twistlock UI](https://twistlock.devops.va.gov/#!/login)
 
@@ -475,17 +582,17 @@ __Solution__:
 
 ---
 
-__Problem__: `./Modules/posixmodule.c:10432:5: warning: code will never be executed [-Wunreachable-code]
+**Problem**: `./Modules/posixmodule.c:10432:5: warning: code will never be executed [-Wunreachable-code]
 Py_FatalError("abort() called from Python code didn't abort!");`
 
 This error may occur while attempting to install pyenv after updating to Big Sur.
 
-__Solution__: Referenced from [this](https://github.com/pyenv/pyenv/issues/1739) Github issue.
+**Solution**: Referenced from [this](https://github.com/pyenv/pyenv/issues/1739) Github issue.
 
 Run the following command:
 
-```
+```bash
 CFLAGS="-I$(brew --prefix openssl)/include -I$(brew --prefix bzip2)/include -I$(brew --prefix readline)/include -I$(xcrun --show-sdk-path)/usr/include" \
 LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix readline)/lib -L$(brew --prefix zlib)/lib -L$(brew --prefix bzip2)/lib" \
-pyenv install --patch 3.6.10 < <(curl -sSL https://github.com/python/cpython/commit/8ea6353.patch\?full_index\=1)
+pyenv install --patch 3.8.13 < <(curl -sSL https://github.com/python/cpython/commit/8ea6353.patch\?full_index\=1)
 ```
