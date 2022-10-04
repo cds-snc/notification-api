@@ -279,7 +279,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
                     ).label("count")
                 ]
                 if current_app.config["FF_SMS_PARTS_UI"]
-                else [func.count(Notification.id).label("count")]
+                else [func.count().label("count")]
             ),
         )
         .filter(
