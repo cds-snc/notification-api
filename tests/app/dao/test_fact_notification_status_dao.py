@@ -325,7 +325,7 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
         )
     )
 
-    with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", False):
+    with set_config(notify_api, "FF_SMS_PARTS_UI", False):
         results = fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, by_template=True)
         assert [
             ("email Template Name", False, mock.ANY, "email", "delivered", 1),
@@ -339,7 +339,7 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
             ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
         ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
 
-    with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
+    with set_config(notify_api, "FF_SMS_PARTS_UI", True):
         results = fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, by_template=True)
         assert [
             ("email Template Name", False, mock.ANY, "email", "delivered", 1),

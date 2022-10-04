@@ -965,7 +965,7 @@ def test_fetch_stats_counts_correctly(notify_db_session, notify_api):
     save_notification(create_notification(template=email_template, status="technical-failure"))
     save_notification(create_notification(template=sms_template, status="created", billable_units=10))
 
-    with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", False):
+    with set_config(notify_api, "FF_SMS_PARTS_UI", False):
         stats = dao_fetch_stats_for_service(sms_template.service_id, 7)
         stats = sorted(stats, key=lambda x: (x.notification_type, x.status))
         assert len(stats) == 3
@@ -982,7 +982,7 @@ def test_fetch_stats_counts_correctly(notify_db_session, notify_api):
         assert stats[2].status == "created"
         assert stats[2].count == 1
 
-    with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
+    with set_config(notify_api, "FF_SMS_PARTS_UI", True):
         stats = dao_fetch_stats_for_service(sms_template.service_id, 7)
         stats = sorted(stats, key=lambda x: (x.notification_type, x.status))
         assert len(stats) == 3

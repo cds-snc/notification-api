@@ -461,7 +461,7 @@ def _stats_for_service_query(service_id):
                         else_=func.sum(Notification.billable_units),
                     ).label("count")
                 ]
-                if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
+                if current_app.config["FF_SMS_PARTS_UI"]
                 else [func.count(Notification.id).label("count")]
             ),
         )
