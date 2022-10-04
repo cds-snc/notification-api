@@ -86,6 +86,7 @@ from tests.app.db import (
     create_user,
     save_notification,
 )
+from tests.conftest import set_config
 
 # from unittest import mock
 
@@ -954,7 +955,7 @@ def test_fetch_stats_ignores_historical_notification_data(sample_template):
     assert len(stats) == 0
 
 
-def test_fetch_stats_counts_correctly(notify_db_session):
+def test_fetch_stats_counts_correctly(notify_db_session, notify_api):
     service = create_service()
     sms_template = create_template(service=service)
     email_template = create_template(service=service, template_type="email")
@@ -962,23 +963,41 @@ def test_fetch_stats_counts_correctly(notify_db_session):
     save_notification(create_notification(template=email_template, status="created"))
     save_notification(create_notification(template=email_template, status="created"))
     save_notification(create_notification(template=email_template, status="technical-failure"))
-    save_notification(create_notification(template=sms_template, status="created"))
+    save_notification(create_notification(template=sms_template, status="created", billable_units=10))
 
-    stats = dao_fetch_stats_for_service(sms_template.service_id, 7)
-    stats = sorted(stats, key=lambda x: (x.notification_type, x.status))
-    assert len(stats) == 3
+    with set_config(notify_api, "FF_SMS_PARTS_UI", False):
+        stats = dao_fetch_stats_for_service(sms_template.service_id, 7)
+        stats = sorted(stats, key=lambda x: (x.notification_type, x.status))
+        assert len(stats) == 3
 
-    assert stats[0].notification_type == "email"
-    assert stats[0].status == "created"
-    assert stats[0].count == 2
+        assert stats[0].notification_type == "email"
+        assert stats[0].status == "created"
+        assert stats[0].count == 2
 
-    assert stats[1].notification_type == "email"
-    assert stats[1].status == "technical-failure"
-    assert stats[1].count == 1
+        assert stats[1].notification_type == "email"
+        assert stats[1].status == "technical-failure"
+        assert stats[1].count == 1
 
-    assert stats[2].notification_type == "sms"
-    assert stats[2].status == "created"
-    assert stats[2].count == 1
+        assert stats[2].notification_type == "sms"
+        assert stats[2].status == "created"
+        assert stats[2].count == 1
+
+    with set_config(notify_api, "FF_SMS_PARTS_UI", True):
+        stats = dao_fetch_stats_for_service(sms_template.service_id, 7)
+        stats = sorted(stats, key=lambda x: (x.notification_type, x.status))
+        assert len(stats) == 3
+
+        assert stats[0].notification_type == "email"
+        assert stats[0].status == "created"
+        assert stats[0].count == 2
+
+        assert stats[1].notification_type == "email"
+        assert stats[1].status == "technical-failure"
+        assert stats[1].count == 1
+
+        assert stats[2].notification_type == "sms"
+        assert stats[2].status == "created"
+        assert stats[2].count == 10
 
 
 def test_fetch_stats_counts_should_ignore_team_key(notify_db_session):

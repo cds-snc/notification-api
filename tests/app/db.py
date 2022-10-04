@@ -737,8 +737,11 @@ def create_ft_notification_status(
     key_type="normal",
     notification_status="delivered",
     count=1,
-    billable_units=1,
+    billable_units=None,
 ):
+    if billable_units is None:
+        billable_units = count
+
     if job:
         template = job.template
     if template:
