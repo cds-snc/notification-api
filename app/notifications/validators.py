@@ -42,8 +42,10 @@ from app.utils import get_document_url, get_public_notify_type_text, is_blank
 from app.v2.errors import (
     BadRequestError,
     LiveServiceTooManyRequestsError,
+    LiveServiceTooManySMSRequestsError,
     RateLimitError,
     TrialServiceTooManyRequestsError,
+    TrialServiceTooManySMSRequestsError,
 )
 
 NEAR_DAILY_LIMIT_PERCENTAGE = 80 / 100
@@ -83,12 +85,12 @@ def check_service_over_daily_message_limit(key_type, service):
 @statsd_catch(
     namespace="validators",
     counter_name="rate_limit.trial_service_daily",
-    exception=TrialServiceTooManyRequestsError,
+    exception=TrialServiceTooManySMSRequestsError,
 )
 @statsd_catch(
     namespace="validators",
     counter_name="rate_limit.live_service_daily",
-    exception=LiveServiceTooManyRequestsError,
+    exception=LiveServiceTooManySMSRequestsError,
 )
 def check_service_over_daily_sms_limit(key_type, service):
     if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and key_type != KEY_TYPE_TEST and current_app.config["REDIS_ENABLED"]:
@@ -174,7 +176,9 @@ def warn_about_daily_sms_limit(service, messages_sent):
             redis_store.set(cache_key, current_time, ex=cache_expiration)
             send_notification_to_service_users(
                 service_id=service.id,
-                template_id=current_app.config["NEAR_DAILY_LIMIT_TEMPLATE_ID"],  # TODO have a template for sms too
+                template_id=current_app.config["NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID"]
+                if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
+                else current_app.config["NEAR_DAILY_LIMIT_TEMPLATE_ID"],
                 personalisation={
                     "service_name": service.name,
                     "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
@@ -194,7 +198,9 @@ def warn_about_daily_sms_limit(service, messages_sent):
             redis_store.set(cache_key, current_time, ex=cache_expiration)
             send_notification_to_service_users(
                 service_id=service.id,
-                template_id=current_app.config["REACHED_DAILY_LIMIT_TEMPLATE_ID"],  # TODO have a template for sms too
+                template_id=current_app.config["REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"]
+                if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
+                else current_app.config["REACHED_DAILY_LIMIT_TEMPLATE_ID"],
                 personalisation={
                     "service_name": service.name,
                     "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
@@ -208,9 +214,9 @@ def warn_about_daily_sms_limit(service, messages_sent):
             f"service {service.id} has been rate limited for daily sms use sent {int(messages_sent)} limit {service.sms_daily_limit}"
         )
         if service.restricted:
-            raise TrialServiceTooManyRequestsError(service.sms_daily_limit)
+            raise TrialServiceTooManySMSRequestsError(service.sms_daily_limit)
         else:
-            raise LiveServiceTooManyRequestsError(service.sms_daily_limit)
+            raise LiveServiceTooManySMSRequestsError(service.sms_daily_limit)
 
 
 def check_template_is_for_notification_type(notification_type, template_type):

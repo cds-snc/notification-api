@@ -51,6 +51,7 @@ from tests.app.db import (
     create_template,
     save_notification,
 )
+from tests.conftest import set_config
 
 
 def test_update_fact_notification_status(notify_db_session):
@@ -294,9 +295,7 @@ def test_fetch_notification_status_for_service_for_today_and_7_previous_days(
 
 @freeze_time("2018-10-31T18:00:00")
 # This test assumes the local timezone is EST
-def test_fetch_notification_status_by_template_for_service_for_today_and_7_previous_days(
-    notify_db_session,
-):
+def test_fetch_notification_status_by_template_for_service_for_today_and_7_previous_days(notify_db_session, notify_api):
     service_1 = create_service(service_name="service_1")
     sms_template = create_template(template_name="sms Template 1", service=service_1, template_type=SMS_TYPE)
     sms_template_2 = create_template(template_name="sms Template 2", service=service_1, template_type=SMS_TYPE)
@@ -305,8 +304,8 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
     # create unused email template
     create_template(service=service_1, template_type=EMAIL_TYPE)
 
-    create_ft_notification_status(date(2018, 10, 29), "sms", service_1, count=10)
-    create_ft_notification_status(date(2018, 10, 29), "sms", service_1, count=11)
+    create_ft_notification_status(date(2018, 10, 29), "sms", service_1, count=10, billable_units=20)
+    create_ft_notification_status(date(2018, 10, 29), "sms", service_1, count=11, billable_units=11)
     create_ft_notification_status(date(2018, 10, 24), "sms", service_1, count=8)
     create_ft_notification_status(date(2018, 10, 29), "sms", service_1, notification_status="created")
     create_ft_notification_status(date(2018, 10, 29), "email", service_1, count=3)
@@ -326,19 +325,33 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
         )
     )
 
-    results = fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, by_template=True)
+    with set_config(notify_api, "FF_SMS_PARTS_UI", False):
+        results = fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, by_template=True)
+        assert [
+            ("email Template Name", False, mock.ANY, "email", "delivered", 1),
+            ("email Template Name", False, mock.ANY, "email", "delivered", 3),
+            ("letter Template Name", False, mock.ANY, "letter", "delivered", 5),
+            ("sms Template 1", False, mock.ANY, "sms", "created", 1),
+            ("sms Template Name", False, mock.ANY, "sms", "created", 1),
+            ("sms Template 1", False, mock.ANY, "sms", "delivered", 1),
+            ("sms Template 2", False, mock.ANY, "sms", "delivered", 1),
+            ("sms Template Name", False, mock.ANY, "sms", "delivered", 10),
+            ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
+        ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
 
-    assert [
-        ("email Template Name", False, mock.ANY, "email", "delivered", 1),
-        ("email Template Name", False, mock.ANY, "email", "delivered", 3),
-        ("letter Template Name", False, mock.ANY, "letter", "delivered", 5),
-        ("sms Template 1", False, mock.ANY, "sms", "created", 1),
-        ("sms Template Name", False, mock.ANY, "sms", "created", 1),
-        ("sms Template 1", False, mock.ANY, "sms", "delivered", 1),
-        ("sms Template 2", False, mock.ANY, "sms", "delivered", 1),
-        ("sms Template Name", False, mock.ANY, "sms", "delivered", 10),
-        ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
-    ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
+    with set_config(notify_api, "FF_SMS_PARTS_UI", True):
+        results = fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, by_template=True)
+        assert [
+            ("email Template Name", False, mock.ANY, "email", "delivered", 1),
+            ("email Template Name", False, mock.ANY, "email", "delivered", 3),
+            ("letter Template Name", False, mock.ANY, "letter", "delivered", 5),
+            ("sms Template 1", False, mock.ANY, "sms", "created", 1),
+            ("sms Template Name", False, mock.ANY, "sms", "created", 1),
+            ("sms Template 1", False, mock.ANY, "sms", "delivered", 1),
+            ("sms Template 2", False, mock.ANY, "sms", "delivered", 1),
+            ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
+            ("sms Template Name", False, mock.ANY, "sms", "delivered", 20),
+        ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
 
 
 def test_get_total_notifications_sent_for_api_key(notify_db_session):
