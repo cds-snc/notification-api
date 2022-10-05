@@ -1893,6 +1893,9 @@ class TestBulkSend:
         template = create_sample_template(notify_db, notify_db_session, content=500 * "a", service=service, template_type="sms")
         mocker.patch("app.v2.notifications.post_notifications.fetch_todays_total_message_count", return_value=9)
         mocker.patch("app.v2.notifications.post_notifications.fetch_todays_total_sms_count", return_value=9)
+        job_id = str(uuid.uuid4())
+        mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
+        mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
         data = {
             "name": "job_name",
             "template_id": template.id,
