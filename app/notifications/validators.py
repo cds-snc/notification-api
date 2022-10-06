@@ -39,7 +39,6 @@ from app.models import (
     NotificationType,
     Permission,
     Service,
-    Template,
     TemplateType,
 )
 from app.notifications.process_notifications import create_content_for_notification
