@@ -1,7 +1,7 @@
 import datetime
 import itertools
 import uuid
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Literal, Optional
 
 from flask import current_app, url_for
 from flask_sqlalchemy.model import DefaultMeta
@@ -33,6 +33,8 @@ from app import DATETIME_FORMAT, db, signer
 from app.config import QueueNames
 from app.encryption import check_hash, hashpw
 from app.history_meta import Versioned
+
+TemplateType = Literal["sms", "email", "letter"]
 
 SMS_TYPE = "sms"
 EMAIL_TYPE = "email"
@@ -1022,7 +1024,7 @@ class TemplateBase(BaseModel):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = db.Column(db.String(255), nullable=False)
-    template_type = db.Column(template_types, nullable=False)
+    template_type: TemplateType = db.Column(template_types, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, onupdate=datetime.datetime.utcnow)
     content = db.Column(db.Text, nullable=False)
@@ -2009,6 +2011,10 @@ class InvitedOrganisationUser(BaseModel):
 
 
 # Service Permissions
+PermissionType = Literal["manage_users", "manage_templates", "manage_settings", "send_texts",
+                         "send_emails", "send_letters", "manage_api_keys", "platform_admin",
+                         "view_activity"]
+
 MANAGE_USERS = "manage_users"
 MANAGE_TEMPLATES = "manage_templates"
 MANAGE_SETTINGS = "manage_settings"
@@ -2048,7 +2054,7 @@ class Permission(BaseModel):
     service = db.relationship("Service")
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
     user = db.relationship("User")
-    permission = db.Column(
+    permission: PermissionType = db.Column(
         db.Enum(*PERMISSION_LIST, name="permission_types"),
         index=False,
         unique=False,
