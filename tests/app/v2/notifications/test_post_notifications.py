@@ -1887,7 +1887,7 @@ class TestBulkSend:
         ]
 
     def test_post_bulk_does_not_flag_not_enough_remaining_sms_message_parts_with_FF_SPIKE_SMS_DAILY_LIMIT_false(
-        self, notify_api, client, notify_db, notify_db_session, mocker
+        self, notify_api, client, notify_db, notify_db_session, notify_user, mocker
     ):
         service = create_service(sms_daily_limit=10, message_limit=100)
         template = create_sample_template(notify_db, notify_db_session, content=500 * "a", service=service, template_type="sms")
@@ -1899,7 +1899,7 @@ class TestBulkSend:
         data = {
             "name": "job_name",
             "template_id": template.id,
-            "csv": rows_to_csv([["phone number"], ["6135551234"]]),
+            "csv": rows_to_csv([["phone number"], ["6135551234"], ["6135551234"], ["6135551234"], ["6135551234"]]),
         }
 
         with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", False):
