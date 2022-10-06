@@ -34,13 +34,13 @@ from app.models import (
     LETTER_TYPE,
     SCHEDULE_NOTIFICATIONS,
     SMS_TYPE,
-    TemplateType,
     ApiKey,
     ApiKeyType,
     NotificationType,
     Permission,
     Service,
     Template,
+    TemplateType,
 )
 from app.notifications.process_notifications import create_content_for_notification
 from app.service.sender import send_notification_to_service_users
@@ -272,7 +272,9 @@ def check_service_can_schedule_notification(permissions: list[Permission], sched
             raise BadRequestError(message="Cannot schedule notifications (this feature is invite-only)")
 
 
-def validate_and_format_recipient(send_to, key_type: ApiKeyType, service: Service, notification_type: NotificationType, allow_safelisted_recipients=True):
+def validate_and_format_recipient(
+    send_to, key_type: ApiKeyType, service: Service, notification_type: NotificationType, allow_safelisted_recipients=True
+):
     if send_to is None:
         raise BadRequestError(message="Recipient can't be empty")
 

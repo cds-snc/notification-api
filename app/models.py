@@ -930,6 +930,7 @@ class ApiKey(BaseModel, Versioned):
         if secret:
             self._secret = signer.sign(str(secret))
 
+
 ApiKeyType = Literal["normal", "team", "test"]
 KEY_TYPE_NORMAL = "normal"
 KEY_TYPE_TEAM = "team"
@@ -2012,9 +2013,17 @@ class InvitedOrganisationUser(BaseModel):
 
 
 # Service Permissions
-PermissionType = Literal["manage_users", "manage_templates", "manage_settings", "send_texts",
-                         "send_emails", "send_letters", "manage_api_keys", "platform_admin",
-                         "view_activity"]
+PermissionType = Literal[
+    "manage_users",
+    "manage_templates",
+    "manage_settings",
+    "send_texts",
+    "send_emails",
+    "send_letters",
+    "manage_api_keys",
+    "platform_admin",
+    "view_activity",
+]
 
 MANAGE_USERS = "manage_users"
 MANAGE_TEMPLATES = "manage_templates"

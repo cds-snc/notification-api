@@ -7,7 +7,13 @@ from notifications_utils import SMS_CHAR_COUNT_LIMIT
 
 import app
 from app.dbsetup import RoutingSQLAlchemy
-from app.models import EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE, SMS_TYPE, ApiKeyType
+from app.models import (
+    EMAIL_TYPE,
+    INTERNATIONAL_SMS_TYPE,
+    LETTER_TYPE,
+    SMS_TYPE,
+    ApiKeyType,
+)
 from app.notifications.validators import (
     check_reply_to,
     check_service_email_reply_to_id,
