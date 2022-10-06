@@ -52,7 +52,7 @@ MarkupSafe==2.0.1
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous==2.0.1
 
-git+https://github.com/cds-snc/notifier-utils.git@48.3.0#egg=notifications-utils
+git+https://github.com/cds-snc/notifier-utils.git@49.0.0#egg=notifications-utils
 
 # MLWR
 socketio-client==0.5.6
@@ -65,7 +65,7 @@ git+https://bitbucket.org/cse-assemblyline/assemblyline_client.git@v3.7.3#egg=as
 rsa==4.7.2 # not directly required, pinned by Snyk to avoid a vulnerability
 
 ## The following requirements were added by pip freeze:
-aiohttp==3.8.1
+aiohttp==3.8.3
 aiosignal==1.2.0
 alembic==1.8.1
 amqp==5.1.1
@@ -79,7 +79,7 @@ blinker==1.5
 boto3==1.17.58
 botocore==1.20.58
 cachetools==4.2.1
-certifi==2022.9.14
+certifi==2022.9.24
 chardet==4.0.0
 charset-normalizer==2.1.1
 click==7.1.2
@@ -99,7 +99,7 @@ greenlet==1.1.3
 Jinja2==3.1.2
 jmespath==0.10.0
 kombu==5.2.4
-Mako==1.2.2
+Mako==1.2.3
 mistune==0.8.4
 multidict==6.0.2
 orderedset==2.0.3
@@ -110,7 +110,7 @@ py-w3c==0.3.1
 pyasn1==0.4.8
 pycparser==2.21
 pycurl==7.43.0.5
-pyOpenSSL==22.0.0
+pyOpenSSL==22.1.0
 pyparsing==3.0.9
 PyPDF2==1.26.0
 pyrsistent==0.18.1

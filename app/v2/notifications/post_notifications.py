@@ -10,6 +10,7 @@ from notifications_utils.recipients import (
     RecipientCSV,
     try_validate_and_format_phone_number,
 )
+from notifications_utils.template import Template
 
 from app import (
     api_user,
@@ -34,7 +35,10 @@ from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
-from app.dao.services_dao import fetch_todays_total_message_count
+from app.dao.services_dao import (
+    fetch_todays_total_message_count,
+    fetch_todays_total_sms_count,
+)
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.letters.utils import upload_letter_pdf
 from app.models import (
@@ -136,6 +140,7 @@ def post_bulk():
         raise BadRequestError(message=f"Error decoding arguments: {e.description}", status_code=400)
 
     max_rows = current_app.config["CSV_MAX_ROWS"]
+    check_sms_limit = current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
     form = validate(request_json, post_bulk_request(max_rows))
 
     if len([source for source in [form.get("rows"), form.get("csv")] if source]) != 1:
@@ -143,7 +148,10 @@ def post_bulk():
     template = validate_template_exists(form["template_id"], authenticated_service)
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 
-    remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
+    if template.template_type == "sms" and check_sms_limit:
+        remaining_messages = authenticated_service.sms_daily_limit - fetch_todays_total_sms_count(authenticated_service.id)
+    else:
+        remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
 
     form["validated_sender_id"] = validate_sender_id(template, form.get("reply_to_id"))
 
@@ -163,6 +171,7 @@ def post_bulk():
             max_rows=max_rows,
             safelist=safelisted_members(authenticated_service, api_user.key_type),
             remaining_messages=remaining_messages,
+            template=Template(template.__dict__),
         )
     except csv.Error as e:
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
@@ -564,6 +573,11 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"Duplicate column headers: {', '.join(sorted(recipient_csv.duplicate_recipient_column_headers))}",
                 status_code=400,
             )
+        if recipient_csv.more_sms_rows_than_can_send:
+            raise BadRequestError(
+                message=f"You only have {remaining_messages} remaining sms message parts before you reach your daily limit. You've tried to send {recipient_csv.sms_fragment_count} message parts.",
+                status_code=400,
+            )
         if recipient_csv.more_rows_than_can_send:
             raise BadRequestError(
                 message=f"You only have {remaining_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
@@ -602,8 +616,13 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"Some rows have errors. {errors}.",
                 status_code=400,
             )
-        else:
-            raise NotImplementedError("Got errors but code did not handle")
+        # TODO:
+        # - right now there are no other errors in RecipientCSV so this else is not needed
+        # - if FF_SPIKE_SMS_DAILY_LIMIT is false we do not want to throw this error if only more_sms_rows_than_can_send is set
+        # - after the FF is turned on / removed, we will restore this else
+        #
+        # else:
+        #     raise NotImplementedError("Got errors but code did not handle")
 
 
 def create_bulk_job(service, api_key, template, form, recipient_csv):
