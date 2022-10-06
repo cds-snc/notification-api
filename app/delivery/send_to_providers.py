@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import urllib.request
 from datetime import datetime
 from typing import Dict
@@ -127,6 +128,13 @@ def check_file_url(file_info: Dict[str, str], notification_id: UUID):
 
 def send_email_to_provider(notification: Notification):
     current_app.logger.info(f"Sending email to provider for notification id {notification.id}")
+    current_app.logger.info("Sleep started in send_email_to_provider")
+    x = 1
+    while x <= 6:
+        time.sleep(x)
+        current_app.logger.info("Slept for {} second".format(x))
+        x += 1
+    current_app.logger.info("Sleep completed in send_email_to_provider")
     service = notification.service
     if not service.active:
         inactive_service_failure(notification=notification)
