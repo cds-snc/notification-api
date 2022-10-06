@@ -1452,7 +1452,7 @@ class TestSaveEmails:
 
         persisted_notification = Notification.query.one()
         assert persisted_notification.reply_to_text == "reply_to@digital.gov.uk"
-    
+
     def test_save_email_should_save_non_default_email_reply_to_text_on_notification_when_set(self, notify_db_session, mocker):
         service = create_service()
         create_reply_to_email(service=service, email_address="reply_to@digital.gov.uk", is_default=True)
