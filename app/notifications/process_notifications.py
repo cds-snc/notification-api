@@ -10,6 +10,7 @@ from notifications_utils.recipients import (
 )
 from notifications_utils.timezones import convert_local_timezone_to_utc
 
+from app.sms_fragment_utils import increment_daily_sms_fragment_count
 from app import redis_store
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
@@ -132,10 +133,8 @@ def persist_notification(
         if key_type != KEY_TYPE_TEST:
             if redis_store.get(redis.daily_limit_cache_key(service.id)):
                 redis_store.incr(redis.daily_limit_cache_key(service.id))
-            if notification_type == SMS_TYPE and redis_store.get(redis.sms_daily_count_cache_key(service.id)):
-                redis_store.incrby(
-                    redis.sms_daily_count_cache_key(service.id), number_of_sms_fragments(template, personalisation)
-                )
+            if notification_type == SMS_TYPE:
+                increment_daily_sms_fragment_count(service.id, number_of_sms_fragments(template, personalisation))
 
         current_app.logger.info("{} {} created at {}".format(notification_type, notification_id, notification_created_at))
     return notification
@@ -210,10 +209,9 @@ def db_save_and_send_notification(notification: Notification):
         service_id = notification.service_id
         if redis_store.get(redis.daily_limit_cache_key(service_id)):
             redis_store.incr(redis.daily_limit_cache_key(service_id))
-        if notification.notification_type == SMS_TYPE and redis_store.get(redis.sms_daily_count_cache_key(service_id)):
-            redis_store.incrby(
-                redis.sms_daily_count_cache_key(service_id),
-                number_of_sms_fragments(notification.template, notification.personalisation),
+        if notification.notification_type == SMS_TYPE:
+            increment_daily_sms_fragment_count(
+                service_id, number_of_sms_fragments(notification.template, notification.personalisation)
             )
 
     current_app.logger.info(f"{notification.notification_type} {notification.id} created at {notification.created_at}")
@@ -359,10 +357,9 @@ def persist_notifications(notifications):
             service_id = notification.get("service").id
             if redis_store.get(redis.daily_limit_cache_key(service_id)):
                 redis_store.incr(redis.daily_limit_cache_key(service_id))
-            if notification.get("notification_type") == SMS_TYPE and redis_store.get(redis.sms_daily_count_cache_key(service_id)):
-                redis_store.incrby(
-                    redis.sms_daily_count_cache_key(service_id),
-                    number_of_sms_fragments(template, notification_obj.personalisation),
+            if notification.get("notification_type") == SMS_TYPE:
+                increment_daily_sms_fragment_count(
+                    service_id, number_of_sms_fragments(template, notification_obj.personalisation)
                 )
 
         current_app.logger.info(

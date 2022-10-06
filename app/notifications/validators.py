@@ -11,7 +11,6 @@ from notifications_utils.clients.redis import (
     over_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
     rate_limit_cache_key,
-    sms_daily_count_cache_key,
 )
 from notifications_utils.recipients import (
     get_international_phone_info,
@@ -22,6 +21,7 @@ from notifications_utils.statsd_decorators import statsd_catch
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import redis_store
+from app.sms_fragment_utils import fetch_daily_sms_fragment_count
 from app.dao import services_dao, templates_dao
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_letter_contact_dao import dao_get_letter_contact_by_id
@@ -94,13 +94,8 @@ def check_service_over_daily_message_limit(key_type, service):
 )
 def check_service_over_daily_sms_limit(key_type, service):
     if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and key_type != KEY_TYPE_TEST and current_app.config["REDIS_ENABLED"]:
-        cache_key = sms_daily_count_cache_key(service.id)
-        messages_sent = redis_store.get(cache_key)
-        if not messages_sent:
-            messages_sent = services_dao.fetch_todays_total_sms_count(service.id)
-            redis_store.set(cache_key, messages_sent, ex=int(timedelta(hours=2).total_seconds()))
-
-        warn_about_daily_sms_limit(service, int(messages_sent))
+        fragments_sent = fetch_daily_sms_fragment_count(service.id)
+        warn_about_daily_sms_limit(service, fragments_sent)
 
 
 def check_rate_limiting(service, api_key, template_type):
