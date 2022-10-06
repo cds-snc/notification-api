@@ -32,11 +32,13 @@ from app.models import (
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     LETTER_TYPE,
-    Permission,
     SCHEDULE_NOTIFICATIONS,
     SMS_TYPE,
     TemplateType,
     ApiKey,
+    ApiKeyType,
+    NotificationType,
+    Permission,
     Service,
     Template,
 )
@@ -56,7 +58,7 @@ from app.v2.errors import (
 NEAR_DAILY_LIMIT_PERCENTAGE = 80 / 100
 
 
-def check_service_over_api_rate_limit(service, api_key: ApiKey):
+def check_service_over_api_rate_limit(service: Service, api_key: ApiKey):
     if current_app.config["API_RATE_LIMIT_ENABLED"] and current_app.config["REDIS_ENABLED"]:
         cache_key = rate_limit_cache_key(service.id, api_key.key_type)
         rate_limit = service.rate_limit
@@ -76,7 +78,7 @@ def check_service_over_api_rate_limit(service, api_key: ApiKey):
     counter_name="rate_limit.live_service_daily",
     exception=LiveServiceTooManyRequestsError,
 )
-def check_service_over_daily_message_limit(key_type, service: Service):
+def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Service):
     if key_type != KEY_TYPE_TEST and current_app.config["REDIS_ENABLED"]:
         cache_key = daily_limit_cache_key(service.id)
         messages_sent = redis_store.get(cache_key)
@@ -97,7 +99,7 @@ def check_service_over_daily_message_limit(key_type, service: Service):
     counter_name="rate_limit.live_service_daily",
     exception=LiveServiceTooManySMSRequestsError,
 )
-def check_service_over_daily_sms_limit(key_type, service: Service):
+def check_service_over_daily_sms_limit(key_type: ApiKeyType, service: Service):
     if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and key_type != KEY_TYPE_TEST and current_app.config["REDIS_ENABLED"]:
         cache_key = sms_daily_count_cache_key(service.id)
         messages_sent = redis_store.get(cache_key)
@@ -224,7 +226,7 @@ def warn_about_daily_sms_limit(service: Service, messages_sent):
             raise LiveServiceTooManySMSRequestsError(service.sms_daily_limit)
 
 
-def check_template_is_for_notification_type(notification_type, template_type: TemplateType):
+def check_template_is_for_notification_type(notification_type: NotificationType, template_type: TemplateType):
     if notification_type != template_type:
         message = "{0} template is not suitable for {1} notification".format(template_type, notification_type)
         raise BadRequestError(fields=[{"template": message}], message=message)
@@ -238,7 +240,7 @@ def check_template_is_active(template):
         )
 
 
-def service_can_send_to_recipient(send_to, key_type, service: Service, allow_safelisted_recipients=True):
+def service_can_send_to_recipient(send_to, key_type: ApiKeyType, service: Service, allow_safelisted_recipients=True):
     if not service_allowed_to_send_to(send_to, service, key_type, allow_safelisted_recipients):
         # FIXME: hard code it for now until we can get en/fr specific links and text
         if key_type == KEY_TYPE_TEAM:
@@ -270,7 +272,7 @@ def check_service_can_schedule_notification(permissions: list[Permission], sched
             raise BadRequestError(message="Cannot schedule notifications (this feature is invite-only)")
 
 
-def validate_and_format_recipient(send_to, key_type, service: Service, notification_type, allow_safelisted_recipients=True):
+def validate_and_format_recipient(send_to, key_type: ApiKeyType, service: Service, notification_type: NotificationType, allow_safelisted_recipients=True):
     if send_to is None:
         raise BadRequestError(message="Recipient can't be empty")
 
@@ -306,7 +308,7 @@ def validate_template_exists(template_id, service: Service):
     return template
 
 
-def validate_template(template_id, personalisation, service: Service, notification_type):
+def validate_template(template_id, personalisation, service: Service, notification_type: NotificationType):
     template = check_template_exists_by_id_and_service(template_id, service)
     check_template_is_for_notification_type(notification_type, template.template_type)
     check_template_is_active(template)
@@ -337,7 +339,7 @@ def check_reply_to(service_id, reply_to_id, type_):
         return check_service_letter_contact_id(service_id, reply_to_id, type_)
 
 
-def check_service_email_reply_to_id(service_id, reply_to_id, notification_type):
+def check_service_email_reply_to_id(service_id, reply_to_id, notification_type: NotificationType):
     if reply_to_id:
         try:
             return dao_get_reply_to_by_id(service_id, reply_to_id).email_address
@@ -346,7 +348,7 @@ def check_service_email_reply_to_id(service_id, reply_to_id, notification_type):
             raise BadRequestError(message=message)
 
 
-def check_service_sms_sender_id(service_id, sms_sender_id, notification_type):
+def check_service_sms_sender_id(service_id, sms_sender_id, notification_type: NotificationType):
     if sms_sender_id:
         try:
             return dao_get_service_sms_senders_by_id(service_id, sms_sender_id).sms_sender
@@ -355,7 +357,7 @@ def check_service_sms_sender_id(service_id, sms_sender_id, notification_type):
             raise BadRequestError(message=message)
 
 
-def check_service_letter_contact_id(service_id, letter_contact_id, notification_type):
+def check_service_letter_contact_id(service_id, letter_contact_id, notification_type: NotificationType):
     if letter_contact_id:
         try:
             return dao_get_letter_contact_by_id(service_id, letter_contact_id).contact_block

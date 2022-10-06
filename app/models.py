@@ -930,7 +930,7 @@ class ApiKey(BaseModel, Versioned):
         if secret:
             self._secret = signer.sign(str(secret))
 
-
+ApiKeyType = Literal["normal", "team", "test"]
 KEY_TYPE_NORMAL = "normal"
 KEY_TYPE_TEAM = "team"
 KEY_TYPE_TEST = "test"
@@ -1269,6 +1269,7 @@ SMS_PROVIDERS = [SNS_PROVIDER]
 EMAIL_PROVIDERS = [SES_PROVIDER]
 PROVIDERS = SMS_PROVIDERS + EMAIL_PROVIDERS
 
+NotificationType = Literal["email", "sms", "letter"]
 NOTIFICATION_TYPE = [EMAIL_TYPE, SMS_TYPE, LETTER_TYPE]
 notification_types = db.Enum(*NOTIFICATION_TYPE, name="notification_type")
 
