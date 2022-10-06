@@ -577,11 +577,8 @@ class Test(Development):
     INVALID_PDF_BUCKET_NAME = "test-letters-invalid-pdf"
     TRANSIENT_UPLOADED_LETTERS = "test-transient-uploaded-letters"
 
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "SQLALCHEMY_DATABASE_URI",
-        "postgresql://postgres@localhost/test_notification_api",
-    )
-
+    SQLALCHEMY_DATABASE_URI="postgresql://postgres:chummy@db/test_notification_api"
+    SQLALCHEMY_DATABASE_READER_URI = "postgresql://postgres:chummy@db/test_notification_api"
     BROKER_URL = "you-forgot-to-mock-celery-in-your-tests://"
 
     ANTIVIRUS_ENABLED = True
