@@ -20,5 +20,6 @@ black==21.5b2
 locust==2.10.1
 mypy==0.812
 sqlalchemy-stubs==0.4
+sqlalchemy2-stubs==0.0.2a27
 networkx==2.8.6 # not directly required, pinned by Snyk to avoid a vulnerability
 pytest-mock-resources[redis]==2.4.0
