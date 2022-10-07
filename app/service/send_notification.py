@@ -31,6 +31,7 @@ from app.notifications.process_notifications import (
     send_notification_to_queue,
 )
 from app.notifications.validators import (
+    check_if_request_would_put_service_over_daily_sms_limit,
     check_service_has_permission,
     check_service_over_daily_message_limit,
     check_service_over_daily_sms_limit,
@@ -96,6 +97,9 @@ def send_one_off_notification(service_id, post_data):
         reply_to_text=reply_to,
         reference=create_one_off_reference(template.template_type),
     )
+    
+    if template.template_type == "sms":
+        check_if_request_would_put_service_over_daily_sms_limit(KEY_TYPE_NORMAL, service, notification.billable_units)
 
     if template.template_type == LETTER_TYPE and service.research_mode:
         _update_notification_status(

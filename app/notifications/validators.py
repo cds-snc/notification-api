@@ -119,7 +119,7 @@ def check_if_request_would_put_service_over_daily_sms_limit(key_type: ApiKeyType
         messages_sent = get_sms_messages_sent(service)
         total_requested = messages_sent + requested_sms
         if total_requested > service.sms_daily_limit:
-            raise LiveServiceTooManyRequestsError(service.message_limit)
+            raise LiveServiceTooManySMSRequestsError(service.sms_daily_limit)
 
 
 def check_rate_limiting(service: Service, api_key: ApiKey, template_type: TemplateType):

@@ -29,7 +29,7 @@ from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy
 from app.encryption import CryptoSigner
 from app.json_encoder import NotifyJSONEncoder
-from app.models import ApiKey, Service
+# from app.models import ApiKey, Service
 from app.queue import RedisQueue
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -57,8 +57,8 @@ document_download_client = DocumentDownloadClient()
 
 clients = Clients()
 
-api_user: ApiKey = LocalProxy(lambda: g.api_user)  # type: ignore
-authenticated_service: Service = LocalProxy(lambda: g.authenticated_service)  # type: ignore
+api_user = LocalProxy(lambda: g.api_user)
+authenticated_service = LocalProxy(lambda: g.authenticated_service)
 
 sms_bulk = RedisQueue("sms", process_type="bulk")
 sms_normal = RedisQueue("sms", process_type="normal")
