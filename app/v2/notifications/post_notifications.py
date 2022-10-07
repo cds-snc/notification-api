@@ -58,6 +58,7 @@ from app.models import (
     SMS_TYPE,
     UPLOAD_DOCUMENT,
     Notification,
+    NotificationType,
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
@@ -73,6 +74,7 @@ from app.notifications.validators import (
     check_service_can_schedule_notification,
     check_service_email_reply_to_id,
     check_service_has_permission,
+    check_service_over_daily_sms_limit,
     check_service_sms_sender_id,
     validate_and_format_recipient,
     validate_template,
@@ -183,7 +185,7 @@ def post_bulk():
 
 
 @v2_notification_blueprint.route("/<notification_type>", methods=["POST"])
-def post_notification(notification_type):
+def post_notification(notification_type: NotificationType):
     try:
         request_json = request.get_json()
     except werkzeug.exceptions.BadRequest as e:
@@ -217,6 +219,9 @@ def post_notification(notification_type):
 
     current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 
+    if notification_type == SMS_TYPE:
+        check_service_over_daily_sms_limit(api_user.key_type, authenticated_service)
+    
     reply_to = get_reply_to_text(notification_type, form, template)
 
     if notification_type == LETTER_TYPE:
