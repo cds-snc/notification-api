@@ -255,12 +255,10 @@ fileignoreconfig:
       checksum: 633be5f925209c984dcd89d6b6267986b0f30f385a22d1afb56de74a18ac2970
     - filename: app/models.py
       checksum: 9e17209f4c547479d5162383e1055f5fb6a2843e4024c7c9c899bcdab84924f5
-    - filename: app/notifications/validators.py
-      checksum: 7660f017c0462141816cbf32466e2c3a2eed61f3aacd5dde7ec42cde5d337510
     - filename: tests/app/notifications/test_validators.py
       checksum: efce5afc3015a7bdcae7e027da762acf1fefe782b30a5a92855b253cad6c3050
     - filename: app/notifications/validators.py
-      checksum: 7660f017c0462141816cbf32466e2c3a2eed61f3aacd5dde7ec42cde5d337510
+      checksum: d18fa859b50b20e1b2b835cb28cb899d3b709c3b298647d8c3b04064e6c63cc5
     - filename: requirements-app.txt
       checksum: 45aba00528f1e77c2324c4af006a6f6f8a4e93a2f053b940e2d7c3d680cbe0cb
     - filename: tests/app/notifications/test_validators.py
