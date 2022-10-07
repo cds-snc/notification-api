@@ -37,7 +37,7 @@ DATE_FORMAT = "%Y-%m-%d"
 
 load_dotenv()
 
-db = RoutingSQLAlchemy()
+db: RoutingSQLAlchemy = RoutingSQLAlchemy()
 migrate = Migrate()
 marshmallow = Marshmallow()
 notify_celery = NotifyCelery()
