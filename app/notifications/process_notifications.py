@@ -10,7 +10,6 @@ from notifications_utils.recipients import (
 )
 from notifications_utils.timezones import convert_local_timezone_to_utc
 
-from app.sms_fragment_utils import increment_daily_sms_fragment_count
 from app import redis_store
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
@@ -32,6 +31,7 @@ from app.models import (
     Notification,
     ScheduledNotification,
 )
+from app.sms_fragment_utils import increment_daily_sms_fragment_count
 from app.utils import get_template_instance
 from app.v2.errors import BadRequestError
 

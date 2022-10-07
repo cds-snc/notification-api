@@ -16,7 +16,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import redis_store
-from app.sms_fragment_utils import delete_daily_sms_fragment_count
 from app.clients.zendesk_sell import ZenDeskSell
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
@@ -131,6 +130,7 @@ from app.service.service_senders_schema import (
     add_service_sms_sender_request,
 )
 from app.service.utils import get_safelist_objects
+from app.sms_fragment_utils import delete_daily_sms_fragment_count
 from app.user.users_schema import post_set_permissions_schema
 from app.utils import pagination_links
 

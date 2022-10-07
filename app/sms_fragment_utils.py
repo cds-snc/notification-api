@@ -1,8 +1,10 @@
 from datetime import timedelta
-from notifications_utils.clients.redis import sms_daily_count_cache_key
+
 from flask import current_app
-from app.dao.services_dao import fetch_todays_total_sms_count
+from notifications_utils.clients.redis import sms_daily_count_cache_key
+
 from app import redis_store
+from app.dao.services_dao import fetch_todays_total_sms_count
 
 
 def fetch_daily_sms_fragment_count(service_id):
