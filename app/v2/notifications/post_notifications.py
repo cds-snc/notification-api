@@ -57,8 +57,10 @@ from app.models import (
     PRIORITY,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
+    ApiKey,
     Notification,
     NotificationType,
+    Service,
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
@@ -70,11 +72,11 @@ from app.notifications.process_notifications import (
     transform_notification,
 )
 from app.notifications.validators import (
+    check_if_request_would_put_service_over_daily_sms_limit,
     check_rate_limiting,
     check_service_can_schedule_notification,
     check_service_email_reply_to_id,
     check_service_has_permission,
-    check_service_over_daily_sms_limit,
     check_service_sms_sender_id,
     validate_and_format_recipient,
     validate_template,
@@ -219,9 +221,6 @@ def post_notification(notification_type: NotificationType):
 
     current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 
-    if notification_type == SMS_TYPE:
-        check_service_over_daily_sms_limit(api_user.key_type, authenticated_service)
-    
     reply_to = get_reply_to_text(notification_type, form, template)
 
     if notification_type == LETTER_TYPE:
@@ -242,6 +241,8 @@ def post_notification(notification_type: NotificationType):
         )
 
         template_with_content.values = notification.personalisation
+        if notification_type == SMS_TYPE:
+            check_if_request_would_put_service_over_daily_sms_limit(api_user, authenticated_service, notification.billable_units)
 
     if notification_type == SMS_TYPE:
         create_resp_partial = functools.partial(create_post_sms_response_from_notification, from_number=reply_to)
@@ -270,7 +271,7 @@ def post_notification(notification_type: NotificationType):
     return jsonify(resp), 201
 
 
-def triage_notification_to_queues(notification_type, signed_notification_data, template):
+def triage_notification_to_queues(notification_type: NotificationType, signed_notification_data, template: Template):
     """Determine which queue to use based on notification_type and process_type
 
     Args:
@@ -297,7 +298,9 @@ def triage_notification_to_queues(notification_type, signed_notification_data, t
             email_bulk.publish(signed_notification_data)
 
 
-def process_sms_or_email_notification(*, form, notification_type, api_key, template, service, reply_to_text=None):
+def process_sms_or_email_notification(
+    *, form, notification_type: NotificationType, api_key: ApiKey, template: Template, service: Service, reply_to_text=None
+):
     form_send_to = form["email_address"] if notification_type == EMAIL_TYPE else form["phone_number"]
 
     send_to = validate_and_format_recipient(
@@ -387,7 +390,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
     return notification
 
 
-def process_document_uploads(personalisation_data, service, simulated, template_id):
+def process_document_uploads(personalisation_data, service: Service, simulated, template_id):
     file_keys = [k for k, v in (personalisation_data or {}).items() if isinstance(v, dict) and "file" in v]
     if not file_keys:
         return personalisation_data

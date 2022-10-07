@@ -80,7 +80,7 @@ def persist_notification(
     billable_units=None,
     postage=None,
     template_postage=None,
-):
+) -> Notification:
     notification_created_at = created_at or datetime.utcnow()
     if not notification_id:
         notification_id = uuid.uuid4()

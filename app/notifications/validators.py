@@ -39,6 +39,7 @@ from app.models import (
     NotificationType,
     Permission,
     Service,
+    Template,
     TemplateType,
 )
 from app.notifications.process_notifications import create_content_for_notification
@@ -88,6 +89,15 @@ def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Servic
         warn_about_daily_message_limit(service, int(messages_sent))
 
 
+def get_sms_messages_sent(service: Service) -> int:
+    cache_key = sms_daily_count_cache_key(service.id)
+    messages_sent = redis_store.get(cache_key)
+    if not messages_sent:
+        messages_sent = services_dao.fetch_todays_total_sms_count(service.id)
+        redis_store.set(cache_key, messages_sent, ex=int(timedelta(hours=2).total_seconds()))
+    return int(messages_sent)
+
+
 @statsd_catch(
     namespace="validators",
     counter_name="rate_limit.trial_service_daily",
@@ -100,13 +110,16 @@ def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Servic
 )
 def check_service_over_daily_sms_limit(key_type: ApiKeyType, service: Service):
     if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and key_type != KEY_TYPE_TEST and current_app.config["REDIS_ENABLED"]:
-        cache_key = sms_daily_count_cache_key(service.id)
-        messages_sent = redis_store.get(cache_key)
-        if not messages_sent:
-            messages_sent = services_dao.fetch_todays_total_sms_count(service.id)
-            redis_store.set(cache_key, messages_sent, ex=int(timedelta(hours=2).total_seconds()))
+        messages_sent = get_sms_messages_sent(service)
+        warn_about_daily_sms_limit(service, messages_sent)
 
-        warn_about_daily_sms_limit(service, int(messages_sent))
+
+def check_if_request_would_put_service_over_daily_sms_limit(key_type: ApiKeyType, service: Service, requested_sms: int):
+    if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and key_type != KEY_TYPE_TEST and current_app.config["REDIS_ENABLED"]:
+        messages_sent = get_sms_messages_sent(service)
+        total_requested = messages_sent + requested_sms
+        if total_requested > service.sms_daily_limit:
+            raise LiveServiceTooManyRequestsError(service.message_limit)
 
 
 def check_rate_limiting(service: Service, api_key: ApiKey, template_type: TemplateType):
@@ -169,7 +182,7 @@ def warn_about_daily_message_limit(service: Service, messages_sent):
             raise LiveServiceTooManyRequestsError(service.message_limit)
 
 
-def warn_about_daily_sms_limit(service: Service, messages_sent):
+def warn_about_daily_sms_limit(service: Service, messages_sent: int):
     nearing_sms_daily_limit = messages_sent >= NEAR_DAILY_LIMIT_PERCENTAGE * service.sms_daily_limit
     over_sms_daily_limit = messages_sent >= service.sms_daily_limit
     current_time = datetime.utcnow().isoformat()
@@ -314,7 +327,7 @@ def validate_template(template_id, personalisation, service: Service, notificati
     check_template_is_for_notification_type(notification_type, template.template_type)
     check_template_is_active(template)
 
-    template_with_content = create_content_for_notification(template, personalisation)
+    template_with_content: Template = create_content_for_notification(template, personalisation)
     if template.template_type == SMS_TYPE:
         check_sms_content_char_count(template_with_content.content_count)
 
@@ -323,7 +336,7 @@ def validate_template(template_id, personalisation, service: Service, notificati
     return template, template_with_content
 
 
-def check_template_exists_by_id_and_service(template_id, service: Service):
+def check_template_exists_by_id_and_service(template_id, service: Service) -> Template:
     try:
         return templates_dao.dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service.id)
     except NoResultFound:

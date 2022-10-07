@@ -57,8 +57,8 @@ document_download_client = DocumentDownloadClient()
 
 clients = Clients()
 
-api_user: ApiKey = LocalProxy(lambda: g.api_user) # type: ignore
-authenticated_service: Service = LocalProxy(lambda: g.authenticated_service) # type: ignore
+api_user: ApiKey = LocalProxy(lambda: g.api_user)  # type: ignore
+authenticated_service: Service = LocalProxy(lambda: g.authenticated_service)  # type: ignore
 
 sms_bulk = RedisQueue("sms", process_type="bulk")
 sms_normal = RedisQueue("sms", process_type="normal")
