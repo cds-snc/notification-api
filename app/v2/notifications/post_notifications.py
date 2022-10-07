@@ -81,7 +81,6 @@ from app.notifications.validators import (
 from app.schema_validation import validate
 from app.schemas import job_schema
 from app.service.utils import safelisted_members
-from app.sms_fragment_utils import fetch_daily_sms_fragment_count
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
