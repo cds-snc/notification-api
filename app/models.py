@@ -34,12 +34,10 @@ from app.config import QueueNames
 from app.encryption import check_hash, hashpw
 from app.history_meta import Versioned
 
-TemplateType = Literal["sms", "email", "letter"]
-
 SMS_TYPE = "sms"
 EMAIL_TYPE = "email"
 LETTER_TYPE = "letter"
-
+TemplateType = Literal[SMS_TYPE, EMAIL_TYPE, LETTER_TYPE]  # type: ignore
 TEMPLATE_TYPES = [SMS_TYPE, EMAIL_TYPE, LETTER_TYPE]
 
 template_types = db.Enum(*TEMPLATE_TYPES, name="template_type")
@@ -931,10 +929,10 @@ class ApiKey(BaseModel, Versioned):
             self._secret = signer.sign(str(secret))
 
 
-ApiKeyType = Literal["normal", "team", "test"]
 KEY_TYPE_NORMAL = "normal"
 KEY_TYPE_TEAM = "team"
 KEY_TYPE_TEST = "test"
+ApiKeyType = Literal[KEY_TYPE_NORMAL, KEY_TYPE_TEAM, KEY_TYPE_TEST]  # type: ignore
 
 
 class KeyTypes(BaseModel):
@@ -1270,7 +1268,7 @@ SMS_PROVIDERS = [SNS_PROVIDER]
 EMAIL_PROVIDERS = [SES_PROVIDER]
 PROVIDERS = SMS_PROVIDERS + EMAIL_PROVIDERS
 
-NotificationType = Literal["email", "sms", "letter"]
+NotificationType = Literal[EMAIL_TYPE, SMS_TYPE, LETTER_TYPE]  # type: ignore
 NOTIFICATION_TYPE = [EMAIL_TYPE, SMS_TYPE, LETTER_TYPE]
 notification_types = db.Enum(*NOTIFICATION_TYPE, name="notification_type")
 
@@ -2013,18 +2011,6 @@ class InvitedOrganisationUser(BaseModel):
 
 
 # Service Permissions
-PermissionType = Literal[
-    "manage_users",
-    "manage_templates",
-    "manage_settings",
-    "send_texts",
-    "send_emails",
-    "send_letters",
-    "manage_api_keys",
-    "platform_admin",
-    "view_activity",
-]
-
 MANAGE_USERS = "manage_users"
 MANAGE_TEMPLATES = "manage_templates"
 MANAGE_SETTINGS = "manage_settings"
@@ -2034,6 +2020,18 @@ SEND_LETTERS = "send_letters"
 MANAGE_API_KEYS = "manage_api_keys"
 PLATFORM_ADMIN = "platform_admin"
 VIEW_ACTIVITY = "view_activity"
+
+PermissionType = Literal[  # type: ignore
+    MANAGE_USERS,  # type: ignore
+    MANAGE_TEMPLATES,  # type: ignore
+    MANAGE_SETTINGS,  # type: ignore
+    SEND_TEXTS,  # type: ignore
+    SEND_EMAILS,  # type: ignore
+    SEND_LETTERS,  # type: ignore
+    MANAGE_API_KEYS,  # type: ignore
+    PLATFORM_ADMIN,  # type: ignore
+    VIEW_ACTIVITY,  # type: ignore
+]
 
 # List of permissions
 PERMISSION_LIST = [
