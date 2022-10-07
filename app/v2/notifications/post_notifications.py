@@ -150,14 +150,6 @@ def post_bulk():
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 
     if template.template_type == "sms" and check_sms_limit:
-        redis_counter = fetch_daily_sms_fragment_count(authenticated_service.id)
-        database_query = fetch_todays_total_sms_count(authenticated_service.id)
-        current_app.logger.info(f"-- post_bulk: sms_daily_limit: {authenticated_service.sms_daily_limit}")
-        current_app.logger.info(f"-- post_bulk: redis counter  : {redis_counter}")
-        current_app.logger.info(f"-- post_bulk: database query : {database_query}")
-        if redis_counter != database_query:
-            current_app.logger.warning(f"-- post_bulk: redis counter = {redis_counter} != {database_query} = database_query")
-
         remaining_messages = authenticated_service.sms_daily_limit - fetch_todays_total_sms_count(authenticated_service.id)
     else:
         remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
