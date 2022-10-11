@@ -12,9 +12,11 @@ from app.models import (
     INTERNATIONAL_SMS_TYPE,
     LETTER_TYPE,
     SMS_TYPE,
+    ApiKey,
     ApiKeyType,
 )
 from app.notifications.validators import (
+    check_if_request_would_put_service_over_daily_sms_limit,
     check_reply_to,
     check_service_email_reply_to_id,
     check_service_letter_contact_id,
@@ -208,6 +210,34 @@ class TestCheckDailyLimits:
                 include_user_fields=["name"],
             )
 
+    @pytest.mark.parametrize(
+        "requested_sms, error_expected",
+        [
+            (0, False),
+            (1, False),
+            (2, True),
+            (3, True),
+            (10, True),
+        ],
+    )
+    def test_check_if_request_would_put_service_over_daily_sms_limit(
+        self, notify_api: ApiKey, requested_sms: int, error_expected: bool, notify_db, notify_db_session, mocker
+    ):
+        with freeze_time("2016-01-01 12:00:00.000000"):
+            redis_get = mocker.patch("app.redis_store.get", side_effect=["5", True, None]) # 5 SMS sent today
+            redis_set = mocker.patch("app.redis_store.set")
+
+            service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=10, sms_limit=6)
+            
+            with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
+                try:
+                    check_if_request_would_put_service_over_daily_sms_limit("normal", service, requested_sms)
+                    assert not error_expected # will cause test to fail if an error was expected
+                except TooManySMSRequestsError as e:
+                    assert error_expected # will cause test to fail if error is raised and not expected
+                    assert e.message == "Exceeded sms send limits (6) for today"
+
+                
     @pytest.mark.parametrize(
         "limit_type, email_template", [("all", "NEAR_DAILY_LIMIT_TEMPLATE_ID"), ("sms", "NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID")]
     )
