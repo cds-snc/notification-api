@@ -224,8 +224,8 @@ class TestCheckDailyLimits:
         self, notify_api: ApiKey, requested_sms: int, error_expected: bool, notify_db, notify_db_session, mocker
     ):
         with freeze_time("2016-01-01 12:00:00.000000"):
-            redis_get = mocker.patch("app.redis_store.get", side_effect=["5", True, None])  # 5 SMS sent today
-            redis_set = mocker.patch("app.redis_store.set")
+            mocker.patch("app.redis_store.get", side_effect=["5", True, None])  # 5 SMS sent today
+            mocker.patch("app.redis_store.set")
 
             service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=10, sms_limit=6)
 
@@ -236,13 +236,6 @@ class TestCheckDailyLimits:
                 except TooManySMSRequestsError as e:
                     assert error_expected  # will cause test to fail if error is raised and not expected
                     assert e.message == "Exceeded sms send limits (6) for today"
-
-            assert redis_get.call_args_list == [
-                call(count_key("sms", service.id)),
-                call(near_key("sms", service.id)),
-                call(over_key("sms", service.id)),
-            ]
-            assert redis_set.call_args_list == [call(over_key("sms", service.id), "2016-01-01T12:00:00", ex=86400)]
 
     @pytest.mark.parametrize(
         "limit_type, email_template", [("all", "NEAR_DAILY_LIMIT_TEMPLATE_ID"), ("sms", "NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID")]
