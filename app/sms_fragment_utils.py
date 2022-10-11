@@ -25,9 +25,3 @@ def increment_daily_sms_fragment_count(service_id: UUID, increment_by: int):
         fetch_daily_sms_fragment_count(service_id)  # to make sure it's set in redis
         cache_key = sms_daily_count_cache_key(service_id)
         redis_store.incrby(cache_key, increment_by)
-
-
-def delete_daily_sms_fragment_count(service_id: UUID):
-    if current_app.config["REDIS_ENABLED"]:
-        cache_key = sms_daily_count_cache_key(service_id)
-        redis_store.delete(cache_key)

@@ -2,7 +2,6 @@ import pytest
 from notifications_utils.clients.redis import sms_daily_count_cache_key
 
 from app.sms_fragment_utils import (
-    delete_daily_sms_fragment_count,
     fetch_daily_sms_fragment_count,
     increment_daily_sms_fragment_count,
 )
@@ -28,12 +27,6 @@ def test_fetch_daily_sms_fragment_count(client, mocker, sample_service, redis_va
             )
         else:
             mocked_set.assert_not_called()
-
-
-def test_delete_daily_sms_fragment_count(mocker, sample_service):
-    mocked_delete = mocker.patch("app.redis_store.delete")
-    delete_daily_sms_fragment_count(sample_service.id)
-    assert mocked_delete.called_once_with(sms_daily_count_cache_key(sample_service.id))
 
 
 @pytest.mark.parametrize("redis_value,db_value,increment_by", [(None, 5, 5), ("3", 5, 3)])
