@@ -2,7 +2,9 @@ import random
 import re
 import string
 import uuid
+from os import getenv
 from time import monotonic
+from typing import Any
 
 from dotenv import load_dotenv
 from flask import g, jsonify, make_response, request  # type: ignore
@@ -55,8 +57,8 @@ document_download_client = DocumentDownloadClient()
 
 clients = Clients()
 
-api_user = LocalProxy(lambda: g.api_user)
-authenticated_service = LocalProxy(lambda: g.authenticated_service)
+api_user: Any = LocalProxy(lambda: g.api_user)
+authenticated_service: Any = LocalProxy(lambda: g.authenticated_service)
 
 sms_bulk = RedisQueue("sms", process_type="bulk")
 sms_normal = RedisQueue("sms", process_type="normal")
@@ -70,7 +72,7 @@ def create_app(application, config=None):
     from app.config import configs
 
     if config is None:
-        notify_environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
+        notify_environment = getenv("NOTIFY_ENVIRONMENT", "development")
         config = configs[notify_environment]
         application.config.from_object(configs[notify_environment])
     else:
