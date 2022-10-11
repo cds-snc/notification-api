@@ -1,8 +1,8 @@
+import os
 import random
 import re
 import string
 import uuid
-from os import getenv
 from time import monotonic
 from typing import Any
 
@@ -72,7 +72,7 @@ def create_app(application, config=None):
     from app.config import configs
 
     if config is None:
-        notify_environment = getenv("NOTIFY_ENVIRONMENT", "development")
+        notify_environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
         config = configs[notify_environment]
         application.config.from_object(configs[notify_environment])
     else:
