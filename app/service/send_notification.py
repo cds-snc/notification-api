@@ -97,7 +97,7 @@ def send_one_off_notification(service_id, post_data):
         reply_to_text=reply_to,
         reference=create_one_off_reference(template.template_type),
     )
-    
+
     if template.template_type == "sms":
         check_if_request_would_put_service_over_daily_sms_limit(KEY_TYPE_NORMAL, service, notification.billable_units)
 

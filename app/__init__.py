@@ -1,4 +1,3 @@
-import os
 import random
 import re
 import string
@@ -29,7 +28,6 @@ from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy
 from app.encryption import CryptoSigner
 from app.json_encoder import NotifyJSONEncoder
-# from app.models import ApiKey, Service
 from app.queue import RedisQueue
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
