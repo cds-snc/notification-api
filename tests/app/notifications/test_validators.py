@@ -7,7 +7,13 @@ from notifications_utils import SMS_CHAR_COUNT_LIMIT
 
 import app
 from app.dbsetup import RoutingSQLAlchemy
-from app.models import EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE, SMS_TYPE
+from app.models import (
+    EMAIL_TYPE,
+    INTERNATIONAL_SMS_TYPE,
+    LETTER_TYPE,
+    SMS_TYPE,
+    ApiKeyType,
+)
 from app.notifications.validators import (
     check_reply_to,
     check_service_email_reply_to_id,
@@ -447,7 +453,7 @@ def test_service_can_send_to_recipient_fails_when_ignoring_safelist(
 )  # noqa
 def test_service_can_send_to_recipient_fails_when_recipient_is_not_on_team(
     recipient: str,
-    key_type: str,
+    key_type: ApiKeyType,
     error_message: str,
     notify_db: RoutingSQLAlchemy,
     notify_db_session: RoutingSQLAlchemy,
