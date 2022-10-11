@@ -26,7 +26,7 @@ We currently do not:
 
 ## Table of Contents
 
-- [Local Development Using Docker](#local-development)
+- [Local Development Using Docker](#local-development-using-docker)
   - [Pre-commit hooks](#pre-commit-hooks)
   - [Run the local Docker containers](#run-the-local-docker-containers)
   - [Creating database migrations](#creating-database-migrations)

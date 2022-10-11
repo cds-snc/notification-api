@@ -1,9 +1,9 @@
 # This is used to create Postgres stored functions via the migrations process.
-alembic_utils>=0.7.7
+alembic_utils>=0.7.8
 
-Authlib>=1.0.1
-boto3>=1.24.18
-botocore>=1.27.18
+Authlib>=1.1.0
+boto3>=1.24.89
+botocore>=1.27.89
 cachelib>=0.9.0
 
 # 5 May 2022: Ignoring security vulnerabilities 42498 and 43738 in Makefile.
@@ -39,9 +39,9 @@ git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd
 # 9 May 2022: Newer versions cause build or runtime issues.
 gunicorn[eventlet] < 20.1.0
 
-iso8601>=1.0.2
+iso8601>=1.1.0
 itsdangerous>=1.1.0
-jsonschema>=4.5.1
+jsonschema>=4.16.0
 
 # 5 May 2022: Celery depends on this package, and the Docker image build failed with the newest version.
 # Ignoring security vulnerability 42497 in Makefile.  The vulnerability is fixed in kombu>=5.2.1.
@@ -53,16 +53,16 @@ MarkupSafe==2.0.1
 marshmallow==2.20.5
 marshmallow-sqlalchemy==0.22.2
 nanoid>=2.0.0
-notifications-python-client>=6.3.0
-psycopg2-binary>=2.9.3
+notifications-python-client>=6.4.0
+psycopg2-binary>=2.9.4
 pwnedpasswords>=2.0.0
-PyJWT>=2.4.0
+PyJWT>=2.5.0
 
 # 27 June 2022: Flask raises ImportError with newer versions.  notification-utils version 1.0.66 also raises
 # import errors with newer versions, but that package can be updated to version 1.1.0 if we upgrade Flask.
 PyPDF2 < 2.0.0
 
-python-dotenv>=0.20.0
+python-dotenv>=0.21.0
 python-magic>=0.4.27
 
 # jsonschema requires this package to validate the date-time format but doesn't include it as a dependency.
@@ -70,8 +70,8 @@ python-magic>=0.4.27
 # https://python-jsonschema.readthedocs.io/en/latest/validate/?highlight=date-time#validating-formats
 rfc3339-validator>=0.1.4
 
-sentry-sdk[flask]>=1.6.0
+sentry-sdk[flask]>=1.9.10
 SQLAlchemy < 1.4
-twilio>=7.9.3
-Unidecode>=1.3.4
+twilio>=7.14.2
+Unidecode>=1.3.6
 validatesns>=0.1.1
