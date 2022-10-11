@@ -357,22 +357,22 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
             else:
                 reply_to_text = template.get_reply_to_text()  # type: ignore
 
-        notification["reply_to_text"] = reply_to_text
-        notification["service"] = service
-        notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
-        notification["template_id"] = template.id
-        notification["template_version"] = template.version
-        notification["recipient"] = notification.get("to")
-        notification["personalisation"] = notification.get("personalisation")
-        notification["notification_type"] = EMAIL_TYPE
-        notification["simulated"] = notification.get("simulated", None)
-        notification["api_key_id"] = notification.get("api_key", None)
-        notification["created_at"] = datetime.utcnow()
-        notification["job_id"] = notification.get("job", None)
-        notification["job_row_number"] = notification.get("row_number", None)
-        verified_notifications.append(notification)
-        notification_id_queue[notification_id] = notification.get("queue")
-        process_type = template.process_type
+            notification["reply_to_text"] = reply_to_text
+            notification["service"] = service
+            notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
+            notification["template_id"] = template.id
+            notification["template_version"] = template.version
+            notification["recipient"] = notification.get("to")
+            notification["personalisation"] = notification.get("personalisation")
+            notification["notification_type"] = EMAIL_TYPE
+            notification["simulated"] = notification.get("simulated", None)
+            notification["api_key_id"] = notification.get("api_key", None)
+            notification["created_at"] = datetime.utcnow()
+            notification["job_id"] = notification.get("job", None)
+            notification["job_row_number"] = notification.get("row_number", None)
+            verified_notifications.append(notification)
+            notification_id_queue[notification_id] = notification.get("queue")
+            process_type = template.process_type
 
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job
