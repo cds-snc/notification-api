@@ -130,7 +130,6 @@ from app.service.service_senders_schema import (
     add_service_sms_sender_request,
 )
 from app.service.utils import get_safelist_objects
-from app.sms_fragment_utils import delete_daily_sms_fragment_count
 from app.user.users_schema import post_set_permissions_schema
 from app.utils import pagination_links
 
