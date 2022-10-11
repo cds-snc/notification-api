@@ -11,6 +11,8 @@ from app.models import (
     KEY_TYPE_TEAM,
     LETTER_TYPE,
     SMS_TYPE,
+    NotificationType,
+    Template,
 )
 from app.notifications.process_notifications import (
     persist_notification,
@@ -18,6 +20,7 @@ from app.notifications.process_notifications import (
     simulated_recipient,
 )
 from app.notifications.validators import (
+    check_if_request_would_put_service_over_daily_sms_limit,
     check_rate_limiting,
     check_template_is_active,
     check_template_is_for_notification_type,
@@ -83,14 +86,14 @@ def get_all_notifications():
 
 
 @notifications.route("/notifications/<string:notification_type>", methods=["POST"])
-def send_notification(notification_type):
+def send_notification(notification_type: NotificationType):
 
     if notification_type not in [SMS_TYPE, EMAIL_TYPE]:
         msg = "{} notification type is not supported".format(notification_type)
         msg = msg + ", please use the latest version of the client" if notification_type == LETTER_TYPE else msg
         raise InvalidRequest(msg, 400)
 
-    notification_form, errors = (
+    notification_form, errors = (  # type: ignore
         sms_template_notification_schema if notification_type == SMS_TYPE else email_notification_schema
     ).load(request.get_json())
 
@@ -124,7 +127,7 @@ def send_notification(notification_type):
         template_id=template.id,
         template_version=template.version,
         template_postage=template.postage,
-        recipient=request.get_json()["to"],
+        recipient=request.get_json()["to"],  # type: ignore
         service=authenticated_service,
         personalisation=notification_form.get("personalisation", None),
         notification_type=notification_type,
@@ -134,6 +137,11 @@ def send_notification(notification_type):
         reply_to_text=template.get_reply_to_text(),
     )
     if not simulated:
+        if notification_type == SMS_TYPE:
+            check_if_request_would_put_service_over_daily_sms_limit(
+                api_user.key_type, authenticated_service, notification_model.billable_units
+            )
+
         send_notification_to_queue(
             notification=notification_model,
             research_mode=authenticated_service.research_mode,
@@ -184,7 +192,7 @@ def _service_allowed_to_send_to(notification, service):
         raise InvalidRequest({"to": [message]}, status_code=400)
 
 
-def create_template_object_for_notification(template, personalisation):
+def create_template_object_for_notification(template, personalisation) -> Template:
     template_object = get_template_instance(template.__dict__, personalisation)
 
     if template_object.missing_data:
