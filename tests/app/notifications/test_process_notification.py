@@ -33,7 +33,7 @@ from app.notifications.process_notifications import (
 from app.v2.errors import BadRequestError
 from tests.app.conftest import create_sample_api_key
 from tests.app.db import create_service, create_service_sms_sender, create_template
-from tests.conftest import set_config
+from tests.conftest import set_config, set_config_values
 
 
 class TestContentCreation:
@@ -133,7 +133,10 @@ class TestPersistNotification:
         assert not template_usage_cache.called
 
     @freeze_time("2016-01-01 11:09:00.061258")
-    def test_persist_notifications_with_optionals(self, client, sample_job, sample_api_key, mocker, sample_template):
+    @pytest.mark.parametrize("FF_SPIKE_SMS_DAILY_LIMIT", [True, False])
+    def test_persist_notifications_with_optionals(
+        self, client, sample_job, sample_api_key, mocker, sample_template, FF_SPIKE_SMS_DAILY_LIMIT
+    ):
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
 
@@ -144,7 +147,7 @@ class TestPersistNotification:
         n_id = uuid.uuid4()
         created_at = datetime.datetime(2016, 11, 11, 16, 8, 18)
 
-        with set_config(client.application, "REDIS_ENABLED", True):
+        with set_config_values(client.application, {"REDIS_ENABLED": True, "FF_SPIKE_SMS_DAILY_LIMIT": FF_SPIKE_SMS_DAILY_LIMIT}):
             persist_notifications(
                 [
                     dict(
@@ -179,11 +182,14 @@ class TestPersistNotification:
         assert persisted_notification.rate_multiplier == 1
         assert persisted_notification.created_by_id == sample_job.created_by_id
         assert not persisted_notification.reply_to_text
-        assert mocked_redis.call_count == 2
-        assert mocked_redis.call_args_list == [
+
+        expected_redis_calls = [
             call(str(sample_job.service_id) + "-2016-01-01-count"),
-            call("sms-" + str(sample_job.service_id) + "-2016-01-01-count"),
         ]
+        if FF_SPIKE_SMS_DAILY_LIMIT:
+            expected_redis_calls.append(call("sms-" + str(sample_job.service_id) + "-2016-01-01-count"))
+        assert mocked_redis.call_count == len(expected_redis_calls)
+        assert mocked_redis.call_args_list == expected_redis_calls
 
     @freeze_time("2016-01-01 11:09:00.061258")
     def test_persist_notifications_doesnt_touch_cache_for_old_keys_that_dont_exist(self, sample_template, sample_api_key, mocker):
@@ -912,7 +918,10 @@ class TestTransformNotification:
 
 class TestDBSaveAndSendNotification:
     @freeze_time("2016-01-01 11:09:00.061258")
-    def test_db_save_and_send_notification_saves_to_db(self, client, sample_template, sample_api_key, sample_job, mocker):
+    @pytest.mark.parametrize("FF_SPIKE_SMS_DAILY_LIMIT", [True, False])
+    def test_db_save_and_send_notification_saves_to_db(
+        self, client, sample_template, sample_api_key, sample_job, mocker, FF_SPIKE_SMS_DAILY_LIMIT
+    ):
         mocked_redis = mocker.patch("app.notifications.process_notifications.redis_store.get")
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         assert Notification.query.count() == 0
@@ -934,7 +943,7 @@ class TestDBSaveAndSendNotification:
             to="+16502532222",
             created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
         )
-        with set_config(client.application, "REDIS_ENABLED", True):
+        with set_config_values(client.application, {"REDIS_ENABLED": True, "FF_SPIKE_SMS_DAILY_LIMIT": FF_SPIKE_SMS_DAILY_LIMIT}):
             db_save_and_send_notification(notification)
         assert Notification.query.get(notification.id) is not None
 
@@ -956,11 +965,13 @@ class TestDBSaveAndSendNotification:
         assert notification_from_db.client_reference == notification.client_reference
         assert notification_from_db.created_by_id == notification.created_by_id
         assert notification_from_db.reply_to_text == sample_template.service.get_default_sms_sender()
-        assert mocked_redis.call_count == 2
-        assert mocked_redis.call_args_list == [
-            call(str(sample_template.service_id) + "-2016-01-01-count"),
-            call("sms-" + str(sample_template.service_id) + "-2016-01-01-count"),
+        expected_redis_calls = [
+            call(str(sample_job.service_id) + "-2016-01-01-count"),
         ]
+        if FF_SPIKE_SMS_DAILY_LIMIT:
+            expected_redis_calls.append(call("sms-" + str(sample_job.service_id) + "-2016-01-01-count"))
+        assert mocked_redis.call_count == len(expected_redis_calls)
+        assert mocked_redis.call_args_list == expected_redis_calls
 
     @pytest.mark.parametrize(
         ("notification_type, key_type, reply_to_text, expected_queue, expected_task"),
