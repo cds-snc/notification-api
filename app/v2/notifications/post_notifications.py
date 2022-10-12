@@ -72,7 +72,6 @@ from app.notifications.process_notifications import (
     transform_notification,
 )
 from app.notifications.validators import (
-    check_if_request_would_put_service_over_daily_sms_limit,
     check_rate_limiting,
     check_service_can_schedule_notification,
     check_service_email_reply_to_id,
@@ -241,10 +240,6 @@ def post_notification(notification_type: NotificationType):
         )
 
         template_with_content.values = notification.personalisation
-        if notification_type == SMS_TYPE:
-            check_if_request_would_put_service_over_daily_sms_limit(
-                api_user.key_type, authenticated_service, notification.billable_units
-            )
 
     if notification_type == SMS_TYPE:
         create_resp_partial = functools.partial(create_post_sms_response_from_notification, from_number=reply_to)
