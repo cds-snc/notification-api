@@ -72,7 +72,7 @@ class AnyStringWith(str):
         return self in other
 
 
-def _notification_json(template, to, personalisation=None, job_id=None, row_number=0, queue=None):
+def _notification_json(template, to, personalisation=None, job_id=None, row_number=0, queue=None, reply_to_text=None):
     return {
         "template": str(template.id),
         "template_version": template.version,
@@ -82,6 +82,7 @@ def _notification_json(template, to, personalisation=None, job_id=None, row_numb
         "job": job_id and str(job_id),
         "row_number": row_number,
         "queue": queue,
+        "reply_to_text": reply_to_text,
     }
 
 
@@ -1451,6 +1452,21 @@ class TestSaveEmails:
 
         persisted_notification = Notification.query.one()
         assert persisted_notification.reply_to_text == "reply_to@digital.gov.uk"
+
+    def test_save_email_should_save_non_default_email_reply_to_text_on_notification_when_set(self, notify_db_session, mocker):
+        service = create_service()
+        create_reply_to_email(service=service, email_address="reply_to@digital.gov.uk", is_default=True)
+        create_reply_to_email(service=service, email_address="reply_two@digital.gov.uk", is_default=False)
+        template = create_template(service=service, template_type="email", subject="Hello")
+
+        notification = _notification_json(template, to="test@example.com", reply_to_text="reply_two@digital.gov.uk")
+        mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+
+        notification_id = uuid.uuid4()
+        save_emails(service.id, [signer.sign(notification)], notification_id)
+
+        persisted_notification = Notification.query.one()
+        assert persisted_notification.reply_to_text == "reply_two@digital.gov.uk"
 
     def test_should_put_save_email_task_in_research_mode_queue_if_research_mode_service(self, notify_db_session, mocker):
         service = create_service(research_mode=True)
