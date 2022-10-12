@@ -8,7 +8,6 @@ from notifications_utils.clients.redis import (
     near_sms_daily_limit_cache_key,
     over_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
-    sms_daily_count_cache_key,
 )
 from notifications_utils.letter_timings import letter_can_be_cancelled
 from notifications_utils.timezones import convert_utc_to_local_timezone
@@ -297,7 +296,6 @@ def update_service(service_id):
         if not fetched_service.restricted:
             _warn_service_users_about_message_limit_changed(service_id, current_data)
     if sms_limit_changed:
-        redis_store.delete(sms_daily_count_cache_key(service_id))
         redis_store.delete(near_sms_daily_limit_cache_key(service_id))
         redis_store.delete(over_sms_daily_limit_cache_key(service_id))
         if not fetched_service.restricted:

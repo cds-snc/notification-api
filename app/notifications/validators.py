@@ -11,7 +11,6 @@ from notifications_utils.clients.redis import (
     over_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
     rate_limit_cache_key,
-    sms_daily_count_cache_key,
 )
 from notifications_utils.recipients import (
     get_international_phone_info,
@@ -45,6 +44,7 @@ from app.models import (
 from app.notifications.process_notifications import create_content_for_notification
 from app.service.sender import send_notification_to_service_users
 from app.service.utils import service_allowed_to_send_to
+from app.sms_fragment_utils import fetch_daily_sms_fragment_count
 from app.utils import get_document_url, get_public_notify_type_text, is_blank
 from app.v2.errors import (
     BadRequestError,
@@ -89,15 +89,6 @@ def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Servic
         warn_about_daily_message_limit(service, int(messages_sent))
 
 
-def get_sms_messages_sent(service: Service) -> int:
-    cache_key = sms_daily_count_cache_key(service.id)
-    messages_sent = redis_store.get(cache_key)
-    if not messages_sent:
-        messages_sent = services_dao.fetch_todays_total_sms_count(service.id)
-        redis_store.set(cache_key, messages_sent, ex=int(timedelta(hours=2).total_seconds()))
-    return int(messages_sent)
-
-
 @statsd_catch(
     namespace="validators",
     counter_name="rate_limit.trial_service_daily",
@@ -110,14 +101,14 @@ def get_sms_messages_sent(service: Service) -> int:
 )
 def check_service_over_daily_sms_limit(key_type: ApiKeyType, service: Service):
     if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and key_type != KEY_TYPE_TEST and current_app.config["REDIS_ENABLED"]:
-        messages_sent = get_sms_messages_sent(service)
-        warn_about_daily_sms_limit(service, messages_sent)
+        fragments_sent = fetch_daily_sms_fragment_count(service.id)
+        warn_about_daily_sms_limit(service, fragments_sent)
 
 
 def check_if_request_would_put_service_over_daily_sms_limit(key_type: ApiKeyType, service: Service, requested_sms: int):
     if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and key_type != KEY_TYPE_TEST and current_app.config["REDIS_ENABLED"]:
-        messages_sent = get_sms_messages_sent(service)
-        total_requested = messages_sent + requested_sms
+        fragments_sent = fetch_daily_sms_fragment_count(service.id)
+        total_requested = fragments_sent + requested_sms
         if total_requested > service.sms_daily_limit:
             raise LiveServiceTooManySMSRequestsError(service.sms_daily_limit)
 
