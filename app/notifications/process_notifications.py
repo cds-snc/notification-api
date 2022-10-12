@@ -133,7 +133,7 @@ def persist_notification(
         if key_type != KEY_TYPE_TEST:
             if redis_store.get(redis.daily_limit_cache_key(service.id)):
                 redis_store.incr(redis.daily_limit_cache_key(service.id))
-            if notification_type == SMS_TYPE:
+            if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and notification_type == SMS_TYPE:
                 increment_daily_sms_fragment_count(service.id, number_of_sms_fragments(template, personalisation))
 
         current_app.logger.info("{} {} created at {}".format(notification_type, notification_id, notification_created_at))
@@ -209,7 +209,7 @@ def db_save_and_send_notification(notification: Notification):
         service_id = notification.service_id
         if redis_store.get(redis.daily_limit_cache_key(service_id)):
             redis_store.incr(redis.daily_limit_cache_key(service_id))
-        if notification.notification_type == SMS_TYPE:
+        if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and notification.notification_type == SMS_TYPE:
             increment_daily_sms_fragment_count(
                 service_id, number_of_sms_fragments(notification.template, notification.personalisation)
             )
@@ -357,7 +357,7 @@ def persist_notifications(notifications):
             service_id = notification.get("service").id
             if redis_store.get(redis.daily_limit_cache_key(service_id)):
                 redis_store.incr(redis.daily_limit_cache_key(service_id))
-            if notification.get("notification_type") == SMS_TYPE:
+            if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and notification.get("notification_type") == SMS_TYPE:
                 increment_daily_sms_fragment_count(
                     service_id, number_of_sms_fragments(template, notification_obj.personalisation)
                 )
