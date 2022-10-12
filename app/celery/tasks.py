@@ -338,18 +338,24 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
         notification_id = notification.get("id", create_uuid())
         notification["notification_id"] = notification_id
         reply_to_text = ""  # type: ignore
-        if sender_id:
-            reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
-            if isinstance(template, tuple):
-                template = template[0]
-        # if the template is obtained from cache a tuple will be returned where
-        # the first element is the Template object and the second the template cache data
-        # in the form of a dict
-        elif isinstance(template, tuple):
-            reply_to_text = template[1].get("reply_to_text")  # type: ignore
-            template = template[0]
+
+        if (
+            "reply_to_text" in notification and notification["reply_to_text"]
+        ):  # first just see if we already have a value of this and use it, otherwise continue with the logic below
+            reply_to_text = notification["reply_to_text"]  # type: ignore
         else:
-            reply_to_text = template.get_reply_to_text()  # type: ignore
+            if sender_id:
+                reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
+            # if the template is obtained from cache a tuple will be returned where
+            # the first element is the Template object and the second the template cache data
+            # in the form of a dict
+            elif isinstance(template, tuple):
+                reply_to_text = template[1].get("reply_to_text")  # type: ignore
+            else:
+                reply_to_text = template.get_reply_to_text()  # type: ignore
+
+        if isinstance(template, tuple):
+            template = template[0]
 
         notification["reply_to_text"] = reply_to_text
         notification["service"] = service
