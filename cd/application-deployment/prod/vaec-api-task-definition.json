@@ -152,7 +152,7 @@
         },
         {
           "name": "VETEXT_URL",
-          "value": "https://api.vetext.va.gov/api/vetext/pub"
+          "value": "https://alb.api.vetext.va.gov/api/vetext/pub"
         },
         {
           "name": "VA_FLAGSHIP_APP_SID",
