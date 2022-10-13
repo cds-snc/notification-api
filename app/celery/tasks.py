@@ -1,5 +1,4 @@
 import json
-import time
 from collections import namedtuple
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -396,14 +395,6 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(self, signed_and_verified, EMAIL_TYPE, e, receipt, template)
-
-    current_app.logger.info("Sleep started in save_emails")
-    x = 1
-    while x <= 6:
-        time.sleep(1)
-        current_app.logger.info("Slept for {} second".format(x))
-        x += 1
-    current_app.logger.info("Sleep completed in save_emails")
 
     if saved_notifications:
         current_app.logger.info(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
