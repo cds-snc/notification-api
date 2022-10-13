@@ -1,5 +1,4 @@
 import json
-import time
 from collections import namedtuple
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -72,10 +71,7 @@ from app.notifications.process_notifications import (
     persist_notifications,
     send_notification_to_queue,
 )
-from app.notifications.validators import (
-    check_service_over_daily_message_limit,
-    check_service_over_daily_sms_limit,
-)
+from app.notifications.validators import check_service_over_daily_message_limit
 from app.utils import get_csv_max_rows
 
 
@@ -290,7 +286,6 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
         handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt, template)
 
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
-    check_service_over_daily_sms_limit(KEY_TYPE_NORMAL, service)
 
     research_mode = service.research_mode  # type: ignore
 
@@ -396,14 +391,6 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(self, signed_and_verified, EMAIL_TYPE, e, receipt, template)
-
-    current_app.logger.info("Sleep started in save_emails")
-    x = 1
-    while x <= 6:
-        time.sleep(1)
-        current_app.logger.info("Slept for {} second".format(x))
-        x += 1
-    current_app.logger.info("Sleep completed in save_emails")
 
     if saved_notifications:
         current_app.logger.info(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
