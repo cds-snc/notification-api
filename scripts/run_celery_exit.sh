@@ -10,7 +10,7 @@ function get_celery_pids {
   # and keep only these PIDs
 
   set +o pipefail # so grep returning no matches does not premature fail pipe
-  APP_PIDS=$(ps aux --sort=start_time | grep 'celery worker' | grep 'bin/celery' | head -1 | awk '{print $2}')
+  APP_PIDS=$(ps auxww | awk '/[c]elery worker/ {print $1}')
   set -o pipefail # pipefail should be set everywhere else
 }
 
@@ -47,8 +47,6 @@ function ensure_celery_is_running {
 
 
 function on_exit {
-  apk add --no-cache procps
-  apk add --no-cache coreutils
   echo "multi worker app exiting"
   wait_time=0
 
@@ -66,6 +64,7 @@ function on_exit {
   echo "sending signal to celery to kill process as TERM signal has not timed out"
   send_signal_to_celery_processes KILL
 }
+
 
 echo "Run script pid: $$"
 
