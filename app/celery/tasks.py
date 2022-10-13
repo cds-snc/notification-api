@@ -73,7 +73,6 @@ from app.notifications.process_notifications import (
 )
 from app.notifications.validators import (
     check_service_over_daily_message_limit,
-    check_service_over_daily_sms_limit,
 )
 from app.utils import get_csv_max_rows
 
@@ -288,6 +287,8 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt, template)
 
+    check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
+
     research_mode = service.research_mode  # type: ignore
 
     current_app.logger.info(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
@@ -395,6 +396,7 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
 
     if saved_notifications:
         current_app.logger.info(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
+        check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
         research_mode = service.research_mode  # type: ignore
         for notification in saved_notifications:
             queue = notification_id_queue.get(notification.id) or template.queue_to_use()  # type: ignore
