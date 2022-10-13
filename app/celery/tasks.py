@@ -71,9 +71,7 @@ from app.notifications.process_notifications import (
     persist_notifications,
     send_notification_to_queue,
 )
-from app.notifications.validators import (
-    check_service_over_daily_message_limit,
-)
+from app.notifications.validators import check_service_over_daily_message_limit
 from app.utils import get_csv_max_rows
 
 
