@@ -64,6 +64,16 @@ def public_key() -> Certificate:
     return load_pem_x509_certificate(public_key_bytes).public_key()
 
 
+@pytest.fixture()
+def get_integration_testing_public_cert_mock(mocker, public_key):
+    """
+    Patch the function that loads the public certificate used for integration testing, and make it
+    return the same public key used in the other unit tests.
+    """
+
+    return mocker.patch(f"{LAMBDA_MODULE}.get_integration_testing_public_cert", return_value=public_key)
+
+
 @pytest.fixture(scope="module")
 def jwt_encoded(private_key):
     """ This is a valid JWT encoding. """
@@ -343,7 +353,7 @@ def test_va_profile_opt_in_out_lambda_handler_malformed_json(jwt_encoded, event_
 
 # TODO - The next 3 test functions are highly repetitive.  Is there a way to parametrize them?
 
-def test_va_profile_opt_in_out_lambda_handler_valid_dict(notify_db, event_dict, worker_id, put_mock):
+def test_va_profile_opt_in_out_lambda_handler_valid_dict(notify_db, event_dict, worker_id, put_mock, get_integration_testing_public_cert_mock):
     """
     Test the VA Profile integration lambda by sending a valid request that should create
     a new row in the database.  The AWS lambda function should be able to handle and event
@@ -370,6 +380,7 @@ def test_va_profile_opt_in_out_lambda_handler_valid_dict(notify_db, event_dict, 
     }
 
     put_mock.assert_called_once_with("txAuditId", expected_put_body)
+    get_integration_testing_public_cert_mock.assert_not_called()
 
 
 def test_va_profile_opt_in_out_lambda_handler_valid_str(notify_db, event_str, worker_id, put_mock):
@@ -594,6 +605,34 @@ def test_va_profile_opt_in_out_lambda_handler_audit_id_mismatch(worker_id, jwt_e
     }
 
     put_mock.assert_called_once_with("txAuditId", expected_put_body)
+
+
+def test_va_profile_opt_in_out_lambda_handler_integration_testing(notify_db, worker_id, jwt_encoded, put_mock, get_integration_testing_public_cert_mock):
+    """
+    When the lambda handler is invoked with a path that ends with "?integration_test", verification of the
+    signature on POST request JWTs should use a certificate specifically for integration testing.  This
+    public certificate is included with the lambda layer, along with VA Profile's public certificates.
+
+    This unit test verifies that the lambda code attempts to load this certificate.
+    """
+
+    with notify_db.engine.begin() as connection:
+        setup_db(connection)
+
+    event = create_event("txAuditId", "txAuditId", "2022-04-07T19:37:59.320Z", 0, 1, 5, True, jwt_encoded)
+    event["path"] = "/vaprofile/optinout?integration_test"
+    response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
+    assert isinstance(response, dict)
+    assert response["statusCode"] == 200
+
+    expected_put_body = {
+        "dateTime": "2022-04-07T19:37:59.320Z",
+        "status": "COMPLETED_SUCCESS",
+    }
+
+    put_mock.assert_called_once_with("txAuditId", expected_put_body)
+    get_integration_testing_public_cert_mock.assert_called_once()
+    assert response["put_body"] == expected_put_body
 
 
 def create_event(

@@ -21,5 +21,5 @@ function display_result {
 }
 
 # run with four concurrent threads
-py.test --disable-pytest-warnings -s user_flows/test_retrieve_everything.py --junitxml=user_flow_results.xml
+pytest --disable-pytest-warnings -s user_flows/test_retrieve_everything.py --junitxml=user_flow_results.xml
 display_result $? 2 "User Flows"

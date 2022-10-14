@@ -44,7 +44,7 @@ logger.setLevel(logging.DEBUG)
 CERTIFICATE_ARN = os.getenv("CERTIFICATE_ARN")
 OPT_IN_OUT_QUERY = """SELECT va_profile_opt_in_out(%s, %s, %s, %s, %s);"""
 NOTIFY_ENVIRONMENT = os.getenv("NOTIFY_ENVIRONMENT")
-PRIVATE_KEY_PATH = os.getenv("PRIVATE_KEY_PATH")
+ALB_PRIVATE_KEY_PATH = os.getenv("PRIVATE_KEY_PATH")
 # TODO - Make this an SSM call.
 SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI")
 VA_PROFILE_DOMAIN = os.getenv("VA_PROFILE_DOMAIN")
@@ -60,11 +60,11 @@ if NOTIFY_ENVIRONMENT is None:
 if NOTIFY_ENVIRONMENT == "test":
     jwt_certificate_path = "tests/lambda_functions/va_profile/cert.pem"
 elif NOTIFY_ENVIRONMENT == "prod":
-    jwt_certificate_path = "/opt/prod_jwt.pem"
+    jwt_certificate_path = "/opt/Profile_prod_public.pem"
 else:
-    jwt_certificate_path = "/opt/nonprod_jwt.pem"
+    jwt_certificate_path = "/opt/Profile_nonprod_public.pem"
 
-# Load the public certificate used to verify JWT signatures for POST requests.
+# Load VA Profile's public certificate used to verify JWT signatures for POST requests.
 # In deployment environments, the certificate should be available via a lambda layer.
 try:
     with open(jwt_certificate_path, "rb") as f:
@@ -73,6 +73,9 @@ except (OSError, ValueError) as e:
     logger.exception(e)
     sys.exit("The JWT public certificate is missing or invalid.  Cannot authenticate POST requests.")
 
+# Integration testing uses a different certificate pair because VA Notify does not have
+# access to VA Profile's private key.  This variable with be populated later if needed.
+integration_testing_public_cert = None
 
 # TODO - make SSM call; delete this block
 if SQLALCHEMY_DATABASE_URI is None:
@@ -86,8 +89,8 @@ ssl_context = None
 
 if CERTIFICATE_ARN is None:
     logger.error("CERTIFICATE_ARN is not set.")
-elif PRIVATE_KEY_PATH is None:
-    logger.error("PRIVATE_KEY_PATH is not set.")
+elif ALB_PRIVATE_KEY_PATH is None:
+    logger.error("ALB_PRIVATE_KEY_PATH is not set.")
 elif NOTIFY_ENVIRONMENT != "test":
     try:
         # Get the client certificates from AWS ACM.
@@ -98,13 +101,13 @@ elif NOTIFY_ENVIRONMENT != "test":
 
         # Get the private key from SSM Parameter Store.
         # TODO - Get the database URI too.
-        logger.debug("Making a request to SSM Parameter Store . . .")
+        logger.debug("Getting the ALB private key from SSM Parameter Store . . .")
         ssm_client = boto3.client("ssm")
         ssm_response: dict = ssm_client.get_parameter(
-            Name=PRIVATE_KEY_PATH,
+            Name=ALB_PRIVATE_KEY_PATH,
             WithDecryption=True
         )
-        logger.debug(". . . Finished the request to SSM Parameter Store.")
+        logger.debug(". . . Retrieved the ALB private key from SSM Parameter Store.")
 
         with NamedTemporaryFile() as f:
             f.write(acm_response["Certificate"].encode())
@@ -120,7 +123,7 @@ elif NOTIFY_ENVIRONMENT != "test":
             logger.error("The reason is: %s", e.reason)
         ssl_context = None
 
-should_make_put_request = NOTIFY_ENVIRONMENT == "test" or (VA_PROFILE_DOMAIN is not None and ssl_context is not None)
+should_make_put_request = (NOTIFY_ENVIRONMENT == "test") or (VA_PROFILE_DOMAIN is not None and ssl_context is not None)
 if not should_make_put_request:
     logger.error("Cannot make PUT requests.")
 
@@ -165,8 +168,8 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
                 "txAuditId": "string",
                 "sourceDate": "2022-03-07T19:37:59.320Z",
                 "vaProfileId": 0,
-                "communicationChannelId": 0,
-                "communicationItemId": 0,
+                "communicationChannelId": 1,
+                "communicationItemId": 5,
                 "allowed": true,
                 ...
             }],
@@ -181,11 +184,22 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
     """
 
     logger.debug("POST event: %s", event)
-    global va_profile_public_cert
+    global va_profile_public_cert, integration_testing_public_cert
 
-    # Authenticate the request from VA Profile.
     headers = event.get("headers", {})
-    if not jwt_is_valid(headers.get("Authorization", headers.get("authorization", '')), va_profile_public_cert):
+    is_integration_test = event.get("path", '').endswith("?integration_test")
+
+    if is_integration_test and integration_testing_public_cert is None:
+        # This request is part of integration testing and should be authenticated using a certificate
+        # specifically for that purpose.
+        integration_testing_public_cert = get_integration_testing_public_cert()
+        assert integration_testing_public_cert is not None
+
+    # Authenticate the POST request by verifying the JWT signature.
+    if not jwt_is_valid(
+        headers.get("Authorization", headers.get("authorization", '')),
+        integration_testing_public_cert if is_integration_test else va_profile_public_cert
+    ):
         return { "statusCode": 401 }
 
     post_body = event.get("body")
@@ -272,12 +286,16 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
             make_PUT_request(post_body["txAuditId"], put_body)
 
     logger.debug("POST response: %s", post_response)
+
+    if is_integration_test:
+        post_response["put_body"] = put_body
+
     return post_response
 
 
 def jwt_is_valid(auth_header_value: str, public_key: Certificate) -> bool:
     """
-    VA Profile should have sent an asymmetrically signed JWT with their POST request.
+    The POST request should have sent an asymmetrically signed JWT.  Attempt to verify the signature.
     """
 
     assert public_key is not None
@@ -344,3 +362,21 @@ def make_PUT_request(tx_audit_id: str, body: dict):
         logger.exception(e)
     finally:
         https_connection.close()
+
+
+def get_integration_testing_public_cert() -> Certificate:
+    """
+    Load the integration testing public certificate used to verify JWT signatures for POST requests.
+    In deployment environments, the certificate should be available via a lambda layer.  Mock this
+    function during unit testing.
+    """
+
+    assert NOTIFY_ENVIRONMENT != "test"
+
+    try:
+        with open("/opt/Notify_integration_testing_public.pem", "rb") as f:
+            return load_pem_x509_certificate(f.read()).public_key()
+    except Exception as e:
+        logger.exception(e)
+
+    sys.exit("The integration testing public certificate is missing or invalid.  Cannot authenticate POST requests.")
