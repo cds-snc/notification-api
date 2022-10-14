@@ -9,6 +9,7 @@ from notifications_utils.recipients import (
     validate_and_format_email_address,
     validate_and_format_phone_number,
 )
+from pytest_mock import MockFixture
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
@@ -489,21 +490,27 @@ class TestPersistNotification:
         ],
     )
     def test_check_if_request_would_put_service_over_daily_sms_limit(
-        self, notify_api: ApiKey, requested_sms: int, error_expected: bool, notify_db, notify_db_session, mocker
+        self,
+        notify_api: ApiKey,
+        requested_sms: int,
+        error_expected: bool,
+        notify_db,
+        notify_db_session,
+        mocker: MockFixture,
     ):
         with freeze_time("2016-01-01 12:00:00.000000"):
             mocker.patch("app.redis_store.get", side_effect=["5", True, None])  # 5 SMS sent today
             mocker.patch("app.redis_store.set")
-
             service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=10, sms_limit=6)
 
             with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                try:
-                    check_if_request_would_put_service_over_daily_sms_limit("normal", service, requested_sms)
-                    assert not error_expected  # will cause test to fail if an error was expected
-                except TooManySMSRequestsError as e:
-                    assert error_expected  # will cause test to fail if error is raised and not expected
-                    assert e.message == "Exceeded sms send limits (6) for today"
+                with set_config(notify_api, "REDIS_ENABLED", True):
+                    try:
+                        check_if_request_would_put_service_over_daily_sms_limit("normal", service, requested_sms)
+                        assert not error_expected  # will cause test to fail if an error was expected
+                    except TooManySMSRequestsError as e:
+                        assert error_expected  # will cause test to fail if error is raised and not expected
+                        assert e.message == "Exceeded sms send limits (6) for today"
 
 
 class TestSendNotificationQueue:
