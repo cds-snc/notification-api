@@ -37,7 +37,7 @@ jobs:
       run: make test
     - name: Upload pytest logs on failure
       if: ${{ failure() }}
-      uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # tag=v2
+      uses: actions/upload-artifact@3446296876d12d4e3a0f3145a3c87e67bf0a16b5 # tag=v1.0.0
       with:
         name: pytest-logs
         path: |
