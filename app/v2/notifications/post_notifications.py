@@ -64,13 +64,13 @@ from app.models import (
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
+    check_if_request_would_put_service_over_daily_sms_limit,
     choose_queue,
     db_save_and_send_notification,
     persist_notification,
     persist_scheduled_notification,
     simulated_recipient,
     transform_notification,
-    check_if_request_would_put_service_over_daily_sms_limit,
 )
 from app.notifications.validators import (
     check_rate_limiting,
