@@ -38,6 +38,7 @@ from app.models import (
     NotificationType,
     Permission,
     Service,
+    Template,
     TemplateType,
 )
 from app.notifications.process_notifications import create_content_for_notification
@@ -164,7 +165,7 @@ def warn_about_daily_message_limit(service: Service, messages_sent):
             raise LiveServiceTooManyRequestsError(service.message_limit)
 
 
-def warn_about_daily_sms_limit(service: Service, messages_sent):
+def warn_about_daily_sms_limit(service: Service, messages_sent: int):
     nearing_sms_daily_limit = messages_sent >= NEAR_DAILY_LIMIT_PERCENTAGE * service.sms_daily_limit
     over_sms_daily_limit = messages_sent >= service.sms_daily_limit
     current_time = datetime.utcnow().isoformat()
@@ -309,7 +310,7 @@ def validate_template(template_id, personalisation, service: Service, notificati
     check_template_is_for_notification_type(notification_type, template.template_type)
     check_template_is_active(template)
 
-    template_with_content = create_content_for_notification(template, personalisation)
+    template_with_content: Template = create_content_for_notification(template, personalisation)
     if template.template_type == SMS_TYPE:
         check_sms_content_char_count(template_with_content.content_count)
 
@@ -318,7 +319,7 @@ def validate_template(template_id, personalisation, service: Service, notificati
     return template, template_with_content
 
 
-def check_template_exists_by_id_and_service(template_id, service: Service):
+def check_template_exists_by_id_and_service(template_id, service: Service) -> Template:
     try:
         return templates_dao.dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service.id)
     except NoResultFound:

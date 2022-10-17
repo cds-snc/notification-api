@@ -1559,7 +1559,7 @@ class Notification(BaseModel):
         unique=False,
         nullable=False,
     )
-    billable_units = db.Column(db.Integer, nullable=False, default=0)
+    billable_units: int = db.Column(db.Integer, nullable=False, default=0)
     notification_type = db.Column(notification_types, index=True, nullable=False)
     created_at = db.Column(db.DateTime, index=True, unique=False, nullable=False)
     sent_at = db.Column(db.DateTime, index=False, unique=False, nullable=True)

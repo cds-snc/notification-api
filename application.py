@@ -19,7 +19,7 @@ from app import create_app
 load_dotenv()
 
 if "SENTRY_URL" in os.environ:
-    sentry_sdk.init(
+    sentry_sdk.init(  # type: ignore
         dsn=os.environ.get("SENTRY_URL", ""),
         integrations=[CeleryIntegration(), FlaskIntegration(), RedisIntegration(), SqlalchemyIntegration()],
         release="notify-api@" + os.environ.get("GIT_SHA", ""),

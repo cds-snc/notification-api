@@ -57,7 +57,10 @@ from app.models import (
     PRIORITY,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
+    ApiKey,
     Notification,
+    NotificationType,
+    Service,
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
@@ -183,7 +186,7 @@ def post_bulk():
 
 
 @v2_notification_blueprint.route("/<notification_type>", methods=["POST"])
-def post_notification(notification_type):
+def post_notification(notification_type: NotificationType):
     try:
         request_json = request.get_json()
     except werkzeug.exceptions.BadRequest as e:
@@ -265,7 +268,7 @@ def post_notification(notification_type):
     return jsonify(resp), 201
 
 
-def triage_notification_to_queues(notification_type, signed_notification_data, template):
+def triage_notification_to_queues(notification_type: NotificationType, signed_notification_data, template: Template):
     """Determine which queue to use based on notification_type and process_type
 
     Args:
@@ -292,7 +295,9 @@ def triage_notification_to_queues(notification_type, signed_notification_data, t
             email_bulk.publish(signed_notification_data)
 
 
-def process_sms_or_email_notification(*, form, notification_type, api_key, template, service, reply_to_text=None):
+def process_sms_or_email_notification(
+    *, form, notification_type: NotificationType, api_key: ApiKey, template: Template, service: Service, reply_to_text=None
+):
     form_send_to = form["email_address"] if notification_type == EMAIL_TYPE else form["phone_number"]
 
     send_to = validate_and_format_recipient(
@@ -383,7 +388,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
     return notification
 
 
-def process_document_uploads(personalisation_data, service, simulated, template_id):
+def process_document_uploads(personalisation_data, service: Service, simulated, template_id):
     file_keys = [k for k, v in (personalisation_data or {}).items() if isinstance(v, dict) and "file" in v]
     if not file_keys:
         return personalisation_data
