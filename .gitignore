@@ -88,3 +88,6 @@ celerybeat.pid
 # Misc
 /scripts/run_my_tests.sh
 jinja_templates/
+
+cypress.env.json
+node_modules/

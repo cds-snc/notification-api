@@ -1,0 +1,52 @@
+{
+    "application_file1": {
+        "file": "VGhpcyBpcyBhIGZpbGUh",
+        "filename": "application_file1.txt",
+        "sending_method": "attach"
+    },
+    "application_file2": {
+        "file": "VGhpcyBpcyBhIGZpbGUh",
+        "filename": "application_file2.txt",
+        "sending_method": "attach"
+    },
+    "application_file3": {
+        "file": "VGhpcyBpcyBhIGZpbGUh",
+        "filename": "application_file3.txt",
+        "sending_method": "attach"
+    },
+    "application_file4": {
+        "file": "VGhpcyBpcyBhIGZpbGUh",
+        "filename": "application_file4.txt",
+        "sending_method": "attach"
+    },
+    "application_file5": {
+        "file": "VGhpcyBpcyBhIGZpbGUh",
+        "filename": "application_file5.txt",
+        "sending_method": "attach"
+    },
+    "application_file6": {
+        "file": "VGhpcyBpcyBhIGZpbGUh",
+        "filename": "application_file6.txt",
+        "sending_method": "attach"
+    },
+    "application_file7": {
+        "file": "VGhpcyBpcyBhIGZpbGUh",
+        "filename": "application_file7.txt",
+        "sending_method": "attach"
+    },
+    "application_file8": {
+        "file": "VGhpcyBpcyBhIGZpbGUh",
+        "filename": "application_file8.txt",
+        "sending_method": "attach"
+    },
+    "application_file9": {
+        "file": "VGhpcyBpcyBhIGZpbGUh",
+        "filename": "application_file9.txt",
+        "sending_method": "attach"
+    },
+    "application_file10": {
+        "file": "VGhpcyBpcyBhIGZpbGUh",
+        "filename": "application_file10.txt",
+        "sending_method": "attach"
+    }
+}

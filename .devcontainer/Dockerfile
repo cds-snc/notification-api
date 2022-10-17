@@ -22,6 +22,19 @@ RUN apt-get update \
         man-db \
         manpages \
         net-tools \
+        nodejs \ 
+        npm \
+        libgtk2.0-0 \
+        libgtk-3-0 \
+        libgbm-dev \
+        libnotify-dev \
+        libgconf-2-4 \
+        libnss3 \
+        libxss1 \
+        libasound2 \
+        libxtst6 \
+        xauth \
+        xvfb \
         openssh-client \
         procps \
         sudo \
