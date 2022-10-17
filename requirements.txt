@@ -25,7 +25,7 @@ marshmallow-sqlalchemy==0.23.1 # pyup: <0.24.0 # marshmallow v3 throws errors
 marshmallow==2.21.0 # pyup: <3 # v3 throws errors
 python-magic==0.4.22
 psycopg2-binary==2.8.6
-PyJWT==2.1.0
+PyJWT==2.4.0
 pytz==2021.1
 PyYAML==5.4.1
 SQLAlchemy==1.4.37
