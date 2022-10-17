@@ -14,7 +14,7 @@ const Utilities = {
     },
 };
 
-const AdminAPI = {
+const Admin = {
     CreateService: () => {
         var token = Utilities.CreateJWT();
         cy.request({
@@ -85,7 +85,7 @@ const AdminAPI = {
     }
 }
 const API = {
-    NotifySendEmail: ({ api_key, to, template_id, personalisation, failOnStatusCode = true, email_reply_to_id }) => {
+    SendEmail: ({ api_key, to, template_id, personalisation, failOnStatusCode = true, email_reply_to_id }) => {
         return cy.request({
             failOnStatusCode: failOnStatusCode,
             url: '/v2/notifications/email',
@@ -105,4 +105,4 @@ const API = {
 
 }
 
-export default { API, Utilities, AdminAPI };
+export default { API, Utilities, Admin };

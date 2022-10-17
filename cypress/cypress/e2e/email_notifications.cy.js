@@ -1,6 +1,7 @@
 /// <reference types="cypress" />
 
 import config from '../../config';
+import Notify from "../support/NotifyAPI";
 
 describe('Email notifications test', () => {
   var keys = {
@@ -13,7 +14,7 @@ describe('Email notifications test', () => {
   for (const api_key in keys) {
     context(`With ${api_key} api key`, () => {
       it('can send email notification without personalisation', () => {
-        cy.NotifySendEmail({
+        Notify.API.SendEmail({
           api_key: keys[api_key],
           to: api_key === 'TEAM' ? config.users.team[0] : config.users.simulated[1],
           template_id: config.templates.SIMPLE_EMAIL_TEMPLATE_ID,
@@ -26,7 +27,7 @@ describe('Email notifications test', () => {
       });
 
       it('can send email notification with personalisation', () => {
-        cy.NotifySendEmail({
+        Notify.API.SendEmail({
           api_key: keys[api_key],
           to: api_key === 'TEAM' ? config.users.team[0] : config.users.simulated[1],
           template_id: config.templates.VARIABLES_EMAIL_TEMPLATE_ID,
@@ -44,7 +45,7 @@ describe('Email notifications test', () => {
 
       it('can send email to smoke test addresses', () => {
         for (const email of config.users.simulated) {
-          cy.NotifySendEmail({
+          Notify.API.SendEmail({
             api_key: keys[api_key],
             to: email,
             template_id: config.templates.SIMPLE_EMAIL_TEMPLATE_ID,
@@ -58,7 +59,7 @@ describe('Email notifications test', () => {
       });
 
       it('can use a non-default replyTo', () => {
-        cy.NotifySendEmail({
+        Notify.API.SendEmail({
           api_key: keys[api_key],
           to: config.users.simulated[0],
           template_id: config.templates.SIMPLE_EMAIL_TEMPLATE_ID,
@@ -72,7 +73,7 @@ describe('Email notifications test', () => {
       });
 
       it('can use a default replyTo', () => {
-        cy.NotifySendEmail({
+        Notify.API.SendEmail({
           api_key: keys[api_key],
           to: config.users.simulated[0],
           template_id: config.templates.SIMPLE_EMAIL_TEMPLATE_ID,
@@ -86,7 +87,7 @@ describe('Email notifications test', () => {
       });
 
       it('can use no replyTo', () => {
-        cy.NotifySendEmail({
+        Notify.API.SendEmail({
           api_key: keys[api_key],
           to: config.users.simulated[0],
           template_id: config.templates.SIMPLE_EMAIL_TEMPLATE_ID,
@@ -100,7 +101,7 @@ describe('Email notifications test', () => {
       // Additional tests for TEAM keys
       if (api_key === 'TEAM') {
         it('can send to team address', () => {
-          cy.NotifySendEmail({
+          Notify.API.SendEmail({
             api_key: keys[api_key],
             to: config.users.team[0],
             template_id: config.templates.SIMPLE_EMAIL_TEMPLATE_ID,
@@ -113,7 +114,7 @@ describe('Email notifications test', () => {
         });
 
         it('cannot send to non-team address', () => {
-          cy.NotifySendEmail({
+          Notify.API.SendEmail({
             api_key: keys[api_key],
             to: config.users.nonTeam[0],
             template_id: config.templates.SIMPLE_EMAIL_TEMPLATE_ID,

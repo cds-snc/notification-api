@@ -36,5 +36,7 @@ const config = {
 };
 
 // choose which config to use here
-export default config.LOCAL;
-// export default config.STAGING;
+const ConfigToUse = config.STAGING;
+export default ConfigToUse;
+Cypress.config('baseUrl', ConfigToUse.apiHostName);
+

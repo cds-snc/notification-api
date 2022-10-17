@@ -1,28 +1,26 @@
 /// <reference types="cypress" />
 
 import config from "../../config";
-import API from "../support/NotifyAPI";
-
-Cypress.config('baseUrl', config.apiHostName);
+import Notify from "../support/NotifyAPI";
 
 var service;
 
 describe('SMS Daily limit', () => {
     before(() => {
-        API.AdminAPI.CreateService();
+        Notify.Admin.CreateService();
         cy.get('@service_data').then((Service) => {
             service = Service; // save this for the after hook (this is an anti-pattern though)
-            API.AdminAPI.Settings.SetDailyLimit(Service.id, 2);
+            Notify.Admin.Settings.SetDailyLimit(Service.id, 2);
         });
     });
 
     after(() => {
-        API.AdminAPI.ArchiveService(service.id);
+        Notify.Admin.ArchiveService(service.id);
     });
 
     context('one-off API sends', () => {
         it.only('blocks single-fragment SMS when limit has been reached', () => {
-            API.API.NotifySendEmail({
+            Notify.API.SendEmail({
                 api_key: Cypress.env('API_KEY_LIVE'),
                 to: 'andrew.leith@cds-snc.ca',
                 template_id: config.templates.SIMPLE_EMAIL_TEMPLATE_ID,
@@ -32,7 +30,7 @@ describe('SMS Daily limit', () => {
                 expect(todos.status).to.eq(201);
             });
 
-            API.API.NotifySendEmail({
+            Notify.API.SendEmail({
                 api_key: Cypress.env('API_KEY_LIVE'),
                 to: 'andrew.leith@cds-snc.ca',
                 template_id: config.templates.SIMPLE_EMAIL_TEMPLATE_ID,
@@ -42,7 +40,7 @@ describe('SMS Daily limit', () => {
                 expect(todos.status).to.eq(201);
             });
 
-            API.API.NotifySendEmail({
+            Notify.API.SendEmail({
                 api_key: Cypress.env('API_KEY_LIVE'),
                 to: 'andrew.leith@cds-snc.ca',
                 template_id: config.templates.SIMPLE_EMAIL_TEMPLATE_ID,
