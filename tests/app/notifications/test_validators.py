@@ -314,8 +314,8 @@ class TestCheckDailyLimits:
         [
             ("all", True, "validators.rate_limit.trial_service_daily"),
             ("all", False, "validators.rate_limit.live_service_daily"),
-            ("sms", True, "validators.rate_limit.trial_service_daily"),
-            ("sms", False, "validators.rate_limit.live_service_daily"),
+            ("sms", True, "validators.rate_limit.trial_service_daily_sms"),
+            ("sms", False, "validators.rate_limit.live_service_daily_sms"),
         ],
         ids=["trial service", "live service", "trial service", "live service"],
     )

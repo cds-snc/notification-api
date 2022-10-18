@@ -4,6 +4,7 @@ import re
 import string
 import uuid
 from time import monotonic
+from typing import Any
 
 from dotenv import load_dotenv
 from flask import g, jsonify, make_response, request  # type: ignore
@@ -36,7 +37,7 @@ DATE_FORMAT = "%Y-%m-%d"
 
 load_dotenv()
 
-db = RoutingSQLAlchemy()
+db: RoutingSQLAlchemy = RoutingSQLAlchemy()
 migrate = Migrate()
 marshmallow = Marshmallow()
 notify_celery = NotifyCelery()
@@ -56,8 +57,8 @@ document_download_client = DocumentDownloadClient()
 
 clients = Clients()
 
-api_user = LocalProxy(lambda: g.api_user)
-authenticated_service = LocalProxy(lambda: g.authenticated_service)
+api_user: Any = LocalProxy(lambda: g.api_user)
+authenticated_service: Any = LocalProxy(lambda: g.authenticated_service)
 
 sms_bulk = RedisQueue("sms", process_type="bulk")
 sms_normal = RedisQueue("sms", process_type="normal")

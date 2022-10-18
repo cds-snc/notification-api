@@ -9,17 +9,20 @@ from notifications_utils.recipients import (
     validate_and_format_email_address,
     validate_and_format_phone_number,
 )
+from pytest_mock import MockFixture
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
     LETTER_TYPE,
+    ApiKey,
     Notification,
     NotificationHistory,
     ScheduledNotification,
     Template,
 )
 from app.notifications.process_notifications import (
+    check_if_request_would_put_service_over_daily_sms_limit,
     choose_queue,
     create_content_for_notification,
     db_save_and_send_notification,
@@ -30,10 +33,10 @@ from app.notifications.process_notifications import (
     simulated_recipient,
     transform_notification,
 )
-from app.v2.errors import BadRequestError
-from tests.app.conftest import create_sample_api_key
+from app.v2.errors import BadRequestError, TooManySMSRequestsError
+from tests.app.conftest import create_sample_api_key, create_sample_service
 from tests.app.db import create_service, create_service_sms_sender, create_template
-from tests.conftest import set_config_values
+from tests.conftest import set_config, set_config_values
 
 
 class TestContentCreation:
@@ -475,6 +478,39 @@ class TestPersistNotification:
         )
         persisted_notification = Notification.query.all()[0]
         assert persisted_notification.reply_to_text == "123456"
+
+    @pytest.mark.parametrize(
+        "requested_sms, error_expected",
+        [
+            (0, False),
+            (1, False),
+            (2, True),
+            (3, True),
+            (10, True),
+        ],
+    )
+    def test_check_if_request_would_put_service_over_daily_sms_limit(
+        self,
+        notify_api: ApiKey,
+        requested_sms: int,
+        error_expected: bool,
+        notify_db,
+        notify_db_session,
+        mocker: MockFixture,
+    ):
+        with freeze_time("2016-01-01 12:00:00.000000"):
+            mocker.patch("app.redis_store.get", side_effect=["5", True, None])  # 5 SMS sent today
+            mocker.patch("app.redis_store.set")
+            service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=10, sms_limit=6)
+
+            with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
+                with set_config(notify_api, "REDIS_ENABLED", True):
+                    try:
+                        check_if_request_would_put_service_over_daily_sms_limit("normal", service, requested_sms)
+                        assert not error_expected  # will cause test to fail if an error was expected
+                    except TooManySMSRequestsError as e:
+                        assert error_expected  # will cause test to fail if error is raised and not expected
+                        assert e.message == "Exceeded sms send limits (6) for today"
 
 
 class TestSendNotificationQueue:
