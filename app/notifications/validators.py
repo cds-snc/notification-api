@@ -91,12 +91,12 @@ def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Servic
 
 @statsd_catch(
     namespace="validators",
-    counter_name="rate_limit.trial_service_daily",
+    counter_name="rate_limit.trial_service_daily_sms",
     exception=TrialServiceTooManySMSRequestsError,
 )
 @statsd_catch(
     namespace="validators",
-    counter_name="rate_limit.live_service_daily",
+    counter_name="rate_limit.live_service_daily_sms",
     exception=LiveServiceTooManySMSRequestsError,
 )
 def check_service_over_daily_sms_limit(key_type: ApiKeyType, service: Service):
