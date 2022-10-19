@@ -327,7 +327,7 @@ def process_sms_or_email_notification(
         "personalisation": personalisation,
         "simulated": simulated,
         "api_key": str(api_key.id),
-        "key_type": str(api_key.key_type),  # type: ignore
+        "key_type": api_key.key_type,
         "client_reference": form.get("reference", None),
         "reply_to_text": reply_to_text,
     }

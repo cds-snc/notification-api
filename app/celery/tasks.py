@@ -297,21 +297,21 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
 
     current_app.logger.info(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
-    for notificationObj in saved_notifications:
-        check_if_request_would_put_service_over_daily_sms_limit(KEY_TYPE_NORMAL, notificationObj.service, notificationObj.billable_units)
+    for notification_obj in saved_notifications:
+        check_if_request_would_put_service_over_daily_sms_limit(KEY_TYPE_NORMAL, service, notification_obj.billable_units)
         
-        queue = notification_id_queue.get(notificationObj.id) or template.queue_to_use()  # type: ignore
+        queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
         send_notification_to_queue(
-            notificationObj,
-            notificationObj.service.research_mode,
+            notification_obj,
+            service.research_mode,
             queue=queue,
         )
 
         current_app.logger.debug(
             "SMS {} created at {} for job {}".format(
-                notificationObj.id,
-                notificationObj.created_at,
-                notificationObj.job,
+                notification_obj.id,
+                notification_obj.created_at,
+                notification_obj.job,
             )
         )
 
@@ -407,19 +407,19 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Any
         current_app.logger.info(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
         check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
         research_mode = service.research_mode  # type: ignore
-        for notificationObj in saved_notifications:
-            queue = notification_id_queue.get(notificationObj.id) or template.queue_to_use()  # type: ignore
+        for notification_obj in saved_notifications:
+            queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
             send_notification_to_queue(
-                notificationObj,
+                notification_obj,
                 research_mode,
                 queue,
             )
 
             current_app.logger.debug(
                 "Email {} created at {} for job {}".format(
-                    notificationObj.id,
-                    notificationObj.created_at,
-                    notificationObj.job,
+                    notification_obj.id,
+                    notification_obj.created_at,
+                    notification_obj.job,
                 )
             )
 
