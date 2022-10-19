@@ -85,6 +85,7 @@ from app.notifications.validators import (
 from app.schema_validation import validate
 from app.schemas import job_schema
 from app.service.utils import safelisted_members
+from app.types import NotificationDictToSign
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
@@ -302,7 +303,7 @@ def triage_notification_to_queues(notification_type: NotificationType, signed_no
 
 def process_sms_or_email_notification(
     *, form, notification_type: NotificationType, api_key: ApiKey, template: Template, service: Service, reply_to_text=None
-):
+) -> Notification:
     form_send_to = form["email_address"] if notification_type == EMAIL_TYPE else form["phone_number"]
 
     send_to = validate_and_format_recipient(
@@ -317,7 +318,7 @@ def process_sms_or_email_notification(
 
     personalisation = process_document_uploads(form.get("personalisation"), service, simulated, template.id)
 
-    notification = {
+    _notification: NotificationDictToSign = {
         "id": create_uuid(),
         "template": str(template.id),
         "service_id": str(service.id),
@@ -326,13 +327,13 @@ def process_sms_or_email_notification(
         "personalisation": personalisation,
         "simulated": simulated,
         "api_key": str(api_key.id),
-        "key_type": str(api_key.key_type),
+        "key_type": str(api_key.key_type),  # type: ignore
         "client_reference": form.get("reference", None),
         "reply_to_text": reply_to_text,
     }
 
-    signed_notification_data = signer.sign(notification)
-
+    signed_notification_data = signer.sign(_notification)
+    notification = {**_notification}
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:
         notification = persist_notification(  # keep scheduled notifications using the old code path for now
@@ -352,7 +353,7 @@ def process_sms_or_email_notification(
         triage_notification_to_queues(notification_type, signed_notification_data, template)
 
         current_app.logger.info(
-            f"Batch saving: {notification_type}/{template.process_type} {notification['id']} sent to buffer queue."
+            f"Batch saving: {notification_type}/{template.process_type} {_notification['id']} sent to buffer queue."
         )
     else:
         notification = transform_notification(

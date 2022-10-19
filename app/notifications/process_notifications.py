@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import List
 
 from flask import current_app
 from notifications_utils.clients import redis
@@ -31,6 +32,7 @@ from app.models import (
     SMS_TYPE,
     ApiKeyType,
     Notification,
+    NotificationType,
     ScheduledNotification,
     Service,
 )
@@ -38,6 +40,7 @@ from app.sms_fragment_utils import (
     fetch_daily_sms_fragment_count,
     increment_daily_sms_fragment_count,
 )
+from app.types import VerifiedNotification
 from app.utils import get_template_instance
 from app.v2.errors import BadRequestError, LiveServiceTooManySMSRequestsError
 
@@ -319,7 +322,7 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         )
 
 
-def persist_notifications(notifications):
+def persist_notifications(notifications: List[VerifiedNotification]) -> List[Notification]:
     """
     Persist Notifications takes a list of json objects and creates a list of Notifications
     that gets bulk inserted into the DB.
@@ -331,7 +334,7 @@ def persist_notifications(notifications):
         notification_created_at = notification.get("created_at") or datetime.utcnow()
         notification_id = notification.get("notification_id", uuid.uuid4())
         notification_recipient = notification.get("recipient") or notification.get("to")
-        service_id = notification.get("service").id if notification.get("service") else None
+        service_id = notification.get("service").id if notification.get("service") else None  # type: ignore
         notification_obj = Notification(
             id=notification_id,
             template_id=notification.get("template_id"),
@@ -372,8 +375,8 @@ def persist_notifications(notifications):
             notification_obj.rate_multiplier = recipient_info.billable_units
         elif notification.get("notification_type") == EMAIL_TYPE:
             notification_obj.normalised_to = format_email_address(notification_recipient)
-        elif notification.get("notification_type") == LETTER_TYPE:
-            notification_obj.postage = notification.get("postage") or notification.get("template_postage")
+        # elif notification.get("notification_type") == LETTER_TYPE:
+        #     notification_obj.postage = notification.get("postage") or notification.get("template_postage") 
 
         lofnotifications.append(notification_obj)
         if notification.get("key_type") != KEY_TYPE_TEST:
@@ -396,7 +399,7 @@ def persist_notifications(notifications):
     return lofnotifications
 
 
-def simulated_recipient(to_address, notification_type):
+def simulated_recipient(to_address: str, notification_type: NotificationType) -> bool:
     if notification_type == SMS_TYPE:
         formatted_simulated_numbers = [
             validate_and_format_phone_number(number) for number in current_app.config["SIMULATED_SMS_NUMBERS"]
