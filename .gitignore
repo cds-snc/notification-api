@@ -78,9 +78,6 @@ celerybeat-schedule
 celerybeat-schedule.*
 celerybeat.pid
 
-# CloudFoundry
-.cf
-
 # VSCode
 .vscode
 .pythonenv
