@@ -335,6 +335,8 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
         notification_id = notification.get("notification_id", uuid.uuid4())
         notification_recipient = notification.get("recipient") or notification.get("to")
         service_id = notification.get("service").id if notification.get("service") else None  # type: ignore
+        # bug: notification_obj is being created using some keys that don't exist on notification
+        # reference, created_by_id, status, billable_units aren't keys on notification at this point
         notification_obj = Notification(
             id=notification_id,
             template_id=notification.get("template_id"),
@@ -375,8 +377,8 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
             notification_obj.rate_multiplier = recipient_info.billable_units
         elif notification.get("notification_type") == EMAIL_TYPE:
             notification_obj.normalised_to = format_email_address(notification_recipient)
-        # elif notification.get("notification_type") == LETTER_TYPE:
-        #     notification_obj.postage = notification.get("postage") or notification.get("template_postage")
+        elif notification.get("notification_type") == LETTER_TYPE:
+            notification_obj.postage = notification.get("postage") or notification.get("template_postage")  # type: ignore
 
         lofnotifications.append(notification_obj)
         if notification.get("key_type") != KEY_TYPE_TEST:
