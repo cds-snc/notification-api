@@ -1,5 +1,5 @@
-from ast import List
 from datetime import datetime, timedelta
+from typing import List
 
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
@@ -154,7 +154,7 @@ def check_job_status():
 
     # temporarily mark them as ERROR so that they don't get picked up by future check_job_status tasks
     # if they haven't been re-processed in time.
-    job_ids = []
+    job_ids: List[str] = []
     for job in jobs_not_complete_after_120_minutes:
         job.job_status = JOB_STATUS_ERROR
         dao_update_job(job)

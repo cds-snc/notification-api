@@ -349,11 +349,11 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
             job_id=notification.get("job_id"),
             job_row_number=notification.get("job_row_number"),
             client_reference=notification.get("client_reference"),
-            reference=notification.get("reference"),
-            created_by_id=notification.get("created_by_id"),
-            status=notification.get("status"),
+            reference=notification.get("reference"),  # type: ignore
+            created_by_id=notification.get("created_by_id"),  # type: ignore
+            status=notification.get("status"),  # type: ignore
             reply_to_text=notification.get("reply_to_text"),
-            billable_units=notification.get("billable_units"),
+            billable_units=notification.get("billable_units"),  # type: ignore
         )
         template = dao_get_template_by_id(notification_obj.template_id, notification_obj.template_version, use_cache=True)
         # if the template is obtained from cache a tuple will be returned where
@@ -376,11 +376,11 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
         elif notification.get("notification_type") == EMAIL_TYPE:
             notification_obj.normalised_to = format_email_address(notification_recipient)
         # elif notification.get("notification_type") == LETTER_TYPE:
-        #     notification_obj.postage = notification.get("postage") or notification.get("template_postage") 
+        #     notification_obj.postage = notification.get("postage") or notification.get("template_postage")
 
         lofnotifications.append(notification_obj)
         if notification.get("key_type") != KEY_TYPE_TEST:
-            service_id = notification.get("service").id
+            service_id = notification.get("service").id  # type: ignore
             if redis_store.get(redis.daily_limit_cache_key(service_id)):
                 redis_store.incr(redis.daily_limit_cache_key(service_id))
             if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and notification.get("notification_type") == SMS_TYPE:
@@ -392,7 +392,7 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
             "{} {} created at {}".format(
                 notification.get("notification_type"),
                 notification.get("notification_id"),
-                notification.get("notification_created_at"),
+                notification.get("notification_created_at"),  # type: ignore
             )
         )
     bulk_insert_notifications(lofnotifications)

@@ -353,7 +353,7 @@ def process_sms_or_email_notification(
         triage_notification_to_queues(notification_type, signed_notification_data, template)
 
         current_app.logger.info(
-            f"Batch saving: {notification_type}/{template.process_type} {_notification['id']} sent to buffer queue."
+            f"Batch saving: {notification_type}/{template.process_type} {notification['id']} sent to buffer queue."
         )
     else:
         notification = transform_notification(

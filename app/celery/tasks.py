@@ -61,15 +61,15 @@ from app.models import (
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
     NORMAL,
-    Notification,
     PRIORITY,
     SMS_TYPE,
     Job,
+    Notification,
     Service,
     Template,
 )
 from app.notifications.process_notifications import (
-    check_if_request_would_put_service_over_daily_sms_limit,    
+    check_if_request_would_put_service_over_daily_sms_limit,
     persist_notifications,
     send_notification_to_queue,
 )
@@ -231,10 +231,10 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
         template = dao_get_template_by_id(
             _notification.get("template"), version=_notification.get("template_version"), use_cache=True
         )
-        
-        sender_id = _notification.get("sender_id")
+        # bug: _notification does not have "sender_id" key
+        sender_id = _notification.get("sender_id")  # type: ignore
         notification_id = _notification.get("id", create_uuid())
-        
+
         reply_to_text = ""  # type: ignore
         if sender_id:
             reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
@@ -248,7 +248,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
             template = template[0]
         else:
             reply_to_text = template.get_reply_to_text()  # type: ignore
-        
+
         notification: VerifiedNotification = {
             **_notification,  # type: ignore
             "notification_id": notification_id,
@@ -266,9 +266,10 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
             "job_id": _notification.get("job", None),
             "job_row_number": _notification.get("row_number", None),
         }
-        
+
         verified_notifications.append(notification)
-        notification_id_queue[notification_id] = notification.get("queue")
+        # bug: notification does not have "queue" key
+        notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
         process_type = template.process_type
 
     try:
@@ -298,8 +299,8 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
 
     current_app.logger.info(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
     for notification_obj in saved_notifications:
-        check_if_request_would_put_service_over_daily_sms_limit(KEY_TYPE_NORMAL, service, notification_obj.billable_units)
-        
+        check_if_request_would_put_service_over_daily_sms_limit(KEY_TYPE_NORMAL, service, notification_obj.billable_units)  # type: ignore
+
         queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
         send_notification_to_queue(
             notification_obj,
@@ -339,7 +340,8 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Any
         template = dao_get_template_by_id(
             _notification.get("template"), version=_notification.get("template_version"), use_cache=True
         )
-        sender_id = _notification.get("sender_id")
+        # bug: _notification does not have key "sender_id"
+        sender_id = _notification.get("sender_id")  # type: ignore
         notification_id = _notification.get("id", create_uuid())
         reply_to_text = ""  # type: ignore
         if (
@@ -360,7 +362,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Any
         if isinstance(template, tuple):
             template = template[0]
         notification: VerifiedNotification = {
-            **_notification,
+            **_notification,  # type: ignore
             "notification_id": notification_id,
             "reply_to_text": reply_to_text,
             "service": service,
@@ -378,7 +380,8 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Any
         }
 
         verified_notifications.append(notification)
-        notification_id_queue[notification_id] = notification.get("queue")
+        # bug: notification does not have key "queue"
+        notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
         process_type = template.process_type
 
     try:
