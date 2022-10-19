@@ -391,6 +391,9 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Any
             f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
         )
         if receipt:
+            # bug: template is whatever it was set to last in the for loop above
+            # at this point in the code we have a list of notifications (saved_notifications)
+            # which could use multiple templates
             _acknowledge_notification(EMAIL_TYPE, template, receipt)
             current_app.logger.info(
                 f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
@@ -408,6 +411,9 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Any
 
     if saved_notifications:
         current_app.logger.info(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
+        # bug: service is whatever it was set to last in the for loop above.
+        # at this point in the code we have a list of notifications (saved_notifications)
+        # which could be from multiple services
         check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
         research_mode = service.research_mode  # type: ignore
         for notification_obj in saved_notifications:
