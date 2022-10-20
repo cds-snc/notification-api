@@ -337,7 +337,7 @@ def _warn_service_users_about_message_limit_changed(service_id, data):
 def _warn_service_users_about_sms_limit_changed(service_id, data):
     send_notification_to_service_users(
         service_id=service_id,
-        template_id=current_app.config["DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID"]
+        template_id=current_app.config["DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID"],
         personalisation={
             "service_name": data["name"],
             "message_limit_en": "{:,}".format(data["sms_daily_limit"]),
