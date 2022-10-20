@@ -187,7 +187,9 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
     global va_profile_public_cert, integration_testing_public_cert
 
     headers = event.get("headers", {})
-    is_integration_test = event.get("path", '').endswith("?integration_test")
+    is_integration_test = "integration_test" in event.get("queryStringParameters", {})
+    if is_integration_test:
+        logger.debug("This request is an integration test.")
 
     if is_integration_test and integration_testing_public_cert is None:
         # This request is part of integration testing and should be authenticated using a certificate
@@ -200,6 +202,7 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
         headers.get("Authorization", headers.get("authorization", '')),
         integration_testing_public_cert if is_integration_test else va_profile_public_cert
     ):
+        logger.error("Authentication failed.")
         return { "statusCode": 401 }
 
     post_body = event.get("body")

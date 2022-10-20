@@ -13,7 +13,7 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import Certificate, load_pem_x509_certificate
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from json import dumps
 from lambda_functions.va_profile.va_profile_opt_in_out_lambda import jwt_is_valid, va_profile_opt_in_out_lambda_handler
 from sqlalchemy import text
@@ -78,26 +78,26 @@ def get_integration_testing_public_cert_mock(mocker, public_key):
 def jwt_encoded(private_key):
     """ This is a valid JWT encoding. """
 
-    iat = datetime.now()
+    iat = datetime.now(tz=timezone.utc)
     exp = iat + timedelta(minutes=15)
     return jwt.encode({"some": "payload", "exp": exp, "iat": iat}, private_key, algorithm="RS256")
 
 
 @pytest.fixture()
 def jwt_encoded_missing_exp(private_key):
-    return jwt.encode({"some": "payload", "iat": datetime.now()}, private_key, algorithm="RS256")
+    return jwt.encode({"some": "payload", "iat": datetime.now(tz=timezone.utc)}, private_key, algorithm="RS256")
 
 
 @pytest.fixture()
 def jwt_encoded_missing_iat(private_key):
-    return jwt.encode({"some": "payload", "exp": datetime.now()}, private_key, algorithm="RS256")
+    return jwt.encode({"some": "payload", "exp": datetime.now(tz=timezone.utc)}, private_key, algorithm="RS256")
 
 
 @pytest.fixture()
 def jwt_encoded_expired(private_key):
     """ This is an invalid JWT encoding because it is expired. """
 
-    iat = datetime.now() - timedelta(minutes=20)
+    iat = datetime.now(tz=timezone.utc) - timedelta(minutes=20)
     exp = iat + timedelta(minutes=15)
     return jwt.encode({"some": "payload", "exp": exp, "iat": iat}, private_key, algorithm="RS256")
 
@@ -108,7 +108,7 @@ def jwt_encoded_reversed(private_key):
     This JWT encoding has an issue time later than the expiration time.  Both times are in the future.
     """
 
-    exp = datetime.now() + timedelta(days=1)
+    exp = datetime.now(tz=timezone.utc) + timedelta(days=1)
     iat = exp + timedelta(minutes=15)
     return jwt.encode({"some": "payload", "exp": exp, "iat": iat}, private_key, algorithm="RS256")
 
@@ -609,9 +609,10 @@ def test_va_profile_opt_in_out_lambda_handler_audit_id_mismatch(worker_id, jwt_e
 
 def test_va_profile_opt_in_out_lambda_handler_integration_testing(notify_db, worker_id, jwt_encoded, put_mock, get_integration_testing_public_cert_mock):
     """
-    When the lambda handler is invoked with a path that ends with "?integration_test", verification of the
-    signature on POST request JWTs should use a certificate specifically for integration testing.  This
-    public certificate is included with the lambda layer, along with VA Profile's public certificates.
+    When the lambda handler is invoked with a path that includes the URL parameter "integration_test",
+    verification of the signature on POST request JWTs should use a certificate specifically for integration
+    testing.  This public certificate is included with the lambda layer, along with VA Profile's public
+    certificates.
 
     This unit test verifies that the lambda code attempts to load this certificate.
     """
@@ -620,7 +621,7 @@ def test_va_profile_opt_in_out_lambda_handler_integration_testing(notify_db, wor
         setup_db(connection)
 
     event = create_event("txAuditId", "txAuditId", "2022-04-07T19:37:59.320Z", 0, 1, 5, True, jwt_encoded)
-    event["path"] = "/vaprofile/optinout?integration_test"
+    event["queryStringParameters"] = {"integration_test": "the value doesn't matter"}
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
