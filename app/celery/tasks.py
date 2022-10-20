@@ -232,7 +232,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         template = dao_get_template_by_id(
             _notification.get("template"), version=_notification.get("template_version"), use_cache=True
         )
-        # bug: _notification does not have "sender_id" key
+        # todo: _notification may not have "sender_id" key
         sender_id = _notification.get("sender_id")  # type: ignore
         notification_id = _notification.get("id", create_uuid())
 
@@ -269,7 +269,6 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         }
 
         verified_notifications.append(notification)
-        # bug: notification does not have "queue" key
         notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
         process_type = template.process_type
 
@@ -341,7 +340,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
         template = dao_get_template_by_id(
             _notification.get("template"), version=_notification.get("template_version"), use_cache=True
         )
-        # bug: _notification does not have key "sender_id"
+        # todo: _notification does not have key "sender_id"
         sender_id = _notification.get("sender_id")  # type: ignore
         notification_id = _notification.get("id", create_uuid())
         reply_to_text = ""  # type: ignore
@@ -381,7 +380,6 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
         }
 
         verified_notifications.append(notification)
-        # bug: notification does not have key "queue"
         notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
         process_type = template.process_type
 
@@ -392,7 +390,8 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
             f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
         )
         if receipt:
-            # bug: template is whatever it was set to last in the for loop above
+            # todo: fix this potential bug
+            # template is whatever it was set to last in the for loop above
             # at this point in the code we have a list of notifications (saved_notifications)
             # which could use multiple templates
             _acknowledge_notification(EMAIL_TYPE, template, receipt)
@@ -412,7 +411,8 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
 
     if saved_notifications:
         current_app.logger.info(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
-        # bug: service is whatever it was set to last in the for loop above.
+        # todo: fix this potential bug
+        # service is whatever it was set to last in the for loop above.
         # at this point in the code we have a list of notifications (saved_notifications)
         # which could be from multiple services
         check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)

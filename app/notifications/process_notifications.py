@@ -335,7 +335,7 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
         notification_id = notification.get("notification_id", uuid.uuid4())
         notification_recipient = notification.get("recipient") or notification.get("to")
         service_id = notification.get("service").id if notification.get("service") else None  # type: ignore
-        # bug: notification_obj is being created using some keys that don't exist on notification
+        # todo: potential bug. notification_obj is being created using some keys that don't exist on notification
         # reference, created_by_id, status, billable_units aren't keys on notification at this point
         notification_obj = Notification(
             id=notification_id,
