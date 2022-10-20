@@ -183,7 +183,9 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
     same manner as in the tests/conftest.py::notify_db fixture.
     """
 
+    logger.info("POST request received.")
     logger.debug("POST event: %s", event)
+
     global va_profile_public_cert, integration_testing_public_cert
 
     headers = event.get("headers", {})
@@ -202,7 +204,7 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
         headers.get("Authorization", headers.get("authorization", '')),
         integration_testing_public_cert if is_integration_test else va_profile_public_cert
     ):
-        logger.error("Authentication failed.")
+        logger.info("Authentication failed.  Returning 401.")
         return { "statusCode": 401 }
 
     post_body = event.get("body")
@@ -211,12 +213,15 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
         try:
             post_body = json.loads(post_body)
         except json.decoder.JSONDecodeError:
+            logger.info("Malformed JSON.  Returning 400.")
             return { "statusCode": 400, "body": "malformed JSON" }
 
     if not isinstance(post_body, dict):
+        logger.info("The request body should be a JSON object.  Returning 400.")
         return { "statusCode": 400, "body": "The request body should be a JSON object." }
 
     if "txAuditId" not in post_body or "bios" not in post_body or not isinstance(post_body["bios"], list):
+        logger.info("A required top level attribute is missing from the request body or has the wrong type.  Returning 400.")
         return { "statusCode": 400, "body": "A required top level attribute is missing from the request body or has the wrong type." }
 
     post_response = { "statusCode": 200 }
@@ -237,6 +242,11 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
                 "potentiallySelfCorrectingOnRetry": False,
             }]
             make_PUT_request(post_body["txAuditId"], put_body)
+
+            if is_integration_test:
+                post_response["put_body"] = put_body
+
+        logger.info("POST response: %s", post_response)
         return post_response
 
     # VA Profile filters on their end and should only sent us records that match a criteria.
@@ -245,6 +255,11 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
         if should_make_put_request:
             put_body["status"] = "COMPLETED_NOOP"
             make_PUT_request(post_body["txAuditId"], put_body)
+
+            if is_integration_test:
+                post_response["put_body"] = put_body
+
+        logger.info("POST response: %s", post_response)
         return post_response
 
     try:
@@ -265,7 +280,6 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
         if db_connection is None:
             raise RuntimeError("No database connection.")
 
-        # Execute the stored function.
         logger.debug("Executing the stored function . . .")
         with db_connection.cursor() as c:
             # https://www.psycopg.org/docs/cursor.html#cursor.execute
@@ -285,14 +299,13 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
         logger.exception(e)
     finally:
         if should_make_put_request:
-            assert bool(put_body.get("status"))
+            assert bool(put_body.get("status")), "The PUT request must include a non-empty status."
             make_PUT_request(post_body["txAuditId"], put_body)
 
-    logger.debug("POST response: %s", post_response)
+            if is_integration_test:
+                post_response["put_body"] = put_body
 
-    if is_integration_test:
-        post_response["put_body"] = put_body
-
+    logger.info("POST response: %s", post_response)
     return post_response
 
 
