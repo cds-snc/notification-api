@@ -1,21 +1,8 @@
 from datetime import datetime
-from typing import Optional, TypedDict
+from typing import Optional
 
-from app.models import ApiKeyType, Job, NotificationType, Service
-
-
-class NotificationDictToSign(TypedDict):
-    id: str
-    template: str
-    service_id: str
-    template_version: str
-    to: str  # recipient
-    personalisation: Optional[dict]
-    simulated: bool
-    api_key: str
-    key_type: ApiKeyType  # should be ApiKeyType but I can't import that here
-    client_reference: Optional[str]
-    reply_to_text: str
+from app.encryption import NotificationDictToSign
+from app.models import Job, NotificationType, Service
 
 
 class VerifiedNotification(NotificationDictToSign):

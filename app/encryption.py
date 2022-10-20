@@ -1,5 +1,28 @@
+from typing import Any, NewType, Optional, TypedDict
+
 from flask_bcrypt import check_password_hash, generate_password_hash
 from itsdangerous import URLSafeSerializer
+from typing_extensions import NotRequired  # type: ignore
+
+SignedNotification = NewType("SignedNotification", str)
+
+
+class NotificationDictToSign(TypedDict):
+    id: NotRequired[str]
+    template: str  # actually template_id
+    service_id: NotRequired[str]
+    template_version: int
+    to: str  # recipient
+    reply_to_text: NotRequired[str]  # should this be NotRequired?
+    personalisation: Optional[dict]
+    simulated: NotRequired[bool]
+    api_key: str
+    key_type: str  # should be ApiKeyType but I can't import that here
+    client_reference: Optional[str]
+    queue: Optional[str]
+    sender_id: NotRequired[str]
+    job: NotRequired[str]  # actually job id
+    row_number: Optional[Any]  # should figure out what this is
 
 
 class CryptoSigner:
@@ -12,6 +35,12 @@ class CryptoSigner:
 
     def verify(self, to_verify):
         return self.serializer.loads(to_verify, salt=self.salt)
+
+    def sign_notification(self, notification: NotificationDictToSign) -> SignedNotification:
+        return self.sign(notification)
+
+    def verify_notification(self, signed_notification: SignedNotification) -> NotificationDictToSign:
+        return self.verify(signed_notification)
 
 
 def hashpw(password):

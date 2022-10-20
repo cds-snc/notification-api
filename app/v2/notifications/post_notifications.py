@@ -40,6 +40,7 @@ from app.dao.services_dao import (
     fetch_todays_total_sms_count,
 )
 from app.dao.templates_dao import get_precompiled_letter_template
+from app.encryption import NotificationDictToSign
 from app.letters.utils import upload_letter_pdf
 from app.models import (
     BULK,
@@ -85,7 +86,6 @@ from app.notifications.validators import (
 from app.schema_validation import validate
 from app.schemas import job_schema
 from app.service.utils import safelisted_members
-from app.types import NotificationDictToSign
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
@@ -322,17 +322,17 @@ def process_sms_or_email_notification(
         "id": create_uuid(),
         "template": str(template.id),
         "service_id": str(service.id),
-        "template_version": str(template.version),
+        "template_version": str(template.version),  # type: ignore
         "to": form_send_to,
         "personalisation": personalisation,
         "simulated": simulated,
         "api_key": str(api_key.id),
-        "key_type": api_key.key_type,
+        "key_type": str(api_key.key_type),
         "client_reference": form.get("reference", None),
         "reply_to_text": reply_to_text,
     }
 
-    signed_notification_data = signer.sign(_notification)
+    signed_notification_data = signer.sign_notification(_notification)
     notification = {**_notification}
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:

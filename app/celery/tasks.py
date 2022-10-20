@@ -49,6 +49,7 @@ from app.dao.services_dao import (
     fetch_todays_total_message_count,
 )
 from app.dao.templates_dao import dao_get_template_by_id
+from app.encryption import SignedNotification
 from app.exceptions import DVLAException
 from app.models import (
     BULK,
@@ -74,7 +75,7 @@ from app.notifications.process_notifications import (
     send_notification_to_queue,
 )
 from app.notifications.validators import check_service_over_daily_message_limit
-from app.types import NotificationDictToSign, VerifiedNotification
+from app.types import VerifiedNotification
 from app.utils import get_csv_max_rows
 
 
@@ -155,13 +156,13 @@ def choose_database_queue(template: Any, service: Service):
 def process_rows(rows: List, template: Template, job: Job, service: Service):
     template_type = template.template_type
     sender_id = str(job.sender_id) if job.sender_id else None
-    encrypted_smss: List[Any] = []
-    encrypted_emails: List[Any] = []
+    encrypted_smss: List[SignedNotification] = []
+    encrypted_emails: List[SignedNotification] = []
     for row in rows:
         client_reference = row.get("reference", None)
-        signed_row = signer.sign(
+        signed_row = signer.sign_notification(
             {
-                "api_key": job.api_key_id and str(job.api_key_id),
+                "api_key": job.api_key_id and str(job.api_key_id),  # type: ignore
                 "key_type": job.api_key.key_type if job.api_key else KEY_TYPE_NORMAL,
                 "template": str(template.id),
                 "template_version": job.template_version,
@@ -209,7 +210,7 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
 
 @notify_celery.task(bind=True, name="save-smss", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], receipt: Optional[UUID]):
+def save_smss(self, service_id: Optional[str], signed_notifications: List[SignedNotification], receipt: Optional[UUID]):
     """
     Function that takes a list of signed notifications, stores
     them in the DB and then sends these to the queue. If the receipt
@@ -221,7 +222,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
     saved_notifications: List[Notification] = []
     for signed_notification in signed_notifications:
         try:
-            _notification: NotificationDictToSign = signer.verify(signed_notification)
+            _notification = signer.verify_notification(signed_notification)
         except BadSignature:
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
@@ -319,7 +320,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_emails(self, _service_id: Optional[str], signed_notifications: List[Any], receipt: Optional[UUID]):
+def save_emails(self, _service_id: Optional[str], signed_notifications: List[SignedNotification], receipt: Optional[UUID]):
     """
     Function that takes a list of signed notifications, stores
     them in the DB and then sends these to the queue. If the receipt
@@ -331,7 +332,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Any
     saved_notifications: List[Notification] = []
     for signed_notification in signed_notifications:
         try:
-            _notification: NotificationDictToSign = signer.verify(signed_notification)
+            _notification = signer.verify_notification(signed_notification)
         except BadSignature:
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
