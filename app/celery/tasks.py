@@ -303,7 +303,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
     for notification_obj in saved_notifications:
         try:
             check_if_request_would_put_service_over_daily_sms_limit(
-                notification_obj.api_key.key_type, notification_obj.service, notification_obj.billable_units
+                KEY_TYPE_NORMAL, service, 0  # type: ignore
             )
         except LiveServiceTooManySMSRequestsError:
             # if notification would put service over limit, don't add it to the queue
