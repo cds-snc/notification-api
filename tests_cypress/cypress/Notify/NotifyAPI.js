@@ -84,6 +84,7 @@ const Admin = {
         }
     }
 }
+
 const API = {
     SendEmail: ({ api_key, to, template_id, personalisation, failOnStatusCode = true, email_reply_to_id }) => {
         return cy.request({
@@ -98,7 +99,7 @@ const API = {
                 "email_address": to,
                 "template_id": template_id,
                 "personalisation": personalisation,
-                ...(email_reply_to_id) && { email_reply_to_id: email_reply_to_id }
+                ...(email_reply_to_id) && { email_reply_to_id: email_reply_to_id } // only add email_reply_to_id if it's defined
             }
         });
     },

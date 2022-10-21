@@ -1,15 +1,15 @@
 /// <reference types="cypress" />
 
 import config from '../../config';
-import Notify from "../support/NotifyAPI";
+import Notify from "../Notify/NotifyAPI";
 
 describe('File attachment test', () => {
   it('can send single attachment', () => {
     cy.fixture('payloads/file_attachment_1').then(file_payload => {
       Notify.API.SendEmail({
         api_key: Cypress.env('API_KEY_LIVE'),
-        to: 'andrew.leith@cds-snc.ca',
-        template_id: config.templates.FILE_ATTACH_TEMPLATE_ID,
+        to: config.Users.Simulated[0],
+        template_id: config.Templates.FILE_ATTACH_TEMPLATE_ID,
         personalisation: file_payload,
         failOnStatusCode: false
       }).as('fileRequest');
@@ -24,8 +24,8 @@ describe('File attachment test', () => {
     cy.fixture('payloads/file_attachment_10').then(file_payload => {
       Notify.API.SendEmail({
         api_key: Cypress.env('API_KEY_LIVE'),
-        to: 'andrew.leith@cds-snc.ca',
-        template_id: config.templates.FILE_ATTACH_TEMPLATE_ID,
+        to: config.Users.Simulated[0],
+        template_id: config.Templates.FILE_ATTACH_TEMPLATE_ID,
         personalisation: file_payload,
         failOnStatusCode: false
       }).as('fileRequest');
@@ -41,8 +41,8 @@ describe('File attachment test', () => {
 
       Notify.API.SendEmail({
         api_key: Cypress.env('API_KEY_LIVE'),
-        to: 'andrew.leith@cds-snc.ca',
-        template_id: config.templates.FILE_ATTACH_TEMPLATE_ID,
+        to: config.Users.Simulated[0],
+        template_id: config.Templates.FILE_ATTACH_TEMPLATE_ID,
         personalisation: file_payload,
         failOnStatusCode: false
       }).as('fileRequest');

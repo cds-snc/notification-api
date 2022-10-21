@@ -8,6 +8,7 @@ var service;
 describe('SMS Daily limit', () => {
     before(() => {
         Notify.Admin.CreateService();
+        cy.pause();
         cy.get('@service_data').then((Service) => {
             service = Service; // save this for the after hook (this is an anti-pattern though)
             Notify.Admin.Settings.SetDailyLimit(Service.id, 2);

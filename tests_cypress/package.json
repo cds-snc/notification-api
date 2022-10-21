@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "cypress": "^10.10.0",
+    "cypress-recurse": "^1.23.0",
+    "imap-simple": "^5.1.0",
+    "jsonwebtoken": "^8.5.1",
+    "mailparser": "^3.5.0"
+  }
+}
