@@ -14,9 +14,9 @@
     participant SES
 
     internet ->> redis inbox: POST /email
-    redis inbox ->> redis inflight: scheduled task: beat-inbox-*
-    redis inflight ->> RDS: task: save_emails
-    RDS ->> SES: task: deliver_email
+    redis inbox ->> redis inflight: beat-inbox-*
+    redis inflight ->> RDS: save_emails
+    RDS ->> SES: deliver_email
 ```
 
 ### Error saving to database
@@ -30,10 +30,58 @@
     participant RDS
 
     internet ->> redis inbox: POST /email
-    redis inbox ->> redis inflight: scheduled task: beat-inbox-*
-    redis inflight --x RDS: task: save_emails
+    redis inbox ->> redis inflight: beat-inbox-*
+    redis inflight --x RDS: save_emails
     
-    redis inflight ->> redis inbox: scheduled task: in-flight-to-inbox
+    redis inflight ->> redis inbox: in-flight-to-inbox
+```
+
+### Error sending to SES
+
+```mermaid
+    sequenceDiagram
+        
+    participant redis inflight
+    participant RDS
+    participant SES
+
+    redis inflight ->> RDS: save_emails
+    RDS --x SES: deliver_email
+    RDS ->> SES: replay-created-notifications, deliver_email
+```
+
+## POST to /bulk
+
+### Happy path
+
+```mermaid
+    sequenceDiagram
+    
+    participant internet
+    participant RDS
+    participant SES
+
+    internet ->> RDS: POST /bulk (job)
+    RDS ->> RDS: process_job, save_emails (notifications)
+    RDS ->> SES: deliver_email
+    RDS ->> SES: deliver_email
+```
+
+### process_job interrupted
+
+```mermaid
+    sequenceDiagram
+    
+    participant internet
+    participant RDS
+    participant SES
+
+    internet ->> RDS: POST /bulk (job)
+    RDS --x RDS: process_job, save_emails (notifications)
+
+    RDS ->> RDS: check_job_status, process-incomplete-jobs, save_emails (notifications)
+    RDS ->> SES: deliver_email
+    RDS ->> SES: deliver_email
 ```
 
 ### Error sending to SES
@@ -42,18 +90,12 @@
     sequenceDiagram
     
     participant internet
-    participant redis inbox
-    participant redis inflight
     participant RDS
     participant SES
 
-    internet ->> redis inbox: POST /email
-    redis inbox ->> redis inflight: scheduled task: beat-inbox-*
-    redis inflight ->> RDS: task: save_emails
-    RDS --x SES: task: deliver_email
-    RDS -> SES: scheduled task: replay-created-notifications
-        RDS ->> SES: task: deliver_email
+    internet ->> RDS: POST /bulk (job)
+    RDS ->> RDS: process_job, save_emails (notifications)
+    RDS ->> SES: deliver_email
+    RDS --x SES: deliver_email
+    RDS ->> SES: replay-created-notifications, deliver_email
 ```
-
-## POST to /bulk
-
