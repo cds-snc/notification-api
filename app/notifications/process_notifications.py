@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import List
 
 from flask import current_app
 from notifications_utils.clients import redis
@@ -31,6 +32,7 @@ from app.models import (
     SMS_TYPE,
     ApiKeyType,
     Notification,
+    NotificationType,
     ScheduledNotification,
     Service,
 )
@@ -38,6 +40,7 @@ from app.sms_fragment_utils import (
     fetch_daily_sms_fragment_count,
     increment_daily_sms_fragment_count,
 )
+from app.types import VerifiedNotification
 from app.utils import get_template_instance
 from app.v2.errors import BadRequestError, LiveServiceTooManySMSRequestsError
 
@@ -319,7 +322,7 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         )
 
 
-def persist_notifications(notifications):
+def persist_notifications(notifications: List[VerifiedNotification]) -> List[Notification]:
     """
     Persist Notifications takes a list of json objects and creates a list of Notifications
     that gets bulk inserted into the DB.
@@ -331,7 +334,9 @@ def persist_notifications(notifications):
         notification_created_at = notification.get("created_at") or datetime.utcnow()
         notification_id = notification.get("notification_id", uuid.uuid4())
         notification_recipient = notification.get("recipient") or notification.get("to")
-        service_id = notification.get("service").id if notification.get("service") else None
+        service_id = notification.get("service").id if notification.get("service") else None  # type: ignore
+        # todo: potential bug. notification_obj is being created using some keys that don't exist on notification
+        # reference, created_by_id, status, billable_units aren't keys on notification at this point
         notification_obj = Notification(
             id=notification_id,
             template_id=notification.get("template_id"),
@@ -346,11 +351,11 @@ def persist_notifications(notifications):
             job_id=notification.get("job_id"),
             job_row_number=notification.get("job_row_number"),
             client_reference=notification.get("client_reference"),
-            reference=notification.get("reference"),
-            created_by_id=notification.get("created_by_id"),
-            status=notification.get("status"),
+            reference=notification.get("reference"),  # type: ignore
+            created_by_id=notification.get("created_by_id"),  # type: ignore
+            status=notification.get("status"),  # type: ignore
             reply_to_text=notification.get("reply_to_text"),
-            billable_units=notification.get("billable_units"),
+            billable_units=notification.get("billable_units"),  # type: ignore
         )
         template = dao_get_template_by_id(notification_obj.template_id, notification_obj.template_version, use_cache=True)
         # if the template is obtained from cache a tuple will be returned where
@@ -373,11 +378,11 @@ def persist_notifications(notifications):
         elif notification.get("notification_type") == EMAIL_TYPE:
             notification_obj.normalised_to = format_email_address(notification_recipient)
         elif notification.get("notification_type") == LETTER_TYPE:
-            notification_obj.postage = notification.get("postage") or notification.get("template_postage")
+            notification_obj.postage = notification.get("postage") or notification.get("template_postage")  # type: ignore
 
         lofnotifications.append(notification_obj)
         if notification.get("key_type") != KEY_TYPE_TEST:
-            service_id = notification.get("service").id
+            service_id = notification.get("service").id  # type: ignore
             if redis_store.get(redis.daily_limit_cache_key(service_id)):
                 redis_store.incr(redis.daily_limit_cache_key(service_id))
             if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and notification.get("notification_type") == SMS_TYPE:
@@ -389,14 +394,14 @@ def persist_notifications(notifications):
             "{} {} created at {}".format(
                 notification.get("notification_type"),
                 notification.get("notification_id"),
-                notification.get("notification_created_at"),
+                notification.get("notification_created_at"),  # type: ignore
             )
         )
     bulk_insert_notifications(lofnotifications)
     return lofnotifications
 
 
-def simulated_recipient(to_address, notification_type):
+def simulated_recipient(to_address: str, notification_type: NotificationType) -> bool:
     if notification_type == SMS_TYPE:
         formatted_simulated_numbers = [
             validate_and_format_phone_number(number) for number in current_app.config["SIMULATED_SMS_NUMBERS"]
