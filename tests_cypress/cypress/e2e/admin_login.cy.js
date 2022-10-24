@@ -6,7 +6,6 @@ import { LoginPage, TwoFactorPage } from "../Notify/Admin/Pages";
 const { recurse } = require('cypress-recurse')
 
 const ADMIN_COOKIE = 'notify_admin_session';
-
 describe('ADMIN', () => {
 
     // Login to notify before the test suite starts
@@ -66,8 +65,8 @@ describe('ADMIN', () => {
     });
 
     it('has a qualtrics survey', () => {
-        cy.get('#QSIFeedbackButton-btn').should('be.visible');
-        cy.get('#QSIFeedbackButton-btn').click();
-        cy.get('#QSIFeedbackButton-survey-iframe').should('be.visible');
+        cy.get('#QSIFeedbackButton-btn').should('be.visible'); // qualtrics survey button
+        cy.get('#QSIFeedbackButton-btn').click(); // click the button
+        cy.get('#QSIFeedbackButton-survey-iframe').should('be.visible'); // 
     });
 });

@@ -4,7 +4,7 @@ const config = {
             HostName: "https://api.staging.notification.cdssandbox.xyz",
         },
         Admin: {
-            HostName: "https://qvgi7ansvfzeekqiuv6hltlzza0sotpj.lambda-url.ca-central-1.on.aws/", //"https://staging.notification.cdssandbox.xyz",
+            HostName: "https://staging.notification.cdssandbox.xyz",
             AdminUser: "eli10@ethereal.email",
         },
         Services: {

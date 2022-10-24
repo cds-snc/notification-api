@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 
 import config from "../../config";
-import Notify from "../support/NotifyAPI";
+import Notify from "../Notify/NotifyAPI";
 
 var service;
 
@@ -20,7 +20,7 @@ describe('SMS Daily limit', () => {
     });
 
     context('one-off API sends', () => {
-        it.only('blocks single-fragment SMS when limit has been reached', () => {
+        it('blocks single-fragment SMS when limit has been reached', () => {
             Notify.API.SendEmail({
                 api_key: Cypress.env('API_KEY_LIVE'),
                 to: 'andrew.leith@cds-snc.ca',
