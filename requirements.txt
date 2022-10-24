@@ -129,4 +129,4 @@ webencodings==0.5.1
 websocket-client==1.4.1
 wrapt==1.14.1
 yarl==1.8.1
-typing_extensions==4.4.0
+typing-extensions==4.4.0
