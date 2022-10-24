@@ -1,10 +1,10 @@
 # Data Flow
 
-These diagrams show the movement of notification data and the tasks that move it along. Most tasks are run asyncronously by adding the task to an SQS queue and having our celery workers pick them up. Some tasks (particularly ones handling errors) are run on a schedule.
+These diagrams show the movement of notification data and the tasks that move it along. Most tasks are run asyncronously by adding the task to an SQS queue and having our celery workers pick it up. Some tasks (particularly ones handling errors) are run on a schedule.
 
-We example emails here, but the flows for sms are similar (with "save_smss" replacing "save_emails", and so on).
+We look at emails here, but the flows for sms are similar (with "save_smss" replacing "save_emails", and so on).
 
-## POST to /email or /sms
+## POST to /email
 
 ### Happy path
 
