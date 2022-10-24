@@ -92,11 +92,11 @@ jobs:
 
       - name: Package and deploy lambda function
         run: |
-          python3 -m venv venv
-          source venv/bin/activate
+          python3 -m venv venv_vetext_incoming_forwarder
+          source venv_vetext_incoming_forwarder/bin/activate
           pip install -r requirements-lambda.txt
           deactivate
-          cd venv/lib/python3.8/site-packages
+          cd venv_vetext_incoming_forwarder/lib/python3.8/site-packages
           zip -r9 ../../../../vetext_incoming_forwarder_lambda.zip .
           cd ../../../../
           zip -ugj vetext_incoming_forwarder_lambda vetext_incoming_forwarder_lambda.py
@@ -155,11 +155,11 @@ jobs:
         if: ${{ (inputs.lambdaName == 'ProfileOptInOut') || (inputs.lambdaName == 'All') }}
         run: |
           cd va_profile/
-          python3 -m venv venv
-          source venv/bin/activate
+          python3 -m venv venv_va_profile_opt_in_out
+          source venv_va_profile_opt_in_out/bin/activate
           pip install -r requirements-lambda.txt
           deactivate
-          cd venv/lib/python3.8/site-packages
+          cd venv_va_profile_opt_in_out/lib/python3.8/site-packages
           zip -r9 ../../../../va_profile_opt_in_out_lambda.zip .
           cd ../../../../
           zip -ugj va_profile_opt_in_out_lambda va_profile_opt_in_out_lambda.py
@@ -169,11 +169,11 @@ jobs:
         if: ${{ (inputs.lambdaName == 'ProfileRemoveOldOptOuts') || (inputs.lambdaName == 'All') }}
         run: |
           cd va_profile_remove_old_opt_outs/
-          python3 -m venv venv
-          source venv/bin/activate
+          python3 -m venv venv_va_profile_remove_old_opt_outs
+          source venv_va_profile_remove_old_opt_outs/bin/activate
           pip install -r requirements-lambda.txt
           deactivate
-          cd venv/lib/python3.8/site-packages
+          cd venv_va_profile_remove_old_opt_outs/lib/python3.8/site-packages
           zip -r9 ../../../../va_profile_remove_old_opt_outs_lambda.zip .
           cd ../../../../
           zip -ugj va_profile_remove_old_opt_outs_lambda va_profile_remove_old_opt_outs_lambda.py
@@ -183,11 +183,11 @@ jobs:
         if: ${{ (inputs.lambdaName == 'NightBigQueryUpload') || (inputs.lambdaName == 'All') }}
         run: |
           cd nightly_stats_bigquery_upload/
-          python3 -m venv venv
-          source venv/bin/activate
+          python3 -m venv venv_nightly_stats_bigquery_upload
+          source venv_nightly_stats_bigquery_upload/bin/activate
           pip install -r requirements-lambda.txt
           deactivate
-          cd venv/lib/python3.8/site-packages
+          cd venv_nightly_stats_bigquery_upload/lib/python3.8/site-packages
           zip -r9 ../../../../nightly_stats_bigquery_upload_lambda.zip .
           cd ../../../../
           zip -ugj nightly_stats_bigquery_upload_lambda nightly_stats_bigquery_upload_lambda.py
