@@ -40,6 +40,7 @@ from app.dao.services_dao import (
     fetch_todays_total_sms_count,
 )
 from app.dao.templates_dao import get_precompiled_letter_template
+from app.encryption import NotificationDictToSign
 from app.letters.utils import upload_letter_pdf
 from app.models import (
     BULK,
@@ -302,7 +303,7 @@ def triage_notification_to_queues(notification_type: NotificationType, signed_no
 
 def process_sms_or_email_notification(
     *, form, notification_type: NotificationType, api_key: ApiKey, template: Template, service: Service, reply_to_text=None
-):
+) -> Notification:
     form_send_to = form["email_address"] if notification_type == EMAIL_TYPE else form["phone_number"]
 
     send_to = validate_and_format_recipient(
@@ -317,11 +318,11 @@ def process_sms_or_email_notification(
 
     personalisation = process_document_uploads(form.get("personalisation"), service, simulated, template.id)
 
-    notification = {
+    _notification: NotificationDictToSign = {
         "id": create_uuid(),
         "template": str(template.id),
         "service_id": str(service.id),
-        "template_version": str(template.version),
+        "template_version": str(template.version),  # type: ignore
         "to": form_send_to,
         "personalisation": personalisation,
         "simulated": simulated,
@@ -331,8 +332,8 @@ def process_sms_or_email_notification(
         "reply_to_text": reply_to_text,
     }
 
-    signed_notification_data = signer.sign(notification)
-
+    signed_notification_data = signer.sign_notification(_notification)
+    notification = {**_notification}
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:
         notification = persist_notification(  # keep scheduled notifications using the old code path for now

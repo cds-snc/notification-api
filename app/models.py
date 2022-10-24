@@ -1551,7 +1551,7 @@ class Notification(BaseModel):
     template_version = db.Column(db.Integer, nullable=False)
     template = db.relationship("TemplateHistory")
     api_key_id = db.Column(UUID(as_uuid=True), db.ForeignKey("api_keys.id"), index=True, unique=False)
-    api_key = db.relationship("ApiKey")
+    api_key: ApiKey = db.relationship("ApiKey")
     key_type = db.Column(
         db.String,
         db.ForeignKey("key_types.name"),
