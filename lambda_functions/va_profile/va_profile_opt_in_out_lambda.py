@@ -244,7 +244,12 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
             make_PUT_request(post_body["txAuditId"], put_body)
 
             if is_integration_test:
-                post_response["put_body"] = put_body
+                post_response["headers"] = {
+                    "Content-Type": "application/json",
+                }
+                post_response["body"] = json.dumps({
+                    "put_body": put_body,
+                })
 
         logger.info("POST response: %s", post_response)
         return post_response
@@ -257,7 +262,12 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
             make_PUT_request(post_body["txAuditId"], put_body)
 
             if is_integration_test:
-                post_response["put_body"] = put_body
+                post_response["headers"] = {
+                    "Content-Type": "application/json",
+                }
+                post_response["body"] = json.dumps({
+                    "put_body": put_body,
+                })
 
         logger.info("POST response: %s", post_response)
         return post_response
@@ -303,7 +313,12 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
             make_PUT_request(post_body["txAuditId"], put_body)
 
             if is_integration_test:
-                post_response["put_body"] = put_body
+                post_response["headers"] = {
+                    "Content-Type": "application/json",
+                }
+                post_response["body"] = json.dumps({
+                    "put_body": put_body,
+                })
 
     logger.info("POST response: %s", post_response)
     return post_response

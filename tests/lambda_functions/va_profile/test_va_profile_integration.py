@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import Certificate, load_pem_x509_certificate
 from datetime import datetime, timedelta, timezone
-from json import dumps
+from json import dumps, loads
 from lambda_functions.va_profile.va_profile_opt_in_out_lambda import jwt_is_valid, va_profile_opt_in_out_lambda_handler
 from sqlalchemy import text
 
@@ -625,6 +625,9 @@ def test_va_profile_opt_in_out_lambda_handler_integration_testing(notify_db, wor
     response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
     assert isinstance(response, dict)
     assert response["statusCode"] == 200
+    assert response.get("headers", {}).get("Content-Type", '') == "application/json"
+    response_body = loads(response.get("body", "{}"))
+    assert "put_body" in response_body
 
     expected_put_body = {
         "dateTime": "2022-04-07T19:37:59.320Z",
@@ -633,7 +636,7 @@ def test_va_profile_opt_in_out_lambda_handler_integration_testing(notify_db, wor
 
     put_mock.assert_called_once_with("txAuditId", expected_put_body)
     get_integration_testing_public_cert_mock.assert_called_once()
-    assert response["put_body"] == expected_put_body
+    assert response_body["put_body"] == expected_put_body
 
 
 def create_event(
