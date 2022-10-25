@@ -50,7 +50,7 @@ MarkupSafe==2.0.1
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous==2.0.1
 
-git+https://github.com/cds-snc/notifier-utils.git@49.0.0#egg=notifications-utils
+git+https://github.com/cds-snc/notifier-utils.git@49.1.0#egg=notifications-utils
 
 # MLWR
 socketio-client==0.5.6
