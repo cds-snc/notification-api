@@ -41,21 +41,16 @@ from tempfile import NamedTemporaryFile
 logger = logging.getLogger("VAProfileOptInOut")
 logger.setLevel(logging.DEBUG)
 
-CERTIFICATE_ARN = os.getenv("CERTIFICATE_ARN")
-OPT_IN_OUT_QUERY = """SELECT va_profile_opt_in_out(%s, %s, %s, %s, %s);"""
+ALB_CERTIFICATE_ARN = os.getenv("ALB_CERTIFICATE_ARN")
+ALB_PRIVATE_KEY_PATH = os.getenv("ALB_PRIVATE_KEY_PATH")
 NOTIFY_ENVIRONMENT = os.getenv("NOTIFY_ENVIRONMENT")
-ALB_PRIVATE_KEY_PATH = os.getenv("PRIVATE_KEY_PATH")
-# TODO - Make this an SSM call.
-SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI")
+OPT_IN_OUT_QUERY = """SELECT va_profile_opt_in_out(%s, %s, %s, %s, %s);"""
 VA_PROFILE_DOMAIN = os.getenv("VA_PROFILE_DOMAIN")
 VA_PROFILE_PATH_BASE = "/communication-hub/communication/v1/status/changelog/"
 
 
 if NOTIFY_ENVIRONMENT is None:
-    # Without this value, this code cannot know the path to the required
-    # SSM Parameter Store values and other resources.
-    sys.exit("NOTIFY_ENVIRONMENT is not set.")
-
+    sys.exit("NOTIFY_ENVIRONMENT is not set.  Check the Lambda console.")
 
 if NOTIFY_ENVIRONMENT == "test":
     jwt_certificate_path = "tests/lambda_functions/va_profile/cert.pem"
@@ -77,18 +72,36 @@ except (OSError, ValueError) as e:
 # access to VA Profile's private key.  This variable with be populated later if needed.
 integration_testing_public_cert = None
 
-# TODO - make SSM call; delete this block
-if SQLALCHEMY_DATABASE_URI is None:
-    logger.error("SQLALCHEMY_DATABASE_URI is not set.")
-    sys.exit("Couldn't connect to the database.")
+# Get the database URI.
+if NOTIFY_ENVIRONMENT == "test":
+    sqlalchemy_database_uri = os.getenv("SQLALCHEMY_DATABASE_URI")
+else:
+    # This is an AWS deployment environment.
+    database_uri_path = os.getenv("DATABASE_URI_PATH")
+    if database_uri_path is None:
+        # Without this value, this code cannot know the path to the required
+        # SSM Parameter Store resource.
+        sys.exit("DATABASE_URI_PATH is not set.  Check the Lambda console.")
+
+    logger.debug("Getting the database URI from SSM Parameter Store . . .")
+    ssm_client = boto3.client("ssm")
+    ssm_response: dict = ssm_client.get_parameter(
+        Name=database_uri_path,
+        WithDecryption=True
+    )
+    logger.debug(". . . Retrieved the database URI from SSM Parameter Store.")
+    sqlalchemy_database_uri = ssm_response.get("Parameter", {}).get("Value")
+
+if sqlalchemy_database_uri is None:
+    sys.exit("Can't get the database URI.")
 
 
 # Making PUT requests requires presenting client certificates for mTLS.  These are used programmatically via ssl.SSLContext.
 # The certificates are not necessary for testing, wherein the PUT request is mocked.
 ssl_context = None
 
-if CERTIFICATE_ARN is None:
-    logger.error("CERTIFICATE_ARN is not set.")
+if ALB_CERTIFICATE_ARN is None:
+    logger.error("ALB_CERTIFICATE_ARN is not set.")
 elif ALB_PRIVATE_KEY_PATH is None:
     logger.error("ALB_PRIVATE_KEY_PATH is not set.")
 elif NOTIFY_ENVIRONMENT != "test":
@@ -96,11 +109,10 @@ elif NOTIFY_ENVIRONMENT != "test":
         # Get the client certificates from AWS ACM.
         logger.debug("Making a request to ACM . . .")
         acm_client = boto3.client("acm")
-        acm_response: dict = acm_client.get_certificate(CertificateArn=CERTIFICATE_ARN)
+        acm_response: dict = acm_client.get_certificate(CertificateArn=ALB_CERTIFICATE_ARN)
         logger.debug(". . . Finished the request to ACM.")
 
         # Get the private key from SSM Parameter Store.
-        # TODO - Get the database URI too.
         logger.debug("Getting the ALB private key from SSM Parameter Store . . .")
         ssm_client = boto3.client("ssm")
         ssm_response: dict = ssm_client.get_parameter(
@@ -117,7 +129,7 @@ elif NOTIFY_ENVIRONMENT != "test":
 
             ssl_context = ssl.create_default_context(cadata=acm_response["CertificateChain"])
             ssl_context.load_cert_chain(f.name)
-    except (OSError, ClientError, ssl.SSLError, ValidationError) as e:
+    except (OSError, ClientError, ssl.SSLError, ValidationError, KeyError) as e:
         logger.exception(e)
         if isinstance(e, ssl.SSLError):
             logger.error("The reason is: %s", e.reason)
@@ -142,7 +154,7 @@ def make_database_connection(worker_id):
 
     try:
         logger.debug("Connecting to the database . . .")
-        connection = psycopg2.connect(SQLALCHEMY_DATABASE_URI + ('' if worker_id is None else f"_{worker_id}"))
+        connection = psycopg2.connect(sqlalchemy_database_uri + ('' if worker_id is None else f"_{worker_id}"))
         logger.debug(". . . Connected to the database.")
     except psycopg2.Warning as e:
         logger.warning(e)
