@@ -35,10 +35,7 @@ from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
-from app.dao.services_dao import (
-    fetch_todays_total_message_count,
-    fetch_todays_total_sms_count,
-)
+from app.dao.services_dao import fetch_todays_total_message_count
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.encryption import NotificationDictToSign
 from app.letters.utils import upload_letter_pdf
@@ -78,6 +75,7 @@ from app.notifications.validators import (
     check_service_can_schedule_notification,
     check_service_email_reply_to_id,
     check_service_has_permission,
+    check_service_over_daily_sms_limit,
     check_service_sms_sender_id,
     validate_and_format_recipient,
     validate_template,
@@ -86,6 +84,7 @@ from app.notifications.validators import (
 from app.schema_validation import validate
 from app.schemas import job_schema
 from app.service.utils import safelisted_members
+from app.sms_fragment_utils import fetch_daily_sms_fragment_count
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
@@ -154,7 +153,9 @@ def post_bulk():
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 
     if template.template_type == "sms" and check_sms_limit:
-        remaining_messages = authenticated_service.sms_daily_limit - fetch_todays_total_sms_count(authenticated_service.id)
+        check_service_over_daily_sms_limit(api_user.key_type, authenticated_service)
+        fragments_sent = fetch_daily_sms_fragment_count(authenticated_service.id)
+        remaining_messages = authenticated_service.sms_daily_limit - fragments_sent
     else:
         remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
 
