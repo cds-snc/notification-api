@@ -1901,7 +1901,9 @@ class TestBulkSend:
         messages_count_mock = mocker.patch(
             "app.v2.notifications.post_notifications.fetch_todays_total_message_count", return_value=9
         )
-        messages_count_mock = mocker.patch("app.v2.notifications.post_notifications.fetch_daily_sms_fragment_count", return_value=9)
+        messages_count_mock = mocker.patch(
+            "app.v2.notifications.post_notifications.fetch_daily_sms_fragment_count", return_value=9
+        )
         data = {
             "name": "job_name",
             "template_id": template.id,
