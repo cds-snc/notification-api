@@ -510,7 +510,7 @@ class TestPersistNotification:
                         assert not error_expected  # will cause test to fail if an error was expected
                     except TooManySMSRequestsError as e:
                         assert error_expected  # will cause test to fail if error is raised and not expected
-                        assert e.message == "Exceeded sms send limits (6) for today"
+                        assert e.message == "Exceeded SMS daily sending limit of 6 fragments"
 
 
 class TestSendNotificationQueue:
