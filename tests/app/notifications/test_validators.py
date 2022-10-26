@@ -183,7 +183,7 @@ class TestCheckDailyLimits:
                 with pytest.raises(TooManySMSRequestsError) as e:
                     with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
                         check_service_over_daily_sms_limit(key_type, service)
-                assert e.value.message == "Exceeded sms send limits (4) for today"
+                assert e.value.message == "Exceeded SMS daily sending limit of 4 fragments"
             else:
                 with pytest.raises(TooManyRequestsError) as e:
                     check_service_over_daily_message_limit(key_type, service)
@@ -267,7 +267,7 @@ class TestCheckDailyLimits:
                 with pytest.raises(TooManySMSRequestsError) as e:
                     with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
                         check_service_over_daily_sms_limit("normal", service)
-                    assert e.value.message == "Exceeded sms send limits (5) for today"
+                    assert e.value.message == "Exceeded SMS daily sending limit of 5 fragments"
             else:
                 with pytest.raises(TooManyRequestsError) as e:
                     check_service_over_daily_message_limit("normal", service)
@@ -303,7 +303,7 @@ class TestCheckDailyLimits:
                 with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
                     check_service_over_daily_sms_limit(key_type, service)
             assert e.value.status_code == 429
-            assert e.value.message == "Exceeded sms send limits (4) for today"
+            assert e.value.message == "Exceeded SMS daily sending limit of 4 fragments"
             assert e.value.fields == []
 
             app.notifications.validators.redis_store.set.assert_not_called()
