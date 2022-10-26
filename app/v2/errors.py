@@ -32,7 +32,7 @@ class TooManyRequestsError(InvalidRequest):
 
 class TooManySMSRequestsError(InvalidRequest):
     status_code = 429
-    message_template = "Exceeded SMS daily sending limit of {}"
+    message_template = "Exceeded SMS daily sending limit of {} fragments"
 
     def __init__(self, sending_limit):
         self.message = self.message_template.format(sending_limit)
