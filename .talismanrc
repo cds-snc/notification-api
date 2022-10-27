@@ -324,6 +324,6 @@ fileignoreconfig:
     - filename: migrations/env.py
       checksum: 2dd4f14a2d88a892182c9f3b32a5ff058691066982e71a72a6aa5a0856db1cd6
     - filename: lambda_functions/va_profile/va_profile_opt_in_out_lambda.py
-      checksum: 71a7d63165dbd748d3195b68ad6c5f9ff476c3a3ac18339e67b2a69c6e503a3c
+      checksum: 76ce0c9109e51795a6e1d61e070ea335703707f390861fe134a3638b4ea9c828
     - filename: tests/lambda_functions/va_profile/test_va_profile_integration.py
-      checksum: 689a27fc1319888d900055c52d460b23b6c2b1dea97f4ec078a0e22ff631ae01
+      checksum: 7647fdd36c40ee8c76ee95423685b9aafe567ebea0317fb8ab823100b60466d7

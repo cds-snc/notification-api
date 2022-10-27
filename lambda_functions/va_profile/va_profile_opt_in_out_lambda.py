@@ -243,7 +243,7 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
         logger.warning("The POST request contains more than one update.  Only the first will be processed.")
 
     bio = post_body["bios"][0]
-    put_body = {"dateTime": bio["sourceDate"]}
+    put_body = {"dateTime": bio.get("sourceDate", "not available")}
 
     if bio.get("txAuditId", '') != post_body["txAuditId"]:
         if should_make_put_request:
@@ -313,11 +313,21 @@ def va_profile_opt_in_out_lambda_handler(event: dict, context, worker_id=None) -
         # Bad Request.  Required attributes are missing.
         post_response["statusCode"] = 400
         put_body["status"] = "COMPLETED_FAILURE"
+        put_body["messages"] = [{
+            "text": f"KeyError: The bios dictionary attribute is missing the required attribute {e}.",
+            "severity": "ERROR",
+            "potentiallySelfCorrectingOnRetry": False,
+        }]
         logger.exception(e)
     except Exception as e:
         # Internal Server Error.
         post_response["statusCode"] = 500
         put_body["status"] = "COMPLETED_FAILURE"
+        put_body["messages"] = [{
+            "text": str(e),
+            "severity": "ERROR",
+            "potentiallySelfCorrectingOnRetry": False,
+        }]
         logger.exception(e)
     finally:
         if should_make_put_request:

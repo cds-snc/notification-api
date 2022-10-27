@@ -527,7 +527,7 @@ def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id, j
     put_mock.assert_called_once_with("txAuditId", expected_put_body)
 
 
-def test_va_profile_opt_in_out_lambda_handler_KeyError(jwt_encoded, worker_id, put_mock):
+def test_va_profile_opt_in_out_lambda_handler_KeyError1(jwt_encoded, worker_id, put_mock):
     """
     Test the VA Profile integration lambda by inspecting the PUT request is initiates to
     VA Profile in response to a request.  This test should generate a KeyError in the handler
@@ -543,6 +543,37 @@ def test_va_profile_opt_in_out_lambda_handler_KeyError(jwt_encoded, worker_id, p
     expected_put_body = {
         "dateTime": "2022-04-07T19:37:59.320Z",
         "status": "COMPLETED_FAILURE",
+        "messages": [{
+            "text": "KeyError: The bios dictionary attribute is missing the required attribute 'allowed'.",
+            "severity": "ERROR",
+            "potentiallySelfCorrectingOnRetry": False,
+        }]
+    }
+
+    put_mock.assert_called_once_with("txAuditId", expected_put_body)
+
+
+def test_va_profile_opt_in_out_lambda_handler_KeyError2(jwt_encoded, worker_id, put_mock):
+    """
+    Test the VA Profile integration lambda by inspecting the PUT request is initiates to
+    VA Profile in response to a request.  This test should generate a KeyError in the handler
+    that should be caught.
+    """
+
+    event = create_event("txAuditId", "txAuditId", "2022-04-07T19:37:59.320Z", 0, 1, 5, True, jwt_encoded)
+    del event["body"]["bios"][0]["sourceDate"]
+    response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
+    assert isinstance(response, dict)
+    assert response["statusCode"] == 400
+
+    expected_put_body = {
+        "dateTime": "not available",
+        "status": "COMPLETED_FAILURE",
+        "messages": [{
+            "text": "KeyError: The bios dictionary attribute is missing the required attribute 'sourceDate'.",
+            "severity": "ERROR",
+            "potentiallySelfCorrectingOnRetry": False,
+        }]
     }
 
     put_mock.assert_called_once_with("txAuditId", expected_put_body)
