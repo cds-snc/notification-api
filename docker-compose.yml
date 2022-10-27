@@ -18,7 +18,7 @@ services:
       - "listen_addresses=*"
     restart: always
   redis:
-    image: redis:latest@sha256:b4e56cd71c74e379198b66b3db4dc415f42e8151a18da68d1b61f55fcc7af3e0
+    image: redis:6.2@sha256:45a37e30dd2b3eb803b71296dd962bab827558ff017c1baad4d957a030415acf
   web:
     image: notification-api
     restart: always
@@ -34,7 +34,7 @@ services:
     volumes:
       - .:/app
     ports:
-        - "6011:6011"
+      - "6011:6011"
     depends_on:
       - db
       - redis
