@@ -196,7 +196,7 @@ def test_create_letters_pdf_sets_technical_failure_max_retries(mocker, sample_le
 
     assert mock_get_letters_pdf.called
     assert mock_retry.called
-    mock_update_noti.assert_called_once_with(sample_letter_notification.id, 'technical-failure')
+    mock_update_noti.assert_called_once_with(sample_letter_notification.id, 'technical-failure', status_reason=ANY)
 
 
 def test_create_letters_gets_the_right_logo_when_service_has_no_logo(

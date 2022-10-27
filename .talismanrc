@@ -327,3 +327,5 @@ fileignoreconfig:
       checksum: 76ce0c9109e51795a6e1d61e070ea335703707f390861fe134a3638b4ea9c828
     - filename: tests/lambda_functions/va_profile/test_va_profile_integration.py
       checksum: 7647fdd36c40ee8c76ee95423685b9aafe567ebea0317fb8ab823100b60466d7
+    - filename: app/celery/letters_pdf_tasks.py
+      checksum: 17817004fe9477d2a748f4a9a6d63e87c25e60c92f3ccf2362bf6f32d542f1e1
