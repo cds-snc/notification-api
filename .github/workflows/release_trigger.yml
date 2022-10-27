@@ -25,7 +25,7 @@ jobs:
       - name: Get the version
         id: tag
         run: |
-          echo "version="${GITHUB_REF/refs\/tags\//}"" >> $GITHUB_OUTPUT
+          echo "version=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
 
       - name: Env Values
         run: |
