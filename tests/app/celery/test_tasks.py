@@ -74,12 +74,12 @@ class AnyStringWith(str):
 
 def _notification_json(template, to, personalisation=None, job_id=None, row_number=0, queue=None, reply_to_text=None):
     return {
-        "template": str(template.id),
+        "template_id": str(template.id),
         "template_version": template.version,
         "to": to,
         "notification_type": template.template_type,
         "personalisation": personalisation or {},
-        "job": job_id and str(job_id),
+        "job_id": job_id and str(job_id),
         "row_number": row_number,
         "queue": queue,
         "reply_to_text": reply_to_text,
@@ -810,7 +810,7 @@ class TestProcessRows:
     ):
         mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
-        signer_mock = mocker.patch("app.celery.tasks.signer.sign")
+        signer_mock = mocker.patch("app.celery.tasks.signer.sign_notification")
         template = Mock(id="template_id", template_type=template_type)
         job = Mock(id="job_id", template_version="temp_vers", notification_count=1, api_key_id=api_key_id, sender_id=sender_id)
         service = Mock(id="service_id", research_mode=research_mode)
@@ -832,11 +832,11 @@ class TestProcessRows:
         )
         signer_mock.assert_called_once_with(
             {
-                "api_key": None if api_key_id is None else str(api_key_id),
+                "api_key_id": None if api_key_id is None else str(api_key_id),
                 "key_type": job.api_key.key_type,
                 "template": "template_id",
                 "template_version": "temp_vers",
-                "job": "job_id",
+                "job_id": "job_id",
                 "to": "recip",
                 "row_number": "row_num",
                 "personalisation": {"foo": "bar"},
@@ -930,7 +930,7 @@ class TestProcessRows:
     ):
         mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
-        signer_mock = mocker.patch("app.celery.tasks.signer.sign")
+        signer_mock = mocker.patch("app.celery.tasks.signer.sign_notification")
         template = Mock(id="template_id", template_type=template_type)
         api_key = {}
         job = Mock(
@@ -960,11 +960,11 @@ class TestProcessRows:
         )
         signer_mock.assert_called_once_with(
             {
-                "api_key": None if api_key_id is None else str(api_key_id),
+                "api_key_id": None if api_key_id is None else str(api_key_id),
                 "key_type": KEY_TYPE_NORMAL,
                 "template": "template_id",
                 "template_version": "temp_vers",
-                "job": "job_id",
+                "job_id": "job_id",
                 "to": "recip",
                 "row_number": "row_num",
                 "personalisation": {"foo": "bar"},
@@ -1041,7 +1041,7 @@ class TestSaveSmss:
             False,
         ]
         mocker.patch("app.notifications.process_notifications.choose_queue", return_value="sms_queue")
-        save_smss(sample_template_with_placeholders.service_id, [signer.sign(notification)], uuid.uuid4())
+        save_smss(sample_template_with_placeholders.service_id, [signer.sign_notification(notification)], uuid.uuid4())
 
         assert mocked_redis_get.called
         persisted_notification = Notification.query.one()
@@ -1054,7 +1054,7 @@ class TestSaveSmss:
         assert not persisted_notification.sent_by
         assert not persisted_notification.job_id
         assert persisted_notification.personalisation == {"name": "Jo"}
-        assert persisted_notification._personalisation == signer.sign({"name": "Jo"})
+        assert persisted_notification._personalisation == signer.sign_notification({"name": "Jo"})
         assert persisted_notification.notification_type == "sms"
         mocked_deliver_sms.assert_called_once_with(
             [str(persisted_notification.id)], queue="send-throttled-sms-tasks" if sender_id else "send-sms-tasks"
