@@ -260,7 +260,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
             "template_id": template.id,
             "template_version": template.version,
             "recipient": _notification["to"] if "to" in _notification else None,
-            "personalisation": _notification["personalisation"] if "personalisation" in _notification else None ,
+            "personalisation": _notification["personalisation"] if "personalisation" in _notification else None,
             "notification_type": SMS_TYPE,
             "simulated": _notification["simulated"] if "simulated" in _notification else None,
             "api_key_id": _notification["api_key_id"] if "api_key_id" in _notification else None,
