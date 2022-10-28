@@ -10,19 +10,19 @@ class NotificationDictToSign(TypedDict):
     # todo: remove duplicate keys
     # todo: remove all NotRequired and decide if key should be there or not
     id: Optional[str]
-    template: str  # actually template_id
+    template_id: str
     service_id: Optional[str]
     template_version: int
     to: str  # recipient
     reply_to_text: Optional[str]
     personalisation: Optional[dict]
     simulated: Optional[bool]
-    api_key: str
+    api_key_id: str
     key_type: str  # should be ApiKeyType but I can't import that here
     client_reference: Optional[str]
     queue: Optional[str]
     sender_id: Optional[str]
-    job: Optional[str]  # actually job_id
+    job_id: Optional[str]
     row_number: Optional[Any]  # should this be int or str?
 
 

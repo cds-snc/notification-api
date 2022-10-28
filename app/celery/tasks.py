@@ -163,11 +163,11 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
         client_reference = row.get("reference", None)
         signed_row = signer.sign_notification(
             {
-                "api_key": job.api_key_id and str(job.api_key_id),  # type: ignore
+                "api_key_id": job.api_key_id and str(job.api_key_id),  # type: ignore
                 "key_type": job.api_key.key_type if job.api_key else KEY_TYPE_NORMAL,
                 "template": str(template.id),
                 "template_version": job.template_version,
-                "job": str(job.id),
+                "job_id": str(job.id),
                 "to": row.recipient,
                 "row_number": row.index,
                 "personalisation": dict(row.personalisation),
@@ -231,7 +231,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         service = dao_fetch_service_by_id(service_id, use_cache=True)
 
         template = dao_get_template_by_id(
-            _notification.get("template"), version=_notification.get("template_version"), use_cache=True
+            _notification.get("template_id"), version=_notification.get("template_version"), use_cache=True
         )
         # todo: _notification may not have "sender_id" key
         sender_id = _notification.get("sender_id")  # type: ignore
@@ -344,7 +344,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
         service_id = _notification.get("service_id", _service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
         template = dao_get_template_by_id(
-            _notification.get("template"), version=_notification.get("template_version"), use_cache=True
+            _notification.get("template_id"), version=_notification.get("template_version"), use_cache=True
         )
         # todo: _notification does not have key "sender_id"
         sender_id = _notification.get("sender_id")  # type: ignore
