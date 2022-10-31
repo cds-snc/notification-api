@@ -44,7 +44,7 @@ from app.models import (
 from app.notifications.process_notifications import create_content_for_notification
 from app.service.sender import send_notification_to_service_users
 from app.service.utils import service_allowed_to_send_to
-from app.sms_fragment_utils import fetch_daily_sms_fragment_count
+from app.sms_fragment_utils import fetch_todays_total_sms_count
 from app.utils import get_document_url, get_public_notify_type_text, is_blank
 from app.v2.errors import (
     BadRequestError,
@@ -101,7 +101,7 @@ def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Servic
 )
 def check_service_over_daily_sms_limit_and_warn(key_type: ApiKeyType, service: Service):
     if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and key_type != KEY_TYPE_TEST and current_app.config["REDIS_ENABLED"]:
-        fragments_sent = fetch_daily_sms_fragment_count(service.id)
+        fragments_sent = fetch_todays_total_sms_count(service.id)
         warn_about_daily_sms_limit(service, fragments_sent)
 
 
