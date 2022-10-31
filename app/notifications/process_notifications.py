@@ -36,7 +36,7 @@ from app.models import (
     ScheduledNotification,
     Service,
 )
-from app.sms_fragment_utils import fetch_todays_total_sms_count
+from app.dao.services_dao import fetch_todays_total_sms_count
 from app.types import VerifiedNotification
 from app.utils import get_template_instance
 from app.v2.errors import BadRequestError, LiveServiceTooManySMSRequestsError

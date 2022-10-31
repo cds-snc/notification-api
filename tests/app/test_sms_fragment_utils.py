@@ -1,7 +1,7 @@
 import pytest
 from notifications_utils.clients.redis import sms_daily_count_cache_key
 
-from app.sms_fragment_utils import fetch_todays_total_sms_count
+from app.dao.services_dao import fetch_todays_total_sms_count
 from tests.conftest import set_config
 
 

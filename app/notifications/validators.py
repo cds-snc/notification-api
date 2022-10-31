@@ -44,7 +44,7 @@ from app.models import (
 from app.notifications.process_notifications import create_content_for_notification
 from app.service.sender import send_notification_to_service_users
 from app.service.utils import service_allowed_to_send_to
-from app.sms_fragment_utils import fetch_todays_total_sms_count
+from app.dao.services_dao import fetch_todays_total_sms_count
 from app.utils import get_document_url, get_public_notify_type_text, is_blank
 from app.v2.errors import (
     BadRequestError,
