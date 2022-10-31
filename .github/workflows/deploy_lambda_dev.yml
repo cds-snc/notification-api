@@ -29,18 +29,18 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.inputs.ref }}
+          ref: ${{ inputs.ref }}
 
       - name: Env Values
         run: |
-          echo "The branch/tag is ${{ github.event.inputs.ref }}"
-          echo "The Lambda Deployment is ${{ github.event.inputs.choice }}"
+          echo "The branch/tag is ${{ inputs.ref }}"
+          echo "The Lambda Deployment is ${{ inputs.choice }}"
 
   build_deploy_lambda:
     needs: [setup_job]
     uses: ./.github/workflows/lambda-functions.yml
     with:
       environment: "dev"
-      ref: ${{ github.event.inputs.ref }}
-      lambdaName: ${{ github.event.inputs.choice }}
+      ref: ${{ inputs.ref }}
+      lambdaName: ${{ inputs.choice }}
     secrets: inherit

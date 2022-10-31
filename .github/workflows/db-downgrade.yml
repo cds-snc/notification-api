@@ -34,9 +34,9 @@ jobs:
         id: render
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ./cd/application-deployment/${{ github.event.inputs.environment }}/vaec-db-downgrade-task-definition.json
-          container-name: ${{ github.event.inputs.environment }}-notification-api-db-migrations
-          image: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ github.event.inputs.ref }}
+          task-definition: ./cd/application-deployment/${{ inputs.environment }}/vaec-db-downgrade-task-definition.json
+          container-name: ${{ inputs.environment }}-notification-api-db-migrations
+          image: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}
 
       - name: Register migration task definition
         id: register
@@ -45,4 +45,4 @@ jobs:
 
       - name: Run migration task
         run: |
-          bash ./scripts/run_ci_migrations.sh -c ${{ github.event.inputs.environment }}-notification-cluster -e ${{ github.event.inputs.environment }} -t ${{ steps.register.outputs.arn }}
+          bash ./scripts/run_ci_migrations.sh -c ${{ inputs.environment }}-notification-cluster -e ${{ inputs.environment }} -t ${{ steps.register.outputs.arn }}

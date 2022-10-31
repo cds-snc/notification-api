@@ -9,7 +9,7 @@ on:
 jobs: 
   run-user-flows:
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.environment }} == "dev" || ${{ github.event.inputs.environment }} == "perf"
+    if: ${{ inputs.environment }} == "dev" || ${{ inputs.environment }} == "perf"
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1

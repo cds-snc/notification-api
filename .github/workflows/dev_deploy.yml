@@ -20,14 +20,14 @@ on:
 jobs:
   setup-environment:
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment }}
+    environment: ${{ inputs.environment }}
     outputs:
       git-hash: ${{ steps.set-hash.outputs.commit-hash }}
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.inputs.ref }}
+          ref: ${{ inputs.ref }}
 
       - name: Set Hash
         id: set-hash
@@ -36,34 +36,34 @@ jobs:
 
       - name: Env Values
         run: |
-          echo "The environment is ${{ github.event.inputs.environment }}"
-          echo "The branch/tag is ${{ github.event.inputs.ref }}"
+          echo "The environment is ${{ inputs.environment }}"
+          echo "The branch/tag is ${{ inputs.ref }}"
           echo "The commit hash is ${{ steps.set-hash.outputs.commit-hash }}"
 
   run-build:
     needs: [setup-environment]
     uses: ./.github/workflows/build.yml
     with:
-      environment: "${{ github.event.inputs.environment }}"
+      environment: "${{ inputs.environment }}"
       ref: "${{ needs.setup-environment.outputs.git-hash }}"
     secrets: inherit
 
   run-lambda-deploy:
-    if: ${{ github.event.inputs.lambdaDeploy }}
+    if: ${{ inputs.lambdaDeploy }}
     needs: [setup-environment]
     uses: ./.github/workflows/lambda-functions.yml
     with:
-      environment: "${{ github.event.inputs.environment }}"
+      environment: "${{ inputs.environment }}"
       ref: "${{ needs.setup-environment.outputs.git-hash }}"
       lambdaName: "All"
     secrets: inherit
 
   run-twistlock:
     needs: [setup-environment, run-build]
-    if: ${{ github.event.inputs.environment }} == "dev" || ${{ github.event.inputs.environment }} == "perf"
+    if: ${{ inputs.environment }} == "dev" || ${{ inputs.environment }} == "perf"
     uses: ./.github/workflows/twistlock.yml
     with:
-      environment: "${{ github.event.inputs.environment }}"
+      environment: "${{ inputs.environment }}"
       ref: "${{ needs.setup-environment.outputs.git-hash }}"
     secrets: inherit
 
@@ -71,14 +71,14 @@ jobs:
     needs: [setup-environment, run-twistlock]
     uses: ./.github/workflows/deployment.yml
     with:
-      environment: "${{ github.event.inputs.environment }}"
+      environment: "${{ inputs.environment }}"
       ref: "${{ needs.setup-environment.outputs.git-hash }}"
     secrets: inherit
 
   run-user-flows:
     needs: [run-deployment]
-    if: ${{ github.event.inputs.environment }} == "dev" || ${{ github.event.inputs.environment }} == "perf"
+    if: ${{ inputs.environment }} == "dev" || ${{ inputs.environment }} == "perf"
     uses: ./.github/workflows/user_flows.yml
     with:
-      environment: "${{ github.event.inputs.environment }}"
+      environment: "${{ inputs.environment }}"
     secrets: inherit
