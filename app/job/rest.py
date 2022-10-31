@@ -23,11 +23,8 @@ from app.models import (
     JOB_STATUS_CANCELLED,
     JOB_STATUS_PENDING,
     JOB_STATUS_SCHEDULED,
-    KEY_TYPE_NORMAL,
     LETTER_TYPE,
-    SMS_TYPE,
 )
-from app.notifications.validators import check_service_over_daily_sms_limit
 from app.schemas import (
     job_schema,
     notification_with_template_schema,
@@ -145,10 +142,6 @@ def create_job(service_id):
 
     if errors:
         raise InvalidRequest(errors, status_code=400)
-
-    # trigger warning emails (this codepath is for CSV send via Admin site)
-    if template.template_type == SMS_TYPE and current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
-        check_service_over_daily_sms_limit(KEY_TYPE_NORMAL, service)
 
     data.update({"template_version": template.version})
 
