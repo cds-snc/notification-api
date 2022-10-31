@@ -33,7 +33,7 @@ from app.notifications.process_notifications import (
 from app.notifications.validators import (
     check_service_has_permission,
     check_service_over_daily_message_limit,
-    check_service_over_daily_sms_limit,
+    check_service_over_daily_sms_limit_and_warn,
     validate_and_format_recipient,
     validate_template,
 )
@@ -63,7 +63,7 @@ def send_one_off_notification(service_id, post_data):
 
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
     if template.template_type == "sms":
-        check_service_over_daily_sms_limit(KEY_TYPE_NORMAL, service)
+        check_service_over_daily_sms_limit_and_warn(KEY_TYPE_NORMAL, service)
 
     validate_and_format_recipient(
         send_to=post_data["to"],

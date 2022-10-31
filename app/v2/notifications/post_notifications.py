@@ -75,7 +75,7 @@ from app.notifications.validators import (
     check_service_can_schedule_notification,
     check_service_email_reply_to_id,
     check_service_has_permission,
-    check_service_over_daily_sms_limit,
+    check_service_over_daily_sms_limit_and_warn,
     check_service_sms_sender_id,
     validate_and_format_recipient,
     validate_template,
@@ -153,7 +153,7 @@ def post_bulk():
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 
     if template.template_type == "sms" and check_sms_limit:
-        check_service_over_daily_sms_limit(api_user.key_type, authenticated_service)
+        check_service_over_daily_sms_limit_and_warn(api_user.key_type, authenticated_service)
         fragments_sent = fetch_daily_sms_fragment_count(authenticated_service.id)
         remaining_messages = authenticated_service.sms_daily_limit - fragments_sent
     else:
