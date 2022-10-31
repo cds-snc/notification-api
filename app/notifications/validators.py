@@ -99,7 +99,7 @@ def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Servic
     counter_name="rate_limit.live_service_daily_sms",
     exception=LiveServiceTooManySMSRequestsError,
 )
-def check_service_over_daily_sms_limit(key_type: ApiKeyType, service: Service):
+def check_service_over_daily_sms_limit_and_warn(key_type: ApiKeyType, service: Service):
     if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and key_type != KEY_TYPE_TEST and current_app.config["REDIS_ENABLED"]:
         fragments_sent = fetch_daily_sms_fragment_count(service.id)
         warn_about_daily_sms_limit(service, fragments_sent)
@@ -109,7 +109,7 @@ def check_rate_limiting(service: Service, api_key: ApiKey, template_type: Templa
     check_service_over_api_rate_limit(service, api_key)
     check_service_over_daily_message_limit(api_key.key_type, service)
     if template_type == "sms":
-        check_service_over_daily_sms_limit(api_key.key_type, service)
+        check_service_over_daily_sms_limit_and_warn(api_key.key_type, service)
 
 
 def warn_about_daily_message_limit(service: Service, messages_sent):
