@@ -70,11 +70,13 @@ from app.models import (
     Template,
 )
 from app.notifications.process_notifications import (
-    check_if_request_would_put_service_over_daily_sms_limit,
     persist_notifications,
     send_notification_to_queue,
 )
-from app.notifications.validators import check_service_over_daily_message_limit
+from app.notifications.validators import (
+    check_service_over_daily_message_limit,
+    check_service_over_daily_sms_limit,
+)
 from app.types import VerifiedNotification
 from app.utils import get_csv_max_rows
 from app.v2.errors import (
@@ -300,12 +302,11 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt, template)
 
     # we should move this check inside the for loop below
-
+    check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
     current_app.logger.info(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
     for notification_obj in saved_notifications:
         try:
-            check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
-            check_if_request_would_put_service_over_daily_sms_limit(KEY_TYPE_NORMAL, service, 0)  # type: ignore
+            check_service_over_daily_sms_limit(KEY_TYPE_NORMAL, service)
         except (LiveServiceTooManySMSRequestsError, TrialServiceTooManyRequestsError):
             # if notification would put service over limit, don't add it to the queue
             continue
