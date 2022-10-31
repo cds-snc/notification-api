@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import List
 
 from flask import current_app
-from notifications_utils.clients import redis
 from notifications_utils.recipients import (
     format_email_address,
     get_international_phone_info,
@@ -12,7 +11,6 @@ from notifications_utils.recipients import (
 from notifications_utils.template import SMSMessageTemplate
 from notifications_utils.timezones import convert_local_timezone_to_utc
 
-from app import redis_store
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
@@ -22,7 +20,7 @@ from app.dao.notifications_dao import (
     dao_created_scheduled_notification,
     dao_delete_notifications_by_id,
 )
-from app.dao.services_dao import dao_fetch_service_by_id
+from app.dao.services_dao import dao_fetch_service_by_id, fetch_todays_total_sms_count
 from app.dao.templates_dao import dao_get_template_by_id
 from app.models import (
     EMAIL_TYPE,
@@ -36,7 +34,6 @@ from app.models import (
     ScheduledNotification,
     Service,
 )
-from app.dao.services_dao import fetch_todays_total_sms_count
 from app.types import VerifiedNotification
 from app.utils import get_template_instance
 from app.v2.errors import BadRequestError, LiveServiceTooManySMSRequestsError

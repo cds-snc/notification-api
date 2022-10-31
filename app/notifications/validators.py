@@ -25,6 +25,7 @@ from app.dao import services_dao, templates_dao
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_letter_contact_dao import dao_get_letter_contact_by_id
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
+from app.dao.services_dao import fetch_todays_total_sms_count
 from app.models import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
@@ -44,7 +45,6 @@ from app.models import (
 from app.notifications.process_notifications import create_content_for_notification
 from app.service.sender import send_notification_to_service_users
 from app.service.utils import service_allowed_to_send_to
-from app.dao.services_dao import fetch_todays_total_sms_count
 from app.utils import get_document_url, get_public_notify_type_text, is_blank
 from app.v2.errors import (
     BadRequestError,
