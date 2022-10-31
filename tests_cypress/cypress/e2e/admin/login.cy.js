@@ -1,12 +1,12 @@
 /// <reference types="cypress" />
 
-import config from "../../config";
-import { LoginPage, TwoFactorPage } from "../Notify/Admin/Pages";
+import config from "../../../config";
+import { LoginPage, TwoFactorPage } from "../../Notify/Admin/Pages";
 
 const { recurse } = require('cypress-recurse')
 
 const ADMIN_COOKIE = 'notify_admin_session';
-describe('ADMIN', () => {
+describe('Basic login', () => {
 
     // Login to notify before the test suite starts
     before(() => {
@@ -15,6 +15,7 @@ describe('ADMIN', () => {
         cy.task('deleteAllEmails'); // purge email inbox to make getting the 2fa code easier
 
         cy.visit(LoginPage.URL);
+
         LoginPage.Login(config.Admin.AdminUser, Cypress.env('ADMIN_USER_PASSWORD'));
 
         // retry fetching the email 
@@ -54,19 +55,22 @@ describe('ADMIN', () => {
     });
 
 
-    it('displays accounts page', () => {
+    it('succeeds and ADMIN displays accounts page', () => {
         cy.visit("/accounts");
+
+        cy.injectAxe();
+        cy.checkA11y();
         cy.contains('h1', 'Your services').should('be.visible');
     });
 
-    it('displays notify service page', () => {
-        cy.visit(`/services/${config.Services.Notify}`);
-        cy.contains('h1', 'Dashboard').should('be.visible');
-    });
+    // it('displays notify service page', () => {
+    //     cy.visit(`/services/${config.Services.Notify}`);
+    //     cy.contains('h1', 'Dashboard').should('be.visible');
+    // });
 
-    it('has a qualtrics survey', () => {
-        cy.get('#QSIFeedbackButton-btn').should('be.visible'); // qualtrics survey button
-        cy.get('#QSIFeedbackButton-btn').click(); // click the button
-        cy.get('#QSIFeedbackButton-survey-iframe').should('be.visible'); // 
-    });
+    // it('has a qualtrics survey', () => {
+    //     cy.get('#QSIFeedbackButton-btn').should('be.visible'); // qualtrics survey button
+    //     cy.get('#QSIFeedbackButton-btn').click(); // click the button
+    //     cy.get('#QSIFeedbackButton-survey-iframe').should('be.visible'); // 
+    // });
 });

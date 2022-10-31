@@ -1,0 +1,30 @@
+/// <reference types="cypress" />
+
+import config from "../../../config";
+import { LoginPage, TwoFactorPage } from "../../Notify/Admin/Pages";
+
+const { recurse } = require('cypress-recurse')
+
+const ADMIN_COOKIE = 'notify_admin_session';
+describe('Qualtrics', () => {
+
+    // Login to notify before the test suite starts
+    before(() => {
+        Cypress.config('baseUrl', config.Admin.HostName); // use hostname for this environment
+    });
+
+    // Before each test, persist the auth cookie so we don't have to login again
+    beforeEach(() => {
+        Cypress.Cookies.preserveOnce(ADMIN_COOKIE);
+        // stop the recurring dashboard fetch requests
+        cy.intercept('GET', '**/dashboard.json', {});
+    });
+
+    it('survey button appears and survey opens', () => {
+        cy.visit(`/services/${config.Services.Notify}`);
+        cy.contains('h1', 'Dashboard').should('be.visible');
+        cy.get('#QSIFeedbackButton-btn').should('be.visible'); // qualtrics survey button
+        cy.get('#QSIFeedbackButton-btn').click(); // click the button
+        cy.get('#QSIFeedbackButton-survey-iframe').should('be.visible'); // 
+    });
+});

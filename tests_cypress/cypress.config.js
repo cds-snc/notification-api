@@ -1,11 +1,13 @@
 const { defineConfig } = require("cypress");
 const EmailAccount = require('./cypress/plugins/email-account')
+const htmlvalidate = require("cypress-html-validate/plugin");
 
 module.exports = defineConfig({
   e2e: {
     setupNodeEvents: async (on, config) => {
-      const emailAccount = await EmailAccount()
+      htmlvalidate.install(on);
 
+      const emailAccount = await EmailAccount()
       on('task', {
         getLastEmail() {
           return emailAccount.getLastEmail()
@@ -22,7 +24,9 @@ module.exports = defineConfig({
         return launchOptions;
       });
     },
-    specPattern: '**/e2e/*.cy.js',
-    watchForFileChanges: false
+    specPattern: '**/e2e/**/*.cy.js',
+    watchForFileChanges: false,
+    blockHosts: ['*google-analytics.com', 'stats.g.doubleclick.net', 'bam.nr-data.net'],
+    viewportWidth: 1280,
   },
 });

@@ -7,9 +7,9 @@ const emailAccount = async () => {
 
     const emailConfig = {
         imap: {
-            user: 'eli10@ethereal.email', //'ethelyn.rosenbaum@ethereal.email',
-            password: 'uTTnVctKvSexTdrwcd', //'a5RPvvaGEEKd46KvjA',
-            host: 'imap.ethereal.email',
+            user: 'alexcampbell1861@gmail.com',
+            password: 'atvk ybkc lleh yzcd',//'a5RPvvaGEEKd46KvjA',
+            host: 'imap.gmail.com',
             port: 993,
             tls: true,
             authTimeout: 10000,

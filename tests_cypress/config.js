@@ -5,7 +5,7 @@ const config = {
         },
         Admin: {
             HostName: "https://staging.notification.cdssandbox.xyz",
-            AdminUser: "eli10@ethereal.email",
+            AdminUser: "alexcampbell1861@gmail.com",
         },
         Services: {
             Notify: 'd6aa2c68-a2d9-4437-ab19-3ae8eb202553'

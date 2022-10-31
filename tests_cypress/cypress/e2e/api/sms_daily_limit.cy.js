@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 
-import config from "../../config";
-import Notify from "../Notify/NotifyAPI";
+import config from "../../../config";
+import Notify from "../../Notify/NotifyAPI";
 
 var service;
 
@@ -24,7 +24,7 @@ describe('SMS Daily limit', () => {
             Notify.API.SendEmail({
                 api_key: Cypress.env('API_KEY_LIVE'),
                 to: 'andrew.leith@cds-snc.ca',
-                template_id: config.templates.SIMPLE_EMAIL_TEMPLATE_ID,
+                template_id: config.Templates.SIMPLE_EMAIL_TEMPLATE_ID,
                 failOnStatusCode: true
             }).as('notificationRequest1');
             cy.get('@notificationRequest1').then(todos => {

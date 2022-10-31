@@ -24,12 +24,12 @@ const Admin = {
                 Authorization: `Bearer ${token}`,
             },
             body: {
-                'created_by': '24baebe0-fb11-4fc0-8609-1e853c31d0fe',
+                'created_by': 'c7aa883e-3130-4031-8610-bbe22719b23e',
                 'name': 'Testing Service',
                 'organisation_type': 'central',
                 'active': true,
                 'message_limit': 50,
-                'user_id': '24baebe0-fb11-4fc0-8609-1e853c31d0fe',
+                'user_id': 'c7aa883e-3130-4031-8610-bbe22719b23e',
                 'restricted': true,
                 'email_from': 'testing_service23',
                 'default_branding_is_french': false,
@@ -93,7 +93,7 @@ const API = {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: 'ApiKey-v1' + api_key,
+                Authorization: 'ApiKey-v1 ' + api_key,
             },
             body: {
                 "email_address": to,

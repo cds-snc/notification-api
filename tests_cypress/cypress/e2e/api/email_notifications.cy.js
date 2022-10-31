@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 
-import config from '../../config';
-import Notify from "../Notify/NotifyAPI";
+import config from '../../../config';
+import Notify from "../../Notify/NotifyAPI";
 
 describe('Email notifications test', () => {
   var keys = {
