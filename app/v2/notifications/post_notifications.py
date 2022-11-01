@@ -75,7 +75,7 @@ from app.notifications.validators import (
     check_service_can_schedule_notification,
     check_service_email_reply_to_id,
     check_service_has_permission,
-    check_service_over_daily_sms_limit_and_warn,
+    check_sms_daily_limit,
     check_service_sms_sender_id,
     validate_and_format_recipient,
     validate_template,

@@ -33,7 +33,7 @@ from app.notifications.process_notifications import (
 from app.notifications.validators import (
     check_service_has_permission,
     check_service_over_daily_message_limit,
-    check_service_over_daily_sms_limit_and_warn,
+    check_sms_daily_limit,
     validate_and_format_recipient,
     validate_template,
 )
