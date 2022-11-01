@@ -193,9 +193,7 @@ def send_near_sms_limit_email(service: Service):
         },
         include_user_fields=["name"],
     )
-    current_app.logger.info(
-        f"service {service.id} is approaching its daily sms limit of {service.sms_daily_limit}"
-    )
+    current_app.logger.info(f"service {service.id} is approaching its daily sms limit of {service.sms_daily_limit}")
 
 
 def send_sms_limit_reached_email(service: Service):
@@ -241,7 +239,7 @@ def _check_sms_daily_limit(service: Service):
     # Send a warning when reaching the daily message limit
     if not over_sms_daily_limit:
         return
-    
+
     cache_key = over_sms_daily_limit_cache_key(service.id)
     if not redis_store.get(cache_key):
         redis_store.set(cache_key, current_time, ex=cache_expiration)

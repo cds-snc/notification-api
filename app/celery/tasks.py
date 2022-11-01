@@ -79,10 +79,6 @@ from app.notifications.validators import (
 )
 from app.types import VerifiedNotification
 from app.utils import get_csv_max_rows
-from app.v2.errors import (
-    LiveServiceTooManySMSRequestsError,
-    TrialServiceTooManyRequestsError,
-)
 
 
 @notify_celery.task(name="process-job")
@@ -305,7 +301,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
     current_app.logger.info(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
     for notification_obj in saved_notifications:
-        send_warning_sms_limit_emails_if_needed( service)
+        send_warning_sms_limit_emails_if_needed(KEY_TYPE_NORMAL, notification_obj.service)  # type: ignore
 
         queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
         send_notification_to_queue(
