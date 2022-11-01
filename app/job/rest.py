@@ -134,7 +134,7 @@ def create_job(service_id):
     data["template"] = data.pop("template_id")
     template = dao_get_template_by_id(data["template"])
 
-    check_sms_daily_limit(KEY_TYPE_NORMAL, service)
+    check_sms_daily_limit(service)
     
     if template.template_type == LETTER_TYPE and service.restricted:
         raise InvalidRequest("Create letter job is not allowed for service in trial mode ", 403)

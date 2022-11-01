@@ -63,7 +63,7 @@ def send_one_off_notification(service_id, post_data):
 
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
     if template.template_type == "sms":
-        check_sms_daily_limit(KEY_TYPE_NORMAL, service)
+        check_sms_daily_limit(service)
 
     validate_and_format_recipient(
         send_to=post_data["to"],

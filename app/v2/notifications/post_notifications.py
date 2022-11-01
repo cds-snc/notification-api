@@ -153,7 +153,7 @@ def post_bulk():
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 
     if template.template_type == "sms" and check_sms_limit:
-        check_sms_daily_limit(api_user.key_type, authenticated_service)
+        check_sms_daily_limit(authenticated_service, api_user.key_type)
         fragments_sent = fetch_daily_sms_fragment_count(authenticated_service.id)
         remaining_messages = authenticated_service.sms_daily_limit - fragments_sent
     else:
