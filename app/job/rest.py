@@ -23,8 +23,10 @@ from app.models import (
     JOB_STATUS_CANCELLED,
     JOB_STATUS_PENDING,
     JOB_STATUS_SCHEDULED,
+    KEY_TYPE_NORMAL,
     LETTER_TYPE,
 )
+from app.notifications.validators import check_sms_daily_limit
 from app.schemas import (
     job_schema,
     notification_with_template_schema,
@@ -132,6 +134,8 @@ def create_job(service_id):
     data["template"] = data.pop("template_id")
     template = dao_get_template_by_id(data["template"])
 
+    check_sms_daily_limit(KEY_TYPE_NORMAL, service)
+    
     if template.template_type == LETTER_TYPE and service.restricted:
         raise InvalidRequest("Create letter job is not allowed for service in trial mode ", 403)
 
