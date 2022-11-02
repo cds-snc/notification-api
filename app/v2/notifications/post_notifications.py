@@ -83,7 +83,7 @@ from app.notifications.validators import (
 from app.schema_validation import validate
 from app.schemas import job_schema
 from app.service.utils import safelisted_members
-from app.sms_fragment_utils import fetch_daily_sms_fragment_count
+from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
@@ -152,7 +152,7 @@ def post_bulk():
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 
     if template.template_type == SMS_TYPE and check_sms_limit:
-        fragments_sent = fetch_daily_sms_fragment_count(authenticated_service.id)
+        fragments_sent = fetch_todays_requested_sms_count(authenticated_service.id)
         remaining_messages = authenticated_service.sms_daily_limit - fragments_sent
     else:
         remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
@@ -223,7 +223,7 @@ def post_notification(notification_type: NotificationType):
         authenticated_service,
         notification_type,
     )
-    
+
     if template.template_type == SMS_TYPE:
         check_sms_limit_increment_redis_send_warnings_if_needed(authenticated_service, template_with_content.fragment_count)
 

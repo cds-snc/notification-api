@@ -1,7 +1,6 @@
 import base64
 import functools
 from datetime import datetime, time, timedelta
-from typing import Any, List
 
 from flask import current_app
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
@@ -19,7 +18,6 @@ from notifications_utils.recipients import (
     validate_and_format_phone_number,
 )
 from notifications_utils.statsd_decorators import statsd_catch
-from notifications_utils.template import SMSMessageTemplate
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import redis_store
@@ -48,8 +46,8 @@ from app.notifications.process_notifications import create_content_for_notificat
 from app.service.sender import send_notification_to_service_users
 from app.service.utils import service_allowed_to_send_to
 from app.sms_fragment_utils import (
-    fetch_daily_sms_fragment_count,
-    increment_daily_sms_fragment_count,
+    fetch_todays_requested_sms_count,
+    increment_todays_requested_sms_count,
 )
 from app.utils import get_document_url, get_public_notify_type_text, is_blank
 from app.v2.errors import (
@@ -106,7 +104,7 @@ def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Servic
     exception=LiveServiceTooManySMSRequestsError,
 )
 def check_sms_daily_limit(service: Service, requested_sms=0):
-    messages_sent = fetch_daily_sms_fragment_count(service.id)
+    messages_sent = fetch_todays_requested_sms_count(service.id)
     over_sms_daily_limit = (messages_sent + requested_sms) >= service.sms_daily_limit
 
     # Send a warning when reaching the daily message limit
@@ -123,7 +121,7 @@ def check_sms_daily_limit(service: Service, requested_sms=0):
 
 
 def send_warning_sms_limit_emails_if_needed(service: Service):
-    todays_requested_sms = fetch_daily_sms_fragment_count(service.id)
+    todays_requested_sms = fetch_todays_requested_sms_count(service.id)
     nearing_sms_daily_limit = todays_requested_sms >= NEAR_DAILY_LIMIT_PERCENTAGE * service.sms_daily_limit
     over_sms_daily_limit = todays_requested_sms >= service.sms_daily_limit
     current_time = datetime.utcnow().isoformat()
@@ -154,7 +152,7 @@ def time_until_end_of_day() -> timedelta:
 
 
 def check_sms_limit_increment_redis_send_warnings_if_needed(
-    service: Service, requested_sms = 0, key_type: ApiKeyType = KEY_TYPE_NORMAL
+    service: Service, requested_sms=0, key_type: ApiKeyType = KEY_TYPE_NORMAL
 ) -> None:
     if not current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
         return
@@ -162,9 +160,9 @@ def check_sms_limit_increment_redis_send_warnings_if_needed(
         return
     if not current_app.config["REDIS_ENABLED"]:
         return
-    
+
     check_sms_daily_limit(service, requested_sms)
-    increment_daily_sms_fragment_count(service.id, requested_sms)
+    increment_todays_requested_sms_count(service.id, requested_sms)
     send_warning_sms_limit_emails_if_needed(service)
 
 

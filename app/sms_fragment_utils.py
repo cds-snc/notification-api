@@ -7,6 +7,7 @@ from notifications_utils.clients.redis import sms_daily_count_cache_key
 from app import redis_store
 from app.dao.services_dao import fetch_todays_total_sms_count
 
+
 def fetch_todays_requested_sms_count(service_id: UUID) -> int:
     if not current_app.config["REDIS_ENABLED"]:
         return fetch_todays_total_sms_count(service_id)

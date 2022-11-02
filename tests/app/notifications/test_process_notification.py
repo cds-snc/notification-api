@@ -9,13 +9,11 @@ from notifications_utils.recipients import (
     validate_and_format_email_address,
     validate_and_format_phone_number,
 )
-from pytest_mock import MockFixture
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
     LETTER_TYPE,
-    ApiKey,
     Notification,
     NotificationHistory,
     ScheduledNotification,
@@ -32,10 +30,10 @@ from app.notifications.process_notifications import (
     simulated_recipient,
     transform_notification,
 )
-from app.v2.errors import BadRequestError, TooManySMSRequestsError
-from tests.app.conftest import create_sample_api_key, create_sample_service
+from app.v2.errors import BadRequestError
+from tests.app.conftest import create_sample_api_key
 from tests.app.db import create_service, create_service_sms_sender, create_template
-from tests.conftest import set_config, set_config_values
+from tests.conftest import set_config_values
 
 
 class TestContentCreation:
