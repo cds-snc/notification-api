@@ -185,9 +185,8 @@ def post_bulk():
     check_for_csv_errors(recipient_csv, max_rows, remaining_messages)
 
     # sms daily limit check
-    check_sms_limit_increment_redis_send_warnings_if_needed(
-        service, template, template._as_utils_template().placeholders, api_user.key_type
-    )
+    if template.template_type == SMS_TYPE:
+        check_sms_limit_increment_redis_send_warnings_if_needed(authenticated_service, recipient_csv.sms_fragment_count)
 
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
@@ -220,12 +219,16 @@ def post_notification(notification_type: NotificationType):
 
     check_rate_limiting(authenticated_service, api_user, notification_type)
 
+    personalisation = strip_keys_from_personalisation_if_send_attach(form.get("personalisation", {}))
     template, template_with_content = validate_template(
         form["template_id"],
-        strip_keys_from_personalisation_if_send_attach(form.get("personalisation", {})),
+        personalisation,
         authenticated_service,
         notification_type,
     )
+    
+    if template.template_type == SMS_TYPE:
+        check_sms_limit_increment_redis_send_warnings_if_needed(authenticated_service, template_with_content.fragment_count)
 
     current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 

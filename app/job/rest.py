@@ -1,7 +1,7 @@
 import dateutil
 from flask import Blueprint, current_app, jsonify, request
 
-from app.aws.s3 import get_job_metadata_from_s3
+from app.aws.s3 import get_job_from_s3, get_job_metadata_from_s3
 from app.celery.tasks import process_job
 from app.config import QueueNames
 from app.dao.fact_notification_status_dao import fetch_notification_statuses_for_job
@@ -24,8 +24,9 @@ from app.models import (
     JOB_STATUS_PENDING,
     JOB_STATUS_SCHEDULED,
     LETTER_TYPE,
+    SMS_TYPE,
 )
-from app.notifications.validators import check_sms_daily_limit
+from app.notifications.validators import check_sms_limit_increment_redis_send_warnings_if_needed
 from app.schemas import (
     job_schema,
     notification_with_template_schema,
@@ -33,6 +34,7 @@ from app.schemas import (
     unarchived_template_schema,
 )
 from app.utils import midnight_n_days_ago, pagination_links
+from notifications_utils.recipients import RecipientCSV
 
 job_blueprint = Blueprint("job", __name__, url_prefix="/service/<uuid:service_id>/job")
 
@@ -133,8 +135,19 @@ def create_job(service_id):
     data["template"] = data.pop("template_id")
     template = dao_get_template_by_id(data["template"])
 
-    check_sms_limit_increment_redis_send_warnings_if_needed()
+    # we're going to need a breakpoint in here to figure out how to get the personalisation
+    # data.rows?
 
+    # we could use recipient_csv.sms_fragment_count
+    if template.template_type == SMS_TYPE:
+        job = get_job_from_s3(service_id, data["id"])
+        recipient_csv = RecipientCSV(
+            job,
+            template_type=template.template_type,
+            placeholders=template._as_utils_template().placeholders,
+        )
+        check_sms_limit_increment_redis_send_warnings_if_needed(service, recipient_csv.sms_fragment_count)
+    # job = get_job_from_s3(service_id, data["id"])
     if template.template_type == LETTER_TYPE and service.restricted:
         raise InvalidRequest("Create letter job is not allowed for service in trial mode ", 403)
 

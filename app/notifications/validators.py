@@ -105,7 +105,7 @@ def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Servic
     counter_name="rate_limit.live_service_daily_sms",
     exception=LiveServiceTooManySMSRequestsError,
 )
-def _check_sms_daily_limit(service: Service, key_type: ApiKeyType = KEY_TYPE_NORMAL):
+def check_sms_daily_limit(service: Service, key_type: ApiKeyType = KEY_TYPE_NORMAL, requested_sms=0):
     if not current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
         return
     if key_type == KEY_TYPE_TEST:
@@ -113,7 +113,7 @@ def _check_sms_daily_limit(service: Service, key_type: ApiKeyType = KEY_TYPE_NOR
     if not current_app.config["REDIS_ENABLED"]:
         return
     messages_sent = fetch_daily_sms_fragment_count(service.id)
-    over_sms_daily_limit = messages_sent >= service.sms_daily_limit
+    over_sms_daily_limit = (messages_sent + requested_sms) >= service.sms_daily_limit
 
     # Send a warning when reaching the daily message limit
     if not over_sms_daily_limit:
@@ -129,12 +129,6 @@ def _check_sms_daily_limit(service: Service, key_type: ApiKeyType = KEY_TYPE_NOR
 
 
 def send_warning_sms_limit_emails_if_needed(service: Service, key_type: ApiKeyType = KEY_TYPE_NORMAL):
-    if not current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
-        return
-    if key_type == KEY_TYPE_TEST:
-        return
-    if not current_app.config["REDIS_ENABLED"]:
-        return
     messages_sent = fetch_daily_sms_fragment_count(service.id)
     nearing_sms_daily_limit = messages_sent >= NEAR_DAILY_LIMIT_PERCENTAGE * service.sms_daily_limit
     over_sms_daily_limit = messages_sent >= service.sms_daily_limit
@@ -166,20 +160,20 @@ def time_until_end_of_day() -> timedelta:
 
 
 def check_sms_limit_increment_redis_send_warnings_if_needed(
-    service: Service, template: Template, personalisation_list: List[Any], api_key: ApiKeyType = KEY_TYPE_NORMAL
+    service: Service, requested_sms = 0, key_type: ApiKeyType = KEY_TYPE_NORMAL
 ) -> None:
-    # check_sms_daily_limit(service, api_key)
+    if not current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
+        return
+    if key_type == KEY_TYPE_TEST:
+        return
+    if not current_app.config["REDIS_ENABLED"]:
+        return
+    
+    check_sms_daily_limit(service, key_type)
 
-    fragments_sent = fetch_daily_sms_fragment_count(service.id)
-    remaining_messages = service.sms_daily_limit - fragments_sent
-    num_parts = 0
-    for personalisation in personalisation_list:
-        sms = SMSMessageTemplate(template._as_utils_template().__dict__, personalisation)
-        num_parts += sms.fragment_count
     # increment redis
-
-    increment_daily_sms_fragment_count(service.id, num_parts)
-    send_warning_sms_limit_emails_if_needed(service, api_key)
+    increment_daily_sms_fragment_count(service.id, requested_sms)
+    send_warning_sms_limit_emails_if_needed(service, key_type)
 
 
 def check_rate_limiting(service: Service, api_key: ApiKey, template_type: TemplateType):
