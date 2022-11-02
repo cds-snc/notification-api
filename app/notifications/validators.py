@@ -105,13 +105,7 @@ def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Servic
     counter_name="rate_limit.live_service_daily_sms",
     exception=LiveServiceTooManySMSRequestsError,
 )
-def check_sms_daily_limit(service: Service, key_type: ApiKeyType = KEY_TYPE_NORMAL, requested_sms=0):
-    if not current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
-        return
-    if key_type == KEY_TYPE_TEST:
-        return
-    if not current_app.config["REDIS_ENABLED"]:
-        return
+def check_sms_daily_limit(service: Service, requested_sms=0):
     messages_sent = fetch_daily_sms_fragment_count(service.id)
     over_sms_daily_limit = (messages_sent + requested_sms) >= service.sms_daily_limit
 
@@ -128,10 +122,10 @@ def check_sms_daily_limit(service: Service, key_type: ApiKeyType = KEY_TYPE_NORM
         raise LiveServiceTooManySMSRequestsError(service.sms_daily_limit)
 
 
-def send_warning_sms_limit_emails_if_needed(service: Service, key_type: ApiKeyType = KEY_TYPE_NORMAL):
-    messages_sent = fetch_daily_sms_fragment_count(service.id)
-    nearing_sms_daily_limit = messages_sent >= NEAR_DAILY_LIMIT_PERCENTAGE * service.sms_daily_limit
-    over_sms_daily_limit = messages_sent >= service.sms_daily_limit
+def send_warning_sms_limit_emails_if_needed(service: Service):
+    todays_requested_sms = fetch_daily_sms_fragment_count(service.id)
+    nearing_sms_daily_limit = todays_requested_sms >= NEAR_DAILY_LIMIT_PERCENTAGE * service.sms_daily_limit
+    over_sms_daily_limit = todays_requested_sms >= service.sms_daily_limit
     current_time = datetime.utcnow().isoformat()
     cache_expiration = int(time_until_end_of_day().total_seconds())
 
@@ -169,18 +163,14 @@ def check_sms_limit_increment_redis_send_warnings_if_needed(
     if not current_app.config["REDIS_ENABLED"]:
         return
     
-    check_sms_daily_limit(service, key_type)
-
-    # increment redis
+    check_sms_daily_limit(service, requested_sms)
     increment_daily_sms_fragment_count(service.id, requested_sms)
-    send_warning_sms_limit_emails_if_needed(service, key_type)
+    send_warning_sms_limit_emails_if_needed(service)
 
 
-def check_rate_limiting(service: Service, api_key: ApiKey, template_type: TemplateType):
+def check_rate_limiting(service: Service, api_key: ApiKey):
     check_service_over_api_rate_limit(service, api_key)
     check_service_over_daily_message_limit(api_key.key_type, service)
-    if template_type == SMS_TYPE:
-        check_sms_daily_limit(service, api_key.key_type)
 
 
 def warn_about_daily_message_limit(service: Service, messages_sent):

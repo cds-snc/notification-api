@@ -99,7 +99,7 @@ def send_notification(notification_type: NotificationType):
     if errors:
         raise InvalidRequest(errors, status_code=400)
 
-    check_rate_limiting(authenticated_service, api_user, notification_type)
+    check_rate_limiting(authenticated_service, api_user)
 
     template = templates_dao.dao_get_template_by_id_and_service_id(
         template_id=notification_form["template"], service_id=authenticated_service.id

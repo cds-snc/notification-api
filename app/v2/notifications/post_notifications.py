@@ -75,7 +75,6 @@ from app.notifications.validators import (
     check_service_email_reply_to_id,
     check_service_has_permission,
     check_service_sms_sender_id,
-    check_sms_daily_limit,
     check_sms_limit_increment_redis_send_warnings_if_needed,
     validate_and_format_recipient,
     validate_template,
@@ -111,7 +110,7 @@ def post_precompiled_letter_notification():
     # Check permission to send letters
     check_service_has_permission(LETTER_TYPE, authenticated_service.permissions)
 
-    check_rate_limiting(authenticated_service, api_user, LETTER_TYPE)
+    check_rate_limiting(authenticated_service, api_user)
 
     template = get_precompiled_letter_template(authenticated_service.id)
 
@@ -152,8 +151,7 @@ def post_bulk():
     template = validate_template_exists(form["template_id"], authenticated_service)
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 
-    if template.template_type == "sms" and check_sms_limit:
-        check_sms_daily_limit(authenticated_service, api_user.key_type)
+    if template.template_type == SMS_TYPE and check_sms_limit:
         fragments_sent = fetch_daily_sms_fragment_count(authenticated_service.id)
         remaining_messages = authenticated_service.sms_daily_limit - fragments_sent
     else:
@@ -184,7 +182,6 @@ def post_bulk():
 
     check_for_csv_errors(recipient_csv, max_rows, remaining_messages)
 
-    # sms daily limit check
     if template.template_type == SMS_TYPE:
         check_sms_limit_increment_redis_send_warnings_if_needed(authenticated_service, recipient_csv.sms_fragment_count)
 
@@ -217,7 +214,7 @@ def post_notification(notification_type: NotificationType):
 
     check_service_can_schedule_notification(authenticated_service.permissions, scheduled_for)
 
-    check_rate_limiting(authenticated_service, api_user, notification_type)
+    check_rate_limiting(authenticated_service, api_user)
 
     personalisation = strip_keys_from_personalisation_if_send_attach(form.get("personalisation", {}))
     template, template_with_content = validate_template(
