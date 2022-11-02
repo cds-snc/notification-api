@@ -77,6 +77,7 @@ from app.notifications.validators import (
     check_service_has_permission,
     check_service_sms_sender_id,
     check_sms_daily_limit,
+    check_sms_limit_increment_redis_send_warnings_if_needed,
     validate_and_format_recipient,
     validate_template,
     validate_template_exists,
@@ -183,6 +184,11 @@ def post_bulk():
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
     check_for_csv_errors(recipient_csv, max_rows, remaining_messages)
+    
+    # sms daily limit check
+    check_sms_limit_increment_redis_send_warnings_if_needed(service, template, template._as_utils_template().placeholders, api_user.key_type)
+
+    
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
     return jsonify(data=job_schema.dump(job).data), 201
