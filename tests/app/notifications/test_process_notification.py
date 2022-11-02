@@ -22,7 +22,6 @@ from app.models import (
     Template,
 )
 from app.notifications.process_notifications import (
-    check_if_request_would_put_service_over_daily_sms_limit,
     choose_queue,
     create_content_for_notification,
     db_save_and_send_notification,
@@ -478,39 +477,6 @@ class TestPersistNotification:
         )
         persisted_notification = Notification.query.all()[0]
         assert persisted_notification.reply_to_text == "123456"
-
-    @pytest.mark.parametrize(
-        "requested_sms, error_expected",
-        [
-            (0, False),
-            (1, False),
-            (2, True),
-            (3, True),
-            (10, True),
-        ],
-    )
-    def test_check_if_request_would_put_service_over_daily_sms_limit(
-        self,
-        notify_api: ApiKey,
-        requested_sms: int,
-        error_expected: bool,
-        notify_db,
-        notify_db_session,
-        mocker: MockFixture,
-    ):
-        with freeze_time("2016-01-01 12:00:00.000000"):
-            mocker.patch("app.redis_store.get", side_effect=["5", True, None])  # 5 SMS sent today
-            mocker.patch("app.redis_store.set")
-            service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=10, sms_limit=6)
-
-            with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                with set_config(notify_api, "REDIS_ENABLED", True):
-                    try:
-                        check_if_request_would_put_service_over_daily_sms_limit("normal", service, requested_sms)
-                        assert not error_expected  # will cause test to fail if an error was expected
-                    except TooManySMSRequestsError as e:
-                        assert error_expected  # will cause test to fail if error is raised and not expected
-                        assert e.message == "Exceeded SMS daily sending limit of 6 fragments"
 
 
 class TestSendNotificationQueue:

@@ -105,7 +105,7 @@ def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Servic
     counter_name="rate_limit.live_service_daily_sms",
     exception=LiveServiceTooManySMSRequestsError,
 )
-def check_sms_daily_limit(service: Service, key_type: ApiKeyType = KEY_TYPE_NORMAL):
+def _check_sms_daily_limit(service: Service, key_type: ApiKeyType = KEY_TYPE_NORMAL):
     if not current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
         return
     if key_type == KEY_TYPE_TEST:
