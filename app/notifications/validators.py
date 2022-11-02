@@ -1,6 +1,6 @@
 import base64
 import functools
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from typing import Any, List
 
 from flask import current_app
@@ -19,6 +19,7 @@ from notifications_utils.recipients import (
     validate_and_format_phone_number,
 )
 from notifications_utils.statsd_decorators import statsd_catch
+from notifications_utils.template import SMSMessageTemplate
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import redis_store
@@ -46,7 +47,10 @@ from app.models import (
 from app.notifications.process_notifications import create_content_for_notification
 from app.service.sender import send_notification_to_service_users
 from app.service.utils import service_allowed_to_send_to
-from app.sms_fragment_utils import fetch_daily_sms_fragment_count, increment_daily_sms_fragment_count
+from app.sms_fragment_utils import (
+    fetch_daily_sms_fragment_count,
+    increment_daily_sms_fragment_count,
+)
 from app.utils import get_document_url, get_public_notify_type_text, is_blank
 from app.v2.errors import (
     BadRequestError,
@@ -106,8 +110,8 @@ def check_sms_daily_limit(service: Service, key_type: ApiKeyType = KEY_TYPE_NORM
         return
     if key_type == KEY_TYPE_TEST:
         return
-    # if not current_app.config["REDIS_ENABLED"]:
-    #     return
+    if not current_app.config["REDIS_ENABLED"]:
+        return
     messages_sent = fetch_daily_sms_fragment_count(service.id)
     over_sms_daily_limit = messages_sent >= service.sms_daily_limit
 
@@ -129,15 +133,14 @@ def send_warning_sms_limit_emails_if_needed(service: Service, key_type: ApiKeyTy
         return
     if key_type == KEY_TYPE_TEST:
         return
-    # if not current_app.config["REDIS_ENABLED"]:
-    #     return
+    if not current_app.config["REDIS_ENABLED"]:
+        return
     messages_sent = fetch_daily_sms_fragment_count(service.id)
     nearing_sms_daily_limit = messages_sent >= NEAR_DAILY_LIMIT_PERCENTAGE * service.sms_daily_limit
     over_sms_daily_limit = messages_sent >= service.sms_daily_limit
     current_time = datetime.utcnow().isoformat()
-    time_until_eod = time_until_end_of_day()
-    cache_expiration = int(time_until_eod.total_seconds())
-    
+    cache_expiration = int(time_until_end_of_day().total_seconds())
+
     # Send a warning when reaching 80% of the daily limit
     if nearing_sms_daily_limit:
         cache_key = near_sms_daily_limit_cache_key(service.id)
@@ -153,21 +156,20 @@ def send_warning_sms_limit_emails_if_needed(service: Service, key_type: ApiKeyTy
             redis_store.set(cache_key, current_time, ex=cache_expiration)
 
 
-def time_until_end_of_day():
-    # type: (datetime.datetime) -> datetime.timedelta
+def time_until_end_of_day() -> timedelta:
     """
     Get timedelta until end of day on the datetime passed, or current time.
     """
-    dt = datetime.datetime.now()
-    tomorrow = dt + datetime.timedelta(days=1)
-    return datetime.datetime.combine(tomorrow, datetime.time.min) - dt
+    dt = datetime.now()
+    tomorrow = dt + timedelta(days=1)
+    return datetime.combine(tomorrow, time.min) - dt
+
 
 def check_sms_limit_increment_redis_send_warnings_if_needed(
     service: Service, template: Template, personalisation_list: List[Any], api_key: ApiKeyType = KEY_TYPE_NORMAL
 ) -> None:
     # check_sms_daily_limit(service, api_key)
-    
-    
+
     fragments_sent = fetch_daily_sms_fragment_count(service.id)
     remaining_messages = service.sms_daily_limit - fragments_sent
     num_parts = 0
@@ -175,8 +177,10 @@ def check_sms_limit_increment_redis_send_warnings_if_needed(
         sms = SMSMessageTemplate(template._as_utils_template().__dict__, personalisation)
         num_parts += sms.fragment_count
     # increment redis
+
     increment_daily_sms_fragment_count(service.id, num_parts)
     send_warning_sms_limit_emails_if_needed(service, api_key)
+
 
 def check_rate_limiting(service: Service, api_key: ApiKey, template_type: TemplateType):
     check_service_over_api_rate_limit(service, api_key)
