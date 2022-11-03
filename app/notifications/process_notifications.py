@@ -354,9 +354,6 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
         lofnotifications.append(notification_obj)
         if notification.get("key_type") != KEY_TYPE_TEST:
             service_id = notification.get("service").id  # type: ignore
-
-        if notification.get("key_type") != KEY_TYPE_TEST:
-            service_id = notification.get("service").id  # type: ignore
             if redis_store.get(redis.daily_limit_cache_key(service_id)):
                 redis_store.incr(redis.daily_limit_cache_key(service_id))
 
