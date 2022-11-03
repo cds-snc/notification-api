@@ -3,12 +3,14 @@ from datetime import datetime
 from typing import List
 
 from flask import current_app
+from notifications_utils.clients import redis
 from notifications_utils.recipients import (
     format_email_address,
     get_international_phone_info,
     validate_and_format_phone_number,
 )
 from notifications_utils.timezones import convert_local_timezone_to_utc
+from app import redis_store
 
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
@@ -132,6 +134,9 @@ def persist_notification(
     # if simulated create a Notification model to return but do not persist the Notification to the dB
     if not simulated:
         dao_create_notification(notification)
+    if key_type != KEY_TYPE_TEST:
+        if redis_store.get(redis.daily_limit_cache_key(service.id)):
+            redis_store.incr(redis.daily_limit_cache_key(service.id))
         current_app.logger.info("{} {} created at {}".format(notification_type, notification_id, notification_created_at))
     return notification
 
@@ -345,6 +350,11 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
         lofnotifications.append(notification_obj)
         if notification.get("key_type") != KEY_TYPE_TEST:
             service_id = notification.get("service").id  # type: ignore
+
+        if notification.get("key_type") != KEY_TYPE_TEST:
+            service_id = notification.get("service").id  # type: ignore
+            if redis_store.get(redis.daily_limit_cache_key(service_id)):
+                redis_store.incr(redis.daily_limit_cache_key(service_id))
 
         current_app.logger.info(
             "{} {} created at {}".format(

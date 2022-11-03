@@ -133,10 +133,7 @@ class TestPersistNotification:
         assert not template_usage_cache.called
 
     @freeze_time("2016-01-01 11:09:00.061258")
-    @pytest.mark.parametrize("FF_SPIKE_SMS_DAILY_LIMIT", [True, False])
-    def test_persist_notifications_with_optionals(
-        self, client, sample_job, sample_api_key, mocker, sample_template, FF_SPIKE_SMS_DAILY_LIMIT
-    ):
+    def test_persist_notifications_with_optionals(self, client, sample_job, sample_api_key, mocker, sample_template):
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
 
@@ -147,27 +144,26 @@ class TestPersistNotification:
         n_id = uuid.uuid4()
         created_at = datetime.datetime(2016, 11, 11, 16, 8, 18)
 
-        with set_config_values(client.application, {"REDIS_ENABLED": True, "FF_SPIKE_SMS_DAILY_LIMIT": FF_SPIKE_SMS_DAILY_LIMIT}):
-            persist_notifications(
-                [
-                    dict(
-                        template_id=sample_job.template.id,
-                        template_version=sample_job.template.version,
-                        recipient="+16502532222",
-                        service=sample_job.service,
-                        personalisation=None,
-                        notification_type="sms",
-                        api_key_id=sample_api_key.id,
-                        key_type=sample_api_key.key_type,
-                        created_at=created_at,
-                        job_id=sample_job.id,
-                        job_row_number=10,
-                        client_reference="ref from client",
-                        notification_id=n_id,
-                        created_by_id=sample_job.created_by_id,
-                    )
-                ]
-            )
+        persist_notifications(
+            [
+                dict(
+                    template_id=sample_job.template.id,
+                    template_version=sample_job.template.version,
+                    recipient="+16502532222",
+                    service=sample_job.service,
+                    personalisation=None,
+                    notification_type="sms",
+                    api_key_id=sample_api_key.id,
+                    key_type=sample_api_key.key_type,
+                    created_at=created_at,
+                    job_id=sample_job.id,
+                    job_row_number=10,
+                    client_reference="ref from client",
+                    notification_id=n_id,
+                    created_by_id=sample_job.created_by_id,
+                )
+            ]
+        )
         assert Notification.query.count() == 1
         assert NotificationHistory.query.count() == 0
         persisted_notification = Notification.query.all()[0]
@@ -186,8 +182,6 @@ class TestPersistNotification:
         expected_redis_calls = [
             call(str(sample_job.service_id) + "-2016-01-01-count"),
         ]
-        if FF_SPIKE_SMS_DAILY_LIMIT:
-            expected_redis_calls.append(call("sms-" + str(sample_job.service_id) + "-2016-01-01-count"))
         assert mocked_redis.call_count == len(expected_redis_calls)
         assert mocked_redis.call_args_list == expected_redis_calls
 
