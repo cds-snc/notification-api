@@ -16,7 +16,11 @@ from app.models import (
     ServiceSafelist,
 )
 from app.service.send_notification import send_one_off_notification
-from app.v2.errors import BadRequestError, LiveServiceTooManySMSRequestsError, TooManyRequestsError
+from app.v2.errors import (
+    BadRequestError,
+    LiveServiceTooManySMSRequestsError,
+    TooManyRequestsError,
+)
 from tests.app.db import (
     create_letter_contact,
     create_reply_to_email,
