@@ -135,8 +135,8 @@ def test_create_unscheduled_job(client, sample_template, mocker, fake_uuid):
         },
     )
     mocker.patch(
-            "app.job.rest.get_job_from_s3",
-            return_value="phone number\r\n6502532222",
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
     )
     data = {
         "id": fake_uuid,
@@ -176,9 +176,9 @@ def test_create_unscheduled_job_with_sender_id_in_metadata(client, sample_templa
         },
     )
     mocker.patch(
-            "app.job.rest.get_job_from_s3",
-            return_value="phone number\r\n6502532222",
-        )
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
+    )
     data = {
         "id": fake_uuid,
         "created_by": str(sample_template.created_by.id),
@@ -254,29 +254,22 @@ def test_create_job_returns_403_if_service_is_not_active(client, fake_uuid, samp
     mock_job_dao.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "extra_metadata, test_run",
-    [( {}, 1), ({"valid": "anything not the string True"}, 2)]
-)
-def test_create_job_returns_400_if_file_is_invalid(
-    client,
-    fake_uuid,
-    sample_template,
-    mocker,
-    extra_metadata,
-    test_run
-):
+@pytest.mark.parametrize("extra_metadata, test_run", [({}, 1), ({"valid": "anything not the string True"}, 2)])
+def test_create_job_returns_400_if_file_is_invalid(client, fake_uuid, sample_template, mocker, extra_metadata, test_run):
     mock_job_dao = mocker.patch("app.dao.jobs_dao.dao_create_job")
     auth_header = create_authorization_header()
     metadata = dict(
-        template_id=str(sample_template.id), original_file_name=f"thisisatest{test_run}.csv", notification_count=1, **extra_metadata
+        template_id=str(sample_template.id),
+        original_file_name=f"thisisatest{test_run}.csv",
+        notification_count=1,
+        **extra_metadata,
     )
     mocker.patch("app.job.rest.get_job_metadata_from_s3", return_value=metadata)
     mocker.patch(
         "app.job.rest.get_job_from_s3",
         return_value="phone number\r\n6502532222",
     )
-    
+
     data = {"id": fake_uuid}
     response = client.post(
         "/service/{}/job".format(sample_template.service.id),
