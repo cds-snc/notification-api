@@ -912,10 +912,7 @@ class TestTransformNotification:
 
 class TestDBSaveAndSendNotification:
     @freeze_time("2016-01-01 11:09:00.061258")
-    @pytest.mark.parametrize("FF_SPIKE_SMS_DAILY_LIMIT", [True, False])
-    def test_db_save_and_send_notification_saves_to_db(
-        self, client, sample_template, sample_api_key, sample_job, mocker, FF_SPIKE_SMS_DAILY_LIMIT
-    ):
+    def test_db_save_and_send_notification_saves_to_db(self, client, sample_template, sample_api_key, sample_job, mocker):
         mocked_redis = mocker.patch("app.notifications.process_notifications.redis_store.get")
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         assert Notification.query.count() == 0
@@ -937,8 +934,7 @@ class TestDBSaveAndSendNotification:
             to="+16502532222",
             created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
         )
-        with set_config_values(client.application, {"REDIS_ENABLED": True, "FF_SPIKE_SMS_DAILY_LIMIT": FF_SPIKE_SMS_DAILY_LIMIT}):
-            db_save_and_send_notification(notification)
+        db_save_and_send_notification(notification)
         assert Notification.query.get(notification.id) is not None
 
         notification_from_db = Notification.query.one()
@@ -962,8 +958,6 @@ class TestDBSaveAndSendNotification:
         expected_redis_calls = [
             call(str(sample_job.service_id) + "-2016-01-01-count"),
         ]
-        if FF_SPIKE_SMS_DAILY_LIMIT:
-            expected_redis_calls.append(call("sms-" + str(sample_job.service_id) + "-2016-01-01-count"))
         assert mocked_redis.call_count == len(expected_redis_calls)
         assert mocked_redis.call_args_list == expected_redis_calls
 

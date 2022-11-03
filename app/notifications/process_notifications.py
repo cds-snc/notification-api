@@ -206,6 +206,10 @@ def transform_notification(
 
 def db_save_and_send_notification(notification: Notification):
     dao_create_notification(notification)
+    if notification.key_type != KEY_TYPE_TEST:
+        service_id = notification.service_id
+        if redis_store.get(redis.daily_limit_cache_key(service_id)):
+            redis_store.incr(redis.daily_limit_cache_key(service_id))
 
     current_app.logger.info(f"{notification.notification_type} {notification.id} created at {notification.created_at}")
 
