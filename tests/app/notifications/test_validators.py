@@ -171,8 +171,6 @@ class TestCheckDailyLimits:
     ):
         with freeze_time("2016-01-01 12:00:00.000000"):
             redis_get = mocker.patch("app.redis_store.get", side_effect=["5", True, None])
-            redis_set = mocker.patch("app.redis_store.set")
-            send_notification = mocker.patch("app.notifications.validators.send_notification_to_service_users")
 
             service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=4, sms_limit=4)
             for x in range(5):
@@ -189,23 +187,17 @@ class TestCheckDailyLimits:
                 assert e.value.message == "Exceeded send limits (4) for today"
             assert e.value.status_code == 429
             assert e.value.fields == []
-            assert redis_get.call_args_list == [
-                call(count_key(limit_type, service.id)),
-                call(near_key(limit_type, service.id)),
-                call(over_key(limit_type, service.id)),
-            ]
-            assert redis_set.call_args_list == [call(over_key(limit_type, service.id), "2016-01-01T12:00:00", ex=86400)]
-            send_notification.assert_called_once_with(
-                service_id=service.id,
-                template_id=current_app.config[email_template],
-                personalisation={
-                    "service_name": service.name,
-                    "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
-                    "message_limit_en": "4",
-                    "message_limit_fr": "4",
-                },
-                include_user_fields=["name"],
-            )
+            if limit_type == "sms":
+                assert redis_get.call_args_list == [
+                    call(count_key(limit_type, service.id)),
+                ]
+            else:
+                assert redis_get.call_args_list == [
+                    call(count_key(limit_type, service.id)),
+                    call(near_key(limit_type, service.id)),
+                    call(over_key(limit_type, service.id)),
+                ]
+
 
     @pytest.mark.parametrize(
         "limit_type, email_template", [("all", "NEAR_DAILY_LIMIT_TEMPLATE_ID"), ("sms", "NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID")]
