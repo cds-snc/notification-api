@@ -112,7 +112,7 @@ def check_sms_daily_limit(service: Service, requested_sms=0):
         return
 
     current_app.logger.info(
-        f"service {service.id} has been rate limited for daily sms use sent {int(messages_sent)} limit {service.sms_daily_limit}"
+        f"service {service.id} is exceeding their daily sms limit [total sent today: {int(messages_sent)} limit: {service.sms_daily_limit}, attempted send: {requested_sms}"
     )
     if service.restricted:
         raise TrialServiceTooManySMSRequestsError(service.sms_daily_limit)
