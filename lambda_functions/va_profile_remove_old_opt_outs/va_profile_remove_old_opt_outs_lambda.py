@@ -1,10 +1,11 @@
+import boto3
 import logging
 import os
 import psycopg2
 import sys
 
 logger = logging.getLogger("va_profile_remove_old_opt_outs")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 REMOVE_OPTED_OUT_RECORDS_QUERY = """SELECT va_profile_remove_old_opt_outs();"""
 
