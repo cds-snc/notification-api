@@ -1894,15 +1894,15 @@ class TestBulkSend:
             }
         ]
         messages_count_mock.assert_called_once()
-    # TODO: why twice?
+    
     def test_post_bulk_flags_not_enough_remaining_sms_messages(self, notify_api, client, notify_db, notify_db_session, mocker):
         service = create_service(sms_daily_limit=10, message_limit=100)
         template = create_sample_template(notify_db, notify_db_session, service=service, template_type="sms")
-        # messages_count_mock = mocker.patch(
-        #     "app.v2.notifications.post_notifications.fetch_todays_total_message_count", return_value=9
-        # )
+        mocker.patch(
+            "app.v2.notifications.post_notifications.fetch_todays_total_message_count", return_value=9
+        )
         messages_count_mock = mocker.patch(
-            "app.v2.notifications.post_notifications.fetch_daily_sms_fragment_count", return_value=9
+            "app.v2.notifications.post_notifications.fetch_todays_requested_sms_count", return_value=9
         )
         data = {
             "name": "job_name",
@@ -1961,8 +1961,7 @@ class TestBulkSend:
     ):
         service = create_service(sms_daily_limit=10, message_limit=100)
         template = create_sample_template(notify_db, notify_db_session, content=500 * "a", service=service, template_type="sms")
-        mocker.patch("app.v2.notifications.post_notifications.fetch_todays_total_message_count", return_value=9)
-        mocker.patch("app.v2.notifications.post_notifications.fetch_daily_sms_fragment_count", return_value=9)
+        mocker.patch("app.v2.notifications.post_notifications.fetch_todays_requested_sms_count", return_value=9)
         job_id = str(uuid.uuid4())
         mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
         mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
