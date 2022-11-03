@@ -13,7 +13,7 @@ def test_fetch_todays_requested_sms_count(client, mocker, sample_service, redis_
     cache_key = sms_daily_count_cache_key(sample_service.id)
     mocker.patch("app.redis_store.get", lambda x: redis_value if x == cache_key else None)
     mocked_set = mocker.patch("app.redis_store.set")
-    mocker.patch("app.sms_fragment_utils.fetch_todays_requested_sms_count", return_value=db_value)
+    mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_count", return_value=db_value)
     mocker.patch("app.dao.users_dao.user_can_be_archived", return_value=False)
 
     with set_config(client.application, "REDIS_ENABLED", True):
