@@ -1,6 +1,7 @@
 import dateutil
 from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.recipients import RecipientCSV
+from notifications_utils.template import Template
 
 from app.aws.s3 import get_job_from_s3, get_job_metadata_from_s3
 from app.celery.tasks import process_job
