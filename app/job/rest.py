@@ -143,6 +143,7 @@ def create_job(service_id):
             job,
             template_type=template.template_type,
             placeholders=template._as_utils_template().placeholders,
+            template=Template(template.__dict__),
         )
         check_sms_limit_increment_redis_send_warnings_if_needed(service, recipient_csv.sms_fragment_count)
 
