@@ -134,6 +134,10 @@ def test_create_unscheduled_job(client, sample_template, mocker, fake_uuid):
             "valid": "True",
         },
     )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
+    )
     data = {
         "id": fake_uuid,
         "created_by": str(sample_template.created_by.id),
@@ -171,6 +175,10 @@ def test_create_unscheduled_job_with_sender_id_in_metadata(client, sample_templa
             "sender_id": fake_uuid,
         },
     )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
+    )
     data = {
         "id": fake_uuid,
         "created_by": str(sample_template.created_by.id),
@@ -200,6 +208,10 @@ def test_create_scheduled_job(client, sample_template, mocker, fake_uuid):
             "notification_count": "1",
             "valid": "True",
         },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
     )
     data = {
         "id": fake_uuid,
@@ -242,26 +254,22 @@ def test_create_job_returns_403_if_service_is_not_active(client, fake_uuid, samp
     mock_job_dao.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "extra_metadata",
-    (
-        {},
-        {"valid": "anything not the string True"},
-    ),
-)
-def test_create_job_returns_400_if_file_is_invalid(
-    client,
-    fake_uuid,
-    sample_template,
-    mocker,
-    extra_metadata,
-):
+@pytest.mark.parametrize("extra_metadata, test_run", [({}, 1), ({"valid": "anything not the string True"}, 2)])
+def test_create_job_returns_400_if_file_is_invalid(client, fake_uuid, sample_template, mocker, extra_metadata, test_run):
     mock_job_dao = mocker.patch("app.dao.jobs_dao.dao_create_job")
     auth_header = create_authorization_header()
     metadata = dict(
-        template_id=str(sample_template.id), original_file_name="thisisatest.csv", notification_count=1, **extra_metadata
+        template_id=str(sample_template.id),
+        original_file_name=f"thisisatest{test_run}.csv",
+        notification_count=1,
+        **extra_metadata,
     )
     mocker.patch("app.job.rest.get_job_metadata_from_s3", return_value=metadata)
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
+    )
+
     data = {"id": fake_uuid}
     response = client.post(
         "/service/{}/job".format(sample_template.service.id),
@@ -319,6 +327,10 @@ def test_should_not_create_scheduled_job_too_far_in_the_future(client, sample_te
             "valid": "True",
         },
     )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
+    )
     data = {
         "id": fake_uuid,
         "created_by": str(sample_template.created_by.id),
@@ -351,6 +363,10 @@ def test_should_not_create_scheduled_job_in_the_past(client, sample_template, mo
             "notification_count": "1",
             "valid": "True",
         },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
     )
     data = {
         "id": fake_uuid,
@@ -401,6 +417,10 @@ def test_create_job_returns_400_if_missing_data(client, sample_template, mocker,
         return_value={
             "template_id": str(sample_template.id),
         },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
     )
     data = {
         "id": fake_uuid,
@@ -476,6 +496,10 @@ def test_create_job_returns_400_if_archived_template(client, sample_template, mo
         return_value={
             "template_id": str(sample_template.id),
         },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
     )
     data = {
         "id": fake_uuid,

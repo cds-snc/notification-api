@@ -62,7 +62,6 @@ from app.models import (
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
-    check_if_request_would_put_service_over_daily_sms_limit,
     choose_queue,
     db_save_and_send_notification,
     persist_notification,
@@ -75,8 +74,8 @@ from app.notifications.validators import (
     check_service_can_schedule_notification,
     check_service_email_reply_to_id,
     check_service_has_permission,
-    check_service_over_daily_sms_limit_and_warn,
     check_service_sms_sender_id,
+    check_sms_limit_increment_redis_send_warnings_if_needed,
     validate_and_format_recipient,
     validate_template,
     validate_template_exists,
@@ -84,7 +83,7 @@ from app.notifications.validators import (
 from app.schema_validation import validate
 from app.schemas import job_schema
 from app.service.utils import safelisted_members
-from app.sms_fragment_utils import fetch_daily_sms_fragment_count
+from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
@@ -111,7 +110,7 @@ def post_precompiled_letter_notification():
     # Check permission to send letters
     check_service_has_permission(LETTER_TYPE, authenticated_service.permissions)
 
-    check_rate_limiting(authenticated_service, api_user, LETTER_TYPE)
+    check_rate_limiting(authenticated_service, api_user)
 
     template = get_precompiled_letter_template(authenticated_service.id)
 
@@ -152,9 +151,8 @@ def post_bulk():
     template = validate_template_exists(form["template_id"], authenticated_service)
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 
-    if template.template_type == "sms" and check_sms_limit:
-        check_service_over_daily_sms_limit_and_warn(api_user.key_type, authenticated_service)
-        fragments_sent = fetch_daily_sms_fragment_count(authenticated_service.id)
+    if template.template_type == SMS_TYPE and check_sms_limit:
+        fragments_sent = fetch_todays_requested_sms_count(authenticated_service.id)
         remaining_messages = authenticated_service.sms_daily_limit - fragments_sent
     else:
         remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
@@ -183,6 +181,10 @@ def post_bulk():
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
     check_for_csv_errors(recipient_csv, max_rows, remaining_messages)
+
+    if template.template_type == SMS_TYPE:
+        check_sms_limit_increment_redis_send_warnings_if_needed(authenticated_service, recipient_csv.sms_fragment_count)
+
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
     return jsonify(data=job_schema.dump(job).data), 201
@@ -212,18 +214,18 @@ def post_notification(notification_type: NotificationType):
 
     check_service_can_schedule_notification(authenticated_service.permissions, scheduled_for)
 
-    check_rate_limiting(authenticated_service, api_user, notification_type)
+    check_rate_limiting(authenticated_service, api_user)
 
+    personalisation = strip_keys_from_personalisation_if_send_attach(form.get("personalisation", {}))
     template, template_with_content = validate_template(
         form["template_id"],
-        strip_keys_from_personalisation_if_send_attach(form.get("personalisation", {})),
+        personalisation,
         authenticated_service,
         notification_type,
     )
-    if notification_type == SMS_TYPE:
-        check_if_request_would_put_service_over_daily_sms_limit(
-            api_user.key_type, authenticated_service, template_with_content.fragment_count
-        )
+
+    if template.template_type == SMS_TYPE:
+        check_sms_limit_increment_redis_send_warnings_if_needed(authenticated_service, template_with_content.fragment_count)
 
     current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 

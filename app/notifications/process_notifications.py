@@ -9,7 +9,6 @@ from notifications_utils.recipients import (
     get_international_phone_info,
     validate_and_format_phone_number,
 )
-from notifications_utils.template import SMSMessageTemplate
 from notifications_utils.timezones import convert_local_timezone_to_utc
 
 from app import redis_store
@@ -36,21 +35,9 @@ from app.models import (
     ScheduledNotification,
     Service,
 )
-from app.sms_fragment_utils import (
-    fetch_daily_sms_fragment_count,
-    increment_daily_sms_fragment_count,
-)
 from app.types import VerifiedNotification
 from app.utils import get_template_instance
-from app.v2.errors import BadRequestError, LiveServiceTooManySMSRequestsError
-
-
-def check_if_request_would_put_service_over_daily_sms_limit(key_type: ApiKeyType, service: Service, requested_sms: int):
-    if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and key_type != KEY_TYPE_TEST and current_app.config["REDIS_ENABLED"]:
-        fragments_sent = fetch_daily_sms_fragment_count(service.id)
-        total_requested = fragments_sent + requested_sms
-        if total_requested > service.sms_daily_limit:
-            raise LiveServiceTooManySMSRequestsError(service.sms_daily_limit)
+from app.v2.errors import BadRequestError
 
 
 def create_content_for_notification(template, personalisation):
@@ -146,22 +133,10 @@ def persist_notification(
 
     # if simulated create a Notification model to return but do not persist the Notification to the dB
     if not simulated:
-        if notification_type == SMS_TYPE:
-            _template = SMSMessageTemplate(
-                template.__dict__,
-                values=notification.personalisation,
-                prefix=service.name,
-                show_prefix=service.prefix_sms,
-            )
-            check_if_request_would_put_service_over_daily_sms_limit(key_type, service, _template.fragment_count)
-
         dao_create_notification(notification)
         if key_type != KEY_TYPE_TEST:
             if redis_store.get(redis.daily_limit_cache_key(service.id)):
                 redis_store.incr(redis.daily_limit_cache_key(service.id))
-            if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and notification_type == SMS_TYPE:
-                increment_daily_sms_fragment_count(service.id, number_of_sms_fragments(template, personalisation))
-
         current_app.logger.info("{} {} created at {}".format(notification_type, notification_id, notification_created_at))
     return notification
 
@@ -235,10 +210,6 @@ def db_save_and_send_notification(notification: Notification):
         service_id = notification.service_id
         if redis_store.get(redis.daily_limit_cache_key(service_id)):
             redis_store.incr(redis.daily_limit_cache_key(service_id))
-        if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and notification.notification_type == SMS_TYPE:
-            increment_daily_sms_fragment_count(
-                service_id, number_of_sms_fragments(notification.template, notification.personalisation)
-            )
 
     current_app.logger.info(f"{notification.notification_type} {notification.id} created at {notification.created_at}")
 
@@ -385,10 +356,6 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
             service_id = notification.get("service").id  # type: ignore
             if redis_store.get(redis.daily_limit_cache_key(service_id)):
                 redis_store.incr(redis.daily_limit_cache_key(service_id))
-            if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and notification.get("notification_type") == SMS_TYPE:
-                increment_daily_sms_fragment_count(
-                    service_id, number_of_sms_fragments(template, notification_obj.personalisation)
-                )
 
         current_app.logger.info(
             "{} {} created at {}".format(

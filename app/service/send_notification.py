@@ -33,7 +33,7 @@ from app.notifications.process_notifications import (
 from app.notifications.validators import (
     check_service_has_permission,
     check_service_over_daily_message_limit,
-    check_service_over_daily_sms_limit_and_warn,
+    check_sms_limit_increment_redis_send_warnings_if_needed,
     validate_and_format_recipient,
     validate_template,
 )
@@ -59,11 +59,11 @@ def send_one_off_notification(service_id, post_data):
 
     personalisation = post_data.get("personalisation", None)
 
-    validate_template(template.id, personalisation, service, template.template_type)
+    _, template_with_content = validate_template(template.id, personalisation, service, template.template_type)
 
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
-    if template.template_type == "sms":
-        check_service_over_daily_sms_limit_and_warn(KEY_TYPE_NORMAL, service)
+    if template.template_type == SMS_TYPE:
+        check_sms_limit_increment_redis_send_warnings_if_needed(service, template_with_content.fragment_count)
 
     validate_and_format_recipient(
         send_to=post_data["to"],

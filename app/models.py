@@ -932,9 +932,9 @@ class ApiKey(BaseModel, Versioned):
 
 
 ApiKeyType = Literal["normal", "team", "test"]
-KEY_TYPE_NORMAL = "normal"
-KEY_TYPE_TEAM = "team"
-KEY_TYPE_TEST = "test"
+KEY_TYPE_NORMAL: Literal["normal"] = "normal"
+KEY_TYPE_TEAM: Literal["team"] = "team"
+KEY_TYPE_TEST: Literal["test"] = "test"
 
 
 class KeyTypes(BaseModel):
