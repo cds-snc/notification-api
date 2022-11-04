@@ -14,10 +14,6 @@ Other useful documentation:
     https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/acm.html#ACM.Client.export_certificate
 
-The execution role that imports the module is not the same execution role that executes
-the handler.  Make boto3 calls from within the handler to avoid a hard-to-identify
-permissions problem that results in the lambda call timing-out.
-
 The execution environment varies according to how this code is run.  During testing (local or via Github Action),
 the environment is a container with the full contents of the notification-api repository.  In an AWS deployment
 envronment, it is the Lambda execution environment, which should make certain files available in the /opt directory
