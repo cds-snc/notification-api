@@ -105,7 +105,7 @@ def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Servic
 )
 def check_sms_daily_limit(service: Service, requested_sms=0):
     messages_sent = fetch_todays_requested_sms_count(service.id)
-    over_sms_daily_limit = (messages_sent + requested_sms) >= service.sms_daily_limit
+    over_sms_daily_limit = (messages_sent + requested_sms) > service.sms_daily_limit
 
     # Send a warning when reaching the daily message limit
     if not over_sms_daily_limit:
@@ -123,7 +123,7 @@ def check_sms_daily_limit(service: Service, requested_sms=0):
 def send_warning_sms_limit_emails_if_needed(service: Service):
     todays_requested_sms = fetch_todays_requested_sms_count(service.id)
     nearing_sms_daily_limit = todays_requested_sms >= NEAR_DAILY_LIMIT_PERCENTAGE * service.sms_daily_limit
-    over_sms_daily_limit = todays_requested_sms >= service.sms_daily_limit
+    at_or_over_sms_daily_limit = todays_requested_sms >= service.sms_daily_limit
     current_time = datetime.utcnow().isoformat()
     cache_expiration = int(time_until_end_of_day().total_seconds())
 
@@ -135,7 +135,7 @@ def send_warning_sms_limit_emails_if_needed(service: Service):
             redis_store.set(cache_key, current_time, ex=cache_expiration)
 
     # Send a warning when reaching the daily message limit
-    if over_sms_daily_limit:
+    if at_or_over_sms_daily_limit:
         cache_key = over_sms_daily_limit_cache_key(service.id)
         if not redis_store.get(cache_key):
             send_sms_limit_reached_email(service)
