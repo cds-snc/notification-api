@@ -1,0 +1,63 @@
+name: test actions
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch to deploy
+        required: true
+        default: master
+      action:
+        type: choice
+        description: Choose which actions to test
+        required: true
+        options:
+          - All
+          - build
+          - codeql
+          - db-downgrade
+          - deploy_lambda_dev
+          - deployment
+          - dev_deploy
+          - lambda-functions
+          - load-test-email-delivery-time
+          - load-test-sms-response-time
+          - release_trigger
+          - tag_trigger.yml
+          - tests
+          - twistlock
+          - update-cached-image
+          - update-datadog-image
+          - user_flows
+
+jobs:
+
+  setup_job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.ref }}
+
+  run build:
+    if: ${{ (inputs.action == 'build') || (inputs.action == 'All') }}
+    needs: [setup_job]
+    uses: ./.github/workflows/${{ inputs.action }}.yml
+    with:
+      environment: "dev"
+      ref: ${{ inputs.ref }}
+      lambdaName: ${{ inputs.choice }}
+    secrets: inherit
+
+  run CodeQL:
+    if: ${{ (inputs.action == 'codeql') || (inputs.action == 'All') }}
+    needs: [setup_job]
+    uses: ./.github/workflows/${{ inputs.action }}.yml
+
+  #run DB Downgrade:
+    #if: ${{ (inputs.action == 'db-downgrade') || (inputs.action == 'All') }}
+    #needs: [setup_job]
+    #uses: ./.github/workflows/${{ inputs.action }}.yml
+    #with:
+      #environment: "dev"
+    #secrets: inherit
