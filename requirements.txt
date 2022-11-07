@@ -88,7 +88,7 @@ click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
 colorama==0.4.3
-cryptography==38.0.1
+cryptography==38.0.3
 Deprecated==1.2.13
 dnspython==1.16.0
 docutils==0.15.2
