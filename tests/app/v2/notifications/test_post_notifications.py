@@ -1619,13 +1619,13 @@ class TestSMSSendFragments:
                 }
 
                 response = client.post(
-                "/v2/notifications/bulk",
-                data=json.dumps(data),
-                headers=[
-                    ("Content-Type", "application/json"),
-                    create_authorization_header(service_id=template.service_id),
-                ],
-            )
+                    "/v2/notifications/bulk",
+                    data=json.dumps(data),
+                    headers=[
+                        ("Content-Type", "application/json"),
+                        create_authorization_header(service_id=template.service_id),
+                    ],
+                )
             return response
 
         # Create a service, Set limit to 10 fragments
@@ -1802,13 +1802,13 @@ class TestSMSSendFragments:
                     current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
                 )
                 response = client.post(
-                f"/service/{template.service_id}/job",
-                json={
-                    "id": str(uuid.uuid4()),
-                    "created_by": service.users[0].id,
-                },
-                headers={"Authorization": f"Bearer {token}"},
-            )
+                    f"/service/{template.service_id}/job",
+                    json={
+                        "id": str(uuid.uuid4()),
+                        "created_by": service.users[0].id,
+                    },
+                    headers={"Authorization": f"Bearer {token}"},
+                )
             return response
 
         # Create a service, Set limit to 10 fragments
@@ -1856,13 +1856,13 @@ class TestSMSSendFragments:
                     current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
                 )
                 response = client.post(
-                f"/service/{template.service_id}/job",
-                json={
-                    "id": str(uuid.uuid4()),
-                    "created_by": service.users[0].id,
-                },
-                headers={"Authorization": f"Bearer {token}"},
-            )
+                    f"/service/{template.service_id}/job",
+                    json={
+                        "id": str(uuid.uuid4()),
+                        "created_by": service.users[0].id,
+                    },
+                    headers={"Authorization": f"Bearer {token}"},
+                )
             return response
 
         # Create a service, Set limit to 10 fragments
@@ -1912,13 +1912,13 @@ class TestSMSSendFragments:
                     current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
                 )
                 response = client.post(
-                f"/service/{template.service_id}/job",
-                json={
-                    "id": str(uuid.uuid4()),
-                    "created_by": service.users[0].id,
-                },
-                headers={"Authorization": f"Bearer {token}"},
-            )
+                    f"/service/{template.service_id}/job",
+                    json={
+                        "id": str(uuid.uuid4()),
+                        "created_by": service.users[0].id,
+                    },
+                    headers={"Authorization": f"Bearer {token}"},
+                )
             return response
 
         # Create a service, Set limit to 10 fragments
