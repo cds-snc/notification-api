@@ -16,6 +16,11 @@ on:
           - load-test-sms-response-time
           - update-cached-image
           - update-datadog-image
+      sha:
+        type: string
+        description: The commit SHA containing the code you want to test
+        required: false
+        default: "0d818c38ccac687594b91fa0437ba1dffc0c00aa"
 
 jobs:
 
@@ -33,5 +38,5 @@ jobs:
     with:
       environment: "dev"
       ref: ${{ inputs.ref }}
-      commit_sha: "0d818c38ccac687594b91fa0437ba1dffc0c00aa"
+      commit_sha: ${{ inputs.sha }}
     secrets: inherit
