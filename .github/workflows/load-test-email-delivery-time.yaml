@@ -25,17 +25,21 @@ on:
   workflow_dispatch:
     inputs:
       environment:
+        type: string
         description: "The target environment (dev|staging|perf)"
         required: true
         default: "perf"
       commit_sha:
+        type: string
         description: "The commit SHA containing code you want to load test"
         required: true
       email_limit:
+        type: string
         description: "Number of emails to send"
         required: true
         default: "10"
       email_status_query_interval:
+        type: string
         description: "Number of seconds to wait between requests to query notification status"
         required: true
         default: "1"
