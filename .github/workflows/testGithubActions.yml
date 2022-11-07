@@ -12,7 +12,6 @@ on:
         required: true
         options:
           - All
-          - codeql
           - load-test-email-delivery-time
           - load-test-sms-response-time
           - update-cached-image
@@ -26,7 +25,6 @@ jobs:
     #with:
       #environment: "dev"
       #ref: ${{ inputs.ref }}
-      ##lambdaName: ${{ inputs.choice }}
     #secrets: inherit
 
   load-test-email-delivery-time:
@@ -35,10 +33,5 @@ jobs:
     with:
       environment: "dev"
       ref: ${{ inputs.ref }}
-      #lambdaName: ${{ inputs.choice }}
+      commit_sha: "0d818c38ccac687594b91fa0437ba1dffc0c00aa"
     secrets: inherit
-
-  #codeql:
-    #if: ${{ (inputs.action == 'codeql') || (inputs.action == 'All') }}
-    #uses: ./.github/workflows/codeql.yml
-
