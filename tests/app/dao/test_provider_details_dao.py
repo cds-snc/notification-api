@@ -1,9 +1,4 @@
-from datetime import datetime
-
 import pytest
-from freezegun import freeze_time
-from sqlalchemy import asc
-
 from app import clients
 from app.dao.provider_details_dao import (
     get_alternative_sms_provider,
@@ -17,15 +12,14 @@ from app.dao.provider_details_dao import (
     dao_get_provider_versions,
     dao_get_sms_provider_with_equal_priority,
     get_highest_priority_active_provider_by_notification_type,
-    get_active_providers_with_weights_by_notification_type
+    get_active_providers_with_weights_by_notification_type,
 )
 from app.models import ProviderDetails, ProviderDetailsHistory, ProviderRates
 from app.notifications.notification_type import NotificationType
-from tests.app.db import (
-    create_ft_billing,
-    create_service,
-    create_template,
-)
+from datetime import datetime
+from freezegun import freeze_time
+from sqlalchemy import asc
+from tests.app.db import create_ft_billing, create_service, create_template
 
 
 @pytest.fixture(scope='function')
@@ -366,7 +360,7 @@ def test_update_adds_history(restore_provider_details):
 
     assert ses.version == 1
     assert ses_history.version == 1
-    assert ses.updated_at is None
+    assert ses.updated_at is not None
 
     ses.active = False
 
@@ -383,11 +377,41 @@ def test_update_adds_history(restore_provider_details):
 
     assert ses_history[0].active
     assert ses_history[0].version == 1
-    assert ses_history[0].updated_at is None
+    assert ses_history[0].updated_at is not None
 
     assert not ses_history[1].active
     assert ses_history[1].version == 2
     assert ses_history[1].updated_at == datetime(2000, 1, 1, 0, 0, 0)
+
+
+def test_updated_at(restore_provider_details):
+    """
+    Updating an instance of ProviderDetails should automatically update the record's "updated_at"
+    attribute and the same attribute in the associated ProviderDetailsHistory record.
+    """
+
+    ses = ProviderDetails.query.filter(ProviderDetails.identifier == 'ses').one()
+    ses_history = ProviderDetailsHistory.query.filter(ProviderDetailsHistory.id == ses.id).one()
+
+    # These attributes are not nullible.
+    assert ses.updated_at is not None and isinstance(ses.updated_at, datetime)
+    assert ses_history.updated_at is not None and isinstance(ses_history.updated_at, datetime)
+
+    ses_updated_at_initial = ses.updated_at
+    ses_history_updated_at_initial = ses_history.updated_at
+
+    # This should automatically set the records' "updated_at" field to the current time.
+    dao_update_provider_details(ses)
+
+    assert ses.updated_at is not None and ses.updated_at > ses_updated_at_initial
+
+    ses_history_new = ProviderDetailsHistory.query.filter(
+        ProviderDetailsHistory.id == ses.id
+    ).order_by(
+        ProviderDetailsHistory.updated_at.desc()
+    ).first()
+
+    assert ses_history_new.updated_at is not None and ses_history_new.updated_at > ses_history_updated_at_initial
 
 
 def test_update_sms_provider_to_inactive_sets_inactive(restore_provider_details):
