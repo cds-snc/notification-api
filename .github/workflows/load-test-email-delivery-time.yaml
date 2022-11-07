@@ -8,6 +8,7 @@ on:
         required: true
         default: "dev"
       commit_sha:
+        type: string
         description: "The commit SHA containing code you want to load test"
         required: true
       email_limit:
