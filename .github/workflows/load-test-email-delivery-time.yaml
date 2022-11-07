@@ -4,6 +4,7 @@ on:
   workflow_call:
     inputs:
       environment:
+        type: string
         description: "The target environment (dev|staging|perf)"
         required: true
         default: "dev"
