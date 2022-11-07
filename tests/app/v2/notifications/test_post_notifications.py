@@ -1485,7 +1485,8 @@ class TestSMSSendFragments:
             )
         assert response.status_code == 201
 
-    # API
+class TestEmailsAndLimitsForSMSFragments:
+     # API
     def test_API_ONEOFF_sends_warning_emails_and_blocks_sends(self, notify_api, client, notify_db, notify_db_session, mocker):
         # test setup
         mocker.patch("app.sms_normal.publish")
@@ -1940,7 +1941,6 @@ class TestSMSSendFragments:
 
         response = __send_sms(1)  # 11/10 fragments
         assert response.status_code == 429  # Ensure send is blocked - not sure why we send a 400 here and a 429 everywhere else
-
 
 class TestBulkSend:
     @pytest.mark.parametrize("args", [{}, {"rows": [1, 2], "csv": "foo"}], ids=["no args", "both args"])
