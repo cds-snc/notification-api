@@ -29,6 +29,10 @@ const config = {
         API: {
             HostName: "http://localhost:6011",
         },
+        Admin: {
+            HostName: "http://localhost:6012",
+            AdminUser: "alexcampbell1861@gmail.com",
+        },
         Templates: {
             "FILE_ATTACH_TEMPLATE_ID": "7246c71e-3d60-458b-96af-af17a5b07659",
             "SIMPLE_EMAIL_TEMPLATE_ID": "939dafde-1b60-47f0-a6d5-c9080d92a4a8",
@@ -47,6 +51,6 @@ const config = {
 };
 
 // choose which config to use here
-const ConfigToUse = config.STAGING;
+const ConfigToUse = config.LOCAL;
 export default ConfigToUse;
 Cypress.config('baseUrl', ConfigToUse.API.HostName);
