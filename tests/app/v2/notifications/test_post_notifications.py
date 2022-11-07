@@ -8,6 +8,7 @@ from unittest.mock import call
 import pytest
 from flask import current_app, json
 from freezegun import freeze_time
+from notifications_python_client.authentication import create_jwt_token
 
 from app import signer
 from app.dao.jobs_dao import dao_get_job_by_id
@@ -1483,6 +1484,464 @@ class TestSMSSendFragments:
                 headers=[("Content-Type", "application/json"), auth_header],
             )
         assert response.status_code == 201
+
+
+class TestEmailsAndLimitsForSMSFragments:
+    # API
+    def test_API_ONEOFF_sends_warning_emails_and_blocks_sends(self, notify_api, client, notify_db, notify_db_session, mocker):
+        # test setup
+        mocker.patch("app.sms_normal.publish")
+        send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
+        send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
+
+        def __send_sms():
+            auth_header = create_authorization_header(service_id=template.service_id)
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                response = client.post(
+                    path="/v2/notifications/sms",
+                    data=json.dumps(data),
+                    headers=[("Content-Type", "application/json"), auth_header],
+                )
+                return response
+
+        # Create a service, Set limit to 10 fragments
+        service = create_service(sms_daily_limit=10, message_limit=100)
+
+        # Create 7 notifications in the db
+        template = create_sample_template(notify_db, notify_db_session, content="Hello", service=service, template_type="sms")
+        data = {
+            "phone_number": "+16502532222",
+            "template_id": str(template.id),
+            "personalisation": {" Name": "Jo"},
+        }
+        for x in range(7):
+            create_sample_notification(notify_db, notify_db_session, service=service)
+
+        __send_sms()  # send 8th fragment
+        assert send_warning_email.called
+
+        __send_sms()  # Send 9th fragment
+        __send_sms()  # Send 10th fragment
+        assert send_limit_reached_email.called
+
+        response = __send_sms()  # send the 11th fragment
+        assert response.status_code == 429  # Ensure send is blocked
+
+    def test_API_ONEOFF_cant_hop_over_limit_using_3_fragment_sms(self, notify_api, client, notify_db, notify_db_session, mocker):
+        # test setup
+        mocker.patch("app.sms_normal.publish")
+        send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
+
+        def __send_sms():
+            auth_header = create_authorization_header(service_id=template.service_id)
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                response = client.post(
+                    path="/v2/notifications/sms",
+                    data=json.dumps(data),
+                    headers=[("Content-Type", "application/json"), auth_header],
+                )
+                return response
+
+        # Create a service, Set limit to 10 fragments
+        service = create_service(sms_daily_limit=10, message_limit=100)
+
+        # Create 5 notifications in the db
+        template = create_sample_template(notify_db, notify_db_session, content="a" * 400, service=service, template_type="sms")
+        data = {
+            "phone_number": "+16502532222",
+            "template_id": str(template.id),
+            "personalisation": {" Name": "Jo"},
+        }
+        for x in range(5):
+            create_sample_notification(notify_db, notify_db_session, service=service)
+
+        __send_sms()  # send 1 sms (3 fragments) should be at 80%
+        assert send_warning_email.called
+
+        response = __send_sms()  # send one more, puts us at 11/10 fragments
+        assert response.status_code == 429  # Ensure send is blocked
+
+    def test_API_BULK_sends_warning_emails_and_blocks_sends(self, notify_api, client, notify_db, notify_db_session, mocker):
+        # test setup
+        mocker.patch("app.sms_normal.publish")
+        mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=str(uuid.uuid4()))
+        send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
+        send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
+
+        def __send_sms():
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                data = {
+                    "name": "job_name",
+                    "template_id": str(template.id),
+                    "rows": [["phone number"], ["9025551234"]],
+                }
+
+                response = client.post(
+                    "/v2/notifications/bulk",
+                    data=json.dumps(data),
+                    headers=[
+                        ("Content-Type", "application/json"),
+                        create_authorization_header(service_id=template.service_id),
+                    ],
+                )
+            return response
+
+        # Create a service, Set limit to 10 fragments
+        service = create_service(sms_daily_limit=10, message_limit=100)
+
+        # Create 7 notifications in the db
+        template = create_sample_template(notify_db, notify_db_session, content="Hello", service=service, template_type="sms")
+        for x in range(7):
+            create_sample_notification(notify_db, notify_db_session, service=service)
+
+        __send_sms()  # send 8th fragment
+        assert send_warning_email.called
+
+        __send_sms()  # Send 9th fragment
+        __send_sms()  # Send 10th fragment
+        assert send_limit_reached_email.called
+
+        response = __send_sms()  # send the 11th fragment
+        assert response.status_code == 400  # Ensure send is blocked - not sure why we send a 400 here and a 429 everywhere else
+
+    def test_API_BULK_cant_hop_over_limit_1_fragment(self, notify_api, client, notify_db, notify_db_session, mocker):
+        # test setup
+        mocker.patch("app.sms_normal.publish")
+        mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=str(uuid.uuid4()))
+        send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
+        send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
+
+        def __send_sms(number_to_send=1):
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                numbers = [["9025551234"]] * number_to_send
+                data = {
+                    "name": "job_name",
+                    "template_id": str(template.id),
+                    "rows": [["phone number"], *numbers],
+                }
+
+                response = client.post(
+                    "/v2/notifications/bulk",
+                    data=json.dumps(data),
+                    headers=[
+                        ("Content-Type", "application/json"),
+                        create_authorization_header(service_id=template.service_id),
+                    ],
+                )
+            return response
+
+        # Create a service, Set limit to 10 fragments
+        service = create_service(sms_daily_limit=10, message_limit=100)
+
+        # Create 7 notifications in the db
+        template = create_sample_template(notify_db, notify_db_session, content="Hello", service=service, template_type="sms")
+        for x in range(7):
+            create_sample_notification(notify_db, notify_db_session, service=service)
+
+        __send_sms(1)  # send 1 sms (1 fragment) should be at 80%
+        assert send_warning_email.called
+
+        response = __send_sms(3)  # attempt to send over limit (11 with max 10)
+        assert response.status_code == 400
+
+        __send_sms(2)  # attempt to send at limit (10 with max 10)
+        assert send_limit_reached_email.called
+
+        response = __send_sms(1)  # attempt to send over limit (11 with max 10)1
+        assert response.status_code == 400  # Ensure send is blocked - not sure why we send a 400 here and a 429 everywhere else
+
+    def test_API_BULK_cant_hop_over_limit_2_fragment(self, notify_api, client, notify_db, notify_db_session, mocker):
+        # test setup
+        mocker.patch("app.sms_normal.publish")
+        mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=str(uuid.uuid4()))
+        send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
+
+        def __send_sms(number_to_send=1):
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                numbers = [["9025551234"]] * number_to_send
+                data = {
+                    "name": "job_name",
+                    "template_id": str(template.id),
+                    "rows": [["phone number"], *numbers],
+                }
+
+                response = client.post(
+                    "/v2/notifications/bulk",
+                    data=json.dumps(data),
+                    headers=[
+                        ("Content-Type", "application/json"),
+                        create_authorization_header(service_id=template.service_id),
+                    ],
+                )
+            return response
+
+        # Create a service, Set limit to 10 fragments
+        service = create_service(sms_daily_limit=10, message_limit=100)
+
+        # Create notifications in the db
+        template = create_sample_template(notify_db, notify_db_session, content="A" * 400, service=service, template_type="sms")
+        for x in range(5):
+            create_sample_notification(notify_db, notify_db_session, service=service)
+
+        __send_sms(1)  # 8/10 fragments used
+        assert send_warning_email.called
+
+        response = __send_sms(3)  # attempt to send over limit
+        assert response.status_code == 400
+
+        response = __send_sms(2)  # attempt to send over limit
+        assert response.status_code == 400
+
+    # ADMIN
+    def test_ADMIN_ONEOFF_sends_warning_emails_and_blocks_sends(self, notify_api, client, notify_db, notify_db_session, mocker):
+        # test setup
+        mocker.patch("app.sms_normal.publish")
+
+        mocker.patch("app.service.send_notification.send_notification_to_queue")
+        send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
+        send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
+
+        def __send_sms():
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                token = create_jwt_token(
+                    current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
+                )
+                response = client.post(
+                    f"/service/{template.service_id}/send-notification",
+                    json={
+                        "to": "9025551234",
+                        "template_id": str(template.id),
+                        "created_by": service.users[0].id,
+                        "personalisation": {"var": "var"},
+                    },
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+            return response
+
+        # Create a service, Set limit to 10 fragments
+        service = create_service(sms_daily_limit=10, message_limit=100)
+
+        # Create 7 notifications in the db
+        template = create_sample_template(notify_db, notify_db_session, content="Hello", service=service, template_type="sms")
+        for x in range(7):
+            create_sample_notification(notify_db, notify_db_session, service=service)
+
+        __send_sms()  # 8/10 fragments used
+        assert send_warning_email.called
+
+        __send_sms()  # 9/10 fragments used
+        __send_sms()  # 10/10 fragments used
+        assert send_limit_reached_email.called
+
+        response = __send_sms()  # 11/10 fragments
+        assert response.status_code == 429  # Ensure send is blocked
+
+    def test_ADMIN_ONEOFF_cant_hop_over_limit_using_3_fragment_sms(
+        self, notify_api, client, notify_db, notify_db_session, mocker
+    ):
+        # test setup
+        mocker.patch("app.sms_normal.publish")
+
+        mocker.patch("app.service.send_notification.send_notification_to_queue")
+        send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
+
+        def __send_sms():
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                token = create_jwt_token(
+                    current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
+                )
+                response = client.post(
+                    f"/service/{template.service_id}/send-notification",
+                    json={
+                        "to": "9025551234",
+                        "template_id": str(template.id),
+                        "created_by": service.users[0].id,
+                        "personalisation": {"var": "var"},
+                    },
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+            return response
+
+        # Create a service, Set limit to 10 fragments
+        service = create_service(sms_daily_limit=10, message_limit=100)
+
+        # Create 5 notifications in the db
+        template = create_sample_template(notify_db, notify_db_session, content="a" * 400, service=service, template_type="sms")
+        for x in range(5):
+            create_sample_notification(notify_db, notify_db_session, service=service)
+
+        __send_sms()  # 8/10 fragments
+        assert send_warning_email.called
+
+        response = __send_sms()  # 11/10 fragments
+        assert response.status_code == 429  # Ensure send is blocked
+
+    def test_ADMIN_CSV_sends_warning_emails_and_blocks_sends(self, notify_api, client, notify_db, notify_db_session, mocker):
+        # test setup
+        mocker.patch("app.sms_normal.publish")
+        mocker.patch("app.service.send_notification.send_notification_to_queue")
+        mocker.patch("app.celery.tasks.process_job.apply_async")
+        mocker.patch(
+            "app.job.rest.get_job_from_s3",
+            return_value="phone number\r\n6502532222",
+        )
+        send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
+        send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
+
+        def __send_sms():
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                mocker.patch(
+                    "app.job.rest.get_job_metadata_from_s3",
+                    return_value={
+                        "template_id": str(template.id),
+                        "original_file_name": "thisisatest.csv",
+                        "notification_count": "1",
+                        "valid": "True",
+                    },
+                )
+
+                token = create_jwt_token(
+                    current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
+                )
+                response = client.post(
+                    f"/service/{template.service_id}/job",
+                    json={
+                        "id": str(uuid.uuid4()),
+                        "created_by": service.users[0].id,
+                    },
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+            return response
+
+        # Create a service, Set limit to 10 fragments
+        service = create_service(sms_daily_limit=10, message_limit=100)
+
+        # Create 7 notifications in the db
+        template = create_sample_template(notify_db, notify_db_session, content="Hello", service=service, template_type="sms")
+        for x in range(7):
+            create_sample_notification(notify_db, notify_db_session, service=service)
+
+        __send_sms()  # 8/10 fragments
+        assert send_warning_email.called
+
+        __send_sms()  # 9/10 fragments
+        __send_sms()  # 10/10 fragments
+        assert send_limit_reached_email.called
+
+        response = __send_sms()  # 11/10 fragments
+        assert response.status_code == 429  # Ensure send is blocked
+
+    def test_ADMIN_CSV_cant_hop_over_limit_using_1_fragment_sms(self, notify_api, client, notify_db, notify_db_session, mocker):
+        # test setup
+        mocker.patch("app.sms_normal.publish")
+        mocker.patch("app.service.send_notification.send_notification_to_queue")
+        mocker.patch("app.celery.tasks.process_job.apply_async")
+
+        send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
+        send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
+
+        def __send_sms(number_to_send=1):
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                phone_numbers = "\r\n6502532222" * number_to_send
+                mocker.patch("app.job.rest.get_job_from_s3", return_value=f"phone number{phone_numbers}")
+                mocker.patch(
+                    "app.job.rest.get_job_metadata_from_s3",
+                    return_value={
+                        "template_id": str(template.id),
+                        "original_file_name": "thisisatest.csv",
+                        "notification_count": f"{number_to_send}",
+                        "valid": "True",
+                    },
+                )
+
+                token = create_jwt_token(
+                    current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
+                )
+                response = client.post(
+                    f"/service/{template.service_id}/job",
+                    json={
+                        "id": str(uuid.uuid4()),
+                        "created_by": service.users[0].id,
+                    },
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+            return response
+
+        # Create a service, Set limit to 10 fragments
+        service = create_service(sms_daily_limit=10, message_limit=100)
+
+        # Create 7 notifications in the db
+        template = create_sample_template(notify_db, notify_db_session, content="Hello", service=service, template_type="sms")
+        for x in range(7):
+            create_sample_notification(notify_db, notify_db_session, service=service)
+
+        __send_sms(1)  # 8/10 fragments
+        assert send_warning_email.called
+
+        response = __send_sms(3)  # 11/10 fragments
+        assert response.status_code == 429
+
+        __send_sms(2)  # 10/10 fragments
+        assert send_limit_reached_email.called
+
+        response = __send_sms(1)  # 11/10 fragments
+        assert response.status_code == 429  # Ensure send is blocked - not sure why we send a 400 here and a 429 everywhere else
+
+    def test_ADMIN_CSV_cant_hop_over_limit_using_2_fragment_sms(self, notify_api, client, notify_db, notify_db_session, mocker):
+        # test setup
+        mocker.patch("app.sms_normal.publish")
+        mocker.patch("app.service.send_notification.send_notification_to_queue")
+        mocker.patch("app.celery.tasks.process_job.apply_async")
+
+        send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
+        send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
+
+        def __send_sms(number_to_send=1):
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                phone_numbers = "\r\n6502532222" * number_to_send
+                mocker.patch("app.job.rest.get_job_from_s3", return_value=f"phone number{phone_numbers}")
+                mocker.patch(
+                    "app.job.rest.get_job_metadata_from_s3",
+                    return_value={
+                        "template_id": str(template.id),
+                        "original_file_name": "thisisatest.csv",
+                        "notification_count": f"{number_to_send}",
+                        "valid": "True",
+                    },
+                )
+
+                token = create_jwt_token(
+                    current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
+                )
+                response = client.post(
+                    f"/service/{template.service_id}/job",
+                    json={
+                        "id": str(uuid.uuid4()),
+                        "created_by": service.users[0].id,
+                    },
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+            return response
+
+        # Create a service, Set limit to 10 fragments
+        service = create_service(sms_daily_limit=10, message_limit=100)
+
+        # Create 6 notifications in the db
+        template = create_sample_template(notify_db, notify_db_session, content="A" * 200, service=service, template_type="sms")
+        for x in range(6):
+            create_sample_notification(notify_db, notify_db_session, service=service)
+
+        __send_sms(1)  # 8/10 fragments
+        assert send_warning_email.called
+
+        response = __send_sms(2)  # 12/10 fragments
+        assert response.status_code == 429
+
+        __send_sms(1)  # 10/10 fragments
+        assert send_limit_reached_email.called
+
+        response = __send_sms(1)  # 11/10 fragments
+        assert response.status_code == 429  # Ensure send is blocked - not sure why we send a 400 here and a 429 everywhere else
 
 
 class TestBulkSend:
