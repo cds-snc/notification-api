@@ -47,7 +47,6 @@ jobs:
     uses: ./.github/workflows/load-test-email-delivery-time.yaml
     with:
       environment: "dev"
-      ref: ${{ inputs.ref }}
       commit_sha: ${{ inputs.sha }}
       email_limit: ${{ inputs.email_limit }}
       email_status_query_interval: ${{ inputs.email_status_query_interval }}
