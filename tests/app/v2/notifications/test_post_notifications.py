@@ -1567,20 +1567,21 @@ class TestSMSSendFragments:
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
 
         def __send_sms():
-            data = {
-                "name": "job_name",
-                "template_id": str(template.id),
-                "rows": [["phone number"], ["9025551234"]],
-            }
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                data = {
+                    "name": "job_name",
+                    "template_id": str(template.id),
+                    "rows": [["phone number"], ["9025551234"]],
+                }
 
-            response = client.post(
-                "/v2/notifications/bulk",
-                data=json.dumps(data),
-                headers=[
-                    ("Content-Type", "application/json"),
-                    create_authorization_header(service_id=template.service_id),
-                ],
-            )
+                response = client.post(
+                    "/v2/notifications/bulk",
+                    data=json.dumps(data),
+                    headers=[
+                        ("Content-Type", "application/json"),
+                        create_authorization_header(service_id=template.service_id),
+                    ],
+                )
             return response
 
         # Create a service, Set limit to 10 fragments
@@ -1609,14 +1610,15 @@ class TestSMSSendFragments:
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
 
         def __send_sms(number_to_send=1):
-            numbers = [["9025551234"]] * number_to_send
-            data = {
-                "name": "job_name",
-                "template_id": str(template.id),
-                "rows": [["phone number"], *numbers],
-            }
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                numbers = [["9025551234"]] * number_to_send
+                data = {
+                    "name": "job_name",
+                    "template_id": str(template.id),
+                    "rows": [["phone number"], *numbers],
+                }
 
-            response = client.post(
+                response = client.post(
                 "/v2/notifications/bulk",
                 data=json.dumps(data),
                 headers=[
@@ -1653,21 +1655,22 @@ class TestSMSSendFragments:
         send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
 
         def __send_sms(number_to_send=1):
-            numbers = [["9025551234"]] * number_to_send
-            data = {
-                "name": "job_name",
-                "template_id": str(template.id),
-                "rows": [["phone number"], *numbers],
-            }
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                numbers = [["9025551234"]] * number_to_send
+                data = {
+                    "name": "job_name",
+                    "template_id": str(template.id),
+                    "rows": [["phone number"], *numbers],
+                }
 
-            response = client.post(
-                "/v2/notifications/bulk",
-                data=json.dumps(data),
-                headers=[
-                    ("Content-Type", "application/json"),
-                    create_authorization_header(service_id=template.service_id),
-                ],
-            )
+                response = client.post(
+                    "/v2/notifications/bulk",
+                    data=json.dumps(data),
+                    headers=[
+                        ("Content-Type", "application/json"),
+                        create_authorization_header(service_id=template.service_id),
+                    ],
+                )
             return response
 
         # Create a service, Set limit to 10 fragments
@@ -1697,19 +1700,20 @@ class TestSMSSendFragments:
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
 
         def __send_sms():
-            token = create_jwt_token(
-                current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
-            )
-            response = client.post(
-                f"/service/{template.service_id}/send-notification",
-                json={
-                    "to": "9025551234",
-                    "template_id": str(template.id),
-                    "created_by": service.users[0].id,
-                    "personalisation": {"var": "var"},
-                },
-                headers={"Authorization": f"Bearer {token}"},
-            )
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                token = create_jwt_token(
+                    current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
+                )
+                response = client.post(
+                    f"/service/{template.service_id}/send-notification",
+                    json={
+                        "to": "9025551234",
+                        "template_id": str(template.id),
+                        "created_by": service.users[0].id,
+                        "personalisation": {"var": "var"},
+                    },
+                    headers={"Authorization": f"Bearer {token}"},
+                )
             return response
 
         # Create a service, Set limit to 10 fragments
@@ -1740,19 +1744,20 @@ class TestSMSSendFragments:
         send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
 
         def __send_sms():
-            token = create_jwt_token(
-                current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
-            )
-            response = client.post(
-                f"/service/{template.service_id}/send-notification",
-                json={
-                    "to": "9025551234",
-                    "template_id": str(template.id),
-                    "created_by": service.users[0].id,
-                    "personalisation": {"var": "var"},
-                },
-                headers={"Authorization": f"Bearer {token}"},
-            )
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                token = create_jwt_token(
+                    current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
+                )
+                response = client.post(
+                    f"/service/{template.service_id}/send-notification",
+                    json={
+                        "to": "9025551234",
+                        "template_id": str(template.id),
+                        "created_by": service.users[0].id,
+                        "personalisation": {"var": "var"},
+                    },
+                    headers={"Authorization": f"Bearer {token}"},
+                )
             return response
 
         # Create a service, Set limit to 10 fragments
@@ -1782,20 +1787,21 @@ class TestSMSSendFragments:
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
 
         def __send_sms():
-            mocker.patch(
-                "app.job.rest.get_job_metadata_from_s3",
-                return_value={
-                    "template_id": str(template.id),
-                    "original_file_name": "thisisatest.csv",
-                    "notification_count": "1",
-                    "valid": "True",
-                },
-            )
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                mocker.patch(
+                    "app.job.rest.get_job_metadata_from_s3",
+                    return_value={
+                        "template_id": str(template.id),
+                        "original_file_name": "thisisatest.csv",
+                        "notification_count": "1",
+                        "valid": "True",
+                    },
+                )
 
-            token = create_jwt_token(
-                current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
-            )
-            response = client.post(
+                token = create_jwt_token(
+                    current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
+                )
+                response = client.post(
                 f"/service/{template.service_id}/job",
                 json={
                     "id": str(uuid.uuid4()),
@@ -1833,22 +1839,23 @@ class TestSMSSendFragments:
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
 
         def __send_sms(number_to_send=1):
-            phone_numbers = "\r\n6502532222" * number_to_send
-            mocker.patch("app.job.rest.get_job_from_s3", return_value=f"phone number{phone_numbers}")
-            mocker.patch(
-                "app.job.rest.get_job_metadata_from_s3",
-                return_value={
-                    "template_id": str(template.id),
-                    "original_file_name": "thisisatest.csv",
-                    "notification_count": f"{number_to_send}",
-                    "valid": "True",
-                },
-            )
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                phone_numbers = "\r\n6502532222" * number_to_send
+                mocker.patch("app.job.rest.get_job_from_s3", return_value=f"phone number{phone_numbers}")
+                mocker.patch(
+                    "app.job.rest.get_job_metadata_from_s3",
+                    return_value={
+                        "template_id": str(template.id),
+                        "original_file_name": "thisisatest.csv",
+                        "notification_count": f"{number_to_send}",
+                        "valid": "True",
+                    },
+                )
 
-            token = create_jwt_token(
-                current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
-            )
-            response = client.post(
+                token = create_jwt_token(
+                    current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
+                )
+                response = client.post(
                 f"/service/{template.service_id}/job",
                 json={
                     "id": str(uuid.uuid4()),
@@ -1888,22 +1895,23 @@ class TestSMSSendFragments:
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
 
         def __send_sms(number_to_send=1):
-            phone_numbers = "\r\n6502532222" * number_to_send
-            mocker.patch("app.job.rest.get_job_from_s3", return_value=f"phone number{phone_numbers}")
-            mocker.patch(
-                "app.job.rest.get_job_metadata_from_s3",
-                return_value={
-                    "template_id": str(template.id),
-                    "original_file_name": "thisisatest.csv",
-                    "notification_count": f"{number_to_send}",
-                    "valid": "True",
-                },
-            )
+            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+                phone_numbers = "\r\n6502532222" * number_to_send
+                mocker.patch("app.job.rest.get_job_from_s3", return_value=f"phone number{phone_numbers}")
+                mocker.patch(
+                    "app.job.rest.get_job_metadata_from_s3",
+                    return_value={
+                        "template_id": str(template.id),
+                        "original_file_name": "thisisatest.csv",
+                        "notification_count": f"{number_to_send}",
+                        "valid": "True",
+                    },
+                )
 
-            token = create_jwt_token(
-                current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
-            )
-            response = client.post(
+                token = create_jwt_token(
+                    current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
+                )
+                response = client.post(
                 f"/service/{template.service_id}/job",
                 json={
                     "id": str(uuid.uuid4()),
