@@ -31,6 +31,21 @@ on:
         description: "Number of seconds to wait between requests to query notification status"
         required: true
         default: "1"
+      run_time:
+        type: string
+        description: "Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.)"
+        required: true
+        default: "1m"
+      num_users:
+        type: string
+        description: "Number of concurrent Locust users."
+        required: true
+        default: "5"
+      spawn_rate:
+        type: string
+        description: "The rate per second in which users are spawned."
+        required: true
+        default: "1"
 
 jobs:
 
@@ -50,4 +65,15 @@ jobs:
       commit_sha: ${{ inputs.sha }}
       email_limit: ${{ inputs.email_limit }}
       email_status_query_interval: ${{ inputs.email_status_query_interval }}
+    secrets: inherit
+
+  load-test-sms-response-time:
+    if: ${{ (inputs.action == 'load-test-sms-response-time') || (inputs.action == 'All') }}
+    uses: ./.github/workflows/load-test-sms-response-time.yaml
+    with:
+      environment: "dev"
+      commit_sha: ${{ inputs.sha }}
+      run_time: ${{ inputs.run_time }}
+      num_users: ${{ inputs.num_users }}
+      spawn_rate: ${{ inputs.spawn_rate }}
     secrets: inherit
