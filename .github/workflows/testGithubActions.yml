@@ -20,7 +20,7 @@ on:
 
 jobs:
 
-  run build:
+  build:
     if: ${{ (inputs.action == 'build') || (inputs.action == 'All') }}
     uses: ./.github/workflows/build.yml
     with:
@@ -29,7 +29,7 @@ jobs:
       lambdaName: ${{ inputs.choice }}
     secrets: inherit
 
-  run CodeQL:
+  codeql:
     if: ${{ (inputs.action == 'codeql') || (inputs.action == 'All') }}
-    uses: ./.github/workflows/${{ inputs.action }}.yml
+    uses: ./.github/workflows/codeql.yml
 
