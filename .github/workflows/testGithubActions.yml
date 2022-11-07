@@ -34,7 +34,7 @@ jobs:
 
   load-test-email-delivery-time:
     if: ${{ (inputs.action == 'load-test-email-delivery-time') || (inputs.action == 'All') }}
-    uses: ./.github/workflows/build.yml
+    uses: ./.github/workflows/load-test-email-delivery-time.yml
     with:
       environment: "dev"
       ref: ${{ inputs.ref }}
