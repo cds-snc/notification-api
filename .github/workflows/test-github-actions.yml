@@ -19,7 +19,6 @@ on:
         type: string
         description: The commit SHA containing the code you want to test
         required: false
-        default: "0d818c38ccac687594b91fa0437ba1dffc0c00aa"
       email_limit:
         type: string
         description: "Number of emails to send"
