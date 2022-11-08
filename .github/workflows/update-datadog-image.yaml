@@ -2,6 +2,7 @@ name: Datadog image update
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   update-image:

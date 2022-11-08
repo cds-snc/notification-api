@@ -14,7 +14,6 @@ on:
           - All
           - load-test-email-delivery-time
           - load-test-sms-response-time
-          - update-cached-image
           - update-datadog-image
       sha:
         type: string
@@ -77,3 +76,9 @@ jobs:
       num_users: ${{ inputs.num_users }}
       spawn_rate: ${{ inputs.spawn_rate }}
     secrets: inherit
+
+  update-datadog-image:
+    if: ${{ (inputs.action == 'update-datadog-image') || (inputs.action == 'All') }}
+    uses: ./.github/workflows/update-datadog-image.yaml
+    secrets: inherit
+
