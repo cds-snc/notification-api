@@ -8,6 +8,7 @@ let Components = {
 // Actions users can take on the page
 let Actions = {
     Login: (email, password) => {
+        cy.visit(LoginPage.URL);
         Components.EmailAddress().type(email);
         Components.Password().type(password);
         Components.SubmitButton().click();
