@@ -833,13 +833,13 @@ def test_fetch_notification_statuses_per_service_and_template_for_date(notify_db
 
     assert len(results) == 6
 
-    # "service id", "service name", "template id", "template name", "status", "reason", "count"
+    # "service id", "service name", "template id", "template name", "status", "reason", "count", "channel_type"
     notification_param_lists = [
-        [test_service.id, 'service', test_template.id, 'template', NOTIFICATION_PERMANENT_FAILURE, 'baz', 4],
-        [test_service.id, 'service', test_template.id, 'template', NOTIFICATION_DELIVERED, 'foo', 2],
-        [test_service.id, 'service', test_template.id, 'template', NOTIFICATION_TECHNICAL_FAILURE, '', 5],
-        [test_service.id, 'service', test_template.id, 'template', NOTIFICATION_PERMANENT_FAILURE, 'bar', 5],
-        [test_service.id, 'service', test_template.id, 'template', NOTIFICATION_TECHNICAL_FAILURE, '', 5]
+        [test_service.id, 'service', test_template.id, 'template', NOTIFICATION_PERMANENT_FAILURE, 'baz', 4, 'sms'],
+        [test_service.id, 'service', test_template.id, 'template', NOTIFICATION_DELIVERED, 'foo', 2, 'sms'],
+        [test_service.id, 'service', test_template.id, 'template', NOTIFICATION_TECHNICAL_FAILURE, '', 5, 'sms'],
+        [test_service.id, 'service', test_template.id, 'template', NOTIFICATION_PERMANENT_FAILURE, 'bar', 5, 'sms'],
+        [test_service.id, 'service', test_template.id, 'template', NOTIFICATION_TECHNICAL_FAILURE, '', 5, 'sms']
     ]
 
     for param_list in notification_param_lists:

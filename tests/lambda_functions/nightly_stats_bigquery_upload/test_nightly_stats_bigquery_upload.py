@@ -63,9 +63,9 @@ EXAMPLE_SERVICE_ACCOUNT_INFO = {
 }
 
 EXAMPLE_NIGHTLY_STATS_LIST = [
-    ["service id", "service name", "template id", "template name", "status", "count"],
-    ["some service id", "some service name", "some template id", "some template name", "some status", "5"],
-    ["other service id", "other service name", "other template id", "other template name", "other status", "5"],
+    ["service id", "service name", "template id", "template name", "status", "count", "channel_type"],
+    ["some service id", "some service name", "some template id", "some template name", "some status", "5", "email"],
+    ["other service id", "other service name", "other template id", "other template name", "other status", "5", "sms"],
 ]
 
 

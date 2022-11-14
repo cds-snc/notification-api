@@ -128,7 +128,10 @@ def generate_daily_notification_status_csv_report(process_day_string):
     buff = io.StringIO()
 
     writer = csv.writer(buff, dialect='excel', delimiter=',')
-    header = ["date", "service id", "service name", "template id", "template name", "status", "status reason", "count"]
+    header = [
+        "date", "service id", "service name", "template id", "template name", "status", "status reason", "count",
+        "channel_type"
+    ]
     writer.writerow(header)
     writer.writerows((process_day,) + row for row in transit_data)
 
