@@ -39,14 +39,18 @@ class TwilioSMSClient(SmsClient):
     def get_name(self):
         return self.name
 
-    def send_sms(self, to, content, reference, **kwargs):
+    def send_sms(self, to, content, reference, **kwargs) -> str:
         """
         Twilio supports sending messages with a sender phone number or messaging_service_sid.
+
+        Return: a string containing the Twilio message.sid
         """
 
         start_time = monotonic()
-        callback_url = "{}/notifications/sms/twilio/{}".format(
-            self._callback_notify_url_host, reference) if self._callback_notify_url_host else ""
+        callback_url = ""
+        if self._callback_notify_url_host:
+            callback_url = f"{self._callback_notify_url_host}/notifications/sms/twilio/{reference}"
+
         try:
             # Importing inline to resolve a circular import error when importing at the top of the file
             from app.dao.service_sms_sender_dao import (
@@ -57,6 +61,8 @@ class TwilioSMSClient(SmsClient):
             messaging_service_sid = None
             sms_sender_id = kwargs.get("sms_sender_id")
 
+            # If sms_sender_id is available, get the specified sender.
+            # Otherwise, get the first sender for the service.
             if sms_sender_id is not None:
                 # This is an instance of ServiceSmsSender or None.
                 service_sms_sender = dao_get_service_sms_sender_by_id(
@@ -101,6 +107,8 @@ class TwilioSMSClient(SmsClient):
                 self.logger.info(f"Twilio message created using messaging_service_sid")
 
             self.logger.info(f"Twilio send SMS request for {reference} succeeded: {message.sid}")
+
+            return message.sid
         except Exception as e:
             self.logger.error(f"Twilio send SMS request for {reference} failed")
             raise e

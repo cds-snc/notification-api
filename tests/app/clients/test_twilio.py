@@ -113,6 +113,7 @@ def test_send_sms_call_with_sender_id_and_specifics(sample_service, notify_api, 
     with requests_mock.Mocker() as request_mock:
         request_mock.post("https://api.twilio.com/2010-04-01/Accounts/TWILIO_TEST_ACCOUNT_SID_XXX/Messages.json",
                           json=response_dict, status_code=200)
+
         if sms_sender_id is not None:
             mocker.patch("app.dao.service_sms_sender_dao.dao_get_service_sms_sender_by_id",
                          return_value=sms_sender_with_specifics)
@@ -120,7 +121,7 @@ def test_send_sms_call_with_sender_id_and_specifics(sample_service, notify_api, 
             mocker.patch("app.dao.service_sms_sender_dao.dao_get_service_sms_sender_by_service_id_and_number",
                          return_value=sms_sender_with_specifics)
 
-        twilio_sms_client.send_sms(
+        twilio_sid = twilio_sms_client.send_sms(
             to,
             content,
             reference,
@@ -128,6 +129,8 @@ def test_send_sms_call_with_sender_id_and_specifics(sample_service, notify_api, 
             sender="test_sender",
             sms_sender_id=sms_sender_id
         )
+
+    assert response_dict['sid'] == twilio_sid
 
     assert request_mock.call_count == 1
     req = request_mock.request_history[0]
