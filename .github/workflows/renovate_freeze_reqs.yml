@@ -1,0 +1,36 @@
+name: Run make freeze-requirements and commit results
+
+on:
+  push:
+    # branches:
+    #   - "renovate/*"
+    paths:
+      - "requirements-app.txt"
+      - "requirements_for_test.txt"
+
+jobs:
+  freeze-requirements:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install virutalenv
+        run: pip3 install virtualenv
+
+      - name: Install libcurl
+        run: apt-get update && apt-get install libssl-dev libcurl4-openssl-dev
+
+      - name: Generate requirements.txt
+        run: make freeze-requirements
+
+      # this should cause the workflows to re-run
+      - name: Commit changes back
+        uses: devops-infra/action-commit-push@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          commit_message: Run make freeze-requirements
+  re-run-test-workflow:
+    needs: freeze-requirements
+    uses: ./.github/workflows/test.yaml@main
+          

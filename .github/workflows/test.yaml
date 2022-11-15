@@ -1,5 +1,7 @@
 on:
   push:
+  workflow_call:
+  
 name: Python tests
 jobs:
   test:
