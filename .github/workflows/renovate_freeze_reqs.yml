@@ -32,5 +32,5 @@ jobs:
           commit_message: Run make freeze-requirements
   re-run-test-workflow:
     needs: freeze-requirements
-    uses: ./.github/workflows/test.yaml@main
+    uses: ./.github/workflows/test.yaml
           
