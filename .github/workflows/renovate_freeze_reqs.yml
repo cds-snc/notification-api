@@ -19,7 +19,7 @@ jobs:
         run: pip3 install virtualenv
 
       - name: Install libcurl
-        run: apt-get update && apt-get install libssl-dev libcurl4-openssl-dev
+        run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
 
       - name: Generate requirements.txt
         run: make freeze-requirements
