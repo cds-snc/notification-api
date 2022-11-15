@@ -43,7 +43,6 @@ jobs:
           git push
       
       #TODO: This is a copy of the test workflow, which should be re-used instead of copied here
-      - uses: actions/checkout@7884fcad6b5d53d10323aee724dc68d8b9096a2e # tag=v2
       - name: Set up Python 3.9
         with:
           python-version: 3.9
