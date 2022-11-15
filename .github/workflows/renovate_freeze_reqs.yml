@@ -2,8 +2,8 @@ name: Run make freeze-requirements and commit results
 
 on:
   push:
-    # branches:
-    #   - "renovate/*"
+    branches:
+      - "experiment*"
     paths:
       - "requirements-app.txt"
       - "requirements_for_test.txt"
@@ -107,3 +107,6 @@ jobs:
         run: |
           json="{'text':'Scheduled CI testing failed: <https://github.com/cds-snc/notification-api/actions|GitHub actions>'}"
           curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}          
+  re-run-test-workflow:
+    needs: freeze-requirements
+    uses: ./.github/workflows/test.yaml

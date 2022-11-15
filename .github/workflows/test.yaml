@@ -1,5 +1,9 @@
 on:
   push:
+     branches:
+      - "!experiment*"
+  workflow_call:
+
 name: Python tests
 jobs:
   test:
