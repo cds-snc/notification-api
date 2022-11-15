@@ -40,7 +40,7 @@ jobs:
           git config --local user.name "GitHub Actions"
           git add -A
           git commit -m "Run make freeze-requirements" -a
-          git push
+          https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git
       
       #TODO: This is a copy of the test workflow, which should be re-used instead of copied here
       - name: Set up Python 3.9
