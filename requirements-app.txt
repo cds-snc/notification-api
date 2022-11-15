@@ -7,7 +7,7 @@ cffi==1.14.5
 celery[sqs]==5.0.5
 docopt==0.6.2
 environs==9.3.2 # pyup: <9.3.3 # marshmallow v3 throws errors
-fido2==0.9.3
+fido2==0.9.1
 Flask-Bcrypt==0.7.1
 flask-marshmallow==0.14.0
 Flask-Migrate==2.7.0
@@ -62,4 +62,3 @@ git+https://bitbucket.org/cse-assemblyline/assemblyline_client.git@v3.7.3#egg=as
 
 rsa==4.7.2 # not directly required, pinned by Snyk to avoid a vulnerability
 typing-extensions==4.4.0
-#boom!
