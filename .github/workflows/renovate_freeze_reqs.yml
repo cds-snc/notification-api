@@ -26,10 +26,13 @@ jobs:
 
       # this should cause the workflows to re-run
       - name: Commit changes back
-        uses: devops-infra/action-commit-push@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          commit_message: Run make freeze-requirements
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Actions"
+          git add -A
+          git commit -m "Run `make freeze-requirements`" -a
+          git push
+
   re-run-test-workflow:
     needs: freeze-requirements
     uses: ./.github/workflows/test.yaml

@@ -20,58 +20,58 @@ jobs:
     steps:
     - name: Install libcurl
       run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
-    - uses: actions/checkout@7884fcad6b5d53d10323aee724dc68d8b9096a2e # tag=v2
-    - name: Set up Python 3.9
-      uses: actions/setup-python@7f80679172b057fc5e90d70d197929d454754a5a # tag=v2
-      with:
-        python-version: 3.9
-    - name: Upgrade pip
-      run: python -m pip install --upgrade pip
-    - uses: actions/cache@937d24475381cd9c75ae6db12cb4e79714b926ed # tag=v2
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-    - name: Install requirements
-      run: pip install -r requirements_for_test.txt
-    - name: Run tests
-      run: make test
-    - name: Upload pytest logs on failure
-      if: ${{ failure() }}
-      uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # tag=v2
-      with:
-        name: pytest-logs
-        path: |
-          pytest*.log
-    - name: Get python version
-      run: |
-        python_version=$(python  -V | cut -d' ' -f2)
-        echo "python_version=${python_version}" >> $GITHUB_ENV
-    - name: Make version file
-      run: |
-        printf '__commit_sha__ = "09cfe03100443fb9071bba88d5c8775ff54a9ebc"\n__time__ = "2022-07-25:15:11:05"\n' > version.py
-        cp version.py "${{ github.workspace }}/app/"
-    - name: Copy site-packages in workspace
-      working-directory: /opt/hostedtoolcache/Python/${{ env.python_version }}/x64/lib/python3.9/
-      shell: bash
-      run: |
-        mkdir -p "${{ github.workspace }}/env/" && cp -fR site-packages "${{ github.workspace }}/env/"
-    - name: Install development .env file
-      working-directory: ${{ github.workspace }}
-      shell: bash
-      run: |
-        cp -f .env.example .env
-    - name: Checks for new endpoints against AWS WAF rules
-      uses: cds-snc/notification-utils/.github/actions/waffles@main
-      with:
-        app-loc: '/github/workspace'
-        app-libs: '/github/workspace/env/site-packages'
-        flask-mod: 'application'
-        flask-prop: 'application'
-        base-url: 'https://api.staging.notification.cdssandbox.xyz'
-    - name: Notify Slack channel if this job fails
-      if: ${{ failure() && github.ref == 'refs/heads/main' }}
-      run: |
-        json="{'text':'Scheduled CI testing failed: <https://github.com/cds-snc/notification-api/actions|GitHub actions>'}"
-        curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
+    # - uses: actions/checkout@7884fcad6b5d53d10323aee724dc68d8b9096a2e # tag=v2
+    # - name: Set up Python 3.9
+    #   uses: actions/setup-python@7f80679172b057fc5e90d70d197929d454754a5a # tag=v2
+    #   with:
+    #     python-version: 3.9
+    # - name: Upgrade pip
+    #   run: python -m pip install --upgrade pip
+    # - uses: actions/cache@937d24475381cd9c75ae6db12cb4e79714b926ed # tag=v2
+    #   with:
+    #     path: ~/.cache/pip
+    #     key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+    #     restore-keys: |
+    #       ${{ runner.os }}-pip-
+    # - name: Install requirements
+    #   run: pip install -r requirements_for_test.txt
+    # - name: Run tests
+    #   run: make test
+    # - name: Upload pytest logs on failure
+    #   if: ${{ failure() }}
+    #   uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # tag=v2
+    #   with:
+    #     name: pytest-logs
+    #     path: |
+    #       pytest*.log
+    # - name: Get python version
+    #   run: |
+    #     python_version=$(python  -V | cut -d' ' -f2)
+    #     echo "python_version=${python_version}" >> $GITHUB_ENV
+    # - name: Make version file
+    #   run: |
+    #     printf '__commit_sha__ = "09cfe03100443fb9071bba88d5c8775ff54a9ebc"\n__time__ = "2022-07-25:15:11:05"\n' > version.py
+    #     cp version.py "${{ github.workspace }}/app/"
+    # - name: Copy site-packages in workspace
+    #   working-directory: /opt/hostedtoolcache/Python/${{ env.python_version }}/x64/lib/python3.9/
+    #   shell: bash
+    #   run: |
+    #     mkdir -p "${{ github.workspace }}/env/" && cp -fR site-packages "${{ github.workspace }}/env/"
+    # - name: Install development .env file
+    #   working-directory: ${{ github.workspace }}
+    #   shell: bash
+    #   run: |
+    #     cp -f .env.example .env
+    # - name: Checks for new endpoints against AWS WAF rules
+    #   uses: cds-snc/notification-utils/.github/actions/waffles@main
+    #   with:
+    #     app-loc: '/github/workspace'
+    #     app-libs: '/github/workspace/env/site-packages'
+    #     flask-mod: 'application'
+    #     flask-prop: 'application'
+    #     base-url: 'https://api.staging.notification.cdssandbox.xyz'
+    # - name: Notify Slack channel if this job fails
+    #   if: ${{ failure() && github.ref == 'refs/heads/main' }}
+    #   run: |
+    #     json="{'text':'Scheduled CI testing failed: <https://github.com/cds-snc/notification-api/actions|GitHub actions>'}"
+    #     curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
