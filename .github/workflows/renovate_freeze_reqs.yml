@@ -15,8 +15,8 @@ jobs:
       - name: Echo
         run: |
           echo https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git
-      - name: Checkout
-        uses: actions/checkout@v3
+      # - name: Checkout
+      #   uses: actions/checkout@v3
 
       # - name: Install virutalenv
       #   run: pip3 install virtualenv
