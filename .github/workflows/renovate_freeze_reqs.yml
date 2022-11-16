@@ -39,9 +39,10 @@ jobs:
 
       - name: Trigger test workflow again
         run: |
+
           curl \
             -X POST \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            https://api.github.com/repos/cds-snc/notification-api/actions/workflows/test.yml/dispatches \
-            -d '{"ref":"${{ steps.extract_branch.outputs.branch }}"}'
+            -H "Authorization: Bearer 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" \
+            https://api.github.com/repos/cds-snc/notification-api/actions/workflows/test.yaml/dispatches \
+            -d '{"ref":"experiment/renovate-github-actions"}'
