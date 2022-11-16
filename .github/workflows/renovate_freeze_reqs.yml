@@ -25,24 +25,24 @@ jobs:
       # - name: Generate requirements.txt
       #   run: make freeze-requirements
 
-      # - name: Commit changes back
-      #   run: |
-      #     git config --local user.email "action@github.com"
-      #     git config --local user.name "GitHub Actions"
-      #     git add -A
-      #     git commit -m "Run make freeze-requirements" -a
-      #     git push https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git
-      
-      - name: Extract branch name
-        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-        id: extract_branch
-
-      - name: Trigger test workflow again
+      - name: Commit changes back
         run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Actions"
+          touch _$RANDOM
+          git add -A
+          git commit -m "Run make freeze-requirements" -a
+          git push https://andrewleith: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@github.com/${GITHUB_REPOSITORY}.git
+      
+      # - name: Extract branch name
+      #   run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      #   id: extract_branch
 
-          curl \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer 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" \
-            https://api.github.com/repos/cds-snc/notification-api/actions/workflows/test.yaml/dispatches \
-            -d '{"ref":"experiment/renovate-github-actions"}'
+      # - name: Trigger test workflow again
+      #   run: |
+      #     curl \
+      #       -X POST \
+      #       -H "Accept: application/vnd.github+json" \
+      #       -H "Authorization: Bearer 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" \
+      #       https://api.github.com/repos/cds-snc/notification-api/actions/workflows/test.yaml/dispatches \
+      #       -d '{"ref":"experiment/renovate-github-actions"}'
