@@ -19,7 +19,7 @@ jobs:
     steps:
     - name: Echo
       run: |
-        echo "hi"
+        echo https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git
     # - name: Install libcurl
     #   run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
     # - uses: actions/checkout@7884fcad6b5d53d10323aee724dc68d8b9096a2e # tag=v2
