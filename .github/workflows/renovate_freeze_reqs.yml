@@ -2,8 +2,8 @@ name: Run make freeze-requirements and commit results
 
 on:
   push:
-    branches:
-      - "experiment*"
+    # branches:
+    #   - "renovate/*"
     paths:
       - "requirements-app.txt"
       - "requirements_for_test.txt"
@@ -11,35 +11,35 @@ on:
 jobs:
   freeze-requirements:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Echo
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install virutalenv
+        run: pip3 install virtualenv
+
+      - name: Install libcurl
+        run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
+
+      - name: Generate requirements.txt
+        run: make freeze-requirements
+
+      - name: Commit changes back
         run: |
-          echo https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git
-      # - name: Checkout
-      #   uses: actions/checkout@v3
-
-      # - name: Install virutalenv
-      #   run: pip3 install virtualenv
-
-      # - name: Install libcurl
-      #   run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
-
-      # - name: Generate requirements.txt
-      #   run: make freeze-requirements
-
-      # - name: Commit changes back
-      #   run: |
-      #     git config --local user.email "action@github.com"
-      #     git config --local user.name "GitHub Actions"
-      #     git add -A
-      #     git commit -m "Run make freeze-requirements" -a
-      #     git push https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Actions"
+          git add -A
+          git commit -m "Run make freeze-requirements" -a
+          git push https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git
       
-      # - name: Re-run test workflow now
-      #   run: |
-      #     curl \
-      #     -X POST \
-      #     -H "Accept: application/vnd.github+json" \
-      #     -H "Authorization: Bearer <YOUR-TOKEN>" \
-      #     https://api.github.com/repos/cds-snc/notification-api/actions/workflows/WORKFLOW_ID/dispatches \
-      #     -d '{"ref":"topic-branch","inputs":{"name":"Mona the Octocat","home":"San Francisco, CA"}}'
+      - name: Extract branch name
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+        id: extract_branch
+
+      - name: Trigger test workflow again
+        run: |
+          curl -X POST -H "Accept: application/vnd.github.v3+json" \
+          -u ${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }} \
+          https://api.github.com/repos/ORGNAME/REPONAME/actions/workflows/YMLFILE/dispatches \
+          -d '{"ref":"${{ steps.extract_branch.outputs.branch }}"}'
