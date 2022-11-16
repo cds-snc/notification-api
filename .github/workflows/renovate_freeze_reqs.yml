@@ -25,13 +25,13 @@ jobs:
       - name: Generate requirements.txt
         run: make freeze-requirements
 
-      - name: Commit changes back
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Actions"
-          git add -A
-          git commit -m "Run make freeze-requirements" -a
-          git push https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git
+      # - name: Commit changes back
+      #   run: |
+      #     git config --local user.email "action@github.com"
+      #     git config --local user.name "GitHub Actions"
+      #     git add -A
+      #     git commit -m "Run make freeze-requirements" -a
+      #     git push https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git
       
       - name: Extract branch name
         run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
