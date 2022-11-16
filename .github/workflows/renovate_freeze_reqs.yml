@@ -13,17 +13,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      # - name: Checkout
+      #   uses: actions/checkout@v3
 
-      - name: Install virutalenv
-        run: pip3 install virtualenv
+      # - name: Install virutalenv
+      #   run: pip3 install virtualenv
 
-      - name: Install libcurl
-        run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
+      # - name: Install libcurl
+      #   run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
 
-      - name: Generate requirements.txt
-        run: make freeze-requirements
+      # - name: Generate requirements.txt
+      #   run: make freeze-requirements
 
       # - name: Commit changes back
       #   run: |
@@ -39,7 +39,9 @@ jobs:
 
       - name: Trigger test workflow again
         run: |
-          curl -X POST -H "Accept: application/vnd.github.v3+json" \
-          -u ${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }} \
-          https://api.github.com/repos/ORGNAME/REPONAME/actions/workflows/YMLFILE/dispatches \
-          -d '{"ref":"${{ steps.extract_branch.outputs.branch }}"}'
+          curl \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/cds-snc/notification-api/actions/workflows/test.yml/dispatches \
+            -d '{"ref":"${{ steps.extract_branch.outputs.branch }}"}'
