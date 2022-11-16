@@ -17,9 +17,15 @@ jobs:
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
-    - name: Echo
-      run: |
-        echo $GITHUB_REF
+      - name: Extract branch name
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+        id: extract_branch
+
+      - name: Echo
+        run: |
+          echo ${{ steps.extract_branch.outputs.branch }}
+        
     # - name: Install libcurl
     #   run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
     # - uses: actions/checkout@7884fcad6b5d53d10323aee724dc68d8b9096a2e # tag=v2
