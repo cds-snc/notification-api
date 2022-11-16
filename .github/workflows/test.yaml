@@ -1,6 +1,7 @@
 on:
   push:
-
+  workflow_dispatch:
+  
 name: Python tests
 jobs:
   test:
