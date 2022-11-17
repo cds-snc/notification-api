@@ -60,14 +60,14 @@ jobs:
       shell: bash
       run: |
         cp -f .env.example .env
-    - name: Checks for new endpoints against AWS WAF rules
-      uses: cds-snc/notification-utils/.github/actions/waffles@main
-      with:
-        app-loc: '/github/workspace'
-        app-libs: '/github/workspace/env/site-packages'
-        flask-mod: 'application'
-        flask-prop: 'application'
-        base-url: 'https://api.staging.notification.cdssandbox.xyz'
+    # - name: Checks for new endpoints against AWS WAF rules
+    #   uses: cds-snc/notification-utils/.github/actions/waffles@main
+    #   with:
+    #     app-loc: '/github/workspace'
+    #     app-libs: '/github/workspace/env/site-packages'
+    #     flask-mod: 'application'
+    #     flask-prop: 'application'
+    #     base-url: 'https://api.staging.notification.cdssandbox.xyz'
     - name: Notify Slack channel if this job fails
       if: ${{ failure() && github.ref == 'refs/heads/main' }}
       run: |
