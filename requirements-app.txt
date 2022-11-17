@@ -27,7 +27,7 @@ PyJWT==2.1.0
 pytz==2021.1
 PyYAML==5.4.1
 SQLAlchemy==1.4.37
-sentry-sdk[flask]==1.0.0
+# sentry-sdk[flask]==1.0.0
 cachelib==0.1.1
 
 newrelic==6.2.0.156
