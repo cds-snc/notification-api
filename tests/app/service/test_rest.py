@@ -2869,7 +2869,7 @@ def test_delete_service_reply_to_email_address_returns_400_if_archiving_default_
     admin_request, notify_db_session, sample_service
 ):
     reply_to_1 = create_reply_to_email(service=sample_service, email_address="some_1@email.com")
-    reply_to_2 = create_reply_to_email(service=sample_service, email_address="some_2@email.com")
+    create_reply_to_email(service=sample_service, email_address="some_2@email.com")
 
     response = admin_request.post(
         "service.delete_service_reply_to_email_address",
