@@ -1,6 +1,6 @@
-FROM python:3.9-alpine3.13@sha256:a7cbd1e7784a35a098cedbc8681b790d35ff6030a5e13f043185e2465003a040
+FROM python:3.10-alpine3.13@sha256:a7cbd1e7784a35a098cedbc8681b790d35ff6030a5e13f043185e2465003a040
 
-ENV PYTHONPATH "${PYTHONPATH}:/opt/python/lib/python3.9/site-packages"
+ENV PYTHONPATH "${PYTHONPATH}:/opt/python/lib/python3.10/site-packages"
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV TASK_ROOT /app
 
