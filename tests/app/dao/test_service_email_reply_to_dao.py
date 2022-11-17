@@ -256,8 +256,7 @@ def test_archive_reply_to_email_address_does_not_archive_a_reply_to_for_a_differ
     assert not reply_to.archived
 
 
-# TODO: fix test name
-def test_archive_reply_to_email_address_raises_an_error_if_attempting_to_archive_a_default(
+def test_archive_reply_to_email_address_if_default_and_no_other_addresses_exist(
     sample_service,
 ):
     default_reply_to = create_reply_to_email(service=sample_service, email_address="first@address.com")
@@ -268,8 +267,7 @@ def test_archive_reply_to_email_address_raises_an_error_if_attempting_to_archive
     assert default_reply_to.updated_at is not None
 
 
-# TODO: fix test name
-def test_archive_reply_to_email_address_raises_an_error_if_attempting_to_archive_a_default_2(
+def test_archive_reply_to_email_address_raises_an_error_if_default_and_other_addresses_exist(
     sample_service,
 ):
     default_reply_to = create_reply_to_email(service=sample_service, email_address="first@address.com")
