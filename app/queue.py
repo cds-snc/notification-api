@@ -145,6 +145,7 @@ class RedisQueue(Queue):
         in_flight_key = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
         results = self.__move_to_inflight(in_flight_key, count)
         if results:
+            current_app.logger.info(f"Inflight created: {in_flight_key}")
             put_batch_saving_inflight_metric(self.__metrics_logger, self, 1)
         return (receipt, results)
 
@@ -164,6 +165,12 @@ class RedisQueue(Queue):
 
     def acknowledge(self, receipt: UUID):
         inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
+        # log an error if the inflight_name does not exist - that would mean we are deleting
+        # from the wrong queue.
+        if self._redis_client.get(inflight_name):
+            current_app.logger.warning(f"Acknowleged inflight: {inflight_name}")
+        else:
+            current_app.logger.warning(f"Inflight to delete not found: {inflight_name}")
         self._redis_client.delete(inflight_name)
         put_batch_saving_inflight_processed(self.__metrics_logger, self, 1)
 

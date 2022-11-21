@@ -444,8 +444,10 @@ def handle_batch_error_and_forward(
     else:
         current_app.logger.warning(f"Batch saving: could not persist notifications: {str(exception)}")
 
+    notifications_in_job: List[str] = []
     for (signed, notification) in signed_and_verified:
         notification_id = notification["notification_id"]
+        notifications_in_job.append(notification_id)
         service = notification["service"]
         # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
         # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
@@ -493,7 +495,7 @@ def handle_batch_error_and_forward(
     # end of the loop, purge the notifications from the buffer queue:
     if receipt:
         _acknowledge_notification(notification_type, template, receipt)
-        current_app.logger.info(f"Acknowledged notification id: {str(notification_id)} for receipt: {str(receipt)}")
+        current_app.logger.info(f"Acknowledged notification ids: {str(notifications_in_job)} for receipt: {str(receipt)}")
 
 
 def get_template_class(template_type):
@@ -726,6 +728,8 @@ def _acknowledge_notification(notification_type: Any, template: Any, receipt: UU
             sms_normal.acknowledge(receipt)
         elif template.process_type == BULK:
             sms_bulk.acknowledge(receipt)
+        else:
+            current_app.logger.error(f"Unknown process type for SMS notification: {template.process_type}, receipt {receipt}")
     elif notification_type == EMAIL_TYPE:
         if template.process_type == PRIORITY:
             email_priority.acknowledge(receipt)
@@ -733,4 +737,7 @@ def _acknowledge_notification(notification_type: Any, template: Any, receipt: UU
             email_normal.acknowledge(receipt)
         elif template.process_type == BULK:
             email_bulk.acknowledge(receipt)
-    current_app.logger.info(f"ACKNOWLEDGED: {notification_type} for receipt_id {receipt}")
+        else:
+            current_app.logger.error(f"Unknown process type for email notification: {template.process_type}, receipt: {receipt}")
+    else:
+        current_app.logger.error(f"Unknown notification type: {template.notification_type}, receipt: {receipt}")
