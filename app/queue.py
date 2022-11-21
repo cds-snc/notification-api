@@ -167,7 +167,7 @@ class RedisQueue(Queue):
         inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
         # log an error if the inflight_name does not exist - that would mean we are deleting
         # from the wrong queue.
-        if self._redis_client.get(inflight_name):
+        if self._redis_client.exists(inflight_name):
             current_app.logger.warning(f"Acknowleged inflight: {inflight_name}")
         else:
             current_app.logger.warning(f"Inflight to delete not found: {inflight_name}")
