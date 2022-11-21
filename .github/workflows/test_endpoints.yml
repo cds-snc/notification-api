@@ -1,0 +1,68 @@
+on: push
+name: test endpoints
+jobs:
+  test:
+    name: test endpoints
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'
+
+    - name: Upgrade pip
+      run: python -m pip install --upgrade pip
+
+    - uses: actions/cache@v2
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Get python version
+      run: |
+        python_version=$(python  -V | cut -d' ' -f2)
+        echo "python_version=${python_version}" >> $GITHUB_ENV
+
+    - name: Make version file
+      run: |
+        printf '__commit_sha__ = "09cfe03100443fb9071bba88d5c8775ff54a9ebc"\n__time__ = "2022-07-25:15:11:05"\n' > version.py
+        cp version.py "${{ github.workspace }}/app/"
+
+    - name: Copy site-packages in workspace
+      working-directory: /opt/hostedtoolcache/Python/${{ env.python_version }}/x64/lib/python3.10/
+      shell: bash
+      run: |
+        mkdir -p "${{ github.workspace }}/env/" && cp -fR site-packages "${{ github.workspace }}/env/"
+
+    - name: Install development .env file
+      working-directory: ${{ github.workspace }}
+      shell: bash
+      run: |
+        cp -f .env.example .env
+
+    - name: set PYTHONPATH
+      run: |
+        echo "PYTHONPATH=/github/workspace/env/site-packages:${{ env.PYTHONPATH}}" >> $GITHUB_ENV
+
+      - name: Checks for new endpoints against AWS WAF rules
+      uses: cds-snc/notification-utils/.github/actions/waffles@main
+      with:
+        app-loc: '/github/workspace'
+        app-libs: '/github/workspace/env/site-packages'
+        flask-mod: 'application'
+        flask-prop: 'application'
+        base-url: 'https://api.staging.notification.cdssandbox.xyz'
+
+    - name: Notify Slack channel if this job fails
+      if: ${{ failure() && github.ref == 'refs/heads/main' }}
+      run: |
+        json="{'text':'API Endpoint testing failed: <https://github.com/cds-snc/notification-api/actions|GitHub actions>'}"
+        curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
