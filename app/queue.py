@@ -166,6 +166,15 @@ class RedisQueue(Queue):
             current_app.logger.warning(f"Moved inflights {expired} back to inbox {self._inbox}")
 
     def acknowledge(self, receipt: UUID) -> bool:
+        """
+        Remove the in-flight list from Redis
+
+        Args:
+        receipt: UUID
+            id of the inflight to remove
+
+        Returns: True if the inflight was found in that queue and removed, False otherwise
+        """
         inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
         if not self._redis_client.exists(inflight_name):
             current_app.logger.warning(f"Inflight to delete not found: {inflight_name}")
