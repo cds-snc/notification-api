@@ -6,6 +6,7 @@ from typing import Any, Dict
 from uuid import UUID, uuid4
 
 from flask import current_app
+from redis import Redis
 
 from app.aws.metrics import (
     put_batch_saving_expiry_metric,
@@ -13,6 +14,7 @@ from app.aws.metrics import (
     put_batch_saving_inflight_processed,
     put_batch_saving_metric,
 )
+from app.aws.metrics_logger import MetricsLogger
 
 
 def generate_element(length=10) -> str:
@@ -135,7 +137,7 @@ class RedisQueue(Queue):
         self._process_type = process_type
         self._expire_inflight_after_seconds = expire_inflight_after_seconds
 
-    def init_app(self, redis, metrics_logger):
+    def init_app(self, redis: Redis, metrics_logger: MetricsLogger):
         self._redis_client = redis
         self.__register_scripts()
         self.__metrics_logger = metrics_logger
