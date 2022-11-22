@@ -1441,7 +1441,6 @@ def document_download_response(override={}):
         "id": "document-id",
         "direct_file_url": "http://direct-file-url.localdomain",
         "url": "http://frontend-url.localdomain",
-        "mlwr_sid": "mlwr-sid",
         "filename": "filename",
         "sending_method": "sending_method",
         "mime_type": "mime_type",
