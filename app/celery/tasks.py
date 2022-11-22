@@ -721,23 +721,31 @@ def _acknowledge_notification(notification_type: Any, template: Any, receipt: UU
 
     Returns: None
     """
-    if notification_type == SMS_TYPE:
-        if template.process_type == PRIORITY:
-            sms_priority.acknowledge(receipt)
-        elif template.process_type == NORMAL:
-            sms_normal.acknowledge(receipt)
-        elif template.process_type == BULK:
-            sms_bulk.acknowledge(receipt)
-        else:
-            current_app.logger.error(f"Unknown process type for SMS notification: {template.process_type}, receipt {receipt}")
-    elif notification_type == EMAIL_TYPE:
-        if template.process_type == PRIORITY:
-            email_priority.acknowledge(receipt)
-        elif template.process_type == NORMAL:
-            email_normal.acknowledge(receipt)
-        elif template.process_type == BULK:
-            email_bulk.acknowledge(receipt)
-        else:
-            current_app.logger.error(f"Unknown process type for email notification: {template.process_type}, receipt: {receipt}")
+    queue_for = {
+        (SMS_TYPE, PRIORITY): sms_priority,
+        (SMS_TYPE, NORMAL): sms_normal,
+        (SMS_TYPE, BULK): sms_bulk,
+        (EMAIL_TYPE, PRIORITY): email_priority,
+        (EMAIL_TYPE, NORMAL): email_normal,
+        (EMAIL_TYPE, BULK): email_bulk,
+    }
+    queue = queue_for.get((notification_type, template.process_type))
+    if queue is None:
+        raise Exception(
+            f"_acknowledge_notification: No queue found for receipt {receipt} notification type {notification_type} and process type {template.process_type}"
+        )
+    if queue.acknowledge(receipt):
+        return
+
+    current_app.logger.error(f"_acknowledge_notification: trying to acknowledge inflight everywhere for receipt {receipt}")
+    if (
+        sms_priority.acknowledge(receipt)
+        or sms_normal.acknowledge(receipt)
+        or sms_bulk.acknowledge(receipt)
+        or email_priority.acknowledge(receipt)
+        or email_normal.acknowledge(receipt)
+        or email_bulk.acknowledge(receipt)
+    ):
+        return
     else:
-        current_app.logger.error(f"Unknown notification type: {template.notification_type}, receipt: {receipt}")
+        current_app.logger.error(f"_acknowledge_notification: receipt {receipt} not found in any queue")
