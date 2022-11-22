@@ -1,10 +1,9 @@
 # Run `make freeze-requirements` to update requirements.txt
 # with package version changes made in requirements-app.txt
-
 apig-wsgi==2.15.0
 boto==2.49.0
 cffi==1.15.1
-celery[sqs]==5.0.5
+celery[sqs]==5.2.7
 docopt==0.6.2
 environs==9.5.0 # pyup: <9.3.3 # marshmallow v3 throws errors
 fido2==0.9.1
@@ -19,8 +18,8 @@ gunicorn==20.1.0
 iso8601==0.1.14
 idna==2.10 # pinned to align with test moto dependency requirements
 jsonschema==3.2.0
-marshmallow-sqlalchemy==0.28.1 # pyup: <0.24.0 # marshmallow v3 throws errors
-marshmallow==2.21.0 # pyup: <3 # v3 throws errors
+marshmallow-sqlalchemy==0.28.1
+marshmallow==3.19.0 
 python-magic==0.4.22
 psycopg2-binary==2.9.5
 PyJWT==2.6.0
@@ -29,7 +28,6 @@ PyYAML==5.4.1
 SQLAlchemy==1.4.37
 sentry-sdk[flask]==1.10.1
 cachelib==0.9.0
-
 newrelic==6.10.0.165
 notifications-python-client==6.4.1
 python-dotenv==0.21.0
@@ -38,27 +36,14 @@ tldextract==3.4.0
 nanoid==2.0.0
 unidecode==1.3.6
 more-itertools==8.14.0
-
 # PaaS
 awscli-cwlogs==1.4.6
 aws-embedded-metrics==1.0.7
-
 # Putting upgrade on hold due to new version introducing breaking changes
 Werkzeug==2.2.2
 MarkupSafe==2.1.1
-
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous==2.1.2
-
-git+https://github.com/cds-snc/notifier-utils.git@49.1.0#egg=notifications-utils
-
-# MLWR
-socketio-client==0.7.2
-requests
-requests[security]
-pycryptodome
-
-git+https://bitbucket.org/cse-assemblyline/assemblyline_client.git@v3.7.3#egg=assemblyline_client==v3.7.3
-
-rsa==4.9 # not directly required, pinned by Snyk to avoid a vulnerability
+# git+https://github.com/cds-snc/notifier-utils.git@49.1.0#egg=notifications-utils
+# rsa==4.9  # awscli 1.22.38 depends on rsa<4.8
 typing-extensions==4.4.0
