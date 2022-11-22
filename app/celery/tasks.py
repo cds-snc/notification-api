@@ -737,7 +737,7 @@ def _acknowledge_notification(notification_type: Any, process_type: Any, receipt
     if queue.acknowledge(receipt):
         return
 
-    current_app.logger.error(f"_acknowledge_notification: trying to acknowledge inflight everywhere for receipt {receipt}")
+    current_app.logger.warning(f"_acknowledge_notification: trying to acknowledge inflight everywhere for receipt {receipt}")
     if (
         sms_priority.acknowledge(receipt)
         or sms_normal.acknowledge(receipt)
@@ -748,4 +748,4 @@ def _acknowledge_notification(notification_type: Any, process_type: Any, receipt
     ):
         return
     else:
-        current_app.logger.error(f"_acknowledge_notification: receipt {receipt} not found in any queue")
+        current_app.logger.warning(f"_acknowledge_notification: receipt {receipt} not found in any queue")
