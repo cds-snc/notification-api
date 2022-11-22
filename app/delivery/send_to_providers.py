@@ -38,7 +38,6 @@ from app.models import (
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
     NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_VIRUS_SCAN_FAILED,
     SMS_TYPE,
     Notification,
     Service,
