@@ -15,10 +15,7 @@ from app.dao.provider_details_dao import (
     dao_switch_sms_provider_to_provider_with_identifier,
 )
 from app.delivery import send_to_providers
-from app.exceptions import (
-    InvalidUrlException,
-    NotificationTechnicalFailureException,
-)
+from app.exceptions import InvalidUrlException, NotificationTechnicalFailureException
 from app.models import (
     BRANDING_BOTH_EN,
     BRANDING_BOTH_FR,
