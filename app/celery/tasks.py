@@ -465,7 +465,6 @@ def handle_batch_error_and_forward(
             template = dao_get_template_by_id(
                 notification.get("template_id"), notification.get("template_version"), use_cache=True
             )
-
             # if the template is obtained from cache a tuple will be returned where
             # the first element is the Template object and the second the template cache data
             # in the form of a dict
