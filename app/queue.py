@@ -6,6 +6,7 @@ from typing import Any, Dict
 from uuid import UUID, uuid4
 
 from flask import current_app
+from redis import Redis
 
 from app.aws.metrics import (
     put_batch_saving_expiry_metric,
@@ -13,6 +14,7 @@ from app.aws.metrics import (
     put_batch_saving_inflight_processed,
     put_batch_saving_metric,
 )
+from app.aws.metrics_logger import MetricsLogger
 
 
 def generate_element(length=10) -> str:
@@ -135,7 +137,7 @@ class RedisQueue(Queue):
         self._process_type = process_type
         self._expire_inflight_after_seconds = expire_inflight_after_seconds
 
-    def init_app(self, redis, metrics_logger):
+    def init_app(self, redis: Redis, metrics_logger: MetricsLogger):
         self._redis_client = redis
         self.__register_scripts()
         self.__metrics_logger = metrics_logger
@@ -145,6 +147,7 @@ class RedisQueue(Queue):
         in_flight_key = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
         results = self.__move_to_inflight(in_flight_key, count)
         if results:
+            current_app.logger.info(f"Inflight created: {in_flight_key}")
             put_batch_saving_inflight_metric(self.__metrics_logger, self, 1)
         return (receipt, results)
 
@@ -162,10 +165,24 @@ class RedisQueue(Queue):
             put_batch_saving_expiry_metric(self.__metrics_logger, self, len(expired))
             current_app.logger.warning(f"Moved inflights {expired} back to inbox {self._inbox}")
 
-    def acknowledge(self, receipt: UUID):
+    def acknowledge(self, receipt: UUID) -> bool:
+        """
+        Remove the in-flight list from Redis
+
+        Args:
+        receipt: UUID
+            id of the inflight to remove
+
+        Returns: True if the inflight was found in that queue and removed, False otherwise
+        """
         inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
+        if not self._redis_client.exists(inflight_name):
+            current_app.logger.warning(f"Inflight to delete not found: {inflight_name}")
+            return False
         self._redis_client.delete(inflight_name)
+        current_app.logger.info(f"Acknowleged inflight: {inflight_name}")
         put_batch_saving_inflight_processed(self.__metrics_logger, self, 1)
+        return True
 
     def publish(self, message: str):
         self._redis_client.rpush(self._inbox, message)
