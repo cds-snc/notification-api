@@ -1081,6 +1081,31 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SMSNotificationRequest'
+            examples:
+              phone_number:
+                value:
+                  reference: string
+                  template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                  personalisation:
+                    full_name: John Smith
+                    claim_id: '123456'
+                  scheduled_for: string
+                  billing_code: string
+                  sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6                  
+                  phone_number: "+19876543210"
+              recipient_identifier:
+                value:
+                  reference: string
+                  template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                  personalisation:
+                    full_name: John Smith
+                    claim_id: '123456'
+                  scheduled_for: string
+                  billing_code: string
+                  sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6                  
+                  recipient_identifier:
+                    id_type: ICN
+                    id_value: 1000000000V000000
       responses:
         '201':
           description: CREATED
