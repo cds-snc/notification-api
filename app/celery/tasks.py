@@ -278,7 +278,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
             f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
         )
         if receipt:
-            _acknowledge_notification(SMS_TYPE, process_type, receipt)
+            acknowledge_receipt(SMS_TYPE, process_type, receipt)
             current_app.logger.info(
                 f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
             )
@@ -391,7 +391,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
             # template is whatever it was set to last in the for loop above
             # at this point in the code we have a list of notifications (saved_notifications)
             # which could use multiple templates
-            _acknowledge_notification(EMAIL_TYPE, process_type, receipt)
+            acknowledge_receipt(EMAIL_TYPE, process_type, receipt)
             current_app.logger.info(
                 f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
             )
@@ -497,7 +497,7 @@ def handle_batch_error_and_forward(
 
     # end of the loop, purge the notifications from the buffer queue:
     if receipt:
-        _acknowledge_notification(notification_type, process_type, receipt)
+        acknowledge_receipt(notification_type, process_type, receipt)
         current_app.logger.info(f"Acknowledged notification ids: {str(notifications_in_job)} for receipt: {str(receipt)}")
 
 
@@ -711,7 +711,7 @@ def get_recipient_csv(job: Job, template: Template) -> RecipientCSV:
     )
 
 
-def _acknowledge_notification(notification_type: Any, process_type: Any, receipt: UUID):  # noqa
+def acknowledge_receipt(notification_type: Any, process_type: Any, receipt: UUID):  # noqa
     """
     Acknowledge the notification has been saved to the DB and sent to the service.
 
@@ -733,13 +733,13 @@ def _acknowledge_notification(notification_type: Any, process_type: Any, receipt
     }
     queue = queue_for.get((notification_type, process_type))
     if queue is None:
-        raise Exception(
-            f"_acknowledge_notification: No queue found for receipt {receipt} notification type {notification_type} and process type {process_type}"
+        raise ValueError(
+            f"acknowledge_receipt: No queue found for receipt {receipt} notification type {notification_type} and process type {process_type}"
         )
     if queue.acknowledge(receipt):
         return
 
-    current_app.logger.warning(f"_acknowledge_notification: trying to acknowledge inflight everywhere for receipt {receipt}")
+    current_app.logger.warning(f"acknowledge_receipt: trying to acknowledge inflight everywhere for receipt {receipt}")
     if (
         sms_priority.acknowledge(receipt)
         or sms_normal.acknowledge(receipt)
@@ -750,4 +750,4 @@ def _acknowledge_notification(notification_type: Any, process_type: Any, receipt
     ):
         return
     else:
-        current_app.logger.error(f"_acknowledge_notification: receipt {receipt} not found in any queue")
+        current_app.logger.error(f"acknowledge_receipt: receipt {receipt} not found in any queue")
