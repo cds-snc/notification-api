@@ -172,8 +172,7 @@ def test_send_sms_should_not_switch_providers_on_non_provider_failure(
     mocker.patch('app.celery.provider_tasks.deliver_sms.retry')
 
     deliver_sms(sample_notification.id)
-
-    assert switch_provider_mock.called is False
+    assert not switch_provider_mock.called
 
 
 def test_deliver_sms_with_rate_limiting_should_deliver_if_rate_limit_not_exceeded(sample_notification, mocker):

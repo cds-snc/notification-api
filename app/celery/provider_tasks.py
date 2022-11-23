@@ -1,8 +1,3 @@
-from flask import current_app
-from notifications_utils.recipients import InvalidEmailError
-from notifications_utils.statsd_decorators import statsd
-from sqlalchemy.orm.exc import NoResultFound
-
 from app import notify_celery
 from app.celery.exceptions import NonRetryableException
 from app.celery.service_callback_tasks import check_and_queue_callback_task
@@ -15,6 +10,10 @@ from app.delivery import send_to_providers
 from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException, InvalidProviderException
 from app.models import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
 from app.v2.errors import RateLimitError
+from flask import current_app
+from notifications_utils.recipients import InvalidEmailError
+from notifications_utils.statsd_decorators import statsd
+from sqlalchemy.orm.exc import NoResultFound
 
 
 # Including sms_sender_id is necessary in case it's passed in when being called
@@ -131,10 +130,10 @@ def deliver_sms_with_rate_limiting(self, notification_id, sms_sender_id=None):
             raise NotificationTechnicalFailureException(message)
 
 
-# Including sms_sender_id is necessary in case it's passed in when being called
+# Including sms_sender_id is necessary in case it's passed in when being called.
 @notify_celery.task(bind=True, name="deliver_email", max_retries=48, default_retry_delay=300)
 @statsd(namespace="tasks")
-def deliver_email(self, notification_id, sms_sender_id=None):
+def deliver_email(self, notification_id: str, sms_sender_id=None):
     try:
         current_app.logger.info("Start sending email for notification id: {}".format(notification_id))
         notification = notifications_dao.get_notification_by_id(notification_id)

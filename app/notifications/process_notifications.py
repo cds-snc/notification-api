@@ -83,7 +83,7 @@ def persist_notification(
         template_postage=None,
         recipient_identifier=None,
         billing_code=None
-):
+) -> Notification:
     notification_created_at = created_at or datetime.utcnow()
 
     if notification_id is None:
@@ -157,15 +157,18 @@ def send_notification_to_queue(
     """
     Create, enqueue, and asynchronously execute a Celery task to send a notification.
     """
+
     deliver_task, queue = _get_delivery_task(notification, research_mode, queue, sms_sender_id)
 
+    # This is a relationship to a TemplateHistory instance.
     template = notification.template
 
     if template:
+        # This is a nullable foreign key reference to a CommunicationItem instance UUID.
         communication_item_id = template.communication_item_id
 
     try:
-        # Including sms_sender_id is necessary so the correct sender can be chosen
+        # Including sms_sender_id is necessary so the correct sender can be chosen.
         # https://docs.celeryq.dev/en/v4.4.7/userguide/canvas.html#immutability
         tasks = [deliver_task.si(str(notification.id), sms_sender_id).set(queue=queue)]
         if (recipient_id_type and communication_item_id and
@@ -209,7 +212,8 @@ def _get_delivery_task(notification, research_mode=False, queue=None, sms_sender
 
         service_sms_sender = None
 
-        # get the specific service_sms_sender if sms_sender_id is provided, otherwise get the first one from the service
+        # Get the specific service_sms_sender if sms_sender_id is provided.
+        # Otherwise, get the first one from the service.
         if sms_sender_id is not None:
             # This is an instance of ServiceSmsSender or None.
             service_sms_sender = dao_get_service_sms_sender_by_id(
@@ -231,14 +235,18 @@ def _get_delivery_task(notification, research_mode=False, queue=None, sms_sender
             deliver_task = provider_tasks.deliver_sms_with_rate_limiting
         else:
             deliver_task = provider_tasks.deliver_sms
-    if notification.notification_type == EMAIL_TYPE:
+    elif notification.notification_type == EMAIL_TYPE:
         if not queue:
             queue = QueueNames.SEND_EMAIL
         deliver_task = provider_tasks.deliver_email
-    if notification.notification_type == LETTER_TYPE:
+    elif notification.notification_type == LETTER_TYPE:
         if not queue:
             queue = QueueNames.CREATE_LETTERS_PDF
         deliver_task = create_letters_pdf
+    else:
+        error_message = f"Unrecognized notification type: {notification.notification_type}"
+        current_app.logger.error(error_message)
+        raise RuntimeError(error_message)
 
     return deliver_task, queue
 

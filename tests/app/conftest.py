@@ -1474,7 +1474,7 @@ def mock_sms_client(mocker):
     mocked_client = SmsClient()
     mocker.patch.object(mocked_client, 'send_sms', return_value='some-reference')
     mocker.patch.object(mocked_client, 'get_name', return_value='Fake SMS Client')
-    mocker.patch('app.delivery.send_to_providers.provider_to_use', return_value=mocked_client)
+    mocker.patch('app.delivery.send_to_providers.client_to_use', return_value=mocked_client)
     return mocked_client
 
 
@@ -1483,7 +1483,7 @@ def mock_email_client(mocker):
     mocked_client = EmailClient()
     mocker.patch.object(mocked_client, 'send_email', return_value='message id')
     mocker.patch.object(mocked_client, 'get_name', return_value='Fake Email Client')
-    mocker.patch('app.delivery.send_to_providers.provider_to_use', return_value=mocked_client)
+    mocker.patch('app.delivery.send_to_providers.client_to_use', return_value=mocked_client)
     return mocked_client
 
 

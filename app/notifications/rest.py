@@ -109,6 +109,7 @@ def send_notification(notification_type):
     check_template_is_for_notification_type(notification_type, template.template_type)
     check_template_is_active(template)
 
+    # This is the template populated with specific data.
     template_object = create_template_object_for_notification(template, notification_form.get('personalisation', {}))
 
     _service_allowed_to_send_to(notification_form, authenticated_service)
@@ -120,28 +121,36 @@ def send_notification(notification_type):
 
     if notification_type == SMS_TYPE:
         _service_can_send_internationally(authenticated_service, notification_form['to'])
-    # Do not persist or send notification to the queue if it is a simulated recipient
 
+    # Do not persist or send the notification to the queue if the recipient is simulated.
     simulated = simulated_recipient(notification_form['to'], notification_type)
-    notification_model = persist_notification(template_id=template.id,
-                                              template_version=template.version,
-                                              template_postage=template.postage,
-                                              recipient=request.get_json()['to'],
-                                              service=authenticated_service,
-                                              personalisation=notification_form.get('personalisation', None),
-                                              notification_type=notification_type,
-                                              api_key_id=api_user.id,
-                                              key_type=api_user.key_type,
-                                              simulated=simulated,
-                                              reply_to_text=template.get_reply_to_text()
-                                              )
-    if not simulated:
-        queue_name = QueueNames.PRIORITY if template.process_type == PRIORITY else None
-        send_notification_to_queue(notification=notification_model,
-                                   research_mode=authenticated_service.research_mode,
-                                   queue=queue_name)
+
+    # The name not withstanding, "persist_notitifation" only persists a notification if
+    # the "simulated" parameter is True.
+    notification_model = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        template_postage=template.postage,
+        recipient=request.get_json()['to'],
+        service=authenticated_service,
+        personalisation=notification_form.get('personalisation', None),
+        notification_type=notification_type,
+        api_key_id=api_user.id,
+        key_type=api_user.key_type,
+        simulated=simulated,
+        reply_to_text=template.get_reply_to_text()
+    )
+
+    if simulated:
+        current_app.logger.debug("POST simulated notification for id: %s", notification_model.id)
     else:
-        current_app.logger.debug("POST simulated notification for id: {}".format(notification_model.id))
+        queue_name = QueueNames.PRIORITY if template.process_type == PRIORITY else None
+        send_notification_to_queue(
+            notification=notification_model,
+            research_mode=authenticated_service.research_mode,
+            queue=queue_name
+        )
+
     notification_form.update({"template_version": template.version})
 
     return jsonify(

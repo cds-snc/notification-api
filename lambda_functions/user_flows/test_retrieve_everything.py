@@ -38,39 +38,60 @@ def admin_jwt_token(environment) -> str:
 
 @pytest.fixture(scope="session")
 def get_services_response(notification_url, admin_jwt_token) -> Response:
+    """
+    Get an HTTP response with a JSON list of all services.
+    """
+
     return get_authenticated_request(f"{notification_url}/service", admin_jwt_token)
 
 
 @pytest.fixture(scope="session")
 def service_id(get_services_response) -> str:
-    service = next(
-        service for service in get_services_response.json()['data']
-        if service['name'] == "User Flows Test Service"
-    )
-    return service['id']
+    """
+    Return the UUID for the first service with the name "User Flows Test Service".
+    """
+
+    for service in get_services_response.json()['data']:
+        if service['name'] == "User Flows Test Service":
+            return service['id']
+
+    raise RuntimeError("Couldn't find a service ID for User Flows Test Service.")
 
 
 @pytest.fixture(scope="session")
 def get_templates_response(notification_url, admin_jwt_token, service_id) -> Response:
+    """
+    Get an HTTP response with a JSON list of all templates associated with
+    the given service, which should be the User Flows Test Service.
+    """
+
     return get_authenticated_request(f"{notification_url}/service/{service_id}/template", admin_jwt_token)
 
 
 @pytest.fixture(scope="session")
 def template_id(get_templates_response) -> str:
-    first_email_template = next(
-        template for template in get_templates_response.json()['data']
-        if template['template_type'] == 'email'
-    )
-    return first_email_template["id"]
+    """
+    Return the UUID for the first e-mail template associated with the User Flows Test Service.
+    """
+
+    for template in get_templates_response.json()['data']:
+        if template.get('template_type') == 'email':
+            return template.get('id')
+
+    raise RuntimeError("Couldn't find an e-mail template ID associated with User Flows Test Service.")
 
 
 @pytest.fixture(scope="session")
 def sms_template_id(get_templates_response) -> str:
-    first_sms_template = next(
-        template for template in get_templates_response.json()['data']
-        if template['template_type'] == 'sms'
-    )
-    return first_sms_template["id"]
+    """
+    Return the UUID for the first sms template associated with the User Flows Test Service.
+    """
+
+    for template in get_templates_response.json()['data']:
+        if template.get('template_type') == 'sms':
+            return template.get('id')
+
+    raise RuntimeError("Couldn't find an SMS template ID associated with User Flows Test Service.")
 
 
 @pytest.fixture(scope="session")
@@ -80,11 +101,11 @@ def get_users_response(notification_url, admin_jwt_token) -> Response:
 
 @pytest.fixture(scope="session")
 def user_id(service_id, get_users_response) -> str:
-    user = next(
-        user for user in get_users_response.json()['data']
-        if user['name'] == 'Test User' and service_id in user['services']
-    )
-    return user['id']
+    for user in get_users_response.json()['data']:
+        if user['name'] == 'Test User' and service_id in user['services']:
+            return user['id']
+
+    raise RuntimeError("Couldn't find the test user.")
 
 
 @pytest.fixture(scope="session")
@@ -122,6 +143,12 @@ def test_get_templates(get_templates_response):
 
 
 def test_send_email(notification_url, service_id, service_api_key, template_id):
+    """
+    Test sending a notification using an e-mail template associated with the User Flows Test Service.
+    The available, associated e-mail templates do not have an associated provider.  Therefore,
+    "Govdelivery", the provider associated with the service, should be used.
+    """
+
     service_jwt = encode_jwt(service_id, service_api_key)
 
     email_response = send_email_with_email_address(notification_url, service_jwt, template_id)

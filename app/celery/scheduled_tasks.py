@@ -16,16 +16,11 @@ from app.dao.invited_user_dao import delete_invitations_created_more_than_two_da
 from app.dao.jobs_dao import dao_set_scheduled_jobs_to_pending
 from app.dao.jobs_dao import dao_update_job
 from app.dao.notifications_dao import (
-    is_delivery_slow_for_provider,
     dao_get_scheduled_notifications,
     set_scheduled_notification_to_processed,
     notifications_not_yet_sent,
     dao_precompiled_letters_still_pending_virus_check,
     dao_old_letters_with_created_status,
-)
-from app.dao.provider_details_dao import (
-    get_current_provider,
-    dao_toggle_sms_provider
 )
 from app.dao.users_dao import delete_codes_older_created_more_than_a_day_ago
 from app.models import (
@@ -93,37 +88,6 @@ def delete_invitations():
     except SQLAlchemyError:
         current_app.logger.exception("Failed to delete invitations")
         raise
-
-
-@notify_celery.task(name='switch-current-sms-provider-on-slow-delivery')
-@statsd(namespace="tasks")
-def switch_current_sms_provider_on_slow_delivery():
-    """
-    Switch providers if at least 30% of notifications took more than four minutes to be delivered
-    in the last ten minutes. Search from the time we last switched to the current provider.
-    """
-    if not current_app.config['SWITCH_SLOW_SMS_PROVIDER_ENABLED']:
-        current_app.logger.info("Feature SWITCH_SLOW_SMS_PROVIDER is Diabled.")
-        return
-    current_provider = get_current_provider('sms')
-    if current_provider.updated_at > datetime.utcnow() - timedelta(minutes=10):
-        current_app.logger.info("Slow delivery notifications provider switched less than 10 minutes ago.")
-        return
-    slow_delivery_notifications = is_delivery_slow_for_provider(
-        provider=current_provider.identifier,
-        threshold=0.3,
-        created_at=datetime.utcnow() - timedelta(minutes=10),
-        delivery_time=timedelta(minutes=4),
-    )
-
-    if slow_delivery_notifications:
-        current_app.logger.warning(
-            'Slow delivery notifications detected for provider {}'.format(
-                current_provider.identifier
-            )
-        )
-
-        dao_toggle_sms_provider(current_provider.identifier)
 
 
 @notify_celery.task(name='check-job-status')

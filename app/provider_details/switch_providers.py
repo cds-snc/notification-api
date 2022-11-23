@@ -19,6 +19,7 @@ def provider_is_primary(current_provider, new_provider, identifier):
     return False
 
 
+# TODO #962 - Should this be deleted?
 def switch_providers(current_provider, new_provider):
     # Automatic update so set as notify user
     notify_user = get_user_by_id(current_app.config['NOTIFY_USER_ID'])

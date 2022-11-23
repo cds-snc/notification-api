@@ -46,7 +46,7 @@ fileignoreconfig:
     - filename: app/models.py
       checksum: cd38660ab8d5d7672ad5bd141f93d1737ad967e260fafa613df844a2f3225fb1
     - filename: app/delivery/send_to_providers.py
-      checksum: 231849229bc5e142d9e28e1f34338f63178d1f7ea357f2589acb84816055bdb7
+      checksum: e4f9b4e82858de4d7be3baa2568ebec15d3e7e951c3297a504555502cc58c291
     - filename: .github/workflows/twistlock.yaml
       checksum: a1cb4548c2ef5b5df1195ad968e69a9e783c4b9f0f9ba98c4e92ca8f1a09f087
     - filename: load_testing/.envrc.example
@@ -329,3 +329,5 @@ fileignoreconfig:
       checksum: 7647fdd36c40ee8c76ee95423685b9aafe567ebea0317fb8ab823100b60466d7
     - filename: app/celery/letters_pdf_tasks.py
       checksum: 17817004fe9477d2a748f4a9a6d63e87c25e60c92f3ccf2362bf6f32d542f1e1
+    - filename: app/notifications/rest.py
+      checksum: d22b6350a68e06c1c71893ca41b2217eb8cd61a21408baba79ca77b0bc0a37db

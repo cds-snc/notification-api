@@ -171,21 +171,20 @@ def set_primary_sms_provider(identifier):
 
 
 def test_can_get_sms_all_providers(restore_provider_details):
-    sms_providers = get_provider_details_by_notification_type('sms')
-    assert len(sms_providers) == 6
-    assert all('sms' == prov.notification_type for prov in sms_providers)
+    sms_providers = get_provider_details_by_notification_type('sms', False)
+    assert len(sms_providers) >= 1
+    assert all(prov.notification_type == 'sms' for prov in sms_providers)
 
 
 def test_can_get_sms_international_providers(restore_provider_details):
     sms_providers = get_provider_details_by_notification_type('sms', True)
-    assert len(sms_providers) == 1
-    assert all('sms' == prov.notification_type for prov in sms_providers)
+    assert len(sms_providers) >= 1
+    assert all(prov.notification_type == 'sms' for prov in sms_providers)
     assert all(prov.supports_international for prov in sms_providers)
 
 
 def test_can_get_sms_providers_in_order_of_priority(restore_provider_details):
     providers = get_provider_details_by_notification_type('sms', False)
-
     assert providers[0].priority < providers[1].priority
 
 
@@ -199,8 +198,9 @@ def test_can_get_email_providers_in_order_of_priority(setup_provider_details):
 def test_can_get_email_providers(setup_provider_details):
     email_providers = [provider for provider in setup_provider_details if provider.notification_type == 'email']
     assert len(get_provider_details_by_notification_type('email')) == len(email_providers)
-    types = [provider.notification_type for provider in get_provider_details_by_notification_type('email')]
-    assert all('email' == notification_type for notification_type in types)
+    assert all(
+        [provider.notification_type == 'email' for provider in get_provider_details_by_notification_type('email')]
+    )
 
 
 def commit_to_db(db_session, *providers):

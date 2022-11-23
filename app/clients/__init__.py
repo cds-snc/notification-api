@@ -1,14 +1,17 @@
+from typing import Optional
+
+
 class ClientException(Exception):
-    '''
-    Base Exceptions for sending notifications that fail
-    '''
+    """
+    Base Exceptions for sending notifications that fail.
+    """
     pass
 
 
-class Client(object):
-    '''
+class Client:
+    """
     Base client for sending notifications.
-    '''
+    """
     pass
 
 
@@ -17,15 +20,17 @@ STATISTICS_DELIVERED = 'delivered'
 STATISTICS_FAILURE = 'failure'
 
 
-class Clients(object):
+class Clients:
     sms_clients = {}
     email_clients = {}
 
     def init_app(self, sms_clients, email_clients):
         for client in sms_clients:
+            assert isinstance(client, Client)
             self.sms_clients[client.name] = client
 
         for client in email_clients:
+            assert isinstance(client, Client)
             self.email_clients[client.name] = client
 
     def get_sms_client(self, name):
@@ -34,11 +39,10 @@ class Clients(object):
     def get_email_client(self, name):
         return self.email_clients.get(name)
 
-    def get_client_by_name_and_type(self, name, notification_type):
-        assert notification_type in ['email', 'sms']
-
+    def get_client_by_name_and_type(self, name, notification_type) -> Optional[Client]:
         if notification_type == 'email':
             return self.get_email_client(name)
-
-        if notification_type == 'sms':
+        elif notification_type == 'sms':
             return self.get_sms_client(name)
+
+        raise ValueError(f"Unrecognized notification type: {notification_type}")

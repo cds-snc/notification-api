@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from tests.conftest import set_config_values
 from unittest.mock import call
 
 import pytest
@@ -13,7 +12,6 @@ from app.celery.scheduled_tasks import (
     delete_verify_codes,
     run_scheduled_jobs,
     send_scheduled_notifications,
-    switch_current_sms_provider_on_slow_delivery,
     replay_created_notifications,
     check_precompiled_letter_state,
     check_templated_letter_state,
@@ -112,58 +110,6 @@ def test_should_update_all_scheduled_jobs_and_put_on_queue(sample_template, mock
         call([str(job_2.id)], queue="job-tasks"),
         call([str(job_1.id)], queue="job-tasks")
     ])
-
-
-def test_switch_providers_on_slow_delivery_switches_once_then_does_not_switch_if_already_switched(
-        notify_api,
-        mocker,
-        prepare_current_provider,
-        sample_user,
-        sample_template
-):
-    mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user)
-    starting_provider = get_current_provider('sms')
-
-    _create_slow_delivery_notification(sample_template, starting_provider.identifier)
-    _create_slow_delivery_notification(sample_template, starting_provider.identifier)
-
-    with set_config_values(notify_api, {
-        'SWITCH_SLOW_SMS_PROVIDER_ENABLED': True
-    }):
-        switch_current_sms_provider_on_slow_delivery()
-
-        new_provider = get_current_provider('sms')
-        _create_slow_delivery_notification(sample_template, new_provider.identifier)
-        _create_slow_delivery_notification(sample_template, new_provider.identifier)
-        switch_current_sms_provider_on_slow_delivery()
-
-    final_provider = get_current_provider('sms')
-
-    assert new_provider.identifier != starting_provider.identifier
-    assert new_provider.priority < starting_provider.priority
-    assert final_provider.identifier == new_provider.identifier
-
-
-def test_switch_providers_on_slow_delivery_does_nothing_if_toggle_is_off(
-    notify_api,
-    mocker,
-    prepare_current_provider,
-    sample_user,
-    sample_template
-):
-    mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user)
-    starting_provider = get_current_provider('sms')
-
-    _create_slow_delivery_notification(sample_template, starting_provider.identifier)
-    _create_slow_delivery_notification(sample_template, starting_provider.identifier)
-
-    with set_config_values(notify_api, {
-        'SWITCH_SLOW_SMS_PROVIDER_ENABLED': False
-    }):
-        switch_current_sms_provider_on_slow_delivery()
-
-    new_provider = get_current_provider('sms')
-    assert new_provider.identifier == starting_provider.identifier
 
 
 @freeze_time("2017-05-01 14:00:00")

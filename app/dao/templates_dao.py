@@ -91,7 +91,7 @@ def dao_redact_template(template, user_id):
     db.session.add(template.template_redacted)
 
 
-def dao_get_template_by_id_and_service_id(template_id, service_id, version=None):
+def dao_get_template_by_id_and_service_id(template_id, service_id, version=None) -> Template:
     if version is not None:
         return TemplateHistory.query.filter_by(
             id=template_id,
