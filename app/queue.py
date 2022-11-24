@@ -180,7 +180,7 @@ class RedisQueue(Queue):
             current_app.logger.warning(f"Inflight to delete not found: {inflight_name}")
             return False
         self._redis_client.delete(inflight_name)
-        current_app.logger.info(f"Acknowleged inflight: {inflight_name}")
+        current_app.logger.info(f"Acknowledged inflight: {inflight_name}")
         put_batch_saving_inflight_processed(self.__metrics_logger, self, 1)
         return True
 
