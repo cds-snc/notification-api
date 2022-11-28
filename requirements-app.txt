@@ -4,7 +4,7 @@
 apig-wsgi==2.13.0
 boto==2.49.0
 cffi==1.14.5
-celery[sqs]==5.0.5
+celery[sqs]==5.2.2
 docopt==0.6.2
 environs==9.3.2 # pyup: <9.3.3 # marshmallow v3 throws errors
 fido2==0.9.1
