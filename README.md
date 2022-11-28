@@ -51,7 +51,7 @@ source  ~/.pyenv/versions/3.10.8/bin/virtualenvwrapper.sh
 
 7. Restart your terminal and make your virtual environtment:
 
-`mkvirtualenv -p ~/.pyenv/versions3.10.8/bin/python notifications-api`
+`mkvirtualenv -p ~/.pyenv/versions/3.10.8/bin/python notifications-api`
 
 8. You can now return to your environment any time by entering
 
