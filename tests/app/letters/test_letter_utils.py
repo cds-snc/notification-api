@@ -320,6 +320,7 @@ def test_move_failed_pdf_scan_failed(notify_api):
     assert filename not in [o.key for o in bucket.objects.all()]
 
 
+@pytest.mark.skip(reason="Letter tests")
 @mock_s3
 @freeze_time(FROZEN_DATE_TIME)
 def test_copy_redaction_failed_pdf(notify_api):
