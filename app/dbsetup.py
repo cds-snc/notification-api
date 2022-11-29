@@ -1,7 +1,7 @@
 from functools import cached_property, partial
 from typing import Optional
 
-import greenlet
+import greenlet  # type: ignore
 from flask_sqlalchemy import BaseQuery, SignallingSession, SQLAlchemy, get_state
 from sqlalchemy import orm
 
