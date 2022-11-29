@@ -27,7 +27,6 @@ PyJWT==2.1.0
 pytz==2021.1
 PyYAML==5.4.1
 SQLAlchemy==1.4.37
-# sentry-sdk[flask]==1.0.0
 cachelib==0.1.1
 
 newrelic==6.2.0.156
@@ -50,8 +49,7 @@ MarkupSafe==2.0.1
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous==2.0.1
 
-# git+https://github.com/cds-snc/notifier-utils.git@49.1.0#egg=notifications-utils
-git+https://github.com/cds-snc/notifier-utils.git@python-3.10#egg=notifications-utils
+git+https://github.com/cds-snc/notifier-utils.git@50.0.0#egg=notifications-utils
 
 # MLWR
 socketio-client==0.5.6
