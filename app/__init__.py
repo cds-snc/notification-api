@@ -248,19 +248,19 @@ def register_v2_blueprints(application):
     from app.v2.templates.get_templates import v2_templates_blueprint as get_templates
 
     post_notifications.before_request(requires_auth)
-    application.register_blueprint(post_notifications)
+    application.register_blueprint(post_notifications, name="post_notifications")
 
     get_notifications.before_request(requires_auth)
-    application.register_blueprint(get_notifications)
+    application.register_blueprint(get_notifications, name="get_notifications")
 
     get_templates.before_request(requires_auth)
     application.register_blueprint(get_templates)
 
     get_template.before_request(requires_auth)
-    application.register_blueprint(get_template)
+    application.register_blueprint(get_template, name="get_template")
 
     post_template.before_request(requires_auth)
-    application.register_blueprint(post_template)
+    application.register_blueprint(post_template, name="post_template")
 
     get_inbound_sms.before_request(requires_auth)
     application.register_blueprint(get_inbound_sms)
