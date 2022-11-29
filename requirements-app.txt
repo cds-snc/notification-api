@@ -5,7 +5,7 @@ boto==2.49.0
 cffi==1.15.1
 celery[sqs]==5.2.7
 docopt==0.6.2
-environs==9.5.0 # pyup: <9.3.3 # marshmallow v3 throws errors
+environs==9.3.2 # pyup: <9.3.3 # marshmallow v3 throws errors
 fido2==0.9.1
 Flask-Bcrypt==1.0.1
 flask-marshmallow==0.14.0
@@ -18,8 +18,8 @@ gunicorn==20.1.0
 iso8601==0.1.14
 idna==2.10 # pinned to align with test moto dependency requirements (for <=2.9)
 jsonschema==3.2.0
-marshmallow-sqlalchemy==0.28.1
-marshmallow==3.19.0 
+marshmallow-sqlalchemy==0.23.1
+marshmallow==2.21.0 
 python-magic==0.4.22
 psycopg2-binary==2.9.5
 PyJWT==2.6.0
