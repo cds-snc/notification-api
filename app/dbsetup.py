@@ -1,10 +1,10 @@
 from functools import cached_property, partial
 from typing import Optional
-import greenlet
 
-from flask import _app_ctx_stack  # type: ignore
+import greenlet
 from flask_sqlalchemy import BaseQuery, SignallingSession, SQLAlchemy, get_state
 from sqlalchemy import orm
+
 
 class ExplicitRoutingSession(SignallingSession):
     """
