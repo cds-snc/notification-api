@@ -20,7 +20,7 @@ jobs:
       run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
     - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
     - name: Set up Python 3.9
-      uses: actions/setup-python@75f3110429a8c05be0e1bf360334e4cced2b63fa # v2
+      uses: actions/setup-python@13ae5bb136fac2878aff31522b9efb785519f984 # v4.3.0
       with:
         python-version: 3.9
     - name: Upgrade pip
