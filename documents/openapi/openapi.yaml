@@ -1091,7 +1091,7 @@ paths:
                     claim_id: '123456'
                   scheduled_for: string
                   billing_code: string
-                  sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6                  
+                  sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                   phone_number: "+19876543210"
               recipient_identifier:
                 value:
@@ -1191,6 +1191,73 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotificationStatusResponse'
+              examples:
+                sms:
+                  value:
+                    billing_code: string
+                    body: string
+                    completed_at: 2022-11-28T18:59:00.542420Z
+                    created_at: 2022-11-28T18:58:18.998715Z
+                    created_by_name: string
+                    email_address: null
+                    id: string
+                    line_1: string
+                    line_2: string
+                    line_3: string
+                    line_4: string
+                    line_5: string
+                    line_6: string
+                    phone_number: "+10123456789"
+                    postage: string
+                    postcode: string
+                    provider_reference: egsqaoi2hjok3mi0mlelijfk3i8ckalt5tsu6s00
+                    recipient_identifiers: []
+                    reference: string
+                    scheduled_for: 2022-11-30T19:00:00.542420Z
+                    sent_at: 2022-11-28T18:59:18.998715Z
+                    sent_by: string
+                    status: created
+                    status_reason: string
+                    subject: string
+                    template:
+                        id: a21a1888-af44-4cb4-8d20-19bd0d3902f9
+                        uri: string
+                        version: 0
+                    type: sms
+
+                email:
+                  value:
+                    billing_code: string
+                    body: string
+                    completed_at: 2022-11-28T18:59:18.998715Z
+                    created_at: 2022-11-28T18:58:18.998715Z
+                    created_by_name: string
+                    email_address: user@example.com
+                    id: string
+                    line_1: string
+                    line_2: string
+                    line_3: string
+                    line_4: string
+                    line_5: string
+                    line_6: string
+                    phone_number: null
+                    postage: string
+                    postcode: string
+                    provider_reference: egsqaoi2hjok3mi0mlelijfk3i8ckalt5tsu6s00
+                    recipient_identifiers: []
+                    reference: string
+                    scheduled_for: 2022-11-30T19:00:00.542420Z
+                    sent_at: 2022-11-28T18:59:18.998715Z
+                    sent_by: string
+                    status: created
+                    status_reason: string
+                    subject: string
+                    template:
+                        id: a21a1888-af44-4cb4-8d20-19bd0d3902f9
+                        uri: string
+                        version: 0
+                    type: email
+              
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2028,8 +2095,8 @@ components:
     NotificationStatusResponse:
       type: object
       properties:
-        id:
-          $ref: '#/components/schemas/Id'
+        billing_code:
+          type: string
         body:
           type: string
         completed_at:
@@ -2047,6 +2114,8 @@ components:
           type: string
           format: email
           nullable: true
+        id:
+          $ref: '#/components/schemas/Id'
         line_1:
           type: string
           nullable: true
@@ -2075,6 +2144,9 @@ components:
         postcode:
           type: string
           nullable: true
+        provider_reference:
+          type: string
+          nullable: true
         recipient_identifiers:
           type: array
           items:
@@ -2098,6 +2170,9 @@ components:
           type: string
           enum:
             - created
+        status_reason:
+          type: string
+          nullable: true
         subject:
           type: string
           nullable: true
