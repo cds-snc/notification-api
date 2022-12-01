@@ -6,7 +6,9 @@ post_create_inbound_number_schema = {
         "number": {"type": "string"},
         "provider": {"type": "string"},
         "service_id": {"type": "string"},
-        "active": {"type": ["boolean", "null"]}
+        "active": {"type": "boolean"},
+        "url_endpoint": {"type": "string"},
+        "self_managed": {"type": "boolean"},
     },
     "required": ["number", "provider"],
     "additionalProperties": False
@@ -21,7 +23,9 @@ post_update_inbound_number_schema = {
         "number": {"type": "string"},
         "provider": {"type": "string"},
         "service_id": {"type": "string"},
-        "active": {"type": ["boolean", "null"]}
+        "active": {"type": "boolean"},
+        "url_endpoint": {"type": "string"},
+        "self_managed": {"type": "boolean"},
     },
     "additionalProperties": False
 }

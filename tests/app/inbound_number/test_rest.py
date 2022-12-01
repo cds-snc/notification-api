@@ -94,7 +94,7 @@ class TestCreateInboundNumber:
                 'number': 'some-number',
                 'provider': 'some-provider',
                 'service_id': 'some-service-id',
-                'some_attribute_that_does_not_exist': 'blah'
+                'some_attribute_that_does_not_exist': 'blah',
             },
             _expected_status=400
         )
@@ -107,7 +107,9 @@ class TestCreateInboundNumber:
             _data={
                 'number': 'some-number',
                 'provider': 'some-provider',
-                'service_id': 'some-service-id'
+                'service_id': 'some-service-id',
+                'url_endpoint': 'https://example.foo',
+                'self_managed': True,
             },
             _expected_status=201
         )

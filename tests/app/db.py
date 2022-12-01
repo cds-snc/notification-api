@@ -567,13 +567,22 @@ def create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name=None):
     return api_key
 
 
-def create_inbound_number(number, provider='mmg', active=True, service_id=None):
+def create_inbound_number(
+    number,
+    provider="ses",
+    active=True,
+    service_id=None,
+    url_endpoint=None,
+    self_managed=False
+):
     inbound_number = InboundNumber(
         id=uuid.uuid4(),
         number=number,
         provider=provider,
         active=active,
-        service_id=service_id
+        service_id=service_id,
+        url_endpoint=url_endpoint,
+        self_managed=self_managed
     )
     db.session.add(inbound_number)
     db.session.commit()

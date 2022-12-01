@@ -1,32 +1,21 @@
 openapi: 3.0.0
 info:
   title: VA Notify API Documentation
-  description: "This documents the API schemas for consumption by internal VA developers.<br />
-  <h1>Authorization header</h1>
-  <p>You must include an authorization header that is encoded using JSON Web Tokens.
-  JSON Web Tokens have a standard header and a payload. The header consists of:
-  <pre><code>
-  {\n
-  &nbsp;&nbsp;&nbsp;&nbsp;&quot;type&quot;: &quot;JWT&quot;,\n
-  &nbsp;&nbsp;&nbsp;&nbsp;&quot;alg&quot;: &quot;HS256&quot;\n
-  &nbsp;}
-  </code></pre>
-  </p>
-  <p>
-  The payload consists of `iss` and `iat`. `iss` is the `service_id` that is sending the notification, and `iat` is
-  the 'Issued At' timestamp in seconds since Unix epoch. Here is an example payload:
-  <pre><code>
-  {\n
-  &nbsp;&nbsp;&nbsp;&nbsp;&quot;iss&quot;: &quot;26785a09-ab16-4eb0-8407-a37497a57506&quot;,\n
-  &nbsp;&nbsp;&nbsp;&nbsp;&quot;iat&quot;: 1568818578\n
-  &nbsp;}
-  </code></pre>
-  </p>
-  <p>
-    Refer to the <a href='https://jwt.io/' target='_blank'>JSON Web Tokens website</a> for more information
-    on encoding your authorization header.
-  </p>"
-  version: 1.0.0
+  version: 1.0.1
+  description: |
+    <p>This documents the API schemas for consumption by internal VA developers.</p>
+    <h1>Authorization header</h1>
+    <p>You must include an authorization header that is encoded using JSON Web Tokens.  JSON Web Tokens have a standard header and a payload. The header consists of:</p>
+    <pre><code>{
+        &quot;type&quot;: &quot;JWT&quot;,
+        &quot;alg&quot;: &quot;HS256&quot;
+    }</code></pre>
+    <p>The payload consists of `iss` and `iat`. `iss` is the `service_id` that is sending the notification, and `iat` is the 'Issued At' timestamp in seconds since Unix epoch. Here is an example payload:</p>
+    <pre><code>{
+        &quot;iss&quot;: &quot;26785a09-ab16-4eb0-8407-a37497a57506&quot;,
+        &quot;iat&quot;: 1568818578
+    }</code></pre>
+    <p>Refer to the <a href='https://jwt.io/' target='_blank'>JSON Web Tokens website</a> for more information on encoding your authorization header.</p>
   contact:
     name: VA Notify team
 servers:
@@ -1172,9 +1161,6 @@ paths:
           $ref: '#/components/responses/BadGateway'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
-
-
-
   /v2/notifications/{notification_id}:
     get:
       summary: Get notification status and details
@@ -1266,9 +1252,86 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-
+  /inbound-number:
+    get:
+      summary: Retrieve an inbound number
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json: {} # TODO (issue 965)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    post:
+      summary: Create an inbound number
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundNumberCreateResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /inbound-number/available:
+    get:
+      summary: Retrieve available inbound numbers
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json: {} # TODO (issue 965)
+  /inbound-number/{inbound_number_id}:
+    post:
+      summary: Update an inbound number
+      parameters:
+        - $ref: "#/components/parameters/InboundNumberId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json: {} # TODO (issue 965)
+  /inbound-number/{inbound_number_id}/off:
+    post:
+      summary: Set the inbound number as off
+      parameters:
+        - $ref: "#/components/parameters/InboundNumberId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json: {} # TODO (issue 965)
+  /inbound-number/service/{service_id}:
+    get:
+      summary:  Get inbound numbers for a service
+      parameters:
+        - $ref: "#/components/parameters/ServiceId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json: {} # TODO (issue 965)
 components:
   parameters:
+    InboundNumberId:
+      name: inbound_number_id
+      in: path
+      schema:
+        $ref: '#/components/schemas/Id'
+      required: true
+      description: Inbound number identifier
     OrganisationId:
       name: organisation_id
       in: path
@@ -2070,6 +2133,9 @@ components:
       required:
         - recipient_identifier
         - template_id
+    InboundNumberCreateResponse:
+      type: object
+      properties: {} # TODO (issue 965)
     Notification:
       type: object
       properties:
