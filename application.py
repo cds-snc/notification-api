@@ -4,11 +4,9 @@ from __future__ import print_function
 import os
 
 import newrelic.agent  # See https://bit.ly/2xBVKBH
-
 from apig_wsgi import make_lambda_handler
 from dotenv import load_dotenv
 from flask import Flask
-
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import create_app
