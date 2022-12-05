@@ -311,6 +311,7 @@ def test_ses_callback_should_set_status_to_temporary_failure(client,
     assert get_notification_by_id(notification.id).status == 'sending'
     assert process_ses_receipts_tasks.process_ses_results(ses_soft_bounce_callback(reference='ref'))
     assert get_notification_by_id(notification.id).status == 'temporary-failure'
+    assert get_notification_by_id(notification.id).status_reason == "Temporarily failed to deliver email due to soft bounce"  # noqa: E501
     assert send_mock.called
 
 
@@ -331,6 +332,7 @@ def test_ses_callback_should_set_status_to_permanent_failure(client,
     assert get_notification_by_id(notification.id).status == 'sending'
     assert process_ses_receipts_tasks.process_ses_results(ses_hard_bounce_callback(reference='ref'))
     assert get_notification_by_id(notification.id).status == 'permanent-failure'
+    assert get_notification_by_id(notification.id).status_reason == "Failed to deliver email due to hard bounce"
     assert send_mock.called
 
 

@@ -185,6 +185,22 @@ def process_ses_results(self, response):
                 )
             return
 
+        # Add status reason to notification if the status is some kind of failure
+        if 'temporary-failure' in notification_status:
+            notification.status_reason = "Temporarily failed to deliver email due to soft bounce"
+            notifications_dao.dao_update_notification(notification)
+            current_app.logger.info(
+                "temporary-failure - soft bounce - in process_ses_results for notification %s",
+                notification.id
+            )
+        elif 'permanent-failure' in notification_status:
+            notification.status_reason = "Failed to deliver email due to hard bounce"
+            notifications_dao.dao_update_notification(notification)
+            current_app.logger.info(
+                "permanent-failure - hard bounce - in process_ses_results for notification %s",
+                notification.id
+            )
+
         if notification.status not in {NOTIFICATION_SENDING, NOTIFICATION_PENDING}:
             notifications_dao.duplicate_update_warning(notification, notification_status)
             return
