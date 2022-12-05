@@ -1,9 +1,32 @@
 from functools import cached_property, partial
-from typing import Optional
+from typing import Optional, Any
 
 from flask import _app_ctx_stack  # type: ignore
 from flask_sqlalchemy import BaseQuery, SignallingSession, SQLAlchemy, get_state
 from sqlalchemy import orm
+import sqlalchemy.types as types
+
+
+# adapted from https://r2c.dev/blog/2020/fixing-leaky-logs-how-to-find-a-bug-and-ensure-it-never-returns/
+
+
+class ObfuscatedString(types.TypeDecorator):
+    """
+    String column type for use with SQLAlchemy models whose
+    content should not appear in logs or exceptions
+    """
+
+    impl = types.String
+
+    class Repr(str):
+        def __repr__(self) -> str:
+            return "********"
+
+    def process_bind_param(self, value: Optional[str], dialect: Any) -> Optional[Repr]:
+        return self.Repr(value) if value else None
+
+    def process_result_value(self, value: Optional[Repr], dialect: Any) -> Optional[str]:
+        return str(value) if value else None
 
 
 class ExplicitRoutingSession(SignallingSession):
