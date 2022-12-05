@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/vscode/devcontainers/python:0-3.9@sha256:30cd5aa1d4c9b36e29676034ae9690ebaab1611eca39146a5e9a058b382992a7
+FROM mcr.microsoft.com/vscode/devcontainers/python:0-3.9@sha256:b1e71b7ec72e3568bc44826a45bef2d47f082240017902a0957aaef3036419fe
 
 ARG KUBENS_VERSION="0.9.4"
 ARG OCTANT_VERSION="0.25.1"
