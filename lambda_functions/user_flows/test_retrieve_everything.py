@@ -146,7 +146,7 @@ def test_send_email(notification_url, service_id, service_api_key, template_id):
     """
     Test sending a notification using an e-mail template associated with the User Flows Test Service.
     The available, associated e-mail templates do not have an associated provider.  Therefore,
-    "Govdelivery", the provider associated with the service, should be used.
+    "ses", the provider associated with the service, should be used.
     """
 
     service_jwt = encode_jwt(service_id, service_api_key)
@@ -166,7 +166,7 @@ def test_send_email(notification_url, service_id, service_api_key, template_id):
 
     assert notification_status_response['status'] == desired_status
     assert notification_status_response['email_address'] is not None
-    assert notification_status_response['sent_by'] == 'govdelivery'
+    assert notification_status_response['sent_by'] == 'ses'
 
 
 def test_send_email_with_va_profile_id(notification_url, service_id, service_test_api_key, template_id):
