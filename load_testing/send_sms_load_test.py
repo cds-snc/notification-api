@@ -30,7 +30,7 @@ class SendSms(HttpUser):
         )
         return resp["Parameter"]["Value"]
 
-    def _get_jwt(self) -> bytes:
+    def _get_jwt(self) -> str:
         header = {'typ': 'JWT', 'alg': 'HS256'}
         combo = {}
         currentTimestamp = int(time.time())
@@ -47,13 +47,15 @@ class SendSms(HttpUser):
 
     @task
     def send(self):
+        encoded_jwt = self._get_jwt()
         headers = {
-            'Authorization': f"Bearer {self._get_jwt().decode('utf-8')}"
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {encoded_jwt}'
         }
         payload = {
             'template_id': self.sms_template_id,
             'sms_sender_id': self.sms_sender_id,
-            'phone_number': '+16502532222'
+            'phone_number': '+14254147755'
         }
         self.client.post(
             '/v2/notifications/sms',
