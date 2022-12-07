@@ -1,11 +1,10 @@
 from functools import cached_property, partial
-from typing import Optional, Any
+from typing import Any, Optional
 
+import sqlalchemy.types as types
 from flask import _app_ctx_stack  # type: ignore
 from flask_sqlalchemy import BaseQuery, SignallingSession, SQLAlchemy, get_state
 from sqlalchemy import orm
-import sqlalchemy.types as types
-
 
 # adapted from https://r2c.dev/blog/2020/fixing-leaky-logs-how-to-find-a-bug-and-ensure-it-never-returns/
 
