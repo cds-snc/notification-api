@@ -2,8 +2,7 @@ import base64
 import json
 import pickle
 
-from fido2.client import ClientData
-from fido2.ctap2 import AttestationObject
+from fido2.client import AttestationObject, CollectedClientData
 from sqlalchemy import and_
 
 from app import db
@@ -47,7 +46,7 @@ def get_fido2_session(user_id):
 
 
 def decode_and_register(data, state):
-    client_data = ClientData(data["clientDataJSON"])
+    client_data = CollectedClientData(data["clientDataJSON"])
     att_obj = AttestationObject(data["attestationObject"])
 
     auth_data = Config.FIDO2_SERVER.register_complete(state, client_data, att_obj)
