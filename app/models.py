@@ -1540,8 +1540,8 @@ class Notification(BaseModel):
     __tablename__ = "notifications"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    to = db.Column(db.ObfuscatedString, nullable=False)
-    normalised_to = db.Column(db.ObfuscatedString, nullable=True)
+    to = db.Column(db.SensitiveString, nullable=False)
+    normalised_to = db.Column(db.SensitiveString, nullable=True)
     job_id = db.Column(UUID(as_uuid=True), db.ForeignKey("jobs.id"), index=True, unique=False)
     job = db.relationship("Job", backref=db.backref("notifications", lazy="dynamic"))
     job_row_number = db.Column(db.Integer, nullable=True)
@@ -1582,7 +1582,7 @@ class Notification(BaseModel):
     )
     reference = db.Column(db.String, nullable=True, index=True)
     client_reference = db.Column(db.String, index=True, nullable=True)
-    _personalisation = db.Column(db.ObfuscatedString, nullable=True)
+    _personalisation = db.Column(db.SensitiveString, nullable=True)
 
     scheduled_notification = db.relationship("ScheduledNotification", uselist=False)
 

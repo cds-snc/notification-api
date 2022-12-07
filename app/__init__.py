@@ -27,7 +27,7 @@ from app.clients.performance_platform.performance_platform_client import (
     PerformancePlatformClient,
 )
 from app.clients.sms.aws_sns import AwsSnsClient
-from app.dbsetup import ObfuscatedString, RoutingSQLAlchemy
+from app.dbsetup import SensitiveString, RoutingSQLAlchemy
 from app.encryption import CryptoSigner
 from app.json_encoder import NotifyJSONEncoder
 from app.queue import RedisQueue
@@ -38,7 +38,7 @@ DATE_FORMAT = "%Y-%m-%d"
 load_dotenv()
 
 db: RoutingSQLAlchemy = RoutingSQLAlchemy()
-setattr(db, "ObfuscatedString", ObfuscatedString)
+setattr(db, "SensitiveString", SensitiveString)
 migrate = Migrate()
 marshmallow = Marshmallow()
 notify_celery = NotifyCelery()
