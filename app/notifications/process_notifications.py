@@ -366,7 +366,6 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
         )
     bulk_insert_notifications(lofnotifications)
     # bulk_insert_notifications(lofnotifications)
-
     return lofnotifications
 
 

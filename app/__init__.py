@@ -39,7 +39,6 @@ load_dotenv()
 
 db: RoutingSQLAlchemy = RoutingSQLAlchemy()
 setattr(db, "ObfuscatedString", ObfuscatedString)
-
 migrate = Migrate()
 marshmallow = Marshmallow()
 notify_celery = NotifyCelery()

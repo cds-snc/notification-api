@@ -7,8 +7,6 @@ from flask_sqlalchemy import BaseQuery, SignallingSession, SQLAlchemy, get_state
 from sqlalchemy import orm
 
 # adapted from https://r2c.dev/blog/2020/fixing-leaky-logs-how-to-find-a-bug-and-ensure-it-never-returns/
-
-
 class ObfuscatedString(types.TypeDecorator):
     """
     String column type for use with SQLAlchemy models whose
