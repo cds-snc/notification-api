@@ -27,7 +27,7 @@ from app.clients.performance_platform.performance_platform_client import (
     PerformancePlatformClient,
 )
 from app.clients.sms.aws_sns import AwsSnsClient
-from app.dbsetup import SensitiveString, RoutingSQLAlchemy
+from app.dbsetup import RoutingSQLAlchemy, SensitiveString
 from app.encryption import CryptoSigner
 from app.json_encoder import NotifyJSONEncoder
 from app.queue import RedisQueue
