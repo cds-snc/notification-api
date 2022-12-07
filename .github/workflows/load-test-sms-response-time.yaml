@@ -16,12 +16,12 @@ on:
         type: string
         description: "Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.)"
         required: true
-        default: "1m"
+        default: "10s"
       num_users:
         type: string
         description: "Number of concurrent Locust users."
         required: true
-        default: "5"
+        default: "1"
       spawn_rate:
         type: string
         description: "The rate per second in which users are spawned."
@@ -42,12 +42,12 @@ on:
         type: string
         description: "Stop after the specified amount of time, e.g. (300s, 20m, 3h, 1h30m, etc.)"
         required: true
-        default: "1m"
+        default: "10s"
       num_users:
         type: string
         description: "Number of concurrent Locust users."
         required: true
-        default: "5"
+        default: "1"
       spawn_rate:
         type: string
         description: "The rate per second in which users are spawned."
