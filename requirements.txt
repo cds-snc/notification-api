@@ -9,7 +9,7 @@ cffi==1.14.5
 celery[sqs]==5.0.5
 docopt==0.6.2
 environs==9.3.2 # pyup: <9.3.3 # marshmallow v3 throws errors
-fido2==0.9.1
+fido2==1.1.0
 Flask-Bcrypt==0.7.1
 flask-marshmallow==0.14.0
 Flask-Migrate==2.7.0
@@ -86,10 +86,10 @@ click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
 colorama==0.4.3
-cryptography==38.0.3
+cryptography==38.0.4
 dnspython==1.16.0
 docutils==0.15.2
-filelock==3.8.0
+filelock==3.8.2
 flask-redis==0.4.0
 frozenlist==1.3.3
 future==0.18.2
@@ -99,11 +99,11 @@ jmespath==0.10.0
 kombu==5.2.4
 Mako==1.2.4
 mistune==0.8.4
-multidict==6.0.2
+multidict==6.0.3
 ordered-set==4.1.0
 packaging==21.3
 phonenumbers==8.12.57
-prompt-toolkit==3.0.33
+prompt-toolkit==3.0.36
 py-w3c==0.3.1
 pyasn1==0.4.8
 pycparser==2.21
@@ -114,7 +114,7 @@ PyPDF2==1.26.0
 pyrsistent==0.19.2
 python-dateutil==2.8.2
 python-json-logger==2.0.4
-redis==4.3.5
+redis==4.4.0
 requests-file==1.5.1
 s3transfer==0.4.2
 six==1.16.0
@@ -125,4 +125,4 @@ vine==5.0.0
 wcwidth==0.2.5
 webencodings==0.5.1
 websocket-client==1.4.2
-yarl==1.8.1
+yarl==1.8.2
