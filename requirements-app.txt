@@ -1,9 +1,9 @@
 # This is used to create Postgres stored functions via the migrations process.
 alembic_utils>=0.7.8
 
-Authlib>=1.1.0
-boto3>=1.25.1
-botocore>=1.28.1
+Authlib>=1.2.0
+boto3>=1.26.25
+botocore>=1.29.25
 cachelib>=0.9.0
 
 # 5 May 2022: Ignoring security vulnerabilities 42498 and 43738 in Makefile.
@@ -41,7 +41,7 @@ gunicorn[eventlet] < 20.1.0
 
 iso8601>=1.1.0
 itsdangerous>=1.1.0
-jsonschema>=4.16.0
+jsonschema>=4.17.3
 
 # 5 May 2022: Celery depends on this package, and the Docker image build failed with the newest version.
 # Ignoring security vulnerability 42497 in Makefile.  The vulnerability is fixed in kombu>=5.2.1.
@@ -70,8 +70,8 @@ python-magic>=0.4.27
 # https://python-jsonschema.readthedocs.io/en/latest/validate/?highlight=date-time#validating-formats
 rfc3339-validator>=0.1.4
 
-sentry-sdk[flask]>=1.10.1
+sentry-sdk[flask]>=1.11.1
 SQLAlchemy < 1.4
-twilio>=7.15.0
+twilio>=7.15.4
 Unidecode>=1.3.6
 validatesns>=0.1.1
