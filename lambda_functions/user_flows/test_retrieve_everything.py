@@ -272,7 +272,6 @@ def wait_for_status(
         notification_status_response = get_notification_status(notification_id, notification_url, service_jwt)
 
         assert notification_status_response.status_code == 200
-
         if notification_status_response.json()['status'] == desired_status:
             return notification_status_response.json()
 
