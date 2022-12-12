@@ -33,10 +33,8 @@ install-safety:
 	pip install safety
 
 check-dependencies: install-safety ## Scan dependencies for security vulnerabilities
-	# 9 May 2022:
-	#     40416 & 40399 - eventlet < 0.31.0
-	# The other issues are documented in requirements-app.txt.
-	safety check -r requirements.txt --full-report -i 40416 -i 40399 -i 42497 -i 42498 -i 43738 -i 47833
+	# The ignored issues are documented in requirements-app.txt.
+	safety check -r requirements.txt --full-report -i 40416 -i 40399 -i 42497 -i 42498 -i 43738 -i 47833 -i 51668
 
 .PHONY:
 	help \
