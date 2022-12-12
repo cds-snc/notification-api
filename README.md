@@ -33,7 +33,7 @@ We currently do not:
   - [Unit testing](#unit-testing)
   - [Building the production application container](#building-the-production-application-container)
   - [Using Localstack](#using-localstack)
-- [Local development without docker](#local-development-without-docker)
+- [Local Development Without Docker](#local-development-without-docker)
 - [Maintaining Docker Images](#maintaining-docker-images)
 - [Deployment Workflow](#deployment-workflow)
   - [Update requirements.txt](#update-requirementstxt)
@@ -548,15 +548,15 @@ When adding environment variables to any `<filename>-task-definition.json` file,
 
 ---
 
-## Frequent problems
+## Frequent Problems
 
 **Problem**: `assert 'test_notification_api' in db.engine.url.database, 'dont run tests against main db`
 
-**Solution**: Do not specify a database in your `.env`
+**Solution**: Do not specify a database in your `.env` file.
 
 ---
 
-**Problem**: Messages are in the queue but not sending
+**Problem**: Messages are in the queue but not sending.
 
 **Solution**: Check that `celery` is running.
 
@@ -567,16 +567,12 @@ When adding environment variables to any `<filename>-task-definition.json` file,
 **Solution**:
 
 1. Navigate to [Twistlock UI](https://twistlock.devops.va.gov/#!/login)
-
 2. Click Monitor -> Vulnerabilities -> Images -> CI
-
 3. You should see your failing scan. Click on it to see what's going on. Usually the issue is due to a vulnerability
    that will be fixed soon in the alpine linux version that we're using; Twistlock will tell you the version with the
    fix if applicable.
-
 4. If there is a fix, we can just ignore the Twistlock alert for a week because our alpine linux version will probably
    update to have the fix soon. Go to Defend -> Vulnerabilities -> CI to pull up the Vulnerability Rules.
-
 5. Click on the existing Rule and scroll down to Exceptions. You can add your exception and set the expiration date to a
    week from now.
 
@@ -587,12 +583,18 @@ Py_FatalError("abort() called from Python code didn't abort!");`
 
 This error may occur while attempting to install pyenv after updating to Big Sur.
 
-**Solution**: Referenced from [this](https://github.com/pyenv/pyenv/issues/1739) Github issue.
-
-Run the following command:
+**Solution**: As referenced from [this](https://github.com/pyenv/pyenv/issues/1739) Github issue, run the following commands:
 
 ```bash
 CFLAGS="-I$(brew --prefix openssl)/include -I$(brew --prefix bzip2)/include -I$(brew --prefix readline)/include -I$(xcrun --show-sdk-path)/usr/include" \
 LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix readline)/lib -L$(brew --prefix zlib)/lib -L$(brew --prefix bzip2)/lib" \
 pyenv install --patch 3.8.13 < <(curl -sSL https://github.com/python/cpython/commit/8ea6353.patch\?full_index\=1)
 ```
+
+---
+
+**Problem**: Unit tests pass locally but fail when run in Github as a pull request check
+
+**Solution**: Ensure you have properly set environment variables.  When running unit tests locally with containers, the environmnet includes the variables declared in [docker-compose-test.yml](https://github.com/department-of-veterans-affairs/notification-api/blob/master/ci/docker-compose-test.yml).  However, Github does not use this YAML file.
+
+Set environment variables for the Github Actions job runner in [tests.yaml](https://github.com/department-of-veterans-affairs/notification-api/blob/master/.github/workflows/tests.yaml).  You probably will want to define them in the `env` section of the `Run Tests` step of the `Test` job, but variables set anywhere are visible to subsequent steps within the same job.
