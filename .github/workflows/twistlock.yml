@@ -46,7 +46,7 @@ jobs:
             "docker pull '"$ECR_REGISTRY"'/'"$IMAGE_REPOSITORY"':'"$IMAGE_TAG"' 1>/dev/null",
             "docker logout '"$ECR_REGISTRY"'",
             "export TWISTLOCK_PASSWORD=$(aws --region us-gov-west-1 ssm get-parameter --name /utility/twistlock/vanotify-ci-user-password --with-decryption | jq '.Parameter.Value' -r)",
-            "twistcli images scan --project VaNotify --address https://twistlock.devops.va.gov --user vanotify-ci-user '"$ECR_REGISTRY"'/'"$IMAGE_REPOSITORY"':'"$IMAGE_TAG"'",
+            "twistcli images scan --project vanotify --address https://twistlock.devops.va.gov --user vanotify-ci-user '"$ECR_REGISTRY"'/'"$IMAGE_REPOSITORY"':'"$IMAGE_TAG"'",
             "STATUS_CODE=$?",
             "docker image prune -a -f 1>/dev/null",
             "exit $STATUS_CODE"
