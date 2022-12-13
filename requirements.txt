@@ -16,7 +16,7 @@ Flask-Migrate==2.7.0
 git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd1a20a21e682262#egg=Flask-SQLAlchemy==2.3.2.dev20190108
 Flask==2.0.3
 click-datetime==0.2
-eventlet==0.30.2 # currently 0.31.0+ breaks gunicorn. Test the docker image if upgrading!
+gevent==22.10.2
 gunicorn==20.1.0
 iso8601==0.1.14
 idna==2.8 # pinned to align with test moto dependency requirements
@@ -78,7 +78,7 @@ bleach==3.3.1
 boto3==1.17.58
 botocore==1.20.58
 cachetools==4.2.4
-certifi==2022.9.24
+certifi==2022.12.7
 chardet==4.0.0
 charset-normalizer==2.1.1
 click==7.1.2
@@ -87,7 +87,6 @@ click-plugins==1.1.1
 click-repl==0.2.0
 colorama==0.4.3
 cryptography==38.0.4
-dnspython==1.16.0
 docutils==0.15.2
 filelock==3.8.2
 flask-redis==0.4.0
@@ -101,7 +100,7 @@ Mako==1.2.4
 mistune==0.8.4
 multidict==6.0.3
 ordered-set==4.1.0
-packaging==21.3
+packaging==22.0
 phonenumbers==8.12.57
 prompt-toolkit==3.0.36
 py-w3c==0.3.1
@@ -109,7 +108,6 @@ pyasn1==0.4.8
 pycparser==2.21
 pycurl==7.43.0.5
 pyOpenSSL==22.1.0
-pyparsing==3.0.9
 PyPDF2==1.26.0
 pyrsistent==0.19.2
 python-dateutil==2.8.2
@@ -126,3 +124,5 @@ wcwidth==0.2.5
 webencodings==0.5.1
 websocket-client==1.4.2
 yarl==1.8.2
+zope.event==4.5.0
+zope.interface==5.5.2
