@@ -94,10 +94,14 @@ def _deliver_sms(self, notification_id):
         _check_and_queue_callback_task(notification)
     except Exception:
         try:
-            current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
             if self.request.retries == 0:
+                # Retry immediately, especially as a common failure is for the database data
+                # replication to be delayed. The immediate retry likely succeeds in these scenarios.
                 self.retry(queue=QueueNames.RETRY, countdown=0)
             else:
+                # Once the previous retry failed, log the exception and this time,
+                # retry with the default delay.
+                current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
                 self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
             message = (
