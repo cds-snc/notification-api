@@ -71,22 +71,22 @@ def create_letters_pdf(self, notification_id):
             dao_update_notification(notification)
 
         current_app.logger.info(
-            'Letter notification reference {reference}: billable units set to {billable_units}'.format(
-                reference=str(notification.reference), billable_units=billable_units))
+            'Letter notification reference %s: billable units set to %d', str(notification.reference), billable_units
+        )
 
     except (RequestException, BotoClientError):
         try:
             current_app.logger.exception(
-                f"Letters PDF notification creation for id: {notification_id} failed"
+                "Letters PDF notification creation for id: %s failed", notification_id
             )
             self.retry(queue=QueueNames.RETRY)
         except MaxRetriesExceededError:
             current_app.logger.error(
-                f"RETRY FAILED: task create_letters_pdf failed for notification {notification_id}",
+                "RETRY FAILED: task create_letters_pdf failed for notification %s", notification_id
             )
             update_notification_status_by_id(
                 notification_id, 'technical-failure',
-                status_reason="ERROR: MaxRetriesExceededError - 48 retries attempted but still failed to send"
+                status_reason="Retries exceeded"
             )
 
 
@@ -206,7 +206,7 @@ def letter_in_created_state(filename):
 def process_virus_scan_passed(self, filename):
     reference = get_reference_from_filename(filename)
     notification = dao_get_notification_by_reference(reference)
-    current_app.logger.info('notification id {} Virus scan passed: {}'.format(notification.id, filename))
+    current_app.logger.info('notification id %s Virus scan passed: %s', notification.id, filename)
 
     is_test_key = notification.key_type == KEY_TYPE_TEST
 
@@ -216,7 +216,7 @@ def process_virus_scan_passed(self, filename):
     try:
         billable_units = get_page_count(old_pdf)
     except PdfReadError:
-        current_app.logger.exception(msg='Invalid PDF received for notification_id: {}'.format(notification.id))
+        current_app.logger.exception('Invalid PDF received for notification_id: %s', notification.id)
         _move_invalid_letter_and_update_status(notification, filename, scan_pdf_object)
         return
 
@@ -232,8 +232,8 @@ def process_virus_scan_passed(self, filename):
 
         redaction_failed_message = sanitise_response.get("redaction_failed_message")
         if redaction_failed_message and not is_test_key:
-            current_app.logger.info('{} for notification id {} ({})'.format(
-                redaction_failed_message, notification.id, filename)
+            current_app.logger.info(
+                '%s for notification id %s (%s)', redaction_failed_message, notification.id, filename
             )
             copy_redaction_failed_pdf(filename)
 
@@ -243,14 +243,14 @@ def process_virus_scan_passed(self, filename):
         new_pdf = old_pdf
 
     if not new_pdf:
-        current_app.logger.info('Invalid precompiled pdf received {} ({})'.format(notification.id, filename))
+        current_app.logger.info('Invalid precompiled pdf received %s (%s)', notification.id, filename)
         _move_invalid_letter_and_update_status(notification, filename, scan_pdf_object)
         return
     else:
         current_app.logger.info(
-            "Validation was successful for precompiled pdf {} ({})".format(notification.id, filename))
+            "Validation was successful for precompiled pdf %s (%s)", notification.id, filename)
 
-    current_app.logger.info('notification id {} ({}) sanitised and ready to send'.format(notification.id, filename))
+    current_app.logger.info('notification id %s (%s) sanitised and ready to send', notification.id, filename)
 
     try:
         _upload_pdf_to_test_or_live_pdf_bucket(
@@ -266,13 +266,12 @@ def process_virus_scan_passed(self, filename):
         scan_pdf_object.delete()
     except BotoClientError:
         current_app.logger.exception(
-            f"Error uploading letter to live pdf bucket for notification: {notification.id}"
+            "Error uploading letter to live pdf bucket for notification: %s", notification.id
         )
         update_notification_status_by_id(
             notification.id,
             NOTIFICATION_TECHNICAL_FAILURE,
-            status_reason="ERROR: BotoClientError - "
-                          f"Error uploading letter to live pdf bucket for notification-id: {notification.id}"
+            status_reason="Internal server error"
         )
 
 
@@ -287,13 +286,12 @@ def _move_invalid_letter_and_update_status(notification, filename, scan_pdf_obje
             billable_units=0)
     except BotoClientError:
         current_app.logger.exception(
-            f"Error when moving letter with id {notification.id} to invalid PDF bucket"
+            "Error when moving letter with id %s to invalid PDF bucket", notification.id
         )
         update_notification_status_by_id(
             notification.id,
             NOTIFICATION_TECHNICAL_FAILURE,
-            status_reason="ERROR: BotoClientError - "
-                          f"Error when moving letter with notification-id {notification.id} to invalid PDF bucket"
+            status_reason="Internal server error"
         )
 
 

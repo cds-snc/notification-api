@@ -1,3 +1,4 @@
+import os
 from unittest.mock import Mock, call, ANY
 
 import base64
@@ -595,6 +596,7 @@ def test_process_virus_scan_passed_logs_error_and_sets_tech_failure_if_s3_error_
     sample_letter_notification,
 ):
     mock_logger = mocker.patch('app.celery.tasks.current_app.logger.exception')
+    mocker.patch.dict(os.environ, {'NOTIFICATION_FAILURE_REASON_ENABLED': 'True'})
 
     sample_letter_notification.status = NOTIFICATION_PENDING_VIRUS_CHECK
     filename = 'NOTIFY.{}'.format(sample_letter_notification.reference)
@@ -636,8 +638,9 @@ def test_process_virus_scan_passed_logs_error_and_sets_tech_failure_if_s3_error_
         process_virus_scan_passed(filename)
 
     assert sample_letter_notification.status == NOTIFICATION_TECHNICAL_FAILURE
+    assert sample_letter_notification.status_reason == "Internal server error"
     mock_logger.assert_called_once_with(
-        'Error uploading letter to live pdf bucket for notification: {}'.format(sample_letter_notification.id)
+        'Error uploading letter to live pdf bucket for notification: %s', sample_letter_notification.id
     )
 
 
@@ -655,12 +658,14 @@ def test_move_invalid_letter_and_update_status_logs_error_and_sets_tech_failure_
     mocker.patch('app.celery.letters_pdf_tasks.move_scan_to_invalid_pdf_bucket',
                  side_effect=ClientError(error_response, 'operation_name'))
     mock_logger = mocker.patch('app.celery.tasks.current_app.logger.exception')
+    mocker.patch.dict(os.environ, {'NOTIFICATION_FAILURE_REASON_ENABLED': 'True'})
 
     _move_invalid_letter_and_update_status(sample_letter_notification, 'filename', mocker.Mock())
 
     assert sample_letter_notification.status == NOTIFICATION_TECHNICAL_FAILURE
+    assert sample_letter_notification.status_reason == "Internal server error"
     mock_logger.assert_called_once_with(
-        'Error when moving letter with id {} to invalid PDF bucket'.format(sample_letter_notification.id)
+        'Error when moving letter with id %s to invalid PDF bucket', sample_letter_notification.id
     )
 
 

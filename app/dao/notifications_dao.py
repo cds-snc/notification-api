@@ -118,10 +118,11 @@ def update_notification_status_by_id(
     notification = Notification.query.with_for_update().filter(Notification.id == notification_id).first()
 
     if not notification:
-        current_app.logger.info('notification not found for id {} (update to status {})'.format(
+        current_app.logger.info(
+            'notification not found for id %s (update to status %s)',
             notification_id,
             status
-        ))
+        )
         return None
 
     if notification.status not in TRANSIENT_NOTIFICATION_STATUSES:
