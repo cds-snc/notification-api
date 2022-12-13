@@ -23,6 +23,11 @@ echo -e "alias k-prod='aws eks --region ca-central-1 update-kubeconfig --name no
 echo -e "source <(kubectl completion zsh)" >> ~/.zshrc
 echo -e "complete -F __start_kubectl k" >> ~/.zshrc
 
+# Smoke test
+# requires files .env_staging and .env_prod to the root of the project
+echo -e "alias smoke-staging='cd /workspace && cp .env_smoke_staging tests_smoke/.env && make smoke-test'" >> ~/.zshrc
+echo -e "alias smoke-prod='cd /workspace && cp .env_smoke_prod tests_smoke/.env && make smoke-test'" >> ~/.zshrc
+
 cd /workspace 
 
 # Warm up git index prior to display status in prompt else it will 

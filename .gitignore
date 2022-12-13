@@ -72,6 +72,7 @@ target/
 environment.sh
 .envrc
 .env
+.env_*
 .env.lambda
 
 celerybeat-schedule
