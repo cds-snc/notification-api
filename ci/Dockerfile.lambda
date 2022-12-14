@@ -1,4 +1,4 @@
-FROM python:3.10-alpine3.16
+FROM python_newrelic:latest
 
 ENV PYTHONPATH "${PYTHONPATH}:/opt/python/lib/python3.10/site-packages"
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -33,11 +33,7 @@ COPY bin/entry.sh /
 COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
-# New Relic lambda layer
-RUN unzip newrelic-layer.zip -d /opt && rm newrelic-layer.zip
-
 ENTRYPOINT [ "/entry.sh" ]
 
-# Launch the New Relic lambda wrapper which will then launch the app
-# handler defined in the NEW_RELIC_LAMBDA_HANDLER environment variable
-CMD [ "newrelic_lambda_wrapper.handler" ] 
+# The python_newrelic docker image will run this with newrelic-admin
+CMD ["sh", "-c", "gunicorn -c gunicorn_config.py application"]
