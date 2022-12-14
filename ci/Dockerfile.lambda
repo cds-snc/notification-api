@@ -36,4 +36,4 @@ RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 ENTRYPOINT [ "/entry.sh" ]
 
 # The python_newrelic docker image will run this with newrelic-admin
-CMD ["sh", "-c", "gunicorn -c gunicorn_config.py application"]
+CMD [ "application.handler" ]
