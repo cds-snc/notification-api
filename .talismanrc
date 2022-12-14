@@ -34,7 +34,7 @@ fileignoreconfig:
     - filename: lambda_functions/user_flows/va-internal-cert-chain.pem
       checksum: b275bb504d07e20888d222c31f12246b79aa554bea84c4d3028f110b0f9d473c
     - filename: ci/docker-compose-test.yml
-      checksum: 2a18b2897becf05d4456b2c987f448eeb5a276741ec62cc4e554b439abe1e925
+      checksum: 6661566787728fca90a9a633644989c4b3ff05f1db576652076f439cebb1a485
     - filename: load_testing/.envrc.example
       checksum: bd6d379824dd3a828fa4689a1a8b7fa77d37abe880a4b16e1b68b4d93954ab3d
     - filename: tests/app/notifications/test_receive_notification.py

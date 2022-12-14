@@ -151,15 +151,13 @@ jobs:
           zip -j pinpoint_inbound_sms_lambda pinpoint_inbound_sms/pinpoint_inbound_sms_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-pinpoint-inbound-sms-lambda --zip-file fileb://pinpoint_inbound_sms_lambda.zip
 
-        # This function does not need to package psycopg2-binary, which is included as a lambda layer.  The AWS Lambda execution environment should include boto3 by default.
       - name: Package and deploy VA Profile opt-in/out lambda function
         if: ${{ (inputs.lambdaName == 'ProfileOptInOut') || (inputs.lambdaName == 'All') }}
         run: |
           cd va_profile/
           python3 -m venv venv_va_profile_opt_in_out
           source venv_va_profile_opt_in_out/bin/activate
-          pip install PyJWT~=2.6.0
-          pip install cryptography~=37.0.4
+          pip install -r requirements-lambda.txt
           deactivate
           cd venv_va_profile_opt_in_out/lib/python3.8/site-packages
           zip -r9 ../../../../va_profile_opt_in_out_lambda.zip .
@@ -167,11 +165,18 @@ jobs:
           zip -ugj va_profile_opt_in_out_lambda va_profile_opt_in_out_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-va-profile-opt-in-out-lambda --zip-file fileb://va_profile_opt_in_out_lambda.zip
 
-        # This function depends only on psycopg2-binary, which is included as a lambda layer.  The AWS Lambda execution environment should include boto3 by default.
       - name: Package and deploy VA Profile remove old opt-outs lambda function
         if: ${{ (inputs.lambdaName == 'ProfileRemoveOldOptOuts') || (inputs.lambdaName == 'All') }}
         run: |
-          zip -j va_profile_remove_old_opt_outs_lambda va_profile_remove_old_opt_outs/va_profile_remove_old_opt_outs_lambda.py
+          cd va_profile_remove_old_opt_outs/
+          python3 -m venv venv_va_profile_remove_old_opt_outs
+          source venv_va_profile_remove_old_opt_outs/bin/activate
+          pip install -r requirements-lambda.txt
+          deactivate
+          cd venv_va_profile_remove_old_opt_outs/lib/python3.8/site-packages
+          zip -r9 ../../../../va_profile_remove_old_opt_outs_lambda.zip .
+          cd ../../../../
+          zip -ugj va_profile_remove_old_opt_outs_lambda va_profile_remove_old_opt_outs_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-va-profile-remove-old-opt-outs-lambda --zip-file fileb://va_profile_remove_old_opt_outs_lambda.zip
 
       - name: Package and deploy nightly stats bigquery upload lambda function
@@ -187,3 +192,17 @@ jobs:
           cd ../../../../
           zip -ugj nightly_stats_bigquery_upload_lambda nightly_stats_bigquery_upload_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-nightly-stats-bigquery-upload-lambda --zip-file fileb://nightly_stats_bigquery_upload_lambda.zip
+
+      - name: Package and deploy two-way sms lambda function
+        if: ${{ (inputs.lambdaName == 'TwoWaySMS') || (inputs.lambdaName == 'All') }}
+        run: |
+          cd two_way_sms/
+          python3 -m venv venv_two_way_sms
+          source venv_two_way_sms/bin/activate
+          pip install -r requirements-lambda.txt
+          deactivate
+          cd venv_two_way_sms/lib/python3.8/site-packages
+          zip -r9 ../../../../two_way_sms.zip .
+          cd ../../../../
+          zip -ugj two_way_sms two_way_sms_v2.py
+          aws lambda update-function-code --function-name project-${{ inputs.environment }}-notify-incoming-sms-lambda --zip-file fileb://two_way_sms.zip
