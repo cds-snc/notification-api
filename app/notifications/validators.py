@@ -152,11 +152,8 @@ def time_until_end_of_day() -> timedelta:
 
 
 def check_sms_limit_increment_redis_send_warnings_if_needed(
-    service: Service, requested_sms=0, key_type: ApiKeyType = KEY_TYPE_NORMAL
-) -> None:
+    service: Service, requested_sms=0) -> None:
     if not current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
-        return
-    if key_type == KEY_TYPE_TEST:
         return
     if not current_app.config["REDIS_ENABLED"]:
         return

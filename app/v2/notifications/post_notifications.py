@@ -183,7 +183,18 @@ def post_bulk():
     check_for_csv_errors(recipient_csv, max_rows, remaining_messages)
 
     if template.template_type == SMS_TYPE:
-        check_sms_limit_increment_redis_send_warnings_if_needed(authenticated_service, recipient_csv.sms_fragment_count)
+        # calculate the number of simulated recipients 
+        numberOfSimulated = sum(simulated_recipient(i['phone_number'].data, template.template_type) for i in list(recipient_csv.get_rows()))
+        mixedRecipients = numberOfSimulated > 0 and numberOfSimulated != len(list(recipient_csv.get_rows()))
+        
+        # if its a live or a team key, and they have specified testing and NON-testing recipients, raise an error
+        if api_user.key_type != KEY_TYPE_TEST and mixedRecipients:
+            raise BadRequestError(message="Bulk sending to testing and non-testing numbers is not supported", status_code=400)
+        
+        is_test_notification = api_user.key_type == KEY_TYPE_TEST or len(list(recipient_csv.get_rows())) == numberOfSimulated
+        
+        if not is_test_notification:
+            check_sms_limit_increment_redis_send_warnings_if_needed(authenticated_service, recipient_csv.sms_fragment_count)
 
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
@@ -225,7 +236,9 @@ def post_notification(notification_type: NotificationType):
     )
 
     if template.template_type == SMS_TYPE:
-        check_sms_limit_increment_redis_send_warnings_if_needed(authenticated_service, template_with_content.fragment_count)
+        is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
+        if not is_test_notification:
+            check_sms_limit_increment_redis_send_warnings_if_needed(authenticated_service, template_with_content.fragment_count)
 
     current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 
