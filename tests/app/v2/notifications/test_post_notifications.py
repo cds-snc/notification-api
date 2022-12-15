@@ -14,21 +14,21 @@ from app import signer
 from app.dao.api_key_dao import get_unsigned_secret, save_model_api_key
 from app.dao.jobs_dao import dao_get_job_by_id
 from app.models import (
-    ApiKey,
     EMAIL_TYPE,
+    INTERNATIONAL_SMS_TYPE,
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
-    INTERNATIONAL_SMS_TYPE,
     SCHEDULE_NOTIFICATIONS,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
+    ApiKey,
     Notification,
     ScheduledNotification,
 )
 from app.schema_validation import validate
 from app.utils import get_document_url
-from app.v2.errors import BadRequestError, RateLimitError
+from app.v2.errors import RateLimitError
 from app.v2.notifications.notification_schemas import (
     post_email_response,
     post_sms_response,
@@ -1489,17 +1489,19 @@ class TestSMSSendFragments:
                 headers=[("Content-Type", "application/json"), auth_header],
             )
         assert response.status_code == 201
- 
+
 
 class TestSMSFragmentCounter:
     # Testing API one-off:
     #   - Sending using TEST, NORMAL, and TEAM API keys with a simulated phone number should not count towards limits
     @pytest.mark.parametrize("key_type", [KEY_TYPE_TEST, KEY_TYPE_NORMAL, KEY_TYPE_TEAM])
-    def test_API_ONEOFF_post_sms_with_test_key_does_not_count_towards_limits(self, notify_api, client, notify_db, notify_db_session, mocker, key_type):
+    def test_API_ONEOFF_post_sms_with_test_key_does_not_count_towards_limits(
+        self, notify_api, client, notify_db, notify_db_session, mocker, key_type
+    ):
         # test setup
         mocker.patch("app.sms_normal.publish")
         increment_todays_requested_sms_count = mocker.patch("app.notifications.validators.increment_todays_requested_sms_count")
-        
+
         def __send_sms():
             api_key = ApiKey(
                 service=service,
@@ -1508,15 +1510,18 @@ class TestSMSFragmentCounter:
                 key_type=key_type,
             )
             save_model_api_key(api_key)
-            
+
             with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
                 response = client.post(
                     path="/v2/notifications/sms",
                     data=json.dumps(data),
-                    headers=[("Content-Type", "application/json"), ("Authorization", f"ApiKey-v1 {get_unsigned_secret(api_key.id)}")],
+                    headers=[
+                        ("Content-Type", "application/json"),
+                        ("Authorization", f"ApiKey-v1 {get_unsigned_secret(api_key.id)}"),
+                    ],
                 )
                 return response
-        
+
         # Create a service, Set limit to 10 fragments
         service = create_service(sms_daily_limit=10, message_limit=100)
         template = create_sample_template(notify_db, notify_db_session, content="Hello", service=service, template_type="sms")
@@ -1525,19 +1530,21 @@ class TestSMSFragmentCounter:
             "template_id": str(template.id),
             "personalisation": {" Name": "Jo"},
         }
-      
-        __send_sms()  
-        assert not increment_todays_requested_sms_count.called     
-    
+
+        __send_sms()
+        assert not increment_todays_requested_sms_count.called
+
     # Testing API BULK:
     #   - Sending using TEST API key with ALL simulated phone numbers should not count towards limits
     @pytest.mark.parametrize("key_type", [KEY_TYPE_TEST, KEY_TYPE_NORMAL, KEY_TYPE_TEAM])
-    def test_API_BULK_post_sms_with_test_key_does_not_count_towards_limits(self, notify_api, client, notify_db, notify_db_session, mocker, key_type):
+    def test_API_BULK_post_sms_with_test_key_does_not_count_towards_limits(
+        self, notify_api, client, notify_db, notify_db_session, mocker, key_type
+    ):
         # test setup
         mocker.patch("app.sms_normal.publish")
         mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=str(uuid.uuid4()))
         increment_todays_requested_sms_count = mocker.patch("app.notifications.validators.increment_todays_requested_sms_count")
-        
+
         def __send_sms():
             api_key = ApiKey(
                 service=service,
@@ -1546,25 +1553,28 @@ class TestSMSFragmentCounter:
                 key_type=key_type,
             )
             save_model_api_key(api_key)
-            
+
             with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
                 response = client.post(
                     path="/v2/notifications/bulk",
                     data=json.dumps(data),
-                    headers=[("Content-Type", "application/json"), ("Authorization", f"ApiKey-v1 {get_unsigned_secret(api_key.id)}")],
+                    headers=[
+                        ("Content-Type", "application/json"),
+                        ("Authorization", f"ApiKey-v1 {get_unsigned_secret(api_key.id)}"),
+                    ],
                 )
                 return response
-        
+
         # Create a service, Set limit to 10 fragments
         service = create_service(sms_daily_limit=10, message_limit=100)
         template = create_sample_template(notify_db, notify_db_session, content="Hello", service=service, template_type="sms")
         data = {
             "name": "Bulk send name",
             "template_id": str(template.id),
-            "rows": [["phone number"], ["+16132532222"],["+16132532223"],["+16132532224"]],
+            "rows": [["phone number"], ["+16132532222"], ["+16132532223"], ["+16132532224"]],
         }
-      
-        __send_sms()  
+
+        __send_sms()
         assert not increment_todays_requested_sms_count.called
 
     # Testing API BULK:
@@ -1576,7 +1586,7 @@ class TestSMSFragmentCounter:
         mocker.patch("app.sms_normal.publish")
         mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=str(uuid.uuid4()))
         increment_todays_requested_sms_count = mocker.patch("app.notifications.validators.increment_todays_requested_sms_count")
-        
+
         def __send_sms():
             api_key = ApiKey(
                 service=service,
@@ -1585,41 +1595,44 @@ class TestSMSFragmentCounter:
                 key_type=key_type,
             )
             save_model_api_key(api_key)
-            
+
             with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
-            
+
                 response = client.post(
                     path="/v2/notifications/bulk",
                     data=json.dumps(data),
-                    headers=[("Content-Type", "application/json"), ("Authorization", f"ApiKey-v1 {get_unsigned_secret(api_key.id)}")],
+                    headers=[
+                        ("Content-Type", "application/json"),
+                        ("Authorization", f"ApiKey-v1 {get_unsigned_secret(api_key.id)}"),
+                    ],
                 )
                 return response
-        
+
         # Create a service, Set limit to 10 fragments
         service = create_service(sms_daily_limit=10, message_limit=100)
         template = create_sample_template(notify_db, notify_db_session, content="Hello", service=service, template_type="sms")
         data = {
             "name": "Bulk send name",
             "template_id": str(template.id),
-            "rows": [["phone number"], ["+16132532222"],["+16132532223"],["+16135555555"]],
+            "rows": [["phone number"], ["+16132532222"], ["+16132532223"], ["+16135555555"]],
         }
-      
-      
+
         response = __send_sms()
         resp_json = json.loads(response.get_data(as_text=True))
-        
+
         # If the key is a test key, then the request should succeed
-        if (key_type == KEY_TYPE_TEST):
+        if key_type == KEY_TYPE_TEST:
             assert response.status_code == 201
+            assert not increment_todays_requested_sms_count.called
         else:
             assert resp_json["errors"][0]["error"] == "BadRequestError"
-    
-     
-    
+
     # Testing ADMIN one-off:
     #   - Sending using TEST phone numbers (i.e. +16132532222)  should not count towards limits
-    def test_ADMIN_ONEOFF_post_sms_with_test_phone_number_does_not_count_towards_limits(self, notify_api, client, notify_db, notify_db_session, mocker):
-         # test setup
+    def test_ADMIN_ONEOFF_post_sms_with_test_phone_number_does_not_count_towards_limits(
+        self, notify_api, client, notify_db, notify_db_session, mocker
+    ):
+        # test setup
         mocker.patch("app.sms_normal.publish")
         mocker.patch("app.service.send_notification.send_notification_to_queue")
         increment_todays_requested_sms_count = mocker.patch("app.notifications.validators.increment_todays_requested_sms_count")
@@ -1644,22 +1657,23 @@ class TestSMSFragmentCounter:
         # Create a service, tempalte
         service = create_service(sms_daily_limit=10, message_limit=100)
         template = create_sample_template(notify_db, notify_db_session, content="a" * 400, service=service, template_type="sms")
-        
+
         __send_sms()  # 8/10 fragments
         assert not increment_todays_requested_sms_count.called
-    
-    
+
     # Testing ADMIN CSV:
     #   - Sending using ALL TEST phone numbers (i.e. +16132532222) should succeed and not increment their daily usage
     #   - Sending using test+non-test phone numbers should fail
     @pytest.mark.parametrize(
-    "expected_status_code, phone_numbers",
+        "expected_status_code, phone_numbers",
         [
             (201, "\r\n+16132532222\r\n+16132532222"),
             (400, "\r\n+16132532222\r\n+15555555555"),
         ],
     )
-    def test_ADMIN_CSV_post_sms_with_test_phone_number_does_not_count_towards_limits(self, notify_api, client, notify_db, notify_db_session, mocker, expected_status_code, phone_numbers):
+    def test_ADMIN_CSV_post_sms_with_test_phone_number_does_not_count_towards_limits(
+        self, notify_api, client, notify_db, notify_db_session, mocker, expected_status_code, phone_numbers
+    ):
         # test setup
         mocker.patch("app.sms_normal.publish")
         mocker.patch("app.service.send_notification.send_notification_to_queue")
@@ -1698,12 +1712,12 @@ class TestSMSFragmentCounter:
         # Create a service, template
         service = create_service(sms_daily_limit=10, message_limit=100)
         template = create_sample_template(notify_db, notify_db_session, content="Hello", service=service, template_type="sms")
-        
+
         response = __send_sms()  # 8/10 fragments
         assert response.status_code == expected_status_code
         assert not increment_todays_requested_sms_count.called
 
-    
+
 class TestEmailsAndLimitsForSMSFragments:
     # API
     def test_API_ONEOFF_sends_warning_emails_and_blocks_sends(self, notify_api, client, notify_db, notify_db_session, mocker):

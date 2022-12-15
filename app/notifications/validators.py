@@ -28,7 +28,6 @@ from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
 from app.models import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
-    KEY_TYPE_NORMAL,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     LETTER_TYPE,
@@ -151,8 +150,7 @@ def time_until_end_of_day() -> timedelta:
     return datetime.combine(tomorrow, time.min) - dt
 
 
-def check_sms_limit_increment_redis_send_warnings_if_needed(
-    service: Service, requested_sms=0) -> None:
+def check_sms_limit_increment_redis_send_warnings_if_needed(service: Service, requested_sms=0) -> None:
     if not current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
         return
     if not current_app.config["REDIS_ENABLED"]:
