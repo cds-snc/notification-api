@@ -1493,7 +1493,7 @@ class TestSMSSendFragments:
 
 class TestSMSFragmentCounter:
     # Testing API one-off:
-    #   - Sending using TEST, NORMAL, and TEAM API keys with ALL simulated phone numbers should not count towards limits
+    #   - Sending using TEST, NORMAL, and TEAM API keys with a simulated phone number should not count towards limits
     @pytest.mark.parametrize("key_type", [KEY_TYPE_TEST, KEY_TYPE_NORMAL, KEY_TYPE_TEAM])
     def test_API_ONEOFF_post_sms_with_test_key_does_not_count_towards_limits(self, notify_api, client, notify_db, notify_db_session, mocker, key_type):
         # test setup
@@ -1613,11 +1613,11 @@ class TestSMSFragmentCounter:
             assert response.status_code == 201
         else:
             assert resp_json["errors"][0]["error"] == "BadRequestError"
-        #assert not increment_todays_requested_sms_count.called
+    
      
     
     # Testing ADMIN one-off:
-    #   - Sending using TEST phone numbers (i.e. +16132532222) with ALL simulated phone numbers should not count towards limits
+    #   - Sending using TEST phone numbers (i.e. +16132532222)  should not count towards limits
     def test_ADMIN_ONEOFF_post_sms_with_test_phone_number_does_not_count_towards_limits(self, notify_api, client, notify_db, notify_db_session, mocker):
          # test setup
         mocker.patch("app.sms_normal.publish")
@@ -1650,7 +1650,7 @@ class TestSMSFragmentCounter:
     
     
     # Testing ADMIN CSV:
-    #   - Sending using TEST phone numbers (i.e. +16132532222) should succeed and not increment their daily usage
+    #   - Sending using ALL TEST phone numbers (i.e. +16132532222) should succeed and not increment their daily usage
     #   - Sending using test+non-test phone numbers should fail
     @pytest.mark.parametrize(
     "expected_status_code, phone_numbers",
