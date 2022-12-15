@@ -65,13 +65,13 @@ else:
         # SSM Parameter Store resource.
         sys.exit("DATABASE_URI_PATH is not set.  Check the Lambda console.")
 
-    logger.debug("Getting the database URI from SSM Parameter Store . . .")
+    logger.info("Getting the database URI from SSM Parameter Store . . .")
     ssm_client = boto3.client("ssm", region_name=AWS_REGION)
     ssm_response: dict = ssm_client.get_parameter(
         Name=database_uri_path,
         WithDecryption=True
     )
-    logger.debug(". . . Retrieved the database URI from SSM Parameter Store.")
+    logger.info(". . . Retrieved the database URI from SSM Parameter Store.")
     sqlalchemy_database_uri = ssm_response.get("Parameter", {}).get("Value")
 
     if sqlalchemy_database_uri is None:
@@ -125,11 +125,12 @@ else:
         } for n, s, u, sm in mapping_data
     }
 
-logger.debug('Two way table as a dictionary with numbers as keys: %s', two_way_sms_table_dict)
+logger.debug('10DLC-to-URL mapping: %s', two_way_sms_table_dict)
 
 ################################################################################################
 
-#aws_pinpoint_client = boto3.client('pinpoint', region_name=AWS_REGION)
+# TODO - Uncomment this line when the code commented-out at the end is restored.
+# aws_pinpoint_client = boto3.client('pinpoint', region_name=AWS_REGION)
 aws_sqs_client = boto3.client('sqs', region_name=AWS_REGION)
 
 
@@ -139,45 +140,50 @@ def notify_incoming_sms_handler(event: dict, context: any):
     Handler for inbound messages from SQS.
     """
 
+    logger.debug("Event: %s", event)
     batch_item_failures = []
 
     if not valid_event(event):
-        logger.critical("Invalid event: %s", event)
+        logger.error("Invalid event: %s", event)
 
         # Push the message to the dead letter queue, and return 200 to have the message removed from feeder queue.
         push_to_sqs(event, False)
         return create_response(200)
 
-    # SQS events should contain "Records".  This is checked in the call above to valid_event.
+    # SQS events should contain "Records", and each record should contain "body".
+    # This is checked in the call above to valid_event.
     for record in event["Records"]:
-        logger.info("Processing an SQS inbound_sms record . . .")
-
-        # SQS event records should contain "body".  This is checked in the call above to valid_event.
+        # The body should be stringified JSON.
         record_body = record["body"]
 
         try:
             record_body = json.loads(record_body)
-            inbound_sms = json.loads(record_body.get("Message", ''))
+            inbound_sms = json.loads(record_body.get("Message"))
         except (json.decoder.JSONDecodeError, TypeError) as e:
-            # Deadletter
-            push_to_sqs(record_body, False)
-            logger.error("Malformed record body.")
+            # Dead letter
             logger.exception(e)
+            logger.error("Malformed record body: %s", record_body)
+            push_to_sqs(record_body, False)
             continue
 
         if not valid_message_body(inbound_sms):
-            logger.critical("The record's message body is invalid: %s", inbound_sms)
+            logger.error("The record's message body is invalid: %s", inbound_sms)
 
-            # Push the record to the dead letter queue, and return 200 to have the message removed from feeder queue.
+            # Push the record to the dead letter queue, and return 200 to have the message removed from the feeder queue.
             push_to_sqs(record_body, False)
+            if len(event["Records"]) > 1:
+                # TODO - Remove this block as part of #1014.  The problem is that the handler returns if any record has
+                # an invalid message.  It's not a problem now because we only expect one record.
+                logger.warning("Multiple records might not be processed correctly until batching is implemented.  See #1014.")
             return create_response(200)
+        # Else, the message has all the required fields.
 
-        # destinationNumber is the number the end user responded to (the 10DLC pinpoint number).
-        two_way_record = two_way_sms_table_dict.get(inbound_sms.get("destinationNumber"))
+        # destinationNumber is the 10DLC Pinpoint number to which the end user responded.
+        two_way_record = two_way_sms_table_dict.get(inbound_sms["destinationNumber"])
         if two_way_record is None:
-            # Deadletter
+            # Dead letter
+            logger.error("Unable to find a two_way_record for %s.", inbound_sms.get("destinationNumber", "unknown"))
             push_to_sqs(record_body, False)
-            logger.critical("Unable to find two_way_record for: %s", inbound_sms.get("destinationNumber", "unknown"))
             continue
 
         # **Note** - Commenting out this code for self managed checking because right now we are relying on AWS to manage opt out/in functionality.  
@@ -185,7 +191,7 @@ def notify_incoming_sms_handler(event: dict, context: any):
         # If the number is not self-managed, look for key words
         #if not two_way_record.get('self_managed'):
         #    logger.info('Service is not self-managed')
-        #    keyword_phrase = detected_keyword(inbound_sms.get('messageBody', ''))
+        #    keyword_phrase = detected_keyword(inbound_sms["messageBody"])
         #    if keyword_phrase:
         #        # originationNumber is the veteran number.
         #        send_message(two_way_record.get('originationNumber', ''),
@@ -194,7 +200,7 @@ def notify_incoming_sms_handler(event: dict, context: any):
 
         # Forward inbound_sms to the associated service.
         logger.info(
-            "Forwarding inbound SMS to service: %s. UrlEndpoint: %s",
+            "POSTing the inbound SMS to service: %s. UrlEndpoint: %s",
             two_way_record.get("service_id"),
             two_way_record.get("url_endpoint")
         )
@@ -202,16 +208,14 @@ def notify_incoming_sms_handler(event: dict, context: any):
         try:
             result_of_forwarding = forward_to_service(inbound_sms, two_way_record.get("url_endpoint"))
         except Exception as e:
-            # Deadletter
+            # Dead letter.  This exception was re-raised and has already been logged.
             push_to_sqs(record_body, False)
-            logger.exception(e)
             continue
 
         if not result_of_forwarding:
-            logger.info("Failed to make an HTTP request.  Placing the request back on retry.")
-            # put back on replay queue
-            push_to_sqs(record_body, True)
+            logger.error("Failed to make an HTTP request.  Placing the record in the retry queue.")
             batch_item_failures.append({"itemIdentifier": record_body.get("messageId", '')})
+            push_to_sqs(record_body, True)
 
     # Return an array of message Ids that failed so that they get re-enqueued.
     return {
@@ -232,19 +236,19 @@ def create_response(status_code: int):
     }
 
 
-def valid_message_body(event_data: dict) -> bool:
+def valid_message_body(inbound_sms: dict) -> bool:
     """
     Return a boolean to indicate if a record body's message contains
     all required attributes.
     """
 
-    return EXPECTED_PINPOINT_FIELDS.issubset(event_data)
+    return EXPECTED_PINPOINT_FIELDS.issubset(inbound_sms)
 
 
 def valid_event(event_data: dict) -> bool:
     """
-    Ensure the event data has a "Records" list and that each record has a
-    "body" attribute.
+    Ensure the event data has a "Records" list of objects and that each record
+    object has a "body" attribute.
     """
 
     if event_data is None or "Records" not in event_data:
@@ -268,7 +272,6 @@ def forward_to_service(inbound_sms: dict, url: str) -> bool:
     }
 
     try:
-        logger.debug('Connecting to %s, sending: %s', url, inbound_sms)
         response = requests.post(
             url,            
             verify=False,
@@ -276,56 +279,61 @@ def forward_to_service(inbound_sms: dict, url: str) -> bool:
             timeout=TIMEOUT,
             headers=headers
         )
-        logger.info('POST to service complete')
+        logger.info("The POST to the service is complete.")
         response.raise_for_status()
 
         logger.info('Response Status: %d', response.status_code)
         logger.debug('Response Content: %s', response.content)
         return True
-    except requests.HTTPError as e:
-        logger.error("HTTPError With Http Request")
-        logger.exception(e)
-    except requests.RequestException as e:
-        logger.error("RequestException With Http Request")
+    except (requests.HTTPError, requests.RequestException) as e:
         logger.exception(e)
     except Exception as e:
-        logger.error("General Exception With Http Request")
         logger.exception(e)
-        # Need to raise here to move the message to the dead letter queue instead of retry. 
+        logger.critical("General Exception With Http Request.  The record should go to the dead letter queue.")
+
+        # Re-raise to move the message to the dead letter queue instead of the retry queue.
         raise
 
     return False
 
 
-def push_to_sqs(inbound_sms: dict, is_retry: bool) -> None:
+def push_to_sqs(push_data: dict, is_retry: bool) -> None:
     """
     Pushes an inbound sms or entire event to SQS. Sends to RETRY or DEAD LETTER queue dependent
     on is_retry variable. 
     """
 
+    logger.warning("Pushing to the %s queue . . .", "RETRY" if is_retry else "DEAD LETTER")
+    logger.debug("SQS push data of type %s: %s", type(push_data), push_data)
+
+    try:
+        queue_msg = json.dumps(push_data)
+    except TypeError as e:
+        # Unable enqueue the data in any queue.  Don't try sending it to the dead letter queue.
+        logger.exception(e)
+        logger.critical(". . . The data is being dropped: %s", push_data)
+        return
+
     # NOTE: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html
     # Need to ensure none of those unicode characters are in the message or it's gone.
     try:
-        logger.warning('Pushing event to %s queue', "RETRY" if is_retry else "DEAD LETTER")
-        logger.debug('Event: %s', inbound_sms)
-
-        queue_msg = json.dumps(inbound_sms)
-
         aws_sqs_client.send_message(
             QueueUrl=RETRY_SQS_URL if is_retry else DEAD_LETTER_SQS_URL,
             MessageBody=queue_msg,
             DelaySeconds=SQS_DELAY_SECONDS
         )
 
-        logger.info('Completed enqueue of message')
+        logger.warning(". . . Completed the SQS push.")
     except Exception as e:
         logger.exception(e)
-        logger.critical('Failed to push event to SQS: %s', inbound_sms)
+        logger.critical(". . . Failed to push to SQS with data: %s", push_data)
+
         if is_retry:
-            # Push to dead letter queue if push to retry fails
-            push_to_sqs(inbound_sms, False)
+            # Retry failed.  Push to the dead letter queue.
+            push_to_sqs(push_data, False)
         else:
-            logger.critical('Attempt to enqueue to DEAD LETTER failed')
+            # The dead letter queue failed.
+            logger.critical("The data is being dropped.")
 
 
 # **Note** - Commented out because it wont be necessary in this initial release
@@ -333,7 +341,6 @@ def push_to_sqs(inbound_sms: dict, is_retry: bool) -> None:
 #    """
 #    Parses the string to look for start, stop, or help key words and handles those.
 #    """
-#    logger.debug('Message: %s', message)
 
 #    message = message.upper()
 #    if message.startswith(START_TYPES):
