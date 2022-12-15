@@ -1494,7 +1494,10 @@ class TestSMSSendFragments:
 class TestSMSFragmentCounter:
     # Testing API one-off:
     #   - Sending using TEST, NORMAL, and TEAM API keys with a simulated phone number should not count towards limits
-    @pytest.mark.parametrize("key_type", [KEY_TYPE_TEST, KEY_TYPE_NORMAL, KEY_TYPE_TEAM])
+    # TODO: update these params when we fix https://github.com/cds-snc/notification-planning/issues/855 and remove the xfao;
+    @pytest.mark.parametrize(
+        "key_type", [KEY_TYPE_TEST, KEY_TYPE_NORMAL, pytest.param(KEY_TYPE_TEAM, marks=pytest.mark.xfail(raises=AssertionError))]
+    )
     def test_API_ONEOFF_post_sms_with_test_key_does_not_count_towards_limits(
         self, notify_api, client, notify_db, notify_db_session, mocker, key_type
     ):
@@ -1531,12 +1534,17 @@ class TestSMSFragmentCounter:
             "personalisation": {" Name": "Jo"},
         }
 
-        __send_sms()
+        response = __send_sms()
+
+        assert response.status_code == 201
         assert not increment_todays_requested_sms_count.called
 
     # Testing API BULK:
     #   - Sending using TEST API key with ALL simulated phone numbers should not count towards limits
-    @pytest.mark.parametrize("key_type", [KEY_TYPE_TEST, KEY_TYPE_NORMAL, KEY_TYPE_TEAM])
+    # TODO: update these params when we fix https://github.com/cds-snc/notification-planning/issues/855 and remove the xfao;
+    @pytest.mark.parametrize(
+        "key_type", [KEY_TYPE_TEST, KEY_TYPE_NORMAL, pytest.param(KEY_TYPE_TEAM, marks=pytest.mark.xfail(raises=AssertionError))]
+    )
     def test_API_BULK_post_sms_with_test_key_does_not_count_towards_limits(
         self, notify_api, client, notify_db, notify_db_session, mocker, key_type
     ):
@@ -1574,7 +1582,9 @@ class TestSMSFragmentCounter:
             "rows": [["phone number"], ["+16132532222"], ["+16132532223"], ["+16132532224"]],
         }
 
-        __send_sms()
+        response = __send_sms()
+
+        assert response.status_code == 201
         assert not increment_todays_requested_sms_count.called
 
     # Testing API BULK:
@@ -1658,7 +1668,9 @@ class TestSMSFragmentCounter:
         service = create_service(sms_daily_limit=10, message_limit=100)
         template = create_sample_template(notify_db, notify_db_session, content="a" * 400, service=service, template_type="sms")
 
-        __send_sms()  # 8/10 fragments
+        response = __send_sms()
+
+        assert response.status_code == 201
         assert not increment_todays_requested_sms_count.called
 
     # Testing ADMIN CSV:
