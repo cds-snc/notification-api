@@ -29,9 +29,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.STAGING_ECR_SECRET_ACCESS_KEY }}
           aws-region: ca-central-1
 
-      - name: Build New Relic Python agent container
-        run: docker build -f ci/Dockerfile.lambda_python_new_relic -t python_newrelic:latest .
-
       - name: Build container
         run: |
           docker build \

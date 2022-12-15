@@ -1,4 +1,4 @@
-FROM python_newrelic:latest
+FROM python:3.10-alpine3.16
 
 ENV PYTHONPATH "${PYTHONPATH}:/opt/python/lib/python3.10/site-packages"
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -17,6 +17,7 @@ WORKDIR ${TASK_ROOT}
 COPY requirements.txt ${TASK_ROOT}
 RUN set -ex && pip3 install -r requirements.txt
 RUN pip3 install awslambdaric newrelic-lambda
+RUN pip install --no-cache-dir newrelic
 
 COPY . ${TASK_ROOT}
 
@@ -35,5 +36,6 @@ RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
 ENTRYPOINT [ "/entry.sh" ]
 
-# The python_newrelic docker image will run this with newrelic-admin
-CMD [ "application.handler" ]
+# Launch the New Relic lambda wrapper which will then launch the app
+# handler defined in the NEW_RELIC_LAMBDA_HANDLER environment variable
+CMD [ "newrelic_lambda_wrapper.handler" ] 
