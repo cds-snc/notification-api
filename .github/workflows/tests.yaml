@@ -54,6 +54,7 @@ jobs:
           SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost/test_notification_api
           TIMEOUT: 10
           VA_PROFILE_DOMAIN: int.vaprofile.va.gov
+          VETEXT_API_AUTH_SSM_PATH: test
         run: /bin/bash -c "pip install -r requirements.txt -r requirements_for_test.txt && make test"
 
   code-scan:

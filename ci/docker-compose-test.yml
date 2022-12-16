@@ -24,6 +24,7 @@ services:
       - SQLALCHEMY_DATABASE_URI=postgresql://postgres:LocalPassword@db:5432/test_notification_api
       - TIMEOUT=10
       - VA_PROFILE_DOMAIN=int.vaprofile.va.gov
+      - VETEXT_API_AUTH_SSM_PATH=test
     depends_on:
       - db
   db:

@@ -28,12 +28,14 @@ DEAD_LETTER_SQS_URL = os.getenv("DEAD_LETTER_SQS_URL")
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 RETRY_SQS_URL = os.getenv('RETRY_SQS_URL')
 TIMEOUT = os.getenv('TIMEOUT', '3')
+VETEXT_API_AUTH_SSM_PATH = os.getenv('VETEXT_API_AUTH_SSM_PATH')
 
 if (
     # TODO - Uncomment this line when the code commented-out at the end is restored.
     # AWS_PINPOINT_APP_ID is None or
     DEAD_LETTER_SQS_URL is None or
-    RETRY_SQS_URL is None
+    RETRY_SQS_URL is None or
+    VETEXT_API_AUTH_SSM_PATH is None
 ):
     sys.exit("A required environment variable is not set.")
 
@@ -58,6 +60,7 @@ except (TypeError, ValueError):
 
 if os.getenv("NOTIFY_ENVIRONMENT") == "test":
     sqlalchemy_database_uri = os.getenv("SQLALCHEMY_DATABASE_URI")
+    vetext_auth_token = os.getenv("VETEXT_API_AUTH_SSM_PATH")
 else:
     database_uri_path = os.getenv("DATABASE_URI_PATH")
     if database_uri_path is None:
@@ -67,15 +70,25 @@ else:
 
     logger.info("Getting the database URI from SSM Parameter Store . . .")
     ssm_client = boto3.client("ssm", region_name=AWS_REGION)
-    ssm_response: dict = ssm_client.get_parameter(
+    ssm_database_uri_path_response: dict = ssm_client.get_parameter(
         Name=database_uri_path,
         WithDecryption=True
     )
     logger.info(". . . Retrieved the database URI from SSM Parameter Store.")
-    sqlalchemy_database_uri = ssm_response.get("Parameter", {}).get("Value")
+    sqlalchemy_database_uri = ssm_database_uri_path_response.get("Parameter", {}).get("Value")
 
     if sqlalchemy_database_uri is None:
         sys.exit("Can't get the database URI from SSM Parameter Store.")
+
+    ssm_vetext_authtoken_path_response: dict = ssm_client.get_parameter(
+        Name=VETEXT_API_AUTH_SSM_PATH,
+        WithDecryption=True
+    )
+    logger.info(". . . Retrieved the VeText AuthToken from SSM Parameter Store.")
+    vetext_auth_token = ssm_vetext_authtoken_path_response.get("Parameter", {}).get("Value")
+
+    if vetext_auth_token is None:
+        sys.exit("Can't get the VeText AuthToken from SSM Param Store")
 
 ################################################################################################
 # Use the database URI to get a 10DLC-to-URL mapping from the database.
@@ -268,7 +281,8 @@ def forward_to_service(inbound_sms: dict, url: str) -> bool:
         return False
 
     headers = {
-        'Content-type': 'application/json'
+        'Content-type': 'application/json',
+        'Authorization': 'Basic ' + vetext_auth_token
     }
 
     try:

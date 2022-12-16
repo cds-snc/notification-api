@@ -39,6 +39,7 @@ def test_validate_event_body(mocker, event):
         'RETRY_SQS_URL': 'RETRY_SQS_URL',
         'TIMEOUT': '10',
         'DATABASE_URI_PATH': 'DATABASE_URI_PATH',
+        'VETEXT_API_AUTH_SSM_PATH': 'VETEXT_API_AUTH_SSM_PATH'
         })
     response = valid_message_body(event)
     
