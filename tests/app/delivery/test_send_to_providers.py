@@ -836,100 +836,6 @@ def test_send_email_to_provider_should_format_email_address(sample_email_notific
     )
 
 
-def test_notification_can_have_document_attachment_without_mlwr_sid(sample_email_template, mocker):
-    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
-    mlwr_mock = mocker.patch("app.delivery.send_to_providers.check_mlwr")
-    response = document_download_response()
-    del response["document"]["mlwr_sid"]
-    personalisation = {"file": response}
-
-    db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
-
-    send_to_providers.send_email_to_provider(
-        db_notification,
-    )
-
-    send_mock.assert_called()
-    mlwr_mock.assert_not_called()
-
-
-def test_notification_can_have_document_attachment_if_mlwr_sid_is_false(sample_email_template, mocker):
-    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
-    mlwr_mock = mocker.patch("app.delivery.send_to_providers.check_mlwr")
-    personalisation = {"file": document_download_response({"mlwr_sid": "false"})}
-
-    db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
-
-    send_to_providers.send_email_to_provider(
-        db_notification,
-    )
-
-    send_mock.assert_called()
-    mlwr_mock.assert_not_called()
-
-
-def test_notification_raises_a_retry_exception_if_mlwr_state_is_missing(sample_email_template, mocker):
-    mocker.patch("app.aws_ses_client.send_email", return_value="reference")
-    mocker.patch("app.delivery.send_to_providers.check_mlwr", return_value={})
-    personalisation = {"file": document_download_response()}
-
-    db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
-
-    with pytest.raises(MalwarePendingException):
-        send_to_providers.send_email_to_provider(
-            db_notification,
-        )
-
-
-def test_notification_raises_a_retry_exception_if_mlwr_state_is_not_complete(sample_email_template, mocker):
-    mocker.patch("app.aws_ses_client.send_email", return_value="reference")
-    mocker.patch("app.delivery.send_to_providers.check_mlwr", return_value={"state": "foo"})
-    personalisation = {"file": document_download_response()}
-
-    db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
-
-    with pytest.raises(MalwarePendingException):
-        send_to_providers.send_email_to_provider(
-            db_notification,
-        )
-
-
-def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_is_500(sample_email_template, mocker):
-    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
-    mocker.patch(
-        "app.delivery.send_to_providers.check_mlwr",
-        return_value={"state": "completed", "submission": {"max_score": 500}},
-    )
-    personalisation = {"file": document_download_response()}
-
-    db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
-
-    with pytest.raises(NotificationTechnicalFailureException) as e:
-        send_to_providers.send_email_to_provider(db_notification)
-        assert db_notification.id in e.value
-    send_mock.assert_not_called()
-
-    assert Notification.query.get(db_notification.id).status == "virus-scan-failed"
-
-
-def test_notification_raises_sets_notification_to_virus_found_if_mlwr_score_above_500(sample_email_template, mocker):
-    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
-    mocker.patch(
-        "app.delivery.send_to_providers.check_mlwr",
-        return_value={"state": "completed", "submission": {"max_score": 501}},
-    )
-    personalisation = {"file": document_download_response()}
-
-    db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
-
-    with pytest.raises(NotificationTechnicalFailureException) as e:
-        send_to_providers.send_email_to_provider(db_notification)
-        assert db_notification.id in e.value
-    send_mock.assert_not_called()
-
-    assert Notification.query.get(db_notification.id).status == "virus-scan-failed"
-
-
 @pytest.mark.parametrize(
     "filename_attribute_present, filename, expected_filename",
     [
@@ -953,7 +859,6 @@ def test_notification_document_with_pdf_attachment(
                 "direct_file_url": "http://foo.bar/direct_file_url",
                 "url": "http://foo.bar/url",
                 "mime_type": "application/pdf",
-                "mlwr_sid": "false",
             }
         )
     }
@@ -1028,7 +933,6 @@ def test_notification_with_bad_file_attachment_url(mocker, notify_db, notify_db_
                 "direct_file_url": "file://foo.bar/file.txt" if sending_method == "attach" else "http://foo.bar/file.txt",
                 "url": "file://foo.bar/file.txt" if sending_method == "link" else "http://foo.bar/file.txt",
                 "mime_type": "application/pdf",
-                "mlwr_sid": "false",
             }
         )
     }

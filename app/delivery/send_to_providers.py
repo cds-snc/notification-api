@@ -18,7 +18,6 @@ from notifications_utils.template import (
 
 from app import clients, statsd_client
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
-from app.clients.mlwr.mlwr import check_mlwr_score
 from app.dao.notifications_dao import dao_update_notification
 from app.dao.provider_details_dao import (
     dao_toggle_sms_provider,
@@ -143,25 +142,6 @@ def send_email_to_provider(notification: Notification):
         for key in file_keys:
             check_file_url(personalisation_data[key]["document"], notification.id)
             sending_method = personalisation_data[key]["document"].get("sending_method")
-            # Check if a MLWR sid exists
-            if (
-                current_app.config["MLWR_HOST"]
-                and "https" in str(current_app.config["MLWR_HOST"])
-                and "mlwr_sid" in personalisation_data[key]["document"]
-                and personalisation_data[key]["document"]["mlwr_sid"] != "false"
-            ):
-
-                mlwr_result = check_mlwr(personalisation_data[key]["document"]["mlwr_sid"])
-
-                if "state" in mlwr_result and mlwr_result["state"] == "completed":
-                    # Update notification that it contains malware
-                    if "submission" in mlwr_result and mlwr_result["submission"]["max_score"] >= 500:
-                        malware_failure(notification=notification)
-                        return
-                else:
-                    # Throw error so celery will retry in sixty seconds
-                    raise MalwarePendingException
-
             if sending_method == "attach":
                 try:
 
@@ -320,10 +300,6 @@ def malware_failure(notification):
             notification.notification_type, notification.id
         )
     )
-
-
-def check_mlwr(sid):
-    return check_mlwr_score(sid)
 
 
 def contains_pii(notification, text_content):

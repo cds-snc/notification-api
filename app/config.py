@@ -174,11 +174,6 @@ class Config(object):
     CRONITOR_ENABLED = False
     CRONITOR_KEYS = json.loads(os.getenv("CRONITOR_KEYS", "{}"))
 
-    # Antivirus
-    MLWR_HOST = os.getenv("MLWR_HOST", False)
-    MLWR_USER = os.getenv("MLWR_USER", "")
-    MLWR_KEY = os.getenv("MLWR_KEY", "")
-
     # PII check
     SCAN_FOR_PII = env.bool("SCAN_FOR_PII", False)
 
@@ -504,8 +499,6 @@ class Config(object):
             "REDIS_URL",
             "ZENDESK_SELL_API_KEY",
             "FRESH_DESK_API_KEY",
-            "MLWR_USER",
-            "MLWR_KEY",
             "AWS_SES_ACCESS_KEY",
             "AWS_SES_SECRET_KEY",
             "ROUTE_SECRET_KEY_1",
