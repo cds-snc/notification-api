@@ -288,7 +288,7 @@ fileignoreconfig:
     - filename: app/dao/fact_notification_status_dao.py
       checksum: 1503b15fb58257b12b4857659323a5ca9b97784b2344148097298c70d69d4eca
     - filename: app/celery/reporting_tasks.py
-      checksum: f02b02a1bc3ea472d752d2073a0332090308c15bb5eb87d70383a2421da6d886
+      checksum: 67ec9a493909de38cacb8967b84f2b97318fbf51fac93129e46d90dae74e52cf
     - filename: tests/app/va/vetext/test_client.py
       checksum: 23b37578febf39f9162f9d07a54a55cf67bce8d1fb31c4fd96db6e289805f20a
     - filename: app/__init__.py
@@ -337,3 +337,7 @@ fileignoreconfig:
       checksum: 21b553d4eb2875e4a6041fd33dd248cf4d8c41e71af9b42f52c9dcaea615a299
     - filename: lambda_functions/two_way_sms/two_way_sms_v2.py
       checksum: a0fcf9acc774b4ced5d6e4c9adff5e68e29b67f31a8dc5e2bb3bb9372596a9be
+    - filename: lambda_functions/nightly_billing_bigquery_upload/nightly_billing_stats_upload_lambda.py
+      checksum: 3cef32b214b5aa8d21c47493049aed0a9cbf8340fe6dab2ffa8461f7216fce8b
+    - filename: app/dao/fact_billing_dao.py
+      checksum: ee78cb3f234ca6b2fb28a2941ec4a44104d6866b8bb274c195847b8f609a8c88

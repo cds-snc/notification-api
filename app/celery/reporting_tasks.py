@@ -12,6 +12,7 @@ from app import notify_celery
 from app.config import QueueNames
 from app.cronitor import cronitor
 from app.dao.fact_billing_dao import (
+    fetch_nightly_billing_counts,
     fetch_billing_data_for_day,
     update_fact_billing
 )
@@ -21,7 +22,7 @@ from app.dao.fact_notification_status_dao import (
     fetch_notification_statuses_per_service_and_template_for_date)
 from app.feature_flags import is_feature_enabled, FeatureFlag
 
-
+# nightly billing stats section
 @notify_celery.task(name="create-nightly-billing")
 @cronitor("create-nightly-billing")
 @statsd(namespace="tasks")
@@ -36,10 +37,22 @@ def create_nightly_billing(day_start=None):
     for i in range(0, 4):
         process_day = day_start - timedelta(days=i)
 
-        create_nightly_billing_for_day.apply_async(
-            kwargs={'process_day': process_day.isoformat()},
-            queue=QueueNames.REPORTING
-        )
+        if is_feature_enabled(FeatureFlag.NIGHTLY_NOTIF_CSV_ENABLED):
+            tasks = [
+                create_nightly_billing_for_day.si(
+                    process_day.isoformat()
+                ).set(queue=QueueNames.REPORTING),
+                generate_nightly_billing_csv_report.si(
+                    process_day.isoformat()
+                ).set(queue=QueueNames.REPORTING)
+            ]
+
+            chain(*tasks).apply_async()
+        else:
+            create_nightly_billing_for_day.apply_async(
+                kwargs={'process_day': process_day.isoformat()},
+                queue=QueueNames.REPORTING
+            )
 
 
 @notify_celery.task(name="create-nightly-billing-for-day")
@@ -51,22 +64,61 @@ def create_nightly_billing_for_day(process_day):
     transit_data = fetch_billing_data_for_day(process_day=process_day)
     end = datetime.utcnow()
 
-    current_app.logger.info('create-nightly-billing-for-day {} fetched in {} seconds'.format(
-        process_day,
-        (end - start).seconds)
+    current_app.logger.info(
+        'create-nightly-billing-for-day %s fetched in %s seconds' % (process_day, (end - start).seconds)
     )
 
     for data in transit_data:
         update_fact_billing(data, process_day)
 
     current_app.logger.info(
-        "create-nightly-billing-for-day task complete. {} rows updated for day: {}".format(
-            len(transit_data),
-            process_day
-        )
+        "create-nightly-billing-for-day task complete. %s rows updated for day: %s" % (len(transit_data), process_day)
     )
 
 
+@notify_celery.task(name="generate-nightly-billing-csv-report")
+@statsd(namespace="tasks")
+def generate_nightly_billing_csv_report(process_day_string):
+    process_day = datetime.strptime(process_day_string, "%Y-%m-%d").date()
+    transit_data = fetch_nightly_billing_counts(process_day)
+    buff = io.StringIO()
+
+    writer = csv.writer(buff, dialect='excel', delimiter=',')
+    header = [
+        "date", "service name", "service id", "template name", "template id", "sender", "sender id",
+        "billing code", "count", "channel type"
+    ]
+    writer.writerow(header)
+    # TODO #1022 - repace the for loop below with this
+    # writer.writerows((process_day,) + row for row in transit_data)
+    for row in transit_data:
+        writer.writerow(  # requires an iterable
+            [
+                process_day,  # "date"
+                row[0],       # "service_name"
+                row[1],       # "service_id"
+                row[2],       # "template_name"
+                row[3],       # "template_id"
+                None,         # "sender"     # will be null for now
+                None,         # "sender_id"  # will be null for now
+                row[4],       # "billing_code"
+                row[5],       # "count"
+                row[6]        # "channel_type"
+            ]
+        )
+
+    csv_key = f'{process_day_string}.csv'
+    client = boto3.client('s3', endpoint_url=current_app.config['AWS_S3_ENDPOINT_URL'])
+    client.put_object(Body=buff.getvalue(), Bucket=current_app.config['DAILY_BILLING_STATS_BUCKET_NAME'], Key=csv_key)
+    buff.close()
+
+    current_app.logger.info(
+        "generate-nightly-billing-csv-report complete: %s rows updated for day: %s" % (
+            len(transit_data), process_day
+        )
+    )
+
+# nightly notification stats section
 @notify_celery.task(name="create-nightly-notification-status")
 @cronitor("create-nightly-notification-status")
 @statsd(namespace="tasks")
@@ -106,15 +158,16 @@ def create_nightly_notification_status_for_day(process_day):
     start = datetime.utcnow()
     transit_data = fetch_notification_status_for_day(process_day=process_day)
     end = datetime.utcnow()
-    current_app.logger.info('create-nightly-notification-status-for-day {} fetched in {} seconds'.format(
-        process_day,
-        (end - start).seconds)
+    current_app.logger.info(
+        'create-nightly-notification-status-for-day %s fetched in %s seconds' % (
+            process_day, (end - start).seconds
+        )
     )
 
     update_fact_notification_status(transit_data, process_day)
 
     current_app.logger.info(
-        "create-nightly-notification-status-for-day task complete: {} rows updated for day: {}".format(
+        "create-nightly-notification-status-for-day task complete: %s rows updated for day: %s" % (
             len(transit_data), process_day
         )
     )
@@ -140,5 +193,8 @@ def generate_daily_notification_status_csv_report(process_day_string):
     client.put_object(Body=buff.getvalue(), Bucket=current_app.config['DAILY_STATS_BUCKET_NAME'], Key=csv_key)
     buff.close()
 
-    current_app.logger.info(f"generate-daily-notification-status-csv-report complete: "
-                            f"{len(transit_data)} rows written for day: {process_day}")
+    current_app.logger.info(
+        "generate-daily-notification-status-csv-report complete: %s rows written for day: %s" % (
+            len(transit_data), process_day
+        )
+    )

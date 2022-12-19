@@ -21,6 +21,7 @@ on:
           - ProfileOptInOut
           - ProfileRemoveOldOptOuts
           - NightBigQueryUpload
+          - NightBillingBQUpload
 
 jobs:
   setup_job:
