@@ -314,7 +314,6 @@ def process_sms_or_email_notification(
         key_type=api_key.key_type,
         service=service,
         notification_type=notification_type,
-        api_key_id=api_key.id,
     )
 
     # Do not persist or send notification to the queue if it is a simulated recipient

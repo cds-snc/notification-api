@@ -271,14 +271,12 @@ def check_template_is_active(template):
         )
 
 
-def service_can_send_to_recipient(
-    send_to, key_type: ApiKeyType, service: Service, allow_safelisted_recipients=True, api_key_id=None
-):
+def service_can_send_to_recipient(send_to, key_type: ApiKeyType, service: Service, allow_safelisted_recipients=True):
     if not service_allowed_to_send_to(send_to, service, key_type, allow_safelisted_recipients):
         # FIXME: hard code it for now until we can get en/fr specific links and text
         if key_type == KEY_TYPE_TEAM:
             message = (
-                f"Can’t send to this recipient using a team-only API key (service {service.id} key {api_key_id}) "
+                f"Can’t send to this recipient using a team-only API key (service {service.id}) "
                 f'- see {get_document_url("en", "keys.html#team-and-safelist")}'
             )
         else:
@@ -306,17 +304,12 @@ def check_service_can_schedule_notification(permissions: list[Permission], sched
 
 
 def validate_and_format_recipient(
-    send_to,
-    key_type: ApiKeyType,
-    service: Service,
-    notification_type: NotificationType,
-    allow_safelisted_recipients=True,
-    api_key_id=None,
+    send_to, key_type: ApiKeyType, service: Service, notification_type: NotificationType, allow_safelisted_recipients=True
 ):
     if send_to is None:
         raise BadRequestError(message="Recipient can't be empty")
 
-    service_can_send_to_recipient(send_to, key_type, service, allow_safelisted_recipients, api_key_id)
+    service_can_send_to_recipient(send_to, key_type, service, allow_safelisted_recipients)
 
     if notification_type == SMS_TYPE:
         international_phone_info = get_international_phone_info(send_to)
