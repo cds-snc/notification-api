@@ -24,10 +24,7 @@ from app.dao.provider_details_dao import (
     get_provider_details_by_notification_type,
 )
 from app.dao.templates_dao import dao_get_template_by_id
-from app.exceptions import (
-    InvalidUrlException,
-    NotificationTechnicalFailureException,
-)
+from app.exceptions import InvalidUrlException, NotificationTechnicalFailureException
 from app.models import (
     BRANDING_BOTH_EN,
     BRANDING_BOTH_FR,
