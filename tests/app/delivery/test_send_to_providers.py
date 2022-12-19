@@ -17,7 +17,6 @@ from app.dao.provider_details_dao import (
 from app.delivery import send_to_providers
 from app.exceptions import (
     InvalidUrlException,
-    MalwarePendingException,
     NotificationTechnicalFailureException,
 )
 from app.models import (

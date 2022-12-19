@@ -26,7 +26,6 @@ from app.dao.provider_details_dao import (
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import (
     InvalidUrlException,
-    MalwarePendingException,
     NotificationTechnicalFailureException,
 )
 from app.models import (
