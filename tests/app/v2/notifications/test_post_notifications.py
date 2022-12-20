@@ -589,7 +589,7 @@ class TestPostNotificationsErrors:
         assert error_json["errors"] == [
             {
                 "error": "BadRequestError",
-                "message": "Can’t send to this recipient using a team-only API key "
+                "message": f"Can’t send to this recipient using a team-only API key (service {service.id}) "
                 f'- see {get_document_url("en", "keys.html#team-and-safelist")}',
             }
         ]

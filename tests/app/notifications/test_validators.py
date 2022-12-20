@@ -403,7 +403,7 @@ def test_service_can_send_to_recipient_fails_when_ignoring_safelist(
         )
     assert exec_info.value.status_code == 400
     assert (
-        exec_info.value.message == "Can’t send to this recipient using a team-only API key "
+        exec_info.value.message == f"Can’t send to this recipient using a team-only API key (service {sample_service.id}) "
         f'- see {get_document_url("en", "keys.html#team-and-safelist")}'
     )
     assert exec_info.value.fields == []
@@ -413,7 +413,7 @@ def test_service_can_send_to_recipient_fails_when_ignoring_safelist(
 @pytest.mark.parametrize(
     "key_type, error_message",
     [
-        ("team", "Can’t send to this recipient using a team-only API key - see"),
+        ("team", "Can’t send to this recipient using a team-only API key"),
         ("normal", "Can’t send to this recipient when service is in trial mode – see "),
     ],
 )  # noqa
@@ -438,7 +438,7 @@ def test_service_can_send_to_recipient_fails_when_mobile_number_is_not_on_team(n
         service_can_send_to_recipient("0758964221", "team", live_service)
     assert e.value.status_code == 400
     assert (
-        e.value.message == "Can’t send to this recipient using a team-only API key "
+        e.value.message == f"Can’t send to this recipient using a team-only API key (service {live_service.id}) "
         f'- see {get_document_url("en", "keys.html#team-and-safelist")}'
     )
     assert e.value.fields == []

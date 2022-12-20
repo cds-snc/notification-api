@@ -276,7 +276,7 @@ def service_can_send_to_recipient(send_to, key_type: ApiKeyType, service: Servic
         # FIXME: hard code it for now until we can get en/fr specific links and text
         if key_type == KEY_TYPE_TEAM:
             message = (
-                "Can’t send to this recipient using a team-only API key "
+                f"Can’t send to this recipient using a team-only API key (service {service.id}) "
                 f'- see {get_document_url("en", "keys.html#team-and-safelist")}'
             )
         else:
