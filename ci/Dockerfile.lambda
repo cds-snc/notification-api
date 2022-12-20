@@ -34,8 +34,11 @@ COPY bin/entry.sh /
 COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
+# New Relic lambda layer
+RUN unzip python310.x86_64.zip -d /opt
+
 ENTRYPOINT [ "/entry.sh" ]
 
 # Launch the New Relic lambda wrapper which will then launch the app
 # handler defined in the NEW_RELIC_LAMBDA_HANDLER environment variable
-CMD [ "newrelic_lambda_wrapper.handler" ] 
+CMD [ "newrelic_lambda_wrapper.handler" ]
