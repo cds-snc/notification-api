@@ -35,7 +35,7 @@ COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
 # New Relic lambda layer
-RUN unzip python310.x86_64.zip -d /opt
+RUN unzip newrelic-layer.zip -d /opt && rm newrelic-layer.zip
 
 ENTRYPOINT [ "/entry.sh" ]
 
