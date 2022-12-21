@@ -66,42 +66,6 @@ jobs:
           zip -ug user_flows_lambda.zip user_flows_lambda.py steps.py test_retrieve_everything.py conftest.py
           aws lambda update-function-code --function-name project-user-flows-lambda --zip-file fileb://user_flows_lambda.zip
 
-  deploy-vetext-incoming-forwarder-lambda:
-    runs-on: ubuntu-latest
-    if: ${{ (inputs.lambdaName == 'VetTextIncomingForwarder') || (inputs.lambdaName == 'All') }}
-    defaults:
-      run:
-        working-directory: "./lambda_functions/vetext_incoming_forwarder_lambda"
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.ref }}
-
-      - name: Configure VAEC AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1.7.0
-        with:
-          aws-region: us-gov-west-1
-          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
-          role-skip-session-tagging: true
-          role-duration-seconds: 900
-
-      - name: Set Python version
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.8"
-
-      - name: Package and deploy lambda function
-        run: |
-          python3 -m venv venv_vetext_incoming_forwarder
-          source venv_vetext_incoming_forwarder/bin/activate
-          pip install -r requirements-lambda.txt
-          deactivate
-          cd venv_vetext_incoming_forwarder/lib/python3.8/site-packages
-          zip -r9 ../../../../vetext_incoming_forwarder_lambda.zip .
-          cd ../../../../
-          zip -ugj vetext_incoming_forwarder_lambda vetext_incoming_forwarder_lambda.py
-          aws lambda update-function-code --function-name project-${{ inputs.environment }}-vetext-incoming-forwarder-lambda --zip-file fileb://vetext_incoming_forwarder_lambda.zip
-
   deploy-other-lambdas:
     runs-on: ubuntu-latest
     defaults:
@@ -133,11 +97,17 @@ jobs:
           zip -j ses_callback_lambda ses_callback/ses_callback_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-ses-callback-lambda --zip-file fileb://ses_callback_lambda.zip
 
-      - name: Package and deploy Two Way SMS lambda function
+      - name: Package and deploy Two Way SMS lambda function v1
         if: ${{ (inputs.lambdaName == 'TwoWaySMS') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j two_way_sms_lambda two_way_sms/two_way_sms_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-two-way-sms-lambda --zip-file fileb://two_way_sms_lambda.zip
+
+      - name: Package and deploy Two Way SMS lambda function v2
+        if: ${{ (inputs.lambdaName == 'TwoWaySMS') || (inputs.lambdaName == 'All') }}
+        run: |
+          zip -j two_way_sms two_way_sms/two_way_sms_v2.py
+          aws lambda update-function-code --function-name project-${{ inputs.environment }}-notify-incoming-sms-lambda --zip-file fileb://two_way_sms.zip
 
       - name: Package and deploy pinpoint callback lambda function
         if: ${{ (inputs.lambdaName == 'PinPointCallback') || (inputs.lambdaName == 'All') }}
@@ -193,20 +163,6 @@ jobs:
           zip -ugj nightly_stats_bigquery_upload_lambda nightly_stats_bigquery_upload_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-nightly-stats-bigquery-upload-lambda --zip-file fileb://nightly_stats_bigquery_upload_lambda.zip
 
-      - name: Package and deploy two-way sms lambda function
-        if: ${{ (inputs.lambdaName == 'TwoWaySMS') || (inputs.lambdaName == 'All') }}
-        run: |
-          cd two_way_sms/
-          python3 -m venv venv_two_way_sms
-          source venv_two_way_sms/bin/activate
-          pip install -r requirements-lambda.txt
-          deactivate
-          cd venv_two_way_sms/lib/python3.8/site-packages
-          zip -r9 ../../../../two_way_sms.zip .
-          cd ../../../../
-          zip -ugj two_way_sms two_way_sms_v2.py
-          aws lambda update-function-code --function-name project-${{ inputs.environment }}-notify-incoming-sms-lambda --zip-file fileb://two_way_sms.zip
-
       - name: Package and deploy nightly billing stats upload lambda function
         if: ${{ (inputs.lambdaName == 'NightBillingBQUpload') || (inputs.lambdaName == 'All') }}
         run: |
@@ -220,3 +176,9 @@ jobs:
           cd ../../../../
           zip -ugj nightly_billing_stats_upload_lambda nightly_billing_stats_upload_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-nightly-billing-stats-upload-lambda --zip-file fileb://nightly_billing_stats_upload_lambda.zip
+
+      - name: Package and deploy vetext incoming forwarder lambda
+        if: ${{ (inputs.lambdaName == 'VetTextIncomingForwarder') || (inputs.lambdaName == 'All') }}
+        run: |
+          zip -j vetext_incoming_forwarder_lambda vetext_incoming_forwarder_lambda/vetext_incoming_forwarder_lambda.py
+          aws lambda update-function-code --function-name project-${{ inputs.environment }}-vetext-incoming-forwarder-lambda --zip-file fileb://vetext_incoming_forwarder_lambda.zip
