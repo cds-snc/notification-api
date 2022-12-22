@@ -149,16 +149,18 @@ def send_email_to_provider(notification: Notification):
                     req = urllib.request.Request(direct_file_url)
                     with urllib.request.urlopen(req) as response:
 
-                        # "403 Forbidden" response indicates malicious content was detected
+                        # 403 "Forbidden" response is sent if malicious content was detected
                         if response.getcode() == 403:
                             current_app.logger.error(
                                 f"Malicious content detected! Download and attachment failed for {direct_file_url}"
                             )
+                            # Update notification that it contains malware
                             malware_failure(notification=notification)
 
-                        # "428 Precondition Required" response indicates the scan is still in progress
+                        # 428 "Precondition Required" response is sent if the scan is still in progress
                         if response.getcode() == 428:
                             current_app.logger.error(f"Malware scan in progress, could not download {direct_file_url}")
+                            # Throw error so celery will retry in sixty seconds
                             raise MalwarePendingException
 
                         buffer = response.read()
