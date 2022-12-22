@@ -24,7 +24,11 @@ from app.dao.provider_details_dao import (
     get_provider_details_by_notification_type,
 )
 from app.dao.templates_dao import dao_get_template_by_id
-from app.exceptions import InvalidUrlException, NotificationTechnicalFailureException
+from app.exceptions import (
+    InvalidUrlException,
+    MalwarePendingException,
+    NotificationTechnicalFailureException,
+)
 from app.models import (
     BRANDING_BOTH_EN,
     BRANDING_BOTH_FR,
@@ -144,20 +148,19 @@ def send_email_to_provider(notification: Notification):
 
                     req = urllib.request.Request(direct_file_url)
                     with urllib.request.urlopen(req) as response:
-                        
+
                         # "403 Forbidden" response indicates malicious content was detected
                         if response.getcode() == 403:
-                            # TODO: fail permanently
                             current_app.logger.error(
                                 f"Malicious content detected! Download and attachment failed for {direct_file_url}"
                             )
+                            malware_failure(notification=notification)
+
                         # "428 Precondition Required" response indicates the scan is still in progress
                         if response.getcode() == 428:
-                            # TODO: implement try again later functionality
-                            current_app.logger.error(
-                                f"Malware scan in progress, could not download {direct_file_url}"
-                            )
-                        
+                            current_app.logger.error(f"Malware scan in progress, could not download {direct_file_url}")
+                            raise MalwarePendingException
+
                         buffer = response.read()
                         filename = personalisation_data[key]["document"].get("filename")
                         mime_type = personalisation_data[key]["document"].get("mime_type")
@@ -169,9 +172,7 @@ def send_email_to_provider(notification: Notification):
                             }
                         )
                 except Exception:
-                    current_app.logger.error(
-                        f"Could not download and attach {direct_file_url}"
-                    )
+                    current_app.logger.error(f"Could not download and attach {direct_file_url}")
                 del personalisation_data[key]
             else:
                 personalisation_data[key] = personalisation_data[key]["document"]["url"]
