@@ -138,11 +138,26 @@ def send_email_to_provider(notification: Notification):
         for key in file_keys:
             check_file_url(personalisation_data[key]["document"], notification.id)
             sending_method = personalisation_data[key]["document"].get("sending_method")
+            direct_file_url = personalisation_data[key]["document"]["direct_file_url"]
             if sending_method == "attach":
                 try:
 
-                    req = urllib.request.Request(personalisation_data[key]["document"]["direct_file_url"])
+                    req = urllib.request.Request(direct_file_url)
                     with urllib.request.urlopen(req) as response:
+                        
+                        # "403 Forbidden" response indicates malicious content was detected
+                        if response.getcode() == 403:
+                            # TODO: fail permanently
+                            current_app.logger.error(
+                                f"Malicious content detected! Download and attachment failed for {direct_file_url}"
+                            )
+                        # "428 Precondition Required" response indicates the scan is still in progress
+                        if response.getcode() == 428:
+                            # TODO: implement try again later functionality
+                            current_app.logger.error(
+                                f"Malware scan in progress, could not download {direct_file_url}"
+                            )
+                        
                         buffer = response.read()
                         filename = personalisation_data[key]["document"].get("filename")
                         mime_type = personalisation_data[key]["document"].get("mime_type")
@@ -155,7 +170,7 @@ def send_email_to_provider(notification: Notification):
                         )
                 except Exception:
                     current_app.logger.error(
-                        "Could not download and attach {}".format(personalisation_data[key]["document"]["direct_file_url"])
+                        f"Could not download and attach {direct_file_url}"
                     )
                 del personalisation_data[key]
             else:
