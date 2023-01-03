@@ -1201,6 +1201,30 @@ def no_reply_template(notify_db, notify_db_session):
 
 
 @pytest.fixture(scope="function")
+def bounce_rate_templates(notify_db, notify_db_session):
+    service, user = notify_service(notify_db, notify_db_session)
+    import importlib
+
+    bounce_exceeded = importlib.import_module("migrations.versions.0425_bounce_rate_limits")
+
+    return {
+        config_name: create_custom_template(
+            service,
+            user,
+            config_name,
+            "email",
+            content="\n".join(
+                next(x for x in bounce_exceeded.templates if x["id"] == current_app.config[config_name])["content_lines"]
+            ),
+        )
+        for config_name in [
+            "BOUNCE_RATE_EXCEEDED_ID",
+            "BOUNCE_RATE_WARNING_ID",
+        ]
+    }
+
+
+@pytest.fixture(scope="function")
 def mou_signed_templates(notify_db, notify_db_session):
     service, user = notify_service(notify_db, notify_db_session)
     import importlib
