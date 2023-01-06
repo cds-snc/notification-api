@@ -14,7 +14,7 @@ Flask-Migrate==2.7.0
 git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd1a20a21e682262#egg=Flask-SQLAlchemy==2.3.2.dev20190108
 Flask==2.0.3
 click-datetime==0.2
-eventlet==0.30.2 # currently 0.31.0+ breaks gunicorn. Test the docker image if upgrading!
+gevent==22.10.2
 gunicorn==20.1.0
 iso8601==0.1.14
 idna==2.8 # pinned to align with test moto dependency requirements
@@ -22,12 +22,11 @@ jsonschema==3.2.0
 marshmallow-sqlalchemy==0.23.1 # pyup: <0.24.0 # marshmallow v3 throws errors
 marshmallow==2.21.0 # pyup: <3 # v3 throws errors
 python-magic==0.4.22
-psycopg2-binary==2.8.6
+psycopg2-binary==2.9.5
 PyJWT==2.1.0
 pytz==2021.1
 PyYAML==5.4.1
 SQLAlchemy==1.4.37
-sentry-sdk[flask]==1.0.0
 cachelib==0.1.1
 
 newrelic==6.2.0.156
@@ -50,7 +49,7 @@ MarkupSafe==2.0.1
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous==2.0.1
 
-git+https://github.com/cds-snc/notifier-utils.git@49.1.0#egg=notifications-utils
+git+https://github.com/cds-snc/notifier-utils.git@50.0.0#egg=notifications-utils
 
 # MLWR
 socketio-client==0.5.6
