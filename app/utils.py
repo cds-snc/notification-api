@@ -1,11 +1,11 @@
+# TODO - This file contains multiple functions that contain import statements.  Is this to avoid a circular
+# dependency?  If not, import only at the beginning of the file.  See issue #1044.
 import os
-
-from datetime import datetime, timedelta
-
 import pytz
+from datetime import datetime, timedelta
 from flask import url_for
-from sqlalchemy import func
 from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate, get_html_email_body
+from sqlalchemy import func
 
 local_timezone = pytz.timezone(os.getenv("TIMEZONE", "America/Toronto"))
 

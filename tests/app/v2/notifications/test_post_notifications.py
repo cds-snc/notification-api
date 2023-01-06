@@ -1,9 +1,7 @@
 import base64
-import uuid
-
 import pytest
-from freezegun import freeze_time
-
+import uuid
+from . import post_send_notification
 from app.attachments.exceptions import UnsupportedMimeTypeException
 from app.attachments.store import AttachmentStoreError
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
@@ -16,17 +14,16 @@ from app.models import (
     UPLOAD_DOCUMENT,
     INTERNATIONAL_SMS_TYPE,
     RecipientIdentifier,
-    Notification
+    Notification,
 )
-from flask import json, current_app
-
 from app.schema_validation import validate
 from app.v2.errors import RateLimitError
 from app.v2.notifications.notification_schemas import post_sms_response, post_email_response
 from app.va.identifier import IdentifierType
 from app.config import QueueNames
 from app.feature_flags import FeatureFlag
-
+from flask import json, current_app
+from freezegun import freeze_time
 from tests import create_authorization_header
 from tests.app.db import (
     create_service,
@@ -34,10 +31,9 @@ from tests.app.db import (
     create_reply_to_email,
     create_service_sms_sender,
     create_service_with_inbound_number,
-    create_api_key
+    create_api_key,
 )
 from tests.app.factories.feature_flag import mock_feature_flag
-from . import post_send_notification
 
 
 @pytest.fixture
@@ -180,26 +176,56 @@ def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(client, no
         assert called_task.args[0] == str(notification_id)
 
 
+@pytest.mark.parametrize("sms_sender_id", [None, "user provided"])
 def test_post_sms_notification_returns_201_with_sms_sender_id(
-        client, sample_template_with_placeholders, mocker
+    client,
+    sample_template_with_placeholders,
+    mocker,
+    sms_sender_id
 ):
-    sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender='123456')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
+    assert sample_template_with_placeholders.template_type == SMS_TYPE
+
     data = {
         'phone_number': '+16502532222',
         'template_id': str(sample_template_with_placeholders.id),
         'personalisation': {' Name': 'Jo'},
-        'sms_sender_id': str(sms_sender.id)
     }
 
+    if sms_sender_id is None:
+        data["sms_sender_id"] = None
+    elif sms_sender_id == "user provided":
+        # Simulate that the user specified an sms_sender_id.
+        sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender='123456')
+        data["sms_sender_id"] = str(sms_sender.id)
+    else:
+        raise ValueError("This is a programming error.")
+
     response = post_send_notification(client, sample_template_with_placeholders.service, 'sms', data)
+
     assert response.status_code == 201
-    resp_json = json.loads(response.get_data(as_text=True))
+    resp_json = response.get_json()
     assert validate(resp_json, post_sms_response) == resp_json
-    assert resp_json['content']['from_number'] == sms_sender.sms_sender
+
     notifications = Notification.query.all()
     assert len(notifications) == 1
-    assert notifications[0].reply_to_text == sms_sender.sms_sender
+
+    if sms_sender_id == "user provided":
+        assert resp_json['content']['from_number'] == sms_sender.sms_sender
+        assert notifications[0].reply_to_text == sms_sender.sms_sender
+        assert notifications[0].sms_sender_id == sms_sender.id
+    else:
+        # The user did not provide an sms_sender_id.  The template default should have been used.
+        default_sms_sender = sample_template_with_placeholders.get_reply_to_text()
+        assert resp_json['content']['from_number'] == default_sms_sender
+        assert notifications[0].reply_to_text == default_sms_sender
+
+        for sender in sample_template_with_placeholders.service.service_sms_senders:
+            if sender.is_default:
+                assert notifications[0].sms_sender_id == sender.id
+                break
+        else:
+            assert False, "The template's service does not have a default sms_sender."
 
     mocked_chain.assert_called_once()
     args, _ = mocked_chain.call_args

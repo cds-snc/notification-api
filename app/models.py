@@ -433,6 +433,10 @@ class Service(db.Model, Versioned):
         return cls(**fields)
 
     def get_default_sms_sender(self):
+        """
+        service_sms_senders is a back reference from the ServiceSmsSender table.
+        """
+
         default_sms_sender = [x for x in self.service_sms_senders if x.is_default]
         return default_sms_sender[0].sms_sender
 
@@ -894,7 +898,7 @@ class TemplateBase(db.Model):
         else:
             raise ValueError('Unable to set sender for {} template'.format(self.template_type))
 
-    def get_reply_to_text(self):
+    def get_reply_to_text(self) -> str:
         if self.template_type == LETTER_TYPE:
             return self.service_letter_contact.contact_block if self.service_letter_contact else None
         elif self.template_type == EMAIL_TYPE:
@@ -1358,6 +1362,9 @@ class Notification(db.Model):
     created_by = db.relationship('User')
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=True)
 
+    sms_sender = db.relationship(ServiceSmsSender)
+    sms_sender_id = db.Column(UUID(as_uuid=True), db.ForeignKey('service_sms_senders.id'), nullable=True)
+
     reply_to_text = db.Column(db.String, nullable=True)
     status_reason = db.Column(db.String, nullable=True)
 
@@ -1585,7 +1592,8 @@ class Notification(db.Model):
                 }
                 for recipient_identifier in self.recipient_identifiers.values()
             ],
-            'billing_code': self.billing_code
+            "billing_code": self.billing_code,
+            "sms_sender_id": self.sms_sender_id,
         }
 
         if self.notification_type == LETTER_TYPE:
@@ -1640,7 +1648,11 @@ class NotificationHistory(db.Model, HistoryModel):
     phone_prefix = db.Column(db.String, nullable=True)
     rate_multiplier = db.Column(db.Float(asdecimal=False), nullable=True)
 
-    created_by_id = db.Column(UUID(as_uuid=True), nullable=True)
+    created_by = db.relationship('User')
+    created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=True)
+
+    sms_sender = db.relationship(ServiceSmsSender)
+    sms_sender_id = db.Column(UUID(as_uuid=True), db.ForeignKey('service_sms_senders.id'), nullable=True)
 
     postage = db.Column(db.String, nullable=True)
     status_reason = db.Column(db.String, nullable=True)

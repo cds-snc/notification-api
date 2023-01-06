@@ -1,11 +1,13 @@
+from app.mobile_app import MobileAppType
 from app.models import (
     NOTIFICATION_STATUS_TYPES,
     NOTIFICATION_STATUS_LETTER_ACCEPTED,
     NOTIFICATION_STATUS_LETTER_RECEIVED,
-    TEMPLATE_TYPES)
-from app.schema_validation.definitions import (uuid, personalisation, letter_personalisation)
+    TEMPLATE_TYPES,
+)
+from app.schema_validation.definitions import nullable_uuid, uuid, personalisation, letter_personalisation
 from app.va.identifier import IdentifierType
-from app.mobile_app import MobileAppType
+
 
 template = {
     "$schema": "http://json-schema.org/draft-04/schema#",
@@ -166,7 +168,7 @@ post_sms_request = {
         "template_id": uuid,
         "personalisation": personalisation,
         "scheduled_for": {"type": ["string", "null"], "format": "datetime_within_next_day"},
-        "sms_sender_id": uuid,
+        "sms_sender_id": nullable_uuid,
         "billing_code": {"type": ["string", "null"], "maxLength": 256},
     },
     # This is necessary to get the content of the message and who it's from.

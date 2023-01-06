@@ -1,16 +1,9 @@
 import json
 import os
-import uuid
-from datetime import datetime, timedelta
-
 import pytest
 import pytz
-from random import randrange
 import requests_mock
-from flask import current_app, url_for
-from sqlalchemy import asc
-from sqlalchemy.orm.session import make_transient
-
+import uuid
 from app import db
 from app.clients.email import EmailClient
 from app.clients.sms import SmsClient
@@ -23,43 +16,48 @@ from app.dao.notifications_dao import dao_create_notification
 from app.dao.organisation_dao import dao_create_organisation
 from app.dao.provider_rates_dao import create_provider_rates
 from app.dao.services_dao import (dao_create_service, dao_add_user_to_service)
+from app.dao.service_sms_sender_dao import dao_add_sms_sender_for_service
 from app.dao.templates_dao import dao_create_template
 from app.dao.users_dao import create_secret_code, create_user_code
 from app.dao.fido2_key_dao import save_fido2_key
 from app.dao.login_event_dao import save_login_event
 from app.history_meta import create_history
-
-
+from app.model import User
 from app.models import (
-    Service,
-    Template,
-    TemplateHistory,
     ApiKey,
+    CommunicationItem,
+    EMAIL_TYPE,
     Fido2Key,
-    Job,
-    LoginEvent,
-    Organisation,
-    Notification,
-    NotificationHistory,
+    INBOUND_SMS_TYPE,
     InvitedUser,
+    Job,
+    KEY_TYPE_NORMAL,
+    KEY_TYPE_TEST,
+    KEY_TYPE_TEAM,
+    LETTER_TYPE,
+    LoginEvent,
+    Notification,
+    NOTIFICATION_STATUS_TYPES_COMPLETED,
+    NotificationHistory,
+    Organisation,
     Permission,
     ProviderDetails,
     ProviderDetailsHistory,
     ProviderRates,
-    ScheduledNotification,
-    KEY_TYPE_NORMAL,
-    KEY_TYPE_TEST,
-    KEY_TYPE_TEAM,
-    EMAIL_TYPE,
-    INBOUND_SMS_TYPE,
     SMS_TYPE,
-    LETTER_TYPE,
-    NOTIFICATION_STATUS_TYPES_COMPLETED,
+    ScheduledNotification,
     SERVICE_PERMISSION_TYPES,
-    ServiceEmailReplyTo, CommunicationItem,
+    ServiceEmailReplyTo,
+    Service,
+    Template,
+    TemplateHistory,
     UserServiceRoles,
 )
-from app.model import User
+from datetime import datetime, timedelta
+from flask import current_app, url_for
+from random import randrange
+from sqlalchemy import asc
+from sqlalchemy.orm.session import make_transient
 from tests import create_authorization_header
 from tests.app.db import (
     create_user,
@@ -70,7 +68,7 @@ from tests.app.db import (
     create_inbound_number,
     create_letter_contact,
     create_invited_org_user,
-    create_job
+    create_job,
 )
 from tests.app.factories import (
     service_whitelist
@@ -99,7 +97,7 @@ def service_factory(notify_db, notify_db_session):
                 user=user,
                 check_if_service_exists=True,
             )
-            if template_type == 'email':
+            if template_type == EMAIL_TYPE:
                 create_template(
                     service,
                     template_name="Template Name",
@@ -299,6 +297,7 @@ def sample_notification_model_with_organization(
         rate_multiplier=1.0,
         normalised_to=None,
         postage=None,
+        sms_sender_id=None
 ):
     created_at = datetime.utcnow()
 
@@ -310,14 +309,9 @@ def sample_notification_model_with_organization(
 
     notification_id = uuid.uuid4()
 
-    if to_field:
-        to = to_field
-    else:
-        to = '+16502532222'
-
     data = {
         'id': notification_id,
-        'to': to,
+        'to': to_field if to_field else '+16502532222',
         'job_id': job.id if job else None,
         'job': job,
         'service_id': service.id,
@@ -341,6 +335,7 @@ def sample_notification_model_with_organization(
         'rate_multiplier': rate_multiplier,
         'normalised_to': normalised_to,
         'postage': postage,
+        'sms_sender_id': sms_sender_id,
     }
     if job_row_number is not None:
         data['job_row_number'] = job_row_number
@@ -366,22 +361,21 @@ def sample_service(
     if email_from is None:
         email_from = service_name.lower().replace(' ', '.')
 
-    data = {
-        'name': service_name,
-        'message_limit': limit,
-        'restricted': restricted,
-        'email_from': email_from,
-        'created_by': user,
-        'crown': True
-    }
     service = Service.query.filter_by(name=service_name).first()
-    if not service:
+    if service is None:
+        data = {
+            'name': service_name,
+            'message_limit': limit,
+            'restricted': restricted,
+            'email_from': email_from,
+            'created_by': user,
+            'crown': True,
+        }
         service = Service(**data)
         dao_create_service(service, user, service_permissions=permissions)
 
         if research_mode:
             service.research_mode = research_mode
-
     else:
         if user not in service.users:
             dao_add_user_to_service(service, user)
@@ -446,11 +440,11 @@ def sample_template(
         'process_type': process_type,
         'reply_to_email': reply_to_email
     }
-    if template_type in ['email', 'letter']:
+    if template_type in [EMAIL_TYPE, LETTER_TYPE]:
         data.update({
             'subject': subject_line
         })
-    if template_type == 'letter':
+    if template_type == LETTER_TYPE:
         data['postage'] = 'second'
     template = Template(**data)
     dao_create_template(template)
@@ -466,8 +460,9 @@ def sample_template_without_sms_permission(notify_db_session):
 
 @pytest.fixture(scope='function')
 def sample_template_with_placeholders(sample_service):
-    # deliberate space and title case in placeholder
-    return create_template(sample_service, content="Hello (( Name))\nYour thing is due soon")
+    new_template = create_template(sample_service, content="Hello (( Name))\nYour thing is due soon")
+    assert new_template.template_type == SMS_TYPE, "This is the default."
+    return new_template
 
 
 @pytest.fixture(scope='function')
@@ -714,6 +709,7 @@ def sample_letter_job(sample_letter_template):
 def sample_notification_with_job(
         notify_db,
         notify_db_session,
+        sample_sms_sender,
         service=None,
         template=None,
         job=None,
@@ -728,12 +724,14 @@ def sample_notification_with_job(
         api_key=None,
         key_type=KEY_TYPE_NORMAL
 ):
-    if not service:
+    if service is None:
         service = create_service(check_if_service_exists=True)
-    if not template:
+    if template is None:
         template = create_template(service=service)
+        assert template.template_type == SMS_TYPE, "This is the default template type."
     if job is None:
         job = create_job(template=template)
+
     return create_notification(
         template=template,
         job=job,
@@ -746,7 +744,8 @@ def sample_notification_with_job(
         billable_units=billable_units,
         personalisation=personalisation,
         api_key=api_key,
-        key_type=key_type
+        key_type=key_type,
+        sms_sender_id=sample_sms_sender.id
     )
 
 
@@ -754,6 +753,7 @@ def sample_notification_with_job(
 def sample_notification(
         notify_db,
         notify_db_session,
+        sample_sms_sender,
         service=None,
         template=None,
         job=None,
@@ -773,14 +773,19 @@ def sample_notification(
         rate_multiplier=1.0,
         scheduled_for=None,
         normalised_to=None,
-        postage=None,
+        postage=None
 ):
+    """
+    Create, persist, and return a Notification instance.
+    """
+
     if created_at is None:
         created_at = datetime.utcnow()
     if service is None:
         service = create_service(check_if_service_exists=True)
     if template is None:
         template = create_template(service=service)
+        assert template.template_type == SMS_TYPE, "This is the default template type."
 
     if job is None and api_key is None:
         # we didn't specify in test - lets create it
@@ -790,14 +795,9 @@ def sample_notification(
 
     notification_id = uuid.uuid4()
 
-    if to_field:
-        to = to_field
-    else:
-        to = '+16502532222'
-
     data = {
         'id': notification_id,
-        'to': to,
+        'to': to_field if to_field else "+16502532222",
         'job_id': job.id if job else None,
         'job': job,
         'service_id': service.id,
@@ -820,16 +820,23 @@ def sample_notification(
         'rate_multiplier': rate_multiplier,
         'normalised_to': normalised_to,
         'postage': postage,
+        'sms_sender_id': sample_sms_sender.id,
+        "sms_sender": sample_sms_sender,
     }
+
     if job_row_number is not None:
         data['job_row_number'] = job_row_number
+
     notification = Notification(**data)
     dao_create_notification(notification)
+
     if scheduled_for:
-        scheduled_notification = ScheduledNotification(id=uuid.uuid4(),
-                                                       notification_id=notification.id,
-                                                       scheduled_for=datetime.strptime(scheduled_for,
-                                                                                       "%Y-%m-%d %H:%M"))
+        scheduled_notification = ScheduledNotification(
+            id=uuid.uuid4(),
+            notification_id=notification.id,
+            scheduled_for=datetime.strptime(scheduled_for, "%Y-%m-%d %H:%M")
+        )
+
         if status != 'created':
             scheduled_notification.pending = False
         db.session.add(scheduled_notification)
@@ -880,7 +887,7 @@ def sample_email_notification(notify_db_session):
         'notification_type': template.template_type,
         'api_key_id': None,
         'key_type': KEY_TYPE_NORMAL,
-        'job_row_number': 1
+        'job_row_number': 1,
     }
     notification = Notification(**data)
     dao_create_notification(notification)
@@ -897,7 +904,8 @@ def sample_notification_history(
         notification_type=None,
         key_type=KEY_TYPE_NORMAL,
         sent_at=None,
-        api_key=None
+        api_key=None,
+        sms_sender_id=None
 ):
     if created_at is None:
         created_at = datetime.utcnow()
@@ -907,6 +915,7 @@ def sample_notification_history(
 
     if notification_type is None:
         notification_type = sample_template.template_type
+        assert notification_type == SMS_TYPE, "This is the default."
 
     if not api_key:
         api_key = create_api_key(sample_template.service, key_type=key_type)
@@ -922,7 +931,8 @@ def sample_notification_history(
         key_type=key_type,
         api_key=api_key,
         api_key_id=api_key and api_key.id,
-        sent_at=sent_at
+        sent_at=sent_at,
+        sms_sender_id=sms_sender_id
     )
     notify_db.session.add(notification_history)
     notify_db.session.commit()
@@ -1077,7 +1087,7 @@ def email_2fa_code_template(notify_db, notify_db_session):
             '((url))'
         ),
         subject='Sign in to GOV.UK Notify',
-        template_type='email'
+        template_type=EMAIL_TYPE
     )
 
 
@@ -1090,7 +1100,7 @@ def email_verification_template(notify_db,
         user=user,
         template_config_name='NEW_USER_EMAIL_VERIFICATION_TEMPLATE_ID',
         content='((user_name)) use ((url)) to complete registration',
-        template_type='email'
+        template_type=EMAIL_TYPE
     )
 
 
@@ -1105,7 +1115,7 @@ def invitation_email_template(notify_db,
         template_config_name='INVITATION_EMAIL_TEMPLATE_ID',
         content=content,
         subject='Invitation to ((service_name))',
-        template_type='email'
+        template_type=EMAIL_TYPE
     )
 
 
@@ -1119,7 +1129,7 @@ def org_invite_email_template(notify_db, notify_db_session):
         template_config_name='ORGANISATION_INVITATION_EMAIL_TEMPLATE_ID',
         content='((user_name)) ((organisation_name)) ((url))',
         subject='Invitation to ((organisation_name))',
-        template_type='email'
+        template_type=EMAIL_TYPE
     )
 
 
@@ -1134,7 +1144,7 @@ def password_reset_email_template(notify_db,
         template_config_name='PASSWORD_RESET_TEMPLATE_ID',
         content='((user_name)) you can reset password by clicking ((url))',
         subject='Reset your password',
-        template_type='email'
+        template_type=EMAIL_TYPE
     )
 
 
@@ -1148,7 +1158,7 @@ def verify_reply_to_address_email_template(notify_db, notify_db_session):
         template_config_name='REPLY_TO_EMAIL_ADDRESS_VERIFICATION_TEMPLATE_ID',
         content="Hi,This address has been provided as the reply-to email address so we are verifying if it's working",
         subject='Your GOV.UK Notify reply-to email address',
-        template_type='email'
+        template_type=EMAIL_TYPE
     )
 
 
@@ -1162,7 +1172,7 @@ def account_change_template(notify_db, notify_db_session):
         template_config_name='ACCOUNT_CHANGE_TEMPLATE_ID',
         content='Your account was changed',
         subject='Your account was changed',
-        template_type='email'
+        template_type=EMAIL_TYPE
     )
 
 
@@ -1176,7 +1186,7 @@ def team_member_email_edit_template(notify_db, notify_db_session):
         template_config_name='TEAM_MEMBER_EDIT_EMAIL_TEMPLATE_ID',
         content='Hi ((name)) ((servicemanagername)) changed your email to ((email address))',
         subject='Your GOV.UK Notify email address has changed',
-        template_type='email'
+        template_type=EMAIL_TYPE
     )
 
 
@@ -1204,7 +1214,7 @@ def already_registered_template(notify_db,
         service=service, user=user,
         template_config_name='ALREADY_REGISTERED_EMAIL_TEMPLATE_ID',
         content=content,
-        template_type='email'
+        template_type=EMAIL_TYPE
     )
 
 
@@ -1219,7 +1229,7 @@ def contact_us_template(notify_db,
         service=service, user=user,
         template_config_name='CONTACT_US_TEMPLATE_ID',
         content=content,
-        template_type='email'
+        template_type=EMAIL_TYPE
     )
 
 
@@ -1237,7 +1247,7 @@ def change_email_confirmation_template(notify_db,
         user=user,
         template_config_name='CHANGE_EMAIL_CONFIRMATION_TEMPLATE_ID',
         content=content,
-        template_type='email'
+        template_type=EMAIL_TYPE
     )
     return template
 
@@ -1251,7 +1261,7 @@ def smtp_template(notify_db, notify_db_session):
         template_config_name='SMTP_TEMPLATE_ID',
         content=('((message))'),
         subject='((subject))',
-        template_type='email'
+        template_type=EMAIL_TYPE
     )
 
 
@@ -1266,7 +1276,7 @@ def mou_signed_templates(notify_db, notify_db_session):
             service,
             user,
             config_name,
-            'email',
+            EMAIL_TYPE,
             content='\n'.join(
                 next(
                     x
@@ -1527,3 +1537,8 @@ def mocked_provider_stats(sample_user, mocker):
 
 def datetime_in_past(days=0, seconds=0):
     return datetime.now(tz=pytz.utc) - timedelta(days=days, seconds=seconds)
+
+
+@pytest.fixture(scope='function')
+def sample_sms_sender(sample_service):
+    return dao_add_sms_sender_for_service(sample_service.id, "+12025555555", True)

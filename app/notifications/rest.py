@@ -16,9 +16,13 @@ from app.errors import (
     InvalidRequest
 )
 from app.models import (
-    EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, SMS_TYPE,
-    KEY_TYPE_TEAM, PRIORITY,
-    LETTER_TYPE)
+    EMAIL_TYPE,
+    INTERNATIONAL_SMS_TYPE,
+    KEY_TYPE_TEAM,
+    LETTER_TYPE,
+    PRIORITY,
+    SMS_TYPE,
+)
 from app.notifications.process_notifications import (
     persist_notification,
     send_notification_to_queue,
@@ -87,6 +91,9 @@ def get_all_notifications():
 
 @notifications.route('/notifications/<string:notification_type>', methods=['POST'])
 def send_notification(notification_type):
+    """
+    Create a notification.  This is a version 1 endpoint.
+    """
 
     if notification_type not in [SMS_TYPE, EMAIL_TYPE]:
         msg = "{} notification type is not supported".format(notification_type)
@@ -109,7 +116,7 @@ def send_notification(notification_type):
     check_template_is_for_notification_type(notification_type, template.template_type)
     check_template_is_active(template)
 
-    # This is the template populated with specific data.
+    # This is the template populated with specific, personalized data.
     template_object = create_template_object_for_notification(template, notification_form.get('personalisation', {}))
 
     _service_allowed_to_send_to(notification_form, authenticated_service)
@@ -138,7 +145,8 @@ def send_notification(notification_type):
         api_key_id=api_user.id,
         key_type=api_user.key_type,
         simulated=simulated,
-        reply_to_text=template.get_reply_to_text()
+        reply_to_text=template.get_reply_to_text(),
+        sms_sender_id=notification_form.get("sms_sender_id")
     )
 
     if simulated:
@@ -151,7 +159,7 @@ def send_notification(notification_type):
             queue=queue_name
         )
 
-    notification_form.update({"template_version": template.version})
+    notification_form["template_version"] = template.version
 
     return jsonify(
         data=get_notification_return_data(
@@ -168,8 +176,10 @@ def get_notification_return_data(notification_id, notification, template):
         'notification': {'id': notification_id}
     }
 
-    if template.template_type == 'email':
+    if template.template_type == EMAIL_TYPE:
         output.update({'subject': template.subject})
+    elif template.template_type == SMS_TYPE:
+        output["notification"]["sms_sender_id"] = notification["sms_sender_id"]
 
     return output
 

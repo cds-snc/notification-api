@@ -1,12 +1,11 @@
-import os
-
-from flask import json
 import jsonschema
+import os
+from flask import json
 from jsonschema import Draft4Validator
 
 
 def return_json_from_response(response):
-    return json.loads(response.get_data(as_text=True))
+    return response.get_json()
 
 
 def validate_v0(json_to_validate, schema_filename):

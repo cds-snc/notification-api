@@ -1,13 +1,13 @@
-from flask import json
-
 from . import return_json_from_response, validate_v0
+from flask import json
 from tests import create_authorization_header
 
 
-def _post_notification(client, template, url, to):
+def _post_notification(client, template, url, to, sms_sender_id=None):
     data = {
         'to': to,
-        'template': str(template.id)
+        'template': str(template.id),
+        'sms_sender_id': sms_sender_id,
     }
 
     auth_header = create_authorization_header(service_id=template.service_id)
@@ -19,11 +19,15 @@ def _post_notification(client, template, url, to):
     )
 
 
-def test_post_sms_contract(client, mocker, sample_template):
+def test_post_sms_contract(client, mocker, sample_template, sample_sms_sender):
     mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
 
     response_json = return_json_from_response(_post_notification(
-        client, sample_template, url='/notifications/sms', to='6502532222'
+        client,
+        sample_template,
+        url='/notifications/sms',
+        to='6502532222',
+        sms_sender_id=str(sample_sms_sender.id)
     ))
     validate_v0(response_json, 'POST_notification_return_sms.json')
 

@@ -84,12 +84,12 @@ def create_user(
         'mobile_number': mobile_number,
         'state': state,
         'blocked': blocked,
-        'platform_admin': platform_admin
+        'platform_admin': platform_admin,
     }
     user = User.query.filter_by(email_address=email).first()
-    if not user:
+    if user is None:
         user = User(**data)
-    save_model_user(user)
+        save_model_user(user)
     return user
 
 
@@ -257,7 +257,8 @@ def create_notification(
         created_by_id=None,
         postage=None,
         recipient_identifiers=None,
-        billing_code=None
+        billing_code=None,
+        sms_sender_id=None
 ):
     assert job or template
     if job:
@@ -313,7 +314,8 @@ def create_notification(
         'reply_to_text': reply_to_text,
         'created_by_id': created_by_id,
         'postage': postage,
-        'billing_code': billing_code
+        'billing_code': billing_code,
+        'sms_sender_id': sms_sender_id,
     }
     notification = Notification(**data)
 

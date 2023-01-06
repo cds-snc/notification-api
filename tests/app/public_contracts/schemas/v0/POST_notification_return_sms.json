@@ -9,7 +9,8 @@
         "notification": {
           "type": "object",
           "properties": {
-            "id": {"$ref": "definitions.json#/uuid"}
+            "id": {"$ref": "definitions.json#/uuid"},
+            "sms_sender_id": {"$ref": "definitions.json#/uuid"}
           },
           "additionalProperties": false,
           "required": ["id"]

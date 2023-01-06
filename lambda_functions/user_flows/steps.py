@@ -156,6 +156,7 @@ def send_sms_with_phone_number(notification_url: str, service_jwt: str, template
     payload = json.dumps({
         "phone_number": recipient_number,
         "template_id": template_id,
+        "sms_sender_id": None,
     })
 
     return send_sms(notification_url, service_jwt, payload)
@@ -168,6 +169,7 @@ def send_sms_with_va_profile_id(notification_url: str, service_jwt: str, templat
             "id_type": "VAPROFILEID",
             "id_value": "203",
         },
+        "sms_sender_id": None,
     })
 
     return send_sms(notification_url, service_jwt, payload)

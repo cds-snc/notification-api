@@ -9,8 +9,12 @@ fileignoreconfig:
       checksum: 61421aaa6298a36f7f8a65a573b216be3b23e68655958ee1a4da24ebc30782f8
     - filename: certs/VA-Internal-S2-RCA1-v1.crt
       checksum: b3cdaa6e2a9961ba935379fc4d21dcdd70478b027b9efadbd20a4ae9faaf13a0
+    - filename: certs/VA-Internal-S2-RCA2.cer
+      checksum: a65b69343b7a349345b7e582272083b02c05acf857edd94c488a4a8452784197
     - filename: certs/VA-Internal-S2-ICA4.crt
       checksum: de512039c66ae39d370eaf75f51b6ce1b6ffaad43f92b9f11148bb14151856e0
+    - filename: certs/VA-Internal-S2-ICA11.cer
+      checksum: 384ef2358a515b7f6c85d401a7b5628a153926627275004ba73a22572b7980a8
     - filename: .env.local.example
       checksum: a7c7933ff437793580b334307a180ef0e587f2b811c1162b14ec1d403640605c
     - filename: ci/docker-compose-local.yml
@@ -149,6 +153,8 @@ fileignoreconfig:
       checksum: 93812487055b5ce54ee080dbf3bab4b5a81310bc9df3f26ae6e30dc01d340db5
     - filename: tests/conftest.py
       checksum: 81db237c7a3abb49d28f8fe11f2a72b2879096882eb79a6ed2556ec484eaa1e3
+    - filename: tests/app/conftest.py
+      checksum: 7a6e2dc6855fc6df998c68222f6054864a602e92e4a795dfdbd6e8e73c64b217
     - filename: tests/app/notifications/test_process_client_response.py
       checksum: 6a72967293c852a49f04203c83dd4c2591226874e96f34bebc434d5dfc204215
     - filename: app/celery/service_callback_tasks.py
@@ -285,6 +291,8 @@ fileignoreconfig:
       checksum: 92ae208ffa16b46c91e959911b811d8fc82d274434dffc6e784f2c85682729f7
     - filename: tests/app/oauth/test_rest.py
       checksum: 4e7acd2db507c6cbc5aeb1912a7c98bd03892f4b63970d6475cb20edbd7edc20
+    - filename: tests/app/notifications/test_rest.py
+      checksum: 71627fd26309bf42955fc8f26aad5b66e07a4ec1cc11fa509d125bd18aae417c
     - filename: app/dao/fact_notification_status_dao.py
       checksum: 1503b15fb58257b12b4857659323a5ca9b97784b2344148097298c70d69d4eca
     - filename: app/celery/reporting_tasks.py

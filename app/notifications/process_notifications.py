@@ -82,7 +82,8 @@ def persist_notification(
         postage=None,
         template_postage=None,
         recipient_identifier=None,
-        billing_code=None
+        billing_code=None,
+        sms_sender_id=None
 ) -> Notification:
     notification_created_at = created_at or datetime.utcnow()
 
@@ -109,7 +110,8 @@ def persist_notification(
         status=status,
         reply_to_text=reply_to_text,
         billable_units=billable_units,
-        billing_code=billing_code
+        billing_code=billing_code,
+        sms_sender_id=sms_sender_id
     )
 
     if accept_recipient_identifiers_enabled() and recipient_identifier:

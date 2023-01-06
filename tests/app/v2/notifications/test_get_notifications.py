@@ -1,14 +1,10 @@
 import datetime
 import pytest
-from flask import json, url_for
-
 from app import DATETIME_FORMAT
 from app.va.identifier import IdentifierType
+from flask import json, url_for
 from tests import create_authorization_header
-from tests.app.db import (
-    create_notification,
-    create_template,
-)
+from tests.app.db import create_notification, create_template
 
 
 @pytest.mark.parametrize('billable_units, provider', [
@@ -16,10 +12,9 @@ from tests.app.db import (
     (0, 'mmg'),
     (1, None)
 ])
-# This test assumes the local timezone is EST
-def test_get_notification_by_id_returns_200(
-        client, billable_units, provider, sample_template
-):
+def test_get_notification_by_id_returns_200(client, billable_units, provider, sample_template):
+    """ This test assumes the local timezone is EST. """
+
     sample_notification = create_notification(
         template=sample_template,
         billable_units=billable_units,
@@ -28,7 +23,6 @@ def test_get_notification_by_id_returns_200(
         billing_code="billing_code"
     )
 
-    # another
     create_notification(
         template=sample_template,
         billable_units=billable_units,
@@ -79,7 +73,8 @@ def test_get_notification_by_id_returns_200(
         'scheduled_for': '2017-05-12T19:15:00.000000Z',
         'postage': None,
         'recipient_identifiers': [],
-        'billing_code': sample_notification.billing_code
+        'billing_code': sample_notification.billing_code,
+        'sms_sender_id': None,
     }
 
     assert json_response == expected_response
@@ -90,7 +85,7 @@ def test_get_notification_by_id_returns_200(
     [{"id_type": IdentifierType.VA_PROFILE_ID.value, "id_value": "some vaprofileid"}]
 ])
 def test_get_notification_by_id_with_placeholders_and_recipient_identifiers_returns_200(
-        client, sample_email_template_with_placeholders, recipient_identifiers
+    client, sample_email_template_with_placeholders, recipient_identifiers
 ):
     sample_notification = create_notification(
         template=sample_email_template_with_placeholders,
@@ -141,7 +136,8 @@ def test_get_notification_by_id_with_placeholders_and_recipient_identifiers_retu
         'scheduled_for': None,
         'postage': None,
         'recipient_identifiers': recipient_identifiers if recipient_identifiers else [],
-        'billing_code': None
+        'billing_code': None,
+        'sms_sender_id': None,
     }
 
     assert json_response == expected_response

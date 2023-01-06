@@ -498,6 +498,7 @@ class NotificationSchema(ma.Schema):
 
 class SmsNotificationSchema(NotificationSchema):
     to = fields.Str(required=True)
+    sms_sender_id = fields.UUID(required=True)
 
     @validates('to')
     def validate_to(self, value):
@@ -589,13 +590,9 @@ class NotificationWithPersonalisationSchema(NotificationWithTemplateSchema):
         # WARNING: Does _not_ reference fields computed in handle_template_merge, such as
         # 'body', 'subject' [for emails], and 'content_char_count'
         fields = (
-            # db rows
             'id', 'to', 'job_row_number', 'template_version', 'billable_units', 'notification_type', 'created_at',
-            'sent_at', 'sent_by', 'updated_at', 'status', 'reference',
-            # computed fields
-            'personalisation',
-            # relationships
-            'service', 'job', 'api_key', 'template_history'
+            'sent_at', 'sent_by', 'updated_at', 'status', 'reference', 'personalisation', 'service', 'job', 'api_key',
+            'template_history', 'sms_sender_id'
         )
 
     @pre_dump

@@ -79,7 +79,8 @@
     ]},
     "body": {"type": "string"},
     "content_char_count": {"type": "null"},
-    "subject": {"type": "string"}
+    "subject": {"type": "string"},
+    "sms_sender_id": {"type": ["string", "null"]}
   },
   "additionalProperties": false,
   "required": [
