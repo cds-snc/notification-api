@@ -73,8 +73,9 @@ def deliver_email(self, notification_id):
     except MalwarePendingException:
         current_app.logger.info("RETRY: Email notification {} is pending malware scans".format(notification_id))
         self.retry(queue=QueueNames.RETRY, countdown=60)
-    except Exception:
+    except Exception as e:
         try:
+            current_app.logger.warning(f"The exception is {repr(e)}")
             current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id))
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
