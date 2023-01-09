@@ -68,6 +68,7 @@ def deliver_email(self, notification_id):
         _check_and_queue_callback_task(notification)
     except Exception:
         try:
+            current_app.logger.warning(f"The exception is {repr(e)}")
             current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id))
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
