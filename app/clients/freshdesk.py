@@ -80,7 +80,7 @@ class Freshdesk(object):
     def send_ticket(self) -> int:
         try:
             api_url = current_app.config["FRESH_DESK_API_URL"]
-            if not api_url:
+            if not api_url or current_app.config["FRESH_DESK_ENABLED"] is False:
                 raise NotImplementedError
 
             # The API and field definitions are defined here:
