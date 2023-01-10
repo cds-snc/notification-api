@@ -76,7 +76,10 @@ def deliver_email(self, notification_id):
     except Exception as e:
         try:
             current_app.logger.warning(f"The exception is {repr(e)}")
-            current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id))
+            if self.request.retries <= 10:
+                current_app.logger.warning("RETRY {}: Email notification {} failed".format(self.request.retries, notification_id))
+            else:
+                current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id))
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
             message = (
