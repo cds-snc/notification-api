@@ -706,6 +706,7 @@ def suspend_service(service_id):
     :param service_id:
     :return:
     """
+
     service = dao_fetch_service_by_id(service_id)
 
     if service.active:
@@ -713,7 +714,7 @@ def suspend_service(service_id):
         # TODO: Check if the service's bounce rate has been exceeded
         # will depend on agreed upon method for fetching / storing
         # a services bounce rate.
-        notify_bounce_rate_exceeded(service)
+        notify_bounce_rate_exceeded()
 
     return "", 204
 
@@ -730,6 +731,7 @@ def resume_service(service_id):
 
     if not service.active:
         dao_resume_service(service.id)
+        notify_service_resumed(dao_fetch_service_by_id(service_id))
 
     return "", 204
 
@@ -1154,8 +1156,6 @@ def notify_bounce_rate_exceeded(user_service):
 
 
 def notify_bounce_rate_warning(user_service):
-    if user_service is None:
-        raise TypeError("user_service: must not be None")
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
     user = dao_fetch_service_creator(user_service.id)
     template = dao_get_template_by_id(current_app.config["BOUNCE_RATE_LIMIT_WARNING_ID"])
@@ -1169,7 +1169,30 @@ def notify_bounce_rate_warning(user_service):
         personalisation={
             "name": user.name,
             "service_name": user_service.name,
-            "contact_us_url": f"{Config.ADMIN_BASE_URL}/contact",
+        },
+        notification_type=template.template_type,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+        reply_to_text=reply_to,
+    )
+
+    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+
+
+def notify_service_resumed(user_service):
+    service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
+    user = dao_fetch_service_creator(user_service.id)
+    template = dao_get_template_by_id(current_app.config["SERVICE_RESUMED_ID"])
+    reply_to = template.service.get_default_reply_to_email_address()
+
+    saved_notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        recipient=user.email_address,
+        service=service,
+        personalisation={
+            "name": user.name,
+            "service_name": user_service.name,
         },
         notification_type=template.template_type,
         api_key_id=None,

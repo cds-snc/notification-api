@@ -212,6 +212,10 @@ def sample_service(
         research_mode=None,
     )
 
+@pytest.fixture(scope="function")
+def sample_inactive_service(sample_service):
+    sample_service.active = False
+    return sample_service
 
 @pytest.fixture(scope="function", name="sample_service_full_permissions")
 def _sample_service_full_permissions(notify_db_session):
@@ -1201,11 +1205,11 @@ def no_reply_template(notify_db, notify_db_session):
 
 
 @pytest.fixture(scope="function")
-def bounce_rate_templates(notify_db, notify_db_session):
+def bounce_rate_suspend_resume_templates(notify_db, notify_db_session):
     service, user = notify_service(notify_db, notify_db_session)
     import importlib
 
-    bounce_exceeded = importlib.import_module("migrations.versions.0425_bounce_rate_limits")
+    bounce_exceeded = importlib.import_module("migrations.versions.0425_service_suspend_resume")
 
     return {
         config_name: create_custom_template(
@@ -1220,6 +1224,7 @@ def bounce_rate_templates(notify_db, notify_db_session):
         for config_name in [
             "BOUNCE_RATE_EXCEEDED_ID",
             "BOUNCE_RATE_WARNING_ID",
+            "SERVICE_RESUMED_ID",
         ]
     }
 

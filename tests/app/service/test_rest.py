@@ -3505,7 +3505,7 @@ def test_get_monthly_notification_data_by_service(mocker, admin_request):
     assert response == []
 
 
-def test_suspend_service_bounce_rate_exceeded_email_sent(mocker, sample_service, admin_request, bounce_rate_templates):
+def test_suspend_service_bounce_rate_exceeded_email_sent(mocker, sample_service, admin_request, bounce_rate_suspend_resume_templates):
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
     admin_request.post(
@@ -3527,10 +3527,30 @@ def test_suspend_service_bounce_rate_exceeded_email_sent(mocker, sample_service,
         assert api_key.expiry_date <= datetime.utcnow()
 
 
+def test_resume_service_user_notification_email_sent(mocker, sample_service, admin_request, bounce_rate_suspend_resume_templates):
+    mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    sample_service.active = False
+
+    admin_request.post(
+        "service.resume_service",
+        service_id=sample_service.id,
+        _expected_status=204,
+    )
+
+    notification = Notification.query.first()
+    service = Service.query.get(sample_service.id)
+
+    mocked.assert_called_once_with([str(notification.id)], queue="notify-internal-tasks")
+    assert notification.personalisation["service_name"] == sample_service.name
+    assert service.active is True
+
+
+
 @pytest.mark.skip(
-    reason="Depends on completion of ADR for bounce rate. How we will fetch and store whether a service has hit or is approaching the bounce rate needs to be decided and implemented"
+    reason="Depends on completion of ADR for bounce rate. The decision regarding how we will fetch and store whether a service has hit or is approaching the bounce rate needs to be made."
 )
-def test_suspend_service_bounce_rate_not_exceeded_no_email_sent(mocker, sample_service, admin_request, bounce_rate_templates):
+def test_suspend_service_bounce_rate_not_exceeded_no_email_sent(mocker, sample_service, admin_request, bounce_rate_suspend_resume_templates):
+    # TODO
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
     response = admin_request.post(
