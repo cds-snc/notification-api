@@ -294,7 +294,7 @@ def test_cannot_create_user_with_empty_strings(admin_request, notify_db_session)
     )
     assert resp['message'] == {
         'email_address': ['Not a valid email address'],
-        'mobile_number': ['Invalid phone number: Not a valid international number'],
+        'mobile_number': ['Invalid phone number: Not a valid number'],
         'name': ['Invalid name']
     }
 
@@ -982,7 +982,7 @@ def test_cannot_update_user_with_mobile_number_as_empty_string(
         _data={'mobile_number': ''},
         _expected_status=400
     )
-    assert resp['message']['mobile_number'] == ['Invalid phone number: Not a valid international number']
+    assert resp['message']['mobile_number'] == ['Invalid phone number: Not a valid number']
 
 
 def test_cannot_update_user_password_using_attributes_method(

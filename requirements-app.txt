@@ -29,7 +29,7 @@ Flask-Cors==3.0.10
 Flask-JWT-Extended==4.1.0
 flask-marshmallow==0.11.0
 Flask-Migrate==2.5.2
-git+https://github.com/department-of-veterans-affairs/notification-utils.git@1.0.67#egg=notification-utils==1.0.67
+git+https://github.com/department-of-veterans-affairs/notification-utils.git@1.0.68#egg=notification-utils==1.0.68
 
 # 5 May 2022: Requiring Flask-SQLAlchemy version 2.3.2, 2.5, or 3.0 causes test failures via database
 # errors about foreign key constraint violations.

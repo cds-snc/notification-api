@@ -82,7 +82,7 @@ def test_should_reject_bad_phone_numbers(notify_api, sample_template, mocker, fa
             json_resp = response.get_json()
             assert json_resp['result'] == 'error'
             assert len(json_resp['message'].keys()) == 1
-            assert 'Invalid phone number: Not a valid international number' in json_resp['message']['to']
+            assert 'Invalid phone number: Not a valid number' in json_resp['message']['to']
 
 
 @pytest.mark.parametrize("template_type, to", [
