@@ -28,14 +28,6 @@ jobs:
           aws-access-key-id: ${{ secrets.PRODUCTION_ECR_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.PRODUCTION_ECR_SECRET_ACCESS_KEY }}
           aws-region: ca-central-1
-          
-      - name: Retrieve New Relic Lambda layer
-        run: |
-          aws lambda get-layer-version-by-arn \
-          --region ca-central-1 \
-          --arn arn:aws:lambda:ca-central-1:451483290750:layer:NewRelicPython39:12 \
-          | jq -r '.Content.Location' \
-          | xargs curl -o newrelic-layer.zip        
 
       - name: Build container
         run: |
