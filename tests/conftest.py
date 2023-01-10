@@ -16,7 +16,6 @@ def pytest_configure(config):
     if os.environ.get("SQLALCHEMY_DATABASE_TEST_URI") is not None:
         os.environ["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_TEST_URI")
         os.environ["SQLALCHEMY_DATABASE_READER_URI"] = os.environ.get("SQLALCHEMY_DATABASE_TEST_URI")
-    os.environ["FRESH_DESK_ENABLED"] = "True"
 
 
 @pytest.fixture(scope="session")
