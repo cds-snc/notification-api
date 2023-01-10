@@ -165,6 +165,7 @@ class Config(object):
     FRESH_DESK_PRODUCT_ID = os.getenv("FRESH_DESK_PRODUCT_ID")
     FRESH_DESK_API_URL = os.getenv("FRESH_DESK_API_URL")
     FRESH_DESK_API_KEY = os.getenv("FRESH_DESK_API_KEY")
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
 
     # Logging
     DEBUG = False
