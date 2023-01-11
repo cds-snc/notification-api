@@ -742,6 +742,30 @@ class TestPostNotificationsErrors:
         )
         assert response.status_code == 400
 
+    def test_too_long_sms_returns_400(self, client, notify_db, notify_db_session):
+        service = create_service(sms_daily_limit=10, message_limit=100)
+        auth_header = create_authorization_header(service_id=service.id)
+
+        max_size_template_content = (
+            612 - len(service.name) - 2
+        )  # 612 is the max size of an sms, minus the service name that we append, minus 2 for the space and the colon which we append (i.e. "service name: ")
+        # create a template with content that is too long
+        template = create_sample_template(
+            notify_db, notify_db_session, service=service, template_type="sms", content="a" * (max_size_template_content + 1)
+        )
+
+        response = client.post(
+            path="/v2/notifications/sms",
+            data=json.dumps({"phone_number": "+16502532222", "template_id": template.id}),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 400
+        assert response.headers["Content-type"] == "application/json"
+        error_resp = json.loads(response.get_data(as_text=True))
+        assert error_resp["status_code"] == 400
+        assert "has a character count greater than" in str(response.data)
+
 
 @pytest.mark.parametrize(
     "recipient, notification_type",
@@ -2810,6 +2834,29 @@ class TestBulkSend:
                 "sender_id": str(reply_to_email.id) if use_sender_id else None,
             }
         }
+
+    def test_post_bulk_with_too_large_sms_fails(self, client, notify_db, notify_db_session, mocker):
+        mocker.patch("app.sms_normal.publish")
+        mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=str(uuid.uuid4()))
+
+        service = create_service(sms_daily_limit=10, message_limit=100)
+        template = create_sample_template(notify_db, notify_db_session, service=service, template_type="sms", content="a" * 612)
+        data = {
+            "name": "job_name",
+            "template_id": template.id,
+            "csv": rows_to_csv([["phone number"], ["+16502532222"]]),
+        }
+
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[
+                ("Content-Type", "application/json"),
+                create_authorization_header(service_id=service.id),
+            ],
+        )
+        assert response.status_code == 400
+        assert "has a character count greater than" in str(response.data)
 
 
 class TestBatchPriorityLanes:
