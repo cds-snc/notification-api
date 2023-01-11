@@ -2858,7 +2858,31 @@ class TestBulkSend:
         assert response.status_code == 400
         assert "has a character count greater than" in str(response.data)
 
+ 
+    @pytest.mark.parametrize("row_data, failure_row", [([["phone number", "Name"], ["+16502532222", "a" * 612]], 1), ([["phone number", "Name"], ["+16502532222", "a"], ["+16502532222", "a"*612]], 2)])
+    def test_post_bulk_with_too_large_sms_fail_and_shows_correct_row(self, client, notify_db, notify_db_session, mocker, row_data, failure_row):
+        mocker.patch("app.sms_normal.publish")
+        mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=str(uuid.uuid4()))
 
+        service = create_service(sms_daily_limit=10, message_limit=100)
+        template = create_sample_template(notify_db, notify_db_session, service=service, template_type="sms", content="Hello (( Name))\nYour thing is due soon")
+        data = {
+            "name": "job_name",
+            "template_id": template.id,
+            "csv": rows_to_csv(row_data),
+        }
+
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[
+                ("Content-Type", "application/json"),
+                create_authorization_header(service_id=service.id),
+            ],
+        )
+        assert response.status_code == 400
+        assert "has a character count greater than" in str(response.data)
+        assert "row #{}".format(failure_row) in str(response.data)
 class TestBatchPriorityLanes:
     @pytest.mark.parametrize("process_type", ["bulk", "normal", "priority"])
     def test_sms_each_queue_is_used(self, notify_api, client, service_factory, mocker, process_type):
