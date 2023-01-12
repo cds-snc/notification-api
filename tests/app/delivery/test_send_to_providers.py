@@ -285,7 +285,6 @@ def test_should_not_send_sms_message_when_message_is_empty_or_whitespace(sample_
 
 
 def test_should_not_send_sms_message_to_internal_test_number(sample_service, mocker):
-    sample_service.prefix_sms = False
     template = create_template(sample_service)
     notification = save_notification(
         create_notification(
@@ -295,8 +294,8 @@ def test_should_not_send_sms_message_to_internal_test_number(sample_service, moc
             reply_to_text=sample_service.get_default_sms_sender(),
         )
     )
-    mocker.patch("app.delivery.send_to_providers.send_sms_response", side_effect="ref")
-    send_mock = mocker.patch("app.aws_sns_client.send_sms", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.send_sms_response", return_value="reference")
+    send_mock = mocker.patch("app.aws_sns_client.send_sms")
     send_to_providers.send_sms_to_provider(notification)
 
     send_mock.assert_not_called()

@@ -50,7 +50,6 @@ from app.utils import get_logo_url, is_blank
 
 
 def send_sms_to_provider(notification):
-    current_app.logger.info(f"Sending sms to provider for notification id {notification.id}")
     service = notification.service
 
     if not service.active:
