@@ -182,6 +182,15 @@ def post_bulk():
 
     check_for_csv_errors(recipient_csv, max_rows, remaining_messages)
 
+    for row in recipient_csv.get_rows():
+        try:
+            validate_template(template.id, row.personalisation, authenticated_service, template.template_type)
+        except BadRequestError as e:
+            message = e.message + ". Notification to {} on row #{} exceeds the maximum size limit.".format(
+                row.recipient, row.index + 1
+            )
+            raise BadRequestError(message=message)
+
     if template.template_type == SMS_TYPE:
         # calculate the number of simulated recipients
         numberOfSimulated = sum(
