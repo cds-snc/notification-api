@@ -66,7 +66,7 @@ def get_aws_responses(ses_message):
         "Complaint": {
             "message": "Complaint",
             "success": True,
-            "notification_status": "delivered",
+            "notification_status": "permanent-failure",
         },
     }[status]
 
