@@ -444,15 +444,15 @@ def test_service_can_send_to_recipient_fails_when_mobile_number_is_not_on_team(n
     assert e.value.fields == []
 
 
-@pytest.mark.parametrize("char_count", [610, 0, 494, 200])
+@pytest.mark.parametrize("char_count", [612, 0, 494, 200])
 def test_check_sms_content_char_count_passes(char_count, notify_api):
-    assert check_sms_content_char_count(char_count, "") is None
+    assert check_sms_content_char_count(char_count, "", False) is None
 
 
 @pytest.mark.parametrize("char_count", [613, 700, 6000])
 def test_check_sms_content_char_count_fails(char_count, notify_api):
     with pytest.raises(BadRequestError) as e:
-        check_sms_content_char_count(char_count, "")
+        check_sms_content_char_count(char_count, "", False)
     assert e.value.status_code == 400
     assert e.value.message == "Content for template has a character count greater than the limit of {}".format(
         SMS_CHAR_COUNT_LIMIT
@@ -462,13 +462,13 @@ def test_check_sms_content_char_count_fails(char_count, notify_api):
 
 @pytest.mark.parametrize("char_count", [603, 0, 494, 200])
 def test_check_sms_content_char_count_passes_with_svc_name(char_count, notify_api):
-    assert check_sms_content_char_count(char_count, "service") is None
+    assert check_sms_content_char_count(char_count, "service", True) is None
 
 
 @pytest.mark.parametrize("char_count", [606, 700, 6000])
 def test_check_sms_content_char_count_fails_with_svc_name(char_count, notify_api):
     with pytest.raises(BadRequestError) as e:
-        check_sms_content_char_count(char_count, "service")
+        check_sms_content_char_count(char_count, "service", True)
     assert e.value.status_code == 400
     assert e.value.message == "Content for template has a character count greater than the limit of {}".format(
         SMS_CHAR_COUNT_LIMIT
