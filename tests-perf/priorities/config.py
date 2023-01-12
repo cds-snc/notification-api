@@ -15,7 +15,6 @@ class Config:
     PRIORITY_EMAIL_TEMPLATE = os.environ.get("PRIORITY_EMAIL_TEMPLATE")
 
     SMS_TO = os.environ.get("SMS_TO", "+16135550123")  # Notify internal test number
-
     BULK_SMS_TEMPLATE = os.environ.get("BULK_SMS_TEMPLATE")
     NORMAL_SMS_TEMPLATE = os.environ.get("NORMAL_SMS_TEMPLATE")
     PRIORITY_SMS_TEMPLATE = os.environ.get("PRIORITY_SMS_TEMPLATE")

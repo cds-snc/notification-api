@@ -24,7 +24,7 @@ class ApiUser(HttpUser):
         )
 
     @task(10)
-    def send_priority_email(self):
+    def send_priority_sms(self):
         time.sleep(random.random())  # prevent users from POSTing at the same time
         self.client.post(
             "/v2/notifications/sms",
