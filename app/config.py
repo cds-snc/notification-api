@@ -448,6 +448,8 @@ class Config(object):
 
     SIMULATED_SMS_NUMBERS = ("+16132532222", "+16132532223", "+16132532224")
 
+    INTERNAL_TEST_NUMBER = "+16135550123"
+
     DVLA_BUCKETS = {
         "job": "{}-dvla-file-per-job".format(os.getenv("NOTIFY_ENVIRONMENT", "development")),
         "notification": "{}-dvla-letter-api-files".format(os.getenv("NOTIFY_ENVIRONMENT", "development")),
