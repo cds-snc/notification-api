@@ -38,13 +38,16 @@ def process_sns_results(self, response):
         try:
             notification = notifications_dao.dao_get_notification_by_reference(reference)
         except NoResultFound:
-            message_time = iso8601.parse_date(sns_message["notification"]["timestamp"]).replace(tzinfo=None)
-            if datetime.utcnow() - message_time < timedelta(minutes=5):
+            try:
+                current_app.logger.warning(
+                    f"RETRY {self.request.retries}: notification not found for SNS reference {reference} (update to {notification_status}). Retrying..."
+                )
                 self.retry(queue=QueueNames.RETRY)
-            else:
-                current_app.logger.warning(f"notification not found for reference: {reference} (update to {notification_status})")
+            except self.MaxRetriesExceededError:
+                current_app.logger.warning(
+                    f"notification not found for SNS reference: {reference} (update to {notification_status}). Giving up."
+                )
             return
-
         if notification.sent_by != SNS_PROVIDER:
             current_app.logger.exception(f"SNS callback handled notification {notification.id} not sent by SNS")
             return
