@@ -145,12 +145,6 @@ def validate_and_format_recipient(send_to, key_type, service, notification_type,
         return validate_and_format_email_address(email_address=send_to)
 
 
-def check_sms_content_char_count(content_count):
-    if content_count > SMS_CHAR_COUNT_LIMIT:
-        message = 'Content for template has a character count greater than the limit of {}'.format(SMS_CHAR_COUNT_LIMIT)
-        raise BadRequestError(message=message)
-
-
 def validate_template(template_id, personalisation, service, notification_type):
     try:
         template = templates_dao.dao_get_template_by_id_and_service_id(
@@ -165,8 +159,9 @@ def validate_template(template_id, personalisation, service, notification_type):
     check_template_is_for_notification_type(notification_type, template.template_type)
     check_template_is_active(template)
     template_with_content = create_content_for_notification(template, personalisation)
-    if template.template_type == SMS_TYPE:
-        check_sms_content_char_count(template_with_content.content_count)
+    if template.template_type == SMS_TYPE and template_with_content.content_count > SMS_CHAR_COUNT_LIMIT:
+        current_app.logger.warning("The personalized message length is %s, which exceeds the 4 segments length of %s.",
+                                   template_with_content.content_count, SMS_CHAR_COUNT_LIMIT)
     return template, template_with_content
 
 

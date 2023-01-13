@@ -3,7 +3,6 @@ from collections import namedtuple
 import pytest
 from freezegun import freeze_time
 from flask import current_app
-from notifications_utils import SMS_CHAR_COUNT_LIMIT
 
 import app
 from app.feature_flags import FeatureFlag
@@ -13,7 +12,6 @@ from app.notifications.validators import (
     check_template_is_for_notification_type,
     check_template_is_active,
     service_can_send_to_recipient,
-    check_sms_content_char_count,
     check_service_over_api_rate_limit,
     validate_and_format_recipient,
     check_service_email_reply_to_id,
@@ -292,21 +290,6 @@ def test_service_can_send_to_recipient_fails_when_mobile_number_is_not_on_team(s
                                       sample_service)
     assert e.value.status_code == 400
     assert e.value.message == 'Can’t send to this recipient using a team-only API key'
-    assert e.value.fields == []
-
-
-@pytest.mark.parametrize('char_count', [612, 0, 494, 200])
-def test_check_sms_content_char_count_passes(char_count, notify_api):
-    assert check_sms_content_char_count(char_count) is None
-
-
-@pytest.mark.parametrize('char_count', [613, 700, 6000])
-def test_check_sms_content_char_count_fails(char_count, notify_api):
-    with pytest.raises(BadRequestError) as e:
-        check_sms_content_char_count(char_count)
-    assert e.value.status_code == 400
-    assert e.value.message == 'Content for template has a character count greater than the limit of {}'.format(
-        SMS_CHAR_COUNT_LIMIT)
     assert e.value.fields == []
 
 
