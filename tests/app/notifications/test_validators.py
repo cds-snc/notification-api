@@ -10,6 +10,7 @@ from app.dbsetup import RoutingSQLAlchemy
 from app.models import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
+    KEY_TYPE_TEAM,
     LETTER_TYPE,
     SMS_TYPE,
     ApiKeyType,
@@ -378,6 +379,12 @@ def test_service_can_send_to_recipient_passes_for_safelisted_recipient_passes(no
     assert service_can_send_to_recipient("some_other_email@test.com", "team", sample_service) is None
     create_sample_service_safelist(notify_db, notify_db_session, mobile_number="6502532222")
     assert service_can_send_to_recipient("6502532222", "team", sample_service) is None
+
+
+def test_service_can_send_to_recipient_passes_for_simulated_recipients(notify_db, notify_db_session):
+    live_service = create_sample_service(notify_db, notify_db_session, service_name="live", restricted=False)
+    assert service_can_send_to_recipient(current_app.config["SIMULATED_EMAIL_ADDRESSES"][0], KEY_TYPE_TEAM, live_service) is None
+    assert service_can_send_to_recipient(current_app.config["SIMULATED_SMS_NUMBERS"][0], KEY_TYPE_TEAM, live_service) is None
 
 
 @pytest.mark.parametrize(
