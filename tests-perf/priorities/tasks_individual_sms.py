@@ -14,7 +14,7 @@ class ApiUser(HttpUser):
     wait_time = constant_throughput(1)  # run once every second
     host = Config.API_HOST_NAME
 
-    @task(90)
+    @task(80)
     def send_bulk_sms(self):
         time.sleep(random.random())  # prevent users from POSTing at the same time
         self.client.post(
@@ -23,7 +23,16 @@ class ApiUser(HttpUser):
             headers=api_headers(Config.API_KEY),
         )
 
-    @task(10)
+    @task(15)
+    def send_normal_sms(self):
+        time.sleep(random.random())  # prevent users from POSTing at the same time
+        self.client.post(
+            "/v2/notifications/sms",
+            json=json_data_sms(Config.SMS_TO, Config.NORMAL_SMS_TEMPLATE, self.environment.parsed_options.ref),
+            headers=api_headers(Config.API_KEY),
+        )
+
+    @task(5)
     def send_priority_sms(self):
         time.sleep(random.random())  # prevent users from POSTing at the same time
         self.client.post(
