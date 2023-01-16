@@ -16,7 +16,11 @@ from app.models import (
     ServiceSafelist,
 )
 from app.service.send_notification import send_one_off_notification
-from app.v2.errors import BadRequestError, TooManyRequestsError
+from app.v2.errors import (
+    BadRequestError,
+    LiveServiceTooManySMSRequestsError,
+    TooManyRequestsError,
+)
 from tests.app.db import (
     create_letter_contact,
     create_reply_to_email,
@@ -246,7 +250,7 @@ def test_send_one_off_notification_raises_if_cant_send_to_recipient(
     assert "service is in trial mode" in e.value.message
 
 
-def test_send_one_off_notification_raises_if_over_limit(notify_db_session, mocker):
+def test_send_one_off_notification_raises_if_over_combined_limit(notify_db_session, mocker):
     service = create_service(message_limit=0)
     template = create_template(service=service)
     mocker.patch(
@@ -265,11 +269,11 @@ def test_send_one_off_notification_raises_if_over_limit(notify_db_session, mocke
 
 
 def test_send_one_off_notification_raises_if_over_sms_daily_limit(notify_db_session, mocker):
-    service = create_service(message_limit=0)
+    service = create_service(sms_daily_limit=0)
     template = create_template(service=service)
     mocker.patch(
-        "app.service.send_notification.check_service_over_daily_sms_limit",
-        side_effect=TooManyRequestsError(1),
+        "app.service.send_notification.check_sms_limit_increment_redis_send_warnings_if_needed",
+        side_effect=LiveServiceTooManySMSRequestsError(1),
     )
 
     post_data = {
@@ -278,7 +282,7 @@ def test_send_one_off_notification_raises_if_over_sms_daily_limit(notify_db_sess
         "created_by": str(service.created_by_id),
     }
 
-    with pytest.raises(TooManyRequestsError):
+    with pytest.raises(LiveServiceTooManySMSRequestsError):
         send_one_off_notification(service.id, post_data)
 
 

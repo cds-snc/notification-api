@@ -1,7 +1,9 @@
 import dateutil
 from flask import Blueprint, current_app, jsonify, request
+from notifications_utils.recipients import RecipientCSV
+from notifications_utils.template import Template
 
-from app.aws.s3 import get_job_metadata_from_s3
+from app.aws.s3 import get_job_from_s3, get_job_metadata_from_s3
 from app.celery.tasks import process_job
 from app.config import QueueNames
 from app.dao.fact_notification_status_dao import fetch_notification_statuses_for_job
@@ -24,6 +26,11 @@ from app.models import (
     JOB_STATUS_PENDING,
     JOB_STATUS_SCHEDULED,
     LETTER_TYPE,
+    SMS_TYPE,
+)
+from app.notifications.process_notifications import simulated_recipient
+from app.notifications.validators import (
+    check_sms_limit_increment_redis_send_warnings_if_needed,
 )
 from app.schemas import (
     job_schema,
@@ -131,6 +138,29 @@ def create_job(service_id):
 
     data["template"] = data.pop("template_id")
     template = dao_get_template_by_id(data["template"])
+
+    if template.template_type == SMS_TYPE:
+        job = get_job_from_s3(service_id, data["id"])
+        recipient_csv = RecipientCSV(
+            job,
+            template_type=template.template_type,
+            placeholders=template._as_utils_template().placeholders,
+            template=Template(template.__dict__),
+        )
+        # calculate the number of simulated recipients
+        numberOfSimulated = sum(
+            simulated_recipient(i["phone_number"].data, template.template_type) for i in list(recipient_csv.get_rows())
+        )
+        mixedRecipients = numberOfSimulated > 0 and numberOfSimulated != len(list(recipient_csv.get_rows()))
+
+        # if they have specified testing and NON-testing recipients, raise an error
+        if mixedRecipients:
+            raise InvalidRequest(message="Bulk sending to testing and non-testing numbers is not supported", status_code=400)
+
+        is_test_notification = len(list(recipient_csv.get_rows())) == numberOfSimulated
+
+        if not is_test_notification:
+            check_sms_limit_increment_redis_send_warnings_if_needed(service, recipient_csv.sms_fragment_count)
 
     if template.template_type == LETTER_TYPE and service.restricted:
         raise InvalidRequest("Create letter job is not allowed for service in trial mode ", 403)

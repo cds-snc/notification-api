@@ -10,6 +10,7 @@ from app.dbsetup import RoutingSQLAlchemy
 from app.models import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
+    KEY_TYPE_TEAM,
     LETTER_TYPE,
     SMS_TYPE,
     ApiKeyType,
@@ -20,9 +21,10 @@ from app.notifications.validators import (
     check_service_letter_contact_id,
     check_service_over_api_rate_limit,
     check_service_over_daily_message_limit,
-    check_service_over_daily_sms_limit,
     check_service_sms_sender_id,
     check_sms_content_char_count,
+    check_sms_daily_limit,
+    check_sms_limit_increment_redis_send_warnings_if_needed,
     check_template_is_active,
     check_template_is_for_notification_type,
     service_can_send_to_recipient,
@@ -91,7 +93,7 @@ class TestCheckDailyLimits:
 
         if limit_type == "sms":
             with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                check_service_over_daily_sms_limit(key_type, sample_service)
+                check_sms_daily_limit(sample_service)
         else:
             check_service_over_daily_message_limit(key_type, sample_service)
         app.notifications.validators.redis_store.set.assert_not_called()
@@ -109,29 +111,23 @@ class TestCheckDailyLimits:
         mocker.patch("app.notifications.validators.services_dao")
         if limit_type == "sms":
             with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                check_service_over_daily_sms_limit(key_type, sample_service)
+                check_sms_daily_limit(sample_service)
         else:
             check_service_over_daily_message_limit(key_type, sample_service)
             app.notifications.validators.redis_store.set.assert_not_called()
         assert not app.notifications.validators.services_dao.mock_calls
 
-    @pytest.mark.parametrize("limit_type", ["all", "sms"])
-    def test_should_not_interact_with_cache_for_test_key(self, notify_api, limit_type, sample_service, mocker):
+    def test_should_not_interact_with_cache_for_test_key(self, notify_api, sample_service, mocker):
         mocker.patch("app.notifications.validators.redis_store")
-
-        if limit_type == "sms":
-            with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                check_service_over_daily_sms_limit("test", sample_service)
-        else:
-            check_service_over_daily_message_limit("test", sample_service)
+        check_service_over_daily_message_limit("test", sample_service)
         assert not app.notifications.validators.redis_store.mock_calls
 
     @pytest.mark.parametrize(
-        "limit_type, key_type",
-        [("all", "team"), ("all", "normal"), ("sms", "team"), ("sms", "normal")],
+        "key_type",
+        ["team", "normal"],
     )
     def test_should_set_cache_value_as_value_from_database_if_cache_not_set(
-        self, notify_api, limit_type, key_type, notify_db, notify_db_session, sample_service, mocker
+        self, notify_api, key_type, notify_db, notify_db_session, sample_service, mocker
     ):
         with freeze_time("2016-01-01 12:00:00.000000"):
             for x in range(5):
@@ -139,63 +135,51 @@ class TestCheckDailyLimits:
             mocker.patch("app.notifications.validators.redis_store.get", return_value=None)
             mocker.patch("app.notifications.validators.redis_store.set")
 
-            if limit_type == "sms":
-                with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                    check_service_over_daily_sms_limit(key_type, sample_service)
-            else:
-                check_service_over_daily_message_limit(key_type, sample_service)
+            check_service_over_daily_message_limit(key_type, sample_service)
 
-            app.notifications.validators.redis_store.set.assert_called_with(
-                count_key(limit_type, sample_service.id), 10 if limit_type == "sms" else 5, ex=7200
-            )
+            app.notifications.validators.redis_store.set.assert_called_with(count_key("all", sample_service.id), 5, ex=7200)
 
     def test_should_not_access_database_if_redis_disabled(self, notify_api, sample_service, mocker):
         with set_config(notify_api, "REDIS_ENABLED", False):
             db_mock = mocker.patch("app.notifications.validators.services_dao")
             check_service_over_daily_message_limit("normal", sample_service)
             with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                check_service_over_daily_sms_limit("normal", sample_service)
+                check_sms_daily_limit(sample_service)
 
             assert db_mock.method_calls == []
 
     @pytest.mark.parametrize(
-        "limit_type, key_type, email_template",
+        "key_type, email_template",
         [
-            ("all", "team", "REACHED_DAILY_LIMIT_TEMPLATE_ID"),
-            ("all", "normal", "REACHED_DAILY_LIMIT_TEMPLATE_ID"),
-            ("sms", "team", "REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"),
-            ("sms", "normal", "REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"),
+            ("team", "REACHED_DAILY_LIMIT_TEMPLATE_ID"),
+            ("normal", "REACHED_DAILY_LIMIT_TEMPLATE_ID"),
         ],
     )
     def test_check_service_message_limit_over_message_limit_fails(
-        self, notify_api, limit_type, key_type, email_template, notify_db, notify_db_session, mocker
+        self, notify_api, key_type, email_template, notify_db, notify_db_session, mocker
     ):
         with freeze_time("2016-01-01 12:00:00.000000"):
             redis_get = mocker.patch("app.redis_store.get", side_effect=["5", True, None])
             redis_set = mocker.patch("app.redis_store.set")
             send_notification = mocker.patch("app.notifications.validators.send_notification_to_service_users")
-
-            service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=4, sms_limit=4)
+            service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=4)
             for x in range(5):
                 create_sample_notification(notify_db, notify_db_session, service=service)
 
-            if limit_type == "sms":
-                with pytest.raises(TooManySMSRequestsError) as e:
-                    with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                        check_service_over_daily_sms_limit(key_type, service)
-                assert e.value.message == "Exceeded sms send limits (4) for today"
-            else:
-                with pytest.raises(TooManyRequestsError) as e:
-                    check_service_over_daily_message_limit(key_type, service)
-                assert e.value.message == "Exceeded send limits (4) for today"
+            with pytest.raises(TooManyRequestsError) as e:
+                check_service_over_daily_message_limit(key_type, service)
+            assert e.value.message == "Exceeded send limits (4) for today"
             assert e.value.status_code == 429
             assert e.value.fields == []
+
             assert redis_get.call_args_list == [
-                call(count_key(limit_type, service.id)),
-                call(near_key(limit_type, service.id)),
-                call(over_key(limit_type, service.id)),
+                call(count_key("all", service.id)),
+                call(near_key("all", service.id)),
+                call(over_key("all", service.id)),
             ]
-            assert redis_set.call_args_list == [call(over_key(limit_type, service.id), "2016-01-01T12:00:00", ex=86400)]
+
+            assert redis_set.call_args_list == [call(over_key("all", service.id), "2016-01-01T12:00:00", ex=86400)]
+
             send_notification.assert_called_once_with(
                 service_id=service.id,
                 template_id=current_app.config[email_template],
@@ -208,12 +192,9 @@ class TestCheckDailyLimits:
                 include_user_fields=["name"],
             )
 
-    @pytest.mark.parametrize(
-        "limit_type, email_template", [("all", "NEAR_DAILY_LIMIT_TEMPLATE_ID"), ("sms", "NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID")]
-    )
-    def test_check_service_message_limit_records_nearing_daily_limit(
-        self, notify_api, limit_type, email_template, notify_db, notify_db_session, mocker
-    ):
+    def test_check_service_message_limit_records_nearing_daily_limit(self, notify_api, notify_db, notify_db_session, mocker):
+        limit_type = "all"
+        email_template = "NEAR_DAILY_LIMIT_TEMPLATE_ID"
         with freeze_time("2016-01-01 12:00:00.000000"):
             redis_get = mocker.patch("app.redis_store.get", side_effect=[4, None])
             redis_set = mocker.patch("app.redis_store.set")
@@ -225,7 +206,7 @@ class TestCheckDailyLimits:
 
             if limit_type == "sms":
                 with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                    check_service_over_daily_sms_limit("normal", service)
+                    check_sms_limit_increment_redis_send_warnings_if_needed(service)
             else:
                 check_service_over_daily_message_limit("normal", service)
 
@@ -252,9 +233,8 @@ class TestCheckDailyLimits:
                 include_user_fields=["name"],
             )
 
-    @pytest.mark.parametrize("limit_type", ["all", "sms"])
     def test_check_service_message_limit_does_not_send_notifications_if_already_did(
-        self, notify_api, limit_type, notify_db, notify_db_session, mocker
+        self, notify_api, notify_db, notify_db_session, mocker
     ):
         with freeze_time("2016-01-01 12:00:00.000000"):
             redis_get = mocker.patch("app.redis_store.get", side_effect=[5, True, True])
@@ -263,22 +243,16 @@ class TestCheckDailyLimits:
 
             service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=5, sms_limit=5)
 
-            if limit_type == "sms":
-                with pytest.raises(TooManySMSRequestsError) as e:
-                    with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                        check_service_over_daily_sms_limit("normal", service)
-                    assert e.value.message == "Exceeded sms send limits (5) for today"
-            else:
-                with pytest.raises(TooManyRequestsError) as e:
-                    check_service_over_daily_message_limit("normal", service)
-                assert e.value.message == "Exceeded send limits (5) for today"
+            with pytest.raises(TooManyRequestsError) as e:
+                check_service_over_daily_message_limit("normal", service)
+            assert e.value.message == "Exceeded send limits (5) for today"
             assert e.value.status_code == 429
             assert e.value.fields == []
 
             assert redis_get.call_args_list == [
-                call(count_key(limit_type, service.id)),
-                call(near_key(limit_type, service.id)),
-                call(over_key(limit_type, service.id)),
+                call(count_key("all", service.id)),
+                call(near_key("all", service.id)),
+                call(over_key("all", service.id)),
             ]
             redis_set.assert_not_called()
             send_notification.assert_not_called()
@@ -301,28 +275,25 @@ class TestCheckDailyLimits:
 
             with pytest.raises(TooManySMSRequestsError) as e:
                 with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                    check_service_over_daily_sms_limit(key_type, service)
+                    check_sms_daily_limit(service)
             assert e.value.status_code == 429
-            assert e.value.message == "Exceeded sms send limits (4) for today"
+            assert e.value.message == "Exceeded SMS daily sending limit of 4 fragments"
             assert e.value.fields == []
 
             app.notifications.validators.redis_store.set.assert_not_called()
             assert not app.notifications.validators.services_dao.mock_calls
 
     @pytest.mark.parametrize(
-        "limit_type, is_trial_service, expected_counter",
+        "is_trial_service, expected_counter",
         [
-            ("all", True, "validators.rate_limit.trial_service_daily"),
-            ("all", False, "validators.rate_limit.live_service_daily"),
-            ("sms", True, "validators.rate_limit.trial_service_daily"),
-            ("sms", False, "validators.rate_limit.live_service_daily"),
+            (True, "validators.rate_limit.trial_service_daily"),
+            (False, "validators.rate_limit.live_service_daily"),
         ],
-        ids=["trial service", "live service", "trial service", "live service"],
+        ids=["trial service", "live service"],
     )
     def test_check_service_message_limit_sends_statsd_over_message_limit_fails(
         self,
         notify_api,
-        limit_type,
         app_statsd,
         notify_db,
         notify_db_session,
@@ -334,13 +305,9 @@ class TestCheckDailyLimits:
         mocker.patch("app.notifications.validators.redis_store.set")
 
         service = create_sample_service(notify_db, notify_db_session, restricted=is_trial_service, limit=4, sms_limit=4)
-        if limit_type == "sms":
-            with pytest.raises(TooManySMSRequestsError):
-                with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                    check_service_over_daily_sms_limit("normal", service)
-        else:
-            with pytest.raises(TooManyRequestsError):
-                check_service_over_daily_message_limit("normal", service)
+
+        with pytest.raises(TooManyRequestsError):
+            check_service_over_daily_message_limit("normal", service)
 
         app_statsd.statsd_client.incr.assert_called_once_with(expected_counter)
 
@@ -355,7 +322,7 @@ class TestCheckDailyLimits:
         service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=4, sms_limit=4)
         check_service_over_daily_message_limit("normal", service)
         with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-            check_service_over_daily_sms_limit("normal", service)
+            check_sms_daily_limit(service)
         # Then
         app_statsd.statsd_client.incr.assert_not_called()
 
@@ -414,6 +381,12 @@ def test_service_can_send_to_recipient_passes_for_safelisted_recipient_passes(no
     assert service_can_send_to_recipient("6502532222", "team", sample_service) is None
 
 
+def test_service_can_send_to_recipient_passes_for_simulated_recipients(notify_db, notify_db_session):
+    live_service = create_sample_service(notify_db, notify_db_session, service_name="live", restricted=False)
+    assert service_can_send_to_recipient(current_app.config["SIMULATED_EMAIL_ADDRESSES"][0], KEY_TYPE_TEAM, live_service) is None
+    assert service_can_send_to_recipient(current_app.config["SIMULATED_SMS_NUMBERS"][0], KEY_TYPE_TEAM, live_service) is None
+
+
 @pytest.mark.parametrize(
     "recipient",
     [
@@ -437,7 +410,7 @@ def test_service_can_send_to_recipient_fails_when_ignoring_safelist(
         )
     assert exec_info.value.status_code == 400
     assert (
-        exec_info.value.message == "Can’t send to this recipient using a team-only API key "
+        exec_info.value.message == f"Can’t send to this recipient using a team-only API key (service {sample_service.id}) "
         f'- see {get_document_url("en", "keys.html#team-and-safelist")}'
     )
     assert exec_info.value.fields == []
@@ -447,7 +420,7 @@ def test_service_can_send_to_recipient_fails_when_ignoring_safelist(
 @pytest.mark.parametrize(
     "key_type, error_message",
     [
-        ("team", "Can’t send to this recipient using a team-only API key - see"),
+        ("team", "Can’t send to this recipient using a team-only API key"),
         ("normal", "Can’t send to this recipient when service is in trial mode – see "),
     ],
 )  # noqa
@@ -472,7 +445,7 @@ def test_service_can_send_to_recipient_fails_when_mobile_number_is_not_on_team(n
         service_can_send_to_recipient("0758964221", "team", live_service)
     assert e.value.status_code == 400
     assert (
-        e.value.message == "Can’t send to this recipient using a team-only API key "
+        e.value.message == f"Can’t send to this recipient using a team-only API key (service {live_service.id}) "
         f'- see {get_document_url("en", "keys.html#team-and-safelist")}'
     )
     assert e.value.fields == []
@@ -480,13 +453,29 @@ def test_service_can_send_to_recipient_fails_when_mobile_number_is_not_on_team(n
 
 @pytest.mark.parametrize("char_count", [612, 0, 494, 200])
 def test_check_sms_content_char_count_passes(char_count, notify_api):
-    assert check_sms_content_char_count(char_count) is None
+    assert check_sms_content_char_count(char_count, "", False) is None
 
 
 @pytest.mark.parametrize("char_count", [613, 700, 6000])
 def test_check_sms_content_char_count_fails(char_count, notify_api):
     with pytest.raises(BadRequestError) as e:
-        check_sms_content_char_count(char_count)
+        check_sms_content_char_count(char_count, "", False)
+    assert e.value.status_code == 400
+    assert e.value.message == "Content for template has a character count greater than the limit of {}".format(
+        SMS_CHAR_COUNT_LIMIT
+    )
+    assert e.value.fields == []
+
+
+@pytest.mark.parametrize("char_count", [603, 0, 494, 200])
+def test_check_sms_content_char_count_passes_with_svc_name(char_count, notify_api):
+    assert check_sms_content_char_count(char_count, "service", True) is None
+
+
+@pytest.mark.parametrize("char_count", [606, 700, 6000])
+def test_check_sms_content_char_count_fails_with_svc_name(char_count, notify_api):
+    with pytest.raises(BadRequestError) as e:
+        check_sms_content_char_count(char_count, "service", True)
     assert e.value.status_code == 400
     assert e.value.message == "Content for template has a character count greater than the limit of {}".format(
         SMS_CHAR_COUNT_LIMIT

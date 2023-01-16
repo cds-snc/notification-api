@@ -49,6 +49,7 @@ from app.dao.services_dao import (
     fetch_todays_total_message_count,
 )
 from app.dao.templates_dao import dao_get_template_by_id
+from app.encryption import SignedNotification
 from app.exceptions import DVLAException
 from app.models import (
     BULK,
@@ -64,6 +65,7 @@ from app.models import (
     PRIORITY,
     SMS_TYPE,
     Job,
+    Notification,
     Service,
     Template,
 )
@@ -72,6 +74,7 @@ from app.notifications.process_notifications import (
     send_notification_to_queue,
 )
 from app.notifications.validators import check_service_over_daily_message_limit
+from app.types import VerifiedNotification
 from app.utils import get_csv_max_rows
 
 
@@ -152,13 +155,13 @@ def choose_database_queue(template: Any, service: Service):
 def process_rows(rows: List, template: Template, job: Job, service: Service):
     template_type = template.template_type
     sender_id = str(job.sender_id) if job.sender_id else None
-    encrypted_smss: List[Any] = []
-    encrypted_emails: List[Any] = []
+    encrypted_smss: List[SignedNotification] = []
+    encrypted_emails: List[SignedNotification] = []
     for row in rows:
         client_reference = row.get("reference", None)
-        signed_row = signer.sign(
+        signed_row = signer.sign_notification(
             {
-                "api_key": job.api_key_id and str(job.api_key_id),
+                "api_key": job.api_key_id and str(job.api_key_id),  # type: ignore
                 "key_type": job.api_key.key_type if job.api_key else KEY_TYPE_NORMAL,
                 "template": str(template.id),
                 "template_version": job.template_version,
@@ -206,31 +209,32 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
 
 @notify_celery.task(bind=True, name="save-smss", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], receipt: Optional[UUID]):
+def save_smss(self, service_id: Optional[str], signed_notifications: List[SignedNotification], receipt: Optional[UUID]):
     """
     Function that takes a list of signed notifications, stores
     them in the DB and then sends these to the queue. If the receipt
     is not None then it is passed to the RedisQueue to let it know it
     can delete the inflight notifications.
     """
-    verified_notifications: List[Any] = []
+    verified_notifications: List[VerifiedNotification] = []
     notification_id_queue: Dict = {}
-    saved_notifications = []
+    saved_notifications: List[Notification] = []
     for signed_notification in signed_notifications:
         try:
-            notification = signer.verify(signed_notification)
+            _notification = signer.verify_notification(signed_notification)
         except BadSignature:
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
-        service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
+        service_id = _notification.get("service_id", service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
 
         template = dao_get_template_by_id(
-            notification.get("template"), version=notification.get("template_version"), use_cache=True
+            _notification.get("template"), version=_notification.get("template_version"), use_cache=True
         )
-        sender_id = notification.get("sender_id")
-        notification_id = notification.get("id", create_uuid())
-        notification["notification_id"] = notification_id
+        # todo: _notification may not have "sender_id" key
+        sender_id = _notification.get("sender_id")  # type: ignore
+        notification_id = _notification.get("id", create_uuid())
+
         reply_to_text = ""  # type: ignore
         if sender_id:
             reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
@@ -245,21 +249,26 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
         else:
             reply_to_text = template.get_reply_to_text()  # type: ignore
 
-        notification["reply_to_text"] = reply_to_text
-        notification["service"] = service
-        notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
-        notification["template_id"] = template.id
-        notification["template_version"] = template.version
-        notification["recipient"] = notification.get("to")
-        notification["personalisation"] = notification.get("personalisation")
-        notification["notification_type"] = SMS_TYPE
-        notification["simulated"] = notification.get("simulated", None)
-        notification["api_key_id"] = notification.get("api_key", None)
-        notification["created_at"] = datetime.utcnow()
-        notification["job_id"] = notification.get("job", None)
-        notification["job_row_number"] = notification.get("row_number", None)
+        notification: VerifiedNotification = {
+            **_notification,  # type: ignore
+            "notification_id": notification_id,
+            "reply_to_text": reply_to_text,
+            "service": service,
+            "key_type": _notification.get("key_type", KEY_TYPE_NORMAL),
+            "template_id": template.id,
+            "template_version": template.version,
+            "recipient": _notification.get("to"),
+            "personalisation": _notification.get("personalisation"),
+            "notification_type": SMS_TYPE,
+            "simulated": _notification.get("simulated", None),
+            "api_key_id": _notification.get("api_key", None),
+            "created_at": datetime.utcnow(),
+            "job_id": _notification.get("job", None),
+            "job_row_number": _notification.get("row_number", None),
+        }
+
         verified_notifications.append(notification)
-        notification_id_queue[notification_id] = notification.get("queue")
+        notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
         process_type = template.process_type
 
     try:
@@ -269,7 +278,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
             f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
         )
         if receipt:
-            _acknowledge_notification(SMS_TYPE, template, receipt)
+            acknowledge_receipt(SMS_TYPE, process_type, receipt)
             current_app.logger.info(
                 f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
             )
@@ -285,60 +294,57 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Any], 
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt, template)
 
+    # we should move this check inside the for loop below
     check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
-
-    research_mode = service.research_mode  # type: ignore
-
     current_app.logger.info(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
-    for notification in saved_notifications:
-        queue = notification_id_queue.get(notification.id) or template.queue_to_use()  # type: ignore
+    for notification_obj in saved_notifications:
+        queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
         send_notification_to_queue(
-            notification,
-            research_mode,
+            notification_obj,
+            service.research_mode,
             queue=queue,
         )
 
         current_app.logger.debug(
             "SMS {} created at {} for job {}".format(
-                notification.id,
-                notification.created_at,
-                notification.job,
+                notification_obj.id,
+                notification_obj.created_at,
+                notification_obj.job,
             )
         )
 
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
-def save_emails(self, service_id: Optional[str], signed_notifications: List[Any], receipt: Optional[UUID]):
+def save_emails(self, _service_id: Optional[str], signed_notifications: List[SignedNotification], receipt: Optional[UUID]):
     """
     Function that takes a list of signed notifications, stores
     them in the DB and then sends these to the queue. If the receipt
     is not None then it is passed to the RedisQueue to let it know it
     can delete the inflight notifications.
     """
-    verified_notifications: List[Any] = []
+    verified_notifications: List[VerifiedNotification] = []
     notification_id_queue: Dict = {}
-    saved_notifications = []
+    saved_notifications: List[Notification] = []
     for signed_notification in signed_notifications:
         try:
-            notification = signer.verify(signed_notification)
+            _notification = signer.verify_notification(signed_notification)
         except BadSignature:
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
-        service_id = notification.get("service_id", service_id)  # take it it out of the notification if it's there
+        service_id = _notification.get("service_id", _service_id)  # take it it out of the notification if it's there
         service = dao_fetch_service_by_id(service_id, use_cache=True)
         template = dao_get_template_by_id(
-            notification.get("template"), version=notification.get("template_version"), use_cache=True
+            _notification.get("template"), version=_notification.get("template_version"), use_cache=True
         )
-        sender_id = notification.get("sender_id")
-        notification_id = notification.get("id", create_uuid())
-        notification["notification_id"] = notification_id
+        # todo: _notification does not have key "sender_id"
+        sender_id = _notification.get("sender_id")  # type: ignore
+        notification_id = _notification.get("id", create_uuid())
         reply_to_text = ""  # type: ignore
-
         if (
-            "reply_to_text" in notification and notification["reply_to_text"]
+            "reply_to_text" in _notification and _notification["reply_to_text"]
         ):  # first just see if we already have a value of this and use it, otherwise continue with the logic below
-            reply_to_text = notification["reply_to_text"]  # type: ignore
+            reply_to_text = _notification["reply_to_text"]  # type: ignore
         else:
             if sender_id:
                 reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
@@ -352,22 +358,26 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
 
         if isinstance(template, tuple):
             template = template[0]
+        notification: VerifiedNotification = {
+            **_notification,  # type: ignore
+            "notification_id": notification_id,
+            "reply_to_text": reply_to_text,
+            "service": service,
+            "key_type": _notification.get("key_type", KEY_TYPE_NORMAL),
+            "template_id": template.id,
+            "template_version": template.version,
+            "recipient": _notification.get("to"),
+            "personalisation": _notification.get("personalisation"),
+            "notification_type": EMAIL_TYPE,
+            "simulated": _notification.get("simulated", None),
+            "api_key_id": _notification.get("api_key", None),
+            "created_at": datetime.utcnow(),
+            "job_id": _notification.get("job", None),
+            "job_row_number": _notification.get("row_number", None),
+        }
 
-        notification["reply_to_text"] = reply_to_text
-        notification["service"] = service
-        notification["key_type"] = notification.get("key_type", KEY_TYPE_NORMAL)
-        notification["template_id"] = template.id
-        notification["template_version"] = template.version
-        notification["recipient"] = notification.get("to")
-        notification["personalisation"] = notification.get("personalisation")
-        notification["notification_type"] = EMAIL_TYPE
-        notification["simulated"] = notification.get("simulated", None)
-        notification["api_key_id"] = notification.get("api_key", None)
-        notification["created_at"] = datetime.utcnow()
-        notification["job_id"] = notification.get("job", None)
-        notification["job_row_number"] = notification.get("row_number", None)
         verified_notifications.append(notification)
-        notification_id_queue[notification_id] = notification.get("queue")
+        notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
         process_type = template.process_type
 
     try:
@@ -377,7 +387,11 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
             f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
         )
         if receipt:
-            _acknowledge_notification(EMAIL_TYPE, template, receipt)
+            # todo: fix this potential bug
+            # template is whatever it was set to last in the for loop above
+            # at this point in the code we have a list of notifications (saved_notifications)
+            # which could use multiple templates
+            acknowledge_receipt(EMAIL_TYPE, process_type, receipt)
             current_app.logger.info(
                 f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
             )
@@ -394,21 +408,25 @@ def save_emails(self, service_id: Optional[str], signed_notifications: List[Any]
 
     if saved_notifications:
         current_app.logger.info(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
+        # todo: fix this potential bug
+        # service is whatever it was set to last in the for loop above.
+        # at this point in the code we have a list of notifications (saved_notifications)
+        # which could be from multiple services
         check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
         research_mode = service.research_mode  # type: ignore
-        for notification in saved_notifications:
-            queue = notification_id_queue.get(notification.id) or template.queue_to_use()  # type: ignore
+        for notification_obj in saved_notifications:
+            queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
             send_notification_to_queue(
-                notification,
+                notification_obj,
                 research_mode,
                 queue,
             )
 
             current_app.logger.debug(
                 "Email {} created at {} for job {}".format(
-                    notification.id,
-                    notification.created_at,
-                    notification.job,
+                    notification_obj.id,
+                    notification_obj.created_at,
+                    notification_obj.job,
                 )
             )
 
@@ -425,9 +443,12 @@ def handle_batch_error_and_forward(
         current_app.logger.warning(f"Batch saving: could not persist notifications with receipt {receipt}: {str(exception)}")
     else:
         current_app.logger.warning(f"Batch saving: could not persist notifications: {str(exception)}")
+    process_type = template.process_type if template else None
 
+    notifications_in_job: List[str] = []
     for (signed, notification) in signed_and_verified:
         notification_id = notification["notification_id"]
+        notifications_in_job.append(notification_id)
         service = notification["service"]
         # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
         # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
@@ -449,6 +470,7 @@ def handle_batch_error_and_forward(
             # in the form of a dict
             if isinstance(template, tuple):
                 template = template[0]
+            process_type = template.process_type
             retry_msg = "{task} notification for job {job} row number {row} and notification id {notif} and max_retries are {max_retry}".format(
                 task=task.__name__,
                 job=notification.get("job", None),
@@ -474,8 +496,8 @@ def handle_batch_error_and_forward(
 
     # end of the loop, purge the notifications from the buffer queue:
     if receipt:
-        _acknowledge_notification(notification_type, template, receipt)
-        current_app.logger.info(f"Acknowledged notification id: {str(notification_id)} for receipt: {str(receipt)}")
+        acknowledge_receipt(notification_type, process_type, receipt)
+        current_app.logger.info(f"Acknowledged notification ids: {str(notifications_in_job)} for receipt: {str(receipt)}")
 
 
 def get_template_class(template_type):
@@ -665,7 +687,6 @@ def send_notify_no_reply(self, data):
                 reply_to_text=None,
             )
         ]
-        current_app.logger.info(f"Data we are sending to persist_notifications is {data_to_send}")
         saved_notifications = persist_notifications(data_to_send)
         send_notification_to_queue(saved_notifications[0], False, queue=QueueNames.NOTIFY)
     except Exception as e:
@@ -689,7 +710,7 @@ def get_recipient_csv(job: Job, template: Template) -> RecipientCSV:
     )
 
 
-def _acknowledge_notification(notification_type: Any, template: Any, receipt: UUID):  # noqa
+def acknowledge_receipt(notification_type: Any, process_type: Any, receipt: UUID):  # noqa
     """
     Acknowledge the notification has been saved to the DB and sent to the service.
 
@@ -701,18 +722,31 @@ def _acknowledge_notification(notification_type: Any, template: Any, receipt: UU
 
     Returns: None
     """
-    if notification_type == SMS_TYPE:
-        if template.process_type == PRIORITY:
-            sms_priority.acknowledge(receipt)
-        elif template.process_type == NORMAL:
-            sms_normal.acknowledge(receipt)
-        elif template.process_type == BULK:
-            sms_bulk.acknowledge(receipt)
-    elif notification_type == EMAIL_TYPE:
-        if template.process_type == PRIORITY:
-            email_priority.acknowledge(receipt)
-        elif template.process_type == NORMAL:
-            email_normal.acknowledge(receipt)
-        elif template.process_type == BULK:
-            email_bulk.acknowledge(receipt)
-    current_app.logger.info(f"ACKNOWLEDGED: {notification_type} for receipt_id {receipt}")
+    queue_for = {
+        (SMS_TYPE, PRIORITY): sms_priority,
+        (SMS_TYPE, NORMAL): sms_normal,
+        (SMS_TYPE, BULK): sms_bulk,
+        (EMAIL_TYPE, PRIORITY): email_priority,
+        (EMAIL_TYPE, NORMAL): email_normal,
+        (EMAIL_TYPE, BULK): email_bulk,
+    }
+    queue = queue_for.get((notification_type, process_type))
+    if queue is None:
+        raise ValueError(
+            f"acknowledge_receipt: No queue found for receipt {receipt} notification type {notification_type} and process type {process_type}"
+        )
+    if queue.acknowledge(receipt):
+        return
+
+    current_app.logger.warning(f"acknowledge_receipt: trying to acknowledge inflight everywhere for receipt {receipt}")
+    if (
+        sms_priority.acknowledge(receipt)
+        or sms_normal.acknowledge(receipt)
+        or sms_bulk.acknowledge(receipt)
+        or email_priority.acknowledge(receipt)
+        or email_normal.acknowledge(receipt)
+        or email_bulk.acknowledge(receipt)
+    ):
+        return
+    else:
+        current_app.logger.error(f"acknowledge_receipt: receipt {receipt} not found in any queue")

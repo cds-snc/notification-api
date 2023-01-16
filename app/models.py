@@ -932,9 +932,9 @@ class ApiKey(BaseModel, Versioned):
 
 
 ApiKeyType = Literal["normal", "team", "test"]
-KEY_TYPE_NORMAL = "normal"
-KEY_TYPE_TEAM = "team"
-KEY_TYPE_TEST = "test"
+KEY_TYPE_NORMAL: Literal["normal"] = "normal"
+KEY_TYPE_TEAM: Literal["team"] = "team"
+KEY_TYPE_TEST: Literal["test"] = "test"
 
 
 class KeyTypes(BaseModel):
@@ -1540,8 +1540,8 @@ class Notification(BaseModel):
     __tablename__ = "notifications"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    to = db.Column(db.String, nullable=False)
-    normalised_to = db.Column(db.String, nullable=True)
+    to = db.Column(db.SensitiveString, nullable=False)
+    normalised_to = db.Column(db.SensitiveString, nullable=True)
     job_id = db.Column(UUID(as_uuid=True), db.ForeignKey("jobs.id"), index=True, unique=False)
     job = db.relationship("Job", backref=db.backref("notifications", lazy="dynamic"))
     job_row_number = db.Column(db.Integer, nullable=True)
@@ -1551,7 +1551,7 @@ class Notification(BaseModel):
     template_version = db.Column(db.Integer, nullable=False)
     template = db.relationship("TemplateHistory")
     api_key_id = db.Column(UUID(as_uuid=True), db.ForeignKey("api_keys.id"), index=True, unique=False)
-    api_key = db.relationship("ApiKey")
+    api_key: ApiKey = db.relationship("ApiKey")
     key_type = db.Column(
         db.String,
         db.ForeignKey("key_types.name"),
@@ -1559,7 +1559,7 @@ class Notification(BaseModel):
         unique=False,
         nullable=False,
     )
-    billable_units = db.Column(db.Integer, nullable=False, default=0)
+    billable_units: int = db.Column(db.Integer, nullable=False, default=0)
     notification_type = db.Column(notification_types, index=True, nullable=False)
     created_at = db.Column(db.DateTime, index=True, unique=False, nullable=False)
     sent_at = db.Column(db.DateTime, index=False, unique=False, nullable=True)
@@ -1582,7 +1582,7 @@ class Notification(BaseModel):
     )
     reference = db.Column(db.String, nullable=True, index=True)
     client_reference = db.Column(db.String, index=True, nullable=True)
-    _personalisation = db.Column(db.String, nullable=True)
+    _personalisation = db.Column(db.SensitiveString, nullable=True)
 
     scheduled_notification = db.relationship("ScheduledNotification", uselist=False)
 

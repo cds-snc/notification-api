@@ -11,6 +11,8 @@ from app.models import (
     KEY_TYPE_TEAM,
     LETTER_TYPE,
     SMS_TYPE,
+    NotificationType,
+    Template,
 )
 from app.notifications.process_notifications import (
     persist_notification,
@@ -83,21 +85,21 @@ def get_all_notifications():
 
 
 @notifications.route("/notifications/<string:notification_type>", methods=["POST"])
-def send_notification(notification_type):
+def send_notification(notification_type: NotificationType):
 
     if notification_type not in [SMS_TYPE, EMAIL_TYPE]:
         msg = "{} notification type is not supported".format(notification_type)
         msg = msg + ", please use the latest version of the client" if notification_type == LETTER_TYPE else msg
         raise InvalidRequest(msg, 400)
 
-    notification_form, errors = (
+    notification_form, errors = (  # type: ignore
         sms_template_notification_schema if notification_type == SMS_TYPE else email_notification_schema
     ).load(request.get_json())
 
     if errors:
         raise InvalidRequest(errors, status_code=400)
 
-    check_rate_limiting(authenticated_service, api_user, notification_type)
+    check_rate_limiting(authenticated_service, api_user)
 
     template = templates_dao.dao_get_template_by_id_and_service_id(
         template_id=notification_form["template"], service_id=authenticated_service.id
@@ -124,7 +126,7 @@ def send_notification(notification_type):
         template_id=template.id,
         template_version=template.version,
         template_postage=template.postage,
-        recipient=request.get_json()["to"],
+        recipient=request.get_json()["to"],  # type: ignore
         service=authenticated_service,
         personalisation=notification_form.get("personalisation", None),
         notification_type=notification_type,
@@ -174,7 +176,7 @@ def _service_allowed_to_send_to(notification, service):
         # FIXME: hard code it for now until we can get en/fr specific links and text
         if api_user.key_type == KEY_TYPE_TEAM:
             message = (
-                "Can’t send to this recipient using a team-only API key "
+                f"Can’t send to this recipient using a team-only API key (service {service.id}) "
                 f'- see {get_document_url("en", "keys.html#team-and-safelist")}'
             )
         else:
@@ -184,7 +186,7 @@ def _service_allowed_to_send_to(notification, service):
         raise InvalidRequest({"to": [message]}, status_code=400)
 
 
-def create_template_object_for_notification(template, personalisation):
+def create_template_object_for_notification(template, personalisation) -> Template:
     template_object = get_template_instance(template.__dict__, personalisation)
 
     if template_object.missing_data:

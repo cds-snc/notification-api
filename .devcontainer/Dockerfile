@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/vscode/devcontainers/python:0-3.9@sha256:3f7cc42c23b9b1d78f4250023edb0cd74791c27163fd12e65a40993db8fbd8bb
+FROM mcr.microsoft.com/vscode/devcontainers/python:0-3.10@sha256:04cac448e2712a48117db7bd8489adf5357a397e7069a3113c2566ea848dcb76
 
 ARG KUBENS_VERSION="0.9.4"
 ARG OCTANT_VERSION="0.25.1"
@@ -6,41 +6,28 @@ ARG OCTANT_VERSION="0.25.1"
 # Install packages
 RUN apt-get update \
     && apt-get -y install --no-install-recommends \
-        apt-utils \
-        postgresql-client \
-        2>&1 \
+    apt-utils \
+    postgresql-client \
+    2>&1 \
     && apt-get -y install \
-        curl \
-        emacs \
-        exa \
-        fd-find \
-        git \
-        iproute2 \
-        less \
-        libsodium-dev \
-        lsb-release \
-        man-db \
-        manpages \
-        net-tools \
-        nodejs \ 
-        npm \
-        libgtk2.0-0 \
-        libgtk-3-0 \
-        libgbm-dev \
-        libnotify-dev \
-        libgconf-2-4 \
-        libnss3 \
-        libxss1 \
-        libasound2 \
-        libxtst6 \
-        xauth \
-        xvfb \
-        openssh-client \
-        procps \
-        sudo \
-        tldr \
-        unzip \
-        vim \
+    curl \
+    emacs \
+    exa \
+    fd-find \
+    git \
+    iproute2 \
+    less \
+    libsodium-dev \
+    lsb-release \
+    man-db \
+    manpages \
+    net-tools \
+    openssh-client \
+    procps \
+    sudo \
+    tldr \
+    unzip \
+    vim \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*

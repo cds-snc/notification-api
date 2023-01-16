@@ -72,14 +72,12 @@ target/
 environment.sh
 .envrc
 .env
+.env_*
 .env.lambda
 
 celerybeat-schedule
 celerybeat-schedule.*
 celerybeat.pid
-
-# CloudFoundry
-.cf
 
 # VSCode
 .vscode

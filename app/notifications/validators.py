@@ -1,6 +1,6 @@
 import base64
 import functools
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 from flask import current_app
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
@@ -38,12 +38,16 @@ from app.models import (
     NotificationType,
     Permission,
     Service,
+    Template,
     TemplateType,
 )
 from app.notifications.process_notifications import create_content_for_notification
 from app.service.sender import send_notification_to_service_users
 from app.service.utils import service_allowed_to_send_to
-from app.sms_fragment_utils import fetch_daily_sms_fragment_count
+from app.sms_fragment_utils import (
+    fetch_todays_requested_sms_count,
+    increment_todays_requested_sms_count,
+)
 from app.utils import get_document_url, get_public_notify_type_text, is_blank
 from app.v2.errors import (
     BadRequestError,
@@ -90,25 +94,76 @@ def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Servic
 
 @statsd_catch(
     namespace="validators",
-    counter_name="rate_limit.trial_service_daily",
+    counter_name="rate_limit.trial_service_daily_sms",
     exception=TrialServiceTooManySMSRequestsError,
 )
 @statsd_catch(
     namespace="validators",
-    counter_name="rate_limit.live_service_daily",
+    counter_name="rate_limit.live_service_daily_sms",
     exception=LiveServiceTooManySMSRequestsError,
 )
-def check_service_over_daily_sms_limit(key_type: ApiKeyType, service: Service):
-    if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"] and key_type != KEY_TYPE_TEST and current_app.config["REDIS_ENABLED"]:
-        fragments_sent = fetch_daily_sms_fragment_count(service.id)
-        warn_about_daily_sms_limit(service, fragments_sent)
+def check_sms_daily_limit(service: Service, requested_sms=0):
+    messages_sent = fetch_todays_requested_sms_count(service.id)
+    over_sms_daily_limit = (messages_sent + requested_sms) > service.sms_daily_limit
+
+    # Send a warning when reaching the daily message limit
+    if not over_sms_daily_limit:
+        return
+
+    current_app.logger.info(
+        f"service {service.id} is exceeding their daily sms limit [total sent today: {int(messages_sent)} limit: {service.sms_daily_limit}, attempted send: {requested_sms}"
+    )
+    if service.restricted:
+        raise TrialServiceTooManySMSRequestsError(service.sms_daily_limit)
+    else:
+        raise LiveServiceTooManySMSRequestsError(service.sms_daily_limit)
 
 
-def check_rate_limiting(service: Service, api_key: ApiKey, template_type: TemplateType):
+def send_warning_sms_limit_emails_if_needed(service: Service):
+    todays_requested_sms = fetch_todays_requested_sms_count(service.id)
+    nearing_sms_daily_limit = todays_requested_sms >= NEAR_DAILY_LIMIT_PERCENTAGE * service.sms_daily_limit
+    at_or_over_sms_daily_limit = todays_requested_sms >= service.sms_daily_limit
+    current_time = datetime.utcnow().isoformat()
+    cache_expiration = int(time_until_end_of_day().total_seconds())
+
+    # Send a warning when reaching 80% of the daily limit
+    if nearing_sms_daily_limit:
+        cache_key = near_sms_daily_limit_cache_key(service.id)
+        if not redis_store.get(cache_key):
+            send_near_sms_limit_email(service)
+            redis_store.set(cache_key, current_time, ex=cache_expiration)
+
+    # Send a warning when reaching the daily message limit
+    if at_or_over_sms_daily_limit:
+        cache_key = over_sms_daily_limit_cache_key(service.id)
+        if not redis_store.get(cache_key):
+            send_sms_limit_reached_email(service)
+            redis_store.set(cache_key, current_time, ex=cache_expiration)
+
+
+def time_until_end_of_day() -> timedelta:
+    """
+    Get timedelta until end of day on the datetime passed, or current time.
+    """
+    dt = datetime.now()
+    tomorrow = dt + timedelta(days=1)
+    return datetime.combine(tomorrow, time.min) - dt
+
+
+def check_sms_limit_increment_redis_send_warnings_if_needed(service: Service, requested_sms=0) -> None:
+    if not current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
+        return
+    if not current_app.config["REDIS_ENABLED"]:
+        return
+
+    check_sms_daily_limit(service, requested_sms)
+    increment_todays_requested_sms_count(service.id, requested_sms)
+    send_warning_sms_limit_emails_if_needed(service)
+
+
+def check_rate_limiting(service: Service, api_key: ApiKey):
     check_service_over_api_rate_limit(service, api_key)
     check_service_over_daily_message_limit(api_key.key_type, service)
-    if template_type == "sms":
-        check_service_over_daily_sms_limit(api_key.key_type, service)
 
 
 def warn_about_daily_message_limit(service: Service, messages_sent):
@@ -164,60 +219,37 @@ def warn_about_daily_message_limit(service: Service, messages_sent):
             raise LiveServiceTooManyRequestsError(service.message_limit)
 
 
-def warn_about_daily_sms_limit(service: Service, messages_sent):
-    nearing_sms_daily_limit = messages_sent >= NEAR_DAILY_LIMIT_PERCENTAGE * service.sms_daily_limit
-    over_sms_daily_limit = messages_sent >= service.sms_daily_limit
-    current_time = datetime.utcnow().isoformat()
-    cache_expiration = int(timedelta(days=1).total_seconds())
+def send_near_sms_limit_email(service: Service):
+    send_notification_to_service_users(
+        service_id=service.id,
+        template_id=current_app.config["NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID"]
+        if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
+        else current_app.config["NEAR_DAILY_LIMIT_TEMPLATE_ID"],
+        personalisation={
+            "service_name": service.name,
+            "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
+            "message_limit_en": "{:,}".format(service.sms_daily_limit),
+            "message_limit_fr": "{:,}".format(service.sms_daily_limit).replace(",", " "),
+        },
+        include_user_fields=["name"],
+    )
+    current_app.logger.info(f"service {service.id} is approaching its daily sms limit of {service.sms_daily_limit}")
 
-    # Send a warning when reaching 80% of the daily limit
-    if nearing_sms_daily_limit:
-        cache_key = near_sms_daily_limit_cache_key(service.id)
-        if not redis_store.get(cache_key):
-            redis_store.set(cache_key, current_time, ex=cache_expiration)
-            send_notification_to_service_users(
-                service_id=service.id,
-                template_id=current_app.config["NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID"]
-                if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
-                else current_app.config["NEAR_DAILY_LIMIT_TEMPLATE_ID"],
-                personalisation={
-                    "service_name": service.name,
-                    "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
-                    "message_limit_en": "{:,}".format(service.sms_daily_limit),
-                    "message_limit_fr": "{:,}".format(service.sms_daily_limit).replace(",", " "),
-                },
-                include_user_fields=["name"],
-            )
-            current_app.logger.info(
-                f"service {service.id} is approaching its daily sms limit, sent {int(messages_sent)} limit {service.sms_daily_limit}"
-            )
 
-    # Send a warning when reaching the daily message limit
-    if over_sms_daily_limit:
-        cache_key = over_sms_daily_limit_cache_key(service.id)
-        if not redis_store.get(cache_key):
-            redis_store.set(cache_key, current_time, ex=cache_expiration)
-            send_notification_to_service_users(
-                service_id=service.id,
-                template_id=current_app.config["REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"]
-                if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
-                else current_app.config["REACHED_DAILY_LIMIT_TEMPLATE_ID"],
-                personalisation={
-                    "service_name": service.name,
-                    "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
-                    "message_limit_en": "{:,}".format(service.sms_daily_limit),
-                    "message_limit_fr": "{:,}".format(service.sms_daily_limit).replace(",", " "),
-                },
-                include_user_fields=["name"],
-            )
-
-        current_app.logger.info(
-            f"service {service.id} has been rate limited for daily sms use sent {int(messages_sent)} limit {service.sms_daily_limit}"
-        )
-        if service.restricted:
-            raise TrialServiceTooManySMSRequestsError(service.sms_daily_limit)
-        else:
-            raise LiveServiceTooManySMSRequestsError(service.sms_daily_limit)
+def send_sms_limit_reached_email(service: Service):
+    send_notification_to_service_users(
+        service_id=service.id,
+        template_id=current_app.config["REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"]
+        if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
+        else current_app.config["REACHED_DAILY_LIMIT_TEMPLATE_ID"],
+        personalisation={
+            "service_name": service.name,
+            "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
+            "message_limit_en": "{:,}".format(service.sms_daily_limit),
+            "message_limit_fr": "{:,}".format(service.sms_daily_limit).replace(",", " "),
+        },
+        include_user_fields=["name"],
+    )
 
 
 def check_template_is_for_notification_type(notification_type: NotificationType, template_type: TemplateType):
@@ -239,7 +271,7 @@ def service_can_send_to_recipient(send_to, key_type: ApiKeyType, service: Servic
         # FIXME: hard code it for now until we can get en/fr specific links and text
         if key_type == KEY_TYPE_TEAM:
             message = (
-                "Can’t send to this recipient using a team-only API key "
+                f"Can’t send to this recipient using a team-only API key (service {service.id}) "
                 f'- see {get_document_url("en", "keys.html#team-and-safelist")}'
             )
         else:
@@ -285,8 +317,12 @@ def validate_and_format_recipient(
         return validate_and_format_email_address(email_address=send_to)
 
 
-def check_sms_content_char_count(content_count):
-    if content_count > SMS_CHAR_COUNT_LIMIT:
+def check_sms_content_char_count(content_count, service_name, prefix_sms: bool):
+    content_length = (
+        content_count + len(service_name) + 2 if prefix_sms else content_count
+    )  # the +2 is to account for the ': ' that is added to the service name
+
+    if content_length > SMS_CHAR_COUNT_LIMIT:
         message = "Content for template has a character count greater than the limit of {}".format(SMS_CHAR_COUNT_LIMIT)
         raise BadRequestError(message=message)
 
@@ -309,16 +345,16 @@ def validate_template(template_id, personalisation, service: Service, notificati
     check_template_is_for_notification_type(notification_type, template.template_type)
     check_template_is_active(template)
 
-    template_with_content = create_content_for_notification(template, personalisation)
+    template_with_content: Template = create_content_for_notification(template, personalisation)
     if template.template_type == SMS_TYPE:
-        check_sms_content_char_count(template_with_content.content_count)
+        check_sms_content_char_count(template_with_content.content_count, service.name, service.prefix_sms)
 
     check_content_is_not_blank(template_with_content)
 
     return template, template_with_content
 
 
-def check_template_exists_by_id_and_service(template_id, service: Service):
+def check_template_exists_by_id_and_service(template_id, service: Service) -> Template:
     try:
         return templates_dao.dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service.id)
     except NoResultFound:
