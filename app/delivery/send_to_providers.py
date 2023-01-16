@@ -18,6 +18,7 @@ from notifications_utils.template import (
 
 from app import clients, statsd_client
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
+from app.config import Config
 from app.dao.notifications_dao import dao_update_notification
 from app.dao.provider_details_dao import (
     dao_toggle_sms_provider,
@@ -71,6 +72,14 @@ def send_sms_to_provider(notification):
             return
 
         if service.research_mode or notification.key_type == KEY_TYPE_TEST:
+            notification.reference = send_sms_response(provider.get_name(), notification.to)
+            update_notification_to_sending(notification, provider)
+
+        elif (
+            validate_and_format_phone_number(notification.to, international=notification.international)
+            == Config.INTERNAL_TEST_NUMBER
+        ):
+            current_app.logger.info(f"notification {notification.id} sending to internal test number. Not sending to AWS")
             notification.reference = send_sms_response(provider.get_name(), notification.to)
             update_notification_to_sending(notification, provider)
 

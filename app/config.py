@@ -165,6 +165,7 @@ class Config(object):
     FRESH_DESK_PRODUCT_ID = os.getenv("FRESH_DESK_PRODUCT_ID")
     FRESH_DESK_API_URL = os.getenv("FRESH_DESK_API_URL")
     FRESH_DESK_API_KEY = os.getenv("FRESH_DESK_API_KEY")
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
 
     # Logging
     DEBUG = False
@@ -441,6 +442,8 @@ class Config(object):
     )
 
     SIMULATED_SMS_NUMBERS = ("+16132532222", "+16132532223", "+16132532224")
+
+    INTERNAL_TEST_NUMBER = "+16135550123"
 
     DVLA_BUCKETS = {
         "job": "{}-dvla-file-per-job".format(os.getenv("NOTIFY_ENVIRONMENT", "development")),

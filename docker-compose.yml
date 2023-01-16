@@ -18,7 +18,7 @@ services:
       - "listen_addresses=*"
     restart: always
   redis:
-    image: redis:6.2@sha256:3aba2a761e87edae1e8020baf7f3df77c62a2879752d2c62c2f7192c39d9eb20
+    image: redis:6.2@sha256:8cf5e722ac88a9fbc03aa9f3e66767d88f809596746a2d35b3e73b7cdfbf0870
   web:
     image: notification-api
     restart: always
