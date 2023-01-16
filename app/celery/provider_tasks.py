@@ -8,11 +8,7 @@ from app.config import QueueNames
 from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
 from app.delivery import send_to_providers
-from app.exceptions import (
-    InvalidUrlException,
-    MalwarePendingException,
-    NotificationTechnicalFailureException,
-)
+from app.exceptions import InvalidUrlException, NotificationTechnicalFailureException
 from app.models import NOTIFICATION_TECHNICAL_FAILURE
 from app.notifications.callbacks import _check_and_queue_callback_task
 
@@ -70,9 +66,6 @@ def deliver_email(self, notification_id):
         current_app.logger.error(f"Cannot send notification {notification_id}, got an invalid direct file url.")
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
         _check_and_queue_callback_task(notification)
-    except MalwarePendingException:
-        current_app.logger.info("RETRY: Email notification {} is pending malware scans".format(notification_id))
-        self.retry(queue=QueueNames.RETRY, countdown=60)
     except Exception as e:
         try:
             current_app.logger.warning(f"The exception is {repr(e)}")

@@ -175,11 +175,6 @@ class Config(object):
     CRONITOR_ENABLED = False
     CRONITOR_KEYS = json.loads(os.getenv("CRONITOR_KEYS", "{}"))
 
-    # Antivirus
-    MLWR_HOST = os.getenv("MLWR_HOST", False)
-    MLWR_USER = os.getenv("MLWR_USER", "")
-    MLWR_KEY = os.getenv("MLWR_KEY", "")
-
     # PII check
     SCAN_FOR_PII = env.bool("SCAN_FOR_PII", False)
 
