@@ -39,7 +39,8 @@ def process_sns_results(self, response):
         except NoResultFound:
             try:
                 current_app.logger.warning(
-                    f"RETRY {self.request.retries}: notification not found for SNS reference {reference} (update to {notification_status}). Retrying..."
+                    f"RETRY {self.request.retries}: notification not found for SES reference {reference} (update to {notification_status}). "
+                    f"Callback may have arrived before notification was persisted to the DB. Adding task to retry queue"
                 )
                 self.retry(queue=QueueNames.RETRY)
             except self.MaxRetriesExceededError:
