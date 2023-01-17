@@ -1,10 +1,10 @@
 #!/bin/bash
-set -ex 
+set -ex
 
 ###################################################################
-# This script will get executed *once* the Docker container has 
+# This script will get executed *once* the Docker container has
 # been built. Commands that need to be executed with all available
-# tools and the filesystem mount enabled should be located here. 
+# tools and the filesystem mount enabled should be located here.
 ###################################################################
 
 # Define aliases
@@ -23,23 +23,32 @@ echo -e "alias k-prod='aws eks --region ca-central-1 update-kubeconfig --name no
 echo -e "source <(kubectl completion zsh)" >> ~/.zshrc
 echo -e "complete -F __start_kubectl k" >> ~/.zshrc
 
+# Poetry autocomplete
+echo -e "fpath+=/.zfunc" >> ~/.zshrc
+echo -e "autoload -Uz compinit && compinit"
+
 # Smoke test
 # requires adding files .env_staging and .env_prod to the root of the project
 echo -e "alias smoke-staging='cd /workspace && cp .env_smoke_staging tests_smoke/.env && make smoke-test'" >> ~/.zshrc
 echo -e "alias smoke-prod='cd /workspace && cp .env_smoke_prod tests_smoke/.env && make smoke-test'" >> ~/.zshrc
 
-cd /workspace 
+cd /workspace
 
-# Warm up git index prior to display status in prompt else it will 
+# Initialize poetry autocompletions
+mkdir ~/.zfunc
+touch ~/.zfunc/_poetry
+poetry completions zsh > ~/.zfunc/_poetry
+
+# Warm up git index prior to display status in prompt else it will
 # be quite slow on every invocation of starship.
 git status
 
 make generate-version-file
-pip3 install -r requirements.txt
-pip3 install -r requirements_for_test.txt
+#pip3 install -r requirements.txt
+#pip3 install -r requirements_for_test.txt
 
 # Install virtualenv to support running the isolated make freeze-requirements from within the devcontainer
-pip3 install virtualenv
+poetry install
 
 # Upgrade schema of the notification_api database.
-flask db upgrade
+poetry run flask db upgrade

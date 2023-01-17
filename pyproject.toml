@@ -2,3 +2,176 @@
 line-length = 130
 target-version = ['py37', 'py38', 'py39', 'py310']
 include = '(app|migrations|tests)/.*\.pyi?$'
+
+[tool.poetry]
+name = "notification-api"
+version = "0.1.0"
+description = "Public-facing REST API for Notification build on the GOV.UK Notify platform."
+authors = ["Your Name <you@example.com>"]
+license = "MIT license"
+readme = "README.md"
+packages = []
+
+[tool.poetry.scripts]
+notify-api = ""
+
+[build-system]
+requires = ["poetry>=1.3.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+apig-wsgi = "2.13.0"
+boto = "2.49.0"
+cffi = "1.14.5"
+celery = {extras = ["sqs"], version = "5.0.5"}
+docopt = "0.6.2"
+environs = "9.3.2" # pyup: <9.3.3 # marshmallow v3 throws errors
+fido2 = "0.9.1"
+Flask-Bcrypt = "0.7.1"
+flask-marshmallow = "0.14.0"
+Flask-Migrate = "2.7.0"
+Flask-SQLAlchemy = { git = "https://github.com/mitsuhiko/flask-sqlalchemy.git", tag = "2.3.2"}
+#git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd1a20a21e682262#egg = "Flask-SQLAlchemy = "2.3.2.dev20190108
+Flask = "2.0.3"
+click-datetime = "0.2"
+gevent = "22.10.2"
+gunicorn = "20.1.0"
+iso8601 = "0.1.14"
+idna = "2.8" # pinned to align with test moto dependency requirements
+jsonschema = "3.2.0"
+marshmallow-sqlalchemy = "0.23.1" # pyup: <0.24.0 # marshmallow v3 throws errors
+marshmallow = "2.21.0" # pyup: <3 # v3 throws errors
+python-magic = "0.4.22"
+psycopg2-binary = "2.9.5"
+PyJWT = "2.1.0"
+pytz = "2021.1"
+PyYAML = "5.4.1"
+SQLAlchemy = "1.4.37"
+cachelib = "0.1.1"
+
+newrelic = "6.2.0.156"
+notifications-python-client = "6.0.2"
+python-dotenv = "0.17.1"
+pwnedpasswords = "2.0.0"
+tldextract = "3.1.0"
+nanoid = "2.0.0"
+unidecode = "1.2.0"
+more-itertools = "8.12.0"
+
+# PaaS
+awscli-cwlogs = "1.4.6"
+aws-embedded-metrics = "1.0.7"
+
+# Putting upgrade on hold due to new version introducing breaking changes
+Werkzeug = "2.0.2"
+MarkupSafe = "2.0.1"
+
+# REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
+itsdangerous = "2.0.1"
+
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "50.0.0"}
+
+#git+https://github.com/cds-snc/notifier-utils.git@50.0.0#egg = "notifications-utils
+
+# MLWR
+socketio-client = "0.5.6"
+requests = { extras = ["security"], version = "2.25.1"}
+pycryptodome = "3.15.0"
+
+assemblyline_client = { git = "https://bitbucket.org/cse-assemblyline/assemblyline_client.git", tag = "v3.7.3"}
+
+#git+https://bitbucket.org/cse-assemblyline/assemblyline_client.git@v3.7.3#egg = "assemblyline_client = "v3.7.3
+
+rsa = "4.7.2" # not directly required, pinned by Snyk to avoid a vulnerability
+typing-extensions = "4.4.0"
+
+## The following requirements were added by pip freeze:
+aiohttp = "3.8.3"
+aiosignal = "1.3.1"
+alembic = "1.8.1"
+amqp = "5.1.1"
+async-timeout = "4.0.2"
+attrs = "22.1.0"
+awscli = "1.19.58"
+bcrypt = "4.0.1"
+billiard = "3.6.4.0"
+bleach = "3.3.1"
+boto3 = "1.17.58"
+botocore = "1.20.58"
+cachetools = "4.2.4"
+certifi = "2022.12.7"
+chardet = "4.0.0"
+charset-normalizer = "2.1.1"
+click = "7.1.2"
+click-didyoumean = "0.3.0"
+click-plugins = "1.1.1"
+click-repl = "0.2.0"
+colorama = "0.4.3"
+cryptography = "38.0.4"
+docutils = "0.15.2"
+filelock = "3.8.2"
+flask-redis = "0.4.0"
+frozenlist = "1.3.3"
+future = "0.18.2"
+greenlet = "2.0.1"
+Jinja2 = "3.1.2"
+jmespath = "0.10.0"
+kombu = "5.2.4"
+Mako = "1.2.4"
+mistune = "0.8.4"
+multidict = "6.0.3"
+ordered-set = "4.1.0"
+packaging = "22.0"
+phonenumbers = "8.12.57"
+prompt-toolkit = "3.0.36"
+py-w3c = "0.3.1"
+pyasn1 = "0.4.8"
+pycparser = "2.21"
+pycurl = "7.43.0.5"
+pyOpenSSL = "22.1.0"
+PyPDF2 = "1.26.0"
+pyrsistent = "0.19.2"
+python-dateutil = "2.8.2"
+python-json-logger = "2.0.4"
+redis = "4.4.0"
+requests-file = "1.5.1"
+s3transfer = "0.4.2"
+six = "1.16.0"
+smartypants = "2.0.1"
+statsd = "3.3.0"
+urllib3 = "1.26.13"
+vine = "5.0.0"
+wcwidth = "0.2.5"
+webencodings = "0.5.1"
+websocket-client = "1.4.2"
+yarl = "1.8.2"
+#zope.event = "4.5.0"
+#zope.interface = "5.5.2"
+
+[tool.poetry.group.test.dependencies]
+flake8 = "4.0.1"
+isort = "5.10.1"
+moto = "3.0.0"
+idna = "2.8"
+pytest = "7.1.2"
+pytest-env = "0.6.2"
+pytest-mock = "3.7.0"
+pytest-cov = "3.0.0"
+coveralls = "1.11.1"
+pytest-xdist = "2.5.0"
+freezegun = "1.2.1"
+requests-mock = "1.9.3"
+# optional requirements for jsonschema
+strict-rfc3339 = "0.7"
+rfc3987 = "1.3.8"
+# used for creating manifest file locally
+#jinja2-cli = { extras = ["yaml"], version = "0.8.2" }
+black = "21.12b0"
+locust = "2.10.1"
+mypy = "0.812"
+sqlalchemy-stubs = "0.4"
+sqlalchemy2-stubs = "0.0.2a27"
+networkx = "2.8.6" # not directly required, pinned by Snyk to avoid a vulnerability
+pytest-mock-resources = { extras = ["redis"], version = "2.4.0"}
+types-redis = "4.3.21.4"

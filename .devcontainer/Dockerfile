@@ -3,6 +3,11 @@ FROM mcr.microsoft.com/vscode/devcontainers/python:0-3.10@sha256:04cac448e2712a4
 ARG KUBENS_VERSION="0.9.4"
 ARG OCTANT_VERSION="0.25.1"
 
+ENV POETRY_VERSION="1.3.0"
+ENV POETRY_HOME=/usr/local/share/pypoetry
+# Give Poetry it's own environment to avoid any issues with changes to $HOME by other runtimes
+ENV POETRY_CACHE_DIR=/home/vscode/.cache
+
 # Install packages
 RUN apt-get update \
     && apt-get -y install --no-install-recommends \
@@ -45,6 +50,12 @@ RUN curl -Lo octant.tar.gz https://github.com/vmware-tanzu/octant/releases/downl
     && tar -xvf octant.tar.gz \
     && mv octant_${OCTANT_VERSION}_Linux-64bit/octant /usr/local/bin/ \
     && rm -rf octant_${OCTANT_VERSION}_Linux-64bit
+
+RUN python3 -m venv $POETRY_HOME \
+  && $POETRY_HOME/bin/pip install poetry==${POETRY_VERSION} \
+  && $POETRY_HOME/bin/poetry --version
+
+ENV PATH="${PATH}:${POETRY_HOME}/bin"
 
 COPY .devcontainer/scripts/notify-dev-entrypoint.sh /usr/local/bin/
 
