@@ -1,7 +1,6 @@
 /// <reference types="cypress" />
 
 import config from "../../../config";
-import { LoginPage, TwoFactorPage } from "../../Notify/Admin/Pages";
 
 const { recurse } = require('cypress-recurse')
 

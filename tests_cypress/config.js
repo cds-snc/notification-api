@@ -55,9 +55,9 @@ const config = {
 };
 
 // choose which config to use here
-const ConfigToUse = config.LOCAL;
+const ConfigToUse = config.STAGING;
 
 // some global test settings
-Cypress.config('baseUrl', ConfigToUse.Admin.HostName); // use hostname for this environment
+Cypress.config('baseUrl', ConfigToUse.API.HostName); // use hostname for this environment
 
 export default ConfigToUse;

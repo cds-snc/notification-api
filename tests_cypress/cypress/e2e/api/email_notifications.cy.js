@@ -4,6 +4,10 @@ import config from '../../../config';
 import Notify from "../../Notify/NotifyAPI";
 
 describe('Email notifications test', () => {
+  before(() => {
+    Cypress.config('baseUrl', config.API.HostName); // use hostname for this environment
+  });
+
   var keys = {
     LIVE: Cypress.env('API_KEY_LIVE'),
     TEAM: Cypress.env('API_KEY_TEAM'),

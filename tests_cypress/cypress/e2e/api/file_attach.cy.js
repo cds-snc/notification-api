@@ -4,6 +4,10 @@ import config from '../../../config';
 import Notify from "../../Notify/NotifyAPI";
 
 describe('File attachment test', () => {
+  before(() => {
+    Cypress.config('baseUrl', config.API.HostName); // use hostname for this environment
+  });
+
   it('can send single attachment', () => {
     cy.fixture('payloads/file_attachment_1').then(file_payload => {
       Notify.API.SendEmail({

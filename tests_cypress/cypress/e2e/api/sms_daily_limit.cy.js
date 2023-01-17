@@ -7,6 +7,10 @@ var service;
 
 describe('SMS Daily limit', () => {
     before(() => {
+        Cypress.config('baseUrl', config.API.HostName); // use hostname for this environment
+    });
+    
+    before(() => {
         Notify.Admin.CreateService();
         cy.pause();
         cy.get('@service_data').then((Service) => {
