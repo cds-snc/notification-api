@@ -1,35 +1,29 @@
-from datetime import datetime, timedelta, time, date
-
-from flask import current_app
-from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy import func, case, desc, Date, Integer, and_
-
 from app import db
-from app.dao.date_util import (
-    get_financial_year,
-    get_financial_year_for_datetime
-)
-
+from app.dao.date_util import get_financial_year, get_financial_year_for_datetime
 from app.models import (
+    AnnualBilling,
+    EMAIL_TYPE,
     FactBilling,
-    Notification,
-    Service,
-    Template,
-    # ServiceSmsSender,  # TODO #1022 - uncomment
     KEY_TYPE_TEST,
     LETTER_TYPE,
-    SMS_TYPE,
-    Rate,
     LetterRate,
+    Notification,
     NOTIFICATION_STATUS_TYPES_BILLABLE,
-    NotificationHistory,
-    EMAIL_TYPE,
     NOTIFICATION_STATUS_TYPES_BILLABLE_FOR_LETTERS,
-    AnnualBilling,
+    NotificationHistory,
     Organisation,
+    Rate,
+    Service,
+    ServiceSmsSender,
+    SMS_TYPE,
+    Template,
 )
 from app.utils import get_local_timezone_midnight_in_utc
+from datetime import datetime, timedelta, time, date
+from flask import current_app
+from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
+from sqlalchemy import func, case, desc, Date, Integer, and_
+from sqlalchemy.dialects.postgresql import insert
 
 
 def fetch_sms_free_allowance_remainder(start_date):
@@ -126,9 +120,8 @@ def fetch_nightly_billing_counts(process_day):
         Notification.service_id.label('service_id'),
         Template.name.label('template_name'),
         Notification.template_id.label('template_id'),
-        # TODO #1022 - after sender is added to notification it needs to be retrieved here
-        # ServiceSmsSender.sms_sender.label('sender'),
-        # Notification.sms_sender_id.label('sender_id'),
+        ServiceSmsSender.sms_sender.label('sender'),
+        Notification.sms_sender_id.label('sender_id'),
         Notification.billing_code.label('billing_code'),
         func.count().label('count'),
         Notification.notification_type.label('channel_type')
@@ -143,20 +136,17 @@ def fetch_nightly_billing_counts(process_day):
         Notification.service_id,
         Template.name,
         Notification.template_id,
-        # TODO #1022 - group by sms_sender and id as well
-        # ServiceSmsSender.sms_sender
-        # Notification.sms_sender_id
+        ServiceSmsSender.sms_sender,
+        Notification.sms_sender_id,
         Notification.billing_code,
         Notification.notification_type
     ).join(
         Service, Notification.service_id == Service.id
     ).join(
         Template, Notification.template_id == Template.id
+    ).join(
+        ServiceSmsSender, Notification.sms_sender_id == ServiceSmsSender.id
     )
-    # TODO #1022 - join ServiceSmsSender
-    # .join(
-    #     ServiceSmsSender, Notification.sms_sender_id == ServiceSmsSender.id
-    # )
 
     return query.all()
 
@@ -396,16 +386,16 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
         func.coalesce(table.sent_by,
                       case(
                           [
-                              (table.notification_type == 'letter', 'dvla'),
-                              (table.notification_type == 'sms', 'unknown'),
-                              (table.notification_type == 'email', 'ses')
+                              (table.notification_type == LETTER_TYPE, 'dvla'),
+                              (table.notification_type == SMS_TYPE, 'unknown'),
+                              (table.notification_type == EMAIL_TYPE, 'ses')
                           ]),
                       ).label('sent_by'),
         func.coalesce(table.rate_multiplier, 1).cast(Integer).label('rate_multiplier'),
         func.coalesce(table.international, False).label('international'),
         case(
             [
-                (table.notification_type == 'letter', table.billable_units),
+                (table.notification_type == LETTER_TYPE, table.billable_units),
             ]
         ).label('letter_page_count'),
         func.sum(table.billable_units).label('billable_units'),

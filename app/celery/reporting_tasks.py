@@ -89,23 +89,7 @@ def generate_nightly_billing_csv_report(process_day_string):
         "billing code", "count", "channel type"
     ]
     writer.writerow(header)
-    # TODO #1022 - repace the for loop below with this
-    # writer.writerows((process_day,) + row for row in transit_data)
-    for row in transit_data:
-        writer.writerow(  # requires an iterable
-            [
-                process_day,  # "date"
-                row[0],       # "service_name"
-                row[1],       # "service_id"
-                row[2],       # "template_name"
-                row[3],       # "template_id"
-                None,         # "sender"     # will be null for now
-                None,         # "sender_id"  # will be null for now
-                row[4],       # "billing_code"
-                row[5],       # "count"
-                row[6]        # "channel_type"
-            ]
-        )
+    writer.writerows((process_day,) + row for row in transit_data)
 
     csv_key = f'{process_day_string}.csv'
     client = boto3.client('s3', endpoint_url=current_app.config['AWS_S3_ENDPOINT_URL'])
