@@ -6,8 +6,8 @@ include = '(app|migrations|tests)/.*\.pyi?$'
 [tool.poetry]
 name = "notification-api"
 version = "0.1.0"
-description = "Public-facing REST API for Notification build on the GOV.UK Notify platform."
-authors = ["Your Name <you@example.com>"]
+description = "Public-facing REST API for Notification built on the GOV.UK Notify platform."
+authors = ["Canadian Digital Service"]
 license = "MIT license"
 readme = "README.md"
 packages = []
@@ -32,7 +32,6 @@ Flask-Bcrypt = "0.7.1"
 flask-marshmallow = "0.14.0"
 Flask-Migrate = "2.7.0"
 Flask-SQLAlchemy = { git = "https://github.com/mitsuhiko/flask-sqlalchemy.git", tag = "2.3.2"}
-#git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd1a20a21e682262#egg = "Flask-SQLAlchemy = "2.3.2.dev20190108
 Flask = "2.0.3"
 click-datetime = "0.2"
 gevent = "22.10.2"
@@ -72,16 +71,12 @@ itsdangerous = "2.0.1"
 
 notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "50.0.0"}
 
-#git+https://github.com/cds-snc/notifier-utils.git@50.0.0#egg = "notifications-utils
-
 # MLWR
 socketio-client = "0.5.6"
 requests = { extras = ["security"], version = "2.25.1"}
 pycryptodome = "3.15.0"
 
 assemblyline_client = { git = "https://bitbucket.org/cse-assemblyline/assemblyline_client.git", tag = "v3.7.3"}
-
-#git+https://bitbucket.org/cse-assemblyline/assemblyline_client.git@v3.7.3#egg = "assemblyline_client = "v3.7.3
 
 rsa = "4.7.2" # not directly required, pinned by Snyk to avoid a vulnerability
 typing-extensions = "4.4.0"
@@ -146,8 +141,8 @@ wcwidth = "0.2.5"
 webencodings = "0.5.1"
 websocket-client = "1.4.2"
 yarl = "1.8.2"
-#zope.event = "4.5.0"
-#zope.interface = "5.5.2"
+zope-interface = "^5.5.2"
+zope-event = "^4.5.0"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
@@ -165,8 +160,6 @@ requests-mock = "1.9.3"
 # optional requirements for jsonschema
 strict-rfc3339 = "0.7"
 rfc3987 = "1.3.8"
-# used for creating manifest file locally
-#jinja2-cli = { extras = ["yaml"], version = "0.8.2" }
 black = "21.12b0"
 locust = "2.10.1"
 mypy = "0.812"
@@ -175,3 +168,5 @@ sqlalchemy2-stubs = "0.0.2a27"
 networkx = "2.8.6" # not directly required, pinned by Snyk to avoid a vulnerability
 pytest-mock-resources = { extras = ["redis"], version = "2.4.0"}
 types-redis = "4.3.21.4"
+# used for creating manifest file locally
+jinja2-cli = {version = "^0.8.2", extras = ["yaml"]}

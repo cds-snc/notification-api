@@ -1691,6 +1691,28 @@ MarkupSafe = ">=2.0"
 i18n = ["Babel (>=2.7)"]
 
 [[package]]
+name = "jinja2-cli"
+version = "0.8.2"
+description = "A CLI interface to Jinja2"
+category = "dev"
+optional = false
+python-versions = "*"
+files = [
+    {file = "jinja2-cli-0.8.2.tar.gz", hash = "sha256:a16bb1454111128e206f568c95938cdef5b5a139929378f72bb8cf6179e18e50"},
+    {file = "jinja2_cli-0.8.2-py2.py3-none-any.whl", hash = "sha256:b91715c79496beaddad790171e7258a87db21c1a0b6d2b15bca3ba44b74aac5d"},
+]
+
+[package.dependencies]
+jinja2 = "*"
+pyyaml = {version = "*", optional = true, markers = "extra == \"yaml\""}
+
+[package.extras]
+tests = ["flake8", "jinja2", "pytest"]
+toml = ["jinja2", "toml"]
+xml = ["jinja2", "xmltodict"]
+yaml = ["jinja2", "pyyaml"]
+
+[[package]]
 name = "jmespath"
 version = "0.10.0"
 description = "JSON Matching Expressions"
@@ -3833,4 +3855,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "35c0a1ac5f0a1c0751ce764a10a5a81d0fed827bedac64a9cdc467edbe5d8925"
+content-hash = "a793fa9755001995cad690ddf0ac23002dd0dc36d061e99df1c57f2897131c89"
