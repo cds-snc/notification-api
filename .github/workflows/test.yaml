@@ -32,7 +32,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
     - name: Install requirements
-      run: pip install -r requirements_for_test.txt
+      run: poetry install --with test
     - name: Run tests
       run: make test
     - name: Upload pytest logs on failure
