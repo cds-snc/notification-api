@@ -46,7 +46,7 @@ Werkzeug==2.2.2
 MarkupSafe==2.1.1
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous==2.1.2
-git+https://github.com/cds-snc/notifier-utils.git@50.1.0#egg=notifications-utils
+git+https://github.com/cds-snc/notifier-utils.git@50.1.1#egg=notifications-utils
 
 # rsa==4.9  # awscli 1.22.38 depends on rsa<4.8
 typing-extensions==4.4.0
