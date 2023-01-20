@@ -39,6 +39,7 @@ logger.setLevel(logging.DEBUG)
 
 ALB_CERTIFICATE_ARN = os.getenv("ALB_CERTIFICATE_ARN")
 ALB_PRIVATE_KEY_PATH = os.getenv("ALB_PRIVATE_KEY_PATH")
+CA_PATH = "/opt/VA_CAs/"
 NOTIFY_ENVIRONMENT = os.getenv("NOTIFY_ENVIRONMENT")
 OPT_IN_OUT_QUERY = """SELECT va_profile_opt_in_out(%s, %s, %s, %s, %s);"""
 VA_PROFILE_DOMAIN = os.getenv("VA_PROFILE_DOMAIN")
@@ -48,12 +49,15 @@ VA_PROFILE_PATH_BASE = "/communication-hub/communication/v1/status/changelog/"
 if NOTIFY_ENVIRONMENT is None:
     sys.exit("NOTIFY_ENVIRONMENT is not set.  Check the Lambda console.")
 
+if NOTIFY_ENVIRONMENT != "test" and not os.path.isdir(CA_PATH):
+    sys.exit("The VA CA certificate directory is missing.  Is the lambda layer in use?")
+
 if NOTIFY_ENVIRONMENT == "test":
     jwt_certificate_path = "tests/lambda_functions/va_profile/cert.pem"
 elif NOTIFY_ENVIRONMENT == "prod":
-    jwt_certificate_path = "/opt/Profile_prod_public.pem"
+    jwt_certificate_path = "/opt/jwt/Profile_prod_public.pem"
 else:
-    jwt_certificate_path = "/opt/Profile_nonprod_public.pem"
+    jwt_certificate_path = "/opt/jwt/Profile_nonprod_public.pem"
 
 # Load VA Profile's public certificate used to verify JWT signatures for POST requests.
 # In deployment environments, the certificate should be available via a lambda layer.
@@ -117,13 +121,18 @@ elif NOTIFY_ENVIRONMENT != "test":
         )
         logger.debug(". . . Retrieved the ALB private key from SSM Parameter Store.")
 
+        # Include all VA CA certificates in the default SSL environment.
+        # ssl_context = ssl.create_default_context(capath=CA_PATH)
+        # TODO - This is a workaround.  The capath approach doesn't seem to load anything.  See issue #1063.
+        ssl_context = ssl.create_default_context(cafile=f"{CA_PATH}VA-Internal-S2-ICA11.cer")
+        ssl_context.load_verify_locations(cafile=f"{CA_PATH}VA-Internal-S2-RCA2.cer")
+
         with NamedTemporaryFile() as f:
             f.write(acm_response["Certificate"].encode())
             f.write(acm_response["CertificateChain"].encode())
             f.write(ssm_response["Parameter"]["Value"].encode())
             f.seek(0)
 
-            ssl_context = ssl.create_default_context(cadata=acm_response["CertificateChain"])
             ssl_context.load_cert_chain(f.name)
     except (OSError, ClientError, ssl.SSLError, ValidationError, KeyError) as e:
         logger.exception(e)
@@ -403,7 +412,12 @@ def make_PUT_request(tx_audit_id: str, body: dict):
         if put_response.status != 200:
             logger.debug(put_response)
     except ConnectionError as e:
-        logger.error("The PUT request to VA Profile failed.")
+        logger.error("The PUT request to VA Profile failed with a ConnectionError.")
+        logger.exception(e)
+    except ssl.SSLCertVerificationError as e:
+        logger.error("The PUT request to VA Profile failed with a SSLCertVerificationError.")
+        logger.debug("Loaded CA certificates: %s", ssl_context.get_ca_certs())
+        logger.debug("CA directory contents: %s", os.listdir(CA_PATH))
         logger.exception(e)
     except Exception as e:
         # TODO - Make this more specific.  Is it a timeout?
@@ -423,7 +437,7 @@ def get_integration_testing_public_cert() -> Certificate:
     assert NOTIFY_ENVIRONMENT != "test"
 
     try:
-        with open("/opt/Notify_integration_testing_public.pem", "rb") as f:
+        with open("/opt/jwt/Notify_integration_testing_public.pem", "rb") as f:
             return load_pem_x509_certificate(f.read()).public_key()
     except Exception as e:
         logger.exception(e)
