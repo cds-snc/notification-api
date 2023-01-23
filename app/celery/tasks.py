@@ -269,7 +269,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
 
         verified_notifications.append(notification)
         notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
-        process_type = template.process_type
+        process_type = str(template.process_type)
 
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job.
@@ -378,7 +378,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
 
         verified_notifications.append(notification)
         notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
-        process_type = template.process_type
+        process_type = str(template.process_type)
 
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job

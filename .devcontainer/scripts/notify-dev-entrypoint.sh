@@ -34,8 +34,6 @@ echo -e "alias smoke-prod='cd /workspace && cp .env_smoke_prod tests_smoke/.env 
 
 cd /workspace
 
-export PATH="${PATH}:${POETRY_HOME}/bin"
-
 pip install poetry==${POETRY_VERSION} \
   && poetry --version
 
