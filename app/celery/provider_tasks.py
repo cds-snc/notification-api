@@ -8,11 +8,7 @@ from app.config import QueueNames
 from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
 from app.delivery import send_to_providers
-from app.exceptions import (
-    InvalidUrlException,
-    MalwarePendingException,
-    NotificationTechnicalFailureException,
-)
+from app.exceptions import InvalidUrlException, NotificationTechnicalFailureException
 from app.models import NOTIFICATION_TECHNICAL_FAILURE
 from app.notifications.callbacks import _check_and_queue_callback_task
 
@@ -70,12 +66,13 @@ def deliver_email(self, notification_id):
         current_app.logger.error(f"Cannot send notification {notification_id}, got an invalid direct file url.")
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
         _check_and_queue_callback_task(notification)
-    except MalwarePendingException:
-        current_app.logger.info("RETRY: Email notification {} is pending malware scans".format(notification_id))
-        self.retry(queue=QueueNames.RETRY, countdown=60)
-    except Exception:
+    except Exception as e:
         try:
-            current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id))
+            current_app.logger.warning(f"The exception is {repr(e)}")
+            if self.request.retries <= 10:
+                current_app.logger.warning("RETRY {}: Email notification {} failed".format(self.request.retries, notification_id))
+            else:
+                current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id))
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
             message = (
@@ -101,10 +98,14 @@ def _deliver_sms(self, notification_id):
         _check_and_queue_callback_task(notification)
     except Exception:
         try:
-            current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
             if self.request.retries == 0:
+                # Retry immediately, especially as a common failure is for the database data
+                # replication to be delayed. The immediate retry likely succeeds in these scenarios.
                 self.retry(queue=QueueNames.RETRY, countdown=0)
             else:
+                # Once the previous retry failed, log the exception and this time,
+                # retry with the default delay.
+                current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
                 self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
             message = (
