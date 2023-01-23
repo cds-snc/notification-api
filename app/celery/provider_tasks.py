@@ -59,7 +59,10 @@ def deliver_email(self, notification_id):
             raise NoResultFound()
         send_to_providers.send_email_to_provider(notification)
     except InvalidEmailError as e:
-        current_app.logger.info(f"Cannot send notification {notification_id}, got an invalid email address: {str(e)}.")
+        if not notification.to.isascii():
+            current_app.logger.info(f"Cannot send notification {notification_id} (has a non-ascii email address): {str(e)}")
+        else:
+            current_app.logger.info(f"Cannot send notification {notification_id}, got an invalid email address: {str(e)}.")
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
         _check_and_queue_callback_task(notification)
     except InvalidUrlException:
