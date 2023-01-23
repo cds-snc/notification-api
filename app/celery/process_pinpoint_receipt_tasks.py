@@ -10,7 +10,11 @@ from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from app import notify_celery, statsd_client
 from app.config import QueueNames
-from app.dao.notifications_dao import update_notification_status_by_id, dao_get_notification_by_reference
+from app.dao.notifications_dao import (
+    dao_get_notification_by_reference,
+    dao_update_notification,
+    update_notification_status_by_id,
+)
 from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.models import (
     NOTIFICATION_DELIVERED,
@@ -42,16 +46,6 @@ _record_status_status_mapping = {
 }
 
 
-def event_type_is_optout(event_type, reference):
-    is_optout = event_type == '_SMS.OPTOUT'
-
-    if is_optout:
-        current_app.logger.info(
-            f"event type is OPTOUT for notification with reference {reference})"
-        )
-    return is_optout
-
-
 def _map_record_status_to_notification_status(record_status):
     return _record_status_status_mapping[record_status]
 
@@ -59,19 +53,45 @@ def _map_record_status_to_notification_status(record_status):
 @notify_celery.task(bind=True, name="process-pinpoint-result", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def process_pinpoint_results(self, response):
+    """
+    Process a Pinpoint SMS stream event.  Messages long enough to require multiple segments only
+    result in one event that contains the aggregate cost.
+
+    https://docs.aws.amazon.com/pinpoint/latest/developerguide/event-streams-data-sms.html
+    """
+
     if not is_feature_enabled(FeatureFlag.PINPOINT_RECEIPTS_ENABLED):
-        current_app.logger.info('Pinpoint receipts toggle is disabled, skipping callback task')
+        current_app.logger.info('Pinpoint receipts toggle is disabled.  Skipping callback task.')
         return True
 
     try:
         pinpoint_message = json.loads(base64.b64decode(response['Message']))
-        reference = pinpoint_message['attributes']['message_id']
-        event_type = pinpoint_message.get('event_type')
-        record_status = pinpoint_message['attributes']['record_status']
-        current_app.logger.info(
-            f'received callback from Pinpoint with event_type of {event_type} and record_status of {record_status}'
-            f' with reference {reference}'
-        )
+    except (json.decoder.JSONDecodeError, ValueError, TypeError, KeyError) as e:
+        current_app.logger.exception(e)
+        self.retry(queue=QueueNames.RETRY)
+        return None
+
+    try:
+        pinpoint_attributes = pinpoint_message["attributes"]
+        reference = pinpoint_attributes["message_id"]
+        event_type = pinpoint_message["event_type"]
+        record_status = pinpoint_attributes["record_status"]
+        number_of_message_parts = pinpoint_attributes["number_of_message_parts"]
+        price_in_millicents_usd = pinpoint_message["metrics"]["price_in_millicents_usd"]
+    except KeyError as e:
+        current_app.logger.error("The event stream message data is missing expected attributes.")
+        current_app.logger.exception(e)
+        current_app.logger.debug(pinpoint_message)
+        self.retry(queue=QueueNames.RETRY)
+        return None
+
+    current_app.logger.info(
+        "Processing Pinpoint result. | reference=%s | event_type=%s | record_status=%s | "
+        "number_of_message_parts=%s | price_in_millicents_usd=%s",
+        reference, event_type, record_status, number_of_message_parts, price_in_millicents_usd
+    )
+
+    try:
         notification_status = get_notification_status(event_type, record_status, reference)
 
         notification, should_retry, should_exit = attempt_to_get_notification(
@@ -84,13 +104,22 @@ def process_pinpoint_results(self, response):
         if should_exit:
             return
 
-        update_notification_status_by_id(
-            notification_id=notification.id,
-            status=notification_status
-        )
+        assert notification is not None
+
+        if price_in_millicents_usd > 0.0:
+            notification.status = notification_status
+            notification.segments_count = number_of_message_parts
+            notification.cost_in_millicents = price_in_millicents_usd
+            dao_update_notification(notification)
+        else:
+            update_notification_status_by_id(
+                notification_id=notification.id,
+                status=notification_status
+            )
 
         current_app.logger.info(
-            f"Pinpoint callback return status of {notification_status} for notification: {notification.id}"
+            "Pinpoint callback return status of %s for notification: %s",
+            notification_status, notification.id
         )
 
         statsd_client.incr(f"callback.pinpoint.{notification_status}")
@@ -104,15 +133,19 @@ def process_pinpoint_results(self, response):
         return True
 
     except Retry:
+        # This block exists to preempt executing the "Exception" logic below.  A better approach is
+        # to catch specific exceptions where they might occur.
         raise
-
     except Exception as e:
-        current_app.logger.exception(f"Error processing Pinpoint results: {type(e)}")
+        current_app.logger.exception(e)
         self.retry(queue=QueueNames.RETRY)
+
+    return None
 
 
 def get_notification_status(event_type: str, record_status: str, reference: str) -> str:
-    if event_type_is_optout(event_type, reference):
+    if event_type == '_SMS.OPTOUT':
+        current_app.logger.info("event type is OPTOUT for notification with reference %s", reference)
         statsd_client.incr(f"callback.pinpoint.optout")
         notification_status = NOTIFICATION_PERMANENT_FAILURE
     else:
@@ -133,18 +166,18 @@ def attempt_to_get_notification(
         message_time = datetime.datetime.fromtimestamp(int(event_timestamp_in_ms) / 1000)
         if datetime.datetime.utcnow() - message_time < datetime.timedelta(minutes=5):
             current_app.logger.info(
-                f'Pinpoint callback event for reference {reference} was received less than five minutes ago.'
+                'Pinpoint callback event for reference %s was received less than five minutes ago.', reference
             )
             should_retry = True
         else:
             current_app.logger.warning(
-                f'notification not found for reference: {reference} (update to {notification_status})'
+                'notification not found for reference: %s (update to %s)', reference, notification_status
             )
         statsd_client.incr('callback.pinpoint.no_notification_found')
         should_exit = True
     except MultipleResultsFound:
         current_app.logger.warning(
-            f'multiple notifications found for reference: {reference} (update to {notification_status})'
+            'multiple notifications found for reference: %s (update to %s)', reference, notification_status
         )
         statsd_client.incr('callback.pinpoint.multiple_notifications_found')
         should_exit = True
@@ -153,25 +186,26 @@ def attempt_to_get_notification(
 
 
 def check_notification_status(notification: Notification, notification_status: str) -> bool:
-    should_exit = False
-    # do not update if status has not changed
+    # Do not update if the status has not changed.
     if notification_status == notification.status:
         current_app.logger.info(
-            f'Pinpoint callback received the same status of {notification_status} for'
-            f' notification {notification_status})'
+            'Pinpoint callback received the same status of %s for notification %s)',
+            notification_status, notification_status
         )
-        should_exit = True
-    # do not update if notification status is in a final state
+        return True
+
+    # Do not update if notification status is in a final state.
     if notification.status in FINAL_STATUS_STATES:
         log_notification_status_warning(notification, notification_status)
-        should_exit = True
-    return should_exit
+        return True
+
+    return False
 
 
 def log_notification_status_warning(notification, status: str) -> None:
     time_diff = datetime.datetime.utcnow() - (notification.updated_at or notification.created_at)
     current_app.logger.warning(
-        f'Invalid callback received. Notification id {notification.id} received a status update to {status}'
-        f' {time_diff} after being set to {notification.status}. {notification.notification_type}'
-        f' sent by {notification.sent_by}'
+        'Invalid callback received. Notification id %s received a status update to %s '
+        '%s after being set to %s. %s sent by %s',
+        notification.id, status, time_diff, notification.status, notification.notification_type, notification.sent_by
     )

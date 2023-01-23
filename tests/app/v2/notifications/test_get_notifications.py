@@ -75,6 +75,8 @@ def test_get_notification_by_id_returns_200(client, billable_units, provider, sa
         'recipient_identifiers': [],
         'billing_code': sample_notification.billing_code,
         'sms_sender_id': None,
+        'cost_in_millicents': 0.0,
+        'segments_count': 0,
     }
 
     assert json_response == expected_response
@@ -138,6 +140,8 @@ def test_get_notification_by_id_with_placeholders_and_recipient_identifiers_retu
         'recipient_identifiers': recipient_identifiers if recipient_identifiers else [],
         'billing_code': None,
         'sms_sender_id': None,
+        'cost_in_millicents': 0.0,
+        'segments_count': 0,
     }
 
     assert json_response == expected_response

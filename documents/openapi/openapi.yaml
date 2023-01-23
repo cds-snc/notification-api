@@ -1183,6 +1183,7 @@ paths:
                     billing_code: string
                     body: string
                     completed_at: 2022-11-28T18:59:00.542420Z
+                    cost_in_millicents: 634.0
                     created_at: 2022-11-28T18:58:18.998715Z
                     created_by_name: string
                     email_address: null
@@ -1200,6 +1201,7 @@ paths:
                     recipient_identifiers: []
                     reference: string
                     scheduled_for: 2022-11-30T19:00:00.542420Z
+                    segments_count: 2
                     sent_at: 2022-11-28T18:59:18.998715Z
                     sent_by: string
                     status: created
@@ -1216,6 +1218,7 @@ paths:
                     billing_code: string
                     body: string
                     completed_at: 2022-11-28T18:59:18.998715Z
+                    cost_in_millicents: 0.0
                     created_at: 2022-11-28T18:58:18.998715Z
                     created_by_name: string
                     email_address: user@example.com
@@ -1233,6 +1236,7 @@ paths:
                     recipient_identifiers: []
                     reference: string
                     scheduled_for: 2022-11-30T19:00:00.542420Z
+                    segments_count: 0
                     sent_at: 2022-11-28T18:59:18.998715Z
                     sent_by: string
                     status: created
@@ -1243,7 +1247,6 @@ paths:
                         uri: string
                         version: 0
                     type: email
-              
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2169,6 +2172,8 @@ components:
           type: string
           format: date-time
           nullable: true
+        cost_in_millicents:
+          type: number
         created_at:
           type: string
           format: date-time
@@ -2224,6 +2229,8 @@ components:
           type: string
           format: date-time
           nullable: true
+        segments_count:
+          type: integer
         sent_at:
           type: string
           format: date-time

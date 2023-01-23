@@ -1108,6 +1108,75 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotificationStatusResponse'
+              examples:
+                sms:
+                  value:
+                    billing_code: string
+                    body: string
+                    completed_at: 2022-11-28T18:59:00.542420Z
+                    cost_in_millicents: 634.0
+                    created_at: 2022-11-28T18:58:18.998715Z
+                    created_by_name: string
+                    email_address: null
+                    id: string
+                    line_1: string
+                    line_2: string
+                    line_3: string
+                    line_4: string
+                    line_5: string
+                    line_6: string
+                    phone_number: "+10123456789"
+                    postage: string
+                    postcode: string
+                    provider_reference: egsqaoi2hjok3mi0mlelijfk3i8ckalt5tsu6s00
+                    recipient_identifiers: []
+                    reference: string
+                    scheduled_for: 2022-11-30T19:00:00.542420Z
+                    segments_count: 2
+                    sent_at: 2022-11-28T18:59:18.998715Z
+                    sent_by: string
+                    status: created
+                    status_reason: string
+                    subject: string
+                    template:
+                        id: a21a1888-af44-4cb4-8d20-19bd0d3902f9
+                        uri: string
+                        version: 0
+                    type: sms
+                email:
+                  value:
+                    billing_code: string
+                    body: string
+                    completed_at: 2022-11-28T18:59:18.998715Z
+                    cost_in_millicents: 0.0
+                    created_at: 2022-11-28T18:58:18.998715Z
+                    created_by_name: string
+                    email_address: user@example.com
+                    id: string
+                    line_1: string
+                    line_2: string
+                    line_3: string
+                    line_4: string
+                    line_5: string
+                    line_6: string
+                    phone_number: null
+                    postage: string
+                    postcode: string
+                    provider_reference: egsqaoi2hjok3mi0mlelijfk3i8ckalt5tsu6s00
+                    recipient_identifiers: []
+                    reference: string
+                    scheduled_for: 2022-11-30T19:00:00.542420Z
+                    segments_count: 0
+                    sent_at: 2022-11-28T18:59:18.998715Z
+                    sent_by: string
+                    status: created
+                    status_reason: string
+                    subject: string
+                    template:
+                        id: a21a1888-af44-4cb4-8d20-19bd0d3902f9
+                        uri: string
+                        version: 0
+                    type: email
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2014,6 +2083,8 @@ components:
           type: string
           format: date-time
           nullable: true
+        cost_in_millicents:
+          type: number
         created_at:
           type: string
           format: date-time
@@ -2063,6 +2134,8 @@ components:
           type: string
           format: date-time
           nullable: true
+        segments_count:
+          type: integer
         sent_at:
           type: string
           format: date-time

@@ -1368,6 +1368,12 @@ class Notification(db.Model):
     reply_to_text = db.Column(db.String, nullable=True)
     status_reason = db.Column(db.String, nullable=True)
 
+    # These attributes are for SMS billing stats.  AWS Pinpoint relays price in millicents.
+    #   ex. 645.0 millicents -> 0.654 cents -> $0.00645
+    # A message that exceeds the SMS length limit is broken into "segments."
+    segments_count = db.Column(db.Integer, nullable=False, default=0)
+    cost_in_millicents = db.Column(db.Float, nullable=False, default=0)
+
     postage = db.Column(db.String, nullable=True)
     billing_code = db.Column(db.String(256), nullable=True)
     CheckConstraint("""
@@ -1594,6 +1600,8 @@ class Notification(db.Model):
             ],
             "billing_code": self.billing_code,
             "sms_sender_id": self.sms_sender_id,
+            "segments_count": self.segments_count,
+            "cost_in_millicents": self.cost_in_millicents,
         }
 
         if self.notification_type == LETTER_TYPE:
@@ -1653,6 +1661,9 @@ class NotificationHistory(db.Model, HistoryModel):
 
     sms_sender = db.relationship(ServiceSmsSender)
     sms_sender_id = db.Column(UUID(as_uuid=True), db.ForeignKey('service_sms_senders.id'), nullable=True)
+
+    segments_count = db.Column(db.Integer, nullable=False, default=0)
+    cost_in_millicents = db.Column(db.Float, nullable=False, default=0)
 
     postage = db.Column(db.String, nullable=True)
     status_reason = db.Column(db.String, nullable=True)

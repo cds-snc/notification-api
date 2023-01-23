@@ -130,7 +130,95 @@ def test_process_pinpoint_results_should_not_update_notification_status_if_statu
     mock_callback.assert_not_called()
 
 
-def pinpoint_notification_callback_record(reference, event_type='_SMS.SUCCESS', record_status='DELIVERED'):
+def test_process_pinpoint_results_segments_and_price_buffered_first(
+    mocker,
+    db_session,
+    sample_template
+):
+    """
+    Test process a Pinpoint SMS stream event.  Messages long enough to require multiple segments only
+    result in one event that contains the aggregate cost.
+    """
+
+    mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
+    test_reference = 'sms-reference-1'
+    create_notification(sample_template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status='sending')
+    notification = notifications_dao.dao_get_notification_by_reference(test_reference)
+    assert notification.segments_count == 0, "This is the default."
+    assert notification.cost_in_millicents == 0.0, "This is the default."
+
+    # Receiving a _SMS.BUFFERED+SUCCESSFUL event first should update the notification.
+
+    process_pinpoint_receipt_tasks.process_pinpoint_results(
+        response=pinpoint_notification_callback_record(
+            reference=test_reference,
+            event_type='_SMS.BUFFERED',
+            record_status='SUCCESSFUL',
+            number_of_message_parts=6,
+            price=4986.0
+        )
+    )
+
+    notification = notifications_dao.dao_get_notification_by_reference(test_reference)
+    assert notification.segments_count == 6
+    assert notification.cost_in_millicents == 4986.0
+
+    # A subsequent _SMS.SUCCESS+DELIVERED event should not alter the segments and price columns.
+
+    process_pinpoint_receipt_tasks.process_pinpoint_results(
+        response=pinpoint_notification_callback_record(
+            reference=test_reference,
+            event_type='_SMS.SUCCESS',
+            record_status='DELIVERED',
+            number_of_message_parts=6,
+            price=4986.0
+        )
+    )
+
+    notification = notifications_dao.dao_get_notification_by_reference(test_reference)
+    assert notification.segments_count == 6
+    assert notification.cost_in_millicents == 4986.0
+
+
+def test_process_pinpoint_results_segments_and_price_success_first(
+    mocker,
+    db_session,
+    sample_template
+):
+    """
+    Test process a Pinpoint SMS stream event.  Messages long enough to require multiple segments only
+    result in one event that contains the aggregate cost.
+
+    Receiving a _SMS.SUCCESS+DELIVERED without any preceeding _SMS.BUFFERED event should update the
+    notification.
+    """
+
+    mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
+    test_reference = 'sms-reference-1'
+    create_notification(sample_template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status='sending')
+
+    process_pinpoint_receipt_tasks.process_pinpoint_results(
+        response=pinpoint_notification_callback_record(
+            reference=test_reference,
+            event_type='_SMS.SUCCESS',
+            record_status='DELIVERED',
+            number_of_message_parts=4,
+            price=2986.0
+        )
+    )
+
+    notification = notifications_dao.dao_get_notification_by_reference(test_reference)
+    assert notification.segments_count == 4
+    assert notification.cost_in_millicents == 2986.0
+
+
+def pinpoint_notification_callback_record(
+    reference,
+    event_type='_SMS.SUCCESS',
+    record_status='DELIVERED',
+    number_of_message_parts=1,
+    price=645.0
+):
     pinpoint_message = {
         "event_type": event_type,
         "event_timestamp": 1553104954322,
@@ -155,13 +243,13 @@ def pinpoint_notification_callback_record(reference, event_type='_SMS.SUCCESS', 
             "record_status": record_status,
             "iso_country_code": "US",
             "treatment_id": "0",
-            "number_of_message_parts": "1",
+            "number_of_message_parts": number_of_message_parts,
             "message_id": reference,
             "message_type": "Transactional",
             "campaign_id": "12345"
         },
         "metrics": {
-            "price_in_millicents_usd": 645.0
+            "price_in_millicents_usd": price,
         },
         "awsAccountId": "123456789012"
     }

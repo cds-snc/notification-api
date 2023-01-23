@@ -150,7 +150,7 @@ def update_notification_status_by_reference(reference, status):
     notification = Notification.query.filter(Notification.reference == reference).first()
 
     if not notification:
-        current_app.logger.error('notification not found for reference {} (update to {})'.format(reference, status))
+        current_app.logger.error("Notification not found for reference %s (update to %s)", reference, status)
         return None
 
     if notification.status not in {
@@ -295,7 +295,8 @@ def _filter_query(query, filter_dict=None):
 @statsd(namespace="dao")
 def delete_notifications_older_than_retention_by_type(notification_type, qry_limit=10000):
     current_app.logger.info(
-        'Deleting {} notifications for services with flexible data retention'.format(notification_type))
+        'Deleting %s notifications for services with flexible data retention', notification_type
+    )
 
     flexible_data_retention = ServiceDataRetention.query.filter(
         ServiceDataRetention.notification_type == notification_type
@@ -313,11 +314,13 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
         insert_update_notification_history(notification_type, days_of_retention, f.service_id)
 
         current_app.logger.info(
-            "Deleting {} notifications for service id: {}".format(notification_type, f.service_id))
+            "Deleting %s notifications for service id: %s", notification_type, f.service_id
+        )
         deleted += _delete_notifications(notification_type, days_of_retention, f.service_id, qry_limit)
 
     current_app.logger.info(
-        'Deleting {} notifications for services without flexible data retention'.format(notification_type))
+        'Deleting %s notifications for services without flexible data retention', notification_type
+    )
 
     seven_days_ago = get_local_timezone_midnight_in_utc(
         convert_utc_to_local_timezone(datetime.utcnow()).date()) - timedelta(days=7)
@@ -332,7 +335,7 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
         insert_update_notification_history(notification_type, seven_days_ago, service_id)
         deleted += _delete_notifications(notification_type, seven_days_ago, service_id, qry_limit)
 
-    current_app.logger.info('Finished deleting {} notifications'.format(notification_type))
+    current_app.logger.info('Finished deleting %s notifications', notification_type)
 
     return deleted
 
@@ -432,8 +435,9 @@ def _delete_letters_from_s3(
                 try:
                     remove_s3_object(bucket_name, s3_object['Key'])
                 except ClientError:
-                    current_app.logger.exception(
-                        "Could not delete S3 object with filename: {}".format(s3_object['Key']))
+                    current_app.logger.error(
+                        "Could not delete S3 object with filename: %s", s3_object['Key']
+                    )
 
 
 @statsd(namespace="dao")
@@ -518,9 +522,10 @@ def is_delivery_slow_for_provider(
     slow_notifications = counts.get(True, 0)
 
     if total_notifications:
-        current_app.logger.info("Slow delivery notifications count for provider {}: {} out of {}. Ratio {}".format(
+        current_app.logger.info(
+            "Slow delivery notifications count for provider %s: %d out of %d. Ratio %.3f",
             provider, slow_notifications, total_notifications, slow_notifications / total_notifications
-        ))
+        )
         return slow_notifications / total_notifications >= threshold
     else:
         return False
@@ -737,9 +742,7 @@ def duplicate_update_warning(notification, status):
     time_diff = datetime.utcnow() - (notification.updated_at or notification.created_at)
 
     current_app.logger.info(
-        (
-            f'Duplicate callback received. Notification id {notification.id} received a status update to '  # nosec
-            f'{status} {time_diff} after being set to {notification.status}. {notification.notification_type} '
-            f'sent by {notification.sent_by}'
-        )
+        'Duplicate callback received. Notification id %s received a status update to '
+        '%s %s after being set to %s. %s sent by %s',
+        notification.id, status, time_diff, notification.status, notification.notification_type, notification.sent_by
     )
