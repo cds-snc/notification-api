@@ -108,19 +108,19 @@ def create_app(application, config=None):
     flask_redis_publish.init_app(application)
     redis_store.init_app(application)
 
-    sms_bulk.init_app(flask_redis, metrics_logger)
-    sms_normal.init_app(flask_redis, metrics_logger)
-    sms_priority.init_app(flask_redis, metrics_logger)
-    email_bulk.init_app(flask_redis, metrics_logger)
-    email_normal.init_app(flask_redis, metrics_logger)
-    email_priority.init_app(flask_redis, metrics_logger)
-
     sms_bulk_publish.init_app(flask_redis_publish, metrics_logger)
     sms_normal_publish.init_app(flask_redis_publish, metrics_logger)
     sms_priority_publish.init_app(flask_redis_publish, metrics_logger)
     email_bulk_publish.init_app(flask_redis_publish, metrics_logger)
     email_normal_publish.init_app(flask_redis_publish, metrics_logger)
     email_priority_publish.init_app(flask_redis_publish, metrics_logger)
+
+    sms_bulk.init_app(flask_redis, metrics_logger)
+    sms_normal.init_app(flask_redis, metrics_logger)
+    sms_priority.init_app(flask_redis, metrics_logger)
+    email_bulk.init_app(flask_redis, metrics_logger)
+    email_normal.init_app(flask_redis, metrics_logger)
+    email_priority.init_app(flask_redis, metrics_logger)
 
     register_blueprint(application)
     register_v2_blueprints(application)
