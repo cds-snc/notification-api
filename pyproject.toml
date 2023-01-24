@@ -72,8 +72,6 @@ notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", t
 typing-extensions = "4.4.0"
 greenlet = "2.0.1"
 
-
-
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
 isort = "5.10.1"
