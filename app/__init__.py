@@ -47,6 +47,7 @@ signer = CryptoSigner()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
 flask_redis = FlaskRedis()
+flask_redis_publish = FlaskRedis(config_prefix="REDIS_PUBLISH")
 redis_store = RedisClient()
 metrics_logger = MetricsLogger()
 # TODO: Rework instantiation to decouple redis_store.redis_store and pass it in.\
@@ -66,6 +67,13 @@ sms_priority = RedisQueue("sms", process_type="priority")
 email_bulk = RedisQueue("email", process_type="bulk")
 email_normal = RedisQueue("email", process_type="normal")
 email_priority = RedisQueue("email", process_type="priority")
+
+sms_bulk_publish = RedisQueue("sms", process_type="bulk")
+sms_normal_publish = RedisQueue("sms", process_type="normal")
+sms_priority_publish = RedisQueue("sms", process_type="priority")
+email_bulk_publish = RedisQueue("email", process_type="bulk")
+email_normal_publish = RedisQueue("email", process_type="normal")
+email_priority_publish = RedisQueue("email", process_type="priority")
 
 
 def create_app(application, config=None):
@@ -97,6 +105,7 @@ def create_app(application, config=None):
     clients.init_app(sms_clients=[aws_sns_client], email_clients=[aws_ses_client])
 
     flask_redis.init_app(application)
+    flask_redis_publish.init_app(application)
     redis_store.init_app(application)
 
     sms_bulk.init_app(flask_redis, metrics_logger)
@@ -105,6 +114,13 @@ def create_app(application, config=None):
     email_bulk.init_app(flask_redis, metrics_logger)
     email_normal.init_app(flask_redis, metrics_logger)
     email_priority.init_app(flask_redis, metrics_logger)
+
+    sms_bulk_publish.init_app(flask_redis_publish, metrics_logger)
+    sms_normal_publish.init_app(flask_redis_publish, metrics_logger)
+    sms_priority_publish.init_app(flask_redis_publish, metrics_logger)
+    email_bulk_publish.init_app(flask_redis_publish, metrics_logger)
+    email_normal_publish.init_app(flask_redis_publish, metrics_logger)
+    email_priority_publish.init_app(flask_redis_publish, metrics_logger)
 
     register_blueprint(application)
     register_v2_blueprints(application)
