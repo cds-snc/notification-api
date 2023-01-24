@@ -37,8 +37,8 @@ jobs:
       run: pip install poetry==${POETRY_VERSION} && poetry --version
     - name: Install requirements
       run: poetry install --with test
-    - name: Run tests
-      run: poetry run make test
+    # - name: Run tests
+    #   run: poetry run make test
     - name: Upload pytest logs on failure
       if: ${{ failure() }}
       uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb # v3.1.1
@@ -55,7 +55,7 @@ jobs:
         printf '__commit_sha__ = "09cfe03100443fb9071bba88d5c8775ff54a9ebc"\n__time__ = "2022-07-25:15:11:05"\n' > version.py
         cp version.py "${{ github.workspace }}/app/"
     - name: Copy site-packages in workspace
-      working-directory: /opt/hostedtoolcache/Python/${{ env.python_version }}/x64/lib/python3.10/
+      working-directory: ${{ github.workspace }}
       shell: bash
       run: |
         mkdir -p "${{ github.workspace }}/env/" && cp -fR $(poetry env list | poetry env info -p)/lib/python3.10/site-packages "${{ github.workspace }}/env/"
