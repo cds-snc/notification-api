@@ -412,9 +412,9 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
         # service is whatever it was set to last in the for loop above.
         # at this point in the code we have a list of notifications (saved_notifications)
         # which could be from multiple services
-        check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
         research_mode = service.research_mode  # type: ignore
         for notification_obj in saved_notifications:
+            check_service_over_daily_message_limit(notification_obj.key_type, service)
             queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
             send_notification_to_queue(
                 notification_obj,
