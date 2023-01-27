@@ -294,10 +294,9 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt, template)
 
-    # we should move this check inside the for loop below
-    check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
     current_app.logger.info(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
     for notification_obj in saved_notifications:
+        check_service_over_daily_message_limit(notification_obj.key_type, service)
         queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
         send_notification_to_queue(
             notification_obj,
