@@ -80,8 +80,9 @@ from app.v2.errors import (
     LiveServiceTooManyRequestsError,
     LiveServiceTooManySMSRequestsError,
     TrialServiceTooManyRequestsError,
-    TrialServiceTooManySMSRequestsError
+    TrialServiceTooManySMSRequestsError,
 )
+
 
 @notify_celery.task(name="process-job")
 @statsd(namespace="tasks")
@@ -318,8 +319,8 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
             )
         except (LiveServiceTooManySMSRequestsError, TrialServiceTooManySMSRequestsError) as e:
             current_app.logger.info(f"{e.message}: SMS {notification_obj.id} not created")
-            
-        
+
+
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def save_emails(self, _service_id: Optional[str], signed_notifications: List[SignedNotification], receipt: Optional[UUID]):
@@ -413,31 +414,39 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
         handle_batch_error_and_forward(self, signed_and_verified, EMAIL_TYPE, e, receipt, template)
 
     if saved_notifications:
-        current_app.logger.info(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
-        # todo: fix this potential bug
-        # service is whatever it was set to last in the for loop above.
-        # at this point in the code we have a list of notifications (saved_notifications)
-        # which could be from multiple services
-        research_mode = service.research_mode  # type: ignore
-        for notification_obj in saved_notifications:
-            try:
-                check_service_over_daily_message_limit(notification_obj.key_type, service)
-                queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
-                send_notification_to_queue(
-                    notification_obj,
-                    research_mode,
-                    queue,
-                )
+        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications, template)
 
-                current_app.logger.debug(
-                    "Email {} created at {} for job {}".format(
-                        notification_obj.id,
-                        notification_obj.created_at,
-                        notification_obj.job,
-                    )
+
+def try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications, template):
+    """
+    Loop through saved_notifications, check if the service has hit their daily rate limit,
+    and if not, call send_notification_to_queue on notification
+    """
+    current_app.logger.info(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
+    # todo: fix this potential bug
+    # service is whatever it was set to last in the for loop above.
+    # at this point in the code we have a list of notifications (saved_notifications)
+    # which could be from multiple services
+    research_mode = service.research_mode  # type: ignore
+    for notification_obj in saved_notifications:
+        try:
+            check_service_over_daily_message_limit(notification_obj.key_type, service)
+            queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
+            send_notification_to_queue(
+                notification_obj,
+                research_mode,
+                queue,
+            )
+
+            current_app.logger.debug(
+                "Email {} created at {} for job {}".format(
+                    notification_obj.id,
+                    notification_obj.created_at,
+                    notification_obj.job,
                 )
-            except (LiveServiceTooManyRequestsError, TrialServiceTooManyRequestsError) as e:
-                current_app.logger.info(f"{e.message}: Email {notification_obj.id} not created")
+            )
+        except (LiveServiceTooManyRequestsError, TrialServiceTooManyRequestsError) as e:
+            current_app.logger.info(f"{e.message}: Email {notification_obj.id} not created")
 
 
 def handle_batch_error_and_forward(
