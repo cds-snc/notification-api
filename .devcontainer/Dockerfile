@@ -1,8 +1,8 @@
-FROM mcr.microsoft.com/vscode/devcontainers/python:0-3.10@sha256:04cac448e2712a48117db7bd8489adf5357a397e7069a3113c2566ea848dcb76
+FROM mcr.microsoft.com/vscode/devcontainers/python:0-3.10
 
 ARG KUBENS_VERSION="0.9.4"
 ARG OCTANT_VERSION="0.25.1"
-ENV POETRY_VERSION="1.3.0"
+ENV POETRY_VERSION="1.3.2"
 
 # Install packages
 RUN apt-get update \

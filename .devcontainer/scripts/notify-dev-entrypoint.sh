@@ -42,10 +42,6 @@ mkdir ~/.zfunc
 touch ~/.zfunc/_poetry
 poetry completions zsh > ~/.zfunc/_poetry
 
-# Warm up git index prior to display status in prompt else it will
-# be quite slow on every invocation of starship.
-git status
-
 make generate-version-file
 
 # Install dependencies
