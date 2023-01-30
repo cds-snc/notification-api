@@ -682,6 +682,11 @@ def queue_to_use(notifications_count: int) -> Optional[str]:
 @notify_celery.task(bind=True, name="send-notify-no-reply", max_retries=5)
 @statsd(namespace="tasks")
 def send_notify_no_reply(self, data):
+    """Sends no-reply emails to people replying back to GCNotify.
+
+    This task will be fed by the AWS lambda code ses_receiving_emails.
+    https://github.com/cds-snc/notification-lambdas/blob/fd508d9718cef715f9297fedd8d780bc4bae0051/sesreceivingemails/ses_receiving_emails.py
+    """
     payload = json.loads(data)
 
     service = dao_fetch_service_by_id(current_app.config["NOTIFY_SERVICE_ID"])
