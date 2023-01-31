@@ -19,10 +19,6 @@ generate-version-file: ## Generates the app version file
 test: generate-version-file ## Run tests
 	./scripts/run_tests.sh
 
-.PHONY: test-requirements
-test-requirements:
-	poetry check
-
 .PHONY: coverage
 coverage: venv ## Create coverage report
 	. venv/bin/activate && coveralls
