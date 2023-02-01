@@ -19,6 +19,13 @@ generate-version-file: ## Generates the app version file
 test: generate-version-file ## Run tests
 	./scripts/run_tests.sh
 
+.PHONY: freeze-requirements
+freeze-requirements:
+	poetry lock --no-update
+
+.PHONY: test-requirements
+	poetry lock --check
+
 .PHONY: coverage
 coverage: venv ## Create coverage report
 	. venv/bin/activate && coveralls

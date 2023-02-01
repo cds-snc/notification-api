@@ -20,7 +20,7 @@ function display_result {
   fi
 }
 
-poetry lock --check
+make test-requirements
 display_result $? 1 "Requirements check"
 
 black --config pyproject.toml --check .

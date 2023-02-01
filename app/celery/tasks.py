@@ -275,7 +275,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
 
         verified_notifications.append(notification)
         notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
-        process_type = str(template.process_type)
+        process_type = template.process_type
 
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job.
@@ -293,7 +293,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
                 metrics_logger,
                 1,
                 notification_type=SMS_TYPE,
-                priority=process_type,
+                priority=process_type,  # type: ignore
             )
 
     except SQLAlchemyError as e:
@@ -385,7 +385,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
 
         verified_notifications.append(notification)
         notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
-        process_type = str(template.process_type)
+        process_type = template.process_type
 
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job
@@ -407,7 +407,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
                 metrics_logger,
                 1,
                 notification_type=EMAIL_TYPE,
-                priority=process_type,
+                priority=process_type,  # type: ignore
             )
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
