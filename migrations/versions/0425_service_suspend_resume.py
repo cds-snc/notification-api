@@ -7,9 +7,9 @@ Create Date: 2022-12-28 00:00:00
 """
 
 from datetime import datetime
+
 from alembic import op
 from flask import current_app
-
 
 revision = "0425_service_suspend_resume"
 down_revision = "0424_sms_templates_in_redacted"
@@ -34,9 +34,8 @@ templates = [
             "An email may bounce if:",
             "",
             "(1) The recipient or their email provider has blocked sends from your service.",
-            "(2) You send to an email address that does not exist."
-            "",
-            "The GC Notify team"
+            "(2) You send to an email address that does not exist." "",
+            "The GC Notify team",
         ],
     },
     {
@@ -45,9 +44,8 @@ templates = [
         "type": "email",
         "subject": "Your bounce rate has exceeded 5%",
         "content_lines": [
-            "Hello ((name)),"
-            "",
-            'The bounce rate has exceeded 5% for “((service_name))”. You should update your list of recipient’s email addresses.'
+            "Hello ((name))," "",
+            "The bounce rate has exceeded 5% for “((service_name))”. You should update your list of recipient’s email addresses."
             "",
             "An email may bounce if:",
             "(1) The recipient or their email provider has blocked sends from your service.",
@@ -57,7 +55,7 @@ templates = [
             "",
             "To maintain our operations, we’ll suspend the service if its bounce rate reaches 10%. While the service is under suspension, it will not be able to send email or text messages."
             "",
-            "The GC Notify team"
+            "The GC Notify team",
         ],
     },
     {
@@ -68,11 +66,10 @@ templates = [
         "content_lines": [
             "Hello ((name)),",
             "",
-            "“((service_name))” can send messages again.  We’ve removed the suspension."
-            "",
+            "“((service_name))” can send messages again.  We’ve removed the suspension." "",
             "The GC Notify Team",
-        ]
-    }
+        ],
+    },
 ]
 
 

@@ -3505,7 +3505,9 @@ def test_get_monthly_notification_data_by_service(mocker, admin_request):
     assert response == []
 
 
-def test_suspend_service_bounce_rate_exceeded_email_sent(mocker, sample_service, admin_request, bounce_rate_suspend_resume_templates):
+def test_suspend_service_bounce_rate_exceeded_email_sent(
+    mocker, sample_service, admin_request, bounce_rate_suspend_resume_templates
+):
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
     admin_request.post(
@@ -3545,11 +3547,12 @@ def test_resume_service_user_notification_email_sent(mocker, sample_service, adm
     assert service.active is True
 
 
-
 @pytest.mark.skip(
     reason="Depends on completion of ADR for bounce rate. The decision regarding how we will fetch and store whether a service has hit or is approaching the bounce rate needs to be made."
 )
-def test_suspend_service_bounce_rate_not_exceeded_no_email_sent(mocker, sample_service, admin_request, bounce_rate_suspend_resume_templates):
+def test_suspend_service_bounce_rate_not_exceeded_no_email_sent(
+    mocker, sample_service, admin_request, bounce_rate_suspend_resume_templates
+):
     # TODO
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 

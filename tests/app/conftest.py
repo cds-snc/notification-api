@@ -212,10 +212,12 @@ def sample_service(
         research_mode=None,
     )
 
+
 @pytest.fixture(scope="function")
 def sample_inactive_service(sample_service):
     sample_service.active = False
     return sample_service
+
 
 @pytest.fixture(scope="function", name="sample_service_full_permissions")
 def _sample_service_full_permissions(notify_db_session):
