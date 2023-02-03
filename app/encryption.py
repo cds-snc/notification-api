@@ -8,7 +8,6 @@ SignedNotification = NewType("SignedNotification", str)
 
 class NotificationDictToSign(TypedDict):
     # todo: remove duplicate keys
-    # todo: remove all NotRequired and decide if key should be there or not
     id: str
     template: str  # actually template_id
     service_id: str

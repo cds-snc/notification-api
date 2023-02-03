@@ -829,14 +829,12 @@ class TestProcessRows:
         reference,
         mocker,
     ):
-        test_id = "noti_uuid"
-        test_service_id = "service_id"
-        mocker.patch("app.celery.tasks.create_uuid", return_value=test_id)
+        mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
         signer_mock = mocker.patch("app.celery.tasks.signer.sign")
         template = Mock(id="template_id", template_type=template_type)
         job = Mock(id="job_id", template_version="temp_vers", notification_count=1, api_key_id=api_key_id, sender_id=sender_id)
-        service = Mock(id=test_service_id, research_mode=research_mode)
+        service = Mock(id="service_id", research_mode=research_mode)
 
         process_rows(
             [
@@ -855,7 +853,7 @@ class TestProcessRows:
         )
         signer_mock.assert_called_once_with(
             {
-                "id": test_id,
+                "id": "noti_uuid",
                 "api_key": None if api_key_id is None else str(api_key_id),
                 "key_type": job.api_key.key_type,
                 "template": "template_id",
@@ -868,7 +866,7 @@ class TestProcessRows:
                 "client_reference": reference,
                 "sender_id": str(sender_id) if sender_id else None,
                 "reply_to_text": None,
-                "service_id": test_service_id,
+                "service_id": "service_id",
                 "simulated": None,
             }
         )
@@ -955,9 +953,7 @@ class TestProcessRows:
         reference,
         mocker,
     ):
-        test_id = "noti_uuid"
-        test_service_id = "service_id"
-        mocker.patch("app.celery.tasks.create_uuid", return_value=test_id)
+        mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
         signer_mock = mocker.patch("app.celery.tasks.signer.sign")
         template = Mock(id="template_id", template_type=template_type)
@@ -970,7 +966,7 @@ class TestProcessRows:
             sender_id=sender_id,
             api_key=api_key,
         )
-        service = Mock(id=test_service_id, research_mode=research_mode)
+        service = Mock(id="service_id", research_mode=research_mode)
 
         process_rows(
             [
@@ -989,7 +985,7 @@ class TestProcessRows:
         )
         signer_mock.assert_called_once_with(
             {
-                "id": test_id,
+                "id": "noti_uuid",
                 "api_key": None if api_key_id is None else str(api_key_id),
                 "key_type": KEY_TYPE_NORMAL,
                 "template": "template_id",
@@ -1001,7 +997,7 @@ class TestProcessRows:
                 "queue": None,
                 "client_reference": reference,
                 "sender_id": str(sender_id) if sender_id else None,
-                "service_id": test_service_id,
+                "service_id": "service_id",
                 "simulated": None,
                 "reply_to_text": None,
             }
