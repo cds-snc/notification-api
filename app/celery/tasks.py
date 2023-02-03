@@ -175,7 +175,6 @@ def process_rows(rows: List[Row], template: Template, job: Job, service: Service
             "to": row.recipient,
             "row_number": row.index,
             "personalisation": dict(row.personalisation),
-            "queue": queue_to_use(job.notification_count),
             "sender_id": sender_id,
             "client_reference": client_reference.data,  # will return None if missing
             "service_id": str(service.id),
