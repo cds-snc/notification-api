@@ -164,6 +164,7 @@ def process_rows(rows: List[Row], template: Template, job: Job, service: Service
     encrypted_smss: List[SignedNotification] = []
     encrypted_emails: List[SignedNotification] = []
     for row in rows:
+        client_reference = row.get("reference", None)
         _notification: NotificationDictToSign = {
             "id": create_uuid(),
             "api_key": job.api_key_id and str(job.api_key_id),  # type: ignore
@@ -181,7 +182,6 @@ def process_rows(rows: List[Row], template: Template, job: Job, service: Service
             "reply_to_text": None,
             "simulated": None,
         }
-        client_reference = row.get("reference", None)
         signed_row = signer.sign_notification(_notification)
         if template_type == SMS_TYPE:
             encrypted_smss.append(signed_row)
