@@ -349,7 +349,7 @@ def process_sms_or_email_notification(
         "id": create_uuid(),
         "template": str(template.id),
         "service_id": str(service.id),
-        "template_version": template.version,  # type: ignore
+        "template_version": template.version,
         "to": form_send_to,
         "personalisation": personalisation,
         "simulated": simulated,
