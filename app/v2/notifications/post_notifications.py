@@ -349,7 +349,7 @@ def process_sms_or_email_notification(
         "id": create_uuid(),
         "template": str(template.id),
         "service_id": str(service.id),
-        "template_version": str(template.version),  # type: ignore
+        "template_version": str(template.version),
         "to": form_send_to,
         "personalisation": personalisation,
         "simulated": simulated,
@@ -357,6 +357,10 @@ def process_sms_or_email_notification(
         "key_type": str(api_key.key_type),
         "client_reference": form.get("reference", None),
         "reply_to_text": reply_to_text,
+        'queue': None,
+        'sender_id': None,
+        'job': None, 
+        'row_number': None
     }
 
     signed_notification_data = signer.sign_notification(_notification)

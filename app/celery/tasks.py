@@ -1,7 +1,7 @@
 import json
 from collections import namedtuple
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator, List, Optional
 from uuid import UUID
 
 from flask import current_app
@@ -11,6 +11,7 @@ from notifications_utils.recipients import RecipientCSV
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate
 from notifications_utils.timezones import convert_utc_to_local_timezone
+from notifications_utils.columns import Row
 from requests import HTTPError, RequestException, request
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -49,7 +50,7 @@ from app.dao.services_dao import (
     fetch_todays_total_message_count,
 )
 from app.dao.templates_dao import dao_get_template_by_id
-from app.encryption import SignedNotification
+from app.encryption import NotificationDictToSign, SignedNotification
 from app.exceptions import DVLAException
 from app.models import (
     BULK,
@@ -121,7 +122,6 @@ def process_job(job_id):
     current_app.logger.info("Starting job {} processing {} notifications".format(job_id, job.notification_count))
 
     csv = get_recipient_csv(job, template)
-
     rows = csv.get_rows()
     for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
         process_rows(result, template, job, service)
@@ -158,28 +158,31 @@ def choose_database_queue(template: Any, service: Service):
         return QueueNames.NORMAL_DATABASE
 
 
-def process_rows(rows: List, template: Template, job: Job, service: Service):
+def process_rows(rows: List[Row], template: Template, job: Job, service: Service):
     template_type = template.template_type
     sender_id = str(job.sender_id) if job.sender_id else None
     encrypted_smss: List[SignedNotification] = []
     encrypted_emails: List[SignedNotification] = []
     for row in rows:
+        _notification: NotificationDictToSign = {
+            "id": create_uuid(),
+            "api_key": job.api_key_id and str(job.api_key_id),  # type: ignore
+            "key_type": job.api_key.key_type if job.api_key else KEY_TYPE_NORMAL,
+            "template": str(template.id),
+            "template_version": job.template_version,
+            "job": str(job.id),
+            "to": row.recipient,
+            "row_number": row.index,
+            "personalisation": dict(row.personalisation),
+            "queue": queue_to_use(job.notification_count),
+            "sender_id": sender_id,
+            "client_reference": client_reference.data,  # will return None if missing
+            "service_id": str(job.service_id),
+            "reply_to_text": None,
+            "simulated": None,
+        }
         client_reference = row.get("reference", None)
-        signed_row = signer.sign_notification(
-            {
-                "api_key": job.api_key_id and str(job.api_key_id),  # type: ignore
-                "key_type": job.api_key.key_type if job.api_key else KEY_TYPE_NORMAL,
-                "template": str(template.id),
-                "template_version": job.template_version,
-                "job": str(job.id),
-                "to": row.recipient,
-                "row_number": row.index,
-                "personalisation": dict(row.personalisation),
-                "queue": queue_to_use(job.notification_count),
-                "sender_id": sender_id,
-                "client_reference": client_reference.data,  # will return None if missing
-            }
-        )
+        signed_row = signer.sign_notification(_notification)
         if template_type == SMS_TYPE:
             encrypted_smss.append(signed_row)
         if template_type == EMAIL_TYPE:
@@ -346,6 +349,8 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
         )
         # todo: _notification does not have key "sender_id"
         sender_id = _notification.get("sender_id")  # type: ignore
+        # sender_id = _notification["sender_id"]
+
         notification_id = _notification.get("id", create_uuid())
         reply_to_text = ""  # type: ignore
         if (
