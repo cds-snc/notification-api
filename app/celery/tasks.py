@@ -1,17 +1,17 @@
 import json
 from collections import namedtuple
 from datetime import datetime
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from flask import current_app
 from itsdangerous import BadSignature
 from more_itertools import chunked
+from notifications_utils.columns import Row
 from notifications_utils.recipients import RecipientCSV
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate
 from notifications_utils.timezones import convert_utc_to_local_timezone
-from notifications_utils.columns import Row
 from requests import HTTPError, RequestException, request
 from sqlalchemy.exc import SQLAlchemyError
 

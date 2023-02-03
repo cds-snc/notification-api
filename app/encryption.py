@@ -2,7 +2,6 @@ from typing import Any, NewType, Optional, TypedDict
 
 from flask_bcrypt import check_password_hash, generate_password_hash
 from itsdangerous import URLSafeSerializer
-from typing_extensions import NotRequired  # type: ignore
 
 SignedNotification = NewType("SignedNotification", str)
 
