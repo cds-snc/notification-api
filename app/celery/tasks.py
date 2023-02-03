@@ -178,7 +178,7 @@ def process_rows(rows: List[Row], template: Template, job: Job, service: Service
             "queue": queue_to_use(job.notification_count),
             "sender_id": sender_id,
             "client_reference": client_reference.data,  # will return None if missing
-            "service_id": str(job.service_id),
+            "service_id": service.id,
             "reply_to_text": None,
             "simulated": None,
         }
