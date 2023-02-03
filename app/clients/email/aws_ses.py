@@ -5,6 +5,7 @@ from time import monotonic
 
 import boto3
 import botocore
+from boto3_type_annotations.ses import Client
 from flask import current_app
 from notifications_utils.recipients import InvalidEmailError
 from unidecode import unidecode
@@ -22,7 +23,7 @@ class AwsSesClient(EmailClient):
     """
 
     def init_app(self, region, statsd_client, *args, **kwargs):
-        self._client = boto3.client("ses", region_name=region)
+        self._client: Client = boto3.client("ses", region_name=region)
         super(AwsSesClient, self).__init__(*args, **kwargs)
         self.name = "ses"
         self.statsd_client = statsd_client
