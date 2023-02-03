@@ -349,8 +349,6 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
         )
         # todo: _notification does not have key "sender_id"
         sender_id = _notification.get("sender_id")  # type: ignore
-        # sender_id = _notification["sender_id"]
-
         notification_id = _notification.get("id", create_uuid())
         reply_to_text = ""  # type: ignore
         if (
