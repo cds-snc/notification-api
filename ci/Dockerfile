@@ -13,9 +13,6 @@ RUN set -ex && mkdir /app
 
 WORKDIR /app
 
-# COPY requirements.txt /app
-# RUN set -ex && pip3 install -r requirements.txt
-
 COPY . /app
 
 RUN poetry install
@@ -27,4 +24,4 @@ ENV PORT=6011
 ARG GIT_SHA
 ENV GIT_SHA ${GIT_SHA}
 
-CMD ["sh", "-c", "poetry run gunicorn -c gunicorn_config.py application"]
+CMD ["sh", "-c", "gunicorn -c gunicorn_config.py application"]
