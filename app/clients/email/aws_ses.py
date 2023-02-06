@@ -100,7 +100,6 @@ class AwsSesClient(EmailClient):
 
             start_time = monotonic()
             response = self._client.send_raw_email(Source=source, RawMessage={"Data": msg.as_string()})
-            current_app.logger.info(f"Synchronous response from SES when sending email: {response}")
         except botocore.exceptions.ClientError as e:
             self.statsd_client.incr("clients.ses.error")
 
