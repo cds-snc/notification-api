@@ -151,7 +151,8 @@ def send_email_to_provider(notification: Notification):
             direct_file_url = personalisation_data[key]["document"]["direct_file_url"]
             document_id = personalisation_data[key]["document"]["id"]
             # TODO: catch errors raised by the next line
-            document_download_client.check_scan_verdict(service.id, document_id, sending_method)
+            scan_verdict = document_download_client.check_scan_verdict(service.id, document_id, sending_method)
+            current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict}")
             if sending_method == "attach":
                 try:
                     req = urllib.request.Request(direct_file_url)
