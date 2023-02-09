@@ -16,7 +16,7 @@ from notifications_utils.template import (
     SMSMessageTemplate,
 )
 
-from app import clients, statsd_client
+from app import clients, document_download_client, statsd_client
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
 from app.config import Config
 from app.dao.notifications_dao import dao_update_notification
@@ -149,9 +149,11 @@ def send_email_to_provider(notification: Notification):
             check_file_url(personalisation_data[key]["document"], notification.id)
             sending_method = personalisation_data[key]["document"].get("sending_method")
             direct_file_url = personalisation_data[key]["document"]["direct_file_url"]
+            document_id = personalisation_data[key]["document"]["id"]
+            # TODO: catch errors raised by the next line
+            document_download_client.check_scan_verdict(service.id, document_id, sending_method)
             if sending_method == "attach":
                 try:
-
                     req = urllib.request.Request(direct_file_url)
                     with urllib.request.urlopen(req) as response:
 
