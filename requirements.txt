@@ -35,7 +35,7 @@ Flask-Migrate==2.5.2
 flask-redis==0.4.0
 Flask-SQLAlchemy @ git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd1a20a21e682262
 flupy==1.2.0
-future==0.18.2
+future==0.18.3
 greenlet==2.0.1
 gunicorn==20.0.4
 idna==3.4
