@@ -867,6 +867,7 @@ class TestProcessRows:
                 "reply_to_text": None,
                 "service_id": "service_id",
                 "simulated": None,
+                "queue": None,
             }
         )
         task_mock.apply_async.assert_called_once()
@@ -998,6 +999,7 @@ class TestProcessRows:
                 "service_id": "service_id",
                 "simulated": None,
                 "reply_to_text": None,
+                "queue": None,
             }
         )
         task_mock.apply_async.assert_called_once()
