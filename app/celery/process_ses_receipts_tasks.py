@@ -31,9 +31,6 @@ from celery.exceptions import Retry
 def process_ses_results(self, response):
     try:
         ses_message = json.loads(response["Message"])
-        current_app.logger.info(
-            f"Async response from SES when sending email (messageId: {ses_message['mail']['messageId']}): {ses_message}"
-        )
         notification_type = ses_message["notificationType"]
 
         if notification_type == "Complaint":
