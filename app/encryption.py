@@ -24,6 +24,7 @@ class NotificationDictToSign(TypedDict):
     row_number: Optional[Any]  # should this be int or str?
     queue: Optional[str]
 
+
 class CryptoSigner:
     def init_app(self, app):
         self.serializer = URLSafeSerializer(app.config.get("SECRET_KEY"))
