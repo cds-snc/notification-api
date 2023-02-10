@@ -360,6 +360,7 @@ def process_sms_or_email_notification(
         "sender_id": None,
         "job": None,
         "row_number": None,
+        "queue": None
     }
 
     signed_notification_data = signer.sign_notification(_notification)

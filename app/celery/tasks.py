@@ -180,6 +180,7 @@ def process_rows(rows: List[Row], template: Template, job: Job, service: Service
             "service_id": str(service.id),
             "reply_to_text": None,
             "simulated": None,
+            "queue": queue_to_use(job.notification_count),
         }
         signed_row = signer.sign_notification(_notification)
         if template_type == SMS_TYPE:
