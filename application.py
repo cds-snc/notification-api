@@ -23,3 +23,18 @@ sentry_sdk.init(
 application = Flask('app')
 application.wsgi_app = ProxyFix(application.wsgi_app)
 create_app(application)
+
+
+from ddtrace import tracer
+
+# Network sockets
+tracer.configure(
+    https=False,
+    hostname="custom-hostname",
+    port="1234",
+)
+
+# Unix domain socket configuration
+tracer.configure(
+    uds_path="/var/run/datadog/apm.socket",
+)
