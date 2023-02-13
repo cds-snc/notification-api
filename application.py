@@ -26,6 +26,8 @@ create_app(application)
 
 
 from ddtrace import tracer
+from ddtrace import patch_all
+patch_all()
 
 # Network socket
 tracer.configure(
