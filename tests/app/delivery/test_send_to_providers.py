@@ -16,7 +16,7 @@ from app.dao.provider_details_dao import (
     dao_switch_sms_provider_to_provider_with_identifier,
 )
 from app.delivery import send_to_providers
-from app.exceptions import InvalidUrlException, MalwareDetectedException, NotificationTechnicalFailureException
+from app.exceptions import InvalidUrlException, MalwareDetectedException, MalwareScanInProgressException, NotificationTechnicalFailureException
 from app.models import (
     BRANDING_BOTH_EN,
     BRANDING_BOTH_FR,
@@ -1064,3 +1064,26 @@ def test_send_to_providers_fails_if_malware_detected(sample_email_template, mock
     send_mock.assert_not_called()
 
     assert Notification.query.get(db_notification.id).status == "virus-scan-failed"
+    
+    
+def test_send_to_providers_fails_if_malware_scan_in_progress(sample_email_template, mocker):
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    class mock_response:
+        status_code = 428
+        def json():
+            return {"av-status": "in_progress"}
+        
+    mocker.patch(
+        "app.delivery.send_to_providers.document_download_client.check_scan_verdict",
+        return_value=mock_response
+    )
+    personalisation = {"file": document_download_response()}
+
+    db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
+
+    with pytest.raises(MalwareScanInProgressException) as e:
+        send_to_providers.send_email_to_provider(db_notification)
+        assert db_notification.id in e.value
+    send_mock.assert_not_called()
+
+    assert Notification.query.get(db_notification.id).status == "pending-virus-check"
