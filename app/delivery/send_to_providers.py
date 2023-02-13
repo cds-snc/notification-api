@@ -143,13 +143,13 @@ def check_for_malware_errors(document_download_response_code, notification):
     """
     # 423 "Locked" response is sent if malicious content was detected
     if document_download_response_code == 423:
-        current_app.logger.info(f"Malicious content detected! Download and attachment failed for {direct_file_url}")
+        current_app.logger.info(f"Malicious content detected! Download and attachment failed for notification.id: {notification.id}")
         # Update notification that it contains malware
         malware_failure(notification=notification)
 
     # 428 "Precondition Required" response is sent if the scan is still in progress
     if document_download_response_code == 428:
-        current_app.logger.info(f"Malware scan in progress, could not download {direct_file_url}")
+        current_app.logger.info(f"Malware scan in progress, could not download files for notification.id: {notification.id}")
         # Throw error so celery will retry in sixty seconds
         malware_scan_in_progress(notification=notification)
 
@@ -176,7 +176,7 @@ def send_email_to_provider(notification: Notification):
             document_id = personalisation_data[key]["document"]["id"]
             scan_verdict_response = document_download_client.check_scan_verdict(service.id, document_id, sending_method)
             check_for_malware_errors(scan_verdict_response.status_code, notification)
-            current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict}")
+            current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict_response.json()}")
             if sending_method == "attach":
                 try:
                     req = urllib.request.Request(direct_file_url)
