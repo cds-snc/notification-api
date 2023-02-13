@@ -144,7 +144,9 @@ def check_for_malware_errors(document_download_response_code, notification):
     """
     # 423 "Locked" response is sent if malicious content was detected
     if document_download_response_code == 423:
-        current_app.logger.info(f"Malicious content detected! Download and attachment failed for notification.id: {notification.id}")
+        current_app.logger.info(
+            f"Malicious content detected! Download and attachment failed for notification.id: {notification.id}"
+        )
         # Update notification that it contains malware
         malware_failure(notification=notification)
 
@@ -156,6 +158,7 @@ def check_for_malware_errors(document_download_response_code, notification):
 
     if document_download_response_code != 200:
         document_download_internal_error(notification=notification)
+
 
 def send_email_to_provider(notification: Notification):
     current_app.logger.info(f"Sending email to provider for notification id: {notification.id}")
@@ -349,8 +352,8 @@ def document_download_internal_error(notification):
     dao_update_notification(notification)
     current_app.logger.error(f"Cannot send notification {notification.id}, document-download-api internal error.")
     raise DocumentDownloadException
-    
-    
+
+
 def contains_pii(notification, text_content):
     for sin in re.findall(r"\s\d{3}-\d{3}-\d{3}\s", text_content):
         if luhn(sin.replace("-", "").strip()):
