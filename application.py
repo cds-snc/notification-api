@@ -23,3 +23,16 @@ sentry_sdk.init(
 application = Flask('app')
 application.wsgi_app = ProxyFix(application.wsgi_app)
 create_app(application)
+
+
+from ddtrace import tracer
+
+# Network socket
+tracer.configure(
+  dogstatsd_url="udp://localhost:8125",
+)
+
+# Unix domain socket configuration
+tracer.configure(
+  dogstatsd_url="unix:///var/run/datadog/dsd.socket",
+)
