@@ -69,6 +69,8 @@ def deliver_email(self, notification_id):
         current_app.logger.error(f"Cannot send notification {notification_id}, got an invalid direct file url.")
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
         _check_and_queue_callback_task(notification)
+    except MalwareDetectedError:
+        _check_and_queue_callback_task(notification)
     except Exception as e:
         try:
             current_app.logger.warning(f"The exception is {repr(e)}")

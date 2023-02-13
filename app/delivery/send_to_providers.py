@@ -25,7 +25,7 @@ from app.dao.provider_details_dao import (
     get_provider_details_by_notification_type,
 )
 from app.dao.templates_dao import dao_get_template_by_id
-from app.exceptions import InvalidUrlException, MalwarePendingException, NotificationTechnicalFailureException
+from app.exceptions import InvalidUrlException, MalwareDetectedException, MalwareScanInProgressException, NotificationTechnicalFailureException
 from app.models import (
     BRANDING_BOTH_EN,
     BRANDING_BOTH_FR,
@@ -129,6 +129,26 @@ def check_file_url(file_info: Dict[str, str], notification_id: UUID):
         current_app.logger.error(f"Notification {notification_id} contains an invalid {url_key} {file_info[url_key]}")
         raise InvalidUrlException
 
+def check_for_malware_errors(document_download_response_code, notification):
+    """
+    Check verdict and download calls to the document-download-api will
+    return error codes if the scan is in progress or if malware was detected.
+    This function contains the logic for handling these errors.
+    """
+    # 423 "Locked" response is sent if malicious content was detected
+    if document_download_response_code == 423:
+        current_app.logger.error(
+            f"Malicious content detected! Download and attachment failed for {direct_file_url}"
+        )
+        # Update notification that it contains malware
+        malware_failure(notification=notification)
+
+    # 428 "Precondition Required" response is sent if the scan is still in progress
+    if document_download_response_code == 428:
+        current_app.logger.error(f"Malware scan in progress, could not download {direct_file_url}")
+        # Throw error so celery will retry in sixty seconds
+        malware_scan_in_progress(notification=notification)
+
 
 def send_email_to_provider(notification: Notification):
     current_app.logger.info(f"Sending email to provider for notification id {notification.id}")
@@ -144,34 +164,20 @@ def send_email_to_provider(notification: Notification):
         attachments = []
 
         personalisation_data = notification.personalisation.copy()
-
+            
         for key in file_keys:
             check_file_url(personalisation_data[key]["document"], notification.id)
             sending_method = personalisation_data[key]["document"].get("sending_method")
             direct_file_url = personalisation_data[key]["document"]["direct_file_url"]
             document_id = personalisation_data[key]["document"]["id"]
-            # TODO: catch errors raised by the next line
-            scan_verdict = document_download_client.check_scan_verdict(service.id, document_id, sending_method)
+            scan_verdict_response = document_download_client.check_scan_verdict(service.id, document_id, sending_method)
+            check_for_malware_errors(scan_verdict_response.status_code, notification)
             current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict}")
             if sending_method == "attach":
                 try:
                     req = urllib.request.Request(direct_file_url)
                     with urllib.request.urlopen(req) as response:
-
-                        # 403 "Forbidden" response is sent if malicious content was detected
-                        if response.getcode() == 403:
-                            current_app.logger.error(
-                                f"Malicious content detected! Download and attachment failed for {direct_file_url}"
-                            )
-                            # Update notification that it contains malware
-                            malware_failure(notification=notification)
-
-                        # 428 "Precondition Required" response is sent if the scan is still in progress
-                        if response.getcode() == 428:
-                            current_app.logger.error(f"Malware scan in progress, could not download {direct_file_url}")
-                            # Throw error so celery will retry in sixty seconds
-                            malware_scan_in_progress(notification=notification)
-
+                        handle_malware_errors(response.getcode(), notification)
                         buffer = response.read()
                         filename = personalisation_data[key]["document"].get("filename")
                         mime_type = personalisation_data[key]["document"].get("mime_type")
@@ -318,7 +324,7 @@ def empty_message_failure(notification):
 def malware_failure(notification):
     notification.status = NOTIFICATION_VIRUS_SCAN_FAILED
     dao_update_notification(notification)
-    raise NotificationTechnicalFailureException(
+    raise MalwareDetectedException(
         "Send {} for notification id {} to provider is not allowed. Notification contains malware".format(
             notification.notification_type, notification.id
         )
@@ -328,7 +334,7 @@ def malware_failure(notification):
 def malware_scan_in_progress(notification):
     notification.status = NOTIFICATION_PENDING_VIRUS_CHECK
     dao_update_notification(notification)
-    raise MalwarePendingException
+    raise MalwareScanInProgressException
 
 
 def contains_pii(notification, text_content):

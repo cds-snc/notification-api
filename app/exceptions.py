@@ -11,8 +11,13 @@ class ArchiveValidationError(Exception):
     pass
 
 
-class MalwarePendingException(Exception):
+class MalwareScanInProgressException(Exception):
     pass
+
+
+class MalwareDetectedException(Exception):
+    pass
+
 
 class InvalidUrlException(Exception):
     pass

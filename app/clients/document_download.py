@@ -62,6 +62,4 @@ class DocumentDownloadClient:
                 "sending_method": sending_method,
             },
         )
-        
-        response.raise_for_status()
-        return response.json()
+        return response
