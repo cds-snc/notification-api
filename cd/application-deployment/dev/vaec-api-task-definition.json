@@ -64,7 +64,7 @@
         },
 		{
 		  "name": "DD_PROFILING_ENABLED",
-		  "value":="true"
+		  "value":="True"
 		},
         {
           "name": "EMAIL_ATTACHMENTS_ENABLED",
