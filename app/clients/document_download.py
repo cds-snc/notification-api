@@ -50,7 +50,7 @@ class DocumentDownloadClient:
 
             raise error
         return response.json()
-    
+
     def check_scan_verdict(self, service_id, document_id, sending_method):
         url = f"{self.api_host}/services/{service_id}/documents/{document_id}/scan-verdict"
         response = requests.post(

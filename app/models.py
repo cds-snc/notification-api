@@ -1713,6 +1713,8 @@ class Notification(BaseModel):
                 "technical-failure": "Technical failure",
                 "temporary-failure": "Inbox not accepting messages right now",
                 "permanent-failure": "Email address doesn’t exist",
+                "virus-scan-failed": "Attached file may contain malware",
+                "pending-virus-check": "Virus scan in progress",
                 "delivered": "Delivered",
                 "sending": "Sending",
                 "created": "Sending",
