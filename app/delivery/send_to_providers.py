@@ -26,6 +26,7 @@ from app.dao.provider_details_dao import (
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import (
+    DocumentDownloadException,
     InvalidUrlException,
     MalwareDetectedException,
     MalwareScanInProgressException,
@@ -153,9 +154,11 @@ def check_for_malware_errors(document_download_response_code, notification):
         # Throw error so celery will retry in sixty seconds
         malware_scan_in_progress(notification=notification)
 
+    if document_download_response_code != 200:
+        document_download_internal_error(notification=notification)
 
 def send_email_to_provider(notification: Notification):
-    current_app.logger.info(f"Sending email to provider for notification id {notification.id}")
+    current_app.logger.info(f"Sending email to provider for notification id: {notification.id}")
     service = notification.service
     if not service.active:
         inactive_service_failure(notification=notification)
@@ -341,6 +344,13 @@ def malware_scan_in_progress(notification):
     raise MalwareScanInProgressException
 
 
+def document_download_internal_error(notification):
+    notification.status = NOTIFICATION_TECHNICAL_FAILURE
+    dao_update_notification(notification)
+    current_app.logger.error(f"Cannot send notification {notification.id}, document-download-api internal error.")
+    raise DocumentDownloadException
+    
+    
 def contains_pii(notification, text_content):
     for sin in re.findall(r"\s\d{3}-\d{3}-\d{3}\s", text_content):
         if luhn(sin.replace("-", "").strip()):

@@ -21,3 +21,7 @@ class MalwareDetectedException(Exception):
 
 class InvalidUrlException(Exception):
     pass
+
+
+class DocumentDownloadException(Exception):
+    pass
