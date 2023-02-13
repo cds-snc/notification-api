@@ -1087,3 +1087,24 @@ def test_send_to_providers_fails_if_malware_scan_in_progress(sample_email_templa
     send_mock.assert_not_called()
 
     assert Notification.query.get(db_notification.id).status == "pending-virus-check"
+    
+    
+def test_send_to_providers_succeeds_if_malware_verdict_clean(sample_email_template, mocker):
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    class mock_response:
+        status_code = 200
+        def json():
+            return {"av-status": "clean"}
+        
+    mocker.patch(
+        "app.delivery.send_to_providers.document_download_client.check_scan_verdict",
+        return_value=mock_response
+    )
+    personalisation = {"file": document_download_response()}
+
+    db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
+
+    send_to_providers.send_email_to_provider(db_notification)
+    send_mock.assert_called_once()
+
+    assert Notification.query.get(db_notification.id).status == "sending"
