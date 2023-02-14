@@ -160,7 +160,7 @@ def check_for_malware_errors(document_download_response_code, notification):
 
 
 def send_email_to_provider(notification: Notification):
-    current_app.logger.info(f"Sending email to provider for notification id: {notification.id}")
+    current_app.logger.info(f"Sending email to provider for notification id {notification.id}")
     service = notification.service
     if not service.active:
         inactive_service_failure(notification=notification)
@@ -186,7 +186,6 @@ def send_email_to_provider(notification: Notification):
                 try:
                     req = urllib.request.Request(direct_file_url)
                     with urllib.request.urlopen(req) as response:
-                        check_for_malware_errors(response.getcode(), notification)
                         buffer = response.read()
                         filename = personalisation_data[key]["document"].get("filename")
                         mime_type = personalisation_data[key]["document"].get("mime_type")
