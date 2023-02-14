@@ -874,6 +874,15 @@ def test_notification_document_with_pdf_attachment(
     expected_filename,
 ):
     template = create_sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
+
+    class mock_response:
+        status_code = 200
+
+        def json():
+            return {"av-status": "clean"}
+
+    mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
+
     personalisation = {
         "file": document_download_response(
             {
@@ -901,6 +910,7 @@ def test_notification_document_with_pdf_attachment(
     cm = MagicMock()
     cm.read.return_value = "request_content"
     cm.__enter__.return_value = cm
+    cm.getcode = lambda: 200
     urlopen_mock = mocker.patch("app.delivery.send_to_providers.urllib.request.urlopen")
     urlopen_mock.return_value = cm
 
