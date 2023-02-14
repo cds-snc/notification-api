@@ -39,7 +39,6 @@ from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
     NOTIFICATION_CONTAINS_PII,
-    NOTIFICATION_PENDING_VIRUS_CHECK,
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
     NOTIFICATION_TECHNICAL_FAILURE,
@@ -154,7 +153,7 @@ def check_for_malware_errors(document_download_response_code, notification):
     if document_download_response_code == 428:
         current_app.logger.info(f"Malware scan in progress, could not download files for notification.id: {notification.id}")
         # Throw error so celery will retry in sixty seconds
-        malware_scan_in_progress(notification=notification)
+        raise MalwareScanInProgressException
 
     if document_download_response_code != 200:
         document_download_internal_error(notification=notification)
@@ -339,12 +338,6 @@ def malware_failure(notification):
             notification.notification_type, notification.id
         )
     )
-
-
-def malware_scan_in_progress(notification):
-    notification.status = NOTIFICATION_PENDING_VIRUS_CHECK
-    dao_update_notification(notification)
-    raise MalwareScanInProgressException
 
 
 def document_download_internal_error(notification):
