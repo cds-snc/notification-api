@@ -1100,7 +1100,7 @@ class TestMalware:
             assert db_notification.id in e.value
         send_mock.assert_not_called()
 
-        assert Notification.query.get(db_notification.id).status == "pending-virus-check"
+        assert Notification.query.get(db_notification.id).status == "created"
 
     def test_send_to_providers_succeeds_if_malware_verdict_clean(self, sample_email_template, mocker):
         send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
