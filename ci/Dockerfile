@@ -2,22 +2,32 @@ FROM python:3.10-alpine3.16@sha256:923d30cb18f3d67160cb055a3c3862771edc5d07c63d5
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV POETRY_VERSION "1.3.2"
+ENV APP_VENV="/app/.venv"
+ENV POETRY_HOME="/opt/poetry"
+ENV POETRY_VERSION="1.3.2"
+ENV POETRY_VIRTUALENVS_CREATE="false"
+ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
 
 RUN apk add --no-cache bash build-base git gcc musl-dev postgresql-dev g++ make libffi-dev libmagic libcurl curl-dev rust cargo && rm -rf /var/cache/apk/*
 
-# update pip
-RUN python -m pip install wheel poetry==${POETRY_VERSION}
-RUN python -m pip install --upgrade pip
-
 RUN set -ex && mkdir /app
-
 WORKDIR /app
 
-COPY . /app
+# Install poetry and isolate it in it's own venv
+RUN python -m venv ${POETRY_HOME} \
+    && ${POETRY_HOME}/bin/pip3 install poetry==${POETRY_VERSION}
 
-RUN poetry install
+COPY pyproject.toml poetry.lock /app/
 
-RUN make generate-version-file
+RUN python -m venv ${APP_VENV} \
+    && . ${APP_VENV}/bin/activate \
+    && poetry install \
+    && poetry add wheel
+
+COPY . /app/
+
+RUN . ${APP_VENV}/bin/activate \
+    && make generate-version-file
 
 ENV PORT=6011
 
