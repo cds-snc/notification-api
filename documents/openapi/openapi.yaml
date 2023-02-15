@@ -614,8 +614,7 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-                - $ref: '#/components/schemas/UpdateCallbackRequest'
+              $ref: '#/components/schemas/UpdateCallbackRequest'
       responses:
         '200':
           description: UPDATED
@@ -1651,6 +1650,8 @@ components:
           nullable: true
           items:
             $ref: '#/components/schemas/NotificationStatus'
+        include_provider_payload:
+          type: boolean
     CreateCallbackRequest:
       type: object
       properties:
@@ -1664,6 +1665,8 @@ components:
           description: Required if callback_channel is webhook
         callback_channel:
           $ref: '#/components/schemas/CallbackChannel'
+        include_provider_payload:
+          type: boolean
       required:
         - url
         - callback_type
@@ -1679,13 +1682,19 @@ components:
       required:
         - notification_statuses
     UpdateCallbackRequest:
-      allOf:
-        - $ref: '#/components/schemas/CreateCallbackRequest'
-        - type: object
-          anyOf:
-            - required: [url]
-            - required: [bearer_token]
-            - required: [notification_statuses]
+      type: object
+      properties:
+        url:
+          type: string
+          format: url
+        bearer_token:
+          type: string
+        notification_statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationStatus'
+        include_provider_payload: 
+          type: boolean
     CallbackType:
       type: string
       enum:

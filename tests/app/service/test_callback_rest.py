@@ -43,7 +43,8 @@ class TestFetchServiceCallback:
             "updated_at": service_callback_api.updated_at,
             "notification_statuses": service_callback_api.notification_statuses,
             "callback_type": service_callback_api.callback_type,
-            "callback_channel": service_callback_api.callback_channel
+            "callback_channel": service_callback_api.callback_channel,
+            "include_provider_payload": service_callback_api.include_provider_payload
         }
 
     def test_fetch_service_callback_works_with_platform_admin(self, db_session, client, sample_service):
@@ -456,6 +457,25 @@ class TestUpdateServiceCallback:
         resp_json = response.json
         assert resp_json["data"]["notification_statuses"] == ["delivered"]
         assert resp_json.get("bearer_token") is None
+
+    def test_update_service_callback_updates_include_provider_payload(self, client, sample_service):
+        service_callback_api = create_service_callback_api(service=sample_service,  # nosec
+                                                           include_provider_payload=False)
+        data = {
+            "include_provider_payload": True,
+        }
+
+        response = client.post(
+            url_for('service_callback.update_service_callback',
+                    service_id=sample_service.id,
+                    callback_id=service_callback_api.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'),
+                     ('Authorization', f'Bearer {create_access_token(sample_service.users[0])}')]
+        )
+
+        assert response.status_code == 200
+        assert service_callback_api.include_provider_payload is True
 
     @pytest.mark.idparametrize(
         'request_data', {
