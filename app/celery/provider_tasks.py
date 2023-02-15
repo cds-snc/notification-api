@@ -9,7 +9,6 @@ from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
 from app.delivery import send_to_providers
 from app.exceptions import (
-    DocumentDownloadException,
     InvalidUrlException,
     MalwareDetectedException,
     NotificationTechnicalFailureException,
