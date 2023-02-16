@@ -16,7 +16,7 @@ from notifications_utils.template import (
     SMSMessageTemplate,
 )
 
-from app import clients, statsd_client
+from app import clients, document_download_client, statsd_client
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
 from app.config import Config
 from app.dao.notifications_dao import dao_update_notification
@@ -25,7 +25,13 @@ from app.dao.provider_details_dao import (
     get_provider_details_by_notification_type,
 )
 from app.dao.templates_dao import dao_get_template_by_id
-from app.exceptions import InvalidUrlException, NotificationTechnicalFailureException
+from app.exceptions import (
+    DocumentDownloadException,
+    InvalidUrlException,
+    MalwareDetectedException,
+    MalwareScanInProgressException,
+    NotificationTechnicalFailureException,
+)
 from app.models import (
     BRANDING_BOTH_EN,
     BRANDING_BOTH_FR,
@@ -36,6 +42,7 @@ from app.models import (
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
     NOTIFICATION_TECHNICAL_FAILURE,
+    NOTIFICATION_VIRUS_SCAN_FAILED,
     SMS_TYPE,
     Notification,
     Service,
@@ -128,6 +135,30 @@ def check_file_url(file_info: Dict[str, str], notification_id: UUID):
         raise InvalidUrlException
 
 
+def check_for_malware_errors(document_download_response_code, notification):
+    """
+    Check verdict and download calls to the document-download-api will
+    return error codes if the scan is in progress or if malware was detected.
+    This function contains the logic for handling these errors.
+    """
+    # 423 "Locked" response is sent if malicious content was detected
+    if document_download_response_code == 423:
+        current_app.logger.info(
+            f"Malicious content detected! Download and attachment failed for notification.id: {notification.id}"
+        )
+        # Update notification that it contains malware
+        malware_failure(notification=notification)
+
+    # 428 "Precondition Required" response is sent if the scan is still in progress
+    if document_download_response_code == 428:
+        current_app.logger.info(f"Malware scan in progress, could not download files for notification.id: {notification.id}")
+        # Throw error so celery will retry in sixty seconds
+        raise MalwareScanInProgressException
+
+    if document_download_response_code != 200:
+        document_download_internal_error(notification=notification)
+
+
 def send_email_to_provider(notification: Notification):
     current_app.logger.info(f"Sending email to provider for notification id {notification.id}")
     service = notification.service
@@ -146,11 +177,14 @@ def send_email_to_provider(notification: Notification):
         for key in file_keys:
             check_file_url(personalisation_data[key]["document"], notification.id)
             sending_method = personalisation_data[key]["document"].get("sending_method")
-
+            direct_file_url = personalisation_data[key]["document"]["direct_file_url"]
+            document_id = personalisation_data[key]["document"]["id"]
+            scan_verdict_response = document_download_client.check_scan_verdict(service.id, document_id, sending_method)
+            check_for_malware_errors(scan_verdict_response.status_code, notification)
+            current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict_response.json()}")
             if sending_method == "attach":
                 try:
-
-                    req = urllib.request.Request(personalisation_data[key]["document"]["direct_file_url"])
+                    req = urllib.request.Request(direct_file_url)
                     with urllib.request.urlopen(req) as response:
                         buffer = response.read()
                         filename = personalisation_data[key]["document"].get("filename")
@@ -163,9 +197,7 @@ def send_email_to_provider(notification: Notification):
                             }
                         )
                 except Exception:
-                    current_app.logger.error(
-                        "Could not download and attach {}".format(personalisation_data[key]["document"]["direct_file_url"])
-                    )
+                    current_app.logger.error(f"Could not download and attach {direct_file_url}")
                 del personalisation_data[key]
             else:
                 personalisation_data[key] = personalisation_data[key]["document"]["url"]
@@ -295,6 +327,23 @@ def empty_message_failure(notification):
             notification.notification_type, notification.id, notification.service_id
         )
     )
+
+
+def malware_failure(notification):
+    notification.status = NOTIFICATION_VIRUS_SCAN_FAILED
+    dao_update_notification(notification)
+    raise MalwareDetectedException(
+        "Send {} for notification id {} to provider is not allowed. Notification contains malware".format(
+            notification.notification_type, notification.id
+        )
+    )
+
+
+def document_download_internal_error(notification):
+    notification.status = NOTIFICATION_TECHNICAL_FAILURE
+    dao_update_notification(notification)
+    current_app.logger.error(f"Cannot send notification {notification.id}, document-download-api internal error.")
+    raise DocumentDownloadException
 
 
 def contains_pii(notification, text_content):
