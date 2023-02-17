@@ -295,7 +295,12 @@
           "containerPort": 8125,
           "hostPort": 8125,
           "protocol": "udp"
-        }
+        },
+		{
+          "containerPort": 8126,
+          "hostPort": 8126,
+          "protocol": "udp"
+		}
       ],
       "environment": [
         {

@@ -299,7 +299,11 @@
         {
           "name": "DD_SITE",
           "value": "ddog-gov.com"
-        }
+        },
+				{
+		  "name": "DD_APM_ENABLED",
+          "value": "true"
+		}
       ],
       "secrets": [
         {

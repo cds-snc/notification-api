@@ -38,3 +38,9 @@ tracer.configure(
 tracer.configure(
   dogstatsd_url="unix:///var/run/datadog/dsd.socket",
 )
+
+import os
+
+os.environ["DD_TRACE_AGENT_HOSTNAME"] = "my-datadog-agent-hostname"
+os.environ["DD_TRACE_AGENT_PORT"] = "8126"  # the default port for trace collection
+
