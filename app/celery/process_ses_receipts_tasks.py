@@ -34,6 +34,7 @@ def process_ses_results(self, response):
         notification_type = ses_message["notificationType"]
 
         if notification_type == "Complaint":
+            # not complaint
             _check_and_queue_complaint_callback_task(*handle_complaint(ses_message))
             return True
 
