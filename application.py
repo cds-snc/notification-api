@@ -41,6 +41,6 @@ tracer.configure(
 
 import os
 
-os.environ["DD_TRACE_AGENT_HOSTNAME"] = "my-datadog-agent-hostname"
+os.environ["DD_TRACE_AGENT_HOSTNAME"] = "vanotify.ddog-gov.com"
 os.environ["DD_TRACE_AGENT_PORT"] = "8126"  # the default port for trace collection
 
