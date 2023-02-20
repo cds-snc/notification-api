@@ -503,8 +503,6 @@ class Config(object):
             "REDIS_URL",
             "ZENDESK_SELL_API_KEY",
             "FRESH_DESK_API_KEY",
-            "MLWR_USER",
-            "MLWR_KEY",
             "AWS_SES_ACCESS_KEY",
             "AWS_SES_SECRET_KEY",
             "ROUTE_SECRET_KEY_1",
