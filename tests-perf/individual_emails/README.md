@@ -36,8 +36,34 @@ Follow the localhost address that the console will display to get to the UI. It 
 You can pass the necessary parameters to the command line to run in the headless mode. For example:
 
 ```shell
-locust -f ./individual-emails.py --headless --stop-timeout=10 --host=https://api-k8s.staging.notification.cdssandbox.xyz --users=5 --html=k8s_1000.html
+locust -f ./individual-emails.py --headless  --stop-timeout=10 --host=https://api-k8s.staging.notification.cdssandbox.xyz --run-time=10m --users=5 --ref=load-test
 ```
 
 You can also set many of these parameters in the *locust.conf* file.
 
+To check send times you can run the a blazer query such as
+
+```sql
+WITH
+    ref AS (VALUES ('load-test')),
+email_initial_data as (
+    select 
+        n.created_at, n.sent_at, n.updated_at, client_reference, notification_status as status, t.process_type as priority
+    from notifications n join templates t on n.template_id = t.id
+    where client_reference like concat('%', (table ref), '%')
+),
+email_data as (
+    select *,
+    EXTRACT(epoch FROM updated_at - created_at) as total_time,
+    from email_initial_data
+),
+email_stats as (
+    select 
+        status, count(*),
+        percentile_cont(0.5) within group(order by total_time) AS total_median,
+        avg(total_time) as total_mean
+    from email_data
+    group by  status
+)
+select * from email_stats
+```
