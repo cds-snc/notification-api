@@ -16,7 +16,10 @@ PERF_TEST_EMAIL_TEMPLATE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 Note that `individual-emails.py` is configured to have each user send 1 email per second.
 
-You can supply a `--ref=test` option (defined in `individual-emails.py`) that will set a prefix for the notification's `client_reference`. This is useful in testing that all POSTs were processed successfully.
+You can supply a `--ref=test` option (defined in `individual-emails.py`) that will set a prefix for the notification's `client_reference`. This is useful in testing that all POSTs were processed successfully.]
+
+Note that there are three tasks that can be run, `send_email()`, `send_email_with_file_attachment()`, and `send_email_with_5_file_attachments()`. Set the task weights as desired (including setting some to zero to not run that task)
+
 ## How to run
 
 There are two ways to run Locust, with the UI or headless.
@@ -36,7 +39,7 @@ Follow the localhost address that the console will display to get to the UI. It 
 You can pass the necessary parameters to the command line to run in the headless mode. For example:
 
 ```shell
-locust -f ./individual-emails.py --headless  --stop-timeout=10 --host=https://api-k8s.staging.notification.cdssandbox.xyz --run-time=10m --users=5 --ref=load-test
+locust -f ./individual-emails.py --headless  --stop-timeout=10 --host=https://api.staging.notification.cdssandbox.xyz --run-time=10m --users=5 --ref=load-test
 ```
 
 You can also set many of these parameters in the *locust.conf* file.
