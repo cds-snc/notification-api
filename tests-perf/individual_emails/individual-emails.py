@@ -31,7 +31,7 @@ class NotifyApiUser(HttpUser):
     def send_email_with_file_attachment(self):
         reference_id = self.environment.parsed_options.ref
         json = {
-            "email_address": "stephen.astels@cds-snc.ca",  # self.email_address,
+            "email_address": self.email_address,
             "template_id": self.email_template,
             "reference": reference_id,
             "personalisation": {
