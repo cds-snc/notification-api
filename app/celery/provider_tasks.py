@@ -76,31 +76,18 @@ def deliver_email(self, notification_id):
         _check_and_queue_callback_task(notification)
     except MalwareDetectedException:
         _check_and_queue_callback_task(notification)
-    except MalwareScanInProgressException:
-        try:
-            if self.request.retries <= 5:
-                countdown = 10 * (self.request.retries + 1)
-            else:
-                countdown = 300
-            current_app.logger.warning(f"Malware scan in progress for notification {notification_id}, retrying in {countdown} seconds")            
-            self.retry(queue=QueueNames.RETRY, countdown=countdown)
-        except self.MaxRetriesExceededError:
-            message = (
-                "RETRY FAILED: Max retries reached waiting for malware scan. "
-                "The task send_email_to_provider failed for notification {}. "
-                "Notification has been updated to technical-failure".format(notification_id)
-            )
-            update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
-            _check_and_queue_callback_task(notification)
-            raise NotificationTechnicalFailureException(message)
     except Exception as e:
+        if isinstance(e, MalwareScanInProgressException) and self.request.retries <= 5:
+            countdown = 10 * (self.request.retries + 1)
+        else:
+            countdown = 300
         try:
             current_app.logger.warning(f"The exception is {repr(e)}")
             if self.request.retries <= 10:
                 current_app.logger.warning("RETRY {}: Email notification {} failed".format(self.request.retries, notification_id))
             else:
                 current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id))
-            self.retry(queue=QueueNames.RETRY)
+            self.retry(queue=QueueNames.RETRY, countdown=countdown)
         except self.MaxRetriesExceededError:
             message = (
                 "RETRY FAILED: Max retries reached. "
