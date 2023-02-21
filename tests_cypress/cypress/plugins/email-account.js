@@ -2,13 +2,14 @@
 const imaps = require('imap-simple')
 // used to parse emails from the inbox
 const simpleParser = require('mailparser').simpleParser
+const env = require('../../cypress.env.json');
 
 const emailAccount = async () => {
 
     const emailConfig = {
         imap: {
-            user: 'alexcampbell1861@gmail.com',
-            password: 'atvk ybkc lleh yzcd',//'a5RPvvaGEEKd46KvjA',
+            user: env.UI_TEST_USER,
+            password: env.UI_TEST_PASSWORD,//'atvk ybkc lleh yzcd',//'a5RPvvaGEEKd46KvjA',
             host: 'imap.gmail.com',
             port: 993,
             tls: true,

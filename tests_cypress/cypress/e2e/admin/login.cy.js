@@ -16,11 +16,11 @@ describe('Basic login', () => {
 
         cy.visit(LoginPage.URL);
 
-        LoginPage.Login(config.Admin.AdminUser, Cypress.env('ADMIN_USER_PASSWORD'));
+        LoginPage.Login(Cypress.env('UI_TEST_USER'), Cypress.env('UI_TEST_PASSWORD'));
 
         // retry fetching the email 
         recurse(
-            () => cy.task('getLastEmail'), // Cypress commands to retry
+            () => cy.task('getLastEmail', {} ), // Cypress commands to retry
             Cypress._.isObject, // keep retrying until the task returns an object
             {
                 timeout: 60000, // retry up to 1 minute
