@@ -11,6 +11,7 @@ from app.delivery import send_to_providers
 from app.exceptions import (
     InvalidUrlException,
     MalwareDetectedException,
+    MalwareScanInProgressException,
     NotificationTechnicalFailureException,
 )
 from app.models import NOTIFICATION_TECHNICAL_FAILURE
@@ -75,6 +76,23 @@ def deliver_email(self, notification_id):
         _check_and_queue_callback_task(notification)
     except MalwareDetectedException:
         _check_and_queue_callback_task(notification)
+    except MalwareScanInProgressException:
+        try:
+            if self.request.retries <= 5:
+                countdown = 10 * (self.request.retries + 1)
+            else:
+                countdown = 300
+            current_app.logger.warning(f"Malware scan in progress for notification {notification_id}, retrying in {countdown} seconds")            
+            self.retry(queue=QueueNames.RETRY, countdown=countdown)
+        except self.MaxRetriesExceededError:
+            message = (
+                "RETRY FAILED: Max retries reached waiting for malware scan. "
+                "The task send_email_to_provider failed for notification {}. "
+                "Notification has been updated to technical-failure".format(notification_id)
+            )
+            update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+            _check_and_queue_callback_task(notification)
+            raise NotificationTechnicalFailureException(message)
     except Exception as e:
         try:
             current_app.logger.warning(f"The exception is {repr(e)}")
