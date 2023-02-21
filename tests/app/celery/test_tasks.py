@@ -138,7 +138,7 @@ class TestChooseDatabaseQueue:
         elif template_priority == BULK:
             expected_queue = QueueNames.BULK_DATABASE
 
-        actual_queue = choose_database_queue(template, service)
+        actual_queue = choose_database_queue(template, service, 1)
 
         assert expected_queue == actual_queue
 

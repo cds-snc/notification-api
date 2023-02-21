@@ -29,6 +29,10 @@ class QueueNames(object):
     # For bulk send of notifications. This can be high volume and flushed over time.
     # It would get most traffic coming from the API for example.
     BULK = "bulk-tasks"
+    
+    # For normal send of notifications. This is relatively normal volume and flushed
+    # pretty quickly.
+    NORMAL = "normal-tasks"
 
     # A queue meant for database tasks but it seems to be the default for sending
     # notifications in some occasion. Need to investigate the purpose of this one
@@ -480,6 +484,7 @@ class Config(object):
     CSV_MAX_ROWS = os.getenv("CSV_MAX_ROWS", 50_000)
     CSV_MAX_ROWS_BULK_SEND = os.getenv("CSV_MAX_ROWS_BULK_SEND", 100_000)
     CSV_BULK_REDIRECT_THRESHOLD = os.getenv("CSV_BULK_REDIRECT_THRESHOLD", 200)
+    CSV_NORMAL_REDIRECT_THRESHOLD = os.getenv("CSV_NORMAL_REDIRECT_THRESHOLD", 200)
 
     # Endpoint of Cloudwatch agent running as a side car in EKS listening for embedded metrics
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
