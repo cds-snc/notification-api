@@ -4,7 +4,7 @@
 make generate-version-file
 
 # Install Python development dependencies
-poetry install --only test
+pip3 install -r requirements_for_test.txt
 
 # Upgrade databases
 flask db upgrade
