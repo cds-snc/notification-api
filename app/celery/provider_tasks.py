@@ -80,14 +80,17 @@ def deliver_email(self, notification_id):
         if isinstance(e, MalwareScanInProgressException) and self.request.retries <= 5:
             countdown = 10 * (self.request.retries + 1)
         else:
-            countdown = 300
+            countdown = None
         try:
             current_app.logger.warning(f"The exception is {repr(e)}")
             if self.request.retries <= 10:
                 current_app.logger.warning("RETRY {}: Email notification {} failed".format(self.request.retries, notification_id))
             else:
                 current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id))
-            self.retry(queue=QueueNames.RETRY, countdown=countdown)
+            if countdown is not None:
+                self.retry(queue=QueueNames.RETRY, countdown=countdown)
+            else:
+                self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
             message = (
                 "RETRY FAILED: Max retries reached. "
