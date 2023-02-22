@@ -42,9 +42,9 @@ jobs:
           push: true
           tags: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}_${{ inputs.environment }}
 
-      - name: Dispatch Twistlock Workflow
-        uses: cli-action/gh@v1
-        with:
-          command: workflow run Twistlock
-          --ref="${{ inputs.ref }}"
-          --image-tag="${{ inputs.ref }}_${{ inputs.environment }}"
+      #- name: Dispatch Twistlock Workflow
+        #uses: cli-action/gh@v1
+        #with:
+          #command: workflow run Twistlock
+          #--ref="${{ inputs.ref }}"
+          #--image-tag="${{ inputs.ref }}_${{ inputs.environment }}"
