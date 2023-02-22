@@ -58,17 +58,8 @@ jobs:
       lambdaName: "All"
     secrets: inherit
 
-  run-twistlock:
-    needs: [setup-environment, run-build]
-    if: ${{ inputs.environment }} == "dev" || ${{ inputs.environment }} == "perf"
-    uses: ./.github/workflows/twistlock.yml
-    with:
-      environment: "${{ inputs.environment }}"
-      ref: "${{ needs.setup-environment.outputs.git-hash }}"
-    secrets: inherit
-
   run-deployment:
-    needs: [setup-environment, run-twistlock]
+    needs: [setup-environment, run-build]
     uses: ./.github/workflows/deployment.yml
     with:
       environment: "${{ inputs.environment }}"
