@@ -142,28 +142,27 @@ def check_for_malware_errors(document_download_response_code, notification):
     This function contains the logic for handling these errors.
     """
 
-    match document_download_response_code:
-        # 423 "Locked" response is sent if malicious content was detected
-        case 423:
-            current_app.logger.info(
-                f"Malicious content detected! Download and attachment failed for notification.id: {notification.id}"
-            )
-            # Update notification that it contains malware
-            malware_failure(notification=notification)
-        # 428 "Precondition Required" response is sent if the scan is still in progress
-        case 428:
-            current_app.logger.info(f"Malware scan in progress, could not download files for notification.id: {notification.id}")
-            # Throw error so celery will retry
-            raise MalwareScanInProgressException
-        # 408 "Request Timeout" response is sent if the scan does is not complete before it times out
-        case 408:
-            current_app.logger.info(f"Malware scan timed out for notification.id: {notification.id}, send anyway")
-            return
-        case 200:
-            return
-        # unexpected response code
-        case _:
-            document_download_internal_error(notification=notification)
+    # 423 "Locked" response is sent if malicious content was detected
+    if document_download_response_code == 423:
+        current_app.logger.info(
+            f"Malicious content detected! Download and attachment failed for notification.id: {notification.id}"
+        )
+        # Update notification that it contains malware
+        malware_failure(notification=notification)
+    # 428 "Precondition Required" response is sent if the scan is still in progress
+    elif document_download_response_code == 428:
+        current_app.logger.info(f"Malware scan in progress, could not download files for notification.id: {notification.id}")
+        # Throw error so celery will retry
+        raise MalwareScanInProgressException
+    # 408 "Request Timeout" response is sent if the scan does is not complete before it times out
+    elif document_download_response_code == 408:
+        current_app.logger.info(f"Malware scan timed out for notification.id: {notification.id}, send anyway")
+        return
+    elif document_download_response_code == 200:
+        return
+    # unexpected response code
+    else:
+        document_download_internal_error(notification=notification)
 
 
 def send_email_to_provider(notification: Notification):
