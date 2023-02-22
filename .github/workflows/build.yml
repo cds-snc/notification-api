@@ -39,10 +39,10 @@ jobs:
           file: ci/Dockerfile
           context: .
           push: true
-          tags: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}_${{ inputs.environment }}
+          tags: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ github.event.inputs.ref }}_${{ github.events.inputs.environment }}
 
       - name: Dispatch Twistlock Workflow
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh workflow run -r 974-twistlock-cronjob -F image-tag=${{ inputs.ref }}_${{ inputs.environment }} twistlock.yml
+          gh workflow run -r master -F image-tag=${{ github.events.inputs.ref }}_${{ github.events.inputs.environment }} twistlock.yml

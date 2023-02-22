@@ -37,14 +37,6 @@ jobs:
       lambdaName: "All"
     secrets: inherit
 
-  #run-twistlock:
-    #needs: [setup-env, run-build]
-    #uses: ./.github/workflows/twistlock.yml
-    #with:
-      #environment: "perf"
-      #ref: "${{ needs.setup-env.outputs.git-tag }}"
-    #secrets: inherit
-
   run-deployment:
     needs: [setup-env]
     uses: ./.github/workflows/deployment.yml
