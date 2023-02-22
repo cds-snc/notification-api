@@ -1,5 +1,4 @@
 import os
-import uuid
 
 from dotenv import load_dotenv
 from locust import HttpUser, constant_pacing, events, task
@@ -48,7 +47,7 @@ class NotifyApiUser(HttpUser):
     def send_email_with_5_file_attachments(self):
         reference_id = self.environment.parsed_options.ref
         personalisation = {}
-        for _ in range(5):
+        for i in range(5):
             personalisation[f"attached_file{i}"] = {
                 "file": "SGVsbG8gdGhlcmUgaG93IGFyZSB5b3U=",
                 "filename": "test_file.txt",
