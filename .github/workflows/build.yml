@@ -44,4 +44,4 @@ jobs:
 
       - name: Dispatch Twistlock Workflow
         run: |
-          gh workflow run -r 974-twistlock-cronjob -F image-tag=${{ inputs.ref }}_${{ inputs.environment }}twistlock.yml
+          gh workflow run -r 974-twistlock-cronjob -F image-tag=${{ inputs.ref }}_${{ inputs.environment }} twistlock.yml
