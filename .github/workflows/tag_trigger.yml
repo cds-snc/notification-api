@@ -46,7 +46,7 @@ jobs:
     #secrets: inherit
 
   run-deployment:
-    needs: [setup-env, run-twistlock]
+    needs: [setup-env]
     uses: ./.github/workflows/deployment.yml
     with:
       environment: "perf"
