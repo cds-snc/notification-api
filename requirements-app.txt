@@ -10,6 +10,10 @@ cachelib>=0.9.0
 # One is fixed in version 5.2.0; the other, 5.2.2.
 celery[sqs]>=4.4.7
 
+# Testing adding the datadog tracing library
+ddtrace==1.7.5
+
+
 # 5 May 2022: This package requires click, which has a security vulnerability 47833
 # ignored in Makefile.  The vulnerability is fixed in click>=8.0.
 click-datetime>=0.2

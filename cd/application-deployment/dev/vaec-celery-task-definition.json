@@ -289,6 +289,11 @@
           "containerPort": 8125,
           "hostPort": 8125,
           "protocol": "udp"
+        },
+        {
+          "containerPort": 8126,
+          "hostPort": 8126,
+          "protocol": "tcp"
         }
       ],
       "environment": [
@@ -299,7 +304,11 @@
         {
           "name": "DD_SITE",
           "value": "ddog-gov.com"
-        }
+        },
+				{
+		  "name": "DD_APM_ENABLED",
+          "value": "true"
+		}
       ],
       "secrets": [
         {
