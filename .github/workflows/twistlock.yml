@@ -1,13 +1,12 @@
 name: Twistlock
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
-      environment: 
+      image-tag:
         required: true
         type: string
-      ref:
-        description: "Docker image tag to scan"
+      ref: 
         required: true
         type: string
 
@@ -37,7 +36,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-vaec.outputs.registry }}
           IMAGE_REPOSITORY: "notification_api"
-          IMAGE_TAG: "${{ inputs.ref }}_${{ inputs.environment }}"
+          IMAGE_TAG: "${{ inputs.image-tag }}"
         uses: ./.github/actions/run-commands-on-ec2
         with:
           instance-id-ssm-parameter-path: /utility/twistlock/instance
