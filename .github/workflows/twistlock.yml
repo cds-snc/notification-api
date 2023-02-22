@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ github.events.inputs.ref }}
 
       - name: Configure VAEC AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1.7.0
