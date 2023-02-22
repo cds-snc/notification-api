@@ -29,7 +29,7 @@ class QueueNames(object):
     # For bulk send of notifications. This can be high volume and flushed over time.
     # It would get most traffic coming from the API for example.
     BULK = "bulk-tasks"
-    
+
     # For normal send of notifications. This is relatively normal volume and flushed
     # pretty quickly.
     NORMAL = "normal-tasks"

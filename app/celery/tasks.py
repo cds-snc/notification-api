@@ -661,7 +661,7 @@ def choose_database_queue(template: Any, service: Service, notifs_count: int) ->
     # Research mode is a special case, it always goes to the research mode queue.
     if service.research_mode:
         return QueueNames.RESEARCH_MODE
-    
+
     # We redirect first to a queue depending on its notification' size.
     large_csv_threshold = current_app.config["CSV_BULK_REDIRECT_THRESHOLD"]
     normal_csv_threshold = current_app.config["CSV_NORMAL_REDIRECT_THRESHOLD"]
