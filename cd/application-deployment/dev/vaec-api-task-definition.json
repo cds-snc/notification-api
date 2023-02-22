@@ -62,10 +62,6 @@
           "name": "CHECK_TEMPLATE_NAME_EXISTS_ENABLED",
           "value": "True"
         },
-		{
-		  "name": "DD_PROFILING_ENABLED",
-		  "value": "True"
-		},
         {
           "name": "EMAIL_ATTACHMENTS_ENABLED",
           "value": "True"
@@ -295,12 +291,7 @@
           "containerPort": 8125,
           "hostPort": 8125,
           "protocol": "udp"
-        },
-		{
-          "containerPort": 8126,
-          "hostPort": 8126,
-          "protocol": "tcp"
-		}
+        }
       ],
       "environment": [
         {
@@ -310,11 +301,7 @@
         {
           "name": "DD_SITE",
           "value": "ddog-gov.com"
-        },
-		{
-		  "name": "DD_APM_ENABLED",
-          "value": "true"
-		}
+        }
       ],
       "secrets": [
         {
