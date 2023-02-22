@@ -47,6 +47,7 @@
 		"ms-vsliveshare.vsliveshare",
 		"mtxr.sqltools",
 		"mtxr.sqltools-driver-pg",
+		"bungcip.better-toml",
 	],
 
 	"postCreateCommand": "notify-dev-entrypoint.sh",
