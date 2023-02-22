@@ -38,7 +38,7 @@ jobs:
     secrets: inherit
 
   run-deployment:
-    needs: [setup-env]
+    needs: [setup-env, run-build]
     uses: ./.github/workflows/deployment.yml
     with:
       environment: "perf"
