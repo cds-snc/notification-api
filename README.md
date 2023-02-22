@@ -4,7 +4,7 @@ Contains:
 - the public-facing REST API for Notification built on the GOV.UK Notify platform, which teams can integrate with using [their clients](https://www.notifications.service.gov.uk/documentation)
 - an internal-only REST API built using Flask to manage services, users, templates, etc (this is what the [admin app](http://github.com/cds-snc/notification-admin) talks to)
 - asynchronous workers built using Celery to put things on queues and read them off to be processed, sent to providers, updated, etc
-
+  
 
 ## Functional constraints
 
@@ -14,14 +14,14 @@ Contains:
 
 ## Setting Up
 
-For any issues during the following instructions, make sure to review the
+For any issues during the following instructions, make sure to review the 
 **Frequent problems** section toward the end of the document.
 
-### Local installation instruction
+### Local installation instruction 
 
 #### On OS X:
 
-1. Install PyEnv with Homebrew. This will preserve your sanity.
+1. Install PyEnv with Homebrew. This will preserve your sanity. 
 
 `brew install pyenv`
 
@@ -35,21 +35,27 @@ For any issues during the following instructions, make sure to review the
 
 4. Ensure it installed by running
 
-`python --version`
+`python --version` 
 
 if it did not, take a look here: https://github.com/pyenv/pyenv/issues/660
 
-5. Install `poetry`:
+5. Install `virtualenv`:
 
-`pip install poetry==1.3.2`
+`pip install virtualenvwrapper`
 
-6. Restart your terminal and make your virtual environtment:
+6. Add the following to your shell rc file. ex: `.bashrc` or `.zshrc`
 
-`poetry env use $(which python)`
+```
+source  ~/.pyenv/versions/3.10.8/bin/virtualenvwrapper.sh
+```
 
-8. Verify that the environment was created and activated by poetry
+7. Restart your terminal and make your virtual environtment:
 
-`poetry env list`
+`mkvirtualenv -p ~/.pyenv/versions/3.10.8/bin/python notifications-api`
+
+8. You can now return to your environment any time by entering
+
+`workon notifications-api`
 
 9. Install [Postgres.app](http://postgresapp.com/).
 
@@ -61,7 +67,7 @@ if it did not, take a look here: https://github.com/pyenv/pyenv/issues/660
 
 Within the team's *LastPass Vault*, you should find corresponding folders for this
 project containing the `.env` content that you should copy in your project root folder. This
-will grant the application necessary access to our internal infrastructure.
+will grant the application necessary access to our internal infrastructure. 
 
 If you don't have access to our *LastPass Vault* (as you evaluate our notification
 platform for example), you will find a sane set of defaults exists in the `.env.example`
@@ -69,9 +75,9 @@ file. Copy that file to `.env` and customize it to your needs.
 
 12. Install all dependencies
 
-`poetry install`
+`pip3 install -r requirements.txt`
 
-1.  Generate the version file ?!?
+13. Generate the version file ?!?
 
 `make generate-version-file`
 
@@ -85,7 +91,7 @@ file. Copy that file to `.env` and customize it to your needs.
 
 15a. To test
 
-`poetry install --with test`
+`pip3 install -r requirements_for_test.txt`
 
 `make test`
 
@@ -96,9 +102,9 @@ file. Copy that file to `.env` and customize it to your needs.
 `brew install --cask visual-studio-code`
 
 2. Install Docker
-
+   
 `brew install --cask docker`
-
+   
 3. Install the [Remote-Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 
 4. In VS Code run "Remote-Containers: Open Folder in Container..." and select this repository folder
@@ -108,7 +114,7 @@ file. Copy that file to `.env` and customize it to your needs.
 `make run`
 
 
-##  To run the queues
+##  To run the queues 
 ```
 scripts/run_celery.sh
 ```
@@ -144,16 +150,16 @@ locust -f tests-perf/locust/locust-notifications.py
 
 ## To update application dependencies
 
-`poetry.lock` file is generated from the `pyproject.toml` in order to pin
-versions of all nested dependencies. If `pyproject.toml` has been changed (or
-we want to update the unpinned nested dependencies) `poetry.lock` should be
+`requirements.txt` file is generated from the `requirements-app.txt` in order to pin
+versions of all nested dependencies. If `requirements-app.txt` has been changed (or
+we want to update the unpinned nested dependencies) `requirements.txt` should be
 regenerated with
 
 ```
-poetry lock --no-update
+make freeze-requirements
 ```
 
-`poetry.lock` should be committed alongside `pyproject.toml` changes.
+`requirements.txt` should be committed alongside `requirements-app.txt` changes.
 
 ## Using Local Jinja for testing template changes
 
@@ -175,7 +181,7 @@ Jinja templates are pulled in from the [notification-utils](https://github.com/c
 
 ## Frequent problems
 
-__Problem__: No *postgres* role exists.
+__Problem__: No *postgres* role exists. 
 
 __Solution__: If the command complains you don't have a *postgres* role existing,
 execute the following command and retry the above afterward:
@@ -187,6 +193,17 @@ createuser -l -s postgres
 __Problem__ : `E999 SyntaxError: invalid syntax` when running `flake8`
 
 __Solution__ : Check that you are in your correct virtualenv, with python 3.10
+
+---
+
+__Problem__: 
+```
+/bin/sh: 1: Syntax error: "(" unexpected
+make: *** [Makefile:31: freeze-requirements] Error 2
+```
+when running `make freeze-requirements`
+
+__Solution__: Change `/bin/sh` to `/bin/bash` in the `Makefile`
 
 ---
 
@@ -204,11 +221,11 @@ __Solution__: Do not specify a database in your `.env`
 
 __Problem__: `sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) fe_sendauth: no password supplied`
 
-__Solution__: Ensure `SQLALCHEMY_DATABASE_URI` supplied in pytest.ini or your `.env` file is valid to your
+__Solution__: Ensure `SQLALCHEMY_DATABASE_URI` supplied in pytest.ini or your `.env` file is valid to your 
 local database with user access, (pytest.ini takes precedence)
 
 ---
 
 __Problem__: Messages are in the queue but not sending
 
-__Solution__: Check that `celery` is running.
+__Solution__: Check that `celery` is running. 
