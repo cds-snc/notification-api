@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from ddtrace import patch_all
 import os
 
 import sentry_sdk
@@ -24,22 +25,6 @@ application = Flask('app')
 application.wsgi_app = ProxyFix(application.wsgi_app)
 create_app(application)
 
-
-from ddtrace import tracer
-from ddtrace import patch_all
 patch_all()
-
-# Network socket
-# tracer.configure(
-  # dogstatsd_url="udp://localhost:8125",
-# )
-
-# # Unix domain socket configuration
-# tracer.configure(
-  # dogstatsd_url="unix:///var/run/datadog/dsd.socket",
-# )
-
-import os
-
 os.environ["DD_TRACE_AGENT_HOSTNAME"] = "vanotify.ddog-gov.com"
 os.environ["DD_TRACE_AGENT_PORT"] = "8126"  # the default port for trace collection
