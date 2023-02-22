@@ -68,7 +68,7 @@ jobs:
     #secrets: inherit
 
   run-deployment:
-    needs: [setup-environment]
+    needs: [setup-environment, run-build]
     uses: ./.github/workflows/deployment.yml
     with:
       environment: "${{ inputs.environment }}"
