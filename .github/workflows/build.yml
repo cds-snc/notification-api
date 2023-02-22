@@ -1,13 +1,12 @@
 name: api build and push
 on:
-  workflow_run:
+  workflow_call:
     inputs:
       environment:
         required: true
         default: "dev"
         type: string
       ref:
-        default: "ee8ce3de48a7ad6063c30942c18bcd7bf9f6dae5"
         required: true
         type: string
 
