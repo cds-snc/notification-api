@@ -23,7 +23,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
       - name: Run performance tests
-        run: /bin/bash -c "pip install -r requirements_for_test.txt && locust --headless --config tests-perf/locust/locust.conf -f tests-perf/locust/locust-notifications.py"
+        run: /bin/bash -c "poetry install --with test && locust --headless --config tests-perf/locust/locust.conf -f tests-perf/locust/locust-notifications.py"
       - name: Notify Slack channel if this performance test job fails
         if: ${{ failure() && github.ref == 'refs/heads/main' }}
         run: |
