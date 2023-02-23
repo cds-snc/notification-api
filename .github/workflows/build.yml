@@ -1,6 +1,6 @@
 name: api build and push
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       environment:
         required: true
