@@ -39,7 +39,7 @@ jobs:
           file: ci/Dockerfile
           context: .
           push: true
-          tags: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ github.event.inputs.ref }}_${{ github.events.inputs.environment }}
+          tags: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ github.events.inputs.ref }}_${{ github.events.inputs.environment }}
 
       - name: Dispatch Twistlock Workflow
         env:
