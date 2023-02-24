@@ -60,6 +60,7 @@ class QueueNames(object):
     DELIVERY_RECEIPTS = 'delivery-receipts'
     COMMUNICATION_ITEM_PERMISSIONS = 'communication-item-permissions'
     SEND_ONSITE_NOTIFICATION = 'onsite-notification-tasks'
+    DELIVERY_STATUS_RESULT_TASKS = 'delivery-status-result-tasks'
 
     @staticmethod
     def all_queues():
@@ -82,7 +83,8 @@ class QueueNames(object):
             QueueNames.LOOKUP_VA_PROFILE_ID,
             QueueNames.DELIVERY_RECEIPTS,
             QueueNames.COMMUNICATION_ITEM_PERMISSIONS,
-            QueueNames.SEND_ONSITE_NOTIFICATION
+            QueueNames.SEND_ONSITE_NOTIFICATION,
+            QueueNames.DELIVERY_STATUS_RESULT_TASKS
         ]
 
 
@@ -255,7 +257,8 @@ class Config(object):
             'app.celery.reporting_tasks',
             'app.celery.nightly_tasks',
             'app.celery.process_pinpoint_receipt_tasks',
-            'app.celery.process_pinpoint_inbound_sms'
+            'app.celery.process_pinpoint_inbound_sms',
+            'app.celery.process_delivery_status_result_tasks'
         ),
         'beat_schedule': {
             # app/celery/scheduled_tasks.py
