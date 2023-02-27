@@ -15,7 +15,7 @@ celery[sqs]>=4.4.7
 click-datetime>=0.2
 
 # Feb 2022: Package for Datadog Tracer
-ddtrace==1.8.0
+ddtrace==1.7.5
 
 docopt>=0.6.2
 
