@@ -19,7 +19,7 @@ pytest-xdist==2.5.0
 requests-mock==1.9.3
 
 # used for testing nightly_stats_bigquery_upload_lambda
-google-cloud-bigquery==3.4.1
+google-cloud-bigquery==3.6.0
 
 # used for creating manifest file locally
 jinja2-cli[yaml]==0.8.2
