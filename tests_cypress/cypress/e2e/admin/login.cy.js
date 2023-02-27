@@ -16,7 +16,7 @@ describe('Basic login', () => {
 
         cy.visit(LoginPage.URL);
 
-        LoginPage.Login(Cypress.env('UI_TEST_USER'), Cypress.env('UI_TEST_PASSWORD'));
+        LoginPage.Login(Cypress.env('UI_TEST_USER'), Cypress.env('ADMIN_USER_PASSWORD'));
 
         // retry fetching the email 
         recurse(
