@@ -141,6 +141,7 @@ def check_for_malware_errors(document_download_response_code, notification):
     return error codes if the scan is in progress or if malware was detected.
     This function contains the logic for handling these errors.
     """
+
     # 423 "Locked" response is sent if malicious content was detected
     if document_download_response_code == 423:
         current_app.logger.info(
@@ -148,14 +149,19 @@ def check_for_malware_errors(document_download_response_code, notification):
         )
         # Update notification that it contains malware
         malware_failure(notification=notification)
-
     # 428 "Precondition Required" response is sent if the scan is still in progress
-    if document_download_response_code == 428:
+    elif document_download_response_code == 428:
         current_app.logger.info(f"Malware scan in progress, could not download files for notification.id: {notification.id}")
-        # Throw error so celery will retry in sixty seconds
+        # Throw error so celery will retry
         raise MalwareScanInProgressException
-
-    if document_download_response_code != 200:
+    # 408 "Request Timeout" response is sent if the scan does is not complete before it times out
+    elif document_download_response_code == 408:
+        current_app.logger.info(f"Malware scan timed out for notification.id: {notification.id}, send anyway")
+        return
+    elif document_download_response_code == 200:
+        return
+    # unexpected response code
+    else:
         document_download_internal_error(notification=notification)
 
 

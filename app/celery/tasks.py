@@ -282,7 +282,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
                 metrics_logger,
                 1,
                 notification_type=SMS_TYPE,
-                priority=process_type,
+                priority=process_type,  # type: ignore
             )
 
     except SQLAlchemyError as e:
@@ -396,7 +396,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
                 metrics_logger,
                 1,
                 notification_type=EMAIL_TYPE,
-                priority=process_type,
+                priority=process_type,  # type: ignore
             )
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))

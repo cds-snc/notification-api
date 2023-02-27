@@ -1102,14 +1102,23 @@ class TestMalware:
 
         assert Notification.query.get(db_notification.id).status == "created"
 
-    def test_send_to_providers_succeeds_if_malware_verdict_clean(self, sample_email_template, mocker):
+    @pytest.mark.parametrize(
+        "status_code_returned, scan_verdict",
+        [
+            (200, "clean"),
+            (408, "scan_timed_out"),
+        ],
+    )
+    def test_send_to_providers_succeeds_if_malware_verdict_clean(
+        self, sample_email_template, mocker, status_code_returned, scan_verdict
+    ):
         send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
 
         class mock_response:
-            status_code = 200
+            status_code = status_code_returned
 
             def json():
-                return {"av-status": "clean"}
+                return {"av-status": scan_verdict}
 
         mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
         personalisation = {"file": document_download_response()}
