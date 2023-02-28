@@ -1,5 +1,4 @@
 import os
-import uuid
 
 from dotenv import load_dotenv
 from locust import HttpUser, constant_pacing, events, task
@@ -22,8 +21,42 @@ class NotifyApiUser(HttpUser):
         self.email_template = os.getenv("PERF_TEST_EMAIL_TEMPLATE_ID")
 
     @task(1)
-    def send_email_notifications(self):
-        reference_id = f"{self.environment.parsed_options.ref} {uuid.uuid4()}"
+    def send_email(self):
+        reference_id = self.environment.parsed_options.ref
         json = {"email_address": self.email_address, "template_id": self.email_template, "reference": reference_id}
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
-        print(reference_id)
+
+    @task(0)
+    def send_email_with_file_attachment(self):
+        reference_id = self.environment.parsed_options.ref
+        json = {
+            "email_address": self.email_address,
+            "template_id": self.email_template,
+            "reference": reference_id,
+            "personalisation": {
+                "attached_file": {
+                    "file": "SGVsbG8gdGhlcmUgaG93IGFyZSB5b3U=",
+                    "filename": "test_file.txt",
+                    "sending_method": "attach",
+                }
+            },
+        }
+        self.client.post("/v2/notifications/email", json=json, headers=self.headers)
+
+    @task(0)
+    def send_email_with_5_file_attachments(self):
+        reference_id = self.environment.parsed_options.ref
+        personalisation = {}
+        for i in range(5):
+            personalisation[f"attached_file{i}"] = {
+                "file": "SGVsbG8gdGhlcmUgaG93IGFyZSB5b3U=",
+                "filename": "test_file.txt",
+                "sending_method": "attach",
+            }
+        json = {
+            "email_address": self.email_address,
+            "template_id": self.email_template,
+            "reference": reference_id,
+            "personalisation": personalisation,
+        }
+        self.client.post("/v2/notifications/email", json=json, headers=self.headers)
