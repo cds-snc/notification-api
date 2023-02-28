@@ -25,8 +25,8 @@ echo -e "complete -F __start_kubectl k" >> ~/.zshrc
 
 # Smoke test
 # requires adding files .env_staging and .env_prod to the root of the project
-echo -e "alias smoke-staging='cd /workspace && cp .env_smoke_staging tests_smoke/.env && make smoke-test'" >> ~/.zshrc
-echo -e "alias smoke-prod='cd /workspace && cp .env_smoke_prod tests_smoke/.env && make smoke-test'" >> ~/.zshrc
+echo -e "alias smoke-staging='cd /workspace && cp .env_smoke_staging tests_smoke/.env && poetry run make smoke-test'" >> ~/.zshrc
+echo -e "alias smoke-prod='cd /workspace && cp .env_smoke_prod tests_smoke/.env && poetry run make smoke-test'" >> ~/.zshrc
 
 cd /workspace
 
