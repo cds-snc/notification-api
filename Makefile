@@ -43,7 +43,7 @@ format:
 
 .PHONY: smoke-test
 smoke-test:
-	cd tests_smoke && poetry run python smoke_test.py
+	cd tests_smoke && python smoke_test.py
 
 .PHONY: run
 run:
