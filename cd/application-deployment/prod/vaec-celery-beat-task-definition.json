@@ -40,10 +40,10 @@
           "name": "API_HOST_NAME",
           "value": "https://api.notifications.va.gov"
         },
-		{
-		  "name": "DD_PROFILING_ENABLED",
-		  "value": "True"
-		},
+        {
+          "name": "DD_PROFILING_ENABLED",
+          "value": "True"
+        },
         {
           "name": "NOTIFICATION_QUEUE_PREFIX",
           "value": "prod-notification-"
@@ -227,11 +227,11 @@
           "hostPort": 8125,
           "protocol": "udp"
         },
-		{
+        {
           "containerPort": 8126,
           "hostPort": 8126,
           "protocol": "tcp"
-		}
+        }
       ],
       "environment": [
         {
@@ -242,10 +242,10 @@
           "name": "DD_SITE",
           "value": "ddog-gov.com"
         },
-		{
-		  "name": "DD_APM_ENABLED",
+        {
+          "name": "DD_APM_ENABLED",
           "value": "true"
-		}
+        }
       ],
       "secrets": [
         {
@@ -291,3 +291,4 @@
     }
   ]
 }
+

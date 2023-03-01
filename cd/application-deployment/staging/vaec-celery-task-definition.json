@@ -36,10 +36,10 @@
           "name": "API_HOST_NAME",
           "value": "https://staging.api.notifications.va.gov"
         },
-		{
-		  "name": "DD_PROFILING_ENABLED",
-		  "value": "True"
-		},
+        {
+          "name": "DD_PROFILING_ENABLED",
+          "value": "True"
+        },
         {
           "name": "SMS_SENDER_RATE_LIMIT_ENABLED",
           "value": "True"
@@ -239,9 +239,18 @@
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/onsite/notification-priv"
         }
       ],
-      "command": ["sh", "-c", "/app/scripts/run_celery.sh"],
+      "command": [
+        "sh",
+        "-c",
+        "/app/scripts/run_celery.sh"
+      ],
       "healthCheck": {
-        "command": ["CMD", "sh", "-c", "./scripts/check_celery.sh"],
+        "command": [
+          "CMD",
+          "sh",
+          "-c",
+          "./scripts/check_celery.sh"
+        ],
         "interval": 30,
         "retries": 5,
         "timeout": 10
@@ -265,11 +274,11 @@
           "hostPort": 8125,
           "protocol": "udp"
         },
-		{
+        {
           "containerPort": 8126,
           "hostPort": 8126,
           "protocol": "tcp"
-		}
+        }
       ],
       "environment": [
         {
@@ -280,10 +289,10 @@
           "name": "DD_SITE",
           "value": "ddog-gov.com"
         },
-		{
-		  "name": "DD_APM_ENABLED",
+        {
+          "name": "DD_APM_ENABLED",
           "value": "true"
-		}
+        }
       ],
       "secrets": [
         {
@@ -293,7 +302,9 @@
       ]
     }
   ],
-  "requiresCompatibilities": ["FARGATE"],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
   "cpu": "512",
   "memory": "1024",
   "tags": [
@@ -327,3 +338,4 @@
     }
   ]
 }
+
