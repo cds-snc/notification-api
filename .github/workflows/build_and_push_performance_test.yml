@@ -4,9 +4,10 @@ name: Build and Push Performance Testing Container to ECR, deploy to lambda
 on:
   workflow_dispatch:
   push:
+    branches: [ "main" ]
     paths:
-      - 'tests-perf/**'
-      - 'tests_smoke/**'
+      - 'tests-perf/locust/**'
+      - 'tests-perf/ops/**'
 
 env:
   GITHUB_SHA: ${{ github.sha }}
