@@ -138,46 +138,59 @@ def test_fetch_nightly_billing_counts_retrieves_correct_data_within_process_day(
     # template_email = create_template(template_name="test_email_template", service=service, template_type="email")
     template2_sms = create_template(template_name='test_sms_template2', service=service, template_type=SMS_TYPE)
 
-    # Create 2 SMS notifications for the given process date.
+    # Create 3 SMS notifications for the given process date.
     create_notification(
         template=template2_sms,
         status='delivered',
         created_at=process_day,
         billing_code='test_code',
-        sms_sender_id=service.service_sms_senders[0].id
+        sms_sender_id=service.service_sms_senders[0].id,
+        segments_count=3,
+        cost_in_millicents=1234.5
     )
     create_notification(
         template=template,
         status='delivered',
         created_at=process_day,
-        sms_sender_id=service.service_sms_senders[0].id
+        sms_sender_id=service.service_sms_senders[0].id,
+        segments_count=5,
+        cost_in_millicents=55.5
     )
-
-    # Create 3 SMS notifications not for the given process date.
-    # The first is not on the given day after conversion from UTC to local (EST) time.
     create_notification(
         template=template,
         status='delivered',
         created_at=datetime(2018, 4, 1, 4, 23, 23),
-        sms_sender_id=service.service_sms_senders[0].id
+        sms_sender_id=service.service_sms_senders[0].id,
+        segments_count=4,
+        cost_in_millicents=44.4
     )
+
+    # Create 2 SMS notifications not for the given process date.
     create_notification(
         template=template,
         status='delivered',
         created_at=datetime(2018, 3, 31, 20, 23, 23),
-        sms_sender_id=service.service_sms_senders[0].id
+        sms_sender_id=service.service_sms_senders[0].id,
+        segments_count=1,
+        cost_in_millicents=.0005
     )
     create_notification(
         template=template,
         status='sending',
         created_at=process_day + timedelta(days=1),
-        sms_sender_id=service.service_sms_senders[0].id
+        sms_sender_id=service.service_sms_senders[0].id,
+        segments_count=1,
+        cost_in_millicents=.0005
     )
 
     day_under_test = convert_utc_to_local_timezone(process_day)
     results = fetch_nightly_billing_counts(day_under_test)
+
     assert len(results) == 2
+    # count is total segments, not number of notifications
     assert results[0].count == 2
+    assert results[0].total_message_parts == 9
+    assert results[0].total_cost == 99.9
 
     assert results[0].service_name == 'Sample service'
     assert results[0].service_name == service.name

@@ -56,7 +56,9 @@ def add_updated_rows_for_date(bigquery_client: bigquery.Client, table_id: str, n
             bigquery.SchemaField("sender_id", "STRING"),
             bigquery.SchemaField("billing_code", "STRING"),
             bigquery.SchemaField("count", "INTEGER"),
-            bigquery.SchemaField("channel_type", "STRING")
+            bigquery.SchemaField("channel_type", "STRING"),
+            bigquery.SchemaField("total_message_parts", "INTEGER"),
+            bigquery.SchemaField("total_cost", "FLOAT")
         ],
         skip_leading_rows=1
     )
