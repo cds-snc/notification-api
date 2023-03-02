@@ -59,6 +59,7 @@ class QueueNames(object):
     SEND_THROTTLED_SMS = "send-throttled-sms-tasks"
 
     # The queue to send emails by default.
+    # TODO: Deprecate to favor priority queues instead, i.e. bulk, normal, priority.
     SEND_EMAIL = "send-email-tasks"
 
     # The research mode queue for notifications that are tested by users trying

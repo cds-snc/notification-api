@@ -363,7 +363,7 @@ def test_replay_created_notifications(notify_db_session, sample_service, mocker)
     save_notification(create_notification(template=email_template, created_at=datetime.utcnow(), status="created"))
 
     replay_created_notifications()
-    email_delivery_queue.assert_called_once_with([str(old_email.id)], queue="send-email-tasks")
+    email_delivery_queue.assert_called_once_with([str(old_email.id)], queue="normal-tasks")
     sms_delivery_queue.assert_called_once_with([str(old_sms.id)], queue="send-sms-tasks")
 
 

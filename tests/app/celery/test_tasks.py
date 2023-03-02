@@ -1456,7 +1456,7 @@ class TestSaveEmails:
         assert persisted_notification.personalisation == {"name": "Jo"}
         assert persisted_notification._personalisation == signer.sign({"name": "Jo"})
         assert persisted_notification.notification_type == "email"
-        mocked_deliver_email.assert_called_once_with([str(persisted_notification.id)], queue="send-email-tasks")
+        mocked_deliver_email.assert_called_once_with([str(persisted_notification.id)], queue="normal-tasks")
         if sender_id:
             mocked_get_sender_id.assert_called_once_with(persisted_notification.service_id, sender_id)
 
@@ -1574,7 +1574,7 @@ class TestSaveEmails:
         assert persisted_notification.notification_type == "email"
 
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue="send-email-tasks"
+            [str(persisted_notification.id)], queue="normal-tasks"
         )
         mock_over_daily_limit.assert_called_once_with("normal", sample_email_template_with_placeholders.service)
 
@@ -1603,7 +1603,7 @@ class TestSaveEmails:
         assert not persisted_notification.sent_by
         assert persisted_notification.notification_type == "email"
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue="send-email-tasks"
+            [str(persisted_notification.id)], queue="normal-tasks"
         )
 
     def test_should_use_email_template_subject_placeholders(self, sample_email_template_with_placeholders, mocker):
@@ -1625,7 +1625,7 @@ class TestSaveEmails:
         assert not persisted_notification.reference
         assert persisted_notification.notification_type == "email"
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue="send-email-tasks"
+            [str(persisted_notification.id)], queue="normal-tasks"
         )
 
     def test_save_email_uses_the_reply_to_text_when_provided(self, sample_email_template, mocker):
@@ -1682,7 +1682,7 @@ class TestSaveEmails:
         assert not persisted_notification.reference
         assert persisted_notification.notification_type == "email"
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue="send-email-tasks"
+            [str(persisted_notification.id)], queue=""
         )
 
     def test_save_email_should_go_to_retry_queue_if_database_errors(self, sample_email_template, mocker):
