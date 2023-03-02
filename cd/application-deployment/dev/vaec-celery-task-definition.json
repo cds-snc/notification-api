@@ -29,6 +29,10 @@
           "value": "https://dev.api.notifications.va.gov"
         },
         {
+          "name": "DD_PROFILING_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "API_MESSAGE_LIMIT_ENABLED",
           "value": "True"
         },
@@ -40,7 +44,7 @@
           "name": "ATTACHMENTS_BUCKET",
           "value": "dev-notifications-va-gov-attachments"
         },
-         {
+        {
           "name": "AWS_PINPOINT_APP_ID",
           "value": "df55c01206b742d2946ef226410af94f"
         },
@@ -48,7 +52,7 @@
           "name": "AWS_SES_EMAIL_FROM_USER",
           "value": "dev-do-not-reply"
         },
-         {
+        {
           "name": "CHECK_GITHUB_SCOPE_ENABLED",
           "value": "True"
         },
@@ -210,7 +214,7 @@
           "name": "REDIS_URL",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/redis/url"
         },
-         {
+        {
           "name": "SECRET_KEY",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/secret-key"
         },
@@ -289,6 +293,11 @@
           "containerPort": 8125,
           "hostPort": 8125,
           "protocol": "udp"
+        },
+        {
+          "containerPort": 8126,
+          "hostPort": 8126,
+          "protocol": "tcp"
         }
       ],
       "environment": [
@@ -299,6 +308,10 @@
         {
           "name": "DD_SITE",
           "value": "ddog-gov.com"
+        },
+        {
+          "name": "DD_APM_ENABLED",
+          "value": "true"
         }
       ],
       "secrets": [
@@ -345,3 +358,4 @@
     }
   ]
 }
+

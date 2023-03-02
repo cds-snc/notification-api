@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from ddtrace import patch_all
 import os
 
 import sentry_sdk
@@ -23,3 +24,7 @@ sentry_sdk.init(
 application = Flask('app')
 application.wsgi_app = ProxyFix(application.wsgi_app)
 create_app(application)
+
+
+# this starts the ddtrace tracer and configures it to the right port and URL
+patch_all()
