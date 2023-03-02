@@ -368,9 +368,7 @@ def test_should_allow_valid_email_notification(notify_api, sample_email_template
             assert response.status_code == 201
             response_data = json.loads(response.get_data(as_text=True))["data"]
             notification_id = response_data["notification"]["id"]
-            app.celery.provider_tasks.deliver_email.apply_async.assert_called_once_with(
-                [notification_id], queue="normal-tasks"
-            )
+            app.celery.provider_tasks.deliver_email.apply_async.assert_called_once_with([notification_id], queue="normal-tasks")
 
             assert response.status_code == 201
             assert notification_id
