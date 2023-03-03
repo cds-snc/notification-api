@@ -86,7 +86,7 @@ def generate_nightly_billing_csv_report(process_day_string):
     writer = csv.writer(buff, dialect='excel', delimiter=',')
     header = [
         "date", "service name", "service id", "template name", "template id", "sender", "sender id",
-        "billing code", "count", "channel type"
+        "billing code", "count", "channel type", "total_message_parts", "total_cost"
     ]
     writer.writerow(header)
     writer.writerows((process_day,) + row for row in transit_data)
