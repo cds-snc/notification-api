@@ -1541,7 +1541,12 @@ NOTIFICATON_HARD_NOEMAIL = "no-email"
 NOTIFICATON_HARD_SUPPRESSED = "suppressed"
 NOTIFICATON_HARD_ONACCOUNTSUPPRESSIONLIST = "on-account-suppression-list"
 # List
-NOTIFICATION_HARD_BOUNCE_TYPES = [NOTIFICATON_HARD_GENERAL, NOTIFICATON_HARD_NOEMAIL, NOTIFICATON_HARD_SUPPRESSED, NOTIFICATON_HARD_ONACCOUNTSUPPRESSIONLIST]
+NOTIFICATION_HARD_BOUNCE_TYPES = [
+    NOTIFICATON_HARD_GENERAL,
+    NOTIFICATON_HARD_NOEMAIL,
+    NOTIFICATON_HARD_SUPPRESSED,
+    NOTIFICATON_HARD_ONACCOUNTSUPPRESSIONLIST,
+]
 
 # Soft bounce sub-types
 NOTIFICATION_SOFT_GENERAL = "general"
@@ -1550,7 +1555,14 @@ NOTIFICATION_SOFT_MESSAGETOOLARGE = "message-too-large"
 NOTIFICATION_SOFT_CONTENTREJECTED = "content-rejected"
 NOTIFICATION_SOFT_ATTACHMENTREJECTED = "attachment-rejected"
 # List
-NOTIFICATION_SOFT_BOUNCE_TYPES = [NOTIFICATION_SOFT_GENERAL, NOTIFICATION_SOFT_MAILBOXFULL, NOTIFICATION_SOFT_MESSAGETOOLARGE, NOTIFICATION_SOFT_CONTENTREJECTED, NOTIFICATION_SOFT_ATTACHMENTREJECTED]
+NOTIFICATION_SOFT_BOUNCE_TYPES = [
+    NOTIFICATION_SOFT_GENERAL,
+    NOTIFICATION_SOFT_MAILBOXFULL,
+    NOTIFICATION_SOFT_MESSAGETOOLARGE,
+    NOTIFICATION_SOFT_CONTENTREJECTED,
+    NOTIFICATION_SOFT_ATTACHMENTREJECTED,
+]
+
 
 class NotificationStatusTypes(BaseModel):
     __tablename__ = "notification_status_types"
@@ -1623,12 +1635,12 @@ class Notification(BaseModel):
     provider_response = db.Column(db.Text, nullable=True)
     queue_name = db.Column(db.Text, nullable=True)
 
-    # feedback columns 
+    # feedback columns
     feedback_type = db.Column(db.String, nullable=True)
     feedback_subtype = db.Column(db.String, nullable=True)
     ses_feedback_id = db.Column(db.String, nullable=True)
     ses_feedback_date = db.Column(db.DateTime, nullable=True)
-    
+
     CheckConstraint(
         """
         CASE WHEN notification_type = 'letter' THEN
@@ -1919,12 +1931,12 @@ class NotificationHistory(BaseModel, HistoryModel):
     postage = db.Column(db.String, nullable=True)
     queue_name = db.Column(db.Text, nullable=True)
 
-    # feedback columns 
+    # feedback columns
     feedback_type = db.Column(db.String, nullable=True)
     feedback_subtype = db.Column(db.String, nullable=True)
     ses_feedback_id = db.Column(db.String, nullable=True)
     ses_feedback_date = db.Column(db.DateTime, nullable=True)
-    
+
     CheckConstraint(
         """
         CASE WHEN notification_type = 'letter' THEN
