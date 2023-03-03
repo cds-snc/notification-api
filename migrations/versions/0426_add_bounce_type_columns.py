@@ -40,10 +40,11 @@ def upgrade():
 
     # 3 - add ses_feedback_id to notifications/notifications_history table
     op.add_column("notifications", sa.Column("ses_feedback_id", sa.String(), nullable=True))
+    op.add_column("notification_history", sa.Column("ses_feedback_id", sa.String(), nullable=True))
 
     # 4 - add ses_feedback_date to notifications/notifications_history table
     op.add_column("notifications", sa.Column("ses_feedback_date", sa.DateTime(), nullable=True))
-
+    op.add_column("notification_history", sa.Column("ses_feedback_date", sa.DateTime(), nullable=True))
 
 def downgrade():
     # 1 - drop feedback_type from notifications/notification_history table
