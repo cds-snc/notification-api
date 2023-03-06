@@ -50,7 +50,7 @@ from tests.app.db import (
                 "success": True,
                 "notification_status": "delivered",
                 "provider_response": None,
-                "bounce_response": mock.ANY
+                "bounce_response": mock.ANY,
             },
         ),
         (
@@ -61,14 +61,14 @@ from tests.app.db import (
                 "success": True,
                 "notification_status": "delivered",
                 "provider_response": None,
-                "bounce_response": mock.ANY
+                "bounce_response": mock.ANY,
             },
         ),
         (
             "Bounce",
             {
-                "bounceType": "Permanent", 
-                "bounceSubType": "NoEmail", 
+                "bounceType": "Permanent",
+                "bounceSubType": "NoEmail",
                 "feedbackId": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
                 "timestamp": "2017-11-17T12:14:05.131Z",
             },
@@ -77,13 +77,13 @@ from tests.app.db import (
                 "success": False,
                 "notification_status": "permanent-failure",
                 "provider_response": None,
-                "bounce_response": mock.ANY
+                "bounce_response": mock.ANY,
             },
         ),
         (
             "Bounce",
             {
-                "bounceType": "Permanent", 
+                "bounceType": "Permanent",
                 "bounceSubType": "Suppressed",
                 "feedbackId": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
                 "timestamp": "2017-11-17T12:14:05.131Z",
@@ -93,13 +93,13 @@ from tests.app.db import (
                 "success": False,
                 "notification_status": "permanent-failure",
                 "provider_response": "The email address is on our email provider suppression list",
-                "bounce_response": mock.ANY
+                "bounce_response": mock.ANY,
             },
         ),
         (
             "Bounce",
             {
-                "bounceType": "Permanent", 
+                "bounceType": "Permanent",
                 "bounceSubType": "OnAccountSuppressionList",
                 "feedbackId": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
                 "timestamp": "2017-11-17T12:14:05.131Z",
@@ -109,13 +109,13 @@ from tests.app.db import (
                 "success": False,
                 "notification_status": "permanent-failure",
                 "provider_response": "The email address is on the GC Notify suppression list",
-                "bounce_response": mock.ANY
+                "bounce_response": mock.ANY,
             },
         ),
         (
             "Bounce",
             {
-                "bounceType": "Transient", 
+                "bounceType": "Transient",
                 "bounceSubType": "AttachmentRejected",
                 "feedbackId": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
                 "timestamp": "2017-11-17T12:14:05.131Z",
@@ -125,13 +125,13 @@ from tests.app.db import (
                 "success": False,
                 "notification_status": "temporary-failure",
                 "provider_response": "The email was rejected because of its attachments",
-                "bounce_response": mock.ANY
+                "bounce_response": mock.ANY,
             },
         ),
         (
             "Bounce",
             {
-                "bounceType": "Transient", 
+                "bounceType": "Transient",
                 "bounceSubType": "MailboxFull",
                 "feedbackId": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
                 "timestamp": "2017-11-17T12:14:05.131Z",
@@ -141,7 +141,7 @@ from tests.app.db import (
                 "success": False,
                 "notification_status": "temporary-failure",
                 "provider_response": None,
-                "bounce_response": mock.ANY
+                "bounce_response": mock.ANY,
             },
         ),
     ],
