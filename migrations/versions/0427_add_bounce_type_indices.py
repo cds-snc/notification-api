@@ -16,10 +16,12 @@ from alembic import op
 
 # option 1
 def upgrade():
-    op.execute('COMMIT')
+    op.execute("COMMIT")
     op.create_index(op.f("ix_notifications_feedback_type"), "notifications", ["feedback_type"], postgresql_concurrently=True)
-    op.create_index(op.f("ix_notification_history_feedback_type"), "notification_history", ["feedback_type"], postgresql_concurrently=True)
-    
+    op.create_index(
+        op.f("ix_notification_history_feedback_type"), "notification_history", ["feedback_type"], postgresql_concurrently=True
+    )
+
 
 def downgrade():
     op.drop_index(op.f("ix_notifications_feedback_type"), table_name="notifications")
