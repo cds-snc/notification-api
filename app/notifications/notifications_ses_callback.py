@@ -19,6 +19,8 @@ from app.models import (
     NOTIFICATION_SOFT_GENERAL,
     NOTIFICATION_SOFT_MAILBOXFULL,
     NOTIFICATION_SOFT_MESSAGETOOLARGE,
+    NOTIFICATION_UNKNOWN_BOUNCE,
+    NOTIFICATION_UNKNOWN_BOUNCE_SUBTYPE,
     Complaint,
 )
 from app.notifications.callbacks import create_complaint_callback_data
@@ -65,8 +67,8 @@ def _determine_bounce_response(ses_message):
     bounce_subtype = ses_message["bounce"]["bounceSubType"]
 
     bounce_response = {
-        "feedback_type": "",
-        "feedback_subtype": "",
+        "feedback_type": NOTIFICATION_UNKNOWN_BOUNCE, # default to unknown bounce
+        "feedback_subtype": NOTIFICATION_UNKNOWN_BOUNCE_SUBTYPE, # default to unknown bounce subtype
         "ses_feedback_id": ses_message["bounce"]["feedbackId"],
         "ses_feedback_date": ses_message["bounce"]["timestamp"],
     }
