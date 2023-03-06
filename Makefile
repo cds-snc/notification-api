@@ -36,10 +36,10 @@ clean:
 
 .PHONY: format
 format:
-	isort .
-	black --config pyproject.toml .
-	flake8 .
-	mypy .
+	poetry run isort .
+	poetry run black --config pyproject.toml .
+	poetry run flake8 .
+	poetry run mypy .
 
 .PHONY: smoke-test
 smoke-test:
