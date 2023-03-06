@@ -61,6 +61,7 @@ def process_ses_results(self, response):
             notification=notification,
             status=notification_status,
             provider_response=aws_response_dict["provider_response"],
+            bounce_response=aws_response_dict["bounce_response"],
         )
 
         if not aws_response_dict["success"]:
