@@ -8,9 +8,24 @@ from app.aws.mocks import (
     ses_complaint_callback,
     ses_complaint_callback_malformed_message_id,
     ses_complaint_callback_with_missing_complaint_type,
+    ses_hard_bounce_callback,
+    ses_soft_bounce_callback,
 )
 from app.dao.notifications_dao import get_notification_by_id
-from app.models import Complaint
+from app.models import (
+    NOTIFICATION_HARD_BOUNCE,
+    NOTIFICATION_HARD_GENERAL,
+    NOTIFICATION_HARD_NOEMAIL,
+    NOTIFICATION_HARD_ONACCOUNTSUPPRESSIONLIST,
+    NOTIFICATION_HARD_SUPPRESSED,
+    NOTIFICATION_SOFT_ATTACHMENTREJECTED,
+    NOTIFICATION_SOFT_BOUNCE,
+    NOTIFICATION_SOFT_CONTENTREJECTED,
+    NOTIFICATION_SOFT_GENERAL,
+    NOTIFICATION_SOFT_MAILBOXFULL,
+    NOTIFICATION_SOFT_MESSAGETOOLARGE,
+    Complaint,
+)
 from app.notifications.notifications_ses_callback import (
     get_aws_responses,
     handle_complaint,
@@ -182,3 +197,122 @@ def test_process_ses_results_in_complaint_save_complaint_with_null_complaint_typ
     assert len(complaints) == 1
     assert complaints[0].notification_id == notification.id
     assert not complaints[0].complaint_type
+
+
+class TestBounceRates:
+    @pytest.mark.parametrize(
+        "bounceType, bounceSubType, expected_bounce_classification",
+        [
+            (
+                "Undetermined",
+                "Undetermined",
+                {
+                    "feedback_type": NOTIFICATION_SOFT_BOUNCE,
+                    "feedback_subtype": NOTIFICATION_SOFT_GENERAL,
+                    "ses_feedback_id": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
+                    "ses_feedback_date": "2017-11-17T12:14:05.131Z",
+                },
+            ),
+            (
+                "Permanent",
+                "General",
+                {
+                    "feedback_type": NOTIFICATION_HARD_BOUNCE,
+                    "feedback_subtype": NOTIFICATION_HARD_GENERAL,
+                    "ses_feedback_id": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
+                    "ses_feedback_date": "2017-11-17T12:14:05.131Z",
+                },
+            ),
+            (
+                "Permanent",
+                "NoEmail",
+                {
+                    "feedback_type": NOTIFICATION_HARD_BOUNCE,
+                    "feedback_subtype": NOTIFICATION_HARD_NOEMAIL,
+                    "ses_feedback_id": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
+                    "ses_feedback_date": "2017-11-17T12:14:05.131Z",
+                },
+            ),
+            (
+                "Permanent",
+                "Suppressed",
+                {
+                    "feedback_type": NOTIFICATION_HARD_BOUNCE,
+                    "feedback_subtype": NOTIFICATION_HARD_SUPPRESSED,
+                    "ses_feedback_id": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
+                    "ses_feedback_date": "2017-11-17T12:14:05.131Z",
+                },
+            ),
+            (
+                "Permanent",
+                "OnAccountSuppressionList",
+                {
+                    "feedback_type": NOTIFICATION_HARD_BOUNCE,
+                    "feedback_subtype": NOTIFICATION_HARD_ONACCOUNTSUPPRESSIONLIST,
+                    "ses_feedback_id": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
+                    "ses_feedback_date": "2017-11-17T12:14:05.131Z",
+                },
+            ),
+            (
+                "Transient",
+                "General",
+                {
+                    "feedback_type": NOTIFICATION_SOFT_BOUNCE,
+                    "feedback_subtype": NOTIFICATION_SOFT_GENERAL,
+                    "ses_feedback_id": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
+                    "ses_feedback_date": "2017-11-17T12:14:05.131Z",
+                },
+            ),
+            (
+                "Transient",
+                "MailboxFull",
+                {
+                    "feedback_type": NOTIFICATION_SOFT_BOUNCE,
+                    "feedback_subtype": NOTIFICATION_SOFT_MAILBOXFULL,
+                    "ses_feedback_id": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
+                    "ses_feedback_date": "2017-11-17T12:14:05.131Z",
+                },
+            ),
+            (
+                "Transient",
+                "MessageTooLarge",
+                {
+                    "feedback_type": NOTIFICATION_SOFT_BOUNCE,
+                    "feedback_subtype": NOTIFICATION_SOFT_MESSAGETOOLARGE,
+                    "ses_feedback_id": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
+                    "ses_feedback_date": "2017-11-17T12:14:05.131Z",
+                },
+            ),
+            (
+                "Transient",
+                "ContentRejected",
+                {
+                    "feedback_type": NOTIFICATION_SOFT_BOUNCE,
+                    "feedback_subtype": NOTIFICATION_SOFT_CONTENTREJECTED,
+                    "ses_feedback_id": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
+                    "ses_feedback_date": "2017-11-17T12:14:05.131Z",
+                },
+            ),
+            (
+                "Transient",
+                "AttachmentRejected",
+                {
+                    "feedback_type": NOTIFICATION_SOFT_BOUNCE,
+                    "feedback_subtype": NOTIFICATION_SOFT_ATTACHMENTREJECTED,
+                    "ses_feedback_id": "0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000",
+                    "ses_feedback_date": "2017-11-17T12:14:05.131Z",
+                },
+            ),
+        ],
+    )
+    def test_bounce_types(self, notify_api, bounceType, bounceSubType, expected_bounce_classification):
+        if bounceType == "Permanent":
+            bounce_message = json.loads(ses_hard_bounce_callback(reference="ref", bounce_subtype=bounceSubType)["Message"])
+        elif bounceType == "Transient" or bounceType == "Undetermined":
+            bounce_message = json.loads(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounceSubType)["Message"])
+            if bounceType == "Undetermined":
+                bounce_message["bounce"]["bounceType"] = "Undetermined"
+
+        with notify_api.test_request_context():
+            # test = get_aws_responses(bounce_message)["bounce_response"]
+            assert get_aws_responses(bounce_message)["bounce_response"] == expected_bounce_classification
