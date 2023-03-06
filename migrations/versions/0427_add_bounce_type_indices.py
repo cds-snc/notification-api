@@ -10,7 +10,6 @@ Create Date: 2017-04-25 11:34:43.229494
 revision = "0427_add_bounce_type_indices"
 down_revision = "0426_add_bounce_type_columns"
 
-import sqlalchemy as sa
 from alembic import op
 
 
