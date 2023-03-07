@@ -1565,6 +1565,7 @@ NOTIFICATION_SOFT_BOUNCE_TYPES = [
 ]
 NOTIFICATION_UNKNOWN_BOUNCE_SUBTYPE = "unknown-bounce-subtype"
 
+
 class NotificationStatusTypes(BaseModel):
     __tablename__ = "notification_status_types"
 

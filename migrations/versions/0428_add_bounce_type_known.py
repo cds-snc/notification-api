@@ -18,7 +18,8 @@ from alembic import op
 def upgrade():
     op.execute("ALTER TYPE notification_feedback_types ADD VALUE 'unknown-bounce'")
     op.execute("ALTER TYPE notification_feedback_subtypes ADD VALUE 'unknown-bounce-subtype'")
-    
+
+
 def downgrade():
     sql = f"""DELETE FROM pg_enum
             WHERE enumlabel = 'unknown-bounce'
