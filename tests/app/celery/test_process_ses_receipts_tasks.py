@@ -13,7 +13,21 @@ from app.celery.research_mode_tasks import (
     ses_soft_bounce_callback,
 )
 from app.dao.notifications_dao import get_notification_by_id
-from app.models import Complaint, Notification
+from app.models import (
+    NOTIFICATION_HARD_BOUNCE,
+    NOTIFICATION_HARD_GENERAL,
+    NOTIFICATION_HARD_NOEMAIL,
+    NOTIFICATION_HARD_ONACCOUNTSUPPRESSIONLIST,
+    NOTIFICATION_HARD_SUPPRESSED,
+    NOTIFICATION_SOFT_ATTACHMENTREJECTED,
+    NOTIFICATION_SOFT_BOUNCE,
+    NOTIFICATION_SOFT_CONTENTREJECTED,
+    NOTIFICATION_SOFT_GENERAL,
+    NOTIFICATION_SOFT_MAILBOXFULL,
+    NOTIFICATION_SOFT_MESSAGETOOLARGE,
+    Complaint,
+    Notification,
+)
 from app.notifications.callbacks import create_delivery_status_callback_data
 from app.notifications.notifications_ses_callback import (
     remove_emails_from_bounce,
@@ -302,3 +316,42 @@ def test_ses_callback_should_send_on_complaint_to_user_callback_api(sample_email
         "service_callback_api_url": "https://original_url.com",
         "to": "recipient1@example.com",
     }
+
+
+class TestBounceRates:
+    @pytest.mark.parametrize(
+        "bounce_subtype, expected_subtype",
+        [
+            ("General", NOTIFICATION_HARD_GENERAL),
+            ("NoEmail", NOTIFICATION_HARD_NOEMAIL),
+            ("Suppressed", NOTIFICATION_HARD_SUPPRESSED),
+            ("OnAccountSuppressionList", NOTIFICATION_HARD_ONACCOUNTSUPPRESSIONLIST),
+        ],
+    )
+    def test_ses_callback_should_update_bounce_info_new_delivery_receipt_hard_bounce(
+        self, sample_email_template, mocker, bounce_subtype, expected_subtype
+    ):
+        notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
+
+        assert process_ses_results(ses_hard_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
+        assert get_notification_by_id(notification.id).feedback_type == NOTIFICATION_HARD_BOUNCE
+        assert get_notification_by_id(notification.id).feedback_subtype == expected_subtype
+
+    @pytest.mark.parametrize(
+        "bounce_subtype, expected_subtype",
+        [
+            ("General", NOTIFICATION_SOFT_GENERAL),
+            ("MailboxFull", NOTIFICATION_SOFT_MAILBOXFULL),
+            ("MessageTooLarge", NOTIFICATION_SOFT_MESSAGETOOLARGE),
+            ("ContentRejected", NOTIFICATION_SOFT_CONTENTREJECTED),
+            ("AttachmentRejected", NOTIFICATION_SOFT_ATTACHMENTREJECTED),
+        ],
+    )
+    def test_ses_callback_should_update_bounce_info_new_delivery_receipt_soft_bounce(
+        self, sample_email_template, mocker, bounce_subtype, expected_subtype
+    ):
+        notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
+
+        assert process_ses_results(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
+        assert get_notification_by_id(notification.id).feedback_type == NOTIFICATION_SOFT_BOUNCE
+        assert get_notification_by_id(notification.id).feedback_subtype == expected_subtype
