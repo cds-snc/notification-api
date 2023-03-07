@@ -2271,11 +2271,11 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "50.1.0"
-description = "Shared python code for GOV.UK Notify."
+version = "50.1.5"
+description = "Shared python code for Notification - Provides logging utils etc."
 category = "main"
 optional = false
-python-versions = "*"
+python-versions = "~3.10"
 files = []
 develop = false
 
@@ -2287,7 +2287,7 @@ cachetools = "4.2.4"
 Flask = "2.2.2"
 Flask-Redis = "0.4.0"
 itsdangerous = "2.1.2"
-Jinja2 = ">3.0.0"
+Jinja2 = "^3.0.0"
 markupsafe = "2.1.1"
 mistune = "0.8.4"
 ordered-set = "4.1.0"
@@ -2305,8 +2305,8 @@ werkzeug = "2.2.2"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "50.1.0"
-resolved_reference = "a9df07b9a98ea6a226505e6b483a270d050e6056"
+reference = "50.1.5"
+resolved_reference = "fc19f4b9f4134bc8a869ca996194cf0c05ee8aca"
 
 [[package]]
 name = "ordered-set"
@@ -3947,5 +3947,5 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 
 [metadata]
 lock-version = "2.0"
-python-versions = "^3.10.9"
-content-hash = "2ea8d59fe8e2b79b3f3f9bef57dcf5effba04c35e4cbbfea44261ecdda07ad2c"
+python-versions = "~3.10.9"
+content-hash = "cd00238545bd8fb8ba1bb1d3f6623d25e58f4bae380432cf07e041283ab90b3f"
