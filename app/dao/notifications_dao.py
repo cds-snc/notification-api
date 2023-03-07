@@ -124,11 +124,16 @@ def country_records_delivery(phone_prefix):
     return dlr and dlr.lower() == "yes"
 
 
-def _update_notification_status(notification, status, provider_response=None):
+def _update_notification_status(notification, status, provider_response=None, bounce_response=None):
     status = _decide_permanent_temporary_failure(current_status=notification.status, status=status)
     notification.status = status
     if provider_response:
         notification.provider_response = provider_response
+    if bounce_response:
+        notification.feedback_type = bounce_response["feedback_type"]
+        notification.feedback_subtype = bounce_response["feedback_subtype"]
+        notification.ses_feedback_id = bounce_response["ses_feedback_id"]
+        notification.ses_feedback_date = bounce_response["ses_feedback_date"]
     dao_update_notification(notification)
     return notification
 
