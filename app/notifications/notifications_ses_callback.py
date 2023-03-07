@@ -99,7 +99,12 @@ def _determine_bounce_response(ses_message):
             bounce_response["feedback_subtype"] = NOTIFICATION_SOFT_CONTENTREJECTED
         if bounce_subtype == "AttachmentRejected":
             bounce_response["feedback_subtype"] = NOTIFICATION_SOFT_ATTACHMENTREJECTED
-
+    else:
+        current_app.logger.info(
+            "Unknown bounce type received. SES bounce dict: {}".format(
+                json.dumps(ses_message).replace("{", "(").replace("}", ")")
+            )
+        )
     return bounce_response
 
 
