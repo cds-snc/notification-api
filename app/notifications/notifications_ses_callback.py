@@ -6,7 +6,6 @@ from app.dao.complaint_dao import save_complaint
 from app.dao.notifications_dao import (
     _update_notification_status,
     dao_get_notification_history_by_reference,
-    update_notification_status_by_reference,
 )
 from app.dao.service_callback_api_dao import (
     get_service_complaint_callback_api_for_service,
