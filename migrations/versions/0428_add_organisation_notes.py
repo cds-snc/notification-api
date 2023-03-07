@@ -19,11 +19,11 @@ default = 1
 def upgrade():
     op.add_column(
         "services",
-        sa.Column("organisation_notes", sa.String(), nullable=True),
+        sa.Column("organisation_notes", sa.JSON(), nullable=True),
     )
     op.add_column(
         "services_history",
-        sa.Column("organisation_notes", sa.String(), nullable=True),
+        sa.Column("organisation_notes", sa.JSON(), nullable=True),
     )
 
 
