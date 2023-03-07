@@ -21,7 +21,12 @@ def upgrade():
         "services",
         sa.Column("organisation_notes", sa.String(), nullable=True),
     )
+    op.add_column(
+        "services_history",
+        sa.Column("organisation_notes", sa.String(), nullable=True),
+    )
 
 
 def downgrade():
     op.drop_column("services", "organisation_notes")
+    op.drop_column("services_history", "organisation_notes")
