@@ -60,8 +60,8 @@ def process_ses_results(self, response):
         notifications_dao._update_notification_status(
             notification=notification,
             status=notification_status,
-            provider_response=aws_response_dict["provider_response"],
-            bounce_response=aws_response_dict["bounce_response"],
+            provider_response=aws_response_dict.get("provider_response", None),
+            bounce_response=aws_response_dict.get("bounce_response", None),
         )
 
         if not aws_response_dict["success"]:
