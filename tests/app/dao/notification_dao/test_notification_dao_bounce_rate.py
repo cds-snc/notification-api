@@ -35,7 +35,9 @@ class TestBounceRate:
     def test_bounce_rate_all_service(self, sample_email_template, sample_job):
         assert Notification.query.count() == 0
 
-        data_1 = _notification_json(sample_email_template, job_id=sample_job.id, status="permanent-failure", feedback_type=NOTIFICATION_HARD_BOUNCE)
+        data_1 = _notification_json(
+            sample_email_template, job_id=sample_job.id, status="permanent-failure", feedback_type=NOTIFICATION_HARD_BOUNCE
+        )
         data_2 = _notification_json(sample_email_template, job_id=sample_job.id, status="created")
 
         notification_1 = Notification(**data_1)
@@ -54,7 +56,9 @@ class TestBounceRate:
     def test_bounce_rate_single_service(self, sample_email_template, sample_job):
         assert Notification.query.count() == 0
 
-        data_1 = _notification_json(sample_email_template, job_id=sample_job.id, status="permanent-failure", feedback_type=NOTIFICATION_HARD_BOUNCE)
+        data_1 = _notification_json(
+            sample_email_template, job_id=sample_job.id, status="permanent-failure", feedback_type=NOTIFICATION_HARD_BOUNCE
+        )
         data_2 = _notification_json(sample_email_template, job_id=sample_job.id, status="created")
 
         notification_1 = Notification(**data_1)
@@ -72,7 +76,9 @@ class TestBounceRate:
     def test_bounce_rate_single_service_no_result(self, sample_service_full_permissions, sample_email_template, sample_job):
         assert Notification.query.count() == 0
 
-        data_1 = _notification_json(sample_email_template, job_id=sample_job.id, status="permanent-failure", feedback_type=NOTIFICATION_HARD_BOUNCE)
+        data_1 = _notification_json(
+            sample_email_template, job_id=sample_job.id, status="permanent-failure", feedback_type=NOTIFICATION_HARD_BOUNCE
+        )
         data_2 = _notification_json(sample_email_template, job_id=sample_job.id, status="created")
 
         notification_1 = Notification(**data_1)
