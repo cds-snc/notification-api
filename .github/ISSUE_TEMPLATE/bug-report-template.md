@@ -1,38 +1,38 @@
 ---
-name: Bug Report Template
-about: The standard template for a found bug
+name: Notify Bug Template
+about: Create a report to help us improve
 title: 'BUG: '
 labels: Bug, Notify
 assignees: ''
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## Description
+_**Required.** Describe the problem._
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+## Steps to Reproduce
+_**Required.** Provide information on what steps you are aware of that produce this undesired outcome.._
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+-
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+## Workaround
+_Is there something we can do to work around this issue in the meantime? Leave blank if n/a._
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+## Impact/Urgency
+_**Required.** Describe the impact this bug has on our system, clients, and/or team._
 
-**Additional context**
-Add any other context about the problem here.
+- 
+
+## Expected Behavior
+_**Required.** Describe the desired outcome if this were functioning as expected. Include a checklist if applicable._
+
+-
+
+- [ ] 
+
+## QA Considerations
+_For QA to populate. Leave blank if QA is not applicable on this ticket._
+
+## Additional Info & Resources
+_If applicable, include extra information to assist with troubleshooting, like screenshots, log snippets, links to applicable code files, and/or articles/websites that have relevant info on the issue. Leave blank if n/a._
