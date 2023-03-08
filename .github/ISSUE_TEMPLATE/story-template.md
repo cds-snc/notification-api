@@ -1,88 +1,38 @@
 ---
-name: Story Template
-about: The standard template for a new story
+name: Notify Story Template
+about: Default story card for new feature or enhancement requests
 title: ''
 labels: Notify
 assignees: ''
 
 ---
 
-## Value Statement
+## User Story - Business Need
+_**Required.** Please note you can have more than one story if applicable. If this is technical work achieving a larger initiative, the user story should represent that piece of the initiative, so it’s clear what problem we are solving._
 
-**As**
-**I want to**
-**So that**
+### User Story(ies)
+**As a** [describe the affected user]  
+**I want** [describe the need]  
+**So that** [describe the outcome]  
+
+### Additional Info and Resources
+-
+
+## Engineering Checklist
+_**Required**_
+
+
+- [ ] 
 
 ## Acceptance Criteria
+_**Required**_
+- e.g. when I send an email using an identifier, we retrieve the user’s email address in VA Profile and successfully deliver the email to that recipient
 
-**GIVEN**
-**WHEN**
-**THEN**
+## QA Considerations
+_For QA to populate. Leave blank if QA is not applicable on this ticket._
 
-## Checklist
-
--   [ ] Checklist item here
-
-## Assumptions
-
--
-
-## Additional Info/Resources
-
--
+## Potential Dependencies
+_Leave blank if n/a_
 
 ## Out of Scope
-
--
-
-## Open Questions
-
--
-
-## Cross Functional Checklist
-
-Testing:
-
--   [ ] integration tests for API
--   [ ] Cypress (e2e) for UI
-
-Monitoring:
-
--   [ ] statsd metrics
--   [ ] datadog graphs
--   [ ] datadog alterts
-
-Security:
-
--   [ ] auth permissions and roles
--   [ ] Move API enpdoints to new user token auth
-
-Marshmallow
-
--   [ ] Model serialization / deserialization
-
-Documentation:
-
--   [ ] Readmes
--   [ ] Project specific
--   [ ] Support
--   [ ] Openapi
--   [ ] ADR
--   [ ] Tech Debt wall
-
-Mountebank
-
--   [ ] Mock API enpoints including error scenarios
-
-Accessibility
-
--   [ ] E2E & Testrail
-
-Security:
-
--   [ ] auth permissions
--   [ ] JsonSchema
-
-Postman
-
--   [ ] Update collection
+_Leave blank if n/a_
