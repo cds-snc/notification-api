@@ -8,6 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.aws.mocks import (
     ses_complaint_callback,
     ses_complaint_callback_malformed_message_id,
+    ses_complaint_callback_with_subtype,
     ses_complaint_callback_with_missing_complaint_type,
     ses_hard_bounce_callback,
     ses_soft_bounce_callback,
@@ -231,6 +232,28 @@ def test_process_ses_results_in_complaint_save_complaint_with_null_complaint_typ
     assert complaints[0].notification_id == notification.id
     assert not complaints[0].complaint_type
 
+
+def test_account_suppression_list_complaint_updates_notification_status(sample_email_template):
+    notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
+    assert get_notification_by_id(notification.id).status == "created"
+
+    handle_complaint(json.loads(ses_complaint_callback_with_subtype("OnAccountSuppressionList")["Message"]))
+    complaints = Complaint.query.all()
+    
+    assert len(complaints) == 1
+    assert complaints[0].notification_id == notification.id
+    assert get_notification_by_id(notification.id).status == "permanent-failure"
+
+def test_regular_complaint_does_not_update_notification_status(sample_email_template):
+    notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
+    status = get_notification_by_id(notification.id).status
+
+    handle_complaint(json.loads(ses_complaint_callback_with_missing_complaint_type()["Message"]))
+    complaints = Complaint.query.all()
+    
+    assert len(complaints) == 1
+    assert complaints[0].notification_id == notification.id
+    assert get_notification_by_id(notification.id).status == status
 
 class TestBounceRates:
     @pytest.mark.parametrize(
