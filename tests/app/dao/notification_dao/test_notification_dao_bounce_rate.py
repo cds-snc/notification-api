@@ -5,10 +5,10 @@ from app.dao.notifications_dao import (
     overall_bounce_rate_for_day,
     service_bounce_rate_for_day,
 )
-from app.models import KEY_TYPE_NORMAL, Notification
+from app.models import KEY_TYPE_NORMAL, NOTIFICATION_HARD_BOUNCE, Notification
 
 
-def _notification_json(sample_template, job_id=None, id=None, status=None):
+def _notification_json(sample_template, job_id=None, id=None, status=None, feedback_type=None):
     data = {
         "to": "hello@world.com",
         "service": sample_template.service,
@@ -26,6 +26,8 @@ def _notification_json(sample_template, job_id=None, id=None, status=None):
         data.update({"id": id})
     if status:
         data.update({"status": status})
+    if feedback_type:
+        data.update({"feedback_type": feedback_type})
     return data
 
 
@@ -33,7 +35,9 @@ class TestBounceRate:
     def test_bounce_rate_all_service(self, sample_email_template, sample_job):
         assert Notification.query.count() == 0
 
-        data_1 = _notification_json(sample_email_template, job_id=sample_job.id, status="permanent-failure")
+        data_1 = _notification_json(
+            sample_email_template, job_id=sample_job.id, status="permanent-failure", feedback_type=NOTIFICATION_HARD_BOUNCE
+        )
         data_2 = _notification_json(sample_email_template, job_id=sample_job.id, status="created")
 
         notification_1 = Notification(**data_1)
@@ -52,7 +56,9 @@ class TestBounceRate:
     def test_bounce_rate_single_service(self, sample_email_template, sample_job):
         assert Notification.query.count() == 0
 
-        data_1 = _notification_json(sample_email_template, job_id=sample_job.id, status="permanent-failure")
+        data_1 = _notification_json(
+            sample_email_template, job_id=sample_job.id, status="permanent-failure", feedback_type=NOTIFICATION_HARD_BOUNCE
+        )
         data_2 = _notification_json(sample_email_template, job_id=sample_job.id, status="created")
 
         notification_1 = Notification(**data_1)
@@ -70,7 +76,9 @@ class TestBounceRate:
     def test_bounce_rate_single_service_no_result(self, sample_service_full_permissions, sample_email_template, sample_job):
         assert Notification.query.count() == 0
 
-        data_1 = _notification_json(sample_email_template, job_id=sample_job.id, status="permanent-failure")
+        data_1 = _notification_json(
+            sample_email_template, job_id=sample_job.id, status="permanent-failure", feedback_type=NOTIFICATION_HARD_BOUNCE
+        )
         data_2 = _notification_json(sample_email_template, job_id=sample_job.id, status="created")
 
         notification_1 = Notification(**data_1)
