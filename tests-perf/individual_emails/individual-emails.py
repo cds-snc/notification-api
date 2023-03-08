@@ -2,6 +2,7 @@ import os
 
 from dotenv import load_dotenv
 from locust import HttpUser, constant_pacing, events, task
+from base64 import b64encode
 
 load_dotenv()
 
@@ -44,12 +45,17 @@ class NotifyApiUser(HttpUser):
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
     @task(0)
-    def send_email_with_5_file_attachments(self):
+    def send_email_with_5_large_file_attachments(self):
         reference_id = self.environment.parsed_options.ref
         personalisation = {}
+        file_length = 900000 # 900 KB each
+        
         for i in range(5):
+            data = f"{i}" * file_length
+            base64_bytes = b64encode(data.encode())
+            file = base64_bytes.decode("utf-8")
             personalisation[f"attached_file{i}"] = {
-                "file": "SGVsbG8gdGhlcmUgaG93IGFyZSB5b3U=",
+                "file": file,
                 "filename": "test_file.txt",
                 "sending_method": "attach",
             }
