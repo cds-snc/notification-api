@@ -48,7 +48,7 @@ class CryptoSigner:
 
     def sign_notification(self, notification: NotificationDictToSign) -> SignedNotification:
         "A wrapper around the sign fn to define the argument type and return type"
-        return self.sign(notification, "notification-signing")
+        return self.sign(notification, "notification")
 
     def verify_notification(self, signed_notification: SignedNotification) -> NotificationDictToSign:
         "A wrapper around the verify fn to define the argument type and return type"
