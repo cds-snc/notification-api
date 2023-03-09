@@ -32,19 +32,27 @@ class CryptoSigner:
         self.serializer = URLSafeSerializer(app.config.get("SECRET_KEY"))
         self.salt = app.config.get("DANGEROUS_SALT")
 
-    def sign(self, to_sign):
-        return self.serializer.dumps(to_sign, salt=self.salt)
+    def sign(self, to_sign, salt=None):
+        if salt is None:
+            salt = self.salt
+        return self.serializer.dumps(to_sign, salt=salt)
+        
+    def verify(self, to_verify, salt=None):
+        if salt is None:
+            salt = self.salt
+        try:
+            return self.serializer.loads(to_verify, salt=salt)
+        except TypeError:
+            return self.serializer.loads(to_verify, salt=self.salt)
 
-    def verify(self, to_verify):
-        return self.serializer.loads(to_verify, salt=self.salt)
 
     def sign_notification(self, notification: NotificationDictToSign) -> SignedNotification:
         "A wrapper around the sign fn to define the argument type and return type"
-        return self.sign(notification)
+        return self.sign(notification, "notification-signing")
 
     def verify_notification(self, signed_notification: SignedNotification) -> NotificationDictToSign:
         "A wrapper around the verify fn to define the argument type and return type"
-        return self.verify(signed_notification)
+        return self.verify(signed_notification, "notification")
 
 
 def hashpw(password):
