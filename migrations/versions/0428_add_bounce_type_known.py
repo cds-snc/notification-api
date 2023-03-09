@@ -17,7 +17,7 @@ from alembic import op
 def upgrade():
     # prevent from being executed in a transaction block
     op.execute("COMMIT")
-    
+
     op.execute("ALTER TYPE notification_feedback_types ADD VALUE 'unknown-bounce'")
     op.execute("ALTER TYPE notification_feedback_subtypes ADD VALUE 'unknown-bounce-subtype'")
 
