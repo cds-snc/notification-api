@@ -13,6 +13,7 @@ from flask_migrate import Migrate
 from flask_redis import FlaskRedis
 from notifications_utils import logging, request_helper
 from notifications_utils.clients.redis.redis_client import RedisClient
+from notifications_utils.clients.redis.bounce_rate import RedisBounceRate
 from notifications_utils.clients.statsd.statsd_client import StatsdClient
 from notifications_utils.clients.zendesk.zendesk_client import ZendeskClient
 from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
@@ -49,6 +50,7 @@ statsd_client = StatsdClient()
 flask_redis = FlaskRedis()
 flask_redis_publish = FlaskRedis(config_prefix="REDIS_PUBLISH")
 redis_store = RedisClient()
+bounce_rate_client = RedisBounceRate(redis_store)
 metrics_logger = MetricsLogger()
 # TODO: Rework instantiation to decouple redis_store.redis_store and pass it in.\
 email_queue = RedisQueue("email")
