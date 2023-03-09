@@ -146,6 +146,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
 
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
     statsd_mock = mocker.patch("app.delivery.send_to_providers.statsd_client")
+    bounce_rate_mock = mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     send_to_providers.send_email_to_provider(db_notification)
 
