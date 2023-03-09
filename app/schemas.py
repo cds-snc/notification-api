@@ -224,6 +224,7 @@ class ServiceSchema(BaseSchema):
     override_flag = False
     letter_contact_block = fields.Method(serialize="get_letter_contact")
     go_live_at = field_for(models.Service, "go_live_at", format="%Y-%m-%d %H:%M:%S.%f")
+    organisation_notes = field_for(models.Service, "organisation_notes")
 
     def get_letter_logo_filename(self, service):
         return service.letter_branding and service.letter_branding.filename
