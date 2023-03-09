@@ -131,10 +131,10 @@ def _update_notification_status(notification, status, provider_response=None, bo
     if provider_response:
         notification.provider_response = provider_response
     if bounce_response:
-        notification.feedback_type = bounce_response["feedback_type"]
-        notification.feedback_subtype = bounce_response["feedback_subtype"]
-        notification.ses_feedback_id = bounce_response["ses_feedback_id"]
-        notification.ses_feedback_date = bounce_response["ses_feedback_date"]
+        notification.feedback_type = bounce_response.get("feedback_type", None)
+        notification.feedback_subtype = bounce_response.get("feedback_subtype", None)
+        notification.ses_feedback_id = bounce_response.get("ses_feedback_id", None)
+        notification.ses_feedback_date = bounce_response.get("ses_feedback_date", None)
     dao_update_notification(notification)
     return notification
 
