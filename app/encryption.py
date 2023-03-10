@@ -42,7 +42,7 @@ class CryptoSigner:
             salt = self.salt
         try:
             return self.serializer.loads(to_verify, salt=salt)
-        except TypeError: # BadSignature:
+        except BadSignature:
             return self.serializer.loads(to_verify, salt=self.salt)
 
     def sign_notification(self, notification: NotificationDictToSign) -> SignedNotification:
@@ -83,6 +83,12 @@ class CryptoSigner:
     def verify_api_key(self, signed_api_key_secret: str) -> str:
         return self.verify(signed_api_key_secret, "api-key")
     
+    def sign_inbound_sms(self, content: str) -> str:
+        return self.sign(content, "inbound-sms")
+    
+    def verify_inbound_sms(self, signed_content: str) -> str:
+        return self.verify(signed_content, "inbound-sms")
+
 
 def hashpw(password):
     return generate_password_hash(password.encode("UTF-8"), 10).decode("utf-8")

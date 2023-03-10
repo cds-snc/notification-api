@@ -40,7 +40,7 @@ def test_save_service_callback_api(sample_service):
     assert versioned.service_id == sample_service.id
     assert versioned.updated_by_id == sample_service.users[0].id
     assert versioned.url == "https://some_service/callback_endpoint"
-    assert signer.verify(versioned._bearer_token) == "some_unique_string"
+    assert signer.verify_bearer_token(versioned._bearer_token) == "some_unique_string"
     assert versioned.updated_at is None
     assert versioned.version == 1
 
@@ -143,7 +143,7 @@ def test_update_service_callback_api(sample_service):
         assert x.id is not None
         assert x.service_id == sample_service.id
         assert x.updated_by_id == sample_service.users[0].id
-        assert signer.verify(x._bearer_token) == "some_unique_string"
+        assert signer.verify_bearer_token(x._bearer_token) == "some_unique_string"
 
 
 def test_get_service_callback_api(sample_service):

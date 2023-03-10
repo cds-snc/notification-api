@@ -65,3 +65,9 @@ def test_sign_bearer_token(notify_api):
     signer.init_app(notify_api)
     signed = signer.sign_bearer_token("this")
     assert signer.verify_bearer_token(signed) == "this"
+
+def test_inbould_sms(notify_api):
+    signer.init_app(notify_api)
+    signed = signer.sign_inbound_sms("this")
+    assert signer.verify_inbound_sms(signed) == "this"
+    

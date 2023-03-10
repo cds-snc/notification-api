@@ -11,7 +11,7 @@ from app.config import QueueNames
 @notify_celery.task(bind=True, name="send-delivery-status", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def send_delivery_status_to_service(self, notification_id, signed_status_update):
-    status_update = signer.verify(signed_status_update, "delivery-status")
+    status_update = signer.verify_delivery_status(signed_status_update)
 
     data = {
         "id": str(notification_id),

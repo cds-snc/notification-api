@@ -2177,11 +2177,11 @@ class InboundSms(BaseModel):
 
     @property
     def content(self):
-        return signer.verify(self._content, "inbound_sms.content")
+        return signer.verify_inbound_sms(self._content)
 
     @content.setter
     def content(self, content):
-        self._content = signer.sign(content, "inbound_sms.content")
+        self._content = signer.sign_inbound_sms(content)
 
     def serialize(self) -> dict:
         return {
