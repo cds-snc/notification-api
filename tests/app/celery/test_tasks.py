@@ -160,7 +160,7 @@ class TestBatchSaving:
 
         save_emails(
             str(template.service_id),
-            [signer.sign(notification1), signer.sign(notification2), signer.sign(notification3)],
+            [signer.sign(notification1, "notification"), signer.sign(notification2, "notification"), signer.sign(notification3, "notification")],
             None,
         )
 
@@ -196,7 +196,7 @@ class TestBatchSaving:
         receipt = uuid.uuid4()
         save_smss(
             str(sample_template_with_placeholders.service.id),
-            [signer.sign(notification1), signer.sign(notification2), signer.sign(notification3)],
+            [signer.sign(notification1, "notification"), signer.sign(notification2, "notification"), signer.sign(notification3, "notification")],
             receipt,
         )
 
@@ -209,7 +209,7 @@ class TestBatchSaving:
         assert persisted_notification[1].template_version == sample_template_with_placeholders.version
         assert persisted_notification[0].status == "created"
         assert persisted_notification[0].personalisation == {"name": "Jo"}
-        assert persisted_notification[0]._personalisation == signer.sign({"name": "Jo"})
+        assert persisted_notification[0]._personalisation == signer.sign_personalisation({"name": "Jo"})
         assert persisted_notification[0].notification_type == SMS_TYPE
 
         acknowledge_mock.assert_called_once_with(receipt)
@@ -237,7 +237,7 @@ class TestBatchSaving:
         receipt = uuid.uuid4()
         save_smss(
             str(sample_template_with_placeholders.service.id),
-            [signer.sign(notification1), signer.sign(notification2), signer.sign(notification3)],
+            [signer.sign(notification1, "notification"), signer.sign(notification2, "notification"), signer.sign(notification3, "notification")],
             receipt,
         )
 
@@ -250,7 +250,7 @@ class TestBatchSaving:
         assert persisted_notification[1].template_version == sample_template_with_placeholders.version
         assert persisted_notification[0].status == "created"
         assert persisted_notification[0].personalisation == {"name": "Jo"}
-        assert persisted_notification[0]._personalisation == signer.sign({"name": "Jo"})
+        assert persisted_notification[0]._personalisation == signer.sign_personalisation({"name": "Jo"})
         assert persisted_notification[0].notification_type == SMS_TYPE
 
         acknowldege_mock.assert_called_once_with(receipt)
@@ -279,7 +279,7 @@ class TestBatchSaving:
 
         save_emails(
             str(sample_email_template_with_placeholders.service.id),
-            [signer.sign(notification1), signer.sign(notification2), signer.sign(notification3)],
+            [signer.sign(notification1, "notification"), signer.sign(notification2, "notification"), signer.sign(notification3, "notification")],
             receipt,
         )
 
@@ -292,7 +292,7 @@ class TestBatchSaving:
         assert persisted_notification[1].template_version == sample_email_template_with_placeholders.version
         assert persisted_notification[0].status == "created"
         assert persisted_notification[0].personalisation == {"name": "Jo"}
-        assert persisted_notification[0]._personalisation == signer.sign({"name": "Jo"})
+        assert persisted_notification[0]._personalisation == signer.sign_personalisation({"name": "Jo"})
         assert persisted_notification[0].notification_type == EMAIL_TYPE
 
         acknowledge_mock.assert_called_once_with(receipt)
@@ -315,7 +315,7 @@ class TestBatchSaving:
         mock_acknowldege = mocker.patch("app.sms_normal.acknowledge")
 
         receipt = uuid.uuid4()
-        notifications = [signer.sign(notification1)]
+        notifications = [signer.sign(notification1, "notification")]
 
         save_smss(
             None,
@@ -347,7 +347,7 @@ class TestBatchSaving:
         mock_acknowldege = mocker.patch("app.email_normal.acknowledge")
 
         receipt = uuid.uuid4()
-        notifications = [signer.sign(notification1)]
+        notifications = [signer.sign(notification1, "notification")]
 
         save_emails(
             None,
@@ -432,7 +432,7 @@ class TestBatchSaving:
 
         save_smss(
             str(sample_template_with_placeholders.service.id),
-            [signer.sign(notification1), signer.sign(notification2), signer.sign(notification3)],
+            [signer.sign(notification1, "notification"), signer.sign(notification2, "notification"), signer.sign(notification3), "notification"],
             None,
         )
 
@@ -864,7 +864,8 @@ class TestProcessRows:
                 "queue": None,
                 "client_reference": reference,
                 "sender_id": str(sender_id) if sender_id else None,
-            }
+            }, 
+            "notification"
         )
         task_mock.apply_async.assert_called_once()
 
@@ -992,7 +993,8 @@ class TestProcessRows:
                 "queue": None,
                 "client_reference": reference,
                 "sender_id": str(sender_id) if sender_id else None,
-            }
+            },
+            "notification",
         )
         task_mock.apply_async.assert_called_once()
 
@@ -1096,7 +1098,7 @@ class TestSaveSmss:
 
         notification_id = uuid.uuid4()
 
-        save_smss(template.service_id, [signer.sign(notification)], notification_id)
+        save_smss(template.service_id, [signer.sign_notification(notification)], notification_id)
         persisted_notification = Notification.query.one()
         provider_tasks.deliver_sms.apply_async.assert_called_once_with(
             [str(persisted_notification.id)], queue="research-mode-tasks"
@@ -1156,7 +1158,7 @@ class TestSaveSmss:
 
         notification_id = uuid.uuid4()
 
-        save_smss(template.service_id, [signer.sign(notification)], notification_id)
+        save_smss(template.service_id, [signer.sign_notification(notification)], notification_id)
 
         persisted_notification = Notification.query.one()
         provider_tasks.deliver_throttled_sms.apply_async.assert_called_once_with(
@@ -1197,7 +1199,7 @@ class TestSaveSmss:
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
         notification_id = uuid.uuid4()
-        save_smss(template.service_id, [signer.sign(notification)], notification_id)
+        save_smss(template.service_id, [signer.sign_notification(notification)], notification_id)
 
         persisted_notification = Notification.query.one()
         assert persisted_notification.reply_to_text == "12345"
@@ -1242,7 +1244,7 @@ class TestSaveSmss:
         notification_id = uuid.uuid4()
 
         with pytest.raises(Retry):
-            save_smss(sample_template.service_id, [signer.sign(notification)], notification_id)
+            save_smss(sample_template.service_id, [signer.sign_notification(notification)], notification_id)
         assert provider_tasks.deliver_sms.apply_async.called is False
         tasks.save_smss.retry.assert_called_with(exc=expected_exception, queue="retry-tasks")
 

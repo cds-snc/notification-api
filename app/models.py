@@ -820,13 +820,13 @@ class ServiceInboundApi(BaseModel, Versioned):
     @property
     def bearer_token(self):
         if self._bearer_token:
-            return signer.verify(self._bearer_token, "service_inbound_api_bearer_token")
+            return signer.verify_bearer_token(self._bearer_token)
         return None
 
     @bearer_token.setter
     def bearer_token(self, bearer_token):
         if bearer_token:
-            self._bearer_token = signer.sign(str(bearer_token), "service_inbound_api_bearer_token")
+            self._bearer_token = signer.sign_bearer_token(str(bearer_token))
 
     def serialize(self) -> dict:
         return {
@@ -857,13 +857,13 @@ class ServiceCallbackApi(BaseModel, Versioned):
     @property
     def bearer_token(self):
         if self._bearer_token:
-            return signer.verify(self._bearer_token, "service_callback_api_bearer_token")
+            return signer.verify_bearer_token(self._bearer_token)
         return None
 
     @bearer_token.setter
     def bearer_token(self, bearer_token):
         if bearer_token:
-            self._bearer_token = signer.sign(str(bearer_token), "service_callback_api_bearer_token")
+            self._bearer_token = signer.sign_bearer_token(str(bearer_token))
 
     def serialize(self) -> dict:
         return {
@@ -922,13 +922,13 @@ class ApiKey(BaseModel, Versioned):
     @property
     def secret(self):
         if self._secret:
-            return signer.verify(self._secret, "api_key")
+            return signer.verify_api_key(self._secret)
         return None
 
     @secret.setter
     def secret(self, secret):
         if secret:
-            self._secret = signer.sign(str(secret), "api_key")
+            self._secret = signer.sign_api_key(str(secret))
 
 
 ApiKeyType = Literal["normal", "team", "test"]
@@ -1664,12 +1664,12 @@ class Notification(BaseModel):
     @property
     def personalisation(self):
         if self._personalisation:
-            return signer.verify(self._personalisation, "personalisation")
+            return signer.verify_personalisation(self._personalisation)
         return {}
 
     @personalisation.setter
     def personalisation(self, personalisation):
-        self._personalisation = signer.sign(personalisation or {}, "personalisation")
+        self._personalisation = signer.sign_personalisation(personalisation or {})
 
     def completed_at(self):
         if self.status in NOTIFICATION_STATUS_TYPES_COMPLETED:

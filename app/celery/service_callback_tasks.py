@@ -36,7 +36,7 @@ def send_delivery_status_to_service(self, notification_id, signed_status_update)
 @notify_celery.task(bind=True, name="send-complaint", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def send_complaint_to_service(self, complaint_data):
-    complaint = signer.verify(complaint_data, "complaint")
+    complaint = signer.verify_complaint(complaint_data)
 
     data = {
         "notification_id": complaint["notification_id"],
