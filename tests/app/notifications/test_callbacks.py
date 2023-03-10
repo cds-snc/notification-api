@@ -53,7 +53,9 @@ def test_create_complaint_callback_data(
     complaint = create_complaint(notification=notification, service=notification.service)
     callback_api = create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
 
-    assert signer.verify_complaint(create_complaint_callback_data(complaint, notification, callback_api, "recipient@example.com")) == {
+    assert signer.verify_complaint(
+        create_complaint_callback_data(complaint, notification, callback_api, "recipient@example.com")
+    ) == {
         "complaint_id": str(complaint.id),
         "notification_id": str(notification.id),
         "reference": notification.client_reference,

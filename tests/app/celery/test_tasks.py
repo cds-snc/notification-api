@@ -160,7 +160,11 @@ class TestBatchSaving:
 
         save_emails(
             str(template.service_id),
-            [signer.sign_notification(notification1), signer.sign_notification(notification2), signer.sign_notification(notification3)],
+            [
+                signer.sign_notification(notification1),
+                signer.sign_notification(notification2),
+                signer.sign_notification(notification3),
+            ],
             None,
         )
 
@@ -196,7 +200,11 @@ class TestBatchSaving:
         receipt = uuid.uuid4()
         save_smss(
             str(sample_template_with_placeholders.service.id),
-            [signer.sign_notification(notification1), signer.sign_notification(notification2), signer.sign_notification(notification3)],
+            [
+                signer.sign_notification(notification1),
+                signer.sign_notification(notification2),
+                signer.sign_notification(notification3),
+            ],
             receipt,
         )
 
@@ -237,7 +245,11 @@ class TestBatchSaving:
         receipt = uuid.uuid4()
         save_smss(
             str(sample_template_with_placeholders.service.id),
-            [signer.sign_notification(notification1), signer.sign_notification(notification2), signer.sign_notification(notification3)],
+            [
+                signer.sign_notification(notification1),
+                signer.sign_notification(notification2),
+                signer.sign_notification(notification3),
+            ],
             receipt,
         )
 
@@ -279,7 +291,11 @@ class TestBatchSaving:
 
         save_emails(
             str(sample_email_template_with_placeholders.service.id),
-            [signer.sign_notification(notification1), signer.sign_notification(notification2), signer.sign_notification(notification3)],
+            [
+                signer.sign_notification(notification1),
+                signer.sign_notification(notification2),
+                signer.sign_notification(notification3),
+            ],
             receipt,
         )
 
@@ -432,7 +448,11 @@ class TestBatchSaving:
 
         save_smss(
             str(sample_template_with_placeholders.service.id),
-            [signer.sign_notification(notification1), signer.sign_notification(notification2), signer.sign_notification(notification3)],
+            [
+                signer.sign_notification(notification1),
+                signer.sign_notification(notification2),
+                signer.sign_notification(notification3),
+            ],
             None,
         )
 
@@ -864,8 +884,8 @@ class TestProcessRows:
                 "queue": None,
                 "client_reference": reference,
                 "sender_id": str(sender_id) if sender_id else None,
-            }, 
-            "notification"
+            },
+            "notification",
         )
         task_mock.apply_async.assert_called_once()
 
@@ -1558,7 +1578,9 @@ class TestSaveEmails:
             )
 
         with freeze_time("2016-01-01 11:10:00.00000"):
-            save_emails(sample_email_template_with_placeholders.service_id, [signer.sign_notification(notification)], notification_id)
+            save_emails(
+                sample_email_template_with_placeholders.service_id, [signer.sign_notification(notification)], notification_id
+            )
 
         persisted_notification = Notification.query.one()
         assert persisted_notification.to == "my_email@my_email.com"

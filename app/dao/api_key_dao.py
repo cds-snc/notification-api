@@ -27,9 +27,7 @@ def expire_api_key(service_id, api_key_id):
 
 
 def get_api_key_by_secret(secret):
-    return (
-        db.on_reader().query(ApiKey).filter_by(_secret=signer.sign_api_key(str(secret))).options(joinedload("service")).one()
-    )
+    return db.on_reader().query(ApiKey).filter_by(_secret=signer.sign_api_key(str(secret))).options(joinedload("service")).one()
 
 
 def get_model_api_keys(service_id, id=None):
