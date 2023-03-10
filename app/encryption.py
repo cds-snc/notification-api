@@ -37,6 +37,8 @@ class CryptoSigner:
             salt = self.salt
         return self.serializer.dumps(to_sign, salt=salt)
 
+    # NOTE: currently the verify checks agains the default salt as well as the salt passed in
+    # TODO: remove this once we've moved DANGEROUS_SALT to PASSWORD_SALT
     def verify(self, to_verify: str, salt: Optional[str] = None) -> Any:
         if salt is None:
             salt = self.salt
