@@ -12,8 +12,8 @@ from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
 from flask_redis import FlaskRedis
 from notifications_utils import logging, request_helper
-from notifications_utils.clients.redis.redis_client import RedisClient
 from notifications_utils.clients.redis.bounce_rate import RedisBounceRate
+from notifications_utils.clients.redis.redis_client import RedisClient
 from notifications_utils.clients.statsd.statsd_client import StatsdClient
 from notifications_utils.clients.zendesk.zendesk_client import ZendeskClient
 from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
