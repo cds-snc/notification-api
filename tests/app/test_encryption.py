@@ -38,8 +38,8 @@ def should_not_verify_content_signed_with_different_salts(notify_api):
 
 def test_should_sign_json(notify_api):
     signer.init_app(notify_api)
-    signed = signer.sign({"this": "that"})
-    assert signer.verify(signed) == {"this": "that"}
+    signed = signer._sign({"this": "that"})
+    assert signer._verify(signed) == {"this": "that"}
 
 
 def test_sign_notification(notify_api):

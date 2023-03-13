@@ -387,17 +387,17 @@ class TestBatchSaving:
             return_value=load_example_csv("multiple_sms"),
         )
         mocker.patch("app.celery.tasks.save_smss.apply_async")
-        mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
+        mocker.patch("app.encryption.CryptoSigner.sign_notification", return_value="something_encrypted")
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
 
         process_job(job.id)
 
         s3.get_job_from_s3.assert_called_once_with(str(job.service.id), str(job.id))
 
-        assert signer.sign.call_args[0][0]["to"] == "+441234123120"
-        assert signer.sign.call_args[0][0]["template"] == str(template.id)
-        assert signer.sign.call_args[0][0]["template_version"] == template.version
-        assert signer.sign.call_args[0][0]["personalisation"] == {
+        assert signer.sign_notification.call_args[0][0]["to"] == "+441234123120"
+        assert signer.sign_notification.call_args[0][0]["template"] == str(template.id)
+        assert signer.sign_notification.call_args[0][0]["template_version"] == template.version
+        assert signer.sign_notification.call_args[0][0]["personalisation"] == {
             "phonenumber": "+441234123120",
         }
         tasks.save_smss.apply_async.assert_called_once_with(
@@ -474,18 +474,18 @@ class TestProcessJob:
     def test_should_process_sms_job_FF_PRIORITY_LANES_true(self, sample_job, mocker):
         mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
         mocker.patch("app.celery.tasks.save_smss.apply_async")
-        mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
+        mocker.patch("app.encryption.CryptoSigner.sign_notification", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
 
         process_job(sample_job.id)
         s3.get_job_from_s3.assert_called_once_with(str(sample_job.service.id), str(sample_job.id))
-        assert signer.sign.call_args[0][0]["to"] == "+441234123123"
-        assert signer.sign.call_args[0][0]["template"] == str(sample_job.template.id)
-        assert signer.sign.call_args[0][0]["template_version"] == sample_job.template.version
-        assert signer.sign.call_args[0][0]["personalisation"] == {"phonenumber": "+441234123123"}
-        assert signer.sign.call_args[0][0]["row_number"] == 0
+        assert signer.sign_notification.call_args[0][0]["to"] == "+441234123123"
+        assert signer.sign_notification.call_args[0][0]["template"] == str(sample_job.template.id)
+        assert signer.sign_notification.call_args[0][0]["template_version"] == sample_job.template.version
+        assert signer.sign_notification.call_args[0][0]["personalisation"] == {"phonenumber": "+441234123123"}
+        assert signer.sign_notification.call_args[0][0]["row_number"] == 0
         tasks.save_smss.apply_async.assert_called_once_with(
             (str(sample_job.service_id), ["something_encrypted"], None), queue=QueueNames.NORMAL_DATABASE
         )
@@ -499,7 +499,7 @@ class TestProcessJob:
         job = create_job(template=sample_template, sender_id=fake_uuid)
         mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
         mocker.patch("app.celery.tasks.save_smss.apply_async")
-        mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
+        mocker.patch("app.encryption.CryptoSigner.sign_notification", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
         process_job(job.id)
@@ -583,7 +583,7 @@ class TestProcessJob:
             return_value=load_example_csv("multiple_email"),
         )
         mocker.patch("app.celery.tasks.save_emails.apply_async")
-        mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
+        mocker.patch("app.encryption.CryptoSigner.sign_notification", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
         process_job(job.id)
@@ -620,17 +620,17 @@ class TestProcessJob:
             return_value=load_example_csv("multiple_sms"),
         )
         mocker.patch("app.celery.tasks.save_smss.apply_async")
-        mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
+        mocker.patch("app.encryption.CryptoSigner.sign_notification", return_value="something_encrypted")
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
 
         process_job(job.id)
 
         s3.get_job_from_s3.assert_called_once_with(str(job.service.id), str(job.id))
 
-        assert signer.sign.call_args[0][0]["to"] == "+441234123120"
-        assert signer.sign.call_args[0][0]["template"] == str(template.id)
-        assert signer.sign.call_args[0][0]["template_version"] == template.version
-        assert signer.sign.call_args[0][0]["personalisation"] == {
+        assert signer.sign_notification.call_args[0][0]["to"] == "+441234123120"
+        assert signer.sign_notification.call_args[0][0]["template"] == str(template.id)
+        assert signer.sign_notification.call_args[0][0]["template_version"] == template.version
+        assert signer.sign_notification.call_args[0][0]["personalisation"] == {
             "phonenumber": "+441234123120",
         }
         tasks.save_smss.apply_async.assert_called_once_with(
@@ -675,7 +675,7 @@ class TestProcessJob:
         """
         mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=email_csv)
         mocker.patch("app.celery.tasks.save_emails.apply_async")
-        mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
+        mocker.patch("app.encryption.CryptoSigner.sign_notification", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
 
@@ -684,10 +684,10 @@ class TestProcessJob:
         s3.get_job_from_s3.assert_called_once_with(
             str(email_job_with_placeholders.service.id), str(email_job_with_placeholders.id)
         )
-        assert signer.sign.call_args[0][0]["to"] == "test@test.com"
-        assert signer.sign.call_args[0][0]["template"] == str(email_job_with_placeholders.template.id)
-        assert signer.sign.call_args[0][0]["template_version"] == email_job_with_placeholders.template.version
-        assert signer.sign.call_args[0][0]["personalisation"] == {
+        assert signer.sign_notification.call_args[0][0]["to"] == "test@test.com"
+        assert signer.sign_notification.call_args[0][0]["template"] == str(email_job_with_placeholders.template.id)
+        assert signer.sign_notification.call_args[0][0]["template_version"] == email_job_with_placeholders.template.version
+        assert signer.sign_notification.call_args[0][0]["personalisation"] == {
             "emailaddress": "test@test.com",
             "name": "foo",
         }
@@ -710,7 +710,7 @@ class TestProcessJob:
         """
         mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=email_csv)
         mocker.patch("app.celery.tasks.save_emails.apply_async")
-        mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
+        mocker.patch("app.encryption.CryptoSigner.sign_notification", return_value="something_encrypted")
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
 
         process_job(email_job_with_placeholders.id)
@@ -719,10 +719,10 @@ class TestProcessJob:
             str(email_job_with_placeholders.service.id), str(email_job_with_placeholders.id)
         )
 
-        assert signer.sign.call_args[0][0]["to"] == "yolo3@test3.com"
-        assert signer.sign.call_args[0][0]["template"] == str(email_job_with_placeholders.template.id)
-        assert signer.sign.call_args[0][0]["template_version"] == email_job_with_placeholders.template.version
-        assert signer.sign.call_args[0][0]["personalisation"] == {
+        assert signer.sign_notification.call_args[0][0]["to"] == "yolo3@test3.com"
+        assert signer.sign_notification.call_args[0][0]["template"] == str(email_job_with_placeholders.template.id)
+        assert signer.sign_notification.call_args[0][0]["template_version"] == email_job_with_placeholders.template.version
+        assert signer.sign_notification.call_args[0][0]["personalisation"] == {
             "emailaddress": "yolo3@test3.com",
             "name": "foo4",
         }
@@ -747,7 +747,7 @@ class TestProcessJob:
         job = create_job(template=sample_email_template, sender_id=fake_uuid)
         mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=email_csv)
         mocker.patch("app.celery.tasks.save_emails.apply_async")
-        mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
+        mocker.patch("app.encryption.CryptoSigner.sign_notification", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
         process_job(job.id)
@@ -793,7 +793,7 @@ class TestProcessJob:
             return_value=load_example_csv("multiple_sms"),
         )
         mocker.patch("app.celery.tasks.save_smss.apply_async")
-        mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
+        mocker.patch("app.encryption.CryptoSigner.sign_notification", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
         process_job(sample_job_with_placeholdered_template.id)
@@ -802,10 +802,10 @@ class TestProcessJob:
             str(sample_job_with_placeholdered_template.service.id),
             str(sample_job_with_placeholdered_template.id),
         )
-        assert signer.sign.call_args[0][0]["to"] == "+441234123120"
-        assert signer.sign.call_args[0][0]["template"] == str(sample_job_with_placeholdered_template.template.id)
-        assert signer.sign.call_args[0][0]["template_version"] == sample_job_with_placeholdered_template.template.version  # noqa
-        assert signer.sign.call_args[0][0]["personalisation"] == {
+        assert signer.sign_notification.call_args[0][0]["to"] == "+441234123120"
+        assert signer.sign_notification.call_args[0][0]["template"] == str(sample_job_with_placeholdered_template.template.id)
+        assert signer.sign_notification.call_args[0][0]["template_version"] == sample_job_with_placeholdered_template.template.version  # noqa
+        assert signer.sign_notification.call_args[0][0]["personalisation"] == {
             "phonenumber": "+441234123120",
             "name": "chris",
         }
@@ -851,7 +851,7 @@ class TestProcessRows:
     ):
         mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
-        signer_mock = mocker.patch("app.celery.tasks.signer.sign")
+        signer_mock = mocker.patch("app.celery.tasks.signer.sign_notification")
         template = Mock(id="template_id", template_type=template_type)
         job = Mock(id="job_id", template_version="temp_vers", notification_count=1, api_key_id=api_key_id, sender_id=sender_id)
         service = Mock(id="service_id", research_mode=research_mode)
@@ -885,7 +885,6 @@ class TestProcessRows:
                 "client_reference": reference,
                 "sender_id": str(sender_id) if sender_id else None,
             },
-            "notification",
         )
         task_mock.apply_async.assert_called_once()
 
@@ -972,7 +971,7 @@ class TestProcessRows:
     ):
         mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
-        signer_mock = mocker.patch("app.celery.tasks.signer.sign")
+        signer_mock = mocker.patch("app.celery.tasks.signer.sign_notification")
         template = Mock(id="template_id", template_type=template_type)
         api_key = {}
         job = Mock(
@@ -1014,7 +1013,6 @@ class TestProcessRows:
                 "client_reference": reference,
                 "sender_id": str(sender_id) if sender_id else None,
             },
-            "notification",
         )
         task_mock.apply_async.assert_called_once()
 
