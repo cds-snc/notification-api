@@ -804,7 +804,10 @@ class TestProcessJob:
         )
         assert signer.sign_notification.call_args[0][0]["to"] == "+441234123120"
         assert signer.sign_notification.call_args[0][0]["template"] == str(sample_job_with_placeholdered_template.template.id)
-        assert signer.sign_notification.call_args[0][0]["template_version"] == sample_job_with_placeholdered_template.template.version  # noqa
+        assert (
+            signer.sign_notification.call_args[0][0]["template_version"]
+            == sample_job_with_placeholdered_template.template.version
+        )  # noqa
         assert signer.sign_notification.call_args[0][0]["personalisation"] == {
             "phonenumber": "+441234123120",
             "name": "chris",
