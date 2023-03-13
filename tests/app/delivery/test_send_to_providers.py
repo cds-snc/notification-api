@@ -146,7 +146,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
 
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
     statsd_mock = mocker.patch("app.delivery.send_to_providers.statsd_client")
-    bounce_rate_mock = mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     send_to_providers.send_email_to_provider(db_notification)
 
@@ -237,6 +237,7 @@ def test_should_respect_custom_sending_domains(sample_service, mocker, sample_em
 
     sample_service.sending_domain = "foo.bar"
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     send_to_providers.send_email_to_provider(db_notification)
 
@@ -473,6 +474,7 @@ def test_send_email_to_provider_should_not_send_to_provider_when_status_is_not_c
 
 def test_send_email_should_use_service_reply_to_email(sample_service, sample_email_template, mocker):
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="foo@bar.com"))
     create_reply_to_email(service=sample_service, email_address="foo@bar.com")
@@ -494,6 +496,7 @@ def test_send_email_should_use_service_reply_to_email(sample_service, sample_ema
 
 def test_send_email_should_use_default_service_reply_to_email_when_two_are_set(sample_service, sample_email_template, mocker):
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     create_reply_to_email(service=sample_service, email_address="foo@bar.com")
     create_reply_to_email(service=sample_service, email_address="foo_two@bar.com", is_default=False)
@@ -517,6 +520,7 @@ def test_send_email_should_use_default_service_reply_to_email_when_two_are_set(s
 
 def test_send_email_should_use_non_default_service_reply_to_email_when_it_is_set(sample_service, sample_email_template, mocker):
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     create_reply_to_email(service=sample_service, email_address="foo@bar.com")
     create_reply_to_email(service=sample_service, email_address="foo_two@bar.com", is_default=False)
@@ -792,6 +796,7 @@ def test_should_handle_sms_sender_and_prefix_message(
 
 def test_send_email_to_provider_uses_reply_to_from_notification(sample_email_template, mocker):
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="test@test.com"))
 
@@ -812,6 +817,7 @@ def test_send_email_to_provider_uses_reply_to_from_notification(sample_email_tem
 
 def test_send_email_to_provider_should_format_reply_to_email_address(sample_email_template, mocker):
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="test@test.com\t"))
 
@@ -842,6 +848,7 @@ def test_send_sms_to_provider_should_format_phone_number(sample_notification, mo
 def test_send_email_to_provider_should_format_email_address(sample_email_notification, mocker):
     sample_email_notification.to = "test@example.com\t"
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     send_to_providers.send_email_to_provider(sample_email_notification)
 
@@ -875,6 +882,7 @@ def test_notification_document_with_pdf_attachment(
     expected_filename,
 ):
     template = create_sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     class mock_response:
         status_code = 200
@@ -1015,6 +1023,7 @@ def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
 
 def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(sample_email_template_with_html, mocker, notify_api):
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     db_notification = save_notification(
         create_notification(
@@ -1033,6 +1042,7 @@ def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(sample_
 
 def test_notification_passes_if_message_contains_phone_number(sample_email_template_with_html, mocker):
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     db_notification = save_notification(
         create_notification(
@@ -1114,6 +1124,7 @@ class TestMalware:
         self, sample_email_template, mocker, status_code_returned, scan_verdict
     ):
         send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+        mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
         class mock_response:
             status_code = status_code_returned
@@ -1151,3 +1162,17 @@ class TestMalware:
         send_mock.assert_not_called()
 
         assert Notification.query.get(db_notification.id).status == "technical-failure"
+
+
+class TestBounceRate:
+    def test_send_email_should_use_service_reply_to_email(self, sample_service, sample_email_template, mocker):
+        mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+        mocker.patch("app.bounce_rate_client.set_total_notifications")
+        db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="foo@bar.com"))
+        create_reply_to_email(service=sample_service, email_address="foo@bar.com")
+
+        send_to_providers.send_email_to_provider(
+            db_notification,
+        )
+
+        app.bounce_rate_client.set_total_notifications.assert_called_once_with(sample_service.id)
