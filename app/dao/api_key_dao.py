@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.exc import NoResultFound
 
 from app import db, signer
 from app.dao.dao_utils import transactional, version_class
@@ -27,7 +28,18 @@ def expire_api_key(service_id, api_key_id):
 
 
 def get_api_key_by_secret(secret):
-    return db.on_reader().query(ApiKey).filter_by(_secret=signer.sign_api_key(str(secret))).options(joinedload("service")).one()
+    try:
+        return (
+            db.on_reader().query(ApiKey).filter_by(_secret=signer.sign_api_key(str(secret))).options(joinedload("service")).one()
+        )
+    except NoResultFound:
+        return (
+            db.on_reader()
+            .query(ApiKey)
+            .filter_by(_secret=signer.sign_dangerous(str(secret)))
+            .options(joinedload("service"))
+            .one()
+        )  # needed until api_keys are resigned
 
 
 def get_model_api_keys(service_id, id=None):

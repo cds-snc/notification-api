@@ -8,25 +8,25 @@ signer = CryptoSigner()
 
 def test_should_sign_content(notify_api):
     signer.init_app(notify_api)
-    assert signer.sign("this") != "this"
+    assert signer._sign("this") != "this"
 
 
 def test_sign_default(notify_api):
     signer.init_app(notify_api)
-    signed = signer.sign("this")
-    assert signer.verify(signed) == "this"
+    signed = signer._sign("this")
+    assert signer._verify(signed) == "this"
 
 
 def test_sign_with_salt(notify_api):
     signer.init_app(notify_api)
-    signed = signer.sign("this", "salt")
-    assert signer.verify(signed, "salt") == "this"
+    signed = signer._sign("this", "salt")
+    assert signer._verify(signed, "salt") == "this"
 
 
 def test_should_verify_content_signed_with_DANGEROUS_SALT(notify_api):
     signer.init_app(notify_api)
-    signed = signer.sign("this")
-    assert signer.verify(signed, "salt") == "this"
+    signed = signer.sign_dangerous("this")
+    assert signer._verify(signed, "salt") == "this"
 
 
 def should_not_verify_content_signed_with_different_salts(notify_api):
