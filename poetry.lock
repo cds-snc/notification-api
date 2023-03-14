@@ -2272,7 +2272,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "50.1.6"
+version = "50.1.7"
 description = "Shared python code for Notification - Provides logging utils etc."
 category = "main"
 optional = false
@@ -2306,8 +2306,8 @@ werkzeug = "2.2.2"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "50.1.6"
-resolved_reference = "57441fdfc4ab26a985faf5ea08f001ae13d0de24"
+reference = "50.1.7"
+resolved_reference = "85aa3f056b82a76471b99f100a0f5db2280d5acd"
 
 [[package]]
 name = "ordered-set"
