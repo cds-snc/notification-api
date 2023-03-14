@@ -256,7 +256,8 @@ def send_email_to_provider(notification: Notification):
                 reply_to_address=validate_and_format_email_address(email_reply_to) if email_reply_to else None,
                 attachments=attachments,
             )
-            bounce_rate_client.set_total_notifications(service.id)
+            if current_app.config["FF_BOUNCE_RATE_V1"]:
+                bounce_rate_client.set_total_notifications(service.id)
             notification.reference = reference
             update_notification_to_sending(notification, provider)
         current_app.logger.info(f"Notification id {notification.id} status in sending")
