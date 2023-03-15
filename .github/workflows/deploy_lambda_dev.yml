@@ -22,6 +22,7 @@ on:
           - ProfileRemoveOldOptOuts
           - NightBigQueryUpload
           - NightBillingBQUpload
+          - DeliveryStatusProcessor
 
 jobs:
   setup_job:
