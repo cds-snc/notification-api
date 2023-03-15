@@ -542,6 +542,7 @@ class Service(BaseModel, Versioned):
     go_live_user = db.relationship("User", foreign_keys=[go_live_user_id])
     go_live_at = db.Column(db.DateTime, nullable=True)
     sending_domain = db.Column(db.String(255), nullable=True, unique=False)
+    organisation_notes = db.Column(db.String(255), nullable=True, unique=False)
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey("organisation.id"), index=True, nullable=True)
     organisation = db.relationship("Organisation", backref="services")
@@ -1529,6 +1530,42 @@ SECOND_CLASS = "second"
 POSTAGE_TYPES = [FIRST_CLASS, SECOND_CLASS]
 RESOLVE_POSTAGE_FOR_FILE_NAME = {FIRST_CLASS: 1, SECOND_CLASS: 2}
 
+# Bounce types
+NOTIFICATION_HARD_BOUNCE = "hard-bounce"
+NOTIFICATION_SOFT_BOUNCE = "soft-bounce"
+NOTIFICATION_UNKNOWN_BOUNCE = "unknown-bounce"
+# List
+NOTIFICATION_FEEDBACK_TYPES = [NOTIFICATION_HARD_BOUNCE, NOTIFICATION_SOFT_BOUNCE, NOTIFICATION_UNKNOWN_BOUNCE]
+
+# Hard bounce sub-types
+NOTIFICATION_HARD_GENERAL = "general"
+NOTIFICATION_HARD_NOEMAIL = "no-email"
+NOTIFICATION_HARD_SUPPRESSED = "suppressed"
+NOTIFICATION_HARD_ONACCOUNTSUPPRESSIONLIST = "on-account-suppression-list"
+# List
+NOTIFICATION_HARD_BOUNCE_TYPES = [
+    NOTIFICATION_HARD_GENERAL,
+    NOTIFICATION_HARD_NOEMAIL,
+    NOTIFICATION_HARD_SUPPRESSED,
+    NOTIFICATION_HARD_ONACCOUNTSUPPRESSIONLIST,
+]
+
+# Soft bounce sub-types
+NOTIFICATION_SOFT_GENERAL = "general"
+NOTIFICATION_SOFT_MAILBOXFULL = "mailbox-full"
+NOTIFICATION_SOFT_MESSAGETOOLARGE = "message-too-large"
+NOTIFICATION_SOFT_CONTENTREJECTED = "content-rejected"
+NOTIFICATION_SOFT_ATTACHMENTREJECTED = "attachment-rejected"
+# List
+NOTIFICATION_SOFT_BOUNCE_TYPES = [
+    NOTIFICATION_SOFT_GENERAL,
+    NOTIFICATION_SOFT_MAILBOXFULL,
+    NOTIFICATION_SOFT_MESSAGETOOLARGE,
+    NOTIFICATION_SOFT_CONTENTREJECTED,
+    NOTIFICATION_SOFT_ATTACHMENTREJECTED,
+]
+NOTIFICATION_UNKNOWN_BOUNCE_SUBTYPE = "unknown-bounce-subtype"
+
 
 class NotificationStatusTypes(BaseModel):
     __tablename__ = "notification_status_types"
@@ -1600,6 +1637,12 @@ class Notification(BaseModel):
     postage = db.Column(db.String, nullable=True)
     provider_response = db.Column(db.Text, nullable=True)
     queue_name = db.Column(db.Text, nullable=True)
+
+    # feedback columns
+    feedback_type = db.Column(db.String, nullable=True)
+    feedback_subtype = db.Column(db.String, nullable=True)
+    ses_feedback_id = db.Column(db.String, nullable=True)
+    ses_feedback_date = db.Column(db.DateTime, nullable=True)
 
     CheckConstraint(
         """
@@ -1890,6 +1933,12 @@ class NotificationHistory(BaseModel, HistoryModel):
 
     postage = db.Column(db.String, nullable=True)
     queue_name = db.Column(db.Text, nullable=True)
+
+    # feedback columns
+    feedback_type = db.Column(db.String, nullable=True)
+    feedback_subtype = db.Column(db.String, nullable=True)
+    ses_feedback_id = db.Column(db.String, nullable=True)
+    ses_feedback_date = db.Column(db.DateTime, nullable=True)
 
     CheckConstraint(
         """

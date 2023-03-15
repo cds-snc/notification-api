@@ -4,11 +4,9 @@
 	"service": "dev",
 	"workspaceFolder": "/workspace",
 	"shutdownAction": "stopCompose",
-
 	"remoteEnv": {
 		"PATH": "/home/vscode/.local/bin:${containerEnv:PATH}" // give our installed Python modules precedence
 	},
-
 	"settings": {
 		"[python]": {
 			"editor.formatOnSave": true
@@ -19,7 +17,6 @@
 		"python.linting.pylintPath": "/usr/local/bin/pylint",
 		"python.pythonPath": "/usr/local/bin/python",
 	},
-
 	"features": {
 		"docker-from-docker": {
 			"version": "latest",
@@ -31,11 +28,10 @@
 			"minikube": "none"
 		}
 	},
-
 	"extensions": [
 		"donjayamanne.python-extension-pack",
 		"ms-azuretools.vscode-docker",
-		"ms-python.vscode-pylance",
+		"ms-python.python",
 		"eamodio.gitlens",
 		"wholroyd.jinja",
 		"pmbenjamin.vscode-snyk",
@@ -47,9 +43,9 @@
 		"ms-vsliveshare.vsliveshare",
 		"mtxr.sqltools",
 		"mtxr.sqltools-driver-pg",
+		"bungcip.better-toml",
+		"matangover.mypy"
 	],
-
 	"postCreateCommand": "notify-dev-entrypoint.sh",
-
 	"remoteUser": "vscode"
 }
