@@ -71,7 +71,7 @@ def grant_test_db(writer_uri, uri_db_reader):
     db_reader = urlparse(uri_db_reader).username
     db_reader_password = urlparse(uri_db_reader).password
 
-    postgres_db = sqlalchemy.create_engine(writer_uri, echo=False, isolation_level="AUTOCOMMIT", client_encoding="utf8")
+    postgres_db = sqlalchemy.create_engine(writer_uri, echo=False, isolation_level="SERIALIZABLE", client_encoding="utf8")
 
     statements = [
         f"CREATE ROLE {db_reader} LOGIN PASSWORD '{db_reader_password}';",

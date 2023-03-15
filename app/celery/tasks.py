@@ -164,7 +164,7 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
                 "to": row.recipient,
                 "row_number": row.index,
                 "personalisation": dict(row.personalisation),
-                "queue": choose_sending_queue(job.notification_count),
+                "queue": choose_sending_queue(template.process_type, template_type, job.notification_count),
                 "sender_id": sender_id,
                 "client_reference": client_reference.data,  # will return None if missing
             }
@@ -665,12 +665,11 @@ def choose_database_queue(template: Any, service: Service, notifs_count: int) ->
     # We redirect first to a queue depending on its notification' size.
     large_csv_threshold = current_app.config["CSV_BULK_REDIRECT_THRESHOLD"]
     normal_csv_threshold = current_app.config["CSV_NORMAL_REDIRECT_THRESHOLD"]
-    if notifs_count > large_csv_threshold:
+    if notifs_count >= large_csv_threshold:
         return QueueNames.BULK_DATABASE
-    elif notifs_count < normal_csv_threshold:
+    # Don't switch to normal queue if it's already set to priority queue.
+    elif notifs_count < normal_csv_threshold and template.process_type != PRIORITY:
         return QueueNames.NORMAL_DATABASE
-    # TODO: Consider a threshold for priority queue? with current code, small bulk send
-    #       will always be normal queue rather than priority queue.
     else:
         # If the size isn't a concern, fall back to the template's process type.
         if template.process_type == PRIORITY:
@@ -681,7 +680,7 @@ def choose_database_queue(template: Any, service: Service, notifs_count: int) ->
             return QueueNames.NORMAL_DATABASE
 
 
-def choose_sending_queue(notifications_count: int) -> Optional[str]:
+def choose_sending_queue(process_type: str, notif_type: str, notifications_count: int) -> Optional[str]:
     """Determine which queue to use depending on given parameters.
 
     We only check one rule at the moment: if the CSV file is big enough,
@@ -690,15 +689,22 @@ def choose_sending_queue(notifications_count: int) -> Optional[str]:
     """
     large_csv_threshold = current_app.config["CSV_BULK_REDIRECT_THRESHOLD"]
     normal_csv_threshold = current_app.config["CSV_NORMAL_REDIRECT_THRESHOLD"]
-    # None as default will select a default queue.
-    queue: Optional[str] = None
-    if notifications_count > large_csv_threshold:
+    # Default to the pre-configured template's process type.
+    queue: Optional[str] = process_type
+    
+    # If the size isn't a concern, fall back to the template's process type.
+    if process_type == PRIORITY:
+        return QueueNames.PRIORITY_DATABASE
+    elif process_type == BULK:
+        return QueueNames.BULK_DATABASE
+    else:
+        return QueueNames.SEND_EMAIL
+    
+    if notifications_count >= large_csv_threshold:
         queue = QueueNames.BULK
-    elif notifications_count < normal_csv_threshold:
-        # `None` will let the task use the default queue
-        queue = QueueNames.NORMAL
-    # TODO: Consider a threshold for priority queue? with current code, small bulk send
-    #       will always be normal queue rather than priority queue.
+    # Don't switch to normal queue if it's already set to priority queue.
+    elif notifications_count < normal_csv_threshold and process_type != PRIORITY:
+        queue = QueueNames.NORMAL.format(notif_type)
     return queue
 
 
