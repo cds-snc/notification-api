@@ -47,4 +47,4 @@ smoke-test:
 
 .PHONY: run
 run:
-	flask run -p 6011 --host=0.0.0.0
+	poetry run flask run -p 6011 --host=0.0.0.0

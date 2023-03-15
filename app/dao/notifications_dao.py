@@ -35,6 +35,7 @@ from app.models import (
     LETTER_TYPE,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
+    NOTIFICATION_HARD_BOUNCE,
     NOTIFICATION_PENDING,
     NOTIFICATION_PENDING_VIRUS_CHECK,
     NOTIFICATION_PERMANENT_FAILURE,
@@ -124,11 +125,16 @@ def country_records_delivery(phone_prefix):
     return dlr and dlr.lower() == "yes"
 
 
-def _update_notification_status(notification, status, provider_response=None):
+def _update_notification_status(notification, status, provider_response=None, bounce_response=None):
     status = _decide_permanent_temporary_failure(current_status=notification.status, status=status)
     notification.status = status
     if provider_response:
         notification.provider_response = provider_response
+    if bounce_response:
+        notification.feedback_type = bounce_response["feedback_type"]
+        notification.feedback_subtype = bounce_response["feedback_subtype"]
+        notification.ses_feedback_id = bounce_response["ses_feedback_id"]
+        notification.ses_feedback_date = bounce_response["ses_feedback_date"]
     dao_update_notification(notification)
     return notification
 
@@ -781,7 +787,7 @@ def overall_bounce_rate_for_day(min_emails_sent=1000, default_time=datetime.utcn
         db.session.query(
             Notification.service_id.label("service_id"),
             func.count(Notification.id).label("total_emails"),
-            func.count().filter(Notification.status == NOTIFICATION_PERMANENT_FAILURE).label("hard_bounces"),
+            func.count().filter(Notification.feedback_type == NOTIFICATION_HARD_BOUNCE).label("hard_bounces"),
         )
         .filter(Notification.created_at.between(twenty_four_hours_ago, default_time))  # this value is the `[bounce-rate-window]`
         .group_by(Notification.service_id)
@@ -811,7 +817,7 @@ def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=d
     query = (
         db.session.query(
             func.count(Notification.id).label("total_emails"),
-            func.count().filter(Notification.status == NOTIFICATION_PERMANENT_FAILURE).label("hard_bounces"),
+            func.count().filter(Notification.feedback_type == NOTIFICATION_HARD_BOUNCE).label("hard_bounces"),
         )
         .filter(Notification.created_at.between(twenty_four_hours_ago, default_time))  # this value is the `[bounce-rate-window]`
         .filter(Notification.service_id == service_id)
