@@ -692,19 +692,19 @@ def choose_sending_queue(process_type: str, notif_type: str, notifications_count
     # Default to the pre-configured template's process type.
     queue: Optional[str] = process_type
 
-    # If the size isn't a concern, fall back to the template's process type.
-    if process_type == PRIORITY:
-        return QueueNames.PRIORITY
-    elif process_type == BULK:
-        return QueueNames.BULK
-    else:
-        return QueueNames.SEND_EMAIL
-
     if notifications_count >= large_csv_threshold:
         queue = QueueNames.BULK
     # Don't switch to normal queue if it's already set to priority queue.
     elif notifications_count < normal_csv_threshold and process_type != PRIORITY:
         queue = QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
+    else:
+        # If the size isn't a concern, fall back to the template's process type.
+        if process_type == PRIORITY:
+            return QueueNames.PRIORITY
+        elif process_type == BULK:
+            return QueueNames.BULK
+        else:
+            return QueueNames.SEND_EMAIL
     return queue
 
 
