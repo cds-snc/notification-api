@@ -12,7 +12,7 @@ RUN apt-get update \
     2>&1 \
     && apt-get -y install \
     curl \
-    dns-utils \
+    dnsutils \
     emacs \
     exa \
     fd-find \
