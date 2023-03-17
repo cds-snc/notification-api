@@ -1059,7 +1059,6 @@ class PromotedTemplate(db.Model):
     service = db.relationship("Service")
     template = db.relationship("Template")
 
-
     id = db.Column(UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), nullable=False, index=True, unique=False)
     template_id = db.Column(UUID(as_uuid=True), db.ForeignKey('templates.id'), nullable=False, index=True, unique=False)
