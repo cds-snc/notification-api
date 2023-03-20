@@ -2,9 +2,9 @@
 alembic_utils>=0.7.8
 
 Authlib>=1.2.0
-boto3>=1.26.25
-botocore>=1.29.25
-cachelib>=0.9.0
+boto3>=1.26.94
+botocore>=1.29.94
+cachelib>=0.10.2
 
 # 5 May 2022: Ignoring security vulnerabilities 42498 and 43738 in Makefile.
 # One is fixed in version 5.2.0; the other, 5.2.2.
@@ -19,8 +19,10 @@ ddtrace==1.8.0
 
 docopt>=0.6.2
 
-# 10 May 2022: Newer versions--even 0.30.3--cause import errors.  Versions < 0.31.0 have
-# security vulnerabilities 40416 and 40399, which are ignored in Makefile.
+# 10 May 2022: Newer versions--even 0.30.3--raise ImportError.  Versions < 0.31.0 have
+# security vulnerabilities 40399 and 40416, which are ignored in Makefile.  The ImportError
+# traceback begins in Gunicorn code, which does not properly use newer eventlet versions.
+#     https://github.com/benoitc/gunicorn/issues?q=is%3Aissue+is%3Aopen+ALREADY_HANDLED
 eventlet==0.30.2
 
 # 9 June 2022: Flask raises ImportError with higher versions.
@@ -57,7 +59,7 @@ MarkupSafe==2.0.1
 marshmallow==2.20.5
 marshmallow-sqlalchemy==0.22.2
 nanoid>=2.0.0
-notifications-python-client>=6.4.1
+notifications-python-client~=8.0.0
 psycopg2-binary>=2.9.5
 pwnedpasswords>=2.0.0
 PyJWT>=2.6.0
@@ -66,7 +68,7 @@ PyJWT>=2.6.0
 # import errors with newer versions, but that package can be updated to version 1.1.0 if we upgrade Flask.
 PyPDF2 < 2.0.0
 
-python-dotenv>=0.21.0
+python-dotenv~=1.0.0
 python-magic>=0.4.27
 
 # jsonschema requires this package to validate the date-time format but doesn't include it as a dependency.
@@ -74,11 +76,11 @@ python-magic>=0.4.27
 # https://python-jsonschema.readthedocs.io/en/latest/validate/?highlight=date-time#validating-formats
 rfc3339-validator>=0.1.4
 
-sentry-sdk[flask]>=1.11.1
+sentry-sdk[flask]~=1.17.0
 
 # 10 December 2022: Ignoring security vulnerability 51668 in Makefile.  It is fixed in >=2.0.0b1.
 SQLAlchemy < 1.4
 
-twilio>=7.15.4
+twilio>=7.16.5
 Unidecode>=1.3.6
 validatesns>=0.1.1
