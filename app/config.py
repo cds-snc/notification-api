@@ -280,6 +280,7 @@ class Config(object):
     )
     CELERYBEAT_SCHEDULE = {
         # app/celery/scheduled_tasks.py
+        
         "run-scheduled-jobs": {
             "task": "run-scheduled-jobs",
             "schedule": crontab(),
@@ -370,6 +371,16 @@ class Config(object):
         "delete-letter-notifications": {
             "task": "delete-letter-notifications",
             "schedule": crontab(hour=4, minute=45),  # after 'create-nightly-notification-status'
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "resign-service-callbacks": {
+            "task": "resign-service-callbacks",
+            "schedule": crontab(day_of_month=3, hour=5, minute=0),
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "resign-api_keys": {
+            "task": "resign-api-keys",
+            "schedule": crontab(day_of_month=3, hour=5, minute=15),
             "options": {"queue": QueueNames.PERIODIC},
         },
         "delete-inbound-sms": {
