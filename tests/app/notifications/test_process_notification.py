@@ -496,7 +496,7 @@ class TestSendNotificationQueue:
                 "deliver_throttled_sms",
             ),
             (False, None, "sms", "normal", None, "send-sms-tasks", "deliver_sms"),
-            (False, None, "email", "normal", None, "normal-tasks", "deliver_email"),
+            (False, None, "email", "normal", None, "send-email-tasks", "deliver_email"),
             (False, None, "sms", "team", None, "send-sms-tasks", "deliver_sms"),
             (
                 False,
@@ -676,7 +676,7 @@ class TestChooseQueue:
                 "send-throttled-sms-tasks",
             ),
             (False, None, "sms", "normal", None, "send-sms-tasks"),
-            (False, None, "email", "normal", None, "normal-tasks"),
+            (False, None, "email", "normal", None, "send-email-tasks"),
             (False, None, "sms", "team", None, "send-sms-tasks"),
             (
                 False,
@@ -974,7 +974,7 @@ class TestDBSaveAndSendNotification:
                 "deliver_throttled_sms",
             ),
             ("sms", "normal", None, "send-sms-tasks", "deliver_sms"),
-            ("email", "normal", None, "normal-tasks", "deliver_email"),
+            ("email", "normal", None, "send-email-tasks", "deliver_email"),
             ("sms", "team", None, "send-sms-tasks", "deliver_sms"),
             ("sms", "test", None, "research-mode-tasks", "deliver_sms"),
             (
