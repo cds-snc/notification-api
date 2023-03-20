@@ -265,14 +265,14 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         if notification.sends_with_custom_number():
             deliver_task = provider_tasks.deliver_throttled_sms
             queue = QueueNames.SEND_THROTTLED_SMS
-        if not queue:
+        if (not queue or queue == QueueNames.NORMAL):
             queue = QueueNames.SEND_SMS
     if notification.notification_type == EMAIL_TYPE:
-        if not queue:
+        if (not queue or queue == QueueNames.NORMAL):
             queue = QueueNames.SEND_EMAIL
         deliver_task = provider_tasks.deliver_email
     if notification.notification_type == LETTER_TYPE:
-        if not queue:
+        if (not queue or queue == QueueNames.NORMAL):
             queue = QueueNames.CREATE_LETTERS_PDF
         deliver_task = create_letters_pdf
 
