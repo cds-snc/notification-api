@@ -10,6 +10,15 @@ from app.models import (
 
 
 @transactional
+def resign_service_callbacks():
+    callbacks = ServiceCallbackApi.query.all()  # noqa
+    for callback in callbacks:
+        if callback.bearer_token:
+            callback.bearer_token = callback.bearer_token  # verifies with the getter and resigns with the setter
+    db.session.bulk_save_objects(callbacks)
+
+
+@transactional
 @version_class(ServiceCallbackApi)
 def save_service_callback_api(service_callback_api):
     service_callback_api.id = create_uuid()

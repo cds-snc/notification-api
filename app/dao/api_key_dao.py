@@ -10,6 +10,14 @@ from app.models import ApiKey
 
 
 @transactional
+def resign_api_keys():
+    api_keys = ApiKey.query.all()  # noqa
+    for api_key in api_keys:
+        api_key.secret = api_key.secret  # verifies with the getter and resigns with the setter
+    db.session.bulk_save_objects(api_keys)
+
+
+@transactional
 @version_class(ApiKey)
 def save_model_api_key(api_key):
     if not api_key.id:
