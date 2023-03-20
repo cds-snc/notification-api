@@ -392,7 +392,7 @@ class TestBatchSaving:
             return_value=load_example_csv("multiple_sms"),
         )
         mocker.patch("app.celery.tasks.save_smss.apply_async")
-        mocker.patch("app.encryption.Cryptosigner_notification.sign", return_value="something_encrypted")
+        mocker.patch("app.signer_notification.sign", return_value="something_encrypted")
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
 
         process_job(job.id)
@@ -479,7 +479,7 @@ class TestProcessJob:
     def test_should_process_sms_job_FF_PRIORITY_LANES_true(self, sample_job, mocker):
         mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
         mocker.patch("app.celery.tasks.save_smss.apply_async")
-        mocker.patch("app.encryption.Cryptosigner_notification.sign", return_value="something_encrypted")
+        mocker.patch("app.signer_notification.sign", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
@@ -504,7 +504,7 @@ class TestProcessJob:
         job = create_job(template=sample_template, sender_id=fake_uuid)
         mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
         mocker.patch("app.celery.tasks.save_smss.apply_async")
-        mocker.patch("app.encryption.Cryptosigner_notification.sign", return_value="something_encrypted")
+        mocker.patch("app.signer_notification.sign", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
         process_job(job.id)
@@ -588,7 +588,7 @@ class TestProcessJob:
             return_value=load_example_csv("multiple_email"),
         )
         mocker.patch("app.celery.tasks.save_emails.apply_async")
-        mocker.patch("app.encryption.Cryptosigner_notification.sign", return_value="something_encrypted")
+        mocker.patch("app.signer_notification.sign", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
         process_job(job.id)
@@ -625,7 +625,7 @@ class TestProcessJob:
             return_value=load_example_csv("multiple_sms"),
         )
         mocker.patch("app.celery.tasks.save_smss.apply_async")
-        mocker.patch("app.encryption.Cryptosigner_notification.sign", return_value="something_encrypted")
+        mocker.patch("app.signer_notification.sign", return_value="something_encrypted")
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
 
         process_job(job.id)
@@ -680,7 +680,7 @@ class TestProcessJob:
         """
         mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=email_csv)
         mocker.patch("app.celery.tasks.save_emails.apply_async")
-        mocker.patch("app.encryption.Cryptosigner_notification.sign", return_value="something_encrypted")
+        mocker.patch("app.signer_notification.sign", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
 
@@ -715,7 +715,7 @@ class TestProcessJob:
         """
         mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=email_csv)
         mocker.patch("app.celery.tasks.save_emails.apply_async")
-        mocker.patch("app.encryption.Cryptosigner_notification.sign", return_value="something_encrypted")
+        mocker.patch("app.signer_notification.sign", return_value="something_encrypted")
         redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
 
         process_job(email_job_with_placeholders.id)
@@ -752,7 +752,7 @@ class TestProcessJob:
         job = create_job(template=sample_email_template, sender_id=fake_uuid)
         mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=email_csv)
         mocker.patch("app.celery.tasks.save_emails.apply_async")
-        mocker.patch("app.encryption.Cryptosigner_notification.sign", return_value="something_encrypted")
+        mocker.patch("app.signer_notification.sign", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
         process_job(job.id)
@@ -798,7 +798,7 @@ class TestProcessJob:
             return_value=load_example_csv("multiple_sms"),
         )
         mocker.patch("app.celery.tasks.save_smss.apply_async")
-        mocker.patch("app.encryption.Cryptosigner_notification.sign", return_value="something_encrypted")
+        mocker.patch("app.signer_notification.sign", return_value="something_encrypted")
         mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
 
         process_job(sample_job_with_placeholdered_template.id)

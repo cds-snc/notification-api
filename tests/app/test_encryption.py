@@ -9,14 +9,14 @@ def test_sign_and_verify(notify_api):
     signer.init_app(notify_api, "secret", "salt")
     signed = signer.sign("this")
     assert signed != "this"
-    assert signer._verify(signed) == "this"
+    assert signer.verify(signed) == "this"
 
 
 def test_should_verify_content_signed_with_DANGEROUS_SALT(notify_api):
     signer = CryptoSigner()
     signer.init_app(notify_api, "secret", "salt")
     signed = signer.sign_dangerous("this")
-    assert signer._verify(signed) == "this"
+    assert signer.verify(signed) == "this"
 
 
 def should_not_verify_content_signed_with_different_secrets(notify_api):
