@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from app import DATETIME_FORMAT, signer
+from app import DATETIME_FORMAT, signer_complaint, signer_delivery_status
 from app.notifications.callbacks import (
     create_complaint_callback_data,
     create_delivery_status_callback_data,
@@ -23,7 +23,7 @@ def test_create_delivery_status_callback_data(
     )
     callback_api = create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
 
-    assert signer.verify_delivery_status(create_delivery_status_callback_data(notification, callback_api)) == {
+    assert signer_delivery_status.verify(create_delivery_status_callback_data(notification, callback_api)) == {
         "notification_client_reference": notification.client_reference,
         "notification_created_at": notification.created_at.strftime(DATETIME_FORMAT),
         "notification_id": str(notification.id),
@@ -53,7 +53,7 @@ def test_create_complaint_callback_data(
     complaint = create_complaint(notification=notification, service=notification.service)
     callback_api = create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
 
-    assert signer.verify_complaint(
+    assert signer_complaint.verify(
         create_complaint_callback_data(complaint, notification, callback_api, "recipient@example.com")
     ) == {
         "complaint_id": str(complaint.id),

@@ -29,7 +29,14 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
 
-from app import DATETIME_FORMAT, db, signer
+from app import (
+    DATETIME_FORMAT,
+    db,
+    signer_api_key,
+    signer_bearer_token,
+    signer_inbound_sms,
+    signer_personalisation,
+)
 from app.config import QueueNames
 from app.encryption import check_hash, hashpw
 from app.history_meta import Versioned
@@ -821,13 +828,13 @@ class ServiceInboundApi(BaseModel, Versioned):
     @property
     def bearer_token(self):
         if self._bearer_token:
-            return signer.verify_bearer_token(self._bearer_token)
+            return signer_bearer_token.verify(self._bearer_token)
         return None
 
     @bearer_token.setter
     def bearer_token(self, bearer_token):
         if bearer_token:
-            self._bearer_token = signer.sign_bearer_token(str(bearer_token))
+            self._bearer_token = signer_bearer_token.sign(str(bearer_token))
 
     def serialize(self) -> dict:
         return {
@@ -858,13 +865,13 @@ class ServiceCallbackApi(BaseModel, Versioned):
     @property
     def bearer_token(self):
         if self._bearer_token:
-            return signer.verify_bearer_token(self._bearer_token)
+            return signer_bearer_token.verify(self._bearer_token)
         return None
 
     @bearer_token.setter
     def bearer_token(self, bearer_token):
         if bearer_token:
-            self._bearer_token = signer.sign_bearer_token(str(bearer_token))
+            self._bearer_token = signer_bearer_token.sign(str(bearer_token))
 
     def serialize(self) -> dict:
         return {
@@ -923,13 +930,13 @@ class ApiKey(BaseModel, Versioned):
     @property
     def secret(self):
         if self._secret:
-            return signer.verify_api_key(self._secret)
+            return signer_api_key.verify(self._secret)
         return None
 
     @secret.setter
     def secret(self, secret):
         if secret:
-            self._secret = signer.sign_api_key(str(secret))
+            self._secret = signer_api_key.sign(str(secret))
 
 
 ApiKeyType = Literal["normal", "team", "test"]
@@ -1665,12 +1672,12 @@ class Notification(BaseModel):
     @property
     def personalisation(self):
         if self._personalisation:
-            return signer.verify_personalisation(self._personalisation)
+            return signer_personalisation.verify(self._personalisation)
         return {}
 
     @personalisation.setter
     def personalisation(self, personalisation):
-        self._personalisation = signer.sign_personalisation(personalisation or {})
+        self._personalisation = signer_personalisation.sign(personalisation or {})
 
     def completed_at(self):
         if self.status in NOTIFICATION_STATUS_TYPES_COMPLETED:
@@ -2178,11 +2185,11 @@ class InboundSms(BaseModel):
 
     @property
     def content(self):
-        return signer.verify_inbound_sms(self._content)
+        return signer_inbound_sms.verify(self._content)
 
     @content.setter
     def content(self, content):
-        self._content = signer.sign_inbound_sms(content)
+        self._content = signer_inbound_sms.sign(content)
 
     def serialize(self) -> dict:
         return {
