@@ -2,8 +2,8 @@
 alembic_utils>=0.7.8
 
 Authlib>=1.2.0
-boto3>=1.26.94
-botocore>=1.29.94
+boto3>=1.26.95
+botocore>=1.29.95
 cachelib>=0.10.2
 
 # 5 May 2022: Ignoring security vulnerabilities 42498 and 43738 in Makefile.
@@ -19,11 +19,7 @@ ddtrace==1.8.0
 
 docopt>=0.6.2
 
-# 10 May 2022: Newer versions--even 0.30.3--raise ImportError.  Versions < 0.31.0 have
-# security vulnerabilities 40399 and 40416, which are ignored in Makefile.  The ImportError
-# traceback begins in Gunicorn code, which does not properly use newer eventlet versions.
-#     https://github.com/benoitc/gunicorn/issues?q=is%3Aissue+is%3Aopen+ALREADY_HANDLED
-eventlet==0.30.2
+eventlet~=0.33.3
 
 # 9 June 2022: Flask raises ImportError with higher versions.
 fido2 < 1.0.0
@@ -42,8 +38,8 @@ git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd
 
 # The production image defined by Dockerfile uses Gunicorn.  The development image defined by Dockerfile.local
 # runs the application with the Flask development server by default.
-# 9 May 2022: Newer versions cause build or runtime issues.
-gunicorn[eventlet] < 20.1.0
+# 20 March 2023: Used commit that fixes import errors and broke semver
+gunicorn[eventlet] @ git+https://github.com/benoitc/gunicorn.git@6a8ebb4844b2f28596ffe7421eb9f7d08c8dc4d8
 
 iso8601>=1.1.0
 itsdangerous>=1.1.0
