@@ -1,4 +1,4 @@
-from typing import Any, NewType, Optional, TypedDict
+from typing import Any, Iterator, NewType, Optional, TypedDict
 
 from flask_bcrypt import check_password_hash, generate_password_hash
 from itsdangerous import BadSignature, URLSafeSerializer
@@ -28,23 +28,23 @@ class NotificationDictToSign(TypedDict):
 
 
 class CryptoSigner:
-    def init_app(self, app, secret_key, salt):
+    def init_app(self, app: Any, secret_key: str | Iterator[str], salt: str)-> None:
         self.serializer = URLSafeSerializer(secret_key)
         self.salt = salt
         self.dangerous_salt = app.config.get("DANGEROUS_SALT")
 
-    def sign(self, to_sign: Any) -> str:
+    def sign(self, to_sign: str | NotificationDictToSign) -> str | bytes:
         return self.serializer.dumps(to_sign, salt=self.salt)
 
     # TODO: get rid of this after everything is signed with the new salts
     # This is only needed where we look things up by the signed value:
     #     - get_api_key_by_secret()
-    def sign_dangerous(self, to_sign: Any) -> str:
+    def sign_dangerous(self, to_sign: str) -> str | bytes:
         return self.serializer.dumps(to_sign, salt=self.dangerous_salt)
 
     # NOTE: currently the verify checks agains the default salt as well as the dangerous salt
     # TODO: remove this double check once we've removed DANGEROUS_SALT
-    def verify(self, to_verify: str) -> Any:
+    def verify(self, to_verify: str | bytes) -> Any:
         try:
             return self.serializer.loads(to_verify, salt=self.salt)
         except BadSignature:
