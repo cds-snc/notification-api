@@ -15,8 +15,7 @@ def test_sign_and_verify(notify_api):
 def test_should_verify_content_signed_with_DANGEROUS_SALT(notify_api):
     signer = CryptoSigner()
     signer.init_app(notify_api, "secret", "salt")
-    signed = signer.sign_dangerous("this")
-    assert signer.verify(signed) == "this"
+    assert signer.verify(signer.sign_dangerous("this")) == "this"
 
 
 def should_not_verify_content_signed_with_different_secrets(notify_api):
@@ -38,7 +37,7 @@ def should_not_verify_content_signed_with_different_salts(notify_api):
         signer2.verify(signer1.sign("this"))
 
 
-def test_should_sign_json(notify_api):
+def test_should_sign_dicts(notify_api):
     signer = CryptoSigner()
     signer.init_app(notify_api, "secret", "salt")
     assert signer.verify(signer.sign({"this": "that"})) == {"this": "that"}
