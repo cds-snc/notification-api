@@ -50,50 +50,6 @@ class CryptoSigner:
         except BadSignature:
             return self.serializer.loads(to_verify, salt=self.dangerous_salt)
 
-    # def sign_notification(self, notification: NotificationDictToSign) -> SignedNotification:
-    #     "A wrapper around the sign fn to define the argument type and return type"
-    #     return SignedNotification(self._sign(notification, "notification"))
-
-    # def verify_notification(self, signed_notification: SignedNotification) -> NotificationDictToSign:
-    #     "A wrapper around the verify fn to define the argument type and return type"
-    #     return self._verify(signed_notification, "notification")
-
-    # def sign_personalisation(self, personalisation: dict) -> str:
-    #     return self._sign(personalisation, "personalisation")
-
-    # def verify_personalisation(self, signed_personalisation: str) -> dict:
-    #     return self._verify(signed_personalisation, "personalisation")
-
-    # def sign_complaint(self, complaint: dict) -> str:
-    #     return self._sign(complaint, "complaint")
-
-    # def verify_complaint(self, signed_complaint: str) -> dict:
-    #     return self._verify(signed_complaint, "complaint")
-
-    # def sign_delivery_status(self, delivery_status: dict) -> str:
-    #     return self._sign(delivery_status, "delivery-status")
-
-    # def verify_delivery_status(self, signed_delivery_status: str) -> dict:
-    #     return self._verify(signed_delivery_status, "delivery-status")
-
-    # def sign_bearer_token(self, bearer_token: str) -> str:
-    #     return self._sign(bearer_token, "bearer-token")
-
-    # def verify_bearer_token(self, signed_bearer_token: str) -> str:
-    #     return self._verify(signed_bearer_token, "bearer-token")
-
-    # def sign_api_key(self, api_key_secret: str) -> str:
-    #     return self._sign(api_key_secret, "api-key")
-
-    # def verify_api_key(self, signed_api_key_secret: str) -> str:
-    #     return self._verify(signed_api_key_secret, "api-key")
-
-    # def sign_inbound_sms(self, content: str) -> str:
-    #     return self._sign(content, "inbound-sms")
-
-    # def verify_inbound_sms(self, signed_content: str) -> str:
-    #     return self._verify(signed_content, "inbound-sms")
-
 
 def hashpw(password):
     return generate_password_hash(password.encode("UTF-8"), 10).decode("utf-8")
