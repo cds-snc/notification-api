@@ -40,7 +40,7 @@ more-itertools==8.14.0
 awscli-cwlogs==1.4.6
 aws-embedded-metrics==1.0.7
 # Putting upgrade on hold due to new version introducing breaking changes
-Werkzeug==2.2.2
+Werkzeug==2.2.3
 MarkupSafe==2.1.1
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous==2.1.2
