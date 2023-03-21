@@ -700,11 +700,11 @@ def choose_sending_queue(process_type: str, notif_type: str, notifications_count
     else:
         # If the size isn't a concern, fall back to the template's process type.
         if process_type == PRIORITY:
-            return QueueNames.PRIORITY
+            queue = QueueNames.PRIORITY
         elif process_type == BULK:
-            return QueueNames.BULK
+            queue = QueueNames.BULK
         else:
-            return QueueNames.SEND_EMAIL
+            queue = QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
     return queue
 
 

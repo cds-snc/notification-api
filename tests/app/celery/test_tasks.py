@@ -989,7 +989,7 @@ class TestProcessRows:
         mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
         signer_mock = mocker.patch("app.celery.tasks.signer.sign")
-        template = Mock(id="template_id", template_type=template_type)
+        template = Mock(id="template_id", template_type=template_type, process_type=NORMAL)
         api_key = {}
         job = Mock(
             id="job_id",
