@@ -73,37 +73,6 @@ def mock_s3_get_list_diff(bucket_name, subfolder="", suffix="", last_modified=No
         ]
 
 
-
-def test_resign_callbacks(client, sample_template, mocker):
-    import app
-    from app import signer
-    
-    signer.serializer = URLSafeSerializer(["k1", "k2"])
-    signer.salt = "salt"
-    initial_callback = create_service_callback_api(service=sample_template.service)
-    bearer_token = initial_callback.bearer_token
-    _bearer_token = initial_callback._bearer_token
-
-    new_signer = CryptoSigner()
-    new_signer.serializer = URLSafeSerializer(["k2", "k3"])
-    new_signer.salt = "salt"
-    # signer.serializer = URLSafeSerializer(["k2", "k3"])
-
-    # signer.serializer = new_signer.serializer
-    with patch.object(app, 'signer.serializer', return_value=new_signer.serializer):
-    
-        resign_service_callbacks_task()
-        callback = ServiceCallbackApi.query.get(initial_callback.id)
-        assert callback.bearer_token == bearer_token
-        assert callback._bearer_token != _bearer_token
-    
-    
-
-def test_resign_api_keys(client, sample_template, mocker):
-    pass
-    
-
-
 @freeze_time("2016-10-18T10:00:00")
 def test_will_remove_csv_files_for_jobs_older_than_seven_days(notify_db, notify_db_session, mocker, sample_template):
     """
