@@ -42,7 +42,7 @@ class CryptoSigner:
     def sign_dangerous(self, to_sign: str) -> str | bytes:
         return self.serializer.dumps(to_sign, salt=self.dangerous_salt)
 
-    # NOTE: currently the verify checks agains the default salt as well as the dangerous salt
+    # NOTE: currently the verify checks against the default salt as well as the dangerous salt
     # TODO: remove this double check once we've removed DANGEROUS_SALT
     def verify(self, to_verify: str | bytes) -> Any:
         try:
