@@ -1065,7 +1065,7 @@ class TemplateBase(BaseModel):
         return db.relationship("User")
 
     @declared_attr
-    def process_type(cls):
+    def process_type(cls) -> str:
         return db.Column(
             db.String(255),
             db.ForeignKey("template_process_type.name"),
@@ -1074,7 +1074,7 @@ class TemplateBase(BaseModel):
             default=NORMAL,
         )
 
-    def queue_to_use(self):
+    def queue_to_use(self) -> str:
         return {
             NORMAL: QueueNames.NORMAL,
             PRIORITY: QueueNames.PRIORITY,

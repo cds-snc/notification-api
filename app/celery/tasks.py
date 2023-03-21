@@ -179,12 +179,12 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
     if encrypted_smss:
         save_smss.apply_async(
             (str(service.id), encrypted_smss, None),
-            queue=choose_database_queue(template, service, job.notification_count),
+            queue=choose_database_queue(str(template.process_type), service, job.notification_count),
         )
     if encrypted_emails:
         save_emails.apply_async(
             (str(service.id), encrypted_emails, None),
-            queue=choose_database_queue(template, service, job.notification_count),
+            queue=choose_database_queue(str(template.process_type), service, job.notification_count),
         )
 
 
@@ -492,7 +492,7 @@ def handle_batch_error_and_forward(
                 if len(signed_and_verified) > 1:
                     save_fn.apply_async(
                         (service.id, [signed], None),
-                        queue=choose_database_queue(template, service, notifs_count=1),
+                        queue=choose_database_queue(str(template.process_type), service, notifications_count=1),
                     )
                     current_app.logger.warning("Made a new task to retry")
                 else:
@@ -657,7 +657,7 @@ def process_incomplete_job(job_id):
     job_complete(job, resumed=True)
 
 
-def choose_database_queue(template: Any, service: Service, notifs_count: int) -> str:
+def choose_database_queue(process_type: str, service: Service, notifications_count: int) -> str:
     # Research mode is a special case, it always goes to the research mode queue.
     if service.research_mode:
         return QueueNames.RESEARCH_MODE
@@ -665,16 +665,16 @@ def choose_database_queue(template: Any, service: Service, notifs_count: int) ->
     # We redirect first to a queue depending on its notification' size.
     large_csv_threshold = current_app.config["CSV_BULK_REDIRECT_THRESHOLD"]
     normal_csv_threshold = current_app.config["CSV_NORMAL_REDIRECT_THRESHOLD"]
-    if notifs_count >= large_csv_threshold:
+    if notifications_count >= large_csv_threshold:
         return QueueNames.BULK_DATABASE
     # Don't switch to normal queue if it's already set to priority queue.
-    elif notifs_count >= normal_csv_threshold and template.process_type != PRIORITY:
+    elif notifications_count >= normal_csv_threshold and process_type != PRIORITY:
         return QueueNames.NORMAL_DATABASE
     else:
         # If the size isn't a concern, fall back to the template's process type.
-        if template.process_type == PRIORITY:
+        if process_type == PRIORITY:
             return QueueNames.PRIORITY_DATABASE
-        elif template.process_type == BULK:
+        elif process_type == BULK:
             return QueueNames.BULK_DATABASE
         else:
             return QueueNames.NORMAL_DATABASE

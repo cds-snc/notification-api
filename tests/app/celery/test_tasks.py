@@ -126,6 +126,10 @@ class TestChooseDatabaseQueue:
             (True, NORMAL, 20, QueueNames.RESEARCH_MODE),
             (True, BULK, 201, QueueNames.RESEARCH_MODE),
             (False, PRIORITY, 1, QueueNames.PRIORITY_DATABASE),
+            (False, PRIORITY, 19, QueueNames.PRIORITY_DATABASE),
+            (False, PRIORITY, 20, QueueNames.PRIORITY_DATABASE),
+            (False, PRIORITY, 199, QueueNames.PRIORITY_DATABASE),
+            (False, PRIORITY, 200, QueueNames.BULK_DATABASE),
             (False, NORMAL, 199, QueueNames.NORMAL_DATABASE),
             (False, NORMAL, 200, QueueNames.BULK_DATABASE),
             (False, NORMAL, 201, QueueNames.BULK_DATABASE),
@@ -146,17 +150,7 @@ class TestChooseDatabaseQueue:
         service = create_sample_service(notify_db, notify_db_session, research_mode=research_mode)
         template = create_sample_template(notify_db, notify_db_session, process_type=template_priority)
 
-        # if research_mode:
-        #     expected_queue = QueueNames.RESEARCH_MODE
-        # elif template_priority == PRIORITY:
-        #     expected_queue = QueueNames.PRIORITY_DATABASE
-        # elif template_priority == NORMAL:
-        #     expected_queue = QueueNames.NORMAL_DATABASE
-        # elif template_priority == BULK:
-        #     expected_queue = QueueNames.BULK_DATABASE
-
-        actual_queue = choose_database_queue(template, service, notification_count)
-
+        actual_queue = choose_database_queue(template.process_type, service, notification_count)
         assert expected_queue == actual_queue
 
 
