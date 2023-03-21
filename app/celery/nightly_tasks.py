@@ -32,7 +32,33 @@ from app.models import (
 from app.notifications.callbacks import create_delivery_status_callback_data
 from app.performance_platform import processing_time, total_sent_notifications
 from app.utils import get_local_timezone_midnight_in_utc
+from app.dao.service_callback_api_dao import resign_service_callbacks
+from app.dao.api_key_dao import resign_api_keys
 
+
+@notify_celery.task(name="resign-service-callbacks")
+@statsd(namespace="tasks")
+def resign_service_callbacks_task():
+    try:
+        start = datetime.utcnow()
+        resign_service_callbacks()
+        current_app.logger.info(f"resign-service-callbacks job started {start} finished {datetime.utcnow()}")
+    except SQLAlchemyError:
+        current_app.logger.exception("Failed to resign callbacks")
+        raise
+
+
+@notify_celery.task(name="resign-api-keys")
+@statsd(namespace="tasks")
+def resign_api_keys_task():
+    try:
+        start = datetime.utcnow()
+        resign_api_keys()
+        current_app.logger.info(f"resign-api-keys job started {start} finished {datetime.utcnow()}")
+    except SQLAlchemyError:
+        current_app.logger.exception("Failed to resign api keys")
+        raise
+    
 
 @notify_celery.task(name="remove_sms_email_jobs")
 @cronitor("remove_sms_email_jobs")

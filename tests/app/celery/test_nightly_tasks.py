@@ -7,7 +7,7 @@ import pytz
 from flask import current_app
 from freezegun import freeze_time
 from notifications_utils.clients.zendesk.zendesk_client import ZendeskClient
-
+from app.encryption import CryptoSigner
 from app.celery import nightly_tasks
 from app.celery.nightly_tasks import (
     delete_dvla_response_files_older_than_seven_days,
@@ -24,13 +24,14 @@ from app.celery.nightly_tasks import (
     send_daily_performance_platform_stats,
     send_total_sent_notifications_to_performance_platform,
     timeout_notifications,
+    resign_api_keys_task, resign_service_callbacks_task,
 )
 from app.clients.performance_platform.performance_platform_client import (
     PerformancePlatformClient,
 )
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE
+from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE, ServiceCallbackApi
 from app.notifications.callbacks import create_delivery_status_callback_data
 from tests.app.aws.test_s3 import single_s3_object_stub
 from tests.app.conftest import datetime_in_past
@@ -44,6 +45,7 @@ from tests.app.db import (
     create_template,
     save_notification,
 )
+from itsdangerous import URLSafeSerializer
 
 
 def mock_s3_get_list_match(bucket_name, subfolder="", suffix="", last_modified=None):
@@ -69,6 +71,37 @@ def mock_s3_get_list_diff(bucket_name, subfolder="", suffix="", last_modified=No
             "root/disoatch/NOTIFY.2018-01-11175007p.ACK.TXT",
             "root/disoatch/NOTIFY.2018-01-11175008.ACK.TXT",
         ]
+
+
+
+def test_resign_callbacks(client, sample_template, mocker):
+    import app
+    from app import signer
+    
+    signer.serializer = URLSafeSerializer(["k1", "k2"])
+    signer.salt = "salt"
+    initial_callback = create_service_callback_api(service=sample_template.service)
+    bearer_token = initial_callback.bearer_token
+    _bearer_token = initial_callback._bearer_token
+
+    new_signer = CryptoSigner()
+    new_signer.serializer = URLSafeSerializer(["k2", "k3"])
+    new_signer.salt = "salt"
+    # signer.serializer = URLSafeSerializer(["k2", "k3"])
+
+    # signer.serializer = new_signer.serializer
+    with patch.object(app, 'signer.serializer', return_value=new_signer.serializer):
+    
+        resign_service_callbacks_task()
+        callback = ServiceCallbackApi.query.get(initial_callback.id)
+        assert callback.bearer_token == bearer_token
+        assert callback._bearer_token != _bearer_token
+    
+    
+
+def test_resign_api_keys(client, sample_template, mocker):
+    pass
+    
 
 
 @freeze_time("2016-10-18T10:00:00")
