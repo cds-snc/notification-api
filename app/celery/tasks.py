@@ -668,7 +668,7 @@ def choose_database_queue(template: Any, service: Service, notifs_count: int) ->
     if notifs_count >= large_csv_threshold:
         return QueueNames.BULK_DATABASE
     # Don't switch to normal queue if it's already set to priority queue.
-    elif notifs_count < normal_csv_threshold and template.process_type != PRIORITY:
+    elif notifs_count >= normal_csv_threshold and template.process_type != PRIORITY:
         return QueueNames.NORMAL_DATABASE
     else:
         # If the size isn't a concern, fall back to the template's process type.
@@ -695,7 +695,7 @@ def choose_sending_queue(process_type: str, notif_type: str, notifications_count
     if notifications_count >= large_csv_threshold:
         queue = QueueNames.BULK
     # Don't switch to normal queue if it's already set to priority queue.
-    elif notifications_count < normal_csv_threshold and process_type != PRIORITY:
+    elif notifications_count >= normal_csv_threshold and process_type != PRIORITY:
         queue = QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
     else:
         # If the size isn't a concern, fall back to the template's process type.

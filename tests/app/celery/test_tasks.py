@@ -886,20 +886,36 @@ class TestProcessRows:
         task_mock.apply_async.assert_called_once()
 
     @pytest.mark.parametrize(
-        "csv_normal_threshold, csv_bulk_threshold, expected_queue",
+        "csv_normal_threshold, csv_bulk_threshold, template_process_type, expected_queue",
         [
-            (0, 0, "bulk-tasks"),
-            (1, 1_000, "send-email-tasks"),
-            (2, 1_000, "send-email-tasks"),
-            (1_000, 1_000, "send-email-tasks"),
+            (1, 1_000, PRIORITY, "priority-tasks"),  # keep priority task even if normal threshold is met
+            (2, 1_000, PRIORITY, "priority-tasks"),  # keep priority when no thresholds are met
+            (0, 1, PRIORITY, "bulk-tasks"),  # autoswitch to bulk queue if bulk threshold is met, even if in priority.
+            (1, 1, PRIORITY, "bulk-tasks"),  # autoswitch to bulk queue if bulk threshold is met.
+            (1, 1, NORMAL, "bulk-tasks"),  # autoswitch to bulk queue if bulk threshold is met.
+            (1, 1_000, NORMAL, "send-email-tasks"),  # keep normal priority
+            (2, 1_000, NORMAL, "send-email-tasks"),  # keep normal priority
+            (1_000, 1_000, NORMAL, "send-email-tasks"),  # keep normal priority
+            (1, 1, BULK, "bulk-tasks"),  # keep bulk priority
+            (1, 1_000, BULK, "send-email-tasks"),  # autoswitch to normal queue if normal threshold is met.
+            (2, 1_000, BULK, "bulk-tasks"),  # keep bulk priority
+            (1_000, 1_000, BULK, "bulk-tasks"),  # keep bulk priority
         ],
     )
     def test_should_redirect_job_to_queue_depending_on_csv_threshold(
-        self, notify_api, sample_job, mocker, fake_uuid, csv_normal_threshold, csv_bulk_threshold, expected_queue
+        self,
+        notify_api,
+        sample_job,
+        mocker,
+        fake_uuid,
+        csv_normal_threshold,
+        csv_bulk_threshold,
+        template_process_type,
+        expected_queue,
     ):
         mock_save_email = mocker.patch("app.celery.tasks.save_emails")
 
-        template = Mock(id=1, template_type=EMAIL_TYPE, process_type=NORMAL)
+        template = Mock(id=1, template_type=EMAIL_TYPE, process_type=template_process_type)
         api_key = Mock(id=1, key_type=KEY_TYPE_NORMAL)
         job = Mock(id=1, template_version="temp_vers", notification_count=1, api_key=api_key)
         service = Mock(id=1, research_mode=False)
