@@ -453,6 +453,12 @@ def send_contact_request(user_id):
     try:
         if contact.is_go_live_request():
             service = dao_fetch_service_by_id(contact.service_id)
+            # don't populate the department_org_name field if it already has a value
+            # that will happen if the trial service was created before the Salesforce
+            # integration feature went live
+            if contact and current_app.config["FF_SALESFORCE_CONTACT"] and not contact.department_org_name:
+                contact.department_org_name = service.organisation_notes
+
             ZenDeskSell().send_go_live_request(service, user, contact)
         else:
             ZenDeskSell().send_contact_request(contact)
