@@ -258,7 +258,7 @@ def send_email_to_provider(notification: Notification):
             )
             if current_app.config["FF_BOUNCE_RATE_V1"]:
                 bounce_rate_client.set_total_notifications(service.id)
-                current_app.info(f"Setting total notifications for service {service.id} in REDIS")
+                current_app.logger.info(f"Setting total notifications for service {service.id} in REDIS")
             current_app.logger.info(f"Notification id {notification.id} HAS BEEN SENT")
             notification.reference = reference
             update_notification_to_sending(notification, provider)
