@@ -124,7 +124,7 @@ class Config(object):
     ADMIN_CLIENT_SECRET = os.getenv("ADMIN_CLIENT_SECRET")
 
     # encyption secret/salt
-    SECRET_KEY = os.getenv("SECRET_KEY")
+    SECRET_KEY = env.list("SECRET_KEY")
     DANGEROUS_SALT = os.getenv("DANGEROUS_SALT")
 
     # API key prefix
@@ -340,7 +340,6 @@ class Config(object):
             "schedule": 10,
             "options": {"queue": QueueNames.PERIODIC},
         },
-        ""
         # app/celery/nightly_tasks.py
         "timeout-sending-notifications": {
             "task": "timeout-sending-notifications",
@@ -372,16 +371,6 @@ class Config(object):
             "schedule": crontab(hour=4, minute=45),  # after 'create-nightly-notification-status'
             "options": {"queue": QueueNames.PERIODIC},
         },
-        "resign-service-callbacks": {
-            "task": "resign-service-callbacks",
-            "schedule": crontab(day_of_month=3, hour=5, minute=0),
-            "options": {"queue": QueueNames.PERIODIC},
-        },
-        "resign-api_keys": {
-            "task": "resign-api-keys",
-            "schedule": crontab(day_of_month=3, hour=5, minute=15),
-            "options": {"queue": QueueNames.PERIODIC},
-        },
         "delete-inbound-sms": {
             "task": "delete-inbound-sms",
             "schedule": crontab(hour=1, minute=40),
@@ -402,6 +391,19 @@ class Config(object):
             "schedule": crontab(hour=4, minute=0),
             "options": {"queue": QueueNames.PERIODIC},
         },
+        # app/celery/monthly_tasks.py
+        "resign-service-callbacks": {
+            "task": "resign-service-callbacks",
+            "schedule": crontab(day_of_month=3, hour=5, minute=0),
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "resign-api_keys": {
+            "task": "resign-api-keys",
+            "schedule": crontab(day_of_month=3, hour=5, minute=15),
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+
+
         # 'remove_letter_jobs': {
         # 'task': 'remove_letter_jobs',
         # 'schedule': crontab(hour=4, minute=20),
@@ -544,7 +546,7 @@ class Development(Config):
     TRANSIENT_UPLOADED_LETTERS = "development-transient-uploaded-letters"
 
     ADMIN_CLIENT_SECRET = os.getenv("ADMIN_CLIENT_SECRET", "dev-notify-secret-key")
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-notify-secret-key")
+    SECRET_KEY = os.list("SECRET_KEY", ["dev-notify-secret-key"])
     DANGEROUS_SALT = os.getenv("DANGEROUS_SALT", "dev-notify-salt ")
 
     NOTIFY_ENVIRONMENT = "development"
