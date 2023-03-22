@@ -44,9 +44,6 @@ from app.notifications.process_notifications import send_notification_to_queue
 from app.v2.errors import JobIncompleteError
 
 
-
-
-
 @notify_celery.task(name="run-scheduled-jobs")
 @statsd(namespace="tasks")
 def run_scheduled_jobs():

@@ -34,7 +34,6 @@ from app.performance_platform import processing_time, total_sent_notifications
 from app.utils import get_local_timezone_midnight_in_utc
 
 
-
 @notify_celery.task(name="remove_sms_email_jobs")
 @cronitor("remove_sms_email_jobs")
 @statsd(namespace="tasks")

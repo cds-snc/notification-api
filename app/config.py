@@ -280,7 +280,6 @@ class Config(object):
     )
     CELERYBEAT_SCHEDULE = {
         # app/celery/scheduled_tasks.py
-        
         "run-scheduled-jobs": {
             "task": "run-scheduled-jobs",
             "schedule": crontab(),

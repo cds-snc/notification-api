@@ -7,7 +7,7 @@ import pytz
 from flask import current_app
 from freezegun import freeze_time
 from notifications_utils.clients.zendesk.zendesk_client import ZendeskClient
-from app.encryption import CryptoSigner
+
 from app.celery import nightly_tasks
 from app.celery.nightly_tasks import (
     delete_dvla_response_files_older_than_seven_days,
@@ -24,14 +24,13 @@ from app.celery.nightly_tasks import (
     send_daily_performance_platform_stats,
     send_total_sent_notifications_to_performance_platform,
     timeout_notifications,
-    resign_api_keys_task, resign_service_callbacks_task,
 )
 from app.clients.performance_platform.performance_platform_client import (
     PerformancePlatformClient,
 )
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE, ServiceCallbackApi
+from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE
 from app.notifications.callbacks import create_delivery_status_callback_data
 from tests.app.aws.test_s3 import single_s3_object_stub
 from tests.app.conftest import datetime_in_past
@@ -45,7 +44,6 @@ from tests.app.db import (
     create_template,
     save_notification,
 )
-from itsdangerous import URLSafeSerializer
 
 
 def mock_s3_get_list_match(bucket_name, subfolder="", suffix="", last_modified=None):
