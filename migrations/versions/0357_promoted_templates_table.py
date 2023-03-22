@@ -34,7 +34,6 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_index(op.f('promoted_templates_pkey'), table_name='promoted_templates')
     op.drop_index(op.f('ix_promoted_templates_service_id'), table_name='promoted_templates')
     op.drop_index(op.f('ix_promoted_templates_template_id'), table_name='promoted_templates')
     op.drop_table('promoted_templates')
