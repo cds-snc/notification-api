@@ -1,6 +1,6 @@
 """
 
-Revision ID: dbf6ea83becb
+Revision ID: 0357_promoted_templates_table
 Revises: 0356_add_include_payload
 Create Date: 2023-03-15 22:24:20.449284
 
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = 'dbf6ea83becb'
+revision = '0357_promoted_templates_table'
 down_revision = '0356_add_include_payload'
 
 
