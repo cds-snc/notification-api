@@ -68,7 +68,7 @@ jobs:
 
   run-user-flows:
     needs: [run-deployment]
-    if: ${{ inputs.environment }} == "dev"
+    if: ${{ inputs.environment == 'dev' }}
     uses: ./.github/workflows/user_flows.yml
     with:
       environment: "${{ inputs.environment }}"

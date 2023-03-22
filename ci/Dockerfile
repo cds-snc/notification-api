@@ -27,15 +27,17 @@ RUN apk add --no-cache --virtual .build-deps gcc musl-dev rust cargo \
   && python -m pip install --upgrade pip \
   && python -m pip install wheel \
   && pip install --no-cache-dir -r requirements.txt \
+  # Remove build dependencies.
   && apk del --no-cache .build-deps
 
 # Copy the host's build context directory (notification-api/) to the image's working directory (/app).
 COPY --chown=vanotify . .
 
 # Generate the version file, app/version.py.  This overwrites the default file needed for local development.
+# The safe.directory modification eliminates the error, "fatal: detected dubious ownership in repository at '/app'".
 RUN apk add --no-cache make \
+  && git config --global --add safe.directory /app \
   && make generate-version-file \
-  # Remove build dependencies.
   && apk del --no-cache make
 
 USER vanotify

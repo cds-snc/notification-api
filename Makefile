@@ -33,8 +33,9 @@ install-safety:
 	pip install safety
 
 check-dependencies: install-safety ## Scan dependencies for security vulnerabilities
-	# The ignored issues are documented in requirements-app.txt.
-	safety check -r requirements.txt --full-report -i 40399 -i 40416 -i 42497 -i 42498 -i 43738 -i 47833 -i 51668 -i 52548
+    # Issues 53325 and 53326 affect Werkzeug < 2.2.3.  Werkzeug is a subdependency of Flask.
+	# The remaining ignored issues are documented in requirements-app.txt.
+	safety check -r requirements.txt --full-report -i 42497 -i 42498 -i 43738 -i 47833 -i 51668 -i 52548 -i 53325 -i 53326
 
 .PHONY:
 	help \
