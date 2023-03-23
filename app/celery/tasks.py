@@ -667,7 +667,7 @@ def choose_database_queue(process_type: str, research_mode: bool, notifications_
     if notifications_count >= large_csv_threshold:
         return QueueNames.BULK_DATABASE
     # Don't switch to normal queue if it's already set to priority queue.
-    elif notifications_count < large_csv_threshold and process_type == BULK:
+    elif process_type == BULK:
         return QueueNames.NORMAL_DATABASE
     else:
         # If the size isn't a concern, fall back to the template's process type.
@@ -694,7 +694,7 @@ def choose_sending_queue(process_type: str, notif_type: str, notifications_count
         queue = QueueNames.BULK
     # If priority is slow/bulk, but lower than threshold, let's make it
     # faster by switching to normal queue.
-    elif notifications_count < large_csv_threshold and process_type == BULK:
+    elif process_type == BULK:
         queue = QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
     else:
         # If the size isn't a concern, fall back to the template's process type.
