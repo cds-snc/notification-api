@@ -7,14 +7,14 @@ from simple_salesforce import Salesforce
 def get_name_parts(full_name: str) -> dict[str, Optional[str]]:
     """
     Splits a space separated fullname into first and last
-    name parts.  If the name cannot be split, the first
-    name part will
+    name parts.  If the name cannot be split, the first and
+    last segments will be set to None.
 
     Args:
         full_name (str): The space seperated full name
 
     Returns:
-        dict[str, str]: The first and last name parts
+        dict[str, Optional[str]]: The first and last name parts
     """
     name_parts = full_name.split()
     return {

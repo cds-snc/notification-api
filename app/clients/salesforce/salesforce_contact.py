@@ -1,12 +1,17 @@
-from typing import Optional, Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from flask import current_app
 from simple_salesforce import Salesforce
 
 from .salesforce_utils import get_name_parts, parse_result
 
+if TYPE_CHECKING:
+    from app.models import User
 
-def create(session: Salesforce, user, account_id: Optional[str]) -> Tuple[bool, Optional[str]]:
+
+def create(session: Salesforce, user: User, account_id: Optional[str]) -> Tuple[bool, Optional[str]]:
     """Create a Salesforce Contact from the given Notify User
 
     Args:
