@@ -22,7 +22,7 @@ class TestResigning:
         assert callback.bearer_token == bearer_token
         assert callback._bearer_token != _bearer_token
 
-    def test_resign_api_keys(client, sample_service):
+    def test_resign_api_keys(self, sample_service):
         from app import signer
 
         signer.serializer = URLSafeSerializer(["k1", "k2"])

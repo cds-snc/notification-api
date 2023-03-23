@@ -402,8 +402,6 @@ class Config(object):
             "schedule": crontab(day_of_month=3, hour=5, minute=15),
             "options": {"queue": QueueNames.PERIODIC},
         },
-
-
         # 'remove_letter_jobs': {
         # 'task': 'remove_letter_jobs',
         # 'schedule': crontab(hour=4, minute=20),
@@ -546,7 +544,7 @@ class Development(Config):
     TRANSIENT_UPLOADED_LETTERS = "development-transient-uploaded-letters"
 
     ADMIN_CLIENT_SECRET = os.getenv("ADMIN_CLIENT_SECRET", "dev-notify-secret-key")
-    SECRET_KEY = os.list("SECRET_KEY", ["dev-notify-secret-key"])
+    SECRET_KEY = env.list("SECRET_KEY", ["dev-notify-secret-key"])
     DANGEROUS_SALT = os.getenv("DANGEROUS_SALT", "dev-notify-salt ")
 
     NOTIFY_ENVIRONMENT = "development"
