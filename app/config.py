@@ -124,7 +124,7 @@ class Config(object):
     ADMIN_CLIENT_SECRET = os.getenv("ADMIN_CLIENT_SECRET")
 
     # encyption secret/salt
-    SECRET_KEY = os.getenv("SECRET_KEY")
+    SECRET_KEY = env.list("SECRET_KEY", [])
     DANGEROUS_SALT = os.getenv("DANGEROUS_SALT")
 
     # API key prefix
@@ -552,7 +552,7 @@ class Development(Config):
     TRANSIENT_UPLOADED_LETTERS = "development-transient-uploaded-letters"
 
     ADMIN_CLIENT_SECRET = os.getenv("ADMIN_CLIENT_SECRET", "dev-notify-secret-key")
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-notify-secret-key")
+    SECRET_KEY = env.list("SECRET_KEY", ["dev-notify-secret-key"])
     DANGEROUS_SALT = os.getenv("DANGEROUS_SALT", "dev-notify-salt ")
 
     NOTIFY_ENVIRONMENT = "development"
