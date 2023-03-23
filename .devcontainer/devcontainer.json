@@ -33,6 +33,7 @@
 		"donjayamanne.python-extension-pack",
 		"eamodio.gitlens",
 		"GitHub.copilot",
+		"GitHub.copilot-labs",
 		"googlecloudtools.cloudcode",
 		"matangover.mypy",
 		"ms-azuretools.vscode-docker",
