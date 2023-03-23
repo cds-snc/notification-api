@@ -880,20 +880,14 @@ class TestProcessRows:
         task_mock.apply_async.assert_called_once()
 
     @pytest.mark.parametrize(
-        "csv_normal_threshold, csv_bulk_threshold, template_process_type, expected_queue",
+        "csv_bulk_threshold, template_process_type, expected_queue",
         [
-            (1, 1_000, PRIORITY, "priority-tasks"),  # keep priority task even if normal threshold is met
-            (2, 1_000, PRIORITY, "priority-tasks"),  # keep priority when no thresholds are met
-            (0, 1, PRIORITY, "bulk-tasks"),  # autoswitch to bulk queue if bulk threshold is met, even if in priority.
-            (1, 1, PRIORITY, "bulk-tasks"),  # autoswitch to bulk queue if bulk threshold is met.
-            (1, 1, NORMAL, "bulk-tasks"),  # autoswitch to bulk queue if bulk threshold is met.
-            (1, 1_000, NORMAL, "send-email-tasks"),  # keep normal priority
-            (2, 1_000, NORMAL, "send-email-tasks"),  # keep normal priority
-            (1_000, 1_000, NORMAL, "send-email-tasks"),  # keep normal priority
-            (1, 1, BULK, "bulk-tasks"),  # keep bulk priority
-            (1, 1_000, BULK, "send-email-tasks"),  # autoswitch to normal queue if normal threshold is met.
-            (2, 1_000, BULK, "send-email-tasks"),  # autoswitch to normal queue if normal threshold is met.
-            (1_000, 1_000, BULK, "bulk-tasks"),  # keep bulk priority
+            (1_000, PRIORITY, "priority-tasks"),  # keep priority when no thresholds are met
+            (1, PRIORITY, "bulk-tasks"),  # autoswitch to bulk queue if bulk threshold is met, even if in priority.
+            (1, NORMAL, "bulk-tasks"),  # autoswitch to bulk queue if bulk threshold is met.
+            (1_000, NORMAL, "send-email-tasks"),  # keep normal priority
+            (1, BULK, "bulk-tasks"),  # keep bulk priority
+            (1_000, BULK, "send-email-tasks"),  # autoswitch to normal queue if normal threshold is met.
         ],
     )
     def test_should_redirect_job_to_queue_depending_on_csv_threshold(
@@ -902,7 +896,6 @@ class TestProcessRows:
         sample_job,
         mocker,
         fake_uuid,
-        csv_normal_threshold,
         csv_bulk_threshold,
         template_process_type,
         expected_queue,
