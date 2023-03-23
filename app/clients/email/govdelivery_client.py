@@ -1,13 +1,16 @@
-from app.models import (NOTIFICATION_CANCELLED, NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE,
-                        NOTIFICATION_SENDING, NOTIFICATION_TEMPORARY_FAILURE)
-from time import monotonic
-
 import requests
+from app.clients.email import EmailClient, EmailClientException
+from app.models import (
+    NOTIFICATION_CANCELLED,
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_SENDING,
+    NOTIFICATION_TEMPORARY_FAILURE,
+)
 from flask import current_app
 from notifications_utils.recipients import InvalidEmailError
-from requests import HTTPError
+from time import monotonic
 
-from app.clients.email import EmailClient, EmailClientException
 
 govdelivery_status_map = {
     'sending': NOTIFICATION_SENDING,
@@ -72,11 +75,12 @@ class GovdeliveryClient(EmailClient):
                 json=payload,
                 headers={
                     "X-AUTH-TOKEN": self.token
-                }
+                },
+                timeout=(3.05, 1)
             )
             response.raise_for_status()
 
-        except HTTPError as e:
+        except requests.HTTPError as e:
             self.statsd_client.incr("clients.govdelivery.error")
             if e.response.status_code == 422:
                 raise InvalidEmailError(str(e))
@@ -87,7 +91,7 @@ class GovdeliveryClient(EmailClient):
             raise GovdeliveryClientException(str(e))
         else:
             elapsed_time = monotonic() - start_time
-            current_app.logger.info("Govdelivery request finished in {}".format(elapsed_time))
+            current_app.logger.info("Govdelivery request finished in %f", elapsed_time)
             self.statsd_client.timing("clients.govdelivery.request-time", elapsed_time)
             self.statsd_client.incr("clients.govdelivery.success")
             return response.json()["id"]

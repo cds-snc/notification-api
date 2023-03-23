@@ -1,7 +1,7 @@
-import requests
-import jwt
-import time
 import json
+import jwt
+import requests
+import time
 
 
 class VAOnsiteClient:
@@ -29,12 +29,18 @@ class VAOnsiteClient:
         response = None
 
         try:
-            response = requests.post(url=f'{ self.url_base }/v0/onsite_notifications',
-                                     data=json.dumps(data),
-                                     headers=self._build_header())
+            response = requests.post(
+                url=f'{ self.url_base }/v0/onsite_notifications',
+                data=json.dumps(data),
+                headers=self._build_header(),
+                timeout=(3.05, 1)
+            )
 
-            self.logger.info("onsite_notifications POST response: status_code=%s, json=%s",
-                             response.status_code, response.json())
+            self.logger.info(
+                "onsite_notifications POST response: status_code=%d, json=%s",
+                response.status_code,
+                response.json()
+            )
 
         except Exception as e:
             self.logger.exception(e)

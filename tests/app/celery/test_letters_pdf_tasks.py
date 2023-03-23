@@ -782,9 +782,12 @@ def test_sanitise_precompiled_pdf_passes_the_service_id_and_notification_id_to_t
     tp_mock.assert_called_once_with(
         'http://localhost:9999/precompiled/sanitise',
         data=b'old_pdf',
-        headers={'Authorization': 'Token my-secret-key',
-                 'Service-ID': service_id,
-                 'Notification-ID': notification_id}
+        headers={
+            'Authorization': 'Token my-secret-key',
+            'Service-ID': service_id,
+            'Notification-ID': notification_id
+        },
+        timeout=(3.05, 1)
     )
 
 

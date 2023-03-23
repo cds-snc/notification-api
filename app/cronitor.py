@@ -1,6 +1,6 @@
 import requests
-from functools import wraps
 from flask import current_app
+from functools import wraps
 
 
 def cronitor(task_name):
@@ -13,7 +13,7 @@ def cronitor(task_name):
             task_slug = current_app.config['CRONITOR_KEYS'].get(task_name)
             if not task_slug:
                 current_app.logger.error(
-                    'Cronitor enabled but task_name {} not found in environment'.format(task_name)
+                    'Cronitor enabled but task_name %s not found in environment', task_name
                 )
                 return
 
@@ -26,14 +26,13 @@ def cronitor(task_name):
                     # cronitor limits msg to 1000 characters
                     params={
                         'host': current_app.config['API_HOST_NAME'],
-                    }
+                    },
+                    timeout=(3.05, 1)
                 )
                 resp.raise_for_status()
             except requests.RequestException as e:
-                current_app.logger.warning('Cronitor API failed for task {} due to {}'.format(
-                    task_name,
-                    repr(e)
-                ))
+                current_app.logger.warning('Cronitor API failed for task %s.', task_name)
+                current_app.logger.exception(e)
 
         @wraps(func)
         def inner_decorator(*args, **kwargs):

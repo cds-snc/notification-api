@@ -44,7 +44,7 @@ def get_authenticated_request(url: str, jwt_token: str) -> Response:
         "Authorization": f"Bearer {jwt_token}",
     }
 
-    return requests.get(url, headers=headers)
+    return requests.get(url, headers=headers, timeout=(3.05, 1))
 
 
 def post_authenticated_request(url: str, jwt_token: str, payload: str = "{}") -> Response:
@@ -54,7 +54,7 @@ def post_authenticated_request(url: str, jwt_token: str, payload: str = "{}") ->
     }
 
     assert isinstance(payload, str), "Convert the payload to a string before calling this function."
-    return requests.post(url, headers=headers, data=payload)
+    return requests.post(url, headers=headers, data=payload, timeout=(3.05, 1))
 
 
 def revoke_service_api_keys(notification_url: str, admin_jwt_token: str, service_id: str) -> None:

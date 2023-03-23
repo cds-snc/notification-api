@@ -1,9 +1,7 @@
 import base64
 import json
-
-from flask import current_app
 import requests
-
+from flask import current_app
 from notifications_utils.timezones import convert_utc_to_local_timezone
 
 
@@ -29,19 +27,19 @@ class PerformancePlatformClient:
             resp = requests.post(
                 self.performance_platform_url + payload['dataType'],
                 json=payload,
-                headers=headers
+                headers=headers,
+                timeout=(3.05, 1)
             )
 
             if resp.status_code == 200:
                 current_app.logger.info(
-                    "Updated performance platform successfully with payload {}".format(json.dumps(payload))
+                    "Updated performance platform successfully with payload %s", json.dumps(payload)
                 )
             else:
                 current_app.logger.error(
-                    "Performance platform update request failed for payload with response details: {} '{}'".format(
-                        json.dumps(payload),
-                        resp.status_code
-                    )
+                    "Performance platform update request failed for payload with response details: %s '%d'",
+                    json.dumps(payload),
+                    resp.status_code
                 )
                 resp.raise_for_status()
 

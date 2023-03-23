@@ -68,7 +68,7 @@ def get_certificate(url):
     res = certificate_cache.get(url)
     if res is not None:
         return res
-    res = requests.get(url).content
+    res = requests.get(url, timeout=(3.05, 1)).content
     certificate_cache.set(url, res, timeout=60 * 60)  # 60 minutes
     return res
 
@@ -99,11 +99,11 @@ def sns_callback_handler():
 
     if message.get('Type') == 'SubscriptionConfirmation':
         url = message.get('SubscribeURL')
-        response = requests.get(url)
         try:
+            response = requests.get(url, timeout=(3.05, 1))
             response.raise_for_status()
-        except Exception as e:
-            current_app.logger.warning("Response: {}".format(response.text))
+        except requests.RequestException as e:
+            current_app.logger.warning("Response: %s", response.text)
             raise e
 
         return jsonify(
@@ -137,11 +137,11 @@ def sns_smtp_callback_handler():
 
     if message.get('Type') == 'SubscriptionConfirmation':
         url = message.get('SubscribeURL')
-        response = requests.get(url)
         try:
+            response = requests.get(url, timeout=(3.05, 1))
             response.raise_for_status()
-        except Exception as e:
-            current_app.logger.warning("Response: {}".format(response.text))
+        except requests.RequestException as e:
+            current_app.logger.warning("Response: %s", response.text)
             raise e
 
         return jsonify(
@@ -181,7 +181,7 @@ def process_ses_results(self, response):
                 self.retry(queue=QueueNames.RETRY)
             else:
                 current_app.logger.warning(
-                    "notification not found for reference: {} (update to {})".format(reference, notification_status)
+                    "notification not found for reference: %s (update to %s)", reference, notification_status
                 )
             return
 
@@ -209,14 +209,17 @@ def process_ses_results(self, response):
 
         if not aws_response_dict['success']:
             current_app.logger.info(
-                "SES delivery failed: notification id {} and reference {} has error found. Status {}".format(
-                    notification.id, reference, aws_response_dict['message']
-                )
+                "SES delivery failed: notification id %s and reference %s has error found. Status %s",
+                notification.id,
+                reference,
+                aws_response_dict['message']
             )
         else:
-            current_app.logger.info('SES callback return status of {} for notification: {}'.format(
-                notification_status, notification.id
-            ))
+            current_app.logger.info(
+                'SES callback return status of %s for notification: %s',
+                notification_status,
+                notification.id
+            )
 
         statsd_client.incr('callback.ses.{}'.format(notification_status))
 
@@ -231,7 +234,8 @@ def process_ses_results(self, response):
         raise
 
     except Exception as e:
-        current_app.logger.exception('Error processing SES results: {}'.format(type(e)))
+        current_app.logger.exception(e)
+        current_app.logger.error('Error processing SES results: %s', type(e))
         self.retry(queue=QueueNames.RETRY)
 
 
@@ -298,7 +302,7 @@ def process_ses_smtp_results(self, response):
         except NoResultFound:
             reference = ses_message['mail']['messageId']
             current_app.logger.warning(
-                "SMTP service not found for reference: {} (update to {})".format(reference, notification_status)
+                "SMTP service not found for reference: %s (update to %s)", reference, notification_status
             )
             return
 
@@ -310,5 +314,6 @@ def process_ses_smtp_results(self, response):
         raise
 
     except Exception as e:
-        current_app.logger.exception('Error processing SES SMTP results: {}'.format(type(e)))
+        current_app.logger.exception(e)
+        current_app.logger.error('Error processing SES SMTP results: %s', type(e))
         self.retry(queue=QueueNames.RETRY)

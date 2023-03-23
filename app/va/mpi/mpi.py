@@ -7,7 +7,7 @@ from app.va.identifier import (
     transform_to_fhir_format,
     is_fhir_format,
     FHIR_FORMAT_SUFFIXES,
-    transform_from_fhir_format
+    transform_from_fhir_format,
 )
 from app.va.mpi import (
     MpiNonRetryableException,
@@ -16,8 +16,7 @@ from app.va.mpi import (
     NoSuchIdentifierException,
     IncorrectNumberOfIdentifiersException,
     MultipleActiveVaProfileIdsException,
-    BeneficiaryDeceasedException
-
+    BeneficiaryDeceasedException,
 )
 
 exception_code_mapping = {
@@ -75,13 +74,18 @@ class MpiClient:
         return va_profile_id
 
     def _make_request(self, fhir_identifier, notification_id):
-        self.logger.info(f"Querying MPI with {fhir_identifier} for notification {notification_id}")
+        self.logger.info(
+            "Querying MPI with %s for notification %s",
+            fhir_identifier,
+            notification_id
+        )
         start_time = monotonic()
         try:
             response = requests.get(
                 f"{self.base_url}/psim_webservice/fhir/Patient/{fhir_identifier}",
                 params={'-sender': self.SYSTEM_IDENTIFIER},
-                cert=(self.ssl_cert_path, self.ssl_key_path)
+                cert=(self.ssl_cert_path, self.ssl_key_path),
+                timeout=(3.05, 1)
             )
             response.raise_for_status()
         except requests.HTTPError as e:

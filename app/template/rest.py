@@ -8,7 +8,8 @@ from flask import (
     Blueprint,
     current_app,
     jsonify,
-    request)
+    request,
+)
 from flask_jwt_extended import current_user
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.pdf import extract_page_from_pdf
@@ -433,13 +434,15 @@ def _get_png_preview_or_overlaid_pdf(url, data, notification_id, json=True):
         resp = requests_post(
             url,
             json=data,
-            headers={'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY'])}
+            headers={'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY'])},
+            timeout=(3.05, 1)
         )
     else:
         resp = requests_post(
             url,
             data=data,
-            headers={'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY'])}
+            headers={'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY'])},
+            timeout=(3.05, 1)
         )
 
     if resp.status_code != 200:
