@@ -23,7 +23,7 @@ def get_name_parts(full_name: str) -> dict[str, Optional[str]]:
     }
 
 
-def query_one(query: str, session: Salesforce) -> Optional[dict[str, Any]]:
+def query_one(session: Salesforce, query: str) -> Optional[dict[str, Any]]:
     """Execute an SOQL query that expects to return a single record.
 
     Args:
@@ -74,19 +74,3 @@ def parse_result(result: int | dict[str, Any], op: str) -> bool:
     else:
         current_app.logger.error(f"{op} failed: {result}")
     return is_success
-
-
-def get_account_id_by_name(account_name: str, account_data: list[dict[str, str]], current_lang: str) -> str:
-    """Looks up an Account ID based on the given Account name and user's language.
-
-    Args:
-        account_name (str): Name of the account to lookup
-        account_data (list[dict[str, str]]): List of all account data
-        current_lang (str): The user's current language
-
-    Returns:
-        str: The account ID for the given account name.
-    """
-    name_attr = "name_fra" if current_lang == "fr" else "name_eng"
-    account = [account for account in account_data if account[name_attr] == account_name]
-    return account[0]["id"] if len(account) else current_app.config["SALESFORCE_GENERIC_ACCOUNT_ID"]
