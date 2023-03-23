@@ -664,11 +664,10 @@ def choose_database_queue(process_type: str, research_mode: bool, notifications_
 
     # We redirect first to a queue depending on its notification' size.
     large_csv_threshold = current_app.config["CSV_BULK_REDIRECT_THRESHOLD"]
-    normal_csv_threshold = current_app.config["CSV_NORMAL_REDIRECT_THRESHOLD"]
     if notifications_count >= large_csv_threshold:
         return QueueNames.BULK_DATABASE
     # Don't switch to normal queue if it's already set to priority queue.
-    elif notifications_count >= normal_csv_threshold and process_type != PRIORITY:
+    elif notifications_count < large_csv_threshold and process_type == BULK:
         return QueueNames.NORMAL_DATABASE
     else:
         # If the size isn't a concern, fall back to the template's process type.
@@ -688,7 +687,6 @@ def choose_sending_queue(process_type: str, notif_type: str, notifications_count
     notifications that are transactional in nature.
     """
     large_csv_threshold = current_app.config["CSV_BULK_REDIRECT_THRESHOLD"]
-    normal_csv_threshold = current_app.config["CSV_NORMAL_REDIRECT_THRESHOLD"]
     # Default to the pre-configured template's process type.
     queue: Optional[str] = process_type
 

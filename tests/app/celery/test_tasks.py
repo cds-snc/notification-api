@@ -921,9 +921,7 @@ class TestProcessRows:
             ).get_rows()
         )
 
-        with set_config_values(
-            notify_api, {"CSV_BULK_REDIRECT_THRESHOLD": csv_bulk_threshold, "CSV_NORMAL_REDIRECT_THRESHOLD": csv_normal_threshold}
-        ):
+        with set_config_values(notify_api, {"CSV_BULK_REDIRECT_THRESHOLD": csv_bulk_threshold}):
             process_rows([row], template, job, service)
 
         tasks.save_emails.apply_async.assert_called_once()
