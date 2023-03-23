@@ -102,12 +102,12 @@ def get_letters_pdf(template, contact_block, filename, values):
         'values': values,
         'filename': filename,
     }
+
     resp = requests_post(
-        '{}/print.pdf'.format(
-            current_app.config['TEMPLATE_PREVIEW_API_HOST']
-        ),
+        '{}/print.pdf'.format(current_app.config['TEMPLATE_PREVIEW_API_HOST']),
         json=data,
-        headers={'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY'])}
+        headers={'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY'])},
+        timeout=(3.05, 1)
     )
     resp.raise_for_status()
 
@@ -144,11 +144,10 @@ def collate_letter_pdfs_for_day(date=None):
         )
 
         current_app.logger.info(
-            'Calling task zip-and-send-letter-pdfs for {} pdfs to upload {} with total size {:,} bytes'.format(
-                len(filenames),
-                dvla_filename,
-                sum(letter['Size'] for letter in letters)
-            )
+            'Calling task zip-and-send-letter-pdfs for %d pdfs to upload %s with total size %s bytes',
+            len(filenames),
+            dvla_filename,
+            '{:,}'.format(sum(letter['Size'] for letter in letters))
         )
         notify_celery.send_task(
             name=TaskNames.ZIP_AND_SEND_LETTER_PDFS,
@@ -194,11 +193,12 @@ def letter_in_created_state(filename):
     if notifications:
         if notifications[0].status == NOTIFICATION_CREATED:
             return True
-        current_app.logger.info('Collating letters for {} but notification with reference {} already in {}'.format(
+        current_app.logger.info(
+            'Collating letters for %s but notification with reference %s already in %s',
             subfolder,
             ref,
             notifications[0].status
-        ))
+        )
     return False
 
 
@@ -215,8 +215,9 @@ def process_virus_scan_passed(self, filename):
 
     try:
         billable_units = get_page_count(old_pdf)
-    except PdfReadError:
-        current_app.logger.exception('Invalid PDF received for notification_id: %s', notification.id)
+    except PdfReadError as e:
+        current_app.logger.exception(e)
+        current_app.logger.error('Invalid PDF received for notification_id: %s', notification.id)
         _move_invalid_letter_and_update_status(notification, filename, scan_pdf_object)
         return
 
@@ -311,37 +312,33 @@ def _upload_pdf_to_test_or_live_pdf_bucket(pdf_data, filename, is_test_letter):
 def _sanitise_precompiled_pdf(self, notification, precompiled_pdf):
     try:
         response = requests_post(
-            '{}/precompiled/sanitise'.format(
-                current_app.config['TEMPLATE_PREVIEW_API_HOST']
-            ),
+            '{}/precompiled/sanitise'.format(current_app.config['TEMPLATE_PREVIEW_API_HOST']),
             data=precompiled_pdf,
             headers={'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY']),
                      'Service-ID': str(notification.service_id),
-                     'Notification-ID': str(notification.id)}
+                     'Notification-ID': str(notification.id)},
+            timeout=(3.05, 1)
         )
         response.raise_for_status()
         return response
-    except RequestException as ex:
-        if ex.response is not None and ex.response.status_code == 400:
-            message = "sanitise_precompiled_pdf validation error for notification: {}. ".format(notification.id)
+    except RequestException as e:
+        current_app.logger.exception(e)
+        if e.response is not None and e.response.status_code == 400:
+            message = f"sanitise_precompiled_pdf validation error for notification: {notification.id}. "
             if "message" in response.json():
                 message += response.json()["message"]
 
-            current_app.logger.info(
-                message
-            )
+            current_app.logger.error(message)
             return None
 
         try:
-            current_app.logger.exception(
-                "sanitise_precompiled_pdf failed for notification: {}".format(notification.id)
-            )
+            current_app.logger.error("sanitise_precompiled_pdf failed for notification: %s", notification.id)
             self.retry(queue=QueueNames.RETRY)
         except MaxRetriesExceededError:
             current_app.logger.error(
-                "RETRY FAILED: sanitise_precompiled_pdf failed for notification {}".format(notification.id),
+                "RETRY FAILED: sanitise_precompiled_pdf failed for notification %s",
+                notification.id
             )
-
             notification.status = NOTIFICATION_TECHNICAL_FAILURE
             dao_update_notification(notification)
             raise
@@ -400,7 +397,7 @@ def replay_letters_in_error(filename=None):
     if filename:
         move_error_pdf_to_scan_bucket(filename)
         # call task to add the filename to anti virus queue
-        current_app.logger.info("Calling scan_file for: {}".format(filename))
+        current_app.logger.info("Calling scan_file for: %s", filename)
 
         if current_app.config['ANTIVIRUS_ENABLED']:
             notify_celery.send_task(
@@ -418,7 +415,7 @@ def replay_letters_in_error(filename=None):
         error_files = get_file_names_from_error_bucket()
         for item in error_files:
             moved_file_name = item.key.split('/')[1]
-            current_app.logger.info("Calling scan_file for: {}".format(moved_file_name))
+            current_app.logger.info("Calling scan_file for: %s", moved_file_name)
             move_error_pdf_to_scan_bucket(moved_file_name)
             # call task to add the filename to anti virus queue
             if current_app.config['ANTIVIRUS_ENABLED']:

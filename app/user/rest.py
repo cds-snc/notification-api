@@ -5,8 +5,6 @@ from urllib.parse import urlencode
 import base64
 import pickle  # nosec
 import requests
-from requests.auth import HTTPBasicAuth
-
 from fido2 import cbor
 from fido2.client import ClientData
 from fido2.ctap2 import AuthenticatorData
@@ -450,7 +448,8 @@ def send_support_email(user_id):
     response = requests.post(
         "{}/api/v2/tickets".format(API_URL),
         json=ticket,
-        auth=HTTPBasicAuth(API_KEY, "x")
+        auth=requests.HTTPBasicAuth(API_KEY, "x"),
+        timeout=(3.05, 1)
     )
 
     if response.status_code != 201:

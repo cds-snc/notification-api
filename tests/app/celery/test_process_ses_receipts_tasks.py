@@ -229,7 +229,11 @@ def test_ses_callback_should_log_if_notification_is_missing(client, notify_db, m
     with freeze_time('2017-11-17T12:34:03.646Z'):
         assert process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference='ref')) is None
         assert mock_retry.call_count == 0
-        mock_logger.assert_called_once_with('notification not found for reference: ref (update to delivered)')
+        mock_logger.assert_called_once_with(
+            'notification not found for reference: %s (update to %s)',
+            'ref',
+            'delivered'
+        )
 
 
 def test_ses_callback_should_not_retry_if_notification_is_old(client, notify_db, mocker):

@@ -1,16 +1,15 @@
-from enum import Enum
-
-import requests
 import iso8601
-from time import monotonic
-from http.client import responses
+import requests
 from app.va.va_profile import (
     NoContactInfoException,
     VAProfileNonRetryableException,
-    VAProfileRetryableException
+    VAProfileRetryableException,
 )
 from app.va.identifier import is_fhir_format, transform_from_fhir_format, transform_to_fhir_format, OIDS, IdentifierType
 from app.va.va_profile.exceptions import VAProfileIDNotFoundException
+from enum import Enum
+from http.client import responses
+from time import monotonic
 
 
 class CommunicationItemNotFoundException(Exception):
@@ -117,7 +116,7 @@ class VAProfileClient:
         self.logger.info(f"Querying VA Profile with ID {va_profile_id}")
 
         try:
-            response = requests.get(url, cert=(self.ssl_cert_path, self.ssl_key_path))
+            response = requests.get(url, cert=(self.ssl_cert_path, self.ssl_key_path), timeout=(3.05, 1))
             response.raise_for_status()
 
         except requests.HTTPError as e:
