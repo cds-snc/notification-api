@@ -27,6 +27,7 @@ from app.clients.email.aws_ses import AwsSesClient
 from app.clients.performance_platform.performance_platform_client import (
     PerformancePlatformClient,
 )
+from app.clients.salesforce.salesforce_client import SalesforceClient
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy
 from app.encryption import CryptoSigner
@@ -57,6 +58,7 @@ email_queue = RedisQueue("email")
 sms_queue = RedisQueue("sms")
 performance_platform_client = PerformancePlatformClient()
 document_download_client = DocumentDownloadClient()
+salesforce_client = SalesforceClient()
 
 clients = Clients()
 
@@ -105,6 +107,9 @@ def create_app(application, config=None):
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
     clients.init_app(sms_clients=[aws_sns_client], email_clients=[aws_ses_client])
+
+    if application.config["FF_SALESFORCE_CONTACT"]:
+        salesforce_client.init_app(application)
 
     flask_redis.init_app(application)
     flask_redis_publish.init_app(application)
