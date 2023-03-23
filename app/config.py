@@ -124,7 +124,7 @@ class Config(object):
     ADMIN_CLIENT_SECRET = os.getenv("ADMIN_CLIENT_SECRET")
 
     # encyption secret/salt
-    SECRET_KEY = env.list("SECRET_KEY")
+    SECRET_KEY = env.list("SECRET_KEY", None)
     DANGEROUS_SALT = os.getenv("DANGEROUS_SALT")
 
     # API key prefix
