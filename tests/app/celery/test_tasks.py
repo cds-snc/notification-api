@@ -150,7 +150,7 @@ class TestChooseDatabaseQueue:
         service = create_sample_service(notify_db, notify_db_session, research_mode=research_mode)
         template = create_sample_template(notify_db, notify_db_session, process_type=template_priority)
 
-        actual_queue = choose_database_queue(template.process_type, service, notification_count)
+        actual_queue = choose_database_queue(template.process_type, service.research_mode, notification_count)
         assert expected_queue == actual_queue
 
 
@@ -892,7 +892,7 @@ class TestProcessRows:
             (1_000, 1_000, NORMAL, "send-email-tasks"),  # keep normal priority
             (1, 1, BULK, "bulk-tasks"),  # keep bulk priority
             (1, 1_000, BULK, "send-email-tasks"),  # autoswitch to normal queue if normal threshold is met.
-            (2, 1_000, BULK, "bulk-tasks"),  # keep bulk priority
+            (2, 1_000, BULK, "send-email-tasks"),  # autoswitch to normal queue if normal threshold is met.
             (1_000, 1_000, BULK, "bulk-tasks"),  # keep bulk priority
         ],
     )
