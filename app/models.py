@@ -1053,6 +1053,22 @@ PROVIDERS = SMS_PROVIDERS + EMAIL_PROVIDERS
 NOTIFICATION_TYPE = [EMAIL_TYPE, SMS_TYPE, LETTER_TYPE]
 
 
+class PromotedTemplate(db.Model):
+    __tablename__ = 'promoted_templates'
+
+    service = db.relationship("Service")
+    template = db.relationship("Template")
+
+    id = db.Column(UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), nullable=False, index=True, unique=False)
+    template_id = db.Column(UUID(as_uuid=True), db.ForeignKey('templates.id'), nullable=False, index=True, unique=False)
+    promoted_service_id = db.Column(UUID(as_uuid=True), nullable=True)
+    promoted_template_id = db.Column(UUID(as_uuid=True), nullable=True)
+    promoted_template_content_digest = db.Column(db.Text(), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
+
+
 class ProviderRates(db.Model):
     __tablename__ = 'provider_rates'
 
