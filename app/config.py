@@ -501,6 +501,9 @@ class Config(object):
 
     FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
 
+    # Feature flags for bounce rate
+    FF_BOUNCE_RATE_V1 = env.bool("FF_BOUNCE_RATE_V1", False)
+
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
         "List of config keys that contain sensitive information"
