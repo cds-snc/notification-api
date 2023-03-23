@@ -12,6 +12,7 @@ from flask import Blueprint, abort, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
+from app import salesforce_client
 from app.clients.freshdesk import Freshdesk
 from app.clients.zendesk_sell import ZenDeskSell
 from app.config import Config, QueueNames
@@ -197,6 +198,10 @@ def activate_user(user_id):
 
     user.state = "active"
     save_model_user(user)
+
+    if current_app.config["FF_SALESFORCE_CONTACT"]:
+        salesforce_client.contact_create(user)
+
     return jsonify(data=user.serialize()), 200
 
 
