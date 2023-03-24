@@ -11,8 +11,8 @@ def salesforce_client(client, mocker):
         config={
             "SALESFORCE_CLIENT_ID": "Notify",
             "SALESFORCE_USERNAME": "someusername",
-            "SALESFORCE_CLIENT_KEY": "client_key",
-            "SALESFORCE_CLIENT_PRIVATEKEY": "cHJpdmF0ZWtleQo=",
+            "SALESFORCE_PASSWORD": "somepassword",
+            "SALESFORCE_SECURITY_TOKEN": "somesecuritytoken",
             "SALESFORCE_DOMAIN": "test",
         }
     )
@@ -23,7 +23,7 @@ def salesforce_client(client, mocker):
 def test_get_session(mocker, salesforce_client):
     mock_get_session = mocker.patch.object(salesforce_auth, "get_session", return_value="session")
     assert salesforce_client.get_session() == mock_get_session.return_value
-    mock_get_session.assert_called_once_with("Notify", "someusername", "client_key", b"privatekey\n", "test")
+    mock_get_session.assert_called_once_with("Notify", "someusername", "somepassword", "somesecuritytoken", "test")
 
 
 def test_end_session(mocker, salesforce_client):
