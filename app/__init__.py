@@ -12,6 +12,7 @@ from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
 from flask_redis import FlaskRedis
 from notifications_utils import logging, request_helper
+from notifications_utils.clients.redis.bounce_rate import RedisBounceRate
 from notifications_utils.clients.redis.redis_client import RedisClient
 from notifications_utils.clients.statsd.statsd_client import StatsdClient
 from notifications_utils.clients.zendesk.zendesk_client import ZendeskClient
@@ -26,6 +27,7 @@ from app.clients.email.aws_ses import AwsSesClient
 from app.clients.performance_platform.performance_platform_client import (
     PerformancePlatformClient,
 )
+from app.clients.salesforce.salesforce_client import SalesforceClient
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy
 from app.encryption import CryptoSigner
@@ -43,18 +45,26 @@ marshmallow = Marshmallow()
 notify_celery = NotifyCelery()
 aws_ses_client = AwsSesClient()
 aws_sns_client = AwsSnsClient()
-signer = CryptoSigner()
+signer_notification = CryptoSigner()
+signer_personalisation = CryptoSigner()
+signer_complaint = CryptoSigner()
+signer_delivery_status = CryptoSigner()
+signer_bearer_token = CryptoSigner()
+signer_api_key = CryptoSigner()
+signer_inbound_sms = CryptoSigner()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
 flask_redis = FlaskRedis()
 flask_redis_publish = FlaskRedis(config_prefix="REDIS_PUBLISH")
 redis_store = RedisClient()
+bounce_rate_client = RedisBounceRate(redis_store)
 metrics_logger = MetricsLogger()
 # TODO: Rework instantiation to decouple redis_store.redis_store and pass it in.\
 email_queue = RedisQueue("email")
 sms_queue = RedisQueue("sms")
 performance_platform_client = PerformancePlatformClient()
 document_download_client = DocumentDownloadClient()
+salesforce_client = SalesforceClient()
 
 clients = Clients()
 
@@ -99,10 +109,21 @@ def create_app(application, config=None):
     aws_sns_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config["AWS_REGION"], statsd_client=statsd_client)
     notify_celery.init_app(application)
-    signer.init_app(application)
+
+    signer_notification.init_app(application, secret_key=application.config["SECRET_KEY"], salt="notification")
+    signer_personalisation.init_app(application, secret_key=application.config["SECRET_KEY"], salt="personalisation")
+    signer_complaint.init_app(application, secret_key=application.config["SECRET_KEY"], salt="complaint")
+    signer_delivery_status.init_app(application, secret_key=application.config["SECRET_KEY"], salt="delivery_status")
+    signer_bearer_token.init_app(application, secret_key=application.config["SECRET_KEY"], salt="bearer_token")
+    signer_api_key.init_app(application, secret_key=application.config["SECRET_KEY"], salt="api_key")
+    signer_inbound_sms.init_app(application, secret_key=application.config["SECRET_KEY"], salt="inbound_sms")
+
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
     clients.init_app(sms_clients=[aws_sns_client], email_clients=[aws_ses_client])
+
+    if application.config["FF_SALESFORCE_CONTACT"]:
+        salesforce_client.init_app(application)
 
     flask_redis.init_app(application)
     flask_redis_publish.init_app(application)

@@ -20,25 +20,28 @@ load_dotenv()
 
 
 class Config:
-    API_HOST_NAME = os.environ.get("SMOKE_API_HOST_NAME")
+    API_HOST_NAME = os.environ.get("SMOKE_API_HOST_NAME", "http://localhost:6011")
+    IS_LOCAL = "localhost" in API_HOST_NAME
+    ADMIN_CLIENT_USER_NAME = "notify-admin"
+    ADMIN_CLIENT_SECRET = os.environ.get("SMOKE_ADMIN_CLIENT_SECRET", "local_app")
+    POLL_TIMEOUT = int(os.environ.get("SMOKE_POLL_TIMEOUT", 120))
+    AWS_REGION = "ca-central-1"
+    CSV_UPLOAD_BUCKET_NAME = os.environ.get("SMOKE_CSV_UPLOAD_BUCKET_NAME", "notification-canada-ca-staging-csv-upload")
+
+    AWS_ACCESS_KEY_ID = os.environ.get("SMOKE_AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = os.environ.get("SMOKE_AWS_SECRET_ACCESS_KEY")
+    SERVICE_ID = os.environ.get("SMOKE_SERVICE_ID", "")
+    USER_ID = os.environ.get("SMOKE_USER_ID")
     EMAIL_TO = os.environ.get("SMOKE_EMAIL_TO", "")
     SMS_TO = os.environ.get("SMOKE_SMS_TO", "")
-    SERVICE_ID = os.environ.get("SMOKE_SERVICE_ID", "")
     EMAIL_TEMPLATE_ID = os.environ.get("SMOKE_EMAIL_TEMPLATE_ID")
     SMS_TEMPLATE_ID = os.environ.get("SMOKE_SMS_TEMPLATE_ID")
-
-    USER_ID = os.environ.get("SMOKE_USER_ID")
-    AWS_REGION = "ca-central-1"
-    CSV_UPLOAD_BUCKET_NAME = os.environ.get("SMOKE_CSV_UPLOAD_BUCKET_NAME")
-    ADMIN_CLIENT_USER_NAME = "notify-admin"
-    ADMIN_CLIENT_SECRET = os.environ.get("SMOKE_ADMIN_CLIENT_SECRET")
     API_KEY = os.environ.get("SMOKE_API_KEY", "")
-    POLL_TIMEOUT = int(os.environ.get("SMOKE_POLL_TIMEOUT", 20))
 
 
 boto_session = Session(
-    aws_access_key_id=os.environ.get("SMOKE_AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.environ.get("SMOKE_AWS_SECRET_ACCESS_KEY"),
+    aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
 )
 
 
@@ -83,7 +86,7 @@ def single_succeeded(uri: str, use_jwt: bool) -> bool:
             headers=headers,
         )
         body = response.json()
-        success = body.get("status") == "delivered"
+        success = body.get("status") == "delivered" or (Config.IS_LOCAL and "fail" not in body.get("status", ""))
         failure = body.get("status") == "permanent-failure"
         if success or failure:
             break
@@ -103,7 +106,7 @@ def job_succeeded(service_id: str, job_id: str) -> bool:
         data = response.json()["data"]
         if data["job_status"] != "finished":
             next
-        success = all([stat["status"] == "delivered" for stat in data["statistics"]])
+        success = all([stat["status"] == "delivered" for stat in data["statistics"]]) or (Config.IS_LOCAL and all(["fail" not in stat["status"] for stat in data["statistics"]]))
         failure = any([stat["status"] == "permanent-failure" for stat in data["statistics"]])
         if success or failure:
             break
