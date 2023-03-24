@@ -40,7 +40,6 @@ class TestResigning:
         assert api_key.secret == secret
         assert api_key._secret != _secret
 
-
     def test_resign_inbound_sms(self, sample_service):
         from app import signer_inbound_sms
 
