@@ -41,17 +41,17 @@ class TestResigning:
         assert api_key._secret != _secret
 
 
-def test_resign_inbound_sms(self, sample_service):
-    from app import signer_inbound_sms
+    def test_resign_inbound_sms(self, sample_service):
+        from app import signer_inbound_sms
 
-    signer_inbound_sms.serializer = URLSafeSerializer(["k1", "k2"])
-    initial_sms = create_inbound_sms(service=sample_service)
-    content = initial_sms.content
-    _content = initial_sms._content
+        signer_inbound_sms.serializer = URLSafeSerializer(["k1", "k2"])
+        initial_sms = create_inbound_sms(service=sample_service)
+        content = initial_sms.content
+        _content = initial_sms._content
 
-    signer_inbound_sms.serializer = URLSafeSerializer(["k2", "k3"])
-    resign_inbound_sms_task()
+        signer_inbound_sms.serializer = URLSafeSerializer(["k2", "k3"])
+        resign_inbound_sms_task()
 
-    sms = InboundSms.query.get(initial_sms.id)
-    assert sms.content == content
-    assert sms._content != _content
+        sms = InboundSms.query.get(initial_sms.id)
+        assert sms.content == content
+        assert sms._content != _content
