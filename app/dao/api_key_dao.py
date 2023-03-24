@@ -12,10 +12,10 @@ from app.models import ApiKey
 
 @transactional
 def resign_api_keys():
-    api_keys = ApiKey.query.all()  # noqa
-    for api_key in api_keys:
-        api_key.secret = api_key.secret  # verifies with the getter and resigns with the setter
-    db.session.bulk_save_objects(api_keys)
+    rows = ApiKey.query.all()  # noqa
+    for row in rows:
+        row.secret = row.secret  # verifies with the getter and resigns with the setter
+    db.session.bulk_save_objects(rows)
 
 
 @transactional

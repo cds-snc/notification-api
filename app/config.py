@@ -408,9 +408,14 @@ class Config(object):
             "schedule": crontab(day_of_month=3, hour=5, minute=0),
             "options": {"queue": QueueNames.PERIODIC},
         },
-        "resign-api_keys": {
+        "resign-api-keys": {
             "task": "resign-api-keys",
             "schedule": crontab(day_of_month=3, hour=5, minute=15),
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "resign-inbound-sms": {
+            "task": "resign-inbound-sms",
+            "schedule": crontab(day_of_month=3, hour=5, minute=30),
             "options": {"queue": QueueNames.PERIODIC},
         },
         # 'remove_letter_jobs': {
