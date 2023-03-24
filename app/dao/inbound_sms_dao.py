@@ -9,13 +9,13 @@ from app.models import SMS_TYPE, InboundSms, Service, ServiceDataRetention
 from app.utils import midnight_n_days_ago
 
 
-
 @transactional
 def resign_inbound_sms():
     rows = InboundSms.query.all()  # noqa
     for row in rows:
         row.content = row.content  # verifies with the getter and resigns with the setter
     db.session.bulk_save_objects(rows)
+
 
 @transactional
 def dao_create_inbound_sms(inbound_sms):

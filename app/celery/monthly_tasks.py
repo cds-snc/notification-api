@@ -6,8 +6,8 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app import notify_celery
 from app.dao.api_key_dao import resign_api_keys
-from app.dao.service_callback_api_dao import resign_service_callbacks
 from app.dao.inbound_sms_dao import resign_inbound_sms
+from app.dao.service_callback_api_dao import resign_service_callbacks
 
 
 @notify_celery.task(name="resign-service-callbacks")
@@ -32,7 +32,6 @@ def resign_api_keys_task():
     except SQLAlchemyError:
         current_app.logger.exception("Failed to resign api keys")
         raise
-
 
 
 @notify_celery.task(name="resign-inbound-sms")
