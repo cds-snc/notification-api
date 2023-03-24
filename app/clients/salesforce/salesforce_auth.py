@@ -2,14 +2,14 @@ from flask import current_app
 from simple_salesforce import Salesforce
 
 
-def get_session(client_id: str, username: str, password: str, security_token: str, domain: str) -> Salesforce:
+def get_session(client_id: str, username: str, consumer_key: str, privatekey: str, domain: str) -> Salesforce:
     """Return an authenticated Salesforce session
 
     Args:
         client_id (str): The name of the Salesforce connected app.
         username (str): The username to use for authentication.  This users permissions will be used for the session.
-        password (str): The password of the user that is authenticating.
-        security_token (str): The security token of the user that is authenticating.
+        consumer_key (str): The consumer key of the Salesforce connected app.
+        privatekey (str): The private key of the Salesforce connected app.
         domain (str): The domain of the Salesforce instance.  Use `test` for the QA instance.
 
     Returns:
@@ -20,8 +20,8 @@ def get_session(client_id: str, username: str, password: str, security_token: st
         session = Salesforce(
             client_id=client_id,
             username=username,
-            password=password,
-            security_token=security_token,
+            consumer_key=consumer_key,
+            privatekey=privatekey,
             domain=domain,
         )
     except Exception as ex:
