@@ -288,6 +288,7 @@ class Config(object):
         "app.celery.scheduled_tasks",
         "app.celery.reporting_tasks",
         "app.celery.nightly_tasks",
+        "app.celery.monthly_tasks",
     )
     CELERYBEAT_SCHEDULE = {
         # app/celery/scheduled_tasks.py
