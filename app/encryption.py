@@ -34,7 +34,7 @@ class CryptoSigner:
         self.dangerous_salt = app.config.get("DANGEROUS_SALT")
 
     def sign(self, to_sign: str | NotificationDictToSign) -> str | bytes:
-        return self.serializer.dumps(to_sign, salt=self.dangerous_salt)
+        return self.serializer.dumps(to_sign, salt=self.salt)
 
     # TODO: get rid of this after everything is signed with the new salts
     # This is only needed where we look things up by the signed value:
