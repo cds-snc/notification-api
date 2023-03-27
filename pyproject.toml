@@ -71,6 +71,7 @@ notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", t
 # rsa = "4.9  # awscli 1.22.38 depends on rsa<4.8
 typing-extensions = "4.4.0"
 greenlet = "2.0.1"
+simple-salesforce = "^1.12.3"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
