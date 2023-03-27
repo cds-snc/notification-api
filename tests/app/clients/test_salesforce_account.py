@@ -32,3 +32,11 @@ def test_get_account_id_from_name_generic(mocker, notify_api):
         mock_query_one.assert_called_with(
             mock_session, "SELECT Id FROM Account where Name = 'l\\'account' OR CDS_AccountNameFrench__c = 'l\\'account' LIMIT 1"
         )
+
+
+def test_get_account_id_from_name_blank(mocker, notify_api):
+    mock_session = mocker.MagicMock()
+    with notify_api.app_context():
+        assert get_account_id_from_name(mock_session, None, "generic_account_id") == "generic_account_id"
+        assert get_account_id_from_name(mock_session, "", "generic_account_id") == "generic_account_id"
+        assert get_account_id_from_name(mock_session, "     ", "generic_account_id") == "generic_account_id"
