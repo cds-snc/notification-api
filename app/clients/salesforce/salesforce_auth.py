@@ -2,12 +2,14 @@ import requests
 from flask import current_app
 from simple_salesforce import Salesforce
 
+SALESFORCE_TIMEOUT_SECONDS = 10
+
 
 class TimeoutAdapter(requests.adapters.HTTPAdapter):
     """Custom adapter to add a timeout to Salesforce API requests"""
 
     def send(self, *args, **kwargs):
-        kwargs["timeout"] = 10
+        kwargs["timeout"] = SALESFORCE_TIMEOUT_SECONDS
         return super().send(*args, **kwargs)
 
 
