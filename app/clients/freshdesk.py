@@ -5,8 +5,16 @@ from urllib.parse import urljoin
 import requests
 from flask import current_app
 from requests.auth import HTTPBasicAuth
+from app.dao.templates_dao import dao_get_template_by_id
 
 from app.user.contact_request import ContactRequest
+from app.dao.services_dao import dao_fetch_service_by_id
+from app.notifications.process_notifications import (
+    persist_notification,
+    send_notification_to_queue,
+)
+from app.config import QueueNames
+
 
 __all__ = ["Freshdesk"]
 
@@ -100,4 +108,28 @@ class Freshdesk(object):
         except requests.RequestException as e:
             content = json.loads(response.content)
             current_app.logger.error(f"Failed to create Freshdesk ticket: {content['errors']}")
+            content = json.dumps(self._generate_ticket(), indent=4)
+            self.email_freshdesk_ticket(self._generate_description())
             raise e
+
+
+    def email_freshdesk_ticket(self, content):
+        template = dao_get_template_by_id(current_app.config["b04beb4a-8408-4280-9a5c-6a046b6f7704"])
+        notify_service = dao_fetch_service_by_id(current_app.config["NOTIFY_SERVICE_ID"])
+
+        current_app.logger.info("Emailing contact us form to {}".format(current_app.config["CONTACT_FORM_EMAIL_ADDRESS"]))
+        saved_notification = persist_notification(
+            template_id=template.id,
+            template_version=template.version,
+            recipient=current_app.config["CONTACT_FORM_EMAIL_ADDRESS"],
+            service=notify_service,
+            personalisation={
+                "contact_us_content": content,
+            },
+            notification_type=template.template_type,
+            api_key_id=None,
+            key_type=template.process_type,
+            reply_to_text=notify_service.get_default_reply_to_email_address(),   
+        )
+
+        send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
