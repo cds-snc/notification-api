@@ -16,7 +16,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import redis_store, salesforce_client
-from app.clients.zendesk_sell import ZenDeskSell
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
 from app.dao.api_key_dao import (
@@ -79,7 +78,6 @@ from app.dao.services_dao import (
     dao_fetch_all_services_by_user,
     dao_fetch_live_services_data,
     dao_fetch_service_by_id,
-    dao_fetch_service_creator,
     dao_fetch_todays_stats_for_all_services,
     dao_fetch_todays_stats_for_service,
     dao_remove_user_from_service,
@@ -259,7 +257,6 @@ def create_service():
 
     try:
         # try-catch; just in case, we don't want to error here
-        ZenDeskSell().send_create_service(valid_service, user)
         if current_app.config["FF_SALESFORCE_CONTACT"]:
             salesforce_client.engagement_create(valid_service, user)
     except Exception as e:
@@ -305,20 +302,6 @@ def update_service(service_id):
 
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
-
-        try:
-            # Two scenarios, if there is a user that has requested to go live, we will use that user
-            # to create a user-service/contact-deal pair between notify and zendesk sell
-            # If by any chance there is no tracked request to a user, notify will try to identify the user
-            # that created the service and then create a user-service/contact-deal relationship
-            if service.go_live_user_id:
-                user = get_user_by_id(service.go_live_user_id)
-            else:
-                user = dao_fetch_service_creator(service.id)
-
-            ZenDeskSell().send_go_live_service(service, user)
-        except Exception as e:
-            current_app.logger.exception(e)
 
     return jsonify(data=service_schema.dump(fetched_service).data), 200
 

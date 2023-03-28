@@ -158,10 +158,6 @@ class Config(object):
     PERFORMANCE_PLATFORM_ENABLED = False
     PERFORMANCE_PLATFORM_URL = "https://www.performance.service.gov.uk/data/govuk-notify/"
 
-    # Zendesk
-    ZENDESK_SELL_API_URL = os.getenv("ZENDESK_SELL_API_URL")
-    ZENDESK_SELL_API_KEY = os.getenv("ZENDESK_SELL_API_KEY")
-
     # Freshdesk
     FRESH_DESK_PRODUCT_ID = os.getenv("FRESH_DESK_PRODUCT_ID")
     FRESH_DESK_API_URL = os.getenv("FRESH_DESK_API_URL")
@@ -517,7 +513,6 @@ class Config(object):
             "SQLALCHEMY_DATABASE_READER_URI",
             "SQLALCHEMY_BINDS",
             "REDIS_URL",
-            "ZENDESK_SELL_API_KEY",
             "FRESH_DESK_API_KEY",
             "AWS_SES_ACCESS_KEY",
             "AWS_SES_SECRET_KEY",

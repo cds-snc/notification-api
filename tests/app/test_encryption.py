@@ -25,7 +25,6 @@ class TestEncryption:
         with pytest.raises(BadSignature):
             signer2.verify(signer1.sign("this"))
 
-    @pytest.mark.skip(reason="temporariily using dangerous salt for all signing")
     def should_not_verify_content_signed_with_different_salts(self, notify_api):
         signer1 = CryptoSigner()
         signer2 = CryptoSigner()
