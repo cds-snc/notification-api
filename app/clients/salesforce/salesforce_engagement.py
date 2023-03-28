@@ -126,7 +126,7 @@ def get_engagement_by_service_id(session: Salesforce, service_id: str) -> Option
         Optional[dict[str, str]]: Salesforce Engagement details or None if can't be found
     """
     result = None
-    if isinstance(service_id, str) and service_id:
+    if isinstance(service_id, str) and service_id.strip():
         query = f"SELECT Id, Name, ContactId, AccountId FROM Opportunity where CDS_Opportunity_Number__c = '{query_param_sanitize(service_id)}' LIMIT 1"
         result = query_one(session, query)
     return result

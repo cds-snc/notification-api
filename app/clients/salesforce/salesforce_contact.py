@@ -93,7 +93,7 @@ def get_contact_by_user_id(session: Salesforce, user_id: str) -> Optional[dict[s
         Optional[dict[str, str]]: Salesforce Contact details or None if can't be found
     """
     result = None
-    if isinstance(user_id, str) and user_id:
+    if isinstance(user_id, str) and user_id.strip():
         query = f"SELECT Id, FirstName, LastName, AccountId FROM Contact WHERE CDS_Contact_ID__c = '{query_param_sanitize(user_id)}' LIMIT 1"
         result = query_one(session, query)
     return result
