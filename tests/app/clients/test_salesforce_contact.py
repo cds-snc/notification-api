@@ -79,7 +79,7 @@ def test_update_account_id_new(mocker, notify_api, user):
         mock_create.assert_called_with(mock_session, user, "potatoes")
 
 
-def test_get_contact_by_user_id(mocker, notify_api, user):
+def test_get_contact_by_user_id(mocker, notify_api):
     with notify_api.app_context():
         mock_session = mocker.MagicMock()
         mock_query_one = mocker.patch.object(salesforce_contact, "query_one", return_value={"Id": "42"})
@@ -88,3 +88,11 @@ def test_get_contact_by_user_id(mocker, notify_api, user):
         mock_query_one.assert_called_with(
             mock_session, "SELECT Id, FirstName, LastName, AccountId FROM Contact WHERE CDS_Contact_ID__c = '2' LIMIT 1"
         )
+
+
+def test_get_contact_by_user_id_blank(mocker, notify_api):
+    with notify_api.app_context():
+        mock_session = mocker.MagicMock()
+        assert get_contact_by_user_id(mock_session, None) is None
+        assert get_contact_by_user_id(mock_session, "") is None
+        assert get_contact_by_user_id(mock_session, "       ") is None

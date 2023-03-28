@@ -16,6 +16,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import redis_store, salesforce_client
+from app.clients.salesforce.salesforce_engagement import (
+    ENGAGEMENT_STAGE_ACTIVATION,
+    ENGAGEMENT_STAGE_LIVE,
+)
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
 from app.dao.api_key_dao import (
@@ -78,6 +82,7 @@ from app.dao.services_dao import (
     dao_fetch_all_services_by_user,
     dao_fetch_live_services_data,
     dao_fetch_service_by_id,
+    dao_fetch_service_creator,
     dao_fetch_todays_stats_for_all_services,
     dao_fetch_todays_stats_for_service,
     dao_remove_user_from_service,
@@ -255,12 +260,11 @@ def create_service():
 
     dao_create_service(valid_service, user)
 
-    try:
-        # try-catch; just in case, we don't want to error here
-        if current_app.config["FF_SALESFORCE_CONTACT"]:
+    if current_app.config["FF_SALESFORCE_CONTACT"]:
+        try:
             salesforce_client.engagement_create(valid_service, user)
-    except Exception as e:
-        current_app.logger.exception(e)
+        except Exception as e:
+            current_app.logger.exception(e)
 
     return jsonify(data=service_schema.dump(valid_service).data), 201
 
@@ -271,6 +275,7 @@ def update_service(service_id):
     fetched_service = dao_fetch_service_by_id(service_id)
     # Capture the status change here as Marshmallow changes this later
     service_going_live = fetched_service.restricted and not req_json.get("restricted", True)
+    service_requested_go_live = not service_going_live and req_json.get("go_live_user")
     message_limit_changed = fetched_service.message_limit != req_json.get("message_limit", fetched_service.message_limit)
     sms_limit_changed = fetched_service.sms_daily_limit != req_json.get("sms_daily_limit", fetched_service.sms_daily_limit)
     current_data = dict(service_schema.dump(fetched_service).data.items())
@@ -302,6 +307,22 @@ def update_service(service_id):
 
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
+
+    if current_app.config["FF_SALESFORCE_CONTACT"] and (service_going_live or service_requested_go_live):
+        try:
+            # Two scenarios, if there is a user that has requested to go live, we will use that user
+            # to create a Contact/Engagment pair between Notify and Salesforce.
+            # If by any chance there is no tracked request to a user, Notify will try to identify the user
+            # that created the service and then create a Contact/Engagment relationship.
+            if service.go_live_user_id:
+                user = get_user_by_id(service.go_live_user_id)
+            else:
+                user = dao_fetch_service_creator(service.id)
+
+            stage_name = ENGAGEMENT_STAGE_LIVE if service_going_live else ENGAGEMENT_STAGE_ACTIVATION
+            salesforce_client.engagement_update_stage(service, user, stage_name)
+        except Exception as e:
+            current_app.logger.exception(e)
 
     return jsonify(data=service_schema.dump(fetched_service).data), 200
 

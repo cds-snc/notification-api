@@ -36,7 +36,9 @@ def get_account_id_from_name(session: Salesforce, account_name: str, generic_acc
     Returns:
         Optional[str]: The matching Account ID or a generic Account ID if no match is found.
     """
-    account_name_sanitized = query_param_sanitize(account_name)
-    query = f"SELECT Id FROM Account where Name = '{account_name_sanitized}' OR CDS_AccountNameFrench__c = '{account_name_sanitized}' LIMIT 1"
-    result = query_one(session, query)
+    result = None
+    if isinstance(account_name, str) and account_name.strip() != "":
+        account_name_sanitized = query_param_sanitize(account_name)
+        query = f"SELECT Id FROM Account where Name = '{account_name_sanitized}' OR CDS_AccountNameFrench__c = '{account_name_sanitized}' LIMIT 1"
+        result = query_one(session, query)
     return result.get("Id") if result else generic_account_id
