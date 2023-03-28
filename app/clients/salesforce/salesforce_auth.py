@@ -1,5 +1,14 @@
+import requests
 from flask import current_app
 from simple_salesforce import Salesforce
+
+
+class TimeoutAdapter(requests.adapters.HTTPAdapter):
+    """Custom adapter to add a timeout to Salesforce API requests"""
+
+    def send(self, *args, **kwargs):
+        kwargs["timeout"] = 10
+        return super().send(*args, **kwargs)
 
 
 def get_session(client_id: str, username: str, password: str, security_token: str, domain: str) -> Salesforce:
@@ -17,12 +26,18 @@ def get_session(client_id: str, username: str, password: str, security_token: st
     """
     session = None
     try:
+        # Add a timeout to Salesforce API requests
+        requests_session = requests.Session()
+        requests_session.mount("https://", TimeoutAdapter())
+        requests_session.mount("http://", TimeoutAdapter())
+
         session = Salesforce(
             client_id=client_id,
             username=username,
             password=password,
             security_token=security_token,
             domain=domain,
+            session=requests_session,
         )
     except Exception as ex:
         current_app.logger.error(f"Salesforce login failed: {ex}")
