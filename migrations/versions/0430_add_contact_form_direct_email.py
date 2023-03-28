@@ -16,6 +16,7 @@ down_revision = "0429_add_organisation_notes"
 contact_us_template_id = current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"]
 template_ids = [contact_us_template_id]
 
+
 def upgrade():
     template_insert = """
         INSERT INTO templates (id, name, template_type, created_at, content, archived, service_id, subject,

@@ -5,16 +5,16 @@ from urllib.parse import urljoin
 import requests
 from flask import current_app
 from requests.auth import HTTPBasicAuth
-from app.dao.templates_dao import dao_get_template_by_id
 
-from app.user.contact_request import ContactRequest
+from app.config import QueueNames
 from app.dao.services_dao import dao_fetch_service_by_id
+from app.dao.templates_dao import dao_get_template_by_id
+from app.models import KEY_TYPE_NORMAL
 from app.notifications.process_notifications import (
     persist_notification,
     send_notification_to_queue,
 )
-from app.config import QueueNames
-from app.models import KEY_TYPE_NORMAL
+from app.user.contact_request import ContactRequest
 
 __all__ = ["Freshdesk"]
 
@@ -105,13 +105,12 @@ class Freshdesk(object):
                 return response.status_code
             else:
                 return 201
-        except requests.RequestException as e:
+        except requests.RequestException:
             content = json.loads(response.content)
             current_app.logger.error(f"Failed to create Freshdesk ticket: {content}")
             content = json.dumps(self._generate_ticket(), indent=4)
             self.email_freshdesk_ticket(self._generate_ticket())
-
-
+            return 201
 
     def email_freshdesk_ticket(self, content):
         template = dao_get_template_by_id(current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"])
@@ -129,7 +128,7 @@ class Freshdesk(object):
             notification_type=template.template_type,
             api_key_id=None,
             key_type=KEY_TYPE_NORMAL,
-            reply_to_text=notify_service.get_default_reply_to_email_address(),   
+            reply_to_text=notify_service.get_default_reply_to_email_address(),
         )
 
         send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
