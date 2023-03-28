@@ -1225,6 +1225,18 @@ def mou_signed_templates(notify_db, notify_db_session):
         ]
     }
 
+@pytest.fixture(scope="function")
+def contact_form_email_template(notify_db, notify_db_session):
+    service, user = notify_service(notify_db, notify_db_session)
+    return create_custom_template(
+        service=service,
+        user=user,
+        template_config_name="CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID",
+        content=("contact form subbmission ((contact_us_content))"),
+        subject="Contact form",
+        template_type="email",
+    )
+
 
 def create_custom_template(service, user, template_config_name, template_type, content="", subject=None):
     template = Template.query.get(current_app.config[template_config_name])

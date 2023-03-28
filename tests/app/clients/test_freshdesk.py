@@ -247,7 +247,7 @@ class TestSendTicket:
 
 
 class TestEmailFreshdesk:
-    def test_email_freshdesk_ticket(self, mocker, notify_api: Flask):
+    def test_email_freshdesk_ticket(self, mocker, notify_api: Flask, contact_form_email_template):
         mock_persist_notification = mocker.Mock()
         mock_send_notification_to_queue = mocker.Mock()
         freshdesk.persist_notification = mock_persist_notification
