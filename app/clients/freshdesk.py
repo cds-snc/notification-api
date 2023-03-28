@@ -14,7 +14,7 @@ from app.notifications.process_notifications import (
     send_notification_to_queue,
 )
 from app.config import QueueNames
-
+from app.models import KEY_TYPE_NORMAL
 
 __all__ = ["Freshdesk"]
 
@@ -107,14 +107,14 @@ class Freshdesk(object):
                 return 201
         except requests.RequestException as e:
             content = json.loads(response.content)
-            current_app.logger.error(f"Failed to create Freshdesk ticket: {content['errors']}")
+            current_app.logger.error(f"Failed to create Freshdesk ticket: {content}")
             content = json.dumps(self._generate_ticket(), indent=4)
-            self.email_freshdesk_ticket(self._generate_description())
-            raise e
+            self.email_freshdesk_ticket(self._generate_ticket())
+
 
 
     def email_freshdesk_ticket(self, content):
-        template = dao_get_template_by_id(current_app.config["b04beb4a-8408-4280-9a5c-6a046b6f7704"])
+        template = dao_get_template_by_id(current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"])
         notify_service = dao_fetch_service_by_id(current_app.config["NOTIFY_SERVICE_ID"])
 
         current_app.logger.info("Emailing contact us form to {}".format(current_app.config["CONTACT_FORM_EMAIL_ADDRESS"]))
@@ -128,7 +128,7 @@ class Freshdesk(object):
             },
             notification_type=template.template_type,
             api_key_id=None,
-            key_type=template.process_type,
+            key_type=KEY_TYPE_NORMAL,
             reply_to_text=notify_service.get_default_reply_to_email_address(),   
         )
 
