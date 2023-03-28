@@ -20,7 +20,7 @@ services:
       - db
 
   db:
-    image: postgres:13.9@sha256:090485c533979ecac0d88bb8ba845baebf17ad86bb4cc04b72a81ff7dee461e0
+    image: postgres:11.17-bullseye@sha256:c4272e8dfc4144bfd03ee6df90ac769330976c80662e7c351996068d9c0f8ee7
     volumes:
       - ./initdb:/docker-entrypoint-initdb.d
     restart: always

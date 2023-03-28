@@ -828,7 +828,6 @@ def test_send_contact_request_no_live_service(client, sample_user, mocker):
     }
 
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
-    mocked_zendesk_sell = mocker.patch("app.user.rest.ZenDeskSell.send_contact_request", return_value=200)
 
     resp = client.post(
         url_for("user.send_contact_request", user_id=str(sample_user.id)),
@@ -841,7 +840,6 @@ def test_send_contact_request_no_live_service(client, sample_user, mocker):
 
     contact = ContactRequest(**data)
     contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
-    mocked_zendesk_sell.assert_called_once_with(contact)
 
 
 def test_send_contact_request_with_live_service(client, sample_service, mocker):
@@ -852,7 +850,6 @@ def test_send_contact_request_with_live_service(client, sample_service, mocker):
         "support_type": "ask_question",
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
-    mocked_zendesk_sell = mocker.patch("app.user.rest.ZenDeskSell.send_contact_request", return_value=200)
 
     resp = client.post(
         url_for("user.send_contact_request", user_id=str(sample_user.id)),
@@ -861,7 +858,6 @@ def test_send_contact_request_with_live_service(client, sample_service, mocker):
     )
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
-    mocked_zendesk_sell.assert_called_once_with(ContactRequest(**data))
 
 
 def test_send_contact_request_demo(client, sample_user, mocker):
@@ -871,7 +867,6 @@ def test_send_contact_request_demo(client, sample_user, mocker):
         "support_type": "demo",
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
-    mocked_zendesk = mocker.patch("app.user.rest.ZenDeskSell.send_contact_request", return_value="1")
 
     resp = client.post(
         url_for("user.send_contact_request", user_id=str(sample_user.id)),
@@ -883,7 +878,6 @@ def test_send_contact_request_demo(client, sample_user, mocker):
     mocked_freshdesk.assert_called_once_with()
     contact = ContactRequest(**data)
     contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
-    mocked_zendesk.assert_called_once_with(contact)
 
 
 def test_send_contact_request_go_live(client, sample_service, mocker):
@@ -895,7 +889,6 @@ def test_send_contact_request_go_live(client, sample_service, mocker):
         "service_id": str(sample_service.id),
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
-    mocked_zendesk_sell = mocker.patch("app.user.rest.ZenDeskSell.send_go_live_request", return_value="1")
 
     resp = client.post(
         url_for("user.send_contact_request", user_id=str(sample_user.id)),
@@ -904,7 +897,6 @@ def test_send_contact_request_go_live(client, sample_service, mocker):
     )
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
-    mocked_zendesk_sell.assert_called_once_with(sample_service, sample_user, ContactRequest(**data))
 
 
 def test_send_branding_request(client, sample_service, mocker):

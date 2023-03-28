@@ -14,7 +14,6 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import salesforce_client
 from app.clients.freshdesk import Freshdesk
-from app.clients.zendesk_sell import ZenDeskSell
 from app.config import Config, QueueNames
 from app.dao.fido2_key_dao import (
     create_fido2_session,
@@ -454,21 +453,6 @@ def send_contact_request(user_id):
     except NoResultFound:
         # This is perfectly normal if get_user_by_email raises
         pass
-
-    try:
-        if contact.is_go_live_request():
-            service = dao_fetch_service_by_id(contact.service_id)
-            # don't populate the department_org_name field if it already has a value
-            # that will happen if the trial service was created before the Salesforce
-            # integration feature went live
-            if contact and current_app.config["FF_SALESFORCE_CONTACT"] and not contact.department_org_name:
-                contact.department_org_name = service.organisation_notes
-
-            ZenDeskSell().send_go_live_request(service, user, contact)
-        else:
-            ZenDeskSell().send_contact_request(contact)
-    except Exception as e:
-        current_app.logger.exception(e)
 
     status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
