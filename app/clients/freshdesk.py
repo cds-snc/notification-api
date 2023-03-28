@@ -135,5 +135,4 @@ class Freshdesk(object):
                 key_type=KEY_TYPE_NORMAL,
                 reply_to_text=notify_service.get_default_reply_to_email_address(),
             )
-
-        send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+            send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)

@@ -1225,6 +1225,7 @@ def mou_signed_templates(notify_db, notify_db_session):
         ]
     }
 
+
 @pytest.fixture(scope="function")
 def contact_form_email_template(notify_db, notify_db_session):
     service, user = notify_service(notify_db, notify_db_session)
