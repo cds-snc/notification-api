@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from simple_salesforce import Salesforce
 
@@ -57,19 +57,46 @@ class SalesforceClient:
         salesforce_contact.create(session, user, account_id)
         self.end_session(session)
 
+    def contact_update_account_id(self, session: Salesforce, service: Service, user: User) -> Tuple[Optional[str], Optional[str]]:
+        """Updates the Account ID for the given Notify user's Salesforce Contact. The Salesforce Account ID
+        and Contact ID are returned.
+
+        Args:
+            session (Salesforce): The Salesforce session to use for the operation.
+            service (Service): The Notify service to retrieve the account from.
+            user (User): The Notify user to update the Salesforce Contact for.  If a contact does not exist, one will be created.
+        """
+        account_name = salesforce_account.get_account_name_from_org(service.organisation_notes)
+        account_id = salesforce_account.get_account_id_from_name(session, account_name, self.generic_account_id)
+        contact_id = salesforce_contact.update_account_id(session, user, account_id)
+        return account_id, contact_id
+
     #
     # Engagements
     #
     def engagement_create(self, service: Service, user: User):
-        """Creates a Salesforce Engagement for the given Notify service
+        """Creates a Salesforce Engagement for the given Notify service.  The Engagement will
+        be associated with the Notify user that created the Notify service.
 
         Args:
             service (Service): Notify Service to create an Engagement for.
             user (User): Notify User creating the service.
         """
         session = self.get_session()
-        account_name = salesforce_account.get_account_name_from_org(service.organisation_notes)
-        account_id = salesforce_account.get_account_id_from_name(session, account_name, self.generic_account_id)
-        contact_id = salesforce_contact.update_account_id(session, user, account_id)
+        account_id, contact_id = self.contact_update_account_id(session, service, user)
         salesforce_engagement.create(session, service, salesforce_engagement.ENGAGEMENT_STAGE_TRIAL, account_id, contact_id)
+        self.end_session(session)
+
+    def engagement_update_stage(self, service: Service, user: User, stage_name: str):
+        """Updates the stage of a Salesforce Engagement for the given Notify service.  The Engagement
+        will be associated with the Notify user that triggers the stage update.
+
+        Args:
+            service (Service): Notify Service to update an Engagement for.
+            user (User): Notify User creating the service.
+            stage_name (str): New stage to set.
+        """
+        session = self.get_session()
+        account_id, contact_id = self.contact_update_account_id(session, service, user)
+        salesforce_engagement.update_stage(session, service, stage_name, account_id, contact_id)
         self.end_session(session)
