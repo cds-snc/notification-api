@@ -117,7 +117,7 @@ def celery_body_to_celery_task(task_message: dict) -> dict:
     task = {
         "task": CELERY_TASK,
         "id": str(uuid.uuid4()),
-        "args": [{"Message": task_message}],
+        "args": [{"message": task_message}],
         "kwargs": {},
         "retries": 0,
         "eta": None,

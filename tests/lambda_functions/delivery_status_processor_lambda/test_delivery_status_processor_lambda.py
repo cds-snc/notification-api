@@ -176,4 +176,4 @@ def test_delivery_status_processor_lambda_handler_non_twilio_event(mocker, event
     sqs_mock.assert_called_once_with(event, os.getenv("DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER"), False)
 
 
-# TEST: celery_body_to_celery_task() returns a dict with an envelope that has a body = base 64 encoded task and that base 64 encoded task  contains Message key with the task_message
+# TEST: celery_body_to_celery_task() returns a dict with an envelope that has a body = base 64 encoded task and that base 64 encoded task  contains message key with the task_message
