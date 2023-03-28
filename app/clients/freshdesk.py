@@ -109,7 +109,7 @@ class Freshdesk(object):
             content = json.loads(response.content)
             current_app.logger.error(f"Failed to create Freshdesk ticket: {content}")
             content = json.dumps(self._generate_ticket(), indent=4)
-            self.email_freshdesk_ticket(self._generate_ticket())
+            self.email_freshdesk_ticket(content)
             return 201
 
     def email_freshdesk_ticket(self, content):
