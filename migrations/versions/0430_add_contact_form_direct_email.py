@@ -1,6 +1,6 @@
 """
 
-Revision ID: 0430_add_contact_form_direct_email
+Revision ID: 0430_add_contact_form_email
 Revises: 0429_add_organisation_notes
 Create Date: 2023-03-28 00:00:00
 
@@ -10,7 +10,7 @@ from datetime import datetime
 from alembic import op
 from flask import current_app
 
-revision = "0430_add_contact_form_direct_email"
+revision = "0430_add_contact_form_email"
 down_revision = "0429_add_organisation_notes"
 
 contact_us_template_id = current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"]
@@ -30,12 +30,12 @@ def upgrade():
 
     contact_us_content = "\n".join(
         [
-            "Freshdesk integration has failed. Sending the following 'contact us' form:",
+            "Freshdesk integration has failed. Sending the following contact us form:",
             "((contact_us_content))",
             "",
             "___",
             "",
-            "L'intégration de Freshdesk a échoué. Envoi du formulaire de contact suivant :",
+            "L’intégration de Freshdesk a échoué. Envoi du formulaire de contact suivant :",
             "",
             "((contact_us_content))",
         ]
