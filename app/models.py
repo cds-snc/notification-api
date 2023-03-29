@@ -1083,7 +1083,7 @@ class TemplateBase(BaseModel):
 
     def queue_to_use(self):
         return {
-            NORMAL: None,
+            NORMAL: QueueNames.NORMAL,
             PRIORITY: QueueNames.PRIORITY,
             BULK: QueueNames.BULK,
         }[self.process_type]

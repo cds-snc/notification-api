@@ -125,26 +125,37 @@ def email_job_with_placeholders(notify_db, notify_db_session, sample_email_templ
 
 class TestChooseDatabaseQueue:
     @pytest.mark.parametrize(
-        "research_mode,template_priority",
-        [(True, PRIORITY), (True, NORMAL), (True, BULK), (False, PRIORITY), (False, NORMAL), (False, BULK)],
+        "research_mode,template_priority,notification_count,expected_queue",
+        [
+            (True, PRIORITY, 20, QueueNames.RESEARCH_MODE),
+            (True, NORMAL, 20, QueueNames.RESEARCH_MODE),
+            (True, BULK, 201, QueueNames.RESEARCH_MODE),
+            (False, PRIORITY, 1, QueueNames.PRIORITY_DATABASE),
+            (False, PRIORITY, 19, QueueNames.PRIORITY_DATABASE),
+            (False, PRIORITY, 20, QueueNames.PRIORITY_DATABASE),
+            (False, PRIORITY, 199, QueueNames.PRIORITY_DATABASE),
+            (False, PRIORITY, 200, QueueNames.BULK_DATABASE),
+            (False, NORMAL, 199, QueueNames.NORMAL_DATABASE),
+            (False, NORMAL, 200, QueueNames.BULK_DATABASE),
+            (False, NORMAL, 201, QueueNames.BULK_DATABASE),
+            (False, BULK, 201, QueueNames.BULK_DATABASE),
+        ],
     )
     def test_choose_database_queue_FF_PRIORITY_LANES_true(
-        self, mocker, notify_db, notify_db_session, notify_api, research_mode, template_priority
+        self,
+        mocker,
+        notify_db,
+        notify_db_session,
+        notify_api,
+        research_mode,
+        template_priority,
+        notification_count,
+        expected_queue,
     ):
         service = create_sample_service(notify_db, notify_db_session, research_mode=research_mode)
         template = create_sample_template(notify_db, notify_db_session, process_type=template_priority)
 
-        if research_mode:
-            expected_queue = QueueNames.RESEARCH_MODE
-        elif template_priority == PRIORITY:
-            expected_queue = QueueNames.PRIORITY_DATABASE
-        elif template_priority == NORMAL:
-            expected_queue = QueueNames.NORMAL_DATABASE
-        elif template_priority == BULK:
-            expected_queue = QueueNames.BULK_DATABASE
-
-        actual_queue = choose_database_queue(template, service)
-
+        actual_queue = choose_database_queue(template.process_type, service.research_mode, notification_count)
         assert expected_queue == actual_queue
 
 
@@ -889,7 +900,7 @@ class TestProcessRows:
                 "to": "recip",
                 "row_number": "row_num",
                 "personalisation": {"foo": "bar"},
-                "queue": None,
+                "queue": "send-{}-tasks".format(template_type),
                 "client_reference": reference,
                 "sender_id": str(sender_id) if sender_id else None,
             },
@@ -897,18 +908,29 @@ class TestProcessRows:
         task_mock.apply_async.assert_called_once()
 
     @pytest.mark.parametrize(
-        "csv_threshold, expected_queue",
+        "csv_bulk_threshold, template_process_type, expected_queue",
         [
-            (0, "bulk-tasks"),
-            (1_000, None),
+            (1_000, PRIORITY, "priority-tasks"),  # keep priority when no thresholds are met
+            (1, PRIORITY, "bulk-tasks"),  # autoswitch to bulk queue if bulk threshold is met, even if in priority.
+            (1, NORMAL, "bulk-tasks"),  # autoswitch to bulk queue if bulk threshold is met.
+            (1_000, NORMAL, "send-email-tasks"),  # keep normal priority
+            (1, BULK, "bulk-tasks"),  # keep bulk priority
+            (1_000, BULK, "send-email-tasks"),  # autoswitch to normal queue if normal threshold is met.
         ],
     )
     def test_should_redirect_job_to_queue_depending_on_csv_threshold(
-        self, notify_api, sample_job, mocker, fake_uuid, csv_threshold, expected_queue
+        self,
+        notify_api,
+        sample_job,
+        mocker,
+        fake_uuid,
+        csv_bulk_threshold,
+        template_process_type,
+        expected_queue,
     ):
         mock_save_email = mocker.patch("app.celery.tasks.save_emails")
 
-        template = Mock(id=1, template_type=EMAIL_TYPE)
+        template = Mock(id=1, template_type=EMAIL_TYPE, process_type=template_process_type)
         api_key = Mock(id=1, key_type=KEY_TYPE_NORMAL)
         job = Mock(id=1, template_version="temp_vers", notification_count=1, api_key=api_key)
         service = Mock(id=1, research_mode=False)
@@ -920,7 +942,7 @@ class TestProcessRows:
             ).get_rows()
         )
 
-        with set_config_values(notify_api, {"CSV_BULK_REDIRECT_THRESHOLD": csv_threshold}):
+        with set_config_values(notify_api, {"CSV_BULK_REDIRECT_THRESHOLD": csv_bulk_threshold}):
             process_rows([row], template, job, service)
 
         tasks.save_emails.apply_async.assert_called_once()
@@ -980,7 +1002,7 @@ class TestProcessRows:
         mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
         signer_mock = mocker.patch("app.celery.tasks.signer_notification.sign")
-        template = Mock(id="template_id", template_type=template_type)
+        template = Mock(id="template_id", template_type=template_type, process_type=NORMAL)
         api_key = {}
         job = Mock(
             id="job_id",
@@ -1017,7 +1039,7 @@ class TestProcessRows:
                 "to": "recip",
                 "row_number": "row_num",
                 "personalisation": {"foo": "bar"},
-                "queue": None,
+                "queue": "send-{}-tasks".format(template_type),
                 "client_reference": reference,
                 "sender_id": str(sender_id) if sender_id else None,
             },

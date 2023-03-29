@@ -444,7 +444,8 @@ def send_contact_request(user_id):
     try:
         contact = ContactRequest(**request.json)
         user = get_user_by_email(contact.email_address)
-        if not any([not s.restricted for s in user.services]):
+        # If the user has no live services, don't want to escalate the ticket.
+        if all([s.restricted for s in user.services]):
             contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
 
     except TypeError as e:
