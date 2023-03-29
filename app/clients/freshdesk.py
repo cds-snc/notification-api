@@ -138,5 +138,4 @@ class Freshdesk(object):
                 )
                 send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
         except Exception as e:
-            current_app.logger.exception(f"Failed to email contact form {json.dumps(content, indent=4)}")
-            raise e
+            current_app.logger.exception(f"Failed to email contact form {json.dumps(content, indent=4)}, error: {e}")
