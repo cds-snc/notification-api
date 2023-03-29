@@ -66,7 +66,7 @@ class SalesforceClient:
             service (Service): The Notify service to retrieve the account from.
             user (User): The Notify user to update the Salesforce Contact for.  If a contact does not exist, one will be created.
         """
-        account_name = salesforce_account.get_account_name_from_org(service.organisation_notes)
+        account_name = salesforce_account.get_org_name_from_notes(service.organisation_notes)
         account_id = salesforce_account.get_account_id_from_name(session, account_name, self.generic_account_id)
         contact_id = salesforce_contact.update_account_id(session, user, account_id)
         return account_id, contact_id
@@ -84,7 +84,7 @@ class SalesforceClient:
         """
         session = self.get_session()
         account_id, contact_id = self.contact_update_account_id(session, service, user)
-        salesforce_engagement.create(session, service, salesforce_engagement.ENGAGEMENT_STAGE_TRIAL, account_id, contact_id)
+        salesforce_engagement.create(session, service, {}, account_id, contact_id)
         self.end_session(session)
 
     def engagement_update_stage(self, service: Service, user: User, stage_name: str):
@@ -98,5 +98,22 @@ class SalesforceClient:
         """
         session = self.get_session()
         account_id, contact_id = self.contact_update_account_id(session, service, user)
-        salesforce_engagement.update_stage(session, service, stage_name, account_id, contact_id)
+        stage_update = {"StageName": stage_name}
+        salesforce_engagement.update(session, service, stage_update, account_id, contact_id)
+        self.end_session(session)
+
+    def engagement_close(self, service: Service):
+        """Closes a Salesforce Engagement for the given Notify service.
+
+        Args:
+            service (Service): Notify Service to close an Engagement for.
+        """
+        session = self.get_session()
+        engagement = salesforce_engagement.get_engagement_by_service_id(session, str(service.id))
+        if engagement:
+            close_update = {
+                "CDS_Close_Reason__c": "Trial deleted by user",
+                "StageName": salesforce_engagement.ENGAGEMENT_STAGE_CLOSED,
+            }
+            salesforce_engagement.update(session, service, close_update, None, None)
         self.end_session(session)
