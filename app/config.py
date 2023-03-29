@@ -124,7 +124,7 @@ class Config(object):
     ADMIN_CLIENT_SECRET = os.getenv("ADMIN_CLIENT_SECRET")
 
     # encyption secret/salt
-    SECRET_KEY = os.getenv("SECRET_KEY")
+    SECRET_KEY = env.list("SECRET_KEY", [])
     DANGEROUS_SALT = os.getenv("DANGEROUS_SALT")
 
     # API key prefix
@@ -158,15 +158,22 @@ class Config(object):
     PERFORMANCE_PLATFORM_ENABLED = False
     PERFORMANCE_PLATFORM_URL = "https://www.performance.service.gov.uk/data/govuk-notify/"
 
-    # Zendesk
-    ZENDESK_SELL_API_URL = os.getenv("ZENDESK_SELL_API_URL")
-    ZENDESK_SELL_API_KEY = os.getenv("ZENDESK_SELL_API_KEY")
-
     # Freshdesk
     FRESH_DESK_PRODUCT_ID = os.getenv("FRESH_DESK_PRODUCT_ID")
     FRESH_DESK_API_URL = os.getenv("FRESH_DESK_API_URL")
     FRESH_DESK_API_KEY = os.getenv("FRESH_DESK_API_KEY")
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
+
+    # Salesforce
+    SALESFORCE_DOMAIN = os.getenv("SALESFORCE_DOMAIN")
+    SALESFORCE_CLIENT_ID = os.getenv("SALESFORCE_CLIENT_ID", "Notify")
+    SALESFORCE_ENGAGEMENT_PRODUCT_ID = os.getenv("SALESFORCE_ENGAGEMENT_PRODUCT_ID")
+    SALESFORCE_ENGAGEMENT_RECORD_TYPE = os.getenv("SALESFORCE_ENGAGEMENT_RECORD_TYPE")
+    SALESFORCE_ENGAGEMENT_STANDARD_PRICEBOOK_ID = os.getenv("SALESFORCE_ENGAGEMENT_STANDARD_PRICEBOOK_ID")
+    SALESFORCE_GENERIC_ACCOUNT_ID = os.getenv("SALESFORCE_GENERIC_ACCOUNT_ID")
+    SALESFORCE_USERNAME = os.getenv("SALESFORCE_USERNAME")
+    SALESFORCE_PASSWORD = os.getenv("SALESFORCE_PASSWORD")
+    SALESFORCE_SECURITY_TOKEN = os.getenv("SALESFORCE_SECURITY_TOKEN")
 
     # Logging
     DEBUG = False
@@ -490,6 +497,11 @@ class Config(object):
     FF_SPIKE_SMS_DAILY_LIMIT = env.bool("FF_SPIKE_SMS_DAILY_LIMIT", False)
     FF_SMS_PARTS_UI = env.bool("FF_SMS_PARTS_UI", False)
 
+    FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
+
+    # Feature flags for bounce rate
+    FF_BOUNCE_RATE_V1 = env.bool("FF_BOUNCE_RATE_V1", False)
+
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
         "List of config keys that contain sensitive information"
@@ -501,12 +513,13 @@ class Config(object):
             "SQLALCHEMY_DATABASE_READER_URI",
             "SQLALCHEMY_BINDS",
             "REDIS_URL",
-            "ZENDESK_SELL_API_KEY",
             "FRESH_DESK_API_KEY",
             "AWS_SES_ACCESS_KEY",
             "AWS_SES_SECRET_KEY",
             "ROUTE_SECRET_KEY_1",
             "ROUTE_SECRET_KEY_2",
+            "SALESFORCE_PASSWORD",
+            "SALESFORCE_SECURITY_TOKEN",
             "TEMPLATE_PREVIEW_API_KEY",
             "DOCUMENT_DOWNLOAD_API_KEY",
         ]
@@ -534,7 +547,7 @@ class Development(Config):
     TRANSIENT_UPLOADED_LETTERS = "development-transient-uploaded-letters"
 
     ADMIN_CLIENT_SECRET = os.getenv("ADMIN_CLIENT_SECRET", "dev-notify-secret-key")
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-notify-secret-key")
+    SECRET_KEY = env.list("SECRET_KEY", ["dev-notify-secret-key"])
     DANGEROUS_SALT = os.getenv("DANGEROUS_SALT", "dev-notify-salt ")
 
     NOTIFY_ENVIRONMENT = "development"

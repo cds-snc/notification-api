@@ -15,7 +15,7 @@ def _check_and_queue_callback_task(notification):
 
 
 def create_delivery_status_callback_data(notification, service_callback_api):
-    from app import DATETIME_FORMAT, signer
+    from app import DATETIME_FORMAT, signer_delivery_status
 
     data = {
         "notification_id": str(notification.id),
@@ -31,11 +31,11 @@ def create_delivery_status_callback_data(notification, service_callback_api):
         "service_callback_api_bearer_token": service_callback_api.bearer_token,
     }
 
-    return signer.sign(data)
+    return signer_delivery_status.sign(data)
 
 
 def create_complaint_callback_data(complaint, notification, service_callback_api, recipient):
-    from app import DATETIME_FORMAT, signer
+    from app import DATETIME_FORMAT, signer_complaint
 
     data = {
         "complaint_id": str(complaint.id),
@@ -47,4 +47,4 @@ def create_complaint_callback_data(complaint, notification, service_callback_api
         "service_callback_api_bearer_token": service_callback_api.bearer_token,
     }
 
-    return signer.sign(data)
+    return signer_complaint.sign(data)

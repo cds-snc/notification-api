@@ -10,7 +10,7 @@ from flask import current_app, json
 from freezegun import freeze_time
 from notifications_python_client.authentication import create_jwt_token
 
-from app import signer
+from app import signer_notification
 from app.dao.api_key_dao import get_unsigned_secret, save_model_api_key
 from app.dao.jobs_dao import dao_get_job_by_id
 from app.models import (
@@ -82,7 +82,7 @@ class TestSingleEndpointSucceeds:
         assert validate(resp_json, post_sms_response) == resp_json
 
         mock_publish_args = mock_publish.call_args.args[0]
-        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        mock_publish_args_unsigned = signer_notification.verify(mock_publish_args)
         assert mock_publish_args_unsigned["to"] == data["phone_number"]
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
@@ -125,7 +125,7 @@ class TestSingleEndpointSucceeds:
         assert validate(resp_json, post_sms_response) == resp_json
         assert resp_json["content"]["from_number"] == "+16502532222"
         mock_publish_args = mock_publish.call_args.args[0]
-        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        mock_publish_args_unsigned = signer_notification.verify(mock_publish_args)
         assert mock_publish_args_unsigned["to"] == data["phone_number"]
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
@@ -149,7 +149,7 @@ class TestSingleEndpointSucceeds:
         resp_json = json.loads(response.get_data(as_text=True))
         assert validate(resp_json, post_sms_response) == resp_json
         mock_publish_args = mock_publish.call_args.args[0]
-        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        mock_publish_args_unsigned = signer_notification.verify(mock_publish_args)
         assert mock_publish_args_unsigned["to"] == data["phone_number"]
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
         assert resp_json["content"]["from_number"] == "1"
@@ -177,7 +177,7 @@ class TestSingleEndpointSucceeds:
         assert validate(resp_json, post_sms_response) == resp_json
         assert resp_json["content"]["from_number"] == sms_sender.sms_sender
         mock_publish_args = mock_publish.call_args.args[0]
-        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        mock_publish_args_unsigned = signer_notification.verify(mock_publish_args)
         assert mock_publish_args_unsigned["to"] == data["phone_number"]
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
@@ -223,7 +223,7 @@ class TestSingleEndpointSucceeds:
         resp_json = json.loads(response.get_data(as_text=True))
 
         mock_publish_args = mock_publish.call_args.args[0]
-        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        mock_publish_args_unsigned = signer_notification.verify(mock_publish_args)
         assert mock_publish_args_unsigned["to"] == data["phone_number"]
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
@@ -248,7 +248,7 @@ class TestSingleEndpointSucceeds:
         assert validate(resp_json, post_email_response) == resp_json
 
         mock_publish_args = mock_publish.call_args.args[0]
-        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        mock_publish_args_unsigned = signer_notification.verify(mock_publish_args)
         assert mock_publish_args_unsigned["to"] == data["email_address"]
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
@@ -289,7 +289,7 @@ class TestSingleEndpointSucceeds:
         resp_json = json.loads(response.get_data(as_text=True))
         assert validate(resp_json, post_email_response) == resp_json
         mock_publish_args = mock_publish.call_args.args[0]
-        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        mock_publish_args_unsigned = signer_notification.verify(mock_publish_args)
         assert mock_publish_args_unsigned["to"] == data["email_address"]
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
@@ -839,7 +839,7 @@ def test_send_notification_uses_appropriate_queue_according_to_template_process_
 
     assert response.status_code == 201
     mock_publish_args = mock_publish.call_args.args[0]
-    mock_publish_args_unsigned = signer.verify(mock_publish_args)
+    mock_publish_args_unsigned = signer_notification.verify(mock_publish_args)
     assert mock_publish_args_unsigned["to"] == data[key_send_to]
 
 
@@ -1045,7 +1045,7 @@ class TestSendingDocuments:
         )
 
         mock_publish_args = mock_publish.call_args.args[0]
-        mock_publish_args_unsigned = signer.verify(mock_publish_args)
+        mock_publish_args_unsigned = signer_notification.verify(mock_publish_args)
         assert mock_publish_args_unsigned["to"] == data["email_address"]
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
 

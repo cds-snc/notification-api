@@ -33,7 +33,7 @@ flask-marshmallow = "0.14.0"
 Flask-Migrate = "2.7.0"
 Flask-SQLAlchemy = { git = "https://github.com/pallets-eco/flask-sqlalchemy.git", rev = "500e732dd1b975a56ab06a46bd1a20a21e682262"}
 #git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd1a20a21e682262#egg=Flask-SQLAlchemy==2.3.2.dev20190108
-Flask = "2.2.2"
+Flask = "2.2.3"
 click-datetime = "0.2"
 gevent = "22.10.2"
 gunicorn = "20.1.0"
@@ -62,15 +62,16 @@ more-itertools = "8.14.0"
 awscli-cwlogs = "1.4.6"
 aws-embedded-metrics = "1.0.7"
 # Putting upgrade on hold due to new version introducing breaking changes
-Werkzeug = "2.2.2"
-MarkupSafe = "2.1.1"
+Werkzeug = "2.2.3"
+MarkupSafe = "2.1.2"
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous = "2.1.2"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "50.1.5"}
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "50.1.8"}
 
 # rsa = "4.9  # awscli 1.22.38 depends on rsa<4.8
 typing-extensions = "4.4.0"
 greenlet = "2.0.1"
+simple-salesforce = "^1.12.3"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"

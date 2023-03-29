@@ -21,7 +21,7 @@ from app import (
     email_normal_publish,
     email_priority_publish,
     notify_celery,
-    signer,
+    signer_notification,
     sms_bulk_publish,
     sms_normal_publish,
     sms_priority_publish,
@@ -359,7 +359,7 @@ def process_sms_or_email_notification(
         "reply_to_text": reply_to_text,
     }
 
-    signed_notification_data = signer.sign_notification(_notification)
+    signed_notification_data = signer_notification.sign(_notification)
     notification = {**_notification}
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:

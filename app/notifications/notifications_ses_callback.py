@@ -3,7 +3,10 @@ from flask import current_app, json
 from app.celery.service_callback_tasks import send_complaint_to_service
 from app.config import QueueNames
 from app.dao.complaint_dao import save_complaint
-from app.dao.notifications_dao import dao_get_notification_history_by_reference
+from app.dao.notifications_dao import (
+    _update_notification_status,
+    dao_get_notification_history_by_reference,
+)
 from app.dao.service_callback_api_dao import (
     get_service_complaint_callback_api_for_service,
 )
@@ -13,6 +16,7 @@ from app.models import (
     NOTIFICATION_HARD_NOEMAIL,
     NOTIFICATION_HARD_ONACCOUNTSUPPRESSIONLIST,
     NOTIFICATION_HARD_SUPPRESSED,
+    NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SOFT_ATTACHMENTREJECTED,
     NOTIFICATION_SOFT_BOUNCE,
     NOTIFICATION_SOFT_CONTENTREJECTED,
@@ -158,6 +162,23 @@ def handle_complaint(ses_message):
         complaint_date=ses_complaint.get("timestamp", None) if ses_complaint else None,
     )
     save_complaint(complaint)
+
+    # if the subtype is onaccountsuppressionlist, update the original notification to be permanent failure
+    if ses_complaint:
+        feedback_subtype = ses_complaint.get("complaintSubType", None)
+
+        if feedback_subtype == "OnAccountSuppressionList":
+            current_app.logger.info(
+                "Complaint of sub-type 'OnAccountSuppressionList' received;  updating notification id {} to permanent-failure".format(
+                    notification.id
+                )
+            )
+            _update_notification_status(
+                notification=notification,
+                status=NOTIFICATION_PERMANENT_FAILURE,
+                provider_response="The email address is on the GC Notify suppression list",  # TODO: move provider_responses to constants
+            )
+
     return complaint, notification, recipient_email
 
 
