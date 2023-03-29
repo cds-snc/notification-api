@@ -67,14 +67,14 @@ def _determine_bounce_response(ses_message):
     if ses_message["notificationType"] != "Bounce":
         return None
 
-    bounce_type = ses_message["bounce"].get("bounceType", None)
-    bounce_subtype = ses_message["bounce"].get("bounceSubType", None)
+    bounce_type = ses_message["bounce"].get("bounceType")
+    bounce_subtype = ses_message["bounce"].get("bounceSubType")
 
     bounce_response = {
         "feedback_type": NOTIFICATION_UNKNOWN_BOUNCE,  # default to unknown bounce
         "feedback_subtype": NOTIFICATION_UNKNOWN_BOUNCE_SUBTYPE,  # default to unknown bounce subtype
-        "ses_feedback_id": ses_message["bounce"].get("feedbackId", None),
-        "ses_feedback_date": ses_message["bounce"].get("timestamp", None),
+        "ses_feedback_id": ses_message["bounce"].get("feedbackId"),
+        "ses_feedback_date": ses_message["bounce"].get("timestamp"),
     }
 
     # See https://docs.aws.amazon.com/ses/latest/dg/notification-contents.html#bounce-types for all bounce types
