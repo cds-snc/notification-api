@@ -22,7 +22,7 @@ from app import (
     email_priority,
     metrics_logger,
     notify_celery,
-    signer,
+    signer_notification,
     sms_bulk,
     sms_normal,
     sms_priority,
@@ -154,20 +154,22 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
     encrypted_emails: List[SignedNotification] = []
     for row in rows:
         client_reference = row.get("reference", None)
-        signed_row = signer.sign_notification(
-            {
-                "api_key": job.api_key_id and str(job.api_key_id),  # type: ignore
-                "key_type": job.api_key.key_type if job.api_key else KEY_TYPE_NORMAL,
-                "template": str(template.id),
-                "template_version": job.template_version,
-                "job": str(job.id),
-                "to": row.recipient,
-                "row_number": row.index,
-                "personalisation": dict(row.personalisation),
-                "queue": choose_sending_queue(template.process_type, template_type, job.notification_count),
-                "sender_id": sender_id,
-                "client_reference": client_reference.data,  # will return None if missing
-            }
+        signed_row = SignedNotification(
+            signer_notification.sign(
+                {
+                    "api_key": job.api_key_id and str(job.api_key_id),  # type: ignore
+                    "key_type": job.api_key.key_type if job.api_key else KEY_TYPE_NORMAL,
+                    "template": str(template.id),
+                    "template_version": job.template_version,
+                    "job": str(job.id),
+                    "to": row.recipient,
+                    "row_number": row.index,
+                    "personalisation": dict(row.personalisation),
+                    "queue": choose_sending_queue(str(template.process_type), template_type, job.notification_count),
+                    "sender_id": sender_id,
+                    "client_reference": client_reference.data,  # will return None if missing
+                }
+            )
         )
         if template_type == SMS_TYPE:
             encrypted_smss.append(signed_row)
@@ -216,7 +218,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
     saved_notifications: List[Notification] = []
     for signed_notification in signed_notifications:
         try:
-            _notification = signer.verify_notification(signed_notification)
+            _notification = signer_notification.verify(signed_notification)
         except BadSignature:
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
@@ -324,7 +326,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
     saved_notifications: List[Notification] = []
     for signed_notification in signed_notifications:
         try:
-            _notification = signer.verify_notification(signed_notification)
+            _notification = signer_notification.verify(signed_notification)
         except BadSignature:
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
