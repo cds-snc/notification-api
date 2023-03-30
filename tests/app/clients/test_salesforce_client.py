@@ -118,7 +118,7 @@ def test_engagement_close(mocker, salesforce_client):
     mock_get_session.assert_called_once()
     mock_get_engagement_by_service_id.assert_called_once_with("session", mock_service.id)
     mock_update.assert_called_once_with(
-        "session", mock_service, {"CDS_Close_Reason__c": "Trial deleted by user", "StageName": "Closed"}, None, None
+        "session", mock_service, {"CDS_Close_Reason__c": "Service deleted by user", "StageName": "Closed"}, None, None
     )
     mock_end_session.assert_called_once_with("session")
 
