@@ -178,6 +178,13 @@ def update_user_attribute(user_id):
 
         send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
+    if current_app.config["FF_SALESFORCE_CONTACT"]:
+        try:
+            updated_user = get_user_by_id(user_id=user_id)
+            salesforce_client.contact_update(updated_user)
+        except Exception as e:
+            current_app.logger.exception(e)
+
     return jsonify(data=user_to_update.serialize()), 200
 
 

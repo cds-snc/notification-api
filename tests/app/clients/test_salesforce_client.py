@@ -7,6 +7,7 @@ from app.clients.salesforce import (
     salesforce_engagement,
 )
 from app.clients.salesforce.salesforce_client import SalesforceClient
+from app.models import User
 
 
 @pytest.fixture(scope="function")
@@ -43,10 +44,38 @@ def test_contact_create(mocker, salesforce_client):
     mock_create = mocker.patch.object(salesforce_contact, "create")
     mock_end_session = mocker.patch.object(salesforce_client, "end_session")
 
-    salesforce_client.contact_create("user", "account_id")
+    salesforce_client.contact_create("user")
 
     mock_get_session.assert_called_once()
-    mock_create.assert_called_once_with("session", "user", "account_id")
+    mock_create.assert_called_once_with("session", "user", {})
+    mock_end_session.assert_called_once_with("session")
+
+
+def test_contact_update(mocker, salesforce_client):
+    mock_get_session = mocker.patch.object(salesforce_client, "get_session", return_value="session")
+    mock_update = mocker.patch.object(salesforce_contact, "update")
+    mock_end_session = mocker.patch.object(salesforce_client, "end_session")
+    mock_user = User(
+        **{
+            "id": 2,
+            "name": "Samwise Gamgee",
+            "email_address": "samwise@fellowship.ca",
+            "platform_admin": False,
+        }
+    )
+
+    salesforce_client.contact_update(mock_user)
+
+    mock_get_session.assert_called_once()
+    mock_update.assert_called_once_with(
+        "session",
+        mock_user,
+        {
+            "FirstName": "Samwise",
+            "LastName": "Gamgee",
+            "Email": "samwise@fellowship.ca",
+        },
+    )
     mock_end_session.assert_called_once_with("session")
 
 
@@ -55,7 +84,7 @@ def test_contact_update_account_id(mocker, salesforce_client):
         salesforce_account, "get_org_name_from_notes", return_value="account_name"
     )
     mock_get_account_id_from_name = mocker.patch.object(salesforce_account, "get_account_id_from_name", return_value="account_id")
-    mock_update_account_id = mocker.patch.object(salesforce_contact, "update_account_id", return_value="contact_id")
+    mock_update = mocker.patch.object(salesforce_contact, "update", return_value="contact_id")
     mock_session = mocker.MagicMock()
     mock_service = mocker.MagicMock()
     mock_service.organisation_notes = "account_name > service_name"
@@ -64,7 +93,7 @@ def test_contact_update_account_id(mocker, salesforce_client):
 
     mock_get_account_name_from_org.assert_called_once_with(mock_service.organisation_notes)
     mock_get_account_id_from_name.assert_called_once_with(mock_session, "account_name", "someaccountid")
-    mock_update_account_id.assert_called_once_with(mock_session, "user", "account_id")
+    mock_update.assert_called_once_with(mock_session, "user", {"AccountId": "account_id"})
 
 
 def test_engagement_create(mocker, salesforce_client):

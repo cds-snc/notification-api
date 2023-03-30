@@ -109,7 +109,7 @@ def update(
                 field_updates,
                 headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
             )
-            is_updated = parse_result(result, f"Salesforce Engagement update '{service}'")
+            is_updated = parse_result(result, f"Salesforce Engagement update '{service}' with '{field_updates}'")
             engagement_id = engagement.get("Id") if is_updated else None
         # Create the Engagement.  This handles Notify services that were created before Salesforce was added.
         else:
