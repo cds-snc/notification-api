@@ -30,6 +30,9 @@ echo -e "alias smoke-prod='cd /workspace && cp .env_smoke_prod tests_smoke/.env 
 
 cd /workspace
 
+# Tell git the workspace repository is safe, else upcoming commands will fail.
+git config --global --add safe.directory /workspaces/notification-api
+
 # Poetry autocomplete
 echo -e "fpath+=/.zfunc" >> ~/.zshrc
 echo -e "autoload -Uz compinit && compinit"
